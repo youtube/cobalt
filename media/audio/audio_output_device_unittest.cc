@@ -96,19 +96,9 @@ class AudioOutputDeviceTest
     : public testing::Test,
       public testing::WithParamInterface<bool> {
  public:
-  AudioOutputDeviceTest()
-      : default_audio_parameters_(AudioParameters::AUDIO_PCM_LINEAR,
-                                  CHANNEL_LAYOUT_STEREO,
-                                  48000, 16, 1024),
-        audio_device_(new AudioOutputDevice(
-            &audio_output_ipc_, io_loop_.message_loop_proxy())),
-        synchronized_io_(GetParam()),
-        input_channels_(synchronized_io_ ? 2 : 0) {
-  }
+  AudioOutputDeviceTest();
+  ~AudioOutputDeviceTest();
 
-  ~AudioOutputDeviceTest() {}
-
-  void Initialize();
   void StartAudioDevice();
   void CreateStream();
   void ExpectRenderCallback();
@@ -157,7 +147,18 @@ int AudioOutputDeviceTest::CalculateMemorySize() {
   return TotalSharedMemorySizeInBytes(io_buffer_size);
 }
 
-void AudioOutputDeviceTest::Initialize() {
+AudioOutputDeviceTest::AudioOutputDeviceTest()
+    : default_audio_parameters_(AudioParameters::AUDIO_PCM_LINEAR,
+                                CHANNEL_LAYOUT_STEREO,
+                                48000, 16, 1024),
+      synchronized_io_(GetParam()),
+      input_channels_(synchronized_io_ ? 2 : 0) {
+  EXPECT_CALL(audio_output_ipc_, AddDelegate(_))
+      .WillOnce(Return(kStreamId));
+
+  audio_device_ = new AudioOutputDevice(
+      &audio_output_ipc_, io_loop_.message_loop_proxy());
+
   if (synchronized_io_) {
     audio_device_->InitializeIO(default_audio_parameters_,
                                 input_channels_,
@@ -169,11 +170,15 @@ void AudioOutputDeviceTest::Initialize() {
   io_loop_.RunUntilIdle();
 }
 
+AudioOutputDeviceTest::~AudioOutputDeviceTest() {
+  EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
+
+  audio_device_ = NULL;
+}
+
 void AudioOutputDeviceTest::StartAudioDevice() {
   audio_device_->Start();
 
-  EXPECT_CALL(audio_output_ipc_, AddDelegate(audio_device_.get()))
-      .WillOnce(Return(kStreamId));
   EXPECT_CALL(audio_output_ipc_, CreateStream(kStreamId, _, _));
 
   io_loop_.RunUntilIdle();
@@ -245,26 +250,24 @@ void AudioOutputDeviceTest::StopAudioDevice() {
   audio_device_->Stop();
 
   EXPECT_CALL(audio_output_ipc_, CloseStream(kStreamId));
-  EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
 
   io_loop_.RunUntilIdle();
 }
 
 TEST_P(AudioOutputDeviceTest, Initialize) {
-  Initialize();
+  // Tests that the object can be constructed, initialized and destructed
+  // without having ever been started/stopped.
 }
 
 // Calls Start() followed by an immediate Stop() and check for the basic message
 // filter messages being sent in that case.
 TEST_P(AudioOutputDeviceTest, StartStop) {
-  Initialize();
   StartAudioDevice();
   StopAudioDevice();
 }
 
 // AudioOutputDevice supports multiple start/stop sequences.
 TEST_P(AudioOutputDeviceTest, StartStopStartStop) {
-  Initialize();
   StartAudioDevice();
   StopAudioDevice();
   StartAudioDevice();
@@ -274,7 +277,6 @@ TEST_P(AudioOutputDeviceTest, StartStopStartStop) {
 // Simulate receiving OnStreamCreated() prior to processing ShutDownOnIOThread()
 // on the IO loop.
 TEST_P(AudioOutputDeviceTest, StopBeforeRender) {
-  Initialize();
   StartAudioDevice();
 
   // Call Stop() but don't run the IO loop yet.
@@ -283,13 +285,11 @@ TEST_P(AudioOutputDeviceTest, StopBeforeRender) {
   // Expect us to shutdown IPC but not to render anything despite the stream
   // getting created.
   EXPECT_CALL(audio_output_ipc_, CloseStream(kStreamId));
-  EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
   CreateStream();
 }
 
 // Full test with output only.
 TEST_P(AudioOutputDeviceTest, CreateStream) {
-  Initialize();
   StartAudioDevice();
   ExpectRenderCallback();
   CreateStream();

@@ -47,20 +47,16 @@ AudioOutputDevice::AudioOutputDevice(
       input_channels_(0),
       callback_(NULL),
       ipc_(ipc),
-      stream_id_(0),
+      state_(IDLE),
       play_on_start_(true),
-      is_started_(false),
       stopping_hack_(false) {
   CHECK(ipc_);
+  stream_id_ = ipc_->AddDelegate(this);
 }
 
 void AudioOutputDevice::Initialize(const AudioParameters& params,
                                    RenderCallback* callback) {
-  CHECK_EQ(0, stream_id_) <<
-      "AudioOutputDevice::Initialize() must be called before Start()";
-
-  CHECK(!callback_);  // Calling Initialize() twice?
-
+  DCHECK(!callback_) << "Calling Initialize() twice?";
   audio_parameters_ = params;
   callback_ = callback;
 }
@@ -77,7 +73,10 @@ void AudioOutputDevice::InitializeIO(const AudioParameters& params,
 AudioOutputDevice::~AudioOutputDevice() {
   // The current design requires that the user calls Stop() before deleting
   // this class.
-  CHECK_EQ(0, stream_id_);
+  DCHECK(audio_thread_.IsStopped());
+
+  if (ipc_)
+    ipc_->RemoveDelegate(stream_id_);
 }
 
 void AudioOutputDevice::Start() {
@@ -123,49 +122,44 @@ bool AudioOutputDevice::SetVolume(double volume) {
 void AudioOutputDevice::CreateStreamOnIOThread(const AudioParameters& params,
                                                int input_channels) {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  // Make sure we don't create the stream more than once.
-  DCHECK_EQ(0, stream_id_);
-  if (stream_id_)
-    return;
-
-  stream_id_ = ipc_->AddDelegate(this);
-  ipc_->CreateStream(stream_id_, params, input_channels);
+  if (state_ == IDLE) {
+    state_ = CREATING_STREAM;
+    ipc_->CreateStream(stream_id_, params, input_channels);
+  }
 }
 
 void AudioOutputDevice::PlayOnIOThread() {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  if (stream_id_ && is_started_)
+  if (state_ == PAUSED) {
     ipc_->PlayStream(stream_id_);
-  else
+    state_ = PLAYING;
+    play_on_start_ = false;
+  } else {
     play_on_start_ = true;
+  }
 }
 
 void AudioOutputDevice::PauseOnIOThread(bool flush) {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  if (stream_id_ && is_started_) {
+  if (state_ == PLAYING) {
     ipc_->PauseStream(stream_id_);
     if (flush)
       ipc_->FlushStream(stream_id_);
+    state_ = PAUSED;
   } else {
     // Note that |flush| isn't relevant here since this is the case where
     // the stream is first starting.
-    play_on_start_ = false;
   }
+  play_on_start_ = false;
 }
 
 void AudioOutputDevice::ShutDownOnIOThread() {
   DCHECK(message_loop()->BelongsToCurrentThread());
 
   // Make sure we don't call shutdown more than once.
-  if (stream_id_) {
-    is_started_ = false;
-
-    if (ipc_) {
-      ipc_->CloseStream(stream_id_);
-      ipc_->RemoveDelegate(stream_id_);
-    }
-
-    stream_id_ = 0;
+  if (state_ >= CREATING_STREAM) {
+    ipc_->CloseStream(stream_id_);
+    state_ = IDLE;
   }
 
   // We can run into an issue where ShutDownOnIOThread is called right after
@@ -185,7 +179,7 @@ void AudioOutputDevice::ShutDownOnIOThread() {
 
 void AudioOutputDevice::SetVolumeOnIOThread(double volume) {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  if (stream_id_)
+  if (state_ >= PAUSED)
     ipc_->SetVolume(stream_id_, volume);
 }
 
@@ -193,7 +187,7 @@ void AudioOutputDevice::OnStateChanged(AudioOutputIPCDelegate::State state) {
   DCHECK(message_loop()->BelongsToCurrentThread());
 
   // Do nothing if the stream has been closed.
-  if (!stream_id_)
+  if (state_ < CREATING_STREAM)
     return;
 
   if (state == AudioOutputIPCDelegate::kError) {
@@ -222,12 +216,8 @@ void AudioOutputDevice::OnStreamCreated(
   DCHECK_GE(socket_handle, 0);
 #endif
 
-  // We should only get this callback if stream_id_ is valid.  If it is not,
-  // the IPC layer should have closed the shared memory and socket handles
-  // for us and not invoked the callback.  The basic assertion is that when
-  // stream_id_ is 0 the AudioOutputDevice instance is not registered as a
-  // delegate and hence it should not receive callbacks.
-  DCHECK(stream_id_);
+  if (state_ != CREATING_STREAM)
+    return;
 
   // We can receive OnStreamCreated() on the IO thread after the client has
   // called Stop() but before ShutDownOnIOThread() is processed. In such a
@@ -250,15 +240,17 @@ void AudioOutputDevice::OnStreamCreated(
       audio_parameters_, input_channels_, handle, length, callback_));
   audio_thread_.Start(audio_callback_.get(), socket_handle,
       "AudioOutputDevice");
+  state_ = PAUSED;
 
   // We handle the case where Play() and/or Pause() may have been called
   // multiple times before OnStreamCreated() gets called.
-  is_started_ = true;
   if (play_on_start_)
     PlayOnIOThread();
 }
 
 void AudioOutputDevice::OnIPCClosed() {
+  DCHECK(message_loop()->BelongsToCurrentThread());
+  state_ = IPC_CLOSED;
   ipc_ = NULL;
 }
 
