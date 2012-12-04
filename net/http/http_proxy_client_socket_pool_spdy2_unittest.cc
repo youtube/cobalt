@@ -190,7 +190,6 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
 
   const scoped_refptr<HttpNetworkSession> session_;
   ClientSocketPoolHistograms http_proxy_histograms_;
-  SpdyTestStateHelper spdy_state_;
 
  protected:
   scoped_ptr<SSLSocketDataProvider> ssl_data_;

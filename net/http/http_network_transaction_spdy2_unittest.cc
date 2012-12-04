@@ -152,7 +152,6 @@ class HttpNetworkTransactionSpdy2Test : public PlatformTest {
   };
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY2);
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunUntilIdle();
   }
@@ -249,9 +248,6 @@ class HttpNetworkTransactionSpdy2Test : public PlatformTest {
                                              int expected_status);
 
   void ConnectStatusHelper(const MockRead& status);
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 namespace {

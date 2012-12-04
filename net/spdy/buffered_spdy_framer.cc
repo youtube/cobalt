@@ -6,22 +6,16 @@
 
 #include "base/logging.h"
 
-namespace {
-
-bool g_enable_compression_default = true;
-
-}  // namespace
-
 namespace net {
 
-BufferedSpdyFramer::BufferedSpdyFramer(int version)
+BufferedSpdyFramer::BufferedSpdyFramer(int version, bool enable_compression)
     : spdy_framer_(version),
       visitor_(NULL),
       header_buffer_used_(0),
       header_buffer_valid_(false),
       header_stream_id_(SpdyFramer::kInvalidStream),
       frames_received_(0) {
-  spdy_framer_.set_enable_compression(g_enable_compression_default);
+  spdy_framer_.set_enable_compression(enable_compression);
   memset(header_buffer_, 0, sizeof(header_buffer_));
 }
 
@@ -294,11 +288,6 @@ SpdyPriority BufferedSpdyFramer::GetHighestPriority() const {
 
 bool BufferedSpdyFramer::IsCompressible(const SpdyFrame& frame) const {
   return spdy_framer_.IsCompressible(frame);
-}
-
-// static
-void BufferedSpdyFramer::set_enable_compression_default(bool value) {
-  g_enable_compression_default = value;
 }
 
 void BufferedSpdyFramer::InitHeaderStreaming(SpdyStreamId stream_id) {

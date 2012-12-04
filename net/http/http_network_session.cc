@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
@@ -18,6 +19,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_pool_manager_impl.h"
+#include "net/socket/next_proto.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace {
@@ -63,7 +65,19 @@ HttpNetworkSession::Params::Params()
       ignore_certificate_errors(false),
       http_pipelining_enabled(false),
       testing_fixed_http_port(0),
-      testing_fixed_https_port(0) {}
+      testing_fixed_https_port(0),
+      max_spdy_sessions_per_domain(0),
+      force_spdy_single_domain(false),
+      enable_spdy_ip_pooling(true),
+      enable_spdy_credential_frames(false),
+      enable_spdy_compression(true),
+      enable_spdy_ping_based_connection_checking(true),
+      spdy_default_protocol(kProtoUnknown),
+      spdy_initial_recv_window_size(0),
+      spdy_initial_max_concurrent_streams(0),
+      spdy_max_concurrent_streams_limit(0),
+      time_func(&base::TimeTicks::Now) {
+}
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
@@ -82,6 +96,17 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties,
+                         params.max_spdy_sessions_per_domain,
+                         params.force_spdy_single_domain,
+                         params.enable_spdy_ip_pooling,
+                         params.enable_spdy_credential_frames,
+                         params.enable_spdy_compression,
+                         params.enable_spdy_ping_based_connection_checking,
+                         params.spdy_default_protocol,
+                         params.spdy_initial_recv_window_size,
+                         params.spdy_initial_max_concurrent_streams,
+                         params.spdy_max_concurrent_streams_limit,
+                         params.time_func,
                          params.trusted_spdy_proxy),
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
           new HttpStreamFactoryImpl(this))),
