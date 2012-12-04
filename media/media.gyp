@@ -314,6 +314,8 @@
         'video/capture/video_capture_proxy.cc',
         'video/capture/video_capture_proxy.h',
         'video/capture/video_capture_types.h',
+        'video/capture/win/capability_list_win.cc',
+        'video/capture/win/capability_list_win.h',
         'video/capture/win/filter_base_win.cc',
         'video/capture/win/filter_base_win.h',
         'video/capture/win/pin_base_win.cc',
@@ -323,6 +325,8 @@
         'video/capture/win/sink_filter_win.h',
         'video/capture/win/sink_input_pin_win.cc',
         'video/capture/win/sink_input_pin_win.h',
+        'video/capture/win/video_capture_device_mf_win.cc',
+        'video/capture/win/video_capture_device_mf_win.h',
         'video/capture/win/video_capture_device_win.cc',
         'video/capture/win/video_capture_device_win.h',
         'video/picture.cc',
@@ -556,6 +560,23 @@
             'video/capture/video_capture_device_dummy.cc',
             'video/capture/video_capture_device_dummy.h',
           ],
+          'link_settings':  {
+            'libraries': [
+              '-lmf.lib',
+              '-lmfplat.lib',
+              '-lmfreadwrite.lib',
+              '-lmfuuid.lib',
+            ],
+          },
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'DelayLoadDLLs': [
+                'mf.dll',
+                'mfplat.dll',
+                'mfreadwrite.dll',
+              ],
+            },
+          },
         }],
         ['proprietary_codecs==1 or branding=="Chrome"', {
           'sources': [
