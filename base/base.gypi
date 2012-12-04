@@ -642,6 +642,9 @@
               ['exclude', '^process_util'],
               ['include', '^process_util_ios\\.mm$'],
             ],
+            'sources!': [
+              'message_pump_libevent.cc'
+            ],
           }],
           ['OS != "mac" or >(nacl_untrusted_build)==1', {
               'sources!': [
