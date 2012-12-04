@@ -7,6 +7,7 @@
 #ifndef NET_QUIC_QUIC_RELIABLE_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_RELIABLE_CLIENT_STREAM_H_
 
+#include "net/base/ip_endpoint.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
@@ -17,10 +18,12 @@ namespace net {
 
 class QuicClientSession;
 
+// A client-initiated ReliableQuicStream.  Instances of this class
+// are owned by the QuicClientSession which created them.
 class NET_EXPORT_PRIVATE QuicReliableClientStream : public ReliableQuicStream {
  public:
   // Delegate handles protocol specific behavior of a quic stream.
-  class Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     Delegate() {}
 
@@ -57,6 +60,7 @@ class NET_EXPORT_PRIVATE QuicReliableClientStream : public ReliableQuicStream {
   // ReliableQuicStream
   virtual uint32 ProcessData(const char* data, uint32 data_len) OVERRIDE;
   virtual void TerminateFromPeer(bool half_close) OVERRIDE;
+  using ReliableQuicStream::WriteData;
 
   // Set new |delegate|. |delegate| must not be NULL.
   // If this stream has already received data, OnDataReceived() will be

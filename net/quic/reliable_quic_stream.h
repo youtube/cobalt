@@ -11,6 +11,7 @@
 
 namespace net {
 
+class IPEndPoint;
 class QuicSession;
 
 // All this does right now is send data to subclasses via the sequencer.
@@ -54,6 +55,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   bool read_side_closed() const { return read_side_closed_; }
   bool write_side_closed() const { return write_side_closed_; }
+
+  const IPEndPoint& GetPeerAddress() const;
 
  protected:
   virtual int WriteData(base::StringPiece data, bool fin);

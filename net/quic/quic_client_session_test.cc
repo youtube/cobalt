@@ -60,17 +60,14 @@ TEST_F(QuicClientSessionTest, MaxNumConnections) {
   std::vector<QuicReliableClientStream*> streams;
   for (size_t i = 0; i < kDefaultMaxStreamsPerConnection; i++) {
     QuicReliableClientStream* stream = session_.CreateOutgoingReliableStream();
-    streams.push_back(stream);
     EXPECT_TRUE(stream);
+    streams.push_back(stream);
   }
   EXPECT_FALSE(session_.CreateOutgoingReliableStream());
 
   // Close a stream and ensure I can now open a new one.
   session_.CloseStream(streams[0]->id());
-  scoped_ptr<QuicReliableClientStream> stream(
-      session_.CreateOutgoingReliableStream());
-  EXPECT_TRUE(stream.get());
-  STLDeleteElements(&streams);
+  EXPECT_TRUE(session_.CreateOutgoingReliableStream());
 }
 
 }  // namespace

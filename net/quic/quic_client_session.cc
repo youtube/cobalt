@@ -14,6 +14,7 @@ QuicClientSession::QuicClientSession(QuicConnection* connection)
 }
 
 QuicClientSession::~QuicClientSession() {
+  STLDeleteValues(&streams_);
 }
 
 QuicReliableClientStream* QuicClientSession::CreateOutgoingReliableStream() {
@@ -28,6 +29,7 @@ QuicReliableClientStream* QuicClientSession::CreateOutgoingReliableStream() {
   }
   QuicReliableClientStream* stream =
        new QuicReliableClientStream(GetNextStreamId(), this);
+  streams_[stream->id()] = stream;
 
   ActivateStream(stream);
   return stream;
@@ -54,6 +56,18 @@ ReliableQuicStream* QuicClientSession::CreateIncomingReliableStream(
     QuicStreamId id) {
   DLOG(ERROR) << "Server push not supported";
   return NULL;
+}
+
+void QuicClientSession::CloseStream(QuicStreamId stream_id) {
+  QuicSession::CloseStream(stream_id);
+
+  StreamMap::iterator it = streams_.find(stream_id);
+  DCHECK(it != streams_.end());
+  if (it != streams_.end()) {
+    ReliableQuicStream* stream = it->second;
+    streams_.erase(it);
+    delete stream;
+  }
 }
 
 void QuicClientSession::OnCryptoHandshakeComplete(QuicErrorCode error) {

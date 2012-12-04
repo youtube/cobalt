@@ -66,7 +66,6 @@ void QuicConnectionHelper::SetResendAlarm(
 }
 
 void QuicConnectionHelper::SetSendAlarm(QuicTime::Delta delay) {
-  DCHECK(!send_alarm_registered_);
   send_alarm_registered_ = true;
   task_runner_->PostDelayedTask(
       FROM_HERE,
