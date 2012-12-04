@@ -52,6 +52,7 @@ TEST_F(QuicReliableClientStreamTest, TerminateFromPeer) {
 TEST_F(QuicReliableClientStreamTest, ProcessData) {
   const char data[] = "hello world!";
   EXPECT_CALL(delegate_, OnDataReceived(StrEq(data), arraysize(data)));
+  EXPECT_CALL(delegate_, OnClose(QUIC_NO_ERROR));
 
   EXPECT_EQ(arraysize(data), stream_.ProcessData(data, arraysize(data)));
 }
@@ -61,6 +62,8 @@ TEST_F(QuicReliableClientStreamTest, ProcessDataWithError) {
   EXPECT_CALL(delegate_,
               OnDataReceived(StrEq(data),
                              arraysize(data))).WillOnce(Return(ERR_UNEXPECTED));
+  EXPECT_CALL(delegate_, OnClose(QUIC_BAD_APPLICATION_PAYLOAD));
+
 
   EXPECT_EQ(0u, stream_.ProcessData(data, arraysize(data)));
 }
