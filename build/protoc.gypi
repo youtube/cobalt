@@ -82,14 +82,15 @@
         '<(cc_include)',
         '--protobuf',
         '<(cc_dir)/<(RULE_INPUT_ROOT).pb.h',
-        '--',
-        '<(protoc)',
         # Using the --arg val form (instead of --arg=val) allows gyp's msvs rule
         # generation to correct 'val' which is a path.
-        '--proto_path','<(proto_in_dir)',
+        '--proto-in-dir','<(proto_in_dir)',
         # Naively you'd use <(RULE_INPUT_PATH) here, but protoc requires
         # --proto_path is a strict prefix of the path given as an argument.
-        '<(proto_in_dir)/<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
+        '--proto-in-file','<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
+        '--use-system-protobuf=<(use_system_protobuf)',
+        '--',
+        '<(protoc)',
         '--cpp_out', '<(cc_generator_options)<(cc_dir)',
         '--python_out', '<(py_dir)',
       ],
