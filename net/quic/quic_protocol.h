@@ -261,7 +261,7 @@ struct NET_EXPORT_PRIVATE QuicAckFrame {
 struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
   QuicRstStreamFrame() {}
   QuicRstStreamFrame(QuicStreamId stream_id, uint64 offset,
-                        QuicErrorCode error_code)
+                     QuicErrorCode error_code)
       : stream_id(stream_id), offset(offset), error_code(error_code) {
     DCHECK_LE(error_code, std::numeric_limits<uint8>::max());
   }

@@ -7,6 +7,7 @@
 #ifndef NET_QUIC_QUIC_CLIENT_SESSION_H_
 #define NET_QUIC_QUIC_CLIENT_SESSION_H_
 
+#include "base/hash_tables.h"
 #include "net/base/completion_callback.h"
 #include "net/quic/quic_crypto_client_stream.h"
 #include "net/quic/quic_reliable_client_stream.h"
@@ -23,6 +24,7 @@ class NET_EXPORT_PRIVATE QuicClientSession : public QuicSession {
   // QuicSession methods:
   virtual QuicReliableClientStream* CreateOutgoingReliableStream() OVERRIDE;
   virtual QuicCryptoClientStream* GetCryptoStream() OVERRIDE;
+  virtual void CloseStream(QuicStreamId stream_id) OVERRIDE;
   virtual void OnCryptoHandshakeComplete(QuicErrorCode error) OVERRIDE;
 
   // Perform a crypto handshake with the server.
@@ -34,7 +36,9 @@ class NET_EXPORT_PRIVATE QuicClientSession : public QuicSession {
       QuicStreamId id) OVERRIDE;
 
  private:
+  typedef base::hash_map<QuicStreamId, ReliableQuicStream*> StreamMap;
   QuicCryptoClientStream crypto_stream_;
+  StreamMap streams_;
 
   CompletionCallback callback_;
 
