@@ -17,7 +17,6 @@
 class StaticReset : public ::testing::EmptyTestEventListener {
   virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
     net::HttpStreamFactory::ResetStaticSettingsToInit();
-    net::SpdySession::ResetStaticSettingsToInit();
   }
 };
 

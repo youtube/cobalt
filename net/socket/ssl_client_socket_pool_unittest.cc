@@ -143,6 +143,7 @@ class SSLClientSocketPoolTest : public testing::Test {
     params.ssl_config_service = ssl_config_service_;
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
     params.http_server_properties = &http_server_properties_;
+    params.enable_spdy_compression = false;
     return new HttpNetworkSession(params);
   }
 

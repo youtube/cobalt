@@ -185,8 +185,6 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   virtual ~SpdyWebSocketStreamSpdy2Test() {}
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY2);
-
     host_port_pair_.set_host("example.com");
     host_port_pair_.set_port(80);
     host_port_proxy_pair_.first = host_port_pair_;
@@ -301,9 +299,6 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   static const char kClosingFrame[];
   static const size_t kMessageFrameLength;
   static const size_t kClosingFrameLength;
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 // TODO(toyoshim): Replace old framing data to new one, then use HEADERS and

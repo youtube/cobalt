@@ -69,10 +69,10 @@ class SpdyCredentialBuilderTest : public testing::Test {
         MockClientSocket::kTlsUnique);
   }
 
-  SpdyTestStateHelper helper_;  // Provides deterministic EC signatures.
   std::string cert_;
   std::string key_;
   SpdyCredential credential_;
+  MockECSignatureCreatorFactory ec_signature_creator_factory_;
 };
 
 // http://crbug.com/142833, http://crbug.com/140991. The following tests fail

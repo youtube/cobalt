@@ -7,6 +7,8 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "crypto/ec_private_key.h"
+#include "crypto/ec_signature_creator.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/mock_host_resolver.h"
@@ -20,6 +22,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_session.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
 
@@ -51,6 +54,38 @@ struct SpdyHeaderInfo {
   const char* data;
   uint32 data_length;
   SpdyDataFlags data_flags;
+};
+
+// An ECSignatureCreator that returns deterministic signatures.
+class MockECSignatureCreator : public crypto::ECSignatureCreator {
+ public:
+  explicit MockECSignatureCreator(crypto::ECPrivateKey* key);
+
+  // crypto::ECSignatureCreator
+  virtual bool Sign(const uint8* data,
+                    int data_len,
+                    std::vector<uint8>* signature) OVERRIDE;
+  virtual bool DecodeSignature(const std::vector<uint8>& signature,
+                               std::vector<uint8>* out_raw_sig) OVERRIDE;
+
+ private:
+  crypto::ECPrivateKey* key_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreator);
+};
+
+// An ECSignatureCreatorFactory creates MockECSignatureCreator.
+class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
+ public:
+  MockECSignatureCreatorFactory();
+  virtual ~MockECSignatureCreatorFactory();
+
+  // crypto::ECSignatureCreatorFactory
+  virtual crypto::ECSignatureCreator* Create(
+      crypto::ECPrivateKey* key) OVERRIDE;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);
 };
 
 // Chop a frame into an array of MockWrites.
@@ -370,6 +405,11 @@ struct SpdySessionDependencies {
   scoped_ptr<DeterministicMockClientSocketFactory> deterministic_socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   HttpServerPropertiesImpl http_server_properties;
+  bool enable_ip_pooling;
+  bool enable_compression;
+  bool enable_ping;
+  size_t initial_recv_window_size;
+  SpdySession::TimeFunc time_func;
   std::string trusted_spdy_proxy;
   NetLog* net_log;
 };
@@ -417,21 +457,6 @@ class SpdySessionPoolPeer {
   SpdySessionPool* const pool_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
-};
-
-// Helper to manage the state of a number of SPDY global variables.
-class SpdyTestStateHelper {
- public:
-  SpdyTestStateHelper();
-  ~SpdyTestStateHelper();
-
- private:
-  // In order to make CREDENTIAL frame creation deterministic, we need to
-  // use a mock EC signature creator, which needs to live throughout
-  // the life of the test.
-  scoped_ptr<crypto::ECSignatureCreatorFactory> ec_signature_creator_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(SpdyTestStateHelper);
 };
 
 }  // namespace test_spdy3

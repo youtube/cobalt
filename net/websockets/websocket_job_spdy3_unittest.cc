@@ -334,7 +334,6 @@ namespace net {
 class WebSocketJobSpdy3Test : public PlatformTest {
  public:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
     context_.reset(new MockURLRequestContext(cookie_store_.get()));
@@ -482,9 +481,6 @@ class WebSocketJobSpdy3Test : public PlatformTest {
   static const size_t kHandshakeResponseWithCookieLength;
   static const size_t kDataHelloLength;
   static const size_t kDataWorldLength;
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 const char WebSocketJobSpdy3Test::kHandshakeRequestWithoutCookie[] =

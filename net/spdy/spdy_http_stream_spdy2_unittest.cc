@@ -28,10 +28,6 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
  protected:
   SpdyHttpStreamSpdy2Test() {}
 
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY2);
-  }
-
   virtual void TearDown() {
     crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
     UploadDataStream::ResetMergeChunks();
@@ -73,9 +69,6 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
   scoped_refptr<HttpNetworkSession> http_session_;
   scoped_refptr<SpdySession> session_;
   scoped_refptr<TransportSocketParams> transport_params_;
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {

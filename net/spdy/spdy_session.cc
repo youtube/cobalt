@@ -177,20 +177,13 @@ Value* NetLogSpdyGoAwayCallback(SpdyStreamId last_stream_id,
   return dict;
 }
 
-NextProto g_default_protocol = kProtoUnknown;
 // Maximum number of concurrent streams we will create, unless the server
 // sends a SETTINGS frame with a different value.
-size_t g_init_max_concurrent_streams = 100;
+const size_t kInitialMaxConcurrentStreams = 100;
 // The maximum number of concurrent streams we will ever create.  Even if
 // the server permits more, we will never exceed this limit.
-size_t g_max_concurrent_stream_limit = 256;
-size_t g_default_initial_rcv_window_size = 10 * 1024 * 1024;  // 10MB
-bool g_enable_ping_based_connection_checking = true;
-bool g_enable_credential_frames = false;
-
-typedef base::TimeTicks (*ExternalTimeFunc)(void);
-
-static ExternalTimeFunc g_time_func = base::TimeTicks::Now;
+const size_t kMaxConcurrentStreamLimit = 256;
+const size_t kDefaultInitialRecvWindowSize = 10 * 1024 * 1024;  // 10MB
 
 }  // namespace
 
@@ -216,71 +209,19 @@ SpdyIOBuffer* SpdySession::SpdyIOBufferProducer::CreateIOBuffer(
   return new SpdyIOBuffer(buffer, size, priority, stream);
 }
 
-// static
-void SpdySession::set_default_protocol(NextProto default_protocol) {
-  g_default_protocol = default_protocol;
-}
-
-// static
-void SpdySession::set_max_concurrent_streams(size_t value) {
-  g_max_concurrent_stream_limit = value;
-}
-
-// static
-void SpdySession::set_enable_ping_based_connection_checking(bool enable) {
-  g_enable_ping_based_connection_checking = enable;
-}
-
-// static
-void SpdySession::set_enable_credential_frames(bool enable) {
-  g_enable_credential_frames = enable;
-}
-
-
-// static
-void SpdySession::set_init_max_concurrent_streams(size_t value) {
-  g_init_max_concurrent_streams =
-      std::min(value, g_max_concurrent_stream_limit);
-}
-
-// static
-void SpdySession::set_default_initial_recv_window_size(size_t value) {
-  g_default_initial_rcv_window_size = value;
-}
-
-// static
-void SpdySession::ResetStaticSettingsToInit() {
-  // WARNING: These must match the initializers above.
-  g_default_protocol = kProtoUnknown;
-  g_init_max_concurrent_streams = 100;
-  g_max_concurrent_stream_limit = 256;
-  g_default_initial_rcv_window_size = kSpdyStreamInitialWindowSize;
-  g_enable_ping_based_connection_checking = true;
-  g_enable_credential_frames = false;
-  g_time_func = base::TimeTicks::Now;
-}
-
-// Outside of tests, g_time_func will always be base::TimeTicks::Now.
-// When performing linker optimization for the main executable, the compiler
-// should be able to see that set_time_func() is an uncalled function, that
-// the static .cc variable never changes, and thus that the extra pointer
-// indirection can be removed.
-
-
-
-SpdySession::TimeFunc SpdySession::set_time_func(
-    SpdySession::TimeFunc time_func) {
-  SpdySession::TimeFunc old_time_func =
-      static_cast<SpdySession::TimeFunc>(g_time_func);
-  g_time_func = static_cast<ExternalTimeFunc>(time_func);
-  return old_time_func;
-}
-
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          HttpServerProperties* http_server_properties,
                          bool verify_domain_authentication,
                          bool enable_sending_initial_settings,
+                         bool enable_credential_frames,
+                         bool enable_compression,
+                         bool enable_ping_based_connection_checking,
+                         NextProto default_protocol,
+                         size_t initial_recv_window_size,
+                         size_t initial_max_concurrent_streams,
+                         size_t max_concurrent_streams_limit,
+                         TimeFunc time_func,
                          const HostPortPair& trusted_spdy_proxy,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
@@ -297,7 +238,12 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       certificate_error_code_(OK),
       error_(OK),
       state_(IDLE),
-      max_concurrent_streams_(g_init_max_concurrent_streams),
+      max_concurrent_streams_(initial_max_concurrent_streams == 0 ?
+                              kInitialMaxConcurrentStreams :
+                              initial_max_concurrent_streams),
+      max_concurrent_streams_limit_(max_concurrent_streams_limit == 0 ?
+                                    kMaxConcurrentStreamLimit :
+                                    max_concurrent_streams_limit),
       streams_initiated_count_(0),
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
@@ -312,21 +258,29 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       check_ping_status_pending_(false),
       flow_control_(false),
       initial_send_window_size_(kSpdyStreamInitialWindowSize),
-      initial_recv_window_size_(g_default_initial_rcv_window_size),
+      initial_recv_window_size_(initial_recv_window_size == 0 ?
+                                kDefaultInitialRecvWindowSize :
+                                initial_recv_window_size),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
       verify_domain_authentication_(verify_domain_authentication),
       enable_sending_initial_settings_(enable_sending_initial_settings),
+      enable_credential_frames_(enable_credential_frames),
+      enable_compression_(enable_compression),
+      enable_ping_based_connection_checking_(
+          enable_ping_based_connection_checking),
+      default_protocol_(default_protocol),
       credential_state_(SpdyCredentialState::kDefaultNumSlots),
       connection_at_risk_of_loss_time_(
           base::TimeDelta::FromSeconds(kDefaultConnectionAtRiskOfLossSeconds)),
       hung_interval_(
           base::TimeDelta::FromSeconds(kHungIntervalSeconds)),
-      trusted_spdy_proxy_(trusted_spdy_proxy) {
+      trusted_spdy_proxy_(trusted_spdy_proxy),
+      time_func_(time_func) {
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
       base::Bind(&NetLogSpdySessionCallback, &host_port_proxy_pair_));
-  next_unclaimed_push_stream_sweep_time_ = g_time_func() +
+  next_unclaimed_push_stream_sweep_time_ = time_func_() +
       base::TimeDelta::FromSeconds(kMinPushedStreamLifetimeSeconds);
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 }
@@ -389,7 +343,7 @@ net::Error SpdySession::InitializeWithSocket(
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
-  NextProto protocol = g_default_protocol;
+  NextProto protocol = default_protocol_;
   NextProto protocol_negotiated = connection->socket()->GetNegotiatedProtocol();
   if (protocol_negotiated != kProtoUnknown) {
     protocol = protocol_negotiated;
@@ -408,7 +362,8 @@ net::Error SpdySession::InitializeWithSocket(
   int version = (protocol == kProtoSPDY3) ? 3 : 2;
   flow_control_ = (protocol >= kProtoSPDY3);
 
-  buffered_spdy_framer_.reset(new BufferedSpdyFramer(version));
+  buffered_spdy_framer_.reset(new BufferedSpdyFramer(version,
+                                                     enable_compression_));
   buffered_spdy_framer_->set_visitor(this);
   SendInitialSettings();
   UMA_HISTOGRAM_ENUMERATION("Net.SpdyVersion", protocol, kProtoMaximumVersion);
@@ -435,7 +390,7 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
     return true;   // This is not a secure session, so all domains are okay.
 
   return !ssl_info.client_cert_sent &&
-      (g_enable_credential_frames || !ssl_info.channel_id_sent ||
+      (enable_credential_frames_ || !ssl_info.channel_id_sent ||
        ServerBoundCertService::GetDomainForHost(domain) ==
        ServerBoundCertService::GetDomainForHost(
            host_port_proxy_pair_.first.host())) &&
@@ -1471,7 +1426,7 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
   DeleteExpiredPushedStreams();
   unclaimed_pushed_streams_[url] =
       std::pair<scoped_refptr<SpdyStream>, base::TimeTicks> (
-          stream, g_time_func());
+          stream, time_func_());
 
 
   ActivateStream(stream);
@@ -1490,11 +1445,11 @@ void SpdySession::DeleteExpiredPushedStreams() {
     return;
 
   // Check that adequate time has elapsed since the last sweep.
-  if (g_time_func() < next_unclaimed_push_stream_sweep_time_)
+  if (time_func_() < next_unclaimed_push_stream_sweep_time_)
     return;
 
   // Delete old streams.
-  base::TimeTicks minimum_freshness = g_time_func() -
+  base::TimeTicks minimum_freshness = time_func_() -
       base::TimeDelta::FromSeconds(kMinPushedStreamLifetimeSeconds);
   PushedStreamMap::iterator it;
   for (it = unclaimed_pushed_streams_.begin();
@@ -1513,7 +1468,7 @@ void SpdySession::DeleteExpiredPushedStreams() {
       streams_abandoned_count_++;
     }
   }
-  next_unclaimed_push_stream_sweep_time_ = g_time_func() +
+  next_unclaimed_push_stream_sweep_time_ = time_func_() +
       base::TimeDelta::FromSeconds(kMinPushedStreamLifetimeSeconds);
 }
 
@@ -1792,7 +1747,7 @@ void SpdySession::HandleSetting(uint32 id, uint32 value) {
   switch (id) {
     case SETTINGS_MAX_CONCURRENT_STREAMS:
       max_concurrent_streams_ = std::min(static_cast<size_t>(value),
-                                         g_max_concurrent_stream_limit);
+                                         kMaxConcurrentStreamLimit);
       ProcessPendingCreateStreams();
       break;
     case SETTINGS_INITIAL_WINDOW_SIZE:
@@ -1829,7 +1784,7 @@ void SpdySession::UpdateStreamsSendWindowSize(int32 delta_window_size) {
 }
 
 void SpdySession::SendPrefacePingIfNoneInFlight() {
-  if (pings_in_flight_ || !g_enable_ping_based_connection_checking)
+  if (pings_in_flight_ || !enable_ping_based_connection_checking_)
     return;
 
   base::TimeTicks now = base::TimeTicks::Now();

@@ -67,10 +67,6 @@ class SpdyProxyClientSocketSpdy3Test : public PlatformTest {
   virtual void TearDown();
 
  protected:
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
-  }
-
   void Initialize(MockRead* reads, size_t reads_count, MockWrite* writes,
                   size_t writes_count);
   SpdyFrame* ConstructConnectRequestFrame();
@@ -131,7 +127,6 @@ class SpdyProxyClientSocketSpdy3Test : public PlatformTest {
   ProxyServer proxy_;
   HostPortProxyPair endpoint_host_port_proxy_pair_;
   scoped_refptr<TransportSocketParams> transport_params_;
-  SpdyTestStateHelper spdy_state_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyProxyClientSocketSpdy3Test);
 };
@@ -145,7 +140,7 @@ SpdyProxyClientSocketSpdy3Test::SpdyProxyClientSocketSpdy3Test()
       connect_data_(SYNCHRONOUS, OK),
       spdy_session_(NULL),
       spdy_stream_(NULL),
-      framer_(3),
+      framer_(3, false),
       user_agent_(kUserAgent),
       url_(kRequestUrl),
       proxy_host_port_(kProxyHost, kProxyPort),
