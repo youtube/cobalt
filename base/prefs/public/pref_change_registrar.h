@@ -43,9 +43,6 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar : public PrefObserver {
   void Add(const char* path, const base::Closure& obs);
   void Add(const char* path, const NamedChangeCallback& obs);
 
-  // Deprecated version of Add, soon to be removed.
-  void Add(const char* path, PrefObserver* obs);
-
   // Removes the pref observer registered for |path|.
   void Remove(const char* path);
 
