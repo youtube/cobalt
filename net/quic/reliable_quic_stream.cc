@@ -90,18 +90,22 @@ bool ReliableQuicStream::HasBytesToRead() const {
   return sequencer_.HasBytesToRead();
 }
 
+const IPEndPoint& ReliableQuicStream::GetPeerAddress() const {
+  return session_->peer_address();
+}
+
 int ReliableQuicStream::WriteData(StringPiece data, bool fin) {
   if (write_side_closed_) {
     DLOG(ERROR) << "Attempt to write when the write side is closed";
     return 0;
   }
 
-  session()->WriteData(id(), data, offset_, fin);
+  int rv = session()->WriteData(id(), data, offset_, fin);
   offset_ += data.length();
   if (fin) {
     CloseWriteSide();
   }
-  return data.length();
+  return rv;
 }
 
 void ReliableQuicStream::CloseReadSide() {
@@ -112,6 +116,7 @@ void ReliableQuicStream::CloseReadSide() {
 
   read_side_closed_ = true;
   if (write_side_closed_) {
+    DLOG(INFO) << "Closing stream: " << id();
     session_->CloseStream(id());
   }
 }
@@ -124,6 +129,7 @@ void ReliableQuicStream::CloseWriteSide() {
 
   write_side_closed_ = true;
   if (read_side_closed_) {
+    DLOG(INFO) << "Closing stream: " << id();
     session_->CloseStream(id());
   }
 }

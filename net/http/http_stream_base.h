@@ -35,6 +35,7 @@ class NET_EXPORT_PRIVATE HttpStreamBase {
   virtual ~HttpStreamBase() {}
 
   // Initialize stream.  Must be called before calling SendRequest().
+  // |request_info| must outlive the HttpStreamBase.
   // Returns a net error code, possibly ERR_IO_PENDING.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
@@ -44,6 +45,7 @@ class NET_EXPORT_PRIVATE HttpStreamBase {
   // ERR_IO_PENDING is returned if the operation could not be completed
   // synchronously, in which case the result will be passed to the callback
   // when available. Returns OK on success.
+  // |response| must outlive the HttpStreamBase.
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) = 0;
@@ -89,6 +91,9 @@ class NET_EXPORT_PRIVATE HttpStreamBase {
   // the response headers indicate either chunked encoding or content length.
   // If neither is sent, the server must close the connection for us to detect
   // the end of the response.
+  // TODO(rch): Rename this method, so that it is clear why it exists
+  // particularly as it applies to QUIC and SPDY for which the end of the
+  // response is always findable.
   virtual bool CanFindEndOfResponse() const = 0;
 
   // A stream exists on top of a connection.  If the connection has been used
