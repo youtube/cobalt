@@ -124,6 +124,7 @@ bool LooksLikeVmsUserIdentificationCode(const string16& input) {
 bool LooksLikePermissionDeniedError(const string16& text) {
   static const char* kPermissionDeniedMessages[] = {
     "%RMS-E-PRV",
+    "%SYSTEM-F-NOPRIV",
     "privilege",
   };
 
