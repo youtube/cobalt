@@ -113,6 +113,27 @@ class ClientRestrictingServerMixIn:
     return client_address[0] == self.server_address[0]
 
 
+class BrokenPipeHandlerMixIn:
+  """Allows the server to deal with "broken pipe" errors (which happen if the
+  browser quits with outstanding requests, like for the favicon). This mix-in
+  requires the class to derive from SocketServer.BaseServer and not override its
+  handle_error() method. """
+
+  def handle_error(self, request, client_address):
+    value = sys.exc_info()[1]
+    if isinstance(value, socket.error):
+      err = value.args[0]
+      if sys.platform in ('win32', 'cygwin'):
+        # "An established connection was aborted by the software in your host."
+        pipe_err = 10053
+      else:
+        pipe_err = errno.EPIPE
+      if err == pipe_err:
+        print "testserver.py: Broken pipe"
+        return
+    SocketServer.BaseServer.handle_error(self, request, client_address)
+
+
 class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
   """This is a specialization of BaseHTTPServer to allow it
   to be exited cleanly (by setting its "stop" member to True)."""
@@ -125,13 +146,17 @@ class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
     self.socket.close()
 
 
-class HTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
+class HTTPServer(ClientRestrictingServerMixIn,
+                 BrokenPipeHandlerMixIn,
+                 StoppableHTTPServer):
   """This is a specialization of StoppableHTTPServer that adds client
   verification."""
 
   pass
 
-class OCSPServer(ClientRestrictingServerMixIn, BaseHTTPServer.HTTPServer):
+class OCSPServer(ClientRestrictingServerMixIn,
+                 BrokenPipeHandlerMixIn,
+                 BaseHTTPServer.HTTPServer):
   """This is a specialization of HTTPServer that serves an
   OCSP response"""
 
@@ -147,6 +172,7 @@ class OCSPServer(ClientRestrictingServerMixIn, BaseHTTPServer.HTTPServer):
 
 class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
                   ClientRestrictingServerMixIn,
+                  BrokenPipeHandlerMixIn,
                   StoppableHTTPServer):
   """This is a specialization of StoppableHTTPServer that add https support and
   client verification."""
@@ -198,7 +224,9 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
       return False
 
 
-class SyncHTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
+class SyncHTTPServer(ClientRestrictingServerMixIn,
+                     BrokenPipeHandlerMixIn,
+                     StoppableHTTPServer):
   """An HTTP server that handles sync commands."""
 
   def __init__(self, server_address, xmpp_port, request_handler_class):
