@@ -124,6 +124,18 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "-rwxrwxrwx 2 root root  4096 2012-02-07 00:31 notas_servico",
       FtpDirectoryListingEntry::FILE, "notas_servico", 4096,
       2012, 2, 7, 0, 31 },
+
+    // Weird permission bits.
+    { "drwx--l---   2 0        10           512 Dec 22  1994 swetzel",
+      FtpDirectoryListingEntry::DIRECTORY, "swetzel", -1,
+      1994, 12, 22, 0, 0 },
+
+    // Garbage in date (but still parseable).
+    { "lrw-rw-rw-   1 user     group         542 "
+      "/t11/member/incomingFeb  8  2007 "
+      "Shortcut to incoming.lnk -> /t11/member/incoming",
+      FtpDirectoryListingEntry::SYMLINK, "Shortcut to incoming.lnk", -1,
+      2007, 2, 8, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
