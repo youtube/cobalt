@@ -731,10 +731,14 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void NotifyAuthRequiredComplete(NetworkDelegate::AuthRequiredResponse result);
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
   void NotifySSLCertificateError(const SSLInfo& ssl_info, bool fatal);
+  void NotifyReadCompleted(int bytes_read);
+
+  // These functions delegate to |network_delegate_| if it is not NULL.
+  // If |network_delegate_| is NULL, cookies can be used unless
+  // SetDefaultCookiePolicyToBlock() has been called.
   bool CanGetCookies(const CookieList& cookie_list) const;
   bool CanSetCookie(const std::string& cookie_line,
                     CookieOptions* options) const;
-  void NotifyReadCompleted(int bytes_read);
 
   // Called when the delegate blocks or unblocks this request when intercepting
   // certain requests.
