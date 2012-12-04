@@ -27,6 +27,7 @@ class Thread;
 namespace media {
 
 class AudioOutputDispatcher;
+class VirtualAudioInputStream;
 
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class MEDIA_EXPORT AudioManagerBase : public AudioManager {
@@ -158,6 +159,11 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // tasks which run on the audio thread even after Shutdown() has been started
   // and GetMessageLoop() starts returning NULL.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
+
+  // Currently active VirtualAudioInputStream. When this is set, we will
+  // create all audio output streams as virtual streams so as to redirect audio
+  // data to this virtual input stream.
+  VirtualAudioInputStream* virtual_audio_input_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);
 };

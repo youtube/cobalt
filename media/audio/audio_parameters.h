@@ -30,6 +30,8 @@ class MEDIA_EXPORT AudioParameters {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
     AUDIO_FAKE,               // Creates a fake AudioOutputStream object.
+    AUDIO_VIRTUAL,            // Creates a VirtualAudioInputStream object.
+                              // Applies to input streams only.
     AUDIO_LAST_FORMAT         // Only used for validation of format.
   };
 
