@@ -23,12 +23,6 @@ void PrefChangeRegistrar::Init(PrefServiceBase* service) {
   service_ = service;
 }
 
-void PrefChangeRegistrar::Add(const char* path, PrefObserver* obs) {
-  DCHECK(obs);
-  return Add(path, base::Bind(&PrefObserver::OnPreferenceChanged,
-                              base::Unretained(obs), service_));
-}
-
 void PrefChangeRegistrar::Add(const char* path,
                               const base::Closure& obs) {
   Add(path, base::Bind(&PrefChangeRegistrar::InvokeUnnamedCallback, obs));
