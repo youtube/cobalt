@@ -67,6 +67,17 @@ class NET_EXPORT HttpNetworkSession
     bool http_pipelining_enabled;
     uint16 testing_fixed_http_port;
     uint16 testing_fixed_https_port;
+    size_t max_spdy_sessions_per_domain;
+    bool force_spdy_single_domain;
+    bool enable_spdy_ip_pooling;
+    bool enable_spdy_credential_frames;
+    bool enable_spdy_compression;
+    bool enable_spdy_ping_based_connection_checking;
+    NextProto spdy_default_protocol;
+    size_t spdy_initial_recv_window_size;
+    size_t spdy_initial_max_concurrent_streams;
+    size_t spdy_max_concurrent_streams_limit;
+    SpdySessionPool::TimeFunc time_func;
     std::string trusted_spdy_proxy;
   };
 

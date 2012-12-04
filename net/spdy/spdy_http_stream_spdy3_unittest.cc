@@ -29,15 +29,9 @@ namespace net {
 class SpdyHttpStreamSpdy3Test : public testing::Test {
  public:
   OrderedSocketData* data() { return data_.get(); }
+
  protected:
-  SpdyHttpStreamSpdy3Test() {}
-
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
-  }
-
   virtual void TearDown() {
-    crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
     UploadDataStream::ResetMergeChunks();
     MessageLoop::current()->RunUntilIdle();
   }
@@ -84,7 +78,7 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   scoped_refptr<TransportSocketParams> transport_params_;
 
  private:
-  SpdyTestStateHelper spdy_state_;
+  MockECSignatureCreatorFactory ec_signature_creator_factory_;
 };
 
 TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
