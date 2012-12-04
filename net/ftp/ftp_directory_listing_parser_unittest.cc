@@ -137,9 +137,11 @@ const char* kTestFiles[] = {
 
   "dir-listing-ls-28",  // Hylafax FTP server
   "dir-listing-ls-29",
+  "dir-listing-ls-30",
 
   "dir-listing-netware-1",
   "dir-listing-netware-2",
+  "dir-listing-netware-3",  // Spaces in file names.
   "dir-listing-os2-1",
   "dir-listing-vms-1",
   "dir-listing-vms-2",
