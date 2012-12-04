@@ -90,10 +90,10 @@ class RequestContext : public URLRequestContext {
     storage_.set_http_transaction_factory(new HttpCache(
         network_session,
         HttpCache::DefaultBackend::InMemory(0)));
-    url_request_job_factory_.reset(new URLRequestJobFactoryImpl);
+    scoped_ptr<URLRequestJobFactoryImpl> factory(new URLRequestJobFactoryImpl);
+    factory->AddInterceptor(new CheckNoRevocationFlagSetInterceptor);
+    url_request_job_factory_ = factory.Pass();
     set_job_factory(url_request_job_factory_.get());
-    url_request_job_factory_->AddInterceptor(
-        new CheckNoRevocationFlagSetInterceptor);
   }
 
   virtual ~RequestContext() {
