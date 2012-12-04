@@ -14,6 +14,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/virtual_audio_input_stream.h"
+#include "media/audio/virtual_audio_output_stream.h"
 #include "media/base/media_switches.h"
 
 // TODO(dalecurtis): Temporarily disabled while switching pipeline to use float,
@@ -45,7 +47,8 @@ AudioManagerBase::AudioManagerBase()
       max_num_input_streams_(kDefaultMaxInputStreams),
       num_output_streams_(0),
       num_input_streams_(0),
-      audio_thread_(new base::Thread("AudioThread")) {
+      audio_thread_(new base::Thread("AudioThread")),
+      virtual_audio_input_stream_(NULL) {
 #if defined(OS_WIN)
   audio_thread_->init_com_with_mta(true);
 #endif
@@ -100,7 +103,16 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
       !HasAudioOutputDevices();
 
   AudioOutputStream* stream = NULL;
-  if (audio_output_disabled) {
+  if (virtual_audio_input_stream_) {
+#if defined(OS_IOS)
+    // We do not currently support iOS. It does not link.
+    NOTIMPLEMENTED();
+    return NULL;
+#else
+    stream = VirtualAudioOutputStream::MakeStream(this, params, message_loop_,
+        virtual_audio_input_stream_);
+#endif
+  } else if (audio_output_disabled) {
     stream = FakeAudioOutputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearOutputStream(params);
@@ -130,7 +142,31 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
   }
 
   AudioInputStream* stream = NULL;
-  if (params.format() == AudioParameters::AUDIO_FAKE) {
+  if (params.format() == AudioParameters::AUDIO_VIRTUAL) {
+#if defined(OS_IOS)
+    // We do not currently support iOS.
+    NOTIMPLEMENTED();
+    return NULL;
+#else
+    // TODO(justinlin): Currently, audio mirroring will only work for the first
+    // request. Subsequent requests will not get audio.
+    if (!virtual_audio_input_stream_) {
+      virtual_audio_input_stream_ =
+          VirtualAudioInputStream::MakeStream(this, params, message_loop_);
+      stream = virtual_audio_input_stream_;
+      DVLOG(1) << "Virtual audio input stream created.";
+
+      // Make all current output streams recreate themselves as
+      // VirtualAudioOutputStreams that will attach to the above
+      // VirtualAudioInputStream.
+      message_loop_->PostTask(FROM_HERE, base::Bind(
+          &AudioManagerBase::NotifyAllOutputDeviceChangeListeners,
+          base::Unretained(this)));
+    } else {
+      stream = NULL;
+    }
+#endif
+  } else if (params.format() == AudioParameters::AUDIO_FAKE) {
     stream = FakeAudioInputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearInputStream(params, device_id);
@@ -244,6 +280,18 @@ void AudioManagerBase::ReleaseOutputStream(AudioOutputStream* stream) {
 void AudioManagerBase::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(stream);
   // TODO(xians) : Have a clearer destruction path for the AudioInputStream.
+
+  if (virtual_audio_input_stream_ == stream) {
+    DVLOG(1) << "Virtual audio input stream stopping.";
+    virtual_audio_input_stream_->Stop();
+    virtual_audio_input_stream_ = NULL;
+
+    // Make all VirtualAudioOutputStreams unregister from the
+    // VirtualAudioInputStream and recreate themselves as regular audio streams
+    // to return sound to hardware.
+    NotifyAllOutputDeviceChangeListeners();
+  }
+
   num_input_streams_--;
   delete stream;
 }
