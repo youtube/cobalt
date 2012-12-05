@@ -529,7 +529,7 @@ class DnsConfigServiceWin::Watcher
     dnscache_watcher_.Watch(kDnscachePath, callback);
     policy_watcher_.Watch(kPolicyPath, callback);
 
-    if (!hosts_watcher_.Watch(GetHostsPath(),
+    if (!hosts_watcher_.Watch(GetHostsPath(), false,
                               base::Bind(&Watcher::OnHostsChanged,
                                          base::Unretained(this)))) {
       LOG(ERROR) << "DNS hosts watch failed to start.";
@@ -703,4 +703,3 @@ scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
 }
 
 }  // namespace net
-
