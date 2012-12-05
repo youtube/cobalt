@@ -78,6 +78,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   int bits_per_channel() const;
   ChannelLayout channel_layout() const;
   int samples_per_second() const;
+  int bytes_per_frame() const;
 
   // Optional byte data required to initialize audio decoders such as Vorbis
   // codebooks.
@@ -94,6 +95,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   int bits_per_channel_;
   ChannelLayout channel_layout_;
   int samples_per_second_;
+  int bytes_per_frame_;
 
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;

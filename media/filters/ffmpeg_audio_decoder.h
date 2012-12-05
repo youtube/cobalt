@@ -20,6 +20,7 @@ class MessageLoopProxy;
 
 namespace media {
 
+class AudioTimestampHelper;
 class DataBuffer;
 class DecoderBuffer;
 struct QueuedAudioBuffer;
@@ -55,10 +56,11 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
 
-  // Returns the timestamp that should be used for the next buffer returned
-  // via |read_cb_|. It is calculated from |output_timestamp_base_| and
-  // |total_frames_decoded_|.
-  base::TimeDelta GetNextOutputTimestamp() const;
+  bool ConfigureDecoder();
+  void ReleaseFFmpegResources();
+  void ResetTimestampState();
+  void RunDecodeLoop(const scoped_refptr<DecoderBuffer>& input,
+                     bool skip_eos_append);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
@@ -72,9 +74,8 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   int samples_per_second_;
 
   // Used for computing output timestamps.
+  scoped_ptr<AudioTimestampHelper> output_timestamp_helper_;
   int bytes_per_frame_;
-  base::TimeDelta output_timestamp_base_;
-  double total_frames_decoded_;
   base::TimeDelta last_input_timestamp_;
 
   // Number of output sample bytes to drop before generating
