@@ -52,7 +52,7 @@ void FilePathWatcher::CancelWatch(
 
 bool FilePathWatcher::Watch(const FilePath& path, Delegate* delegate) {
   DCHECK(path.IsAbsolute());
-  return impl_->Watch(path, delegate);
+  return impl_->Watch(path, false, delegate);
 }
 
 FilePathWatcher::PlatformDelegate::PlatformDelegate(): cancelled_(false) {
@@ -62,8 +62,11 @@ FilePathWatcher::PlatformDelegate::~PlatformDelegate() {
   DCHECK(is_cancelled());
 }
 
-bool FilePathWatcher::Watch(const FilePath& path, const Callback& callback) {
-  return Watch(path, new FilePathWatcherDelegate(callback));
+bool FilePathWatcher::Watch(const FilePath& path,
+                            bool recursive,
+                            const Callback& callback) {
+  DCHECK(path.IsAbsolute());
+  return impl_->Watch(path, recursive, new FilePathWatcherDelegate(callback));
 }
 
 }  // namespace files
