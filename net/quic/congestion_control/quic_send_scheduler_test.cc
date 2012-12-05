@@ -59,7 +59,7 @@ TEST_F(QuicSendSchedulerTest, FixedRatePacing) {
     clock_.AdvanceTime(advance_time);
     acc_advance_time = acc_advance_time.Add(advance_time);
     // Ack the packet we sent.
-    ack.received_info.RecordAck(i, acc_advance_time);
+    ack.received_info.largest_received = i;
     sender_->OnIncomingAckFrame(ack);
   }
   EXPECT_EQ(QuicTime::FromMilliseconds(1200), acc_advance_time);
@@ -78,10 +78,8 @@ TEST_F(QuicSendSchedulerTest, AvailableCongestionWindow) {
     sender_->SentPacket(i, 100, false);
     EXPECT_EQ(kMaxPacketSize - (i * 100), sender_->AvailableCongestionWindow());
   }
-  // Ack the packets we sent.
-  for (int i = 1; i <= 12; i++) {
-    ack.received_info.RecordAck(i, QuicTime::FromMilliseconds(100));
-  }
+  // Ack the packet we sent.
+  ack.received_info.largest_received = 12;
   sender_->OnIncomingAckFrame(ack);
   EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
 }
@@ -99,7 +97,7 @@ TEST_F(QuicSendSchedulerTest, FixedRateBandwidth) {
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i, 1000, false);
     // Ack the packet we sent.
-    ack.received_info.RecordAck(i, clock_.Now());
+    ack.received_info.largest_received = i;
     sender_->OnIncomingAckFrame(ack);
   }
   EXPECT_EQ(100000, sender_->BandwidthEstimate());
@@ -119,7 +117,7 @@ TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i, 1000, false);
     // Ack the packet we sent.
-    ack.received_info.RecordAck(i, clock_.Now());
+    ack.received_info.largest_received = i;
     sender_->OnIncomingAckFrame(ack);
   }
   EXPECT_EQ(100000, sender_->BandwidthEstimate());
@@ -137,7 +135,7 @@ TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
     sender_->SentPacket(i + 100, 1000, false);
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     // Ack the packet we sent.
-    ack.received_info.RecordAck(i + 100, clock_.Now());
+    ack.received_info.largest_received = i + 100;
     sender_->OnIncomingAckFrame(ack);
   }
   EXPECT_EQ(100000, sender_->BandwidthEstimate());
@@ -164,9 +162,9 @@ TEST_F(QuicSendSchedulerTest, Pacing) {
     clock_.AdvanceTime(advance_time);
     acc_advance_time = acc_advance_time.Add(advance_time);
     // Ack the packets we sent.
-    ack.received_info.RecordAck(i - 2, clock_.Now());
+    ack.received_info.largest_received = i - 2;
     sender_->OnIncomingAckFrame(ack);
-    ack.received_info.RecordAck(i - 1, clock_.Now());
+    ack.received_info.largest_received = i - 1;
     sender_->OnIncomingAckFrame(ack);
   }
   EXPECT_EQ(QuicTime::FromMilliseconds(120), acc_advance_time);
