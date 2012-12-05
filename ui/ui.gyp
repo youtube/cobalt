@@ -328,8 +328,6 @@
         'base/x/active_window_watcher_x.cc',
         'base/x/active_window_watcher_x.h',
         'base/x/active_window_watcher_x_observer.h',
-        'base/x/device_list_cache_x.cc',
-        'base/x/device_list_cache_x.h',
         'base/x/events_x.cc',
         'base/x/root_window_property_watcher_x.cc',
         'base/x/root_window_property_watcher_x.h',
