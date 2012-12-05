@@ -6,7 +6,6 @@
 #define NET_QUIC_QUIC_PROTOCOL_H_
 
 #include <limits>
-#include <map>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -169,16 +168,14 @@ typedef base::hash_set<QuicPacketSequenceNumber> SequenceSet;
 struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   ReceivedPacketInfo();
   ~ReceivedPacketInfo();
-
-  void RecordAck(QuicPacketSequenceNumber sequence_number, QuicTime time);
-  bool ContainsAck(QuicPacketSequenceNumber sequence_number) const;
-  void ClearAcksBefore(QuicPacketSequenceNumber least_unacked);
-
   // The highest packet sequence number we've received from the peer.
   QuicPacketSequenceNumber largest_received;
-
-  // The set of all received packets and their arrival times.
-  std::map<QuicPacketSequenceNumber, QuicTime> received_packet_times;
+  // The time at which we received the above packet.
+  QuicTime time_received;
+  // The set of packets which we're expecting and have not received.
+  // This includes any packets between the lowest and largest_received
+  // which we have neither seen nor been informed are non-retransmitting.
+  SequenceSet missing_packets;
 };
 
 struct NET_EXPORT_PRIVATE SentPacketInfo {
@@ -186,6 +183,9 @@ struct NET_EXPORT_PRIVATE SentPacketInfo {
   ~SentPacketInfo();
   // The lowest packet we've sent which is unacked, and we expect an ack for.
   QuicPacketSequenceNumber least_unacked;
+  // The set of packets between least_unacked and the last packet we have sent
+  // which we will not resend.
+  SequenceSet non_retransmiting;
 };
 
 // Defines for all types of congestion feedback that will be negotiated in QUIC,
@@ -241,11 +241,14 @@ struct NET_EXPORT_PRIVATE CongestionInfo {
 
 struct NET_EXPORT_PRIVATE QuicAckFrame {
   QuicAckFrame() {}
-  // Testing convenience method to construct a QuicAckFrame with all packets
-  // from least_unacked to largest_received acked at time_received.
   QuicAckFrame(QuicPacketSequenceNumber largest_received,
                QuicTime time_received,
-               QuicPacketSequenceNumber least_unacked);
+               QuicPacketSequenceNumber least_unacked) {
+    received_info.largest_received = largest_received;
+    received_info.time_received = time_received;
+    sent_info.least_unacked = least_unacked;
+    congestion_info.type = kNone;
+  }
 
   NET_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
                                                      const QuicAckFrame& s);
