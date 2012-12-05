@@ -83,11 +83,11 @@ class NET_EXPORT NetLog {
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
   struct NET_EXPORT Source {
-    static const uint32 kInvalidId = 0;
+    static const uint32 kInvalidId;
 
-    Source() : type(SOURCE_NONE), id(kInvalidId) {}
-    Source(SourceType type, uint32 id) : type(type), id(id) {}
-    bool is_valid() const { return id != kInvalidId; }
+    Source();
+    Source(SourceType type, uint32 id);
+    bool IsValid() const;
 
     // Adds the source to a DictionaryValue containing event parameters,
     // using the name "source_dependency".
