@@ -151,6 +151,11 @@ void FileStream::Context::BeginOpenEvent(const FilePath& path) {
 
 FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
     const FilePath& path, int open_flags) {
+  // FileStream::Context actually closes the file asynchronously, independently
+  // from FileStream's destructor. It can cause problems for users wanting to
+  // delete the file right after FileStream deletion. Thus we are always
+  // adding SHARE_DELETE flag to accommodate such use case.
+  open_flags |= base::PLATFORM_FILE_SHARE_DELETE;
   OpenResult result;
   result.error_code = OK;
   result.file = base::CreatePlatformFile(path, open_flags, NULL, NULL);
