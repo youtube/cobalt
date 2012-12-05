@@ -16,6 +16,7 @@ AudioDecoderConfig::AudioDecoderConfig()
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED),
       samples_per_second_(0),
+      bytes_per_frame_(0),
       extra_data_size_(0),
       is_encrypted_(false) {
 }
@@ -73,6 +74,9 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
   }
 
   is_encrypted_ = is_encrypted;
+
+  int channels = ChannelLayoutToChannelCount(channel_layout_);
+  bytes_per_frame_ = channels * bits_per_channel_ / 8;
 }
 
 AudioDecoderConfig::~AudioDecoderConfig() {}
@@ -122,6 +126,10 @@ ChannelLayout AudioDecoderConfig::channel_layout() const {
 
 int AudioDecoderConfig::samples_per_second() const {
   return samples_per_second_;
+}
+
+int AudioDecoderConfig::bytes_per_frame() const {
+  return bytes_per_frame_;
 }
 
 uint8* AudioDecoderConfig::extra_data() const {

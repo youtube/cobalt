@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "media/audio/audio_util.h"
+#include "media/base/audio_splicer.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_switches.h"
@@ -136,6 +137,8 @@ void AudioRendererImpl::Preroll(base::TimeDelta time,
     received_end_of_stream_ = false;
     rendered_end_of_stream_ = false;
     preroll_aborted_ = false;
+
+    splicer_->Reset();
 
     // |algorithm_| will request more reads.
     algorithm_->FlushBuffers();
@@ -265,6 +268,10 @@ void AudioRendererImpl::OnDecoderInitDone(
     return;
   }
 
+  int channels = ChannelLayoutToChannelCount(decoder_->channel_layout());
+  int bytes_per_frame = channels * decoder_->bits_per_channel() / 8;
+  splicer_.reset(new AudioSplicer(bytes_per_frame, sample_rate));
+
   // We're all good! Continue initializing the rest of the audio renderer based
   // on the decoder format.
   algorithm_.reset(new AudioRendererAlgorithm());
@@ -330,6 +337,28 @@ void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
   DCHECK_EQ(status, AudioDecoder::kOk);
   DCHECK(buffer);
 
+  if (!splicer_->AddInput(buffer)) {
+    HandleAbortedReadOrDecodeError(true);
+    return;
+  }
+
+  if (!splicer_->HasNextBuffer()) {
+    ScheduleRead_Locked();
+    return;
+  }
+
+  bool need_another_buffer = false;
+  while (splicer_->HasNextBuffer())
+    need_another_buffer = HandleSplicerBuffer(splicer_->GetNextBuffer());
+
+  if (!need_another_buffer)
+    return;
+
+  ScheduleRead_Locked();
+}
+
+bool AudioRendererImpl::HandleSplicerBuffer(
+    const scoped_refptr<Buffer>& buffer) {
   if (buffer->IsEndOfStream()) {
     received_end_of_stream_ = true;
 
@@ -342,35 +371,35 @@ void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
   switch (state_) {
     case kUninitialized:
       NOTREACHED();
-      return;
+      return false;
     case kPaused:
       if (!buffer->IsEndOfStream())
         algorithm_->EnqueueBuffer(buffer);
       DCHECK(!pending_read_);
       base::ResetAndReturn(&pause_cb_).Run();
-      return;
+      return false;
     case kPrerolling:
-      if (IsBeforePrerollTime(buffer)) {
-        ScheduleRead_Locked();
-        return;
-      }
+      if (IsBeforePrerollTime(buffer))
+        return true;
+
       if (!buffer->IsEndOfStream()) {
         algorithm_->EnqueueBuffer(buffer);
         if (!algorithm_->IsQueueFull())
-          return;
+          return false;
       }
       state_ = kPaused;
       base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
-      return;
+      return false;
     case kPlaying:
     case kUnderflow:
     case kRebuffering:
       if (!buffer->IsEndOfStream())
         algorithm_->EnqueueBuffer(buffer);
-      return;
+      return false;
     case kStopped:
-      return;
+      return false;
   }
+  return false;
 }
 
 void AudioRendererImpl::ScheduleRead_Locked() {
