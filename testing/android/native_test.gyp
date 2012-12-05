@@ -12,20 +12,15 @@
           'type': 'none',
           'dependencies': [
             'native_test_native_code',
+            '<(DEPTH)/base/base.gyp:base_java',
           ],
           'actions': [
-            {
-              'action_name': 'copy_base_jar',
-              'inputs': ['<(PRODUCT_DIR)/lib.java/chromium_base.jar'],
-              'outputs': ['<(PRODUCT_DIR)/replaceme_apk/java/libs/chromium_base.jar'],
-              'action': ['cp', '<@(_inputs)', '<@(_outputs)'],
-            },
             {
               'action_name': 'native_test_apk',
               'inputs': [
                 '<(DEPTH)/testing/android/native_test_apk.xml',
                 '<!@(find <(DEPTH)/testing/android -name "*.java")',
-                '<(PRODUCT_DIR)/replaceme_apk/java/libs/chromium_base.jar',
+                '>@(input_jars_paths)',
                 'native_test_launcher.cc'
               ],
               'outputs': [
@@ -48,6 +43,7 @@
                 '-DANDROID_SDK_VERSION=<(android_sdk_version)',
                 '-DANDROID_GDBSERVER=<(android_gdbserver)',
                 '-DCHROMIUM_SRC=<(ant_build_out)/../..',
+                '-DINPUT_JARS_PATHS=>(input_jars_paths)',
                 '-buildfile',
                 '<(DEPTH)/testing/android/native_test_apk.xml',
               ]
