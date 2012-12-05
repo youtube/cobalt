@@ -769,7 +769,7 @@ if [ ! -h "${HOME}/chroot" ] &&
 fi
 
 # Clean up package files
-sudo schroot -c /usr/local/bin/"${target%bit}" -p -- apt-get clean
+sudo schroot -c "${target%bit}" -p -- apt-get clean
 sudo apt-get clean
 
 trap '' INT TERM QUIT HUP
