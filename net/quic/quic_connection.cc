@@ -24,14 +24,14 @@ using std::set;
 namespace net {
 
 // An arbitrary number we'll probably want to tune.
-const QuicPacketSequenceNumber kMaxAckedPackets = 5000u;
+const QuicPacketSequenceNumber kMaxUnackedPackets = 5000u;
 
 // The amount of time we wait before resending a packet.
 const int64 kDefaultResendTimeMs = 500;
 
 bool Near(QuicPacketSequenceNumber a, QuicPacketSequenceNumber b) {
   QuicPacketSequenceNumber delta = (a > b) ? a - b : b - a;
-  return delta <= kMaxAckedPackets;
+  return delta <= kMaxUnackedPackets;
 }
 
 QuicConnection::QuicConnection(QuicGuid guid,
@@ -105,7 +105,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   ReceivedPacketInfo info = outgoing_ack_.received_info;
   // If this packet has already been seen, or that the sender
   // has told us will not be resent, then stop processing the packet.
-  if (info.ContainsAck(header.packet_sequence_number)) {
+  if (header.packet_sequence_number <= info.largest_received &&
+      info.missing_packets.count(header.packet_sequence_number) != 1) {
     return false;
   }
 
@@ -167,10 +168,12 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
     return false;
   }
 
-  // We can't have too many acked packets, or our ack frames go over
-  // kMaxPacketSize.
-  DCHECK_LT(incoming_ack.received_info.received_packet_times.size(),
-            kMaxAckedPackets);
+  // We can't have too many missing or retransmitting packets, or our ack
+  // frames go over kMaxPacketSize.
+  DCHECK_LT(incoming_ack.received_info.missing_packets.size(),
+            kMaxUnackedPackets);
+  DCHECK_LT(incoming_ack.sent_info.non_retransmiting.size(),
+            kMaxUnackedPackets);
 
   if (incoming_ack.sent_info.least_unacked != 0 &&
       incoming_ack.sent_info.least_unacked < least_packet_awaiting_ack_) {
@@ -196,7 +199,9 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
   // incoming_ack shows they've been seen by the peer.
   UnackedPacketMap::iterator it = unacked_packets_.begin();
   while (it != unacked_packets_.end()) {
-    if (incoming_ack.received_info.ContainsAck(it->first)) {
+    if ((it->first < incoming_ack.received_info.largest_received &&
+         !ContainsKey(incoming_ack.received_info.missing_packets, it->first)) ||
+        it->first == incoming_ack.received_info.largest_received) {
       // Packet was acked, so remove it from our unacked packet list.
       DVLOG(1) << "Got an ack for " << it->first;
       // TODO(rch): This is inefficient and should be sped up.
@@ -231,9 +236,17 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
   // If we've gotten an ack for the lowest packet we were waiting on,
   // update that and the list of packets we advertise we will not resend.
   if (lowest_unacked > outgoing_ack_.sent_info.least_unacked) {
+    SequenceSet* non_retrans = &outgoing_ack_.sent_info.non_retransmiting;
+    // We don't need to advertise not-resending packets between the old
+    // and new values.
+    for (QuicPacketSequenceNumber i = outgoing_ack_.sent_info.least_unacked;
+         i < lowest_unacked; ++i) {
+      non_retrans->erase(i);
+    }
     // If all packets we sent have been acked, use the special value of 0
     if (lowest_unacked > packet_creator_.sequence_number()) {
       lowest_unacked = 0;
+      DCHECK_EQ(0u, non_retrans->size());
     }
     outgoing_ack_.sent_info.least_unacked = lowest_unacked;
   }
@@ -241,11 +254,22 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
 
 void QuicConnection::UpdatePacketInformationSentByPeer(
     const QuicAckFrame& incoming_ack) {
-  // Make sure we also don't ack any packets lower than the peer's
+  // Iteratate through the packets which will the peer will not resend and
+  // remove them from our missing list.
+  for (SequenceSet::const_iterator it =
+           incoming_ack.sent_info.non_retransmiting.begin();
+       it != incoming_ack.sent_info.non_retransmiting.end(); ++it) {
+    DVLOG(1) << "no longer expecting " << *it;
+    outgoing_ack_.received_info.missing_packets.erase(*it);
+  }
+
+  // Make sure we also don't expect any packets lower than the peer's
   // last-packet-awaiting-ack.
   if (incoming_ack.sent_info.least_unacked > least_packet_awaiting_ack_) {
-    outgoing_ack_.received_info.ClearAcksBefore(
-        incoming_ack.sent_info.least_unacked);
+    for (QuicPacketSequenceNumber i = least_packet_awaiting_ack_;
+         i < incoming_ack.sent_info.least_unacked; ++i) {
+      outgoing_ack_.received_info.missing_packets.erase(i);
+    }
     least_packet_awaiting_ack_ = incoming_ack.sent_info.least_unacked;
   }
 
@@ -370,7 +394,23 @@ bool QuicConnection::OnCanWrite() {
 
 void QuicConnection::AckPacket(const QuicPacketHeader& header) {
   QuicPacketSequenceNumber sequence_number = header.packet_sequence_number;
-  outgoing_ack_.received_info.RecordAck(sequence_number, clock_->Now());
+  if (sequence_number > outgoing_ack_.received_info.largest_received) {
+    // We've got a new high sequence number.  Note any new intermediate missing
+    // packets, and update the last_ack data.
+    for (QuicPacketSequenceNumber i =
+             outgoing_ack_.received_info.largest_received + 1;
+         i < sequence_number; ++i) {
+      DVLOG(1) << "missing " << i;
+      outgoing_ack_.received_info.missing_packets.insert(i);
+    }
+    outgoing_ack_.received_info.largest_received = sequence_number;
+    outgoing_ack_.received_info.time_received = clock_->Now();
+  } else {
+    // We've gotten one of the out of order packets - remove it from our
+    // "missing packets" list.
+    DVLOG(1) << "Removing "  << sequence_number << " from missing list";
+    outgoing_ack_.received_info.missing_packets.erase(sequence_number);
+  }
   // TODO(alyssar) delay sending until we have data, or enough time has elapsed.
   if (frames_.size() > 0) {
     SendAck();
@@ -430,6 +470,11 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
     if (outgoing_ack_.sent_info.least_unacked == 0 ||
         sequence_number < outgoing_ack_.sent_info.least_unacked) {
       outgoing_ack_.sent_info.least_unacked = sequence_number;
+    }
+  } else {
+    if (outgoing_ack_.sent_info.least_unacked != 0 &&
+        sequence_number > outgoing_ack_.sent_info.least_unacked) {
+      outgoing_ack_.sent_info.non_retransmiting.insert(sequence_number);
     }
   }
 
