@@ -59,7 +59,7 @@ class ConfigWatcher {
 
   bool Watch(const CallbackType& callback) {
     callback_ = callback;
-    return watcher_.Watch(FilePath(kFilePathConfig),
+    return watcher_.Watch(FilePath(kFilePathConfig), false,
                           base::Bind(&ConfigWatcher::OnCallback,
                                      base::Unretained(this)));
   }
@@ -120,7 +120,7 @@ class DnsConfigServicePosix::Watcher {
       LOG(ERROR) << "DNS config watch failed to start.";
       success = false;
     }
-    if (!hosts_watcher_.Watch(FilePath(kFilePathHosts),
+    if (!hosts_watcher_.Watch(FilePath(kFilePathHosts), false,
                               base::Bind(&Watcher::OnHostsChanged,
                                          base::Unretained(this)))) {
       LOG(ERROR) << "DNS hosts watch failed to start.";

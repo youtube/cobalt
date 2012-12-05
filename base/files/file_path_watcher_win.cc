@@ -22,10 +22,14 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
                             public base::win::ObjectWatcher::Delegate,
                             public MessageLoop::DestructionObserver {
  public:
-  FilePathWatcherImpl() : delegate_(NULL), handle_(INVALID_HANDLE_VALUE) {}
+  FilePathWatcherImpl()
+      : delegate_(NULL),
+        handle_(INVALID_HANDLE_VALUE),
+        recursive_watch_(false) {}
 
   // FilePathWatcher::PlatformDelegate overrides.
   virtual bool Watch(const FilePath& path,
+                     bool recursive,
                      FilePathWatcher::Delegate* delegate) OVERRIDE;
   virtual void Cancel() OVERRIDE;
 
@@ -40,11 +44,13 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
  private:
   virtual ~FilePathWatcherImpl() {}
 
-  // Setup a watch handle for directory |dir|. Returns true if no fatal error
-  // occurs. |handle| will receive the handle value if |dir| is watchable,
-  // otherwise INVALID_HANDLE_VALUE.
-  static bool SetupWatchHandle(const FilePath& dir, HANDLE* handle)
-      WARN_UNUSED_RESULT;
+  // Setup a watch handle for directory |dir|. Set |recursive| to true to watch
+  // the directory sub trees. Returns true if no fatal error occurs. |handle|
+  // will receive the handle value if |dir| is watchable, otherwise
+  // INVALID_HANDLE_VALUE.
+  static bool SetupWatchHandle(const FilePath& dir,
+                               bool recursive,
+                               HANDLE* handle) WARN_UNUSED_RESULT;
 
   // (Re-)Initialize the watch handle.
   bool UpdateWatch() WARN_UNUSED_RESULT;
@@ -67,6 +73,9 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // ObjectWatcher to watch handle_ for events.
   base::win::ObjectWatcher watcher_;
 
+  // Set to true to watch the sub trees of the specified directory file path.
+  bool recursive_watch_;
+
   // Keep track of the last modified time of the file.  We use nulltime
   // to represent the file not existing.
   base::Time last_modified_;
@@ -79,12 +88,14 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 };
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
+                                bool recursive,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(target_.value().empty());  // Can only watch one path.
 
   set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
   target_ = path;
+  recursive_watch_ = recursive;
   MessageLoop::current()->AddDestructionObserver(this);
 
   if (!UpdateWatch())
@@ -179,16 +190,17 @@ void FilePathWatcherImpl::OnObjectSignaled(HANDLE object) {
 
 // static
 bool FilePathWatcherImpl::SetupWatchHandle(const FilePath& dir,
+                                           bool recursive,
                                            HANDLE* handle) {
   *handle = FindFirstChangeNotification(
       dir.value().c_str(),
-      false,  // Don't watch subtrees
+      recursive,
       FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE |
       FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_DIR_NAME |
       FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SECURITY);
   if (*handle != INVALID_HANDLE_VALUE) {
     // Make sure the handle we got points to an existing directory. It seems
-    // that windows sometimes hands out watches to direectories that are
+    // that windows sometimes hands out watches to directories that are
     // about to go away, but doesn't sent notifications if that happens.
     if (!file_util::DirectoryExists(dir)) {
       FindCloseChangeNotification(*handle);
@@ -232,7 +244,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
   std::vector<FilePath> child_dirs;
   FilePath watched_path(target_);
   while (true) {
-    if (!SetupWatchHandle(watched_path, &handle_))
+    if (!SetupWatchHandle(watched_path, recursive_watch_, &handle_))
       return false;
 
     // Break if a valid handle is returned. Try the parent directory otherwise.
@@ -256,7 +268,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
     watched_path = watched_path.Append(child_dirs.back());
     child_dirs.pop_back();
     HANDLE temp_handle = INVALID_HANDLE_VALUE;
-    if (!SetupWatchHandle(watched_path, &temp_handle))
+    if (!SetupWatchHandle(watched_path, recursive_watch_, &temp_handle))
       return false;
     if (temp_handle == INVALID_HANDLE_VALUE)
       break;
