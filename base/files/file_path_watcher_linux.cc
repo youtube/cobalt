@@ -100,6 +100,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // Start watching |path| for changes and notify |delegate| on each change.
   // Returns true if watch for |path| has been added successfully.
   virtual bool Watch(const FilePath& path,
+                     bool recursive,
                      FilePathWatcher::Delegate* delegate) OVERRIDE;
 
   // Cancel the watch. This unregisters the instance with InotifyReader.
@@ -361,9 +362,15 @@ void FilePathWatcherImpl::OnFilePathChanged(InotifyReader::Watch fired_watch,
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
+                                bool recursive,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(target_.empty());
   DCHECK(MessageLoopForIO::current());
+  if (recursive) {
+    // Recursive watch is not supported on this platform.
+    NOTIMPLEMENTED();
+    return false;
+  }
 
   set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
