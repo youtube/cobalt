@@ -16,10 +16,12 @@
 
 //DECLARE_int32(fake_packet_loss_percentage);
 
+using base::StringPiece;
 using std::map;
 using testing::_;
 using testing::ContainerEq;
 using testing::Return;
+using testing::StrictMock;
 
 namespace net {
 
@@ -187,7 +189,7 @@ class QuicConnectionTest : public ::testing::Test {
       : guid_(42),
         framer_(QuicDecrypter::Create(kNULL), QuicEncrypter::Create(kNULL)),
         creator_(guid_, &framer_),
-        scheduler_(new MockScheduler()),
+        scheduler_(new StrictMock<MockScheduler>),
         helper_(new TestConnectionHelper(&clock_)),
         connection_(guid_, IPEndPoint(), helper_),
         frame1_(1, false, 0, data1),
@@ -210,6 +212,7 @@ class QuicConnectionTest : public ::testing::Test {
   void ProcessPacket(QuicPacketSequenceNumber number) {
     EXPECT_CALL(visitor_, OnPacket(_, _, _, _))
         .WillOnce(Return(accept_packet_));
+    EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
     ProcessDataPacket(number, 0);
   }
 
@@ -218,9 +221,11 @@ class QuicConnectionTest : public ::testing::Test {
     if (expect_revival) {
       EXPECT_CALL(visitor_, OnPacket(_, _, _, _)).Times(2).WillRepeatedly(
           Return(accept_packet_));
+      EXPECT_CALL(*scheduler_, SentPacket(_, _, _)).Times(2);
     } else {
       EXPECT_CALL(visitor_, OnPacket(_, _, _, _)).WillOnce(
           Return(accept_packet_));
+      EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
     }
     ProcessDataPacket(number, 1);
   }
@@ -239,6 +244,7 @@ class QuicConnectionTest : public ::testing::Test {
     if (expect_revival) {
       EXPECT_CALL(visitor_, OnPacket(_, _, _, _)).WillOnce(
           Return(accept_packet_));
+      EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
     }
 
     // Construct the decrypted data packet so we can compute the correct
@@ -271,30 +277,29 @@ class QuicConnectionTest : public ::testing::Test {
     delete fec_packet;
   }
 
+  void SendStreamDataToPeer(QuicStreamId id, StringPiece data,
+                      QuicStreamOffset offset, bool fin,
+                      QuicPacketSequenceNumber* last_packet) {
+    EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+    connection_.SendStreamData(id, data, offset, fin, last_packet);
+  }
 
-  void SendAckPacket(QuicAckFrame* frame) {
+  void SendAckPacketToPeer() {
+    EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+    connection_.SendAck();
+  }
+
+  void ProcessAckPacket(QuicAckFrame* frame, bool expect_success = true) {
+    if (expect_success) {
+      EXPECT_CALL(*scheduler_, OnIncomingAckFrame(_));
+    }
     scoped_ptr<QuicPacket> packet(creator_.AckPacket(frame).second);
     scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(*packet));
     connection_.ProcessUdpPacket(IPEndPoint(), IPEndPoint(), *encrypted);
   }
 
-  void SendAckPacket(QuicPacketSequenceNumber least_unacked) {
-    QuicAckFrame frame(0, QuicTime(), least_unacked);
-    SendAckPacket(&frame);
-  }
-
   bool IsMissing(QuicPacketSequenceNumber number) {
-    return last_frame()->received_info.missing_packets.find(number) !=
-        last_frame()->received_info.missing_packets.end();
-  }
-
-  size_t NonRetransmittingSize() {
-    return last_frame()->sent_info.non_retransmiting.size();
-  }
-
-  bool NonRetransmitting(QuicPacketSequenceNumber number) {
-    return last_frame()->sent_info.non_retransmiting.find(number) !=
-        last_frame()->sent_info.non_retransmiting.end();
+    return !last_frame()->received_info.ContainsAck(number);
   }
 
   QuicPacket* ConstructDataPacket(QuicPacketSequenceNumber number,
@@ -334,50 +339,50 @@ class QuicConnectionTest : public ::testing::Test {
 TEST_F(QuicConnectionTest, PacketsInOrder) {
   ProcessPacket(1);
   EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
 
   ProcessPacket(2);
   EXPECT_EQ(2u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(2u, last_frame()->received_info.received_packet_times.size());
 
   ProcessPacket(3);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(3u, last_frame()->received_info.received_packet_times.size());
 }
 
 TEST_F(QuicConnectionTest, PacketsRejected) {
   ProcessPacket(1);
   EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
 
   accept_packet_ = false;
   ProcessPacket(2);
   // We should not have an ack for two.
   EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
 }
 
 TEST_F(QuicConnectionTest, PacketsOutOfOrder) {
   ProcessPacket(3);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(2u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(1);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(3u, last_frame()->received_info.received_packet_times.size());
 }
 
 TEST_F(QuicConnectionTest, DuplicatePacket) {
   ProcessPacket(3);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
@@ -385,85 +390,26 @@ TEST_F(QuicConnectionTest, DuplicatePacket) {
   // the visitor OnPacket() will be called.
   ProcessDataPacket(3, 0);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
-}
-
-TEST_F(QuicConnectionTest, LatePacketMarkedWillNotResend) {
-  ProcessPacket(5);
-  // Now send non-resending information, that we're not going to resend 3.
-  // The far end should stop waiting for it.
-  QuicPacketSequenceNumber largest_received = 0;
-  QuicTime time_received;
-  QuicPacketSequenceNumber least_unacked = 1;
-  QuicAckFrame frame(largest_received, time_received, least_unacked);
-  frame.sent_info.non_retransmiting.insert(3);
-  SendAckPacket(&frame);
-  // Force an ack to be sent.
-  connection_.SendAck();
-  EXPECT_EQ(5u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(4));
-  EXPECT_TRUE(IsMissing(2));
-
-  // Send packet 3 again, but do not set the expectation that
-  // the visitor OnPacket() will be called.
-  ProcessDataPacket(3, 0);
-  connection_.SendAck();
-  EXPECT_EQ(5u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(4));
-  EXPECT_TRUE(IsMissing(2));
-}
-
-TEST_F(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndNonResend) {
-  ProcessPacket(3);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(2));
-  EXPECT_TRUE(IsMissing(1));
-
-  ProcessPacket(2);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(1));
-
-  ProcessPacket(6);
-  EXPECT_EQ(6u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(3u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(1));
-  EXPECT_TRUE(IsMissing(4));
-  EXPECT_TRUE(IsMissing(5));
-
-  // Now send non-resending information, that we're not going to resend 4.
-  // The far end should stop waiting for it.
-  // In sending the ack, we also have sent packet 1, so we'll stop waiting for
-  // that as well.
-  QuicAckFrame frame(0, QuicTime(), 1);
-  frame.sent_info.non_retransmiting.insert(4);
-  SendAckPacket(&frame);
-  // Force an ack to be sent.
-  connection_.SendAck();
-  EXPECT_EQ(1u, last_frame()->received_info.missing_packets.size());
-  EXPECT_TRUE(IsMissing(5));
 }
 
 TEST_F(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   ProcessPacket(3);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
   EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(2u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(5);
   EXPECT_EQ(5u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(2u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(3u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(1));
   EXPECT_TRUE(IsMissing(4));
 
@@ -472,50 +418,53 @@ TEST_F(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   // awaiting' is 4.  The connection should then realize 1 will not be
   // retransmitted, and will remove it from the missing list.
   QuicAckFrame frame(0, QuicTime(), 4);
-  SendAckPacket(&frame);
+  ProcessAckPacket(&frame);
   // Force an ack to be sent.
-  connection_.SendAck();
-  EXPECT_EQ(1u, last_frame()->received_info.missing_packets.size());
+  SendAckPacketToPeer();
+  EXPECT_EQ(2u, last_frame()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(4));
 }
 
 TEST_F(QuicConnectionTest, RejectPacketTooFarOut) {
   // Call ProcessDataPacket rather than ProcessPacket, as we should not get a
   // packet call to the visitor.
-  ProcessDataPacket(6000, 0);;
+  ProcessDataPacket(6000, 0);
 
-  connection_.SendAck();  // Packet 2
+  SendAckPacketToPeer();  // Packet 2
   EXPECT_EQ(0u, last_frame()->received_info.largest_received);
 }
 
 TEST_F(QuicConnectionTest, LeastUnackedLower) {
-  connection_.SendStreamData(1, "foo", 0, false, NULL);
-  connection_.SendStreamData(1, "bar", 3, false, NULL);
-  connection_.SendStreamData(1, "eep", 6, false, NULL);
+  SendStreamDataToPeer(1, "foo", 0, false, NULL);
+  SendStreamDataToPeer(1, "bar", 3, false, NULL);
+  SendStreamDataToPeer(1, "eep", 6, false, NULL);
 
   // Start out saying the least unacked is 2
   creator_.set_sequence_number(5);
   QuicAckFrame frame(0, QuicTime(), 2);
-  SendAckPacket(&frame);
+  ProcessAckPacket(&frame);
 
   // Change it to 1, but lower the sequence number to fake out-of-order packets.
   // This should be fine.
   creator_.set_sequence_number(1);
   QuicAckFrame frame2(0, QuicTime(), 1);
-  SendAckPacket(&frame2);
+  // The scheduler will not process out of order acks.
+  ProcessAckPacket(&frame2, false);
 
   // Now claim it's one, but set the ordering so it was sent "after" the first
   // one.  This should cause a connection error.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_INVALID_ACK_DATA, false));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   creator_.set_sequence_number(7);
-  SendAckPacket(&frame2);
+  ProcessAckPacket(&frame2, false);
 }
 
 TEST_F(QuicConnectionTest, AckUnsentData) {
   // Ack a packet which has not been sent.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_INVALID_ACK_DATA, false));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   QuicAckFrame frame(1, QuicTime(), 0);
-  SendAckPacket(&frame);
+  ProcessAckPacket(&frame, false);
 }
 
 TEST_F(QuicConnectionTest, AckAll) {
@@ -523,61 +472,45 @@ TEST_F(QuicConnectionTest, AckAll) {
 
   creator_.set_sequence_number(1);
   QuicAckFrame frame1(1, QuicTime(), 1);
-  SendAckPacket(&frame1);
+  ProcessAckPacket(&frame1);
 
   // Send an ack with least_unacked == 0, which indicates that all packets
   // we have sent have been acked.
   QuicAckFrame frame2(1, QuicTime(), 0);
-  SendAckPacket(&frame2);
+  ProcessAckPacket(&frame2);
 }
 
 // This test is meant to validate that we can't overwhelm the far end with a ton
-// of missing packets.
+// of acks.
 // We will likely fix the protocol to allow more than 190 in flight, and the
 // test will need to be adjusted accordingly.
-TEST_F(QuicConnectionTest, TooManyMissing) {
-  connection_.SendStreamData(1, "foo", 0, false, NULL);
+TEST_F(QuicConnectionTest, TooManyAcked) {
+  SendStreamDataToPeer(1, "foo", 0, false, NULL);
 
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_PACKET_TOO_LARGE, false));
-  QuicAckFrame frame(1, QuicTime(), 0);
-  for (int i = 0; i < 5001; ++i) {
-    frame.received_info.missing_packets.insert(i);
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+  QuicAckFrame frame(0, QuicTime(), 0);
+  for (int i = 1; i < 5001; ++i) {
+    frame.received_info.RecordAck(i, QuicTime::FromMilliseconds(i));
   }
-  SendAckPacket(&frame);
-}
-
-// See comment for TooManyMissing above.
-TEST_F(QuicConnectionTest, TooManyNonRetransmitting) {
-  connection_.SendStreamData(1, "foo", 0, false, NULL);
-
-  EXPECT_CALL(visitor_, ConnectionClose(QUIC_PACKET_TOO_LARGE, false));
-  QuicAckFrame frame(1, QuicTime(), 0);
-  for (int i = 0; i < 5001; ++i) {
-    frame.sent_info.non_retransmiting.insert(i);
-  }
-  SendAckPacket(&frame);
+  ProcessAckPacket(&frame, false);
 }
 
 TEST_F(QuicConnectionTest, BasicSending) {
   QuicPacketSequenceNumber last_packet;
-  connection_.SendStreamData(1, "foo", 0, false, &last_packet);  // Packet 1
+  SendStreamDataToPeer(1, "foo", 0, false, &last_packet);  // Packet 1
   EXPECT_EQ(1u, last_packet);
-  connection_.SendAck();  // Packet 2
+  SendAckPacketToPeer();  // Packet 2
 
   EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
 
-  connection_.SendAck();  // Packet 3
+  SendAckPacketToPeer();  // Packet 3
   EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
-  EXPECT_EQ(1u, NonRetransmittingSize());
-  EXPECT_TRUE(NonRetransmitting(2));
 
-  connection_.SendStreamData(1, "bar", 3, false, &last_packet);  // Packet 4
+  SendStreamDataToPeer(1u, "bar", 3, false, &last_packet);  // Packet 4
   EXPECT_EQ(4u, last_packet);
-  connection_.SendAck();  // Packet 5
+  SendAckPacketToPeer();  // Packet 5
   EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
-  EXPECT_EQ(2u, NonRetransmittingSize());
-  EXPECT_TRUE(NonRetransmitting(2));
-  EXPECT_TRUE(NonRetransmitting(3));
 
   QuicConnectionVisitorInterface::AckedPackets expected_acks;
   expected_acks.insert(1);
@@ -585,14 +518,12 @@ TEST_F(QuicConnectionTest, BasicSending) {
   // Client acks up to packet 3
   EXPECT_CALL(visitor_, OnAck(ContainerEq(expected_acks)));
   QuicAckFrame frame(3, QuicTime(), 0);
-  SendAckPacket(&frame);
-  connection_.SendAck();  // Packet 6
+  ProcessAckPacket(&frame);
+  SendAckPacketToPeer();  // Packet 6
 
   // As soon as we've acked one, we skip ack packets 2 and 3 and note lack of
   // ack for 4.
   EXPECT_EQ(4u, last_frame()->sent_info.least_unacked);
-  EXPECT_EQ(1u, NonRetransmittingSize());
-  EXPECT_TRUE(NonRetransmitting(5));
 
   expected_acks.clear();
   expected_acks.insert(4);
@@ -600,43 +531,41 @@ TEST_F(QuicConnectionTest, BasicSending) {
   // Client acks up to packet 4, the last packet
   EXPECT_CALL(visitor_, OnAck(ContainerEq(expected_acks)));
   QuicAckFrame frame2(6, QuicTime(), 0);
-  SendAckPacket(&frame2);
-  connection_.SendAck();  // Packet 7
+  ProcessAckPacket(&frame2);
+  SendAckPacketToPeer();  // Packet 7
 
   // The least packet awaiting ack should now be the special value of 0
   EXPECT_EQ(0u, last_frame()->sent_info.least_unacked);
-  EXPECT_EQ(0u, NonRetransmittingSize());
 
   // If we force an ack, we shouldn't change our retransmit state.
-  connection_.SendAck();  // Packet 8
+  SendAckPacketToPeer();  // Packet 8
   EXPECT_EQ(0u, last_frame()->sent_info.least_unacked);
-  EXPECT_EQ(0u, NonRetransmittingSize());
 
   // But if we send more data it should.
-  connection_.SendStreamData(1, "eep", 6, false, &last_packet);  // Packet 9
+  SendStreamDataToPeer(1, "eep", 6, false, &last_packet);  // Packet 9
   EXPECT_EQ(9u, last_packet);
-  connection_.SendAck();  // Packet10
+  SendAckPacketToPeer();  // Packet10
   EXPECT_EQ(9u, last_frame()->sent_info.least_unacked);
 }
 
 // Test sending multiple acks from the connection to the session.
 TEST_F(QuicConnectionTest, MultipleAcks) {
   QuicPacketSequenceNumber last_packet;
-  connection_.SendStreamData(1, "foo", 0, false, &last_packet);  // Packet 1
+  SendStreamDataToPeer(1u, "foo", 0, false, &last_packet);  // Packet 1
   EXPECT_EQ(1u, last_packet);
-  connection_.SendStreamData(3, "foo", 0, false, &last_packet);  // Packet 2
+  SendStreamDataToPeer(3u, "foo", 0, false, &last_packet);  // Packet 2
   EXPECT_EQ(2u, last_packet);
-  connection_.SendAck();  // Packet 3
-  connection_.SendStreamData(5, "foo", 0, false, &last_packet);  // Packet 4
+  SendAckPacketToPeer();  // Packet 3
+  SendStreamDataToPeer(5u, "foo", 0, false, &last_packet);  // Packet 4
   EXPECT_EQ(4u, last_packet);
-  connection_.SendStreamData(1, "foo", 3, false, &last_packet);  // Packet 5
+  SendStreamDataToPeer(1u, "foo", 3, false, &last_packet);  // Packet 5
   EXPECT_EQ(5u, last_packet);
-  connection_.SendStreamData(3, "foo", 3, false, &last_packet);  // Packet 6
+  SendStreamDataToPeer(3u, "foo", 3, false, &last_packet);  // Packet 6
   EXPECT_EQ(6u, last_packet);
 
-  // Client will acks packets 1, [!2], 3, 4, 5
+  // Client will ack packets 1, [!2], 3, 4, 5
   QuicAckFrame frame1(5, QuicTime(), 0);
-  frame1.received_info.missing_packets.insert(2);
+  frame1.received_info.received_packet_times.erase(2);
 
   // The connection should pass up acks for 1, 4, 5.  2 is not acked, and 3 was
   // an ackframe so should not be passed up.
@@ -646,7 +575,7 @@ TEST_F(QuicConnectionTest, MultipleAcks) {
   expected_acks.insert(5);
 
   EXPECT_CALL(visitor_, OnAck(ContainerEq(expected_acks)));
-  SendAckPacket(&frame1);
+  ProcessAckPacket(&frame1);
 
   // Now the client implicitly acks 2, and explicitly acks 6
   QuicAckFrame frame2(6, QuicTime(), 0);
@@ -656,7 +585,7 @@ TEST_F(QuicConnectionTest, MultipleAcks) {
   expected_acks.insert(6);
 
   EXPECT_CALL(visitor_, OnAck(ContainerEq(expected_acks)));
-  SendAckPacket(&frame2);
+  ProcessAckPacket(&frame2);
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterFecPacket) {
@@ -700,13 +629,14 @@ TEST_F(QuicConnectionTest, TestResend) {
 
   QuicTime default_resend_time = clock_.Now().Add(kDefaultResendTime);
 
-  connection_.SendStreamData(1, "foo", 0, false, NULL);
+  SendStreamDataToPeer(1, "foo", 0, false, NULL);
   EXPECT_EQ(1u, last_header()->packet_sequence_number);
   EXPECT_EQ(1u, helper_->resend_alarms().size());
   EXPECT_EQ(default_resend_time,
             helper_->resend_alarms().find(1)->second);
   // Simulate the resend alarm firing
   clock_.AdvanceTime(kDefaultResendTime);
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   connection_.MaybeResendPacket(1);
   EXPECT_EQ(2u, last_header()->packet_sequence_number);
 }
@@ -715,7 +645,7 @@ TEST_F(QuicConnectionTest, TestResend) {
 TEST_F(QuicConnectionTest, DISABLED_TestQueued) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   helper_->set_blocked(true);
-  connection_.SendStreamData(1, "foo", 0, false, NULL);
+  SendStreamDataToPeer(1, "foo", 0, false, NULL);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Attempt to send all packets, but since we're actually still
@@ -737,14 +667,15 @@ TEST_F(QuicConnectionTest, CloseFecGroup) {
   ASSERT_EQ(1u, connection_.NumFecGroups());
 
   // Now send non-fec protected ack packet and close the group
-  SendAckPacket(5);
+  QuicAckFrame frame(0, QuicTime(), 5);
+  ProcessAckPacket(&frame);
   ASSERT_EQ(0u, connection_.NumFecGroups());
 }
 
 TEST_F(QuicConnectionTest, NoCongestionInfo) {
   TestCollector* collector(new TestCollector(NULL));
   connection_.SetCollector(collector);
-  connection_.SendAck();
+  SendAckPacketToPeer();
   EXPECT_EQ(kNone, last_frame()->congestion_info.type);
 }
 
@@ -754,7 +685,7 @@ TEST_F(QuicConnectionTest, WithCongestionInfo) {
   info.fix_rate.bitrate_in_bytes_per_second = 123;
   TestCollector* collector(new TestCollector(&info));
   connection_.SetCollector(collector);
-  connection_.SendAck();
+  SendAckPacketToPeer();
   EXPECT_EQ(kFixRate, last_frame()->congestion_info.type);
   EXPECT_EQ(info.fix_rate.bitrate_in_bytes_per_second,
       last_frame()->congestion_info.fix_rate.bitrate_in_bytes_per_second);
@@ -763,7 +694,7 @@ TEST_F(QuicConnectionTest, WithCongestionInfo) {
 TEST_F(QuicConnectionTest, UpdateCongestionInfo) {
   TestCollector* collector(new TestCollector(NULL));
   connection_.SetCollector(collector);
-  connection_.SendAck();
+  SendAckPacketToPeer();
   EXPECT_CALL(*collector, RecordIncomingPacket(_, _, _, _));
   ProcessPacket(1);
 }
@@ -771,7 +702,7 @@ TEST_F(QuicConnectionTest, UpdateCongestionInfo) {
 TEST_F(QuicConnectionTest, DontUpdateCongestionInfoForRevived) {
   TestCollector* collector(new TestCollector(NULL));
   connection_.SetCollector(collector);
-  connection_.SendAck();
+  SendAckPacketToPeer();
   // Process an FEC packet, and revive the missing data packet
   // but only contact the collector once.
   EXPECT_CALL(*collector, RecordIncomingPacket(_, _, _, _));
@@ -781,6 +712,7 @@ TEST_F(QuicConnectionTest, DontUpdateCongestionInfoForRevived) {
 TEST_F(QuicConnectionTest, InitialTimeout) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
 
   QuicTime default_timeout = clock_.Now().Add(
       QuicTime::Delta::FromMicroseconds(kDefaultTimeoutUs));
@@ -802,7 +734,7 @@ TEST_F(QuicConnectionTest, TimeoutAfterSend) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
 
   // Send an ack so we don't set the resend alarm.
-  connection_.SendAck();
+  SendAckPacketToPeer();
   EXPECT_EQ(default_timeout, helper_->timeout_alarm());
 
   // The original alarm will fire.  We should not time out because we had a
@@ -817,6 +749,7 @@ TEST_F(QuicConnectionTest, TimeoutAfterSend) {
 
   // This time, we should time out.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(default_timeout.Add(QuicTime::Delta::FromMilliseconds(5)),
             clock_.Now());
@@ -830,6 +763,7 @@ TEST_F(QuicConnectionTest, SendScheduler) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
       QuicTime::Delta()));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   connection_.SendPacket(1, packet.get(), true, false, false);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -848,6 +782,7 @@ TEST_F(QuicConnectionTest, SendSchedulerForce) {
   // Test that if we force send a packet, it is not queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).Times(0);
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   connection_.SendPacket(1, packet.get(), true, true, false);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -876,6 +811,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenSend) {
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
       QuicTime::Delta()));
   clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(1));
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
   connection_.OnCanWrite();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -922,11 +858,10 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndSend) {
   // Now send non-retransmitting information, that we're not going to resend 3.
   // The far end should stop waiting for it.
   QuicAckFrame frame(0, QuicTime(), 1);
-  frame.sent_info.non_retransmiting.insert(3);
-  EXPECT_CALL(*scheduler_, OnIncomingAckFrame(testing::_));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillRepeatedly(testing::Return(
       QuicTime::Delta()));
-  SendAckPacket(&frame);
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+  ProcessAckPacket(&frame);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   // Ensure alarm is not set
@@ -943,11 +878,9 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndHold) {
   // Now send non-resending information, that we're not going to resend 3.
   // The far end should stop waiting for it.
   QuicAckFrame frame(0, QuicTime(), 1);
-  frame.sent_info.non_retransmiting.insert(3);
-  EXPECT_CALL(*scheduler_, OnIncomingAckFrame(testing::_));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
       QuicTime::Delta::FromMicroseconds(1)));
-  SendAckPacket(&frame);
+  ProcessAckPacket(&frame);
 
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }

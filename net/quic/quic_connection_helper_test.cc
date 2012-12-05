@@ -132,9 +132,9 @@ class QuicConnectionHelperTest : public ::testing::Test {
     InitializeHeader(sequence_number);
 
     QuicAckFrame ack(0, QuicTime(), 0);
+
     ack.congestion_info.type = kFixRate;
     ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
-
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
