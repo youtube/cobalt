@@ -95,7 +95,10 @@ def JavaDataTypeToC(java_type):
       'void': 'void',
       'String': 'jstring',
       'java/lang/String': 'jstring',
+      'Class': 'jclass',
+      'java/lang/Class': 'jclass',
   }
+
   if java_type in java_pod_type_map:
     return java_pod_type_map[java_type]
   elif java_type in java_type_map:
@@ -151,6 +154,7 @@ class JniParams(object):
         'Ljava/lang/Long',
         'Ljava/lang/Object',
         'Ljava/lang/String',
+        'Ljava/lang/Class',
     ]
     if param == 'byte[][]':
       return '[[B'
