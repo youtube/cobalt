@@ -369,6 +369,11 @@
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
 
+      # Enable PPAPI and NPAPI by default.
+      # TODO(nileshagrawal): Make this flag enable/disable NPAPI as well
+      # as PPAPI; see crbug.com/162667.
+      'enable_plugins%': 1,
+
       # Enable protector service by default.
       'enable_protector_service%': 1,
 
@@ -515,6 +520,12 @@
           'enable_plugin_installation%': 0,
         }, {
           'enable_plugin_installation%': 1,
+        }],
+
+        ['OS=="android" or OS=="ios"', {
+          'enable_plugins%': 0,
+        }, {
+          'enable_plugins%': 1,
         }],
 
         ['OS=="android" or OS=="ios"', {
@@ -667,6 +678,7 @@
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
+    'enable_plugins%': '<(enable_plugins)',
     'enable_protector_service%': '<(enable_protector_service)',
     'enable_session_service%': '<(enable_session_service)',
     'enable_themes%': '<(enable_themes)',
@@ -1857,6 +1869,9 @@
       }],
       ['enable_plugin_installation==1', {
         'defines': ['ENABLE_PLUGIN_INSTALLATION=1'],
+      }],
+      ['enable_plugins==1', {
+        'defines': ['ENABLE_PLUGINS=1'],
       }],
       ['enable_protector_service==1', {
         'defines': ['ENABLE_PROTECTOR_SERVICE=1'],
