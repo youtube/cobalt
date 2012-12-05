@@ -44,7 +44,7 @@ class FileStreamTest : public PlatformTest {
     file_util::WriteFile(temp_file_path_, kTestData, kTestDataSize);
   }
   virtual void TearDown() {
-    file_util::Delete(temp_file_path_, false);
+    EXPECT_TRUE(file_util::Delete(temp_file_path_, false));
 
     PlatformTest::TearDown();
   }
