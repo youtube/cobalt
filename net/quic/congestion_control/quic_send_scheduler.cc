@@ -97,8 +97,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
 
   while (it != it_upper) {
     QuicPacketSequenceNumber sequence_number = it->first;
-    if (ack_frame.received_info.missing_packets.find(sequence_number) ==
-        ack_frame.received_info.missing_packets.end()) {
+    if (ack_frame.received_info.ContainsAck(sequence_number)) {
       // Not missing, hence implicitly acked.
       scoped_ptr<PendingPacket> pending_packet_cleaner(it->second);
       acked_packets[sequence_number] = pending_packet_cleaner->BytesSent();
