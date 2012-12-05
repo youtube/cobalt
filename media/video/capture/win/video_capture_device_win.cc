@@ -10,8 +10,6 @@
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/win/scoped_variant.h"
-#include "base/win/windows_version.h"
-#include "media/video/capture/win/video_capture_device_mf_win.h"
 
 using base::win::ScopedComPtr;
 using base::win::ScopedVariant;
@@ -144,39 +142,42 @@ void DeleteMediaType(AM_MEDIA_TYPE* mt) {
   }
 }
 
+// Help structure used for comparing video capture capabilities.
+struct ResolutionDiff {
+  int capability_index;
+  int diff_height;
+  int diff_width;
+  int diff_frame_rate;
+  media::VideoCaptureCapability::Format color;
+};
+
+bool CompareHeight(const ResolutionDiff& item1, const ResolutionDiff& item2) {
+  return abs(item1.diff_height) < abs(item2.diff_height);
+}
+
+bool CompareWidth(const ResolutionDiff& item1, const ResolutionDiff& item2) {
+  return abs(item1.diff_width) < abs(item2.diff_width);
+}
+
+bool CompareFrameRate(const ResolutionDiff& item1,
+                      const ResolutionDiff& item2) {
+  return abs(item1.diff_frame_rate) < abs(item2.diff_frame_rate);
+}
+
+bool CompareColor(const ResolutionDiff& item1, const ResolutionDiff& item2) {
+  return (item1.color < item2.color);
+}
+
 }  // namespace
 
 namespace media {
 
-// static
+// Name of a fake DirectShow filter that exist on computers with
+// GTalk installed.
+static const char kGoogleCameraAdapter[] = "google camera adapter";
+
+// Gets the names of all video capture devices connected to this computer.
 void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
-  if (base::win::GetVersion() >= base::win::VERSION_VISTA) {
-    VideoCaptureDeviceMFWin::GetDeviceNames(device_names);
-  } else {
-    VideoCaptureDeviceWin::GetDeviceNames(device_names);
-  }
-}
-
-// static
-VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
-  VideoCaptureDevice* ret = NULL;
-  if (base::win::GetVersion() >= base::win::VERSION_VISTA) {
-    scoped_ptr<VideoCaptureDeviceMFWin> device(
-        new VideoCaptureDeviceMFWin(device_name));
-    if (device->Init())
-      ret = device.release();
-  } else {
-    scoped_ptr<VideoCaptureDeviceWin> device(
-        new VideoCaptureDeviceWin(device_name));
-    if (device->Init())
-      ret = device.release();
-  }
-
-  return ret;
-}
-
-// static
-void VideoCaptureDeviceWin::GetDeviceNames(Names* device_names) {
   DCHECK(device_names);
 
   ScopedComPtr<ICreateDevEnum> dev_enum;
@@ -194,10 +195,6 @@ void VideoCaptureDeviceWin::GetDeviceNames(Names* device_names) {
     return;
 
   device_names->clear();
-
-  // Name of a fake DirectShow filter that exist on computers with
-  // GTalk installed.
-  static const char kGoogleCameraAdapter[] = "google camera adapter";
 
   // Enumerate all video capture devices.
   ScopedComPtr<IMoniker> moniker;
@@ -242,6 +239,15 @@ void VideoCaptureDeviceWin::GetDeviceNames(Names* device_names) {
     }
     moniker.Release();
   }
+}
+
+VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
+  VideoCaptureDeviceWin* self = new VideoCaptureDeviceWin(device_name);
+  if (self  && self->Init())
+    return self;
+
+  delete self;
+  return NULL;
 }
 
 VideoCaptureDeviceWin::VideoCaptureDeviceWin(const Name& device_name)
@@ -332,11 +338,10 @@ void VideoCaptureDeviceWin::Allocate(
     return;
 
   observer_ = observer;
-
   // Get the camera capability that best match the requested resolution.
-  const VideoCaptureCapabilityWin& found_capability =
-      capabilities_.GetBestMatchedCapability(width, height, frame_rate);
-  VideoCaptureCapability capability = found_capability;
+  const int capability_index = GetBestMatchedCapability(width, height,
+                                                        frame_rate);
+  VideoCaptureCapability capability = capabilities_[capability_index];
 
   // Reduce the frame rate if the requested frame rate is lower
   // than the capability.
@@ -354,7 +359,7 @@ void VideoCaptureDeviceWin::Allocate(
   }
 
   // Get the windows capability from the capture device.
-  hr = stream_config->GetStreamCaps(found_capability.stream_index, &pmt,
+  hr = stream_config->GetStreamCaps(capability_index, &pmt,
                                     reinterpret_cast<BYTE*>(&caps));
   if (SUCCEEDED(hr)) {
     if (pmt->formattype == FORMAT_VideoInfo) {
@@ -521,7 +526,7 @@ bool VideoCaptureDeviceWin::CreateCapabilityMap() {
 
     if (media_type->majortype == MEDIATYPE_Video &&
         media_type->formattype == FORMAT_VideoInfo) {
-      VideoCaptureCapabilityWin capability(i);
+      VideoCaptureCapability capability;
       REFERENCE_TIME time_per_frame = 0;
 
       VIDEOINFOHEADER* h =
@@ -581,13 +586,79 @@ bool VideoCaptureDeviceWin::CreateCapabilityMap() {
         DVLOG(2) << "Device support unknown media type " << guid_str;
         continue;
       }
-      capabilities_.Add(capability);
+      capabilities_[i] = capability;
     }
     DeleteMediaType(media_type);
     media_type = NULL;
   }
 
-  return !capabilities_.empty();
+  return capabilities_.size() > 0;
+}
+
+// Loops through the list of capabilities and returns an index of the best
+// matching capability.
+// The algorithm prioritize height, width, frame rate and color format in that
+// order.
+int VideoCaptureDeviceWin::GetBestMatchedCapability(int requested_width,
+                                                    int requested_height,
+                                                    int requested_frame_rate) {
+  DCHECK(CalledOnValidThread());
+  std::list<ResolutionDiff> diff_list;
+
+  // Loop through the candidates to create a list of differentials between the
+  // requested resolution and the camera capability.
+  for (CapabilityMap::iterator iterator = capabilities_.begin();
+       iterator != capabilities_.end();
+       ++iterator) {
+    VideoCaptureCapability capability = iterator->second;
+
+    ResolutionDiff diff;
+    diff.capability_index = iterator->first;
+    diff.diff_width = capability.width - requested_width;
+    diff.diff_height = capability.height - requested_height;
+    diff.diff_frame_rate = capability.frame_rate - requested_frame_rate;
+    diff.color = capability.color;
+    diff_list.push_back(diff);
+  }
+
+  // Sort the best height candidates.
+  diff_list.sort(&CompareHeight);
+  int best_diff = diff_list.front().diff_height;
+  for (std::list<ResolutionDiff>::iterator it = diff_list.begin();
+       it != diff_list.end(); ++it) {
+    if (it->diff_height != best_diff) {
+      // Remove all candidates but the best.
+      diff_list.erase(it, diff_list.end());
+      break;
+    }
+  }
+
+  // Sort the best width candidates.
+  diff_list.sort(&CompareWidth);
+  best_diff = diff_list.front().diff_width;
+  for (std::list<ResolutionDiff>::iterator it = diff_list.begin();
+       it != diff_list.end(); ++it) {
+    if (it->diff_width != best_diff) {
+      // Remove all candidates but the best.
+      diff_list.erase(it, diff_list.end());
+      break;
+    }
+  }
+
+  // Sort the best frame rate candidates.
+  diff_list.sort(&CompareFrameRate);
+  best_diff = diff_list.front().diff_frame_rate;
+  for (std::list<ResolutionDiff>::iterator it = diff_list.begin();
+       it != diff_list.end(); ++it) {
+    if (it->diff_frame_rate != best_diff) {
+      diff_list.erase(it, diff_list.end());
+      break;
+    }
+  }
+
+  // Decide the best color format.
+  diff_list.sort(&CompareColor);
+  return diff_list.front().capability_index;
 }
 
 void VideoCaptureDeviceWin::SetErrorState(const char* reason) {
