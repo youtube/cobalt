@@ -127,5 +127,23 @@ void JavaIntArrayToIntVector(JNIEnv* env,
   env->ReleaseIntArrayElements(array, ints, JNI_ABORT);
 }
 
+void JavaArrayOfByteArrayToStringVector(
+    JNIEnv* env,
+    jobjectArray array,
+    std::vector<std::string>* out) {
+  DCHECK(out);
+  out->clear();
+  jsize len = env->GetArrayLength(array);
+  for (jsize i = 0; i < len; ++i) {
+    jbyteArray bytes_array = static_cast<jbyteArray>(
+        env->GetObjectArrayElement(array, i));
+    jsize bytes_len = env->GetArrayLength(bytes_array);
+    jbyte* bytes = env->GetByteArrayElements(bytes_array, NULL);
+    out->push_back(
+        std::string(reinterpret_cast<const char*>(bytes), bytes_len));
+    env->ReleaseByteArrayElements(bytes_array, bytes, JNI_ABORT);
+  }
+}
+
 }  // namespace android
 }  // namespace base
