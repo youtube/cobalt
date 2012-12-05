@@ -7,6 +7,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
+#include "media/base/audio_timestamp_helper.h"
 #include "media/base/data_buffer.h"
 #include "media/base/gmock_callback_support.h"
 #include "media/base/mock_audio_renderer_sink.h"
@@ -101,6 +102,10 @@ class AudioRendererImplTest : public ::testing::Test {
 
     InitializeWithStatus(PIPELINE_OK);
     message_loop_.RunUntilIdle();
+    int channels = ChannelLayoutToChannelCount(decoder_->channel_layout());
+    int bytes_per_frame = decoder_->bits_per_channel() * channels / 8;
+    next_timestamp_.reset(new AudioTimestampHelper(
+        bytes_per_frame, decoder_->samples_per_second()));
   }
 
   void InitializeWithStatus(PipelineStatus expected) {
@@ -123,6 +128,8 @@ class AudioRendererImplTest : public ::testing::Test {
   }
 
   void Preroll() {
+    next_timestamp_->SetBaseTimestamp(base::TimeDelta());
+
     // Fill entire buffer to complete prerolling.
     EXPECT_CALL(*decoder_, Read(_));
     renderer_->Preroll(base::TimeDelta(), NewPrerollCB());
@@ -137,7 +144,7 @@ class AudioRendererImplTest : public ::testing::Test {
   }
 
   void Preroll(base::TimeDelta preroll_time) {
-    next_timestamp_ = preroll_time;
+    next_timestamp_->SetBaseTimestamp(preroll_time);
 
     // Fill entire buffer to complete prerolling.
     EXPECT_CALL(*decoder_, Read(_));
@@ -155,10 +162,9 @@ class AudioRendererImplTest : public ::testing::Test {
     buffer->SetDataSize(size);
     memset(buffer->GetWritableData(), kPlayingAudio, buffer->GetDataSize());
 
-    buffer->SetTimestamp(next_timestamp_);
-    int64 bps = decoder_->bits_per_channel() * decoder_->samples_per_second();
-    buffer->SetDuration(base::TimeDelta::FromMilliseconds(8000 * size / bps));
-    next_timestamp_ += buffer->GetDuration();
+    buffer->SetTimestamp(next_timestamp_->GetTimestamp());
+    buffer->SetDuration(next_timestamp_->GetDuration(buffer->GetDataSize()));
+    next_timestamp_->AddBytes(buffer->GetDataSize());
 
     base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, buffer);
   }
@@ -229,7 +235,7 @@ class AudioRendererImplTest : public ::testing::Test {
   scoped_refptr<MockAudioDecoder> decoder_;
   AudioRendererImpl::AudioDecoderList decoders_;
   AudioDecoder::ReadCB read_cb_;
-  base::TimeDelta next_timestamp_;
+  scoped_ptr<AudioTimestampHelper> next_timestamp_;
   MessageLoop message_loop_;
 
  private:

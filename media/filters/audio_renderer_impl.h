@@ -33,6 +33,8 @@
 
 namespace media {
 
+class AudioSplicer;
+
 class MEDIA_EXPORT AudioRendererImpl
     : public AudioRenderer,
       NON_EXPORTED_BASE(public media::AudioRendererSink::RenderCallback) {
@@ -79,6 +81,10 @@ class MEDIA_EXPORT AudioRendererImpl
   // Callback from the audio decoder delivering decoded audio samples.
   void DecodedAudioReady(AudioDecoder::Status status,
                          const scoped_refptr<Buffer>& buffer);
+
+  // Handles buffers that come out of |splicer_|.
+  // Returns true if more buffers are needed.
+  bool HandleSplicerBuffer(const scoped_refptr<Buffer>& buffer);
 
   // Helper functions for AudioDecoder::Status values passed to
   // DecodedAudioReady().
@@ -146,6 +152,8 @@ class MEDIA_EXPORT AudioRendererImpl
 
   // Audio decoder.
   scoped_refptr<AudioDecoder> decoder_;
+
+  scoped_ptr<AudioSplicer> splicer_;
 
   // The sink (destination) for rendered audio.  |sink_| must only be accessed
   // on the pipeline thread (verify with |pipeline_thread_checker_|).  |sink_|
