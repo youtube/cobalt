@@ -49,18 +49,13 @@ found in the LICENSE file.
   <property name="resource.absolute.dir" value="res"/>
   <property name="gen.absolute.dir" value="${out.dir}/gen"/>
 
-  <condition property="external.jars.dir"
-             value="${out.dir}/java/libs"
-             else="">
-      <available file="${out.dir}/java/libs" type="dir"/>
-  </condition>
   <path id="out.dex.jar.input.ref">
-      <fileset dir="${external.jars.dir}" includes="*.jar"/>
+      <filelist files="${INPUT_JARS_PATHS}"/>
   </path>
   <condition property="java.compilerargs"
              value="-classpath ${toString:out.dex.jar.input.ref}">
     <not>
-      <equals arg1="${external.jars.dir}" arg2=""/>
+      <equals arg1="${toString:out.dex.jar.input.ref}" arg2=""/>
     </not>
   </condition>
   <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
