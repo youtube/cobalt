@@ -341,13 +341,14 @@ function bb_run_instrumentation_tests {
   bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell.apk" \
       "org.chromium.chrome.testshell" "ChromiumTestShellTest" \
       "chrome:chrome/test/data/android/device_files"
+  bb_run_all_instrumentation_tests_for_apk "AndroidWebView.apk" \
+      "org.chromium.android_webview" "AndroidWebViewTest" \
+      "webview:android_webview/test/data/device_files"
 }
 
 # Run instrumentation tests for experimental APKs on device.
 function bb_run_experimental_instrumentation_tests {
-  bb_run_all_instrumentation_tests_for_apk "AndroidWebView.apk" \
-      "org.chromium.android_webview" "AndroidWebViewTest" \
-      "webview:android_webview/test/data/device_files"
+  echo "" # Can't have empty functions in bash.
 }
 
 # Zip and archive a build.
