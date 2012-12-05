@@ -398,6 +398,8 @@
         'gfx/image/image.h',
         'gfx/image/image_ios.mm',
         'gfx/image/image_mac.mm',
+        'gfx/image/image_png_rep.cc',
+        'gfx/image/image_png_rep.h',
         'gfx/image/image_skia.cc',
         'gfx/image/image_skia.h',
         'gfx/image/image_skia_operations.cc',
