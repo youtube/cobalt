@@ -32,7 +32,7 @@ Value* BytesTransferredCallback(int byte_count,
 
 Value* SourceEventParametersCallback(const NetLog::Source source,
                                      NetLog::LogLevel /* log_level */) {
-  if (!source.is_valid())
+  if (!source.IsValid())
     return NULL;
   DictionaryValue* event_params = new DictionaryValue();
   source.AddToEventParameters(event_params);
@@ -72,6 +72,18 @@ Value* NetLogString16Callback(const char* name,
 }
 
 }  // namespace
+
+const uint32 NetLog::Source::kInvalidId = 0;
+
+NetLog::Source::Source() : type(SOURCE_NONE), id(kInvalidId) {
+}
+
+NetLog::Source::Source(SourceType type, uint32 id) : type(type), id(id) {
+}
+
+bool NetLog::Source::IsValid() const {
+  return id != kInvalidId;
+}
 
 void NetLog::Source::AddToEventParameters(DictionaryValue* event_params) const {
   DictionaryValue* dict = new DictionaryValue();
