@@ -1788,6 +1788,7 @@ class SyncPageHandler(BasePageHandler):
     get_handlers = [self.ChromiumSyncTimeHandler,
                     self.ChromiumSyncMigrationOpHandler,
                     self.ChromiumSyncCredHandler,
+                    self.ChromiumSyncXmppCredHandler,
                     self.ChromiumSyncDisableNotificationsOpHandler,
                     self.ChromiumSyncEnableNotificationsOpHandler,
                     self.ChromiumSyncSendNotificationOpHandler,
@@ -1887,6 +1888,30 @@ class SyncPageHandler(BasePageHandler):
 
     http_response = 200
     raw_reply = 'Authenticated: %s ' % self.server.GetAuthenticated()
+    self.send_response(http_response)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
+  def ChromiumSyncXmppCredHandler(self):
+    test_name = "/chromiumsync/xmppcred"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    xmpp_server = self.server.GetXmppServer()
+    try:
+      query = urlparse.urlparse(self.path)[4]
+      cred_valid = urlparse.parse_qs(query)['valid']
+      if cred_valid[0] == 'True':
+        xmpp_server.SetAuthenticated(True)
+      else:
+        xmpp_server.SetAuthenticated(False)
+    except:
+      xmpp_server.SetAuthenticated(False)
+
+    http_response = 200
+    raw_reply = 'XMPP Authenticated: %s ' % xmpp_server.GetAuthenticated()
     self.send_response(http_response)
     self.send_header('Content-Type', 'text/html')
     self.send_header('Content-Length', len(raw_reply))
