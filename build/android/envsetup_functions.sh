@@ -234,13 +234,6 @@ sdk_build_init() {
   common_vars_defines
 
   DEFINES+=" sdk_build=1"
-  # If we are building NDK/SDK, and in the upstream (open source) tree,
-  # define a special variable for bringup purposes.
-  case "${ANDROID_BUILD_TOP-undefined}" in
-    "undefined")
-      DEFINES+=" android_upstream_bringup=1"
-      ;;
-  esac
 
   # Sets android specific directories to NOT_SDK_COMPLIANT.  This will allow
   # android_gyp to generate make files, but will cause errors when (and only
@@ -296,7 +289,6 @@ ${ANDROID_SDK_VERSION}
   DEFINES+=" sdk_build=0"
   DEFINES+=" android_src=\$(GYP_ABS_ANDROID_TOP_DIR)"
   DEFINES+=" android_product_out=NOT_USED_ON_WEBVIEW"
-  DEFINES+=" android_upstream_bringup=1"
   DEFINES+=" android_sdk=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
   DEFINES+=" android_sdk_root=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
   DEFINES+=" android_sdk_tools=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK_TOOLS}"
