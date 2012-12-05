@@ -510,6 +510,7 @@
         'scoped_observer.h',
         'sha1_unittest.cc',
         'shared_memory_unittest.cc',
+        'stl_util_unittest.cc',
         'string16_unittest.cc',
         'string_number_conversions_unittest.cc',
         'string_piece_unittest.cc',
