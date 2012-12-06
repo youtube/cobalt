@@ -792,11 +792,16 @@ bool SettingGetterImplGSettings::LoadAndCheckVersion(
   // but don't use gsettings for proxy settings, but they do have the old
   // binary, so we detect these systems that way.
 
-  // Try also without .0 at the end; on some systems this may be required.
-  if (!libgio_loader_.Load("libgio-2.0.so.0") &&
-      !libgio_loader_.Load("libgio-2.0.so")) {
-    VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
-    return false;
+  {
+    // TODO(phajdan.jr): Redesign the code to load library on different thread.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+
+    // Try also without .0 at the end; on some systems this may be required.
+    if (!libgio_loader_.Load("libgio-2.0.so.0") &&
+        !libgio_loader_.Load("libgio-2.0.so")) {
+      VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
+      return false;
+    }
   }
 
   GSettings* client;
