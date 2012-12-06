@@ -43,7 +43,6 @@ Storage::~Storage() {
 }
 
 bool Storage::Read(void* buffer, int32 size, int32 offset) {
-  DCHECK(buffer);
   DCHECK(offset >= 0 && offset + size <= size_);
 
   int rv = base::ReadPlatformFile(file_, offset, static_cast<char*>(buffer),
@@ -52,7 +51,6 @@ bool Storage::Read(void* buffer, int32 size, int32 offset) {
 }
 
 bool Storage::Write(const void* buffer, int32 size, int32 offset) {
-  DCHECK(buffer);
   DCHECK(offset >= 0 && offset + size <= size_);
 
   int rv = base::WritePlatformFile(file_, offset,
