@@ -9,6 +9,9 @@
     'use_vtable_verify%': 0,
   },
   'targets': [
+    # Only executables and not libraries should depend on the
+    # allocator target; only the application (the final executable)
+    # knows what allocator makes sense.
     {
       'target_name': 'allocator',
       'type': 'static_library',
