@@ -574,7 +574,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
         return max_state;
       } else {
         // TODO(wtc): Add a state for being on the wait list.
-        // See http://www.crbug.com/5077.
+        // See http://crbug.com/5077.
         return LOAD_STATE_IDLE;
       }
     }
