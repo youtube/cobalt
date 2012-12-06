@@ -620,6 +620,7 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {21, true, "\004blog\012torproject\003org", true, kTorPins, DOMAIN_TORPROJECT_ORG },
   {22, true, "\005check\012torproject\003org", true, kTorPins, DOMAIN_TORPROJECT_ORG },
   {20, true, "\003www\012torproject\003org", true, kTorPins, DOMAIN_TORPROJECT_ORG },
+  {22, true, "\005dists\012torproject\003org", true, kTorPins, DOMAIN_TORPROJECT_ORG },
   {22, true, "\003www\014moneybookers\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, false, "\013ledgerscope\003net", true, kNoPins, DOMAIN_NOT_PINNED },
   {21, false, "\003www\013ledgerscope\003net", true, kNoPins, DOMAIN_NOT_PINNED },
