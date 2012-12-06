@@ -529,20 +529,31 @@ def DispatchJavaTests(options, apks):
     FatalTestException: when there's no attached the devices.
   """
   test_apk = apks[0]
+  # The default annotation for tests which do not have any sizes annotation.
+  default_size_annotation = 'SmallTest'
+
+  def _GetTestsMissingAnnotation(test_apk):
+    test_size_annotations = frozenset(['Smoke', 'SmallTest', 'MediumTest',
+                                       'LargeTest', 'EnormousTest', 'FlakyTest',
+                                       'DisabledTest', 'Manual', 'PerfTest'])
+    tests_missing_annotations = []
+    for test_method in test_apk.GetTestMethods():
+      annotations = frozenset(test_apk.GetTestAnnotations(test_method))
+      if (annotations.isdisjoint(test_size_annotations) and
+          not apk_info.ApkInfo.IsPythonDrivenTest(test_method)):
+        tests_missing_annotations.append(test_method)
+    return sorted(tests_missing_annotations)
+
   if options.annotation:
     available_tests = test_apk.GetAnnotatedTests(options.annotation)
-    if len(options.annotation) == 1 and options.annotation[0] == 'SmallTest':
-      tests_without_annotation = [
-          m for m in
-          test_apk.GetTestMethods()
-          if not test_apk.GetTestAnnotations(m) and
-          not apk_info.ApkInfo.IsPythonDrivenTest(m)]
-      if tests_without_annotation:
-        tests_without_annotation.sort()
+    if options.annotation.count(default_size_annotation) > 0:
+      tests_missing_annotations = _GetTestsMissingAnnotation(test_apk)
+      if tests_missing_annotations:
         logging.warning('The following tests do not contain any annotation. '
-                        'Assuming "SmallTest":\n%s',
-                        '\n'.join(tests_without_annotation))
-        available_tests += tests_without_annotation
+                        'Assuming "%s":\n%s',
+                        default_size_annotation,
+                        '\n'.join(tests_missing_annotations))
+        available_tests += tests_missing_annotations
   else:
     available_tests = [m for m in test_apk.GetTestMethods()
                        if not apk_info.ApkInfo.IsPythonDrivenTest(m)]
