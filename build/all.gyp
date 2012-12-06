@@ -279,6 +279,7 @@
             '../chrome/chrome.gyp:gpu_tests',
             '../chrome/chrome.gyp:performance_browser_tests',
             '../chrome/chrome.gyp:performance_ui_tests',
+            '../content/content.gyp:content_browsertests',
             '../gpu/gpu.gyp:gl_tests',
           ],
           'conditions': [
@@ -294,6 +295,7 @@
           'type': 'none',
           'dependencies': [
             '../chrome/chrome.gyp:gpu_tests',
+            '../content/content.gyp:content_browsertests',
             '../gpu/gpu.gyp:gl_tests',
           ],
           'conditions': [
