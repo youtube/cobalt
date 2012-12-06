@@ -493,9 +493,15 @@
     },
     {
       'target_name': 'gnome_keyring',
-      'type': 'none',
+      'type': 'static_library',
       'conditions': [
         ['use_gnome_keyring==1', {
+          'dependencies': [
+            '../../base/base.gyp:base',
+          ],
+          'cflags': [
+            '<!@(<(pkg-config) --cflags gnome-keyring-1)',
+          ],
           'direct_dependent_settings': {
             'cflags': [
               '<!@(<(pkg-config) --cflags gnome-keyring-1)',
@@ -503,33 +509,58 @@
             'defines': [
               'USE_GNOME_KEYRING',
             ],
-            'conditions': [
-              ['linux_link_gnome_keyring==0', {
-                'defines': ['DLOPEN_GNOME_KEYRING'],
-              }],
+            'include_dirs': [
+              '<(SHARED_INTERMEDIATE_DIR)',
             ],
           },
-          'conditions': [
-            ['linux_link_gnome_keyring!=0', {
-              'link_settings': {
+          'link_settings': {
+            'conditions': [
+              ['linux_link_gnome_keyring==1', {
                 'ldflags': [
                   '<!@(<(pkg-config) --libs-only-L --libs-only-other gnome-keyring-1)',
                 ],
                 'libraries': [
                   '<!@(<(pkg-config) --libs-only-l gnome-keyring-1)',
                 ],
+              }, { # linux_link_gnome_keyring==0
+                'libraries': [
+                  '-ldl',
+                ],
+              }],
+            ],
+          },
+          'hard_dependency': 1,
+          'actions': [
+            {
+              'variables': {
+                'output_h': '<(SHARED_INTERMEDIATE_DIR)/library_loaders/libgnome-keyring.h',
+                'output_cc': '<(INTERMEDIATE_DIR)/libgnome_keyring_loader.cc',
+                'generator': '../../tools/generate_library_loader/generate_library_loader.py',
               },
-            }, {
-              'conditions': [
-                ['OS=="linux"', {
-                 'link_settings': {
-                   'libraries': [
-                     '-ldl',
-                   ],
-                 },
-                }],
+              'action_name': 'generate_libgnome_keyring_loader',
+              'inputs': [
+                '<(generator)',
               ],
-            }],
+              'outputs': [
+                '<(output_h)',
+                '<(output_cc)',
+              ],
+              'action': ['python',
+                         '<(generator)',
+                         '--name', 'LibGnomeKeyringLoader',
+                         '--output-h', '<(output_h)',
+                         '--output-cc', '<(output_cc)',
+                         '--header', '<gnome-keyring.h>',
+                         '--link-directly=<(linux_link_gnome_keyring)',
+                         'gnome_keyring_is_available',
+                         'gnome_keyring_store_password',
+                         'gnome_keyring_delete_password',
+                         'gnome_keyring_find_itemsv',
+                         'gnome_keyring_result_to_message',
+              ],
+              'message': 'Generating libgnome-keyring library loader.',
+              'process_outputs_as_sources': 1,
+            },
           ],
         }],
       ],
