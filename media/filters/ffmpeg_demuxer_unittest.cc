@@ -11,8 +11,8 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/threading/thread.h"
-#include "media/base/mock_callback.h"
 #include "media/base/mock_demuxer_host.h"
+#include "media/base/test_helpers.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/file_data_source.h"
@@ -87,8 +87,9 @@ class FFmpegDemuxerTest : public testing::Test {
 
   void InitializeDemuxer() {
     EXPECT_CALL(host_, SetDuration(_));
-    demuxer_->Initialize(&host_, NewStatusCB(PIPELINE_OK));
-    message_loop_.Run();
+    WaitableMessageLoopEvent event;
+    demuxer_->Initialize(&host_, event.GetPipelineStatusCB());
+    event.RunAndWaitForStatus(PIPELINE_OK);
   }
 
   MOCK_METHOD2(OnReadDoneCalled, void(int, int64));
@@ -120,18 +121,6 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_CALL(*this, OnReadDoneCalled(size, timestampInMicroseconds));
     return base::Bind(&FFmpegDemuxerTest::OnReadDone, base::Unretained(this),
                       location, size, timestampInMicroseconds);
-  }
-
-  PipelineStatusCB NewStatusCB(PipelineStatus expected) {
-    return base::Bind(&FFmpegDemuxerTest::OnStatusDone,
-                      base::Unretained(this), expected);
-  }
-
-  void OnStatusDone(PipelineStatus expected, PipelineStatus status) {
-    EXPECT_EQ(expected, status);
-
-    DCHECK_EQ(&message_loop_, MessageLoop::current());
-    message_loop_.PostTask(FROM_HERE, MessageLoop::QuitWhenIdleClosure());
   }
 
   // Accessor to demuxer internals.
@@ -192,8 +181,9 @@ class FFmpegDemuxerTest : public testing::Test {
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate avformat_open_input() failing.
   CreateDemuxer("ten_byte_file");
-  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
-  message_loop_.Run();
+  WaitableMessageLoopEvent event;
+  demuxer_->Initialize(&host_, event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(DEMUXER_ERROR_COULD_NOT_OPEN);
 }
 
 // TODO(acolwell): Uncomment this test when we discover a file that passes
@@ -209,15 +199,17 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   // Open a file with no streams whatsoever.
   CreateDemuxer("no_streams.webm");
-  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.Run();
+  WaitableMessageLoopEvent event;
+  demuxer_->Initialize(&host_, event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
   // Open a file containing streams but none of which are audio/video streams.
   CreateDemuxer("no_audio_video.webm");
-  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.Run();
+  WaitableMessageLoopEvent event;
+  demuxer_->Initialize(&host_, event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
@@ -380,9 +372,10 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   message_loop_.Run();
 
   // Issue a simple forward seek, which should discard queued packets.
+  WaitableMessageLoopEvent event;
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(1000000),
-                 NewStatusCB(PIPELINE_OK));
-  message_loop_.Run();
+                 event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(PIPELINE_OK);
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 145, 803000));
@@ -553,9 +546,10 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
   message_loop_.Run();
 
   // Issue a simple forward seek, which should discard queued packets.
+  WaitableMessageLoopEvent event;
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(2500000),
-                 NewStatusCB(PIPELINE_OK));
-  message_loop_.Run();
+                 event.GetPipelineStatusCB());
+  event.RunAndWaitForStatus(PIPELINE_OK);
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 40, 2403000));

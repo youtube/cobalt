@@ -11,8 +11,8 @@
 #include "media/base/data_buffer.h"
 #include "media/base/gmock_callback_support.h"
 #include "media/base/mock_audio_renderer_sink.h"
-#include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
+#include "media/base/test_helpers.h"
 #include "media/filters/audio_renderer_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

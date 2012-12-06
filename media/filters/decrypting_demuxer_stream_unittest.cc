@@ -11,8 +11,8 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/gmock_callback_support.h"
-#include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
+#include "media/base/test_helpers.h"
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
