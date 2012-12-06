@@ -107,6 +107,9 @@
           'debug/debugger.h',
           'debug/debugger_posix.cc',
           'debug/debugger_win.cc',
+          # This file depends on files from the 'allocator' target,
+          # but this target does not depend on 'allocator' (see
+          # allocator.gyp for details).
           'debug/leak_annotations.h',
           'debug/leak_tracker.h',
           'debug/profiler.cc',
