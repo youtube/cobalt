@@ -152,6 +152,50 @@ void ResetChildSignalHandlersToDefaults() {
   signal(SIGTERM, SIG_DFL);
 }
 
+TerminationStatus GetTerminationStatusImpl(ProcessHandle handle,
+                                           bool can_block,
+                                           int* exit_code) {
+  int status = 0;
+  const pid_t result = HANDLE_EINTR(waitpid(handle, &status,
+                                            can_block ? 0 : WNOHANG));
+  if (result == -1) {
+    DPLOG(ERROR) << "waitpid(" << handle << ")";
+    if (exit_code)
+      *exit_code = 0;
+    return TERMINATION_STATUS_NORMAL_TERMINATION;
+  } else if (result == 0) {
+    // the child hasn't exited yet.
+    if (exit_code)
+      *exit_code = 0;
+    return TERMINATION_STATUS_STILL_RUNNING;
+  }
+
+  if (exit_code)
+    *exit_code = status;
+
+  if (WIFSIGNALED(status)) {
+    switch (WTERMSIG(status)) {
+      case SIGABRT:
+      case SIGBUS:
+      case SIGFPE:
+      case SIGILL:
+      case SIGSEGV:
+        return TERMINATION_STATUS_PROCESS_CRASHED;
+      case SIGINT:
+      case SIGKILL:
+      case SIGTERM:
+        return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+      default:
+        break;
+    }
+  }
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
+
+  return TERMINATION_STATUS_NORMAL_TERMINATION;
+}
+
 }  // anonymous namespace
 
 ProcessId GetCurrentProcId() {
@@ -754,44 +798,12 @@ void RaiseProcessToHighPriority() {
 }
 
 TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
-  int status = 0;
-  const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
-  if (result == -1) {
-    DPLOG(ERROR) << "waitpid(" << handle << ")";
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_NORMAL_TERMINATION;
-  } else if (result == 0) {
-    // the child hasn't exited yet.
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_STILL_RUNNING;
-  }
+  return GetTerminationStatusImpl(handle, false /* can_block */, exit_code);
+}
 
-  if (exit_code)
-    *exit_code = status;
-
-  if (WIFSIGNALED(status)) {
-    switch (WTERMSIG(status)) {
-      case SIGABRT:
-      case SIGBUS:
-      case SIGFPE:
-      case SIGILL:
-      case SIGSEGV:
-        return TERMINATION_STATUS_PROCESS_CRASHED;
-      case SIGINT:
-      case SIGKILL:
-      case SIGTERM:
-        return TERMINATION_STATUS_PROCESS_WAS_KILLED;
-      default:
-        break;
-    }
-  }
-
-  if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
-    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
-
-  return TERMINATION_STATUS_NORMAL_TERMINATION;
+TerminationStatus WaitForTerminationStatus(ProcessHandle handle,
+                                           int* exit_code) {
+  return GetTerminationStatusImpl(handle, true /* can_block */, exit_code);
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {

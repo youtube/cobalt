@@ -512,6 +512,15 @@ BASE_EXPORT bool KillProcessById(ProcessId process_id, int exit_code,
 BASE_EXPORT TerminationStatus GetTerminationStatus(ProcessHandle handle,
                                                    int* exit_code);
 
+#if defined(OS_POSIX)
+// Wait for the process to exit and get the termination status. See
+// GetTerminationStatus for more information. On POSIX systems, we can't call
+// WaitForExitCode and then GetTerminationStatus as the child will be reaped
+// when WaitForExitCode return and this information will be lost.
+BASE_EXPORT TerminationStatus WaitForTerminationStatus(ProcessHandle handle,
+                                                       int* exit_code);
+#endif  // defined(OS_POSIX)
+
 // Waits for process to exit. On POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
 // a failure. On Windows |exit_code| is always filled. Returns true on success,
