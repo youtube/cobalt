@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 from telemetry import multi_page_benchmark
 from telemetry import multi_page_benchmark_unittest_base
+from telemetry import page
 from perf_tools import smoothness_benchmark
 
 from telemetry import browser_finder
@@ -48,7 +49,7 @@ class SmoothnessBenchmarkUnitTest(
                        'numAnimationFrames': 10,
                        'numFramesSentToScreen': 10}
     res = multi_page_benchmark.BenchmarkResults()
-    res.WillMeasurePage(True)
+    res.WillMeasurePage(page.Page('http://foo.com/'))
     smoothness_benchmark.CalcScrollResults(rendering_stats, res)
     res.DidMeasurePage()
     self.assertEquals(50, res.page_results[0]['dropped_percent'])
@@ -68,7 +69,7 @@ class SmoothnessBenchmarkUnitTest(
                        'totalRasterizeTimeInSeconds': 0,
                        'totalTimeInSeconds': 1.0}
     res = multi_page_benchmark.BenchmarkResults()
-    res.WillMeasurePage(True)
+    res.WillMeasurePage(page.Page('http://foo.com/'))
     smoothness_benchmark.CalcScrollResults(rendering_stats, res)
     res.DidMeasurePage()
     self.assertEquals(0, res.page_results[0]['dropped_percent'])
