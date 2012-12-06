@@ -102,7 +102,7 @@ def CalcFirstPaintTimeResults(results, tab):
 
   first_paint_secs = tab.runtime.Evaluate(
       'window.chrome.loadTimes().firstPaintTime - ' +
-      'window.chrome.loadTimes().requestTime')
+      'window.chrome.loadTimes().startLoadTime')
 
   results.Add('first_paint', 'ms', round(first_paint_secs * 1000, 1))
 
