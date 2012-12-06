@@ -162,13 +162,11 @@ class FakeDecryptorClient : public DecryptorClient {
 
   virtual void KeyMessage(const std::string& key_system,
                           const std::string& session_id,
-                          scoped_array<uint8> message,
-                          int message_length,
+                          const std::string& message,
                           const std::string& default_url) {
     EXPECT_EQ(kClearKeySystem, key_system);
     EXPECT_FALSE(session_id.empty());
-    EXPECT_TRUE(message.get());
-    EXPECT_GT(message_length, 0);
+    EXPECT_FALSE(message.empty());
 
     current_key_system_ = key_system;
     current_session_id_ = session_id;
