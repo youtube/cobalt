@@ -20,13 +20,10 @@ using ::testing::Gt;
 using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::SaveArg;
+using ::testing::StrEq;
 using ::testing::StrNe;
 
 namespace media {
-
-MATCHER_P2(ArrayEq, array, size, "") {
-  return !memcmp(arg, array, size);
-}
 
 // |encrypted_data| is encrypted from |plain_text| using |key|. |key_id| is
 // used to distinguish |key|.
@@ -239,9 +236,10 @@ class AesDecryptorTest : public testing::Test {
 
  protected:
   void GenerateKeyRequest(const uint8* key_id, int key_id_size) {
-    EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(""),
-                                        ArrayEq(key_id, key_id_size),
-                                        key_id_size, ""))
+    std::string key_id_string(reinterpret_cast<const char*>(key_id),
+                              key_id_size);
+    EXPECT_CALL(client_, KeyMessage(kClearKeySystem,
+                                    StrNe(""), StrEq(key_id_string), ""))
         .WillOnce(SaveArg<1>(&session_id_string_));
     EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem, "",
                                               key_id, key_id_size));
@@ -316,8 +314,7 @@ class AesDecryptorTest : public testing::Test {
 };
 
 TEST_F(AesDecryptorTest, GenerateKeyRequestWithNullInitData) {
-  EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(""),
-                                      IsNull(), 0, ""));
+  EXPECT_CALL(client_, KeyMessage(kClearKeySystem, StrNe(""), "", ""));
   EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem, "", NULL, 0));
 }
 
