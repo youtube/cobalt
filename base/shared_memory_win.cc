@@ -86,6 +86,8 @@ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
   // To avoid client impact, we continue to retain the size as the
   // actual requested size.
   uint32 rounded_size = (options.size + 0xffff) & ~0xffff;
+  if (rounded_size < options.size)
+    return false;
   name_ = ASCIIToWide(options.name == NULL ? "" : *options.name);
   mapped_file_ = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
       PAGE_READWRITE, 0, static_cast<DWORD>(rounded_size),
