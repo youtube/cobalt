@@ -147,6 +147,10 @@
     DLOG(ERROR) << "Video capture capabilities already set.";
     return NO;
   }
+  if (frameRate <= 0) {
+    DLOG(ERROR) << "Wrong frame rate.";
+    return NO;
+  }
 
   frameWidth_ = width;
   frameHeight_ = height;
@@ -164,6 +168,9 @@
           nil];
   [[[captureSession_ outputs] objectAtIndex:0]
       setPixelBufferAttributes:captureDictionary];
+
+  [[[captureSession_ outputs] objectAtIndex:0]
+      setMinimumVideoFrameInterval:(NSTimeInterval)1/(float)frameRate];
   return YES;
 }
 
