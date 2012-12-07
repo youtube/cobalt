@@ -59,8 +59,8 @@ QuicConnection::QuicConnection(QuicGuid guid,
       packet_creator_(guid_, &framer_),
       timeout_(QuicTime::Delta::FromMicroseconds(kDefaultTimeoutUs)),
       time_of_last_packet_(clock_->Now()),
-      collector_(new QuicReceiptMetricsCollector(clock_, kFixRate)),
-      scheduler_(new QuicSendScheduler(clock_, kFixRate)),
+      collector_(new QuicReceiptMetricsCollector(clock_, kTCP)),
+      scheduler_(new QuicSendScheduler(clock_, kTCP)),
       connected_(true) {
   helper_->SetConnection(this);
   helper_->SetTimeoutAlarm(timeout_);

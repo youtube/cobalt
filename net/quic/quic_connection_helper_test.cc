@@ -133,9 +133,9 @@ class QuicConnectionHelperTest : public ::testing::Test {
 
     QuicAckFrame ack(0, QuicTime(), sequence_number);
 
-    ack.congestion_info.type = kFixRate;
-    ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
-
+    ack.congestion_info.type = kTCP;
+    ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
+    ack.congestion_info.tcp.receive_window = 16000;
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
@@ -148,8 +148,9 @@ class QuicConnectionHelperTest : public ::testing::Test {
     QuicFrames frames;
     QuicAckFrame ack(0, QuicTime(), sequence_number - 1);
     if (with_ack) {
-      ack.congestion_info.type = kFixRate;
-      ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
+      ack.congestion_info.type = kTCP;
+      ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
+      ack.congestion_info.tcp.receive_window = 16000;
     } else {
       ack.congestion_info.type = kNone;
     }
