@@ -40,6 +40,7 @@ class VideoRendererBaseTest : public ::testing::Test {
       : decoder_(new MockVideoDecoder()),
         demuxer_stream_(new MockDemuxerStream()) {
     renderer_ = new VideoRendererBase(
+        message_loop_.message_loop_proxy(),
         base::Bind(&VideoRendererBaseTest::OnPaint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
@@ -297,14 +298,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void FrameRequested(const VideoDecoder::ReadCB& read_cb) {
-    // TODO(scherkus): Make VideoRendererBase call on right thread.
-    if (&message_loop_ != MessageLoop::current()) {
-      message_loop_.PostTask(FROM_HERE, base::Bind(
-          &VideoRendererBaseTest::FrameRequested, base::Unretained(this),
-          read_cb));
-      return;
-    }
-
+    DCHECK_EQ(&message_loop_, MessageLoop::current());
     CHECK(read_cb_.is_null());
     read_cb_ = read_cb;
 
@@ -319,14 +313,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void FlushRequested(const base::Closure& callback) {
-    // TODO(scherkus): Make VideoRendererBase call on right thread.
-    if (&message_loop_ != MessageLoop::current()) {
-      message_loop_.PostTask(FROM_HERE, base::Bind(
-          &VideoRendererBaseTest::FlushRequested, base::Unretained(this),
-          callback));
-      return;
-    }
-
+    DCHECK_EQ(&message_loop_, MessageLoop::current());
     decode_results_.clear();
     if (!read_cb_.is_null()) {
       QueueAbortedRead();

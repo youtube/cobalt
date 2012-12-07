@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
+#include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "media/base/buffers.h"
 #include "media/base/limits.h"
@@ -19,10 +20,13 @@ base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
   return base::TimeDelta::FromMilliseconds(250);
 }
 
-VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
-                                     const SetOpaqueCB& set_opaque_cb,
-                                     bool drop_frames)
-    : frame_available_(&lock_),
+VideoRendererBase::VideoRendererBase(
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const base::Closure& paint_cb,
+    const SetOpaqueCB& set_opaque_cb,
+    bool drop_frames)
+    : message_loop_(message_loop),
+      frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
       pending_read_(false),
@@ -36,6 +40,7 @@ VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPrerolled, state_);
   state_ = kPlaying;
@@ -43,6 +48,7 @@ void VideoRendererBase::Play(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Pause(const base::Closure& callback) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ != kUninitialized || state_ == kError);
   state_ = kPaused;
@@ -50,19 +56,17 @@ void VideoRendererBase::Pause(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Flush(const base::Closure& callback) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kPaused);
   flush_cb_ = callback;
   state_ = kFlushingDecoder;
 
-  // We must unlock here because the callback might run within the Flush()
-  // call.
-  // TODO: Remove this line when fixing http://crbug.com/125020
-  base::AutoUnlock auto_unlock(lock_);
-  decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderFlushDone, this));
+  decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderResetDone, this));
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   if (state_ == kStopped) {
     callback.Run();
     return;
@@ -94,12 +98,14 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
 }
 
 void VideoRendererBase::SetPlaybackRate(float playback_rate) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
 }
 
 void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
   DCHECK(!cb.is_null());
@@ -122,6 +128,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                    const PipelineStatusCB& error_cb,
                                    const TimeDeltaCB& get_time_cb,
                                    const TimeDeltaCB& get_duration_cb) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK(stream);
   DCHECK(!decoders.empty());
@@ -151,6 +158,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
 void VideoRendererBase::InitializeNextDecoder(
     const scoped_refptr<DemuxerStream>& demuxer_stream,
     scoped_ptr<VideoDecoderList> decoders) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
   DCHECK(!decoders->empty());
 
@@ -173,6 +181,7 @@ void VideoRendererBase::OnDecoderInitDone(
     const scoped_refptr<DemuxerStream>& demuxer_stream,
     scoped_ptr<VideoDecoderList> decoders,
     PipelineStatus status) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
 
   if (state_ == kStopped)
@@ -330,7 +339,8 @@ void VideoRendererBase::ThreadMain() {
         // Frame dropped: read again.
         ++frames_dropped;
         ready_frames_.pop_front();
-        AttemptRead_Locked();
+        message_loop_->PostTask(FROM_HERE, base::Bind(
+            &VideoRendererBase::AttemptRead, this));
       }
       // Continue waiting for the current paint to finish.
       frame_available_.TimedWait(kIdleTimeDelta);
@@ -345,7 +355,8 @@ void VideoRendererBase::ThreadMain() {
     DCHECK(!pending_paint_);
     DCHECK(!ready_frames_.empty());
     SetCurrentFrameToNextReadyFrame();
-    AttemptRead_Locked();
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &VideoRendererBase::AttemptRead, this));
 
     base::AutoUnlock auto_unlock(lock_);
     paint_cb_.Run();
@@ -558,15 +569,21 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
   frame_available_.Signal();
 }
 
+void VideoRendererBase::AttemptRead() {
+  base::AutoLock auto_lock(lock_);
+  AttemptRead_Locked();
+}
+
 void VideoRendererBase::AttemptRead_Locked() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
-  DCHECK_NE(kEnded, state_);
 
   if (pending_read_ ||
       NumFrames_Locked() == limits::kMaxVideoFrames ||
       (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream()) ||
       state_ == kFlushingDecoder ||
-      state_ == kFlushing) {
+      state_ == kFlushing ||
+      state_ == kEnded) {
     return;
   }
 
@@ -574,7 +591,7 @@ void VideoRendererBase::AttemptRead_Locked() {
   decoder_->Read(base::Bind(&VideoRendererBase::FrameReady, this));
 }
 
-void VideoRendererBase::OnDecoderFlushDone() {
+void VideoRendererBase::OnDecoderResetDone() {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kFlushingDecoder, state_);
   DCHECK(!pending_read_);

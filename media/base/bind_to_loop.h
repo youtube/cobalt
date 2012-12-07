@@ -161,6 +161,13 @@ static base::Callback<T> BindToLoop(
   return base::Bind(&internal::TrampolineHelper<T>::Run, loop, cb);
 }
 
+template<typename T>
+static base::Callback<T> BindToCurrentLoop(
+    const base::Callback<T>& cb) {
+  return base::Bind(&internal::TrampolineHelper<T>::Run,
+                    base::MessageLoopProxy::current(), cb);
+}
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_BIND_TO_LOOP_H_
