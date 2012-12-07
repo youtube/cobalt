@@ -208,6 +208,15 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // Updates internal state based in incoming_ack.sent_info
   void UpdatePacketInformationSentByPeer(const QuicAckFrame& incoming_ack);
 
+  // Utility which sets SetLeastUnacked to least_unacked, and updates the list
+  // of non-retransmitting packets accordingly.
+  void SetLeastUnacked(QuicPacketSequenceNumber least_unacked);
+
+  // Helper to update least unacked.  If acked_sequence_number was not the least
+  // unacked packet, this is a no-op.  If it was the least least unacked packet,
+  // This finds the new least unacked packet and updates the outgoing ack frame.
+  void UpdateLeastUnacked(QuicPacketSequenceNumber acked_sequence_number);
+
  private:
   friend class QuicConnectionPeer;
   // Packets which have not been written to the wire.
@@ -227,9 +236,18 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
     bool resend;
     bool retransmit;
   };
+
+  struct UnackedPacket {
+    explicit UnackedPacket(QuicPacket* packet)
+        : packet(packet), number_nacks(0) {
+    }
+    QuicPacket* packet;
+    uint8 number_nacks;
+  };
+
   typedef std::list<QueuedPacket> QueuedPacketList;
   typedef base::hash_map<QuicPacketSequenceNumber,
-      QuicPacket*> UnackedPacketMap;
+      UnackedPacket> UnackedPacketMap;
   typedef std::map<QuicFecGroupNumber, QuicFecGroup*> FecGroupMap;
 
   // The amount of time we wait before resending a packet.

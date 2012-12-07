@@ -13,6 +13,7 @@
 
 using base::StringPiece;
 using std::map;
+using std::numeric_limits;
 
 namespace net {
 
@@ -31,7 +32,7 @@ bool QuicFramer::ConstructFrameDataPacket(
     const QuicFrames& frames,
     QuicPacket** packet) {
   // Compute the length of the packet.  We use "magic numbers" here because
-  // sizeof(member_) is not necessairly the same as sizeof(member_wire_format).
+  // sizeof(member_) is not necessarily the same as sizeof(member_wire_format).
   size_t len = kPacketHeaderSize;
   len += 1;  // frame count
   for (size_t i = 0; i < frames.size(); ++i) {
@@ -239,6 +240,10 @@ bool QuicFramer::ProcessPacketHeader(QuicPacketHeader* header,
     set_detailed_error("Unable to read sequence number.");
     return false;
   }
+  if (header->packet_sequence_number == 0u) {
+    set_detailed_error("Packet sequence numbers cannot be 0.");
+    return false;
+  }
 
   unsigned char flags;
   if (!reader_->ReadBytes(&flags, 1)) {
@@ -354,67 +359,105 @@ bool QuicFramer::ProcessPDUFrame() {
 }
 
 bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
+  if (!ProcessReceivedInfo(&frame->received_info)) {
+    return false;
+  }
+  if (!ProcessSentInfo(&frame->sent_info)) {
+    return false;
+  }
+  if (!ProcessCongestionInfo(&frame->congestion_info)) {
+    return false;
+  }
+  visitor_->OnAckFrame(*frame);
+  return true;
+}
+
+bool QuicFramer::ProcessReceivedInfo(ReceivedPacketInfo* received_info) {
+  if (!reader_->ReadUInt48(&received_info->largest_received)) {
+     set_detailed_error("Unable to read largest received.");
+     return false;
+  }
+
+  uint8 num_missing_packets;
+  if (!reader_->ReadBytes(&num_missing_packets, 1)) {
+    set_detailed_error("Unable to read num unacked packets.");
+    return false;
+  }
+
+  for (int i = 0; i < num_missing_packets; ++i) {
+    QuicPacketSequenceNumber sequence_number;
+    if (!reader_->ReadUInt48(&sequence_number)) {
+      set_detailed_error("Unable to read sequence number in unacked packets.");
+      return false;
+    }
+    received_info->missing_packets.insert(sequence_number);
+  }
+
   uint8 num_acked_packets;
   if (!reader_->ReadBytes(&num_acked_packets, 1)) {
     set_detailed_error("Unable to read num acked packets.");
     return false;
   }
 
-  uint64 smallest_received;
-  if (!reader_->ReadUInt48(&smallest_received)) {
-    set_detailed_error("Unable to read smallest received.");
+  if (num_acked_packets > 0u) {
+    uint64 smallest_ack;
+    if (!reader_->ReadUInt48(&smallest_ack)) {
+      set_detailed_error("Unable to read smallest ack.");
     return false;
   }
 
-  if (num_acked_packets == 0u) {
-    // Ensures largest_received is set when no actual acks are transmitted.
-    frame->received_info.largest_received = smallest_received;
-  } else {
     uint64 time_received_us;
     if (!reader_->ReadUInt64(&time_received_us)) {
       set_detailed_error("Unable to read time received.");
       return false;
     }
 
-    frame->received_info.RecordAck(
-        smallest_received, QuicTime::FromMicroseconds(time_received_us));
+    received_info->received_packet_times[smallest_ack] =
+        QuicTime::FromMicroseconds(time_received_us);
 
     for (int i = 0; i < num_acked_packets - 1; ++i) {
-      uint8 sequence_delta;
-      if (!reader_->ReadBytes(&sequence_delta, 1)) {
+      uint16 sequence_delta;
+      if (!reader_->ReadUInt16(&sequence_delta)) {
         set_detailed_error("Unable to read sequence delta in acked packets.");
         return false;
       }
+
       int32 time_delta_us;
       if (!reader_->ReadBytes(&time_delta_us, sizeof(time_delta_us))) {
         set_detailed_error("Unable to read time delta in acked packets.");
         return false;
       }
-      frame->received_info.RecordAck(
-          smallest_received + sequence_delta,
-          QuicTime::FromMicroseconds(time_received_us + time_delta_us));
+      received_info->received_packet_times[smallest_ack + sequence_delta] =
+          QuicTime::FromMicroseconds(time_received_us + time_delta_us);
     }
   }
+  return true;
+}
 
-  if (!reader_->ReadUInt48(&frame->sent_info.least_unacked)) {
+bool QuicFramer::ProcessSentInfo(SentPacketInfo* sent_info) {
+  if (!reader_->ReadUInt48(&sent_info->least_unacked)) {
     set_detailed_error("Unable to read least unacked.");
     return false;
   }
 
+  return true;
+}
+
+bool QuicFramer::ProcessCongestionInfo(CongestionInfo* congestion_info) {
   uint8 congestion_info_type;
   if (!reader_->ReadBytes(&congestion_info_type, 1)) {
     set_detailed_error("Unable to read congestion info type.");
     return false;
   }
-  frame->congestion_info.type =
+  congestion_info->type =
       static_cast<CongestionFeedbackType>(congestion_info_type);
 
-  switch (frame->congestion_info.type) {
+  switch (congestion_info->type) {
     case kNone:
       break;
     case kInterArrival: {
       CongestionFeedbackMessageInterArrival* inter_arrival =
-          &frame->congestion_info.inter_arrival;
+          &congestion_info->inter_arrival;
       if (!reader_->ReadUInt16(
               &inter_arrival->accumulated_number_of_lost_packets)) {
         set_detailed_error(
@@ -432,8 +475,7 @@ bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
       break;
     }
     case kFixRate: {
-      CongestionFeedbackMessageFixRate* fix_rate =
-          &frame->congestion_info.fix_rate;
+      CongestionFeedbackMessageFixRate* fix_rate = &congestion_info->fix_rate;
       if (!reader_->ReadUInt32(&fix_rate->bitrate_in_bytes_per_second)) {
         set_detailed_error("Unable to read bitrate.");
         return false;
@@ -441,7 +483,7 @@ bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
       break;
     }
     case kTCP: {
-      CongestionFeedbackMessageTCP* tcp = &frame->congestion_info.tcp;
+      CongestionFeedbackMessageTCP* tcp = &congestion_info->tcp;
       if (!reader_->ReadUInt16(&tcp->accumulated_number_of_lost_packets)) {
         set_detailed_error(
             "Unable to read accumulated number of lost packets.");
@@ -456,11 +498,10 @@ bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
     default:
       set_detailed_error("Illegal congestion info type.");
       DLOG(WARNING) << "Illegal congestion info type: "
-                    << frame->congestion_info.type;
+                    << congestion_info->type;
       return RaiseError(QUIC_INVALID_FRAME_DATA);
   }
 
-  visitor_->OnAckFrame(*frame);
   return true;
 }
 
@@ -583,11 +624,15 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
       break;  // Need to support this eventually :>
     case ACK_FRAME: {
       const QuicAckFrame& ack = *frame.ack_frame;
-      len += 1;  // num acked packets
       len += 6;  // largest received packet sequence number
+      len += 1;  // num missing packets
+      len += 6 * ack.received_info.missing_packets.size();
+      len += 1;  // num acked packets
       if (ack.received_info.received_packet_times.size() > 0) {
+        len += 6;  // smallest ack
         len += 8;  // time
-        len += 5 * (ack.received_info.received_packet_times.size() - 1);
+        // 2 bytes per sequence number delta plus 4 bytes per delta time.
+        len += 6 * (ack.received_info.received_packet_times.size() - 1);
       }
       len += 6;  // least packet sequence number awaiting an ack
       len += 1;  // congestion control type
@@ -654,20 +699,43 @@ bool QuicFramer::AppendStreamFramePayload(
   return true;
 }
 
+// TODO(ianswett): Use varints or another more compact approach for all deltas.
+// TODO(ianswett): Deal with acks which are too large to fit into a packet.
 bool QuicFramer::AppendAckFramePayload(
     const QuicAckFrame& frame,
     QuicDataWriter* writer) {
-  uint8 num_acked_packets = frame.received_info.received_packet_times.size();
-  if (!writer->WriteBytes(&num_acked_packets, 1)) {
+  DCHECK_GE(numeric_limits<uint8>::max(),
+            frame.received_info.received_packet_times.size());
+  if (frame.received_info.received_packet_times.size() >
+      numeric_limits<uint8>::max()) {
     return false;
   }
-  if (num_acked_packets == 0) {
-    // Special case when no packets are acked, just transmit the largest.
-    if (!writer->WriteUInt48(frame.received_info.largest_received)) {
+
+  if (!writer->WriteUInt48(frame.received_info.largest_received)) {
+    return false;
+  }
+
+  DCHECK_GE(numeric_limits<uint8>::max(),
+            frame.received_info.missing_packets.size());
+  uint8 num_missing_packets = frame.received_info.missing_packets.size();
+  if (!writer->WriteBytes(&num_missing_packets, 1)) {
+    return false;
+  }
+
+  SequenceSet::const_iterator it = frame.received_info.missing_packets.begin();
+  for (; it != frame.received_info.missing_packets.end(); ++it) {
+    if (!writer->WriteUInt48(*it)) {
       return false;
     }
-  } else {
-    map<QuicPacketSequenceNumber, QuicTime>::const_iterator it =
+  }
+
+  // TODO(ianswett): Make num_unacked_packets a varint.
+  uint8 num_acked_packets = frame.received_info.received_packet_times.size();
+  if (!writer->WriteBytes(&num_acked_packets, 1)) {
+      return false;
+    }
+  if (num_acked_packets > 0) {
+    TimeMap::const_iterator it =
         frame.received_info.received_packet_times.begin();
 
     QuicPacketSequenceNumber lowest_sequence = it->first;
@@ -684,7 +752,11 @@ bool QuicFramer::AppendAckFramePayload(
 
     for (++it; it != frame.received_info.received_packet_times.end(); ++it) {
       QuicPacketSequenceNumber sequence_delta = it->first - lowest_sequence;
-      if (!writer->WriteBytes(&sequence_delta, 1)) {
+      DCHECK_GE(numeric_limits<uint16>::max(), sequence_delta);
+      if (sequence_delta > numeric_limits<uint16>::max()) {
+        return false;
+      }
+      if (!writer->WriteUInt16(static_cast<uint16>(sequence_delta))) {
         return false;
       }
 
