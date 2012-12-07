@@ -25,6 +25,10 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
   // Get raw TCP socket descriptor bound to ip:port.
   static SocketDescriptor CreateAndBind(const std::string& ip, int port);
 
+  // Get raw TCP socket descriptor bound to ip and return port it is bound to.
+  static SocketDescriptor CreateAndBindAnyPort(const std::string& ip,
+                                               int* port);
+
  protected:
   friend class scoped_refptr<TCPListenSocket>;
 

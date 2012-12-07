@@ -76,6 +76,30 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
   return s;
 }
 
+SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
+                                                       int* port) {
+  SocketDescriptor s = CreateAndBind(ip, 0);
+  if (s == kInvalidSocket)
+    return kInvalidSocket;
+  sockaddr_in addr;
+  socklen_t addr_size = sizeof(addr);
+  bool failed = getsockname(s, reinterpret_cast<struct sockaddr*>(&addr),
+                            &addr_size) != 0;
+  if (addr_size != sizeof(addr))
+    failed = true;
+  if (failed) {
+    LOG(ERROR) << "Could not determine bound port, getsockname() failed";
+#if defined(OS_WIN)
+    closesocket(s);
+#elif defined(OS_POSIX)
+    close(s);
+#endif
+    return kInvalidSocket;
+  }
+  *port = base::NetToHost16(addr.sin_port);
+  return s;
+}
+
 void TCPListenSocket::Accept() {
   SocketDescriptor conn = AcceptSocket();
   if (conn == kInvalidSocket)
