@@ -5,9 +5,12 @@
 #ifndef NET_QUIC_QUIC_PROTOCOL_H_
 #define NET_QUIC_QUIC_PROTOCOL_H_
 
+#include <stddef.h>
 #include <limits>
 #include <map>
 #include <ostream>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -164,26 +167,48 @@ struct NET_EXPORT_PRIVATE QuicStreamFrame {
   base::StringPiece data;
 };
 
-typedef base::hash_set<QuicPacketSequenceNumber> SequenceSet;
+// TODO(ianswett): Re-evaluate the trade-offs of hash_set vs set when framing
+// is finalized.
+typedef std::set<QuicPacketSequenceNumber> SequenceSet;
+typedef std::map<QuicPacketSequenceNumber, QuicTime> TimeMap;
 
 struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   ReceivedPacketInfo();
   ~ReceivedPacketInfo();
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const ReceivedPacketInfo& s);
 
-  void RecordAck(QuicPacketSequenceNumber sequence_number, QuicTime time);
-  bool ContainsAck(QuicPacketSequenceNumber sequence_number) const;
+  // Records a packet receipt.
+  void RecordReceived(QuicPacketSequenceNumber sequence_number, QuicTime time);
+
+  // True if the sequence number is greater than largest_received or is listed
+  // as missing.
+  // Always returns false for sequence numbers less than least_unacked.
+  bool IsAwaitingPacket(QuicPacketSequenceNumber sequence_number) const;
+
+  // Clears all missing packets and ack times less than least_unacked.
   void ClearAcksBefore(QuicPacketSequenceNumber least_unacked);
+
+  // Clears all packet sequence number and time pairs, preventing future
+  // transmission.
+  void ClearAckTimes();
 
   // The highest packet sequence number we've received from the peer.
   QuicPacketSequenceNumber largest_received;
 
-  // The set of all received packets and their arrival times.
+  // The set of packets which we're expecting and have not received.
+  SequenceSet missing_packets;
+
+  // The set of received packets since the last ack was sent and their arrival
+  // times.
   std::map<QuicPacketSequenceNumber, QuicTime> received_packet_times;
 };
 
 struct NET_EXPORT_PRIVATE SentPacketInfo {
   SentPacketInfo();
   ~SentPacketInfo();
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const SentPacketInfo& s);
   // The lowest packet we've sent which is unacked, and we expect an ack for.
   QuicPacketSequenceNumber least_unacked;
 };
@@ -232,6 +257,7 @@ struct NET_EXPORT_PRIVATE CongestionFeedbackMessageFixRate {
 
 struct NET_EXPORT_PRIVATE CongestionInfo {
   CongestionFeedbackType type;
+  friend std::ostream& operator<<(std::ostream& os, const CongestionInfo& c);
   union {
     CongestionFeedbackMessageTCP tcp;
     CongestionFeedbackMessageInterArrival inter_arrival;

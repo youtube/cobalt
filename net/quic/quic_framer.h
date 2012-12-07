@@ -165,6 +165,9 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessStreamFrame();
   bool ProcessPDUFrame();
   bool ProcessAckFrame(QuicAckFrame* frame);
+  bool ProcessReceivedInfo(ReceivedPacketInfo* received_info);
+  bool ProcessSentInfo(SentPacketInfo* sent_info);
+  bool ProcessCongestionInfo(CongestionInfo* congestion_info);
   bool ProcessRstStreamFrame();
   bool ProcessConnectionCloseFrame();
 

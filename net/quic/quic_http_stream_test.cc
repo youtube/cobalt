@@ -153,13 +153,18 @@ class QuicHttpStreamTest : public ::testing::Test {
   // Returns a newly created packet to send ack data.
   QuicEncryptedPacket* ConstructAckPacket(
       QuicPacketSequenceNumber sequence_number,
-      QuicPacketSequenceNumber largest_received,
-      QuicPacketSequenceNumber least_unacked) {
+      QuicPacketSequenceNumber largest_received) {
     InitializeHeader(sequence_number);
 
-    QuicAckFrame ack(largest_received, QuicTime(), least_unacked);
+    QuicAckFrame ack(largest_received, QuicTime(), sequence_number);
     ack.congestion_info.type = kFixRate;
     ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
+    // TODO(rch): remove this grotty hack once we move the packet times
+    // out of the ack frame.
+    if (sequence_number == 4) {
+      ack.received_info.ClearAckTimes();
+      ack.received_info.received_packet_times[3] = QuicTime();
+    }
 
     return ConstructPacket(header_, QuicFrame(&ack));
   }
@@ -249,7 +254,7 @@ TEST_F(QuicHttpStreamTest, IsConnectionReusable) {
 TEST_F(QuicHttpStreamTest, GetRequest) {
   AddWrite(SYNCHRONOUS, ConstructDataPacket(1, kFin, 0,
                                             "GET / HTTP/1.1\r\n\r\n"));
-  AddWrite(SYNCHRONOUS, ConstructAckPacket(2, 2, 0));
+  AddWrite(SYNCHRONOUS, ConstructAckPacket(2, 2));
   Initialize();
 
   request_.method = "GET";
@@ -262,7 +267,7 @@ TEST_F(QuicHttpStreamTest, GetRequest) {
   EXPECT_EQ(&response_, stream_->GetResponseInfo());
 
   // Ack the request.
-  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 1, 0));
+  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 1));
   ProcessPacket(*ack);
 
   EXPECT_EQ(ERR_IO_PENDING,
@@ -292,7 +297,7 @@ TEST_F(QuicHttpStreamTest, GetRequest) {
 TEST_F(QuicHttpStreamTest, GetRequestFullResponseInSinglePacket) {
   AddWrite(SYNCHRONOUS, ConstructDataPacket(1, kFin, 0,
                                             "GET / HTTP/1.1\r\n\r\n"));
-  AddWrite(SYNCHRONOUS, ConstructAckPacket(2, 2, 0));
+  AddWrite(SYNCHRONOUS, ConstructAckPacket(2, 2));
   Initialize();
 
   request_.method = "GET";
@@ -305,7 +310,7 @@ TEST_F(QuicHttpStreamTest, GetRequestFullResponseInSinglePacket) {
   EXPECT_EQ(&response_, stream_->GetResponseInfo());
 
   // Ack the request.
-  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 1, 0));
+  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 1));
   ProcessPacket(*ack);
 
   EXPECT_EQ(ERR_IO_PENDING,
@@ -338,8 +343,8 @@ TEST_F(QuicHttpStreamTest, SendPostRequest) {
   AddWrite(SYNCHRONOUS, ConstructDataPacket(1, kNoFin, 0, kRequestData));
   AddWrite(SYNCHRONOUS, ConstructDataPacket(2, kFin, strlen(kRequestData),
                                             kUploadData));
-  AddWrite(SYNCHRONOUS, ConstructAckPacket(3, 2, 0));
-  AddWrite(SYNCHRONOUS, ConstructAckPacket(4, 3, 0));
+  AddWrite(SYNCHRONOUS, ConstructAckPacket(3, 2));
+  AddWrite(SYNCHRONOUS, ConstructAckPacket(4, 3));
 
   Initialize();
 
@@ -358,7 +363,7 @@ TEST_F(QuicHttpStreamTest, SendPostRequest) {
   EXPECT_EQ(&response_, stream_->GetResponseInfo());
 
   // Ack both packets in the request.
-  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 2, 1));
+  scoped_ptr<QuicEncryptedPacket> ack(ConstructAckPacket(1, 2));
   ProcessPacket(*ack);
 
   // Send the response headers (but not the body).

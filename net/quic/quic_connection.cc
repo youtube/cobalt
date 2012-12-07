@@ -17,21 +17,32 @@ using base::hash_map;
 using base::hash_set;
 using base::StringPiece;
 using std::list;
+using std::make_pair;
 using std::min;
 using std::vector;
 using std::set;
 
 namespace net {
 
-// An arbitrary number we'll probably want to tune.
-const QuicPacketSequenceNumber kMaxAckedPackets = 5000u;
+// The maximum number of nacks which can be transmitted in a single ack packet
+// without exceeding kMaxPacketSize.  Due to nacks, this also sets a limit on
+// the sequence number gap for two consecutive packets.
+const QuicPacketSequenceNumber kMaxUnackedPackets = 192u;
 
 // The amount of time we wait before resending a packet.
 const int64 kDefaultResendTimeMs = 500;
 
+// We want to make sure if we get a large nack packet, we don't queue up too
+// many packets at once.  10 is arbitrary.
+const int kMaxResendPerAck = 10;
+
+// TCP resends after 2 nacks.  We allow for a third in case of out-of-order
+// delivery.
+const int kNumberOfNacksBeforeResend = 3;
+
 bool Near(QuicPacketSequenceNumber a, QuicPacketSequenceNumber b) {
   QuicPacketSequenceNumber delta = (a > b) ? a - b : b - a;
-  return delta <= kMaxAckedPackets;
+  return delta <= kMaxUnackedPackets;
 }
 
 QuicConnection::QuicConnection(QuicGuid guid,
@@ -68,7 +79,10 @@ QuicConnection::QuicConnection(QuicGuid guid,
 }
 
 QuicConnection::~QuicConnection() {
-  STLDeleteValues(&unacked_packets_);
+  for (UnackedPacketMap::iterator it = unacked_packets_.begin();
+       it != unacked_packets_.end(); ++it) {
+    delete it->second.packet;
+  }
   STLDeleteValues(&group_map_);
   // Queued packets that are not to be resent are owned
   // by the packet queue.
@@ -98,14 +112,16 @@ void QuicConnection::OnRevivedPacket() {
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (!Near(header.packet_sequence_number,
             last_header_.packet_sequence_number)) {
-    DLOG(INFO) << "Packet out of bounds.  Discarding";
+    DVLOG(1) << "Packet out of bounds.  Discarding";
+    // TODO(ianswett): Deal with this by truncating the ack packet instead of
+    // discarding the packet entirely.
     return false;
   }
 
-  ReceivedPacketInfo info = outgoing_ack_.received_info;
   // If this packet has already been seen, or that the sender
   // has told us will not be resent, then stop processing the packet.
-  if (info.ContainsAck(header.packet_sequence_number)) {
+  if (!outgoing_ack_.received_info.IsAwaitingPacket(
+          header.packet_sequence_number)) {
     return false;
   }
 
@@ -167,16 +183,48 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
     return false;
   }
 
-  // We can't have too many acked packets, or our ack frames go over
+  // We can't have too many unacked packets, or our ack frames go over
   // kMaxPacketSize.
-  DCHECK_LT(incoming_ack.received_info.received_packet_times.size(),
-            kMaxAckedPackets);
+  DCHECK_LT(incoming_ack.received_info.missing_packets.size(),
+            kMaxUnackedPackets);
 
-  if (incoming_ack.sent_info.least_unacked != 0 &&
-      incoming_ack.sent_info.least_unacked < least_packet_awaiting_ack_) {
-    DLOG(INFO) << "Client sent low least_unacked";
+  if (incoming_ack.sent_info.least_unacked < least_packet_awaiting_ack_) {
+    DLOG(INFO) << "Client sent low least_unacked: "
+               << incoming_ack.sent_info.least_unacked
+               << " vs " << least_packet_awaiting_ack_;
     // We never process old ack frames, so this number should only increase.
     return false;
+  }
+
+  if (incoming_ack.sent_info.least_unacked >
+      last_header_.packet_sequence_number) {
+    DLOG(INFO) << "Client sent least_unacked:"
+               << incoming_ack.sent_info.least_unacked
+               << " greater than the enclosing packet sequence number:"
+               << last_header_.packet_sequence_number;
+    return false;
+  }
+
+  for (SequenceSet::const_iterator iter =
+           incoming_ack.received_info.missing_packets.begin();
+       iter != incoming_ack.received_info.missing_packets.end(); ++iter) {
+    if (*iter >= incoming_ack.received_info.largest_received) {
+      DLOG(INFO) << "Cannot nack a packet:" << *iter
+                 << " greater than or equal to largest received:"
+                 << incoming_ack.received_info.largest_received;
+      return false;
+    }
+  }
+
+  for (TimeMap::const_iterator iter =
+           incoming_ack.received_info.received_packet_times.begin();
+       iter != incoming_ack.received_info.received_packet_times.end(); ++iter) {
+    if (iter->first > incoming_ack.received_info.largest_received) {
+      DLOG(INFO) << "Cannot ack a packet:" << iter->first
+                 << " greater than largest received:"
+                 << incoming_ack.received_info.largest_received;
+      return false;
+    }
   }
 
   return true;
@@ -192,11 +240,13 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
       packet_creator_.sequence_number() + 1,
       incoming_ack.received_info.largest_received + 1);
 
+  int resent_packets = 0;
+
   // Go through the packets we have not received an ack for and see if this
   // incoming_ack shows they've been seen by the peer.
   UnackedPacketMap::iterator it = unacked_packets_.begin();
   while (it != unacked_packets_.end()) {
-    if (incoming_ack.received_info.ContainsAck(it->first)) {
+    if (!incoming_ack.received_info.IsAwaitingPacket(it->first)) {
       // Packet was acked, so remove it from our unacked packet list.
       DVLOG(1) << "Got an ack for " << it->first;
       // TODO(rch): This is inefficient and should be sped up.
@@ -209,7 +259,7 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
         }
       }
       acked_packets.insert(it->first);
-      delete it->second;
+      delete it->second.packet;
       UnackedPacketMap::iterator it_tmp = it;
       ++it;
       unacked_packets_.erase(it_tmp);
@@ -221,22 +271,56 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
       if (it->first < lowest_unacked) {
         lowest_unacked = it->first;
       }
+
+      // Determine if this packet is being explicitly nacked and, if so, if it
+      // is worth resending.
+      QuicPacketSequenceNumber resend_number = 0;
+      if (it->first < incoming_ack.received_info.largest_received) {
+        // The peer got packets after this sequence number.  This is an explicit
+        // nack.
+        ++(it->second.number_nacks);
+        if (it->second.number_nacks >= kNumberOfNacksBeforeResend &&
+            resent_packets < kMaxResendPerAck) {
+          resend_number = it->first;
+        }
+      }
+
       ++it;
+      if (resend_number > 0) {
+        ++resent_packets;
+        DVLOG(1) << "Trying to resend packet " << resend_number
+                 << " as it has been nacked 3 or more times.";
+        MaybeResendPacket(resend_number);
+      }
     }
   }
   if (acked_packets.size() > 0) {
     visitor_->OnAck(acked_packets);
   }
+  SetLeastUnacked(lowest_unacked);
+}
 
+void QuicConnection::SetLeastUnacked(QuicPacketSequenceNumber lowest_unacked) {
   // If we've gotten an ack for the lowest packet we were waiting on,
   // update that and the list of packets we advertise we will not resend.
   if (lowest_unacked > outgoing_ack_.sent_info.least_unacked) {
-    // If all packets we sent have been acked, use the special value of 0
-    if (lowest_unacked > packet_creator_.sequence_number()) {
-      lowest_unacked = 0;
-    }
     outgoing_ack_.sent_info.least_unacked = lowest_unacked;
   }
+}
+
+void QuicConnection::UpdateLeastUnacked(
+    QuicPacketSequenceNumber acked_sequence_number) {
+  if (acked_sequence_number != outgoing_ack_.sent_info.least_unacked) {
+    return;
+  }
+  QuicPacketSequenceNumber least_unacked =
+      packet_creator_.sequence_number() + 1;
+  for (UnackedPacketMap::iterator it = unacked_packets_.begin();
+       it != unacked_packets_.end(); ++it) {
+    least_unacked = min<int>(least_unacked, it->first);
+  }
+
+  SetLeastUnacked(least_unacked);
 }
 
 void QuicConnection::UpdatePacketInformationSentByPeer(
@@ -323,7 +407,8 @@ size_t QuicConnection::SendStreamData(
                false);
     // TODO(alyssar) either only buffer this up if we send successfully,
     // and make the upper levels deal with backup, or handle backup here.
-    unacked_packets_.insert(packets[i]);
+    unacked_packets_.insert(make_pair(packets[i].first,
+                                      UnackedPacket(packets[i].second)));
   }
 
   if (last_packet != NULL) {
@@ -338,7 +423,8 @@ void QuicConnection::SendRstStream(QuicStreamId id,
   PacketPair packetpair = packet_creator_.ResetStream(id, offset, error);
 
   SendPacket(packetpair.first, packetpair.second, true, false, false);
-  unacked_packets_.insert(packetpair);
+  unacked_packets_.insert(make_pair(packetpair.first,
+                                    UnackedPacket(packetpair.second)));
 }
 
 void QuicConnection::ProcessUdpPacket(const IPEndPoint& self_address,
@@ -370,7 +456,9 @@ bool QuicConnection::OnCanWrite() {
 
 void QuicConnection::AckPacket(const QuicPacketHeader& header) {
   QuicPacketSequenceNumber sequence_number = header.packet_sequence_number;
-  outgoing_ack_.received_info.RecordAck(sequence_number, clock_->Now());
+  DCHECK(outgoing_ack_.received_info.IsAwaitingPacket(sequence_number));
+  outgoing_ack_.received_info.RecordReceived(sequence_number, clock_->Now());
+
   // TODO(alyssar) delay sending until we have data, or enough time has elapsed.
   if (frames_.size() > 0) {
     SendAck();
@@ -382,15 +470,21 @@ void QuicConnection::MaybeResendPacket(
   UnackedPacketMap::iterator it = unacked_packets_.find(sequence_number);
 
   if (it != unacked_packets_.end()) {
-    DVLOG(1) << "Resending unacked packet " << sequence_number;
-    QuicPacket* packet = it->second;
+    QuicPacket* packet = it->second.packet;
     unacked_packets_.erase(it);
     // Re-frame the packet with a new sequence number for resend.
     QuicPacketSequenceNumber new_sequence_number  =
         packet_creator_.SetNewSequenceNumber(packet);
+    DVLOG(1) << "Resending unacked packet " << sequence_number << " as "
+               << new_sequence_number;
     // Clear the FEC group.
     framer_.WriteFecGroup(0u, packet);
-    unacked_packets_[new_sequence_number] = packet;
+    unacked_packets_.insert(make_pair(new_sequence_number,
+                                      UnackedPacket(packet)));
+
+    // Make sure if this was our least unacked packet, that we update our
+    // outgoing ack.  If this wasn't the least unacked, this is a no-op.
+    UpdateLeastUnacked(sequence_number);
     SendPacket(new_sequence_number, packet, true, false, true);
   } else {
     DVLOG(2) << "alarm fired for " << sequence_number
@@ -403,6 +497,10 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
                                 bool should_resend,
                                 bool force,
                                 bool is_retransmit) {
+  DCHECK(packet->length() < kMaxPacketSize)
+      << "Packet " << sequence_number << " will not be read; too large: "
+      << packet->length();
+
   // If this packet is being forced, don't bother checking to see if we should
   // write, just write.
   if (!force) {
@@ -474,9 +572,18 @@ void QuicConnection::SendAck() {
   if (!collector_->GenerateCongestionInfo(&outgoing_ack_.congestion_info)) {
     outgoing_ack_.congestion_info.type = kNone;
   }
+
+  if (!ContainsKey(unacked_packets_, outgoing_ack_.sent_info.least_unacked)) {
+    // At some point, all packets were acked, and we set least_unacked to a
+    // packet we will not resend.  Make sure we update it.
+    UpdateLeastUnacked(outgoing_ack_.sent_info.least_unacked);
+  }
+
   DVLOG(1) << "Sending ack " << outgoing_ack_;
 
   PacketPair packetpair = packet_creator_.AckPacket(&outgoing_ack_);
+  // Only send packet-timestamp pairs to the peer once, so clear them.
+  outgoing_ack_.received_info.ClearAckTimes();
   SendPacket(packetpair.first, packetpair.second, false, false, false);
 }
 
@@ -516,6 +623,7 @@ void QuicConnection::SendConnectionClose(QuicErrorCode error) {
   QuicConnectionCloseFrame frame;
   frame.error_code = error;
   frame.ack_frame = outgoing_ack_;
+  LOG(INFO) << "outgoing_ack_: " << outgoing_ack_;
 
   PacketPair packetpair = packet_creator_.CloseConnection(&frame);
   // There's no point in resending this: we're closing the connection.
