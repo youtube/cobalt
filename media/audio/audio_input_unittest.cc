@@ -152,9 +152,9 @@ TEST(AudioInputTest, Record) {
   message_loop.PostDelayedTask(
       FROM_HERE,
       MessageLoop::QuitClosure(),
-      base::TimeDelta::FromMilliseconds(690));
+      base::TimeDelta::FromMilliseconds(500));
   message_loop.Run();
-  EXPECT_GE(test_callback.callback_count(), 10);
+  EXPECT_GE(test_callback.callback_count(), 1);
   EXPECT_FALSE(test_callback.had_error());
 
   ais->Stop();
