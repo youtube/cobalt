@@ -192,12 +192,31 @@ void PCMQueueInAudioInputStream::HandleInputBuffer(
     return;
   }
 
-  if (audio_buffer->mAudioDataByteSize)
+  if (audio_buffer->mAudioDataByteSize) {
+    // The AudioQueue API may use a large internal buffer and repeatedly call us
+    // back to back once that internal buffer is filled.  When this happens the
+    // renderer client does not have enough time to read data back from the
+    // shared memory before the next write comes along.  If HandleInputBuffer()
+    // is called too frequently, Sleep() to simulate realtime input and ensure
+    // the shared memory doesn't get trampled.
+    // TODO(dalecurtis): This is a HACK.  Long term the AudioQueue path is going
+    // away in favor of the AudioUnit based AUAudioInputStream().  Tracked by
+    // http://crbug.com/161383
+    base::TimeDelta elapsed = base::Time::Now() - last_fill_;
+    base::TimeDelta buffer_length = base::TimeDelta::FromMilliseconds(
+       audio_buffer->mAudioDataByteSize * base::Time::kMillisecondsPerSecond /
+       static_cast<float>(format_.mBytesPerFrame * format_.mSampleRate));
+    if (elapsed < buffer_length)
+      base::PlatformThread::Sleep(buffer_length - elapsed);
+
     callback_->OnData(this,
                       reinterpret_cast<const uint8*>(audio_buffer->mAudioData),
                       audio_buffer->mAudioDataByteSize,
                       audio_buffer->mAudioDataByteSize,
                       0.0);
+
+    last_fill_ = base::Time::Now();
+  }
   // Recycle the buffer.
   OSStatus err = QueueNextBuffer(audio_buffer);
   if (err != noErr) {
