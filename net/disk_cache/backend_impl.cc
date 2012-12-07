@@ -812,7 +812,8 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   SIMPLE_STATS_COUNTER("disk_cache.miss");
   Trace("create entry hit ");
   FlushIndex();
-  return cache_entry.release();
+  cache_entry->AddRef();
+  return cache_entry.get();
 }
 
 EntryImpl* BackendImpl::OpenNextEntryImpl(void** iter) {
@@ -1824,14 +1825,15 @@ EntryImpl* BackendImpl::OpenFollowingEntry(bool forward, void** iter) {
 
   EntryImpl* next_entry;
   if (forward) {
-    next_entry = entries[newest].release();
+    next_entry = entries[newest].get();
     iterator->list = static_cast<Rankings::List>(newest);
   } else {
-    next_entry = entries[oldest].release();
+    next_entry = entries[oldest].get();
     iterator->list = static_cast<Rankings::List>(oldest);
   }
 
   *iter = iterator.release();
+  next_entry->AddRef();
   return next_entry;
 }
 
