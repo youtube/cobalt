@@ -232,42 +232,27 @@ extern "C" intptr_t _get_heap_handle() {
   return 0;
 }
 
-static bool get_jemalloc_property_thunk(const char* name, size_t* value) {
-  jemalloc_stats_t stats;
-  jemalloc_stats(&stats);
-#define EXTRACT_JEMALLOC_PROPERTY(property) \
-  if (strcmp(name, "jemalloc." #property) == 0) \
-    return *value = stats.property, true;
-  EXTRACT_JEMALLOC_PROPERTY(narenas);
-  EXTRACT_JEMALLOC_PROPERTY(balance_threshold);
-  EXTRACT_JEMALLOC_PROPERTY(quantum);
-  EXTRACT_JEMALLOC_PROPERTY(small_max);
-  EXTRACT_JEMALLOC_PROPERTY(large_max);
-  EXTRACT_JEMALLOC_PROPERTY(chunksize);
-  EXTRACT_JEMALLOC_PROPERTY(dirty_max);
-  EXTRACT_JEMALLOC_PROPERTY(reserve_min);
-  EXTRACT_JEMALLOC_PROPERTY(reserve_max);
-  EXTRACT_JEMALLOC_PROPERTY(mapped);
-  EXTRACT_JEMALLOC_PROPERTY(committed);
-  EXTRACT_JEMALLOC_PROPERTY(allocated);
-  EXTRACT_JEMALLOC_PROPERTY(dirty);
-  EXTRACT_JEMALLOC_PROPERTY(reserve_cur);
-#undef EXTRACT_JEMALLOC_PROPERTY
-  return false;
-}
-
-static bool get_property_thunk(const char* name, size_t* value) {
+static bool get_allocator_waste_size_thunk(size_t* size) {
 #ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
   switch (allocator) {
     case JEMALLOC:
-      return get_jemalloc_property_thunk(name, value);
     case WINHEAP:
     case WINLFH:
-      // TODO(alexeif): Implement for other allocators.
+      // TODO(alexeif): Implement for allocators other than tcmalloc.
       return false;
   }
 #endif
-  return MallocExtension::instance()->GetNumericProperty(name, value);
+  size_t heap_size, allocated_bytes, unmapped_bytes;
+  MallocExtension* ext = MallocExtension::instance();
+  if (ext->GetNumericProperty("generic.heap_size", &heap_size) &&
+      ext->GetNumericProperty("generic.current_allocated_bytes",
+                              &allocated_bytes) &&
+      ext->GetNumericProperty("tcmalloc.pageheap_unmapped_bytes",
+                              &unmapped_bytes)) {
+    *size = heap_size - allocated_bytes - unmapped_bytes;
+    return true;
+  }
+  return false;
 }
 
 static void get_stats_thunk(char* buffer, int buffer_length) {
@@ -323,7 +308,8 @@ extern "C" int _heap_init() {
         tracked_objects::TIME_SOURCE_TYPE_TCMALLOC);
   }
 
-  base::allocator::thunks::SetGetPropertyFunction(get_property_thunk);
+  base::allocator::thunks::SetGetAllocatorWasteSizeFunction(
+      get_allocator_waste_size_thunk);
   base::allocator::thunks::SetGetStatsFunction(get_stats_thunk);
   base::allocator::thunks::SetReleaseFreeMemoryFunction(
       release_free_memory_thunk);
