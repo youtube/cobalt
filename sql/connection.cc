@@ -8,6 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
@@ -538,11 +539,25 @@ bool Connection::OpenInternal(const std::string& file_name) {
 
   int err = sqlite3_open(file_name.c_str(), &db_);
   if (err != SQLITE_OK) {
+    // Histogram failures specific to initial open for debugging
+    // purposes.
+    UMA_HISTOGRAM_ENUMERATION("Sqlite.OpenFailure", err & 0xff, 50);
+
     OnSqliteError(err, NULL);
     Close();
     db_ = NULL;
     return false;
   }
+
+  // sqlite3_open() does not actually read the database file (unless a
+  // hot journal is found).  Successfully executing this pragma on an
+  // existing database requires a valid header on page 1.
+  // TODO(shess): For now, just probing to see what the lay of the
+  // land is.  If it's mostly SQLITE_NOTADB, then the database should
+  // be razed.
+  err = ExecuteAndReturnErrorCode("PRAGMA auto_vacuum");
+  if (err != SQLITE_OK)
+    UMA_HISTOGRAM_ENUMERATION("Sqlite.OpenProbeFailure", err & 0xff, 50);
 
   // Enable extended result codes to provide more color on I/O errors.
   // Not having extended result codes is not a fatal problem, as
