@@ -5,11 +5,11 @@
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 
 #include "net/quic/congestion_control/fix_rate_sender.h"
+#include "net/quic/congestion_control/tcp_cubic_sender.h"
 
 namespace net {
 
-// TODO(pwestin): Change to cubic when implemented.
-const bool kUseReno = true;
+const bool kUseReno = false;
 
 // Factory for send side congestion control algorithm.
 SendAlgorithmInterface* SendAlgorithmInterface::Create(
@@ -20,7 +20,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
       LOG(DFATAL) << "Attempted to create a SendAlgorithm with kNone.";
       break;
     case kTCP:
-      //return new TcpCubicSender(clock, kUseReno);
+      return new TcpCubicSender(clock, kUseReno);
     case kInterArrival:
       break;  // TODO(pwestin) Implement.
     case kFixRate:

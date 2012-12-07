@@ -157,8 +157,9 @@ class QuicHttpStreamTest : public ::testing::Test {
     InitializeHeader(sequence_number);
 
     QuicAckFrame ack(largest_received, QuicTime(), sequence_number);
-    ack.congestion_info.type = kFixRate;
-    ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
+    ack.congestion_info.type = kTCP;
+    ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
+    ack.congestion_info.tcp.receive_window = 16000;
     // TODO(rch): remove this grotty hack once we move the packet times
     // out of the ack frame.
     if (sequence_number == 4) {
@@ -178,8 +179,9 @@ class QuicHttpStreamTest : public ::testing::Test {
     QuicFrames frames;
     QuicAckFrame ack(0, QuicTime(), 0);
     if (with_congestion_info) {
-      ack.congestion_info.type = kFixRate;
-      ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
+      ack.congestion_info.type = kTCP;
+      ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
+      ack.congestion_info.tcp.receive_window = 16000;
     } else {
       ack.congestion_info.type = kNone;
     }
