@@ -17,6 +17,10 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer.h"
 
+namespace base {
+class MessageLoopProxy;
+}
+
 namespace media {
 
 // VideoRendererBase creates its own thread for the sole purpose of timing frame
@@ -46,7 +50,8 @@ class MEDIA_EXPORT VideoRendererBase
   //
   // TODO(scherkus): pass the VideoFrame* to this callback and remove
   // Get/PutCurrentFrame() http://crbug.com/108435
-  VideoRendererBase(const base::Closure& paint_cb,
+  VideoRendererBase(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+                    const base::Closure& paint_cb,
                     const SetOpaqueCB& set_opaque_cb,
                     bool drop_frames);
 
@@ -95,10 +100,11 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Helper method that schedules an asynchronous read from the decoder as long
   // as there isn't a pending read and we have capacity.
+  void AttemptRead();
   void AttemptRead_Locked();
 
-  // Called when the VideoDecoder Flush() completes.
-  void OnDecoderFlushDone();
+  // Called when VideoDecoder::Reset() completes.
+  void OnDecoderResetDone();
 
   // Attempts to complete flushing and transition into the flushed state.
   void AttemptFlush_Locked();
@@ -133,6 +139,8 @@ class MEDIA_EXPORT VideoRendererBase
                          scoped_ptr<VideoDecoderList> decoders,
                          PipelineStatus status);
 
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
+
   // Used for accessing data members.
   base::Lock lock_;
 
@@ -165,7 +173,7 @@ class MEDIA_EXPORT VideoRendererBase
   //              |
   //              | Initialize()
   //              V        All frames returned
-  //   +------[kFlushed]<-----[kFlushing]<--- OnDecoderFlushDone()
+  //   +------[kFlushed]<-----[kFlushing]<--- OnDecoderResetDone()
   //   |          | Preroll() or upon                  ^
   //   |          V got first frame           [kFlushingDecoder]
   //   |      [kPrerolling]                            ^

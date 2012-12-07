@@ -206,6 +206,7 @@ PipelineIntegrationTestBase::CreateFilterCollection(
 
   // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(
+      message_loop_.message_loop_proxy(),
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnSetOpaque,

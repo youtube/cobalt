@@ -74,25 +74,17 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
     kStopped
   };
 
-  // Carries out the initialization operation scheduled by Initialize().
-  void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    const PipelineStatusCB& status_cb,
-                    const StatisticsCB& statistics_cb);
-
   // Callback for DecryptorHost::RequestDecryptor().
   void SetDecryptor(Decryptor* decryptor);
 
   // Callback for Decryptor::InitializeVideoDecoder().
   void FinishInitialization(bool success);
 
-  // Carries out the buffer reading operation scheduled by Read().
-  void DoRead(const ReadCB& read_cb);
-
   void ReadFromDemuxerStream();
 
   // Callback for DemuxerStream::Read().
-  void DoDecryptAndDecodeBuffer(DemuxerStream::Status status,
-                                const scoped_refptr<DecoderBuffer>& buffer);
+  void DecryptAndDecodeBuffer(DemuxerStream::Status status,
+                              const scoped_refptr<DecoderBuffer>& buffer);
 
   void DecodePendingBuffer();
 
@@ -100,11 +92,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   void DeliverFrame(int buffer_size,
                     Decryptor::Status status,
                     const scoped_refptr<VideoFrame>& frame);
-
-  // Carries out the frame delivery operation scheduled by DeliverFrame().
-  void DoDeliverFrame(int buffer_size,
-                      Decryptor::Status status,
-                      const scoped_refptr<VideoFrame>& frame);
 
   // Callback for the |decryptor_| to notify this object that a new key has been
   // added.

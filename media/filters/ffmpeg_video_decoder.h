@@ -51,16 +51,10 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
     kDecodeFinished
   };
 
-  // Carries out the reading operation scheduled by Read().
-  void DoRead(const ReadCB& read_cb);
-
-  // Reads from the demuxer stream.
+  // Reads from the demuxer stream and corresponding read callback.
   void ReadFromDemuxerStream();
-
-  // Carries out the buffer processing operation scheduled by
-  // DecryptOrDecodeBuffer().
-  void DoDecryptOrDecodeBuffer(DemuxerStream::Status status,
-                               const scoped_refptr<DecoderBuffer>& buffer);
+  void DecryptOrDecodeBuffer(DemuxerStream::Status status,
+                             const scoped_refptr<DecoderBuffer>& buffer);
 
   // Callback called by the decryptor to deliver decrypted data buffer and
   // reporting decrypt status. This callback could be called synchronously or
@@ -68,10 +62,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   void BufferDecrypted(Decryptor::Status decrypt_status,
                        const scoped_refptr<DecoderBuffer>& buffer);
 
-  // Carries out the operation scheduled by BufferDecrypted().
-  void DoBufferDecrypted(Decryptor::Status decrypt_status,
-                         const scoped_refptr<DecoderBuffer>& buffer);
-
+  // Handles decoding an unencrypted encoded buffer.
   void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
   bool Decode(const scoped_refptr<DecoderBuffer>& buffer,
               scoped_refptr<VideoFrame>* video_frame);
