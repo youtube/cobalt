@@ -37,6 +37,10 @@ def CalcScrollResults(rendering_stats_deltas, results):
       rendering_stats_deltas.get('numLayersDrawn', 0) /
       float(num_frames_sent_to_screen))
 
+  num_missing_tiles = (
+      rendering_stats_deltas.get('numMissingTiles', 0) /
+      float(num_frames_sent_to_screen))
+
   results.Add('mean_frame_time', 'ms', round(mean_frame_time_seconds * 1000, 3))
   results.Add('dropped_percent', '%', round(dropped_percent * 100, 1),
               data_type='unimportant')
@@ -44,6 +48,8 @@ def CalcScrollResults(rendering_stats_deltas, results):
               round(percent_impl_scrolled * 100, 1),
               data_type='unimportant')
   results.Add('average_num_layers_drawn', '', round(num_layers, 1),
+              data_type='unimportant')
+  results.Add('average_num_missing_tiles', '', round(num_missing_tiles, 1),
               data_type='unimportant')
 
 def CalcPaintingResults(rendering_stats_deltas, results):
