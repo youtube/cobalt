@@ -477,7 +477,7 @@
     { "name": "blog.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
     { "name": "check.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
     { "name": "www.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
-    { "name": "dists.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
+    { "name": "dist.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
     { "name": "www.moneybookers.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "ledgerscope.net", "mode": "force-https" },
     { "name": "www.ledgerscope.net", "mode": "force-https" },
