@@ -299,6 +299,9 @@
       # Enable browser automation.
       'enable_automation%': 1,
 
+      # Enable Google Now.
+      'enable_google_now%': 1,
+
       # Enable language detection.
       'enable_language_detection%': 1,
 
@@ -480,6 +483,7 @@
 
         ['OS=="android"', {
           'enable_extensions%': 0,
+          'enable_google_now%': 0,
           'enable_language_detection%': 0,
           'enable_printing%': 0,
           'enable_themes%': 0,
@@ -493,6 +497,7 @@
           'disable_ftp_support%': 1,
           'enable_automation%': 0,
           'enable_extensions%': 0,
+          'enable_google_now%': 0,
           'enable_language_detection%': 0,
           'enable_printing%': 0,
           'enable_session_service%': 0,
@@ -691,6 +696,7 @@
     'test_isolation_outdir%': '<(test_isolation_outdir)',
     'enable_automation%': '<(enable_automation)',
     'enable_printing%': '<(enable_printing)',
+    'enable_google_now%': '<(enable_google_now)',
     'enable_language_detection%': '<(enable_language_detection)',
     'enable_captive_portal_detection%': '<(enable_captive_portal_detection)',
     'disable_ftp_support%': '<(disable_ftp_support)',
@@ -1887,6 +1893,9 @@
       }],
       ['enable_automation==1', {
         'defines': ['ENABLE_AUTOMATION=1'],
+      }],
+      ['enable_google_now==1', {
+        'defines': ['ENABLE_GOOGLE_NOW=1'],
       }],
       ['enable_language_detection==1', {
         'defines': ['ENABLE_LANGUAGE_DETECTION=1'],
