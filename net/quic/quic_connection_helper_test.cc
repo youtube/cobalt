@@ -131,10 +131,11 @@ class QuicConnectionHelperTest : public ::testing::Test {
       QuicPacketSequenceNumber sequence_number) {
     InitializeHeader(sequence_number);
 
-    QuicAckFrame ack(0, QuicTime(), 0);
+    QuicAckFrame ack(0, QuicTime(), sequence_number);
 
     ack.congestion_info.type = kFixRate;
     ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
+
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
@@ -145,7 +146,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
     InitializeHeader(sequence_number);
 
     QuicFrames frames;
-    QuicAckFrame ack(0, QuicTime(), 0);
+    QuicAckFrame ack(0, QuicTime(), sequence_number - 1);
     if (with_ack) {
       ack.congestion_info.type = kFixRate;
       ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
