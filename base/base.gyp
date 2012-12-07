@@ -464,6 +464,7 @@
         'logging_unittest.cc',
         'mac/bind_objc_block_unittest.mm',
         'mac/foundation_util_unittest.mm',
+        'mac/libdispatch_task_runner_unittest.cc',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
         'mac/scoped_sending_event_unittest.mm',
