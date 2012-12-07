@@ -212,6 +212,8 @@
           'mac/foundation_util.mm',
           'mac/launchd.cc',
           'mac/launchd.h',
+          'mac/libdispatch_task_runner.cc',
+          'mac/libdispatch_task_runner.h',
           'mac/mac_logging.h',
           'mac/mac_logging.cc',
           'mac/mac_util.h',
