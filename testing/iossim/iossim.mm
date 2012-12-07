@@ -506,7 +506,7 @@ BOOL CaseInsensitivePrefixSearch(NSString* stringToSearch,
   NSStringCompareOptions options = (NSAnchoredSearch | NSCaseInsensitiveSearch);
   NSRange range = [stringToSearch rangeOfString:prefixToFind
                                         options:options];
-  return range.location != 0;
+  return range.location != NSNotFound;
 }
 
 // Prints the usage information to stderr.
