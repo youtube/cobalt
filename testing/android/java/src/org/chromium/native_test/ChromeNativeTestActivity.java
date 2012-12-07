@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 
+import org.chromium.base.ChromiumActivity;
 import org.chromium.base.PathUtils;
 import org.chromium.base.SystemMonitor;
 
@@ -19,7 +20,7 @@ import java.io.File;
 // Android's NativeActivity is mostly useful for pure-native code.
 // Our tests need to go up to our own java classes, which is not possible using
 // the native activity class loader.
-public class ChromeNativeTestActivity extends Activity {
+public class ChromeNativeTestActivity extends ChromiumActivity {
     private final String TAG = "ChromeNativeTestActivity";
     private final String EXTRA_RUN_IN_SUB_THREAD = "RunInSubThread";
     // We post a delayed task to run tests so that we do not block onCreate().

@@ -21,7 +21,7 @@ import org.chromium.base.ActivityStatus;
  * ACCESS_NETWORK_STATE permission.
  */
 public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
-        implements ActivityStatus.Listener {
+        implements ActivityStatus.StateListener {
 
     /** Queries the ConnectivityManager for information about the current connection. */
     static class ConnectivityManagerDelegate {
@@ -73,11 +73,10 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         mConnectivityManagerDelegate = new ConnectivityManagerDelegate(context);
         mConnectionType = currentConnectionType(context);
 
-        ActivityStatus status = ActivityStatus.getInstance();
-        if (!status.isPaused()) {
+        if (ActivityStatus.getState() != ActivityStatus.PAUSED) {
           registerReceiver();
         }
-        status.registerListener(this);
+        ActivityStatus.registerStateListener(this);
     }
 
     /**
@@ -168,12 +167,12 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         }
     }
 
-    // AcitivityStatus.Listener
+    // ActivityStatus.StateListener
     @Override
-    public void onActivityStatusChanged(boolean isPaused) {
-        if (isPaused) {
+    public void onActivityStateChange(int state) {
+        if (state == ActivityStatus.PAUSED) {
             unregisterReceiver();
-        } else {
+        } else if (state == ActivityStatus.RESUMED) {
             registerReceiver();
         }
     }
