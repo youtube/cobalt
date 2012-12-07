@@ -9,7 +9,6 @@
 #include <AudioToolbox/AudioFormat.h>
 
 #include "base/compiler_specific.h"
-#include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -63,7 +62,7 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
                          UInt32 num_packets,
                          const AudioStreamPacketDescription* packet_desc);
 
-  static const int kNumberBuffers = 3;
+  static const int kNumberBuffers = 1;
 
   // Manager that owns this stream, used for closing down.
   AudioManagerBase* manager_;
@@ -77,8 +76,6 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
   uint32 buffer_size_bytes_;
   // True iff Start() has been called successfully.
   bool started_;
-  // Used to determine if we need to slow down |callback_| calls.
-  base::Time last_fill_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueInAudioInputStream);
 };
