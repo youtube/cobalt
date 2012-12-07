@@ -18,15 +18,19 @@ var results = {}
 var result_divs = document.querySelectorAll('.p-result');
 for (var r in result_divs) {
   if (result_divs[r].id && result_divs[r].id.indexOf('Result-') == 0)
-    results[result_divs[r].id] = result_divs[r].innerHTML;
+    var key = result_divs[r].id.replace('Result-', '');
+    results[key] = result_divs[r].innerHTML;
 }
 var main_banner = document.getElementById("main-banner").innerHTML;
 var octane_score = main_banner.substr(main_banner.lastIndexOf(':') + 2);
-results['Result-Octane'] = octane_score;
+results['score'] = octane_score;
 JSON.stringify(results);
 """
     result_dict = eval(tab.runtime.Evaluate(js_get_results))
     for key, value in result_dict.iteritems():
       if value == '...':
         continue
-      results.Add(key, '', value)
+      data_type = 'unimportant'
+      if key == 'score':
+        data_type = 'default'
+      results.Add(key, 'score (bigger is better)', value, data_type=data_type)
