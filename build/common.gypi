@@ -957,7 +957,8 @@
     'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
     'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
 
-    # Whether rlz is enabled.
+    # Whether we are using the rlz library or not.  Platforms like Android send
+    # rlz codes for searches but do not use the library.
     'enable_rlz%': 0,
 
     'conditions': [
