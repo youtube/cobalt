@@ -293,4 +293,56 @@ TEST(DefaultServerBoundCertStoreTest, TestGetAll) {
   EXPECT_EQ(4u, certs.size());
 }
 
+TEST(DefaultServerBoundCertStoreTest, TestInitializeFrom) {
+  scoped_refptr<MockPersistentStore> persistent_store(new MockPersistentStore);
+  DefaultServerBoundCertStore store(persistent_store.get());
+
+  store.SetServerBoundCert(
+      "preexisting.com",
+      CLIENT_CERT_RSA_SIGN,
+      base::Time(),
+      base::Time(),
+      "a", "b");
+  store.SetServerBoundCert(
+      "both.com",
+      CLIENT_CERT_ECDSA_SIGN,
+      base::Time(),
+      base::Time(),
+      "c", "d");
+  EXPECT_EQ(2, store.GetCertCount());
+
+  ServerBoundCertStore::ServerBoundCertList source_certs;
+  source_certs.push_back(ServerBoundCertStore::ServerBoundCert(
+      "both.com",
+      CLIENT_CERT_RSA_SIGN,
+      base::Time(),
+      base::Time(),
+      // Key differs from above to test that existing entries are overwritten.
+      "e", "f"));
+  source_certs.push_back(ServerBoundCertStore::ServerBoundCert(
+      "copied.com",
+      CLIENT_CERT_RSA_SIGN,
+      base::Time(),
+      base::Time(),
+      "g", "h"));
+  store.InitializeFrom(source_certs);
+  EXPECT_EQ(3, store.GetCertCount());
+
+  ServerBoundCertStore::ServerBoundCertList certs;
+  store.GetAllServerBoundCerts(&certs);
+  ASSERT_EQ(3u, certs.size());
+
+  ServerBoundCertStore::ServerBoundCertList::iterator cert = certs.begin();
+  EXPECT_EQ("both.com", cert->server_identifier());
+  EXPECT_EQ("e", cert->private_key());
+
+  ++cert;
+  EXPECT_EQ("copied.com", cert->server_identifier());
+  EXPECT_EQ("g", cert->private_key());
+
+  ++cert;
+  EXPECT_EQ("preexisting.com", cert->server_identifier());
+  EXPECT_EQ("a", cert->private_key());
+}
+
 }  // namespace net

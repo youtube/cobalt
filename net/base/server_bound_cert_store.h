@@ -108,6 +108,9 @@ class NET_EXPORT ServerBoundCertStore {
   virtual void GetAllServerBoundCerts(
       ServerBoundCertList* server_bound_certs) = 0;
 
+  // Helper function that adds all certs from |list| into this instance.
+  void InitializeFrom(const ServerBoundCertList& list);
+
   // Returns the number of certs in the store.
   // Public only for unit testing.
   virtual int GetCertCount() = 0;
