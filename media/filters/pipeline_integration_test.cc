@@ -44,7 +44,8 @@ class MockMediaSource {
         mimetype_(mimetype) {
     chunk_demuxer_ = new ChunkDemuxer(
         base::Bind(&MockMediaSource::DemuxerOpened, base::Unretained(this)),
-        base::Bind(&MockMediaSource::DemuxerNeedKey, base::Unretained(this)));
+        base::Bind(&MockMediaSource::DemuxerNeedKey, base::Unretained(this)),
+        LogCB());
 
     file_data_ = ReadTestDataFile(filename);
 

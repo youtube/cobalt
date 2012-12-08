@@ -42,7 +42,8 @@ void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewBuffersCB& video_cb,
                            const NeedKeyCB& need_key_cb,
                            const NewMediaSegmentCB& new_segment_cb,
-                           const base::Closure& end_of_segment_cb) {
+                           const base::Closure& end_of_segment_cb,
+                           const LogCB& log_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -59,6 +60,7 @@ void MP4StreamParser::Init(const InitCB& init_cb,
   need_key_cb_ = need_key_cb;
   new_segment_cb_ = new_segment_cb;
   end_of_segment_cb_ = end_of_segment_cb;
+  log_cb_ = log_cb;
 }
 
 void MP4StreamParser::Reset() {
@@ -120,7 +122,8 @@ bool MP4StreamParser::ParseBox(bool* err) {
   queue_.Peek(&buf, &size);
   if (!size) return false;
 
-  scoped_ptr<BoxReader> reader(BoxReader::ReadTopLevelBox(buf, size, err));
+  scoped_ptr<BoxReader> reader(
+      BoxReader::ReadTopLevelBox(buf, size, log_cb_, err));
   if (reader.get() == NULL) return false;
 
   if (reader->type() == FOURCC_MOOV) {
@@ -138,8 +141,8 @@ bool MP4StreamParser::ParseBox(bool* err) {
     // before the head of the 'moof', so keeping this box around is sufficient.)
     return !(*err);
   } else {
-    DVLOG(2) << "Skipping unrecognized top-level box: "
-             << FourCCToString(reader->type());
+    MEDIA_LOG(log_cb_) << "Skipping unrecognized top-level box: "
+                       << FourCCToString(reader->type());
   }
 
   queue_.Pop(reader->size());
@@ -150,7 +153,7 @@ bool MP4StreamParser::ParseBox(bool* err) {
 bool MP4StreamParser::ParseMoov(BoxReader* reader) {
   moov_.reset(new Movie);
   RCHECK(moov_->Parse(reader));
-  runs_.reset(new TrackRunIterator(moov_.get()));
+  runs_.reset(new TrackRunIterator(moov_.get(), log_cb_));
 
   has_audio_ = false;
   has_video_ = false;
@@ -412,7 +415,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   if (video) {
     if (!PrepareAVCBuffer(runs_->video_description().avcc,
                           &frame_buf, &subsamples)) {
-      DLOG(ERROR) << "Failed to prepare AVC sample for decode";
+      MEDIA_LOG(log_cb_) << "Failed to prepare AVC sample for decode";
       *err = true;
       return false;
     }
@@ -421,7 +424,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   if (audio) {
     if (!PrepareAACBuffer(runs_->audio_description().esds.aac,
                           &frame_buf, &subsamples)) {
-      DLOG(ERROR) << "Failed to prepare AAC sample for decode";
+      MEDIA_LOG(log_cb_) << "Failed to prepare AAC sample for decode";
       *err = true;
       return false;
     }
@@ -486,12 +489,13 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(const int64 offset) {
 
     FourCC type;
     int box_sz;
-    if (!BoxReader::StartTopLevelBox(buf, size, &type, &box_sz, &err))
+    if (!BoxReader::StartTopLevelBox(buf, size, log_cb_,
+                                     &type, &box_sz, &err))
       break;
 
     if (type != FOURCC_MDAT) {
-      DLOG(WARNING) << "Unexpected box type while parsing MDATs: "
-                    << FourCCToString(type);
+      MEDIA_LOG(log_cb_) << "Unexpected box type while parsing MDATs: "
+                         << FourCCToString(type);
     }
     mdat_tail_ += box_sz;
   }

@@ -13,6 +13,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 
 namespace media {
 
@@ -79,7 +80,8 @@ class MEDIA_EXPORT StreamParser {
                     const NewBuffersCB& video_cb,
                     const NeedKeyCB& need_key_cb,
                     const NewMediaSegmentCB& new_segment_cb,
-                    const base::Closure& end_of_segment_cb) = 0;
+                    const base::Closure& end_of_segment_cb,
+                    const LogCB& log_cb) = 0;
 
   // Called when a seek occurs. This flushes the current parser state
   // and puts the parser in a state where it can receive data for the new seek

@@ -68,6 +68,10 @@ struct MediaLogEvent {
     //         "buffer_current": <current offset>.
     //         "buffer_end": <last buffered byte>.
     BUFFERED_EXTENTS_CHANGED,
+
+    // Errors reported by Media Source Extensions code.
+    MEDIA_SOURCE_ERROR,
+    // params: "error": Error string describing the error detected.
   };
 
   int32 id;

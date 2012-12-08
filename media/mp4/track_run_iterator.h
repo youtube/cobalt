@@ -10,6 +10,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/cenc.h"
 
@@ -29,7 +30,7 @@ class MEDIA_EXPORT TrackRunIterator {
  public:
   // Create a new TrackRunIterator. A reference to |moov| will be retained for
   // the lifetime of this object.
-  explicit TrackRunIterator(const Movie* moov);
+  TrackRunIterator(const Movie* moov, const LogCB& log_cb);
   ~TrackRunIterator();
 
   void Reset();
@@ -92,6 +93,7 @@ class MEDIA_EXPORT TrackRunIterator {
   const TrackEncryption& track_encryption() const;
 
   const Movie* moov_;
+  LogCB log_cb_;
 
   std::vector<TrackRunInfo> runs_;
   std::vector<TrackRunInfo>::const_iterator run_itr_;
