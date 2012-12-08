@@ -5,7 +5,7 @@
 #ifndef CRYPTO_RANDOM_H_
 #define CRYPTO_RANDOM_H_
 
-#include <stdlib.h>
+#include <stddef.h>
 
 #include "crypto/crypto_export.h"
 
