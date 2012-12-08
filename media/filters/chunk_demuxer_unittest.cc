@@ -164,7 +164,7 @@ class ChunkDemuxerTest : public testing::Test {
         base::Bind(&ChunkDemuxerTest::DemuxerOpened, base::Unretained(this));
     ChunkDemuxer::NeedKeyCB need_key_cb =
         base::Bind(&ChunkDemuxerTest::DemuxerNeedKey, base::Unretained(this));
-    demuxer_ = new ChunkDemuxer(open_cb, need_key_cb);
+    demuxer_ = new ChunkDemuxer(open_cb, need_key_cb, LogCB());
   }
 
   virtual ~ChunkDemuxerTest() {

@@ -186,7 +186,8 @@ void WebMStreamParser::Init(const InitCB& init_cb,
                             const NewBuffersCB& video_cb,
                             const NeedKeyCB& need_key_cb,
                             const NewMediaSegmentCB& new_segment_cb,
-                            const base::Closure& end_of_segment_cb) {
+                            const base::Closure& end_of_segment_cb,
+                            const LogCB& log_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -204,6 +205,7 @@ void WebMStreamParser::Init(const InitCB& init_cb,
   need_key_cb_ = need_key_cb;
   new_segment_cb_ = new_segment_cb;
   end_of_segment_cb_ = end_of_segment_cb;
+  log_cb_ = log_cb;
 }
 
 void WebMStreamParser::Flush() {
@@ -305,9 +307,10 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
     case kWebMIdInfo:
       // We've found the element we are looking for.
       break;
-    default:
-      DVLOG(1) << "Unexpected ID 0x" << std::hex << id;
+    default: {
+      MEDIA_LOG(log_cb_) << "Unexpected element ID 0x" << std::hex << id;
       return -1;
+    }
   }
 
   WebMInfoParser info_parser;
@@ -320,7 +323,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   cur_size -= result;
   bytes_parsed += result;
 
-  WebMTracksParser tracks_parser;
+  WebMTracksParser tracks_parser(log_cb_);
   result = tracks_parser.Parse(cur, cur_size);
 
   if (result <= 0)
@@ -393,7 +396,8 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       tracks_parser.audio_track_num(),
       tracks_parser.video_track_num(),
       tracks_parser.audio_encryption_key_id(),
-      tracks_parser.video_encryption_key_id()));
+      tracks_parser.video_encryption_key_id(),
+      log_cb_));
 
   ChangeState(kParsingClusters);
 

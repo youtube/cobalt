@@ -107,6 +107,7 @@ static const SupportedTypeInfo kSupportedTypeInfo[] = {
 //         and |has_video| are undefined.
 static bool IsSupported(const std::string& type,
                         std::vector<std::string>& codecs,
+                        const LogCB& log_cb,
                         ParserFactoryFunction* factory_function,
                         bool* has_audio,
                         bool* has_video) {
@@ -133,8 +134,11 @@ static bool IsSupported(const std::string& type,
           }
         }
 
-        if (!found_codec)
+        if (!found_codec) {
+          MEDIA_LOG(log_cb) << "Codec '" << codecs[j]
+                            <<"' is not supported for '" << type << "'";
           return false;
+        }
 
         switch (codec_type) {
           case DemuxerStream::AUDIO:
@@ -144,8 +148,8 @@ static bool IsSupported(const std::string& type,
             *has_video = true;
             break;
           default:
-            DVLOG(1) << "Unsupported codec type '"<< codec_type << "' for "
-                     << codecs[j];
+            MEDIA_LOG(log_cb) << "Unsupported codec type '"<< codec_type
+                              << "' for " << codecs[j];
             return false;
         }
       }
@@ -167,8 +171,10 @@ class ChunkDemuxerStream : public DemuxerStream {
   typedef std::deque<ReadCB> ReadCBQueue;
   typedef std::deque<base::Closure> ClosureQueue;
 
-  explicit ChunkDemuxerStream(const AudioDecoderConfig& audio_config);
-  explicit ChunkDemuxerStream(const VideoDecoderConfig& video_config);
+  ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
+                     const LogCB& log_cb);
+  ChunkDemuxerStream(const VideoDecoderConfig& video_config,
+                     const LogCB& log_cb);
 
   void StartWaitingForSeek();
   void Seek(TimeDelta time);
@@ -248,18 +254,20 @@ class ChunkDemuxerStream : public DemuxerStream {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
 
-ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config)
+ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
+                                       const LogCB& log_cb)
     : type_(AUDIO),
       state_(RETURNING_DATA_FOR_READS),
       end_of_stream_(false) {
-  stream_.reset(new SourceBufferStream(audio_config));
+  stream_.reset(new SourceBufferStream(audio_config, log_cb));
 }
 
-ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config)
+ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config,
+                                       const LogCB& log_cb)
     : type_(VIDEO),
       state_(RETURNING_DATA_FOR_READS),
       end_of_stream_(false) {
-  stream_.reset(new SourceBufferStream(video_config));
+  stream_.reset(new SourceBufferStream(video_config, log_cb));
 }
 
 void ChunkDemuxerStream::StartWaitingForSeek() {
@@ -533,11 +541,13 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
 }
 
 ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
-                           const NeedKeyCB& need_key_cb)
+                           const NeedKeyCB& need_key_cb,
+                           const LogCB& log_cb)
     : state_(WAITING_FOR_INIT),
       host_(NULL),
       open_cb_(open_cb),
-      need_key_cb_(need_key_cb) {
+      need_key_cb_(need_key_cb),
+      log_cb_(log_cb) {
   DCHECK(!open_cb_.is_null());
   DCHECK(!need_key_cb_.is_null());
 }
@@ -662,8 +672,11 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   bool has_audio = false;
   bool has_video = false;
   ParserFactoryFunction factory_function = NULL;
-  if (!IsSupported(type, codecs, &factory_function, &has_audio, &has_video))
+  std::string error;
+  if (!IsSupported(type, codecs, log_cb_, &factory_function, &has_audio,
+                   &has_video)) {
     return kNotSupported;
+  }
 
   if ((has_audio && !source_id_audio_.empty()) ||
       (has_video && !source_id_video_.empty()))
@@ -696,7 +709,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
       base::Bind(&ChunkDemuxer::OnNeedKey, base::Unretained(this)),
       base::Bind(&ChunkDemuxer::OnNewMediaSegment, base::Unretained(this), id),
       base::Bind(&ChunkDemuxer::OnEndOfMediaSegment,
-                 base::Unretained(this), id));
+                 base::Unretained(this), id),
+      log_cb_);
 
   stream_parser_map_[id] = stream_parser.release();
   SourceInfo info = { base::TimeDelta(), true };
@@ -1046,13 +1060,23 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
   // specified in AddId() or more configs after a stream is initialized.
   // Only allow a single audio config for now.
   if (has_audio != audio_config.IsValidConfig()) {
-    DVLOG(1) << "OnNewConfigs() : Got unexpected audio config.";
+    MEDIA_LOG(log_cb_)
+        << "Initialization segment"
+        << (audio_config.IsValidConfig() ? " has" : " does not have")
+        << " an audio track, but the mimetype"
+        << (has_audio ? " specifies" : " does not specify")
+        << " an audio codec.";
     return false;
   }
 
   // Only allow a single video config for now.
   if (has_video != video_config.IsValidConfig()) {
-    DVLOG(1) << "OnNewConfigs() : Got unexpected video config.";
+    MEDIA_LOG(log_cb_)
+        << "Initialization segment"
+        << (video_config.IsValidConfig() ? " has" : " does not have")
+        << " a video track, but the mimetype"
+        << (has_video ? " specifies" : " does not specify")
+        << " a video codec.";
     return false;
   }
 
@@ -1061,7 +1085,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     if (audio_) {
       success &= audio_->UpdateAudioConfig(audio_config);
     } else {
-      audio_ = new ChunkDemuxerStream(audio_config);
+      audio_ = new ChunkDemuxerStream(audio_config, log_cb_);
     }
   }
 
@@ -1069,7 +1093,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     if (video_) {
       success &= video_->UpdateVideoConfig(video_config);
     } else {
-      video_ = new ChunkDemuxerStream(video_config);
+      video_ = new ChunkDemuxerStream(video_config, log_cb_);
     }
   }
 

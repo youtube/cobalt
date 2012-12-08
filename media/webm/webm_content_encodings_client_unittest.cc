@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "media/webm/webm_constants.h"
 #include "media/webm/webm_content_encodings_client.h"
 #include "media/webm/webm_parser.h"
@@ -12,7 +13,8 @@ namespace media {
 class WebMContentEncodingsClientTest : public testing::Test {
  public:
   WebMContentEncodingsClientTest()
-      : parser_(kWebMIdContentEncodings, &client_) {}
+      : client_(LogCB()),
+        parser_(kWebMIdContentEncodings, &client_) {}
 
   void ParseAndExpectToFail(const uint8* buf, int size) {
     int result = parser_.Parse(buf, size);
