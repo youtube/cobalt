@@ -59,6 +59,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
                                    SCNetworkConnectionFlags flags,
                                    void* notifier);
 
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsMac();
+
   // These must be constructed before config_watcher_ to ensure
   // the lock is in a valid state when Forwarder::Init is called.
   ConnectionType connection_type_;

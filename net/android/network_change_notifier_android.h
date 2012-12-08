@@ -63,6 +63,8 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierAndroid
 
   void SetConnectionType(ConnectionType new_connection_type);
 
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsAndroid();
+
   NetworkChangeNotifierDelegateAndroid* const delegate_;
   mutable base::Lock connection_type_lock_;  // Protects the state below.
   ConnectionType connection_type_;
