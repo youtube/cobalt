@@ -250,42 +250,6 @@ else
   exit 100
 fi
 
-# Install arm root image
-if test "$do_inst_arm" = "1"; then
-  # As well as the arm toolchain packages we also need a recent arm root
-  # image to build against (using --sysroot).  We could construct this
-  # from scratch based on the current state or precise/arm but for
-  # consistency we currently use a pre-built root image which was constructed
-  # for building trusted NaCl code.
-  CHROME_ROOT="$(dirname ${BASH_SOURCE[0]})"
-  CHROME_ROOT="$(dirname ${CHROME_ROOT})"
-  SYSROOT="${CHROME_ROOT}/arm-sysroot"
-  TC_URL_PREFIX=https://commondatastorage.googleapis.com/nativeclient-archive2/toolchain
-  TC_REV=8001
-  TC_URL=${TC_URL_PREFIX}/${TC_REV}/naclsdk_linux_arm-trusted.tgz
-
-  INSTALL_ROOT="yes"
-  STAMP="${SYSROOT}/.stamp"
-  if [ -f "${STAMP}" ]; then
-    if [ "${TC_URL}" = $(cat ${STAMP}) ]; then
-      INSTALL_ROOT="no"
-    fi
-  fi
-
-  if [ $INSTALL_ROOT = "no" ]; then
-    echo "ARM root image already up-to-date."
-  else
-    echo "Installing ARM root image."
-    mkdir -p ${SYSROOT}
-    tarball=${SYSROOT}/naclsdk_linux_arm-trusted.tgz
-    set -x
-    curl -L ${TC_URL} -o ${tarball}
-    tar xf ${tarball} -C ${SYSROOT}
-    rm ${tarball}
-    echo -n "${TC_URL}" > "${STAMP}"
-  fi
-fi
-
 # Install 32bit backwards compatibility support for 64bit systems
 if [ "$(uname -m)" = "x86_64" ]; then
   if test "$do_inst_lib32" != "1"
