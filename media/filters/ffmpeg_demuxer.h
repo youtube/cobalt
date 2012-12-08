@@ -22,7 +22,6 @@
 #ifndef MEDIA_FILTERS_FFMPEG_DEMUXER_H_
 #define MEDIA_FILTERS_FFMPEG_DEMUXER_H_
 
-#include <deque>
 #include <vector>
 
 #include "base/callback.h"
@@ -96,9 +95,9 @@ class FFmpegDemuxerStream : public DemuxerStream {
  private:
   friend class FFmpegDemuxerTest;
 
-  // Runs callbacks in |read_queue_| for each available |buffer_queue_|, calling
-  // NotifyHasPendingRead() if there are still pending items in |read_queue_|.
-  void SatisfyPendingReads();
+  // Runs |read_cb_| if present with the front of |buffer_queue_|, calling
+  // NotifyCapacityAvailable() if capacity is still available.
+  void SatisfyPendingRead();
 
   // Converts an FFmpeg stream timestamp into a base::TimeDelta.
   static base::TimeDelta ConvertStreamTimestamp(const AVRational& time_base,
@@ -117,9 +116,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   Ranges<base::TimeDelta> buffered_ranges_;
 
   DecoderBufferQueue buffer_queue_;
-
-  typedef std::deque<ReadCB> ReadQueue;
-  ReadQueue read_queue_;
+  ReadCB read_cb_;
 
   scoped_ptr<FFmpegH264ToAnnexBBitstreamConverter> bitstream_converter_;
   bool bitstream_converter_enabled_;
@@ -154,25 +151,19 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
 
   virtual ~FFmpegDemuxer();
 
-  // Carries out initialization on the demuxer thread.
-  void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
+  // FFmpeg callbacks during initialization.
   void OnOpenContextDone(const PipelineStatusCB& status_cb, bool result);
   void OnFindStreamInfoDone(const PipelineStatusCB& status_cb, int result);
 
-  // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
+  // FFmpeg callbacks during seeking.
   void OnSeekFrameDone(const PipelineStatusCB& cb, int result);
 
-  // Carries out demuxing and satisfying stream reads on the demuxer thread.
-  void DemuxTask();
+  // FFmpeg callbacks during reading + helper method to initiate reads.
+  void ReadFrameIfNeeded();
   void OnReadFrameDone(ScopedAVPacket packet, int result);
 
-  // Carries out stopping the demuxer streams on the demuxer thread.
-  void StopTask(const base::Closure& callback);
+  // DataSource callbacks during stopping.
   void OnDataSourceStopped(const base::Closure& callback);
-
-  // Carries out disabling the audio stream on the demuxer thread.
-  void DisableAudioStreamTask();
 
   // Returns true iff any stream has additional capacity. Note that streams can
   // go over capacity depending on how the file is muxed.

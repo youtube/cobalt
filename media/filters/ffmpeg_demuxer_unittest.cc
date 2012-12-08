@@ -524,6 +524,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   // stream without requiring the message loop to read data.
   bool got_eos_buffer = false;
   audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
+  message_loop_.RunUntilIdle();
   EXPECT_TRUE(got_eos_buffer);
 }
 
