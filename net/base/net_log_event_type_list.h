@@ -1311,6 +1311,13 @@ EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
 //   }
 EVENT_TYPE(NETWORK_CONNECTIVITY_CHANGED)
 
+// This event is emitted whenever NetworkChangeNotifier determines that a change
+// occurs to the host computer's hardware or software that affects the route
+// network packets take to any network server.
+//   {
+//     "new_connection_type": <Type of the new connection>
+//   }
+EVENT_TYPE(NETWORK_CHANGED)
 
 // This event is emitted whenever HostResolverImpl receives a new DnsConfig
 // from the DnsConfigService.

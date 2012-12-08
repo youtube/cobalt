@@ -52,7 +52,8 @@ class NetworkChangeNotifierWin::DnsConfigServiceThread : public base::Thread {
 };
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
-    : is_watching_(false),
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsWin()),
+      is_watching_(false),
       sequential_failures_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       dns_config_service_thread_(new DnsConfigServiceThread()),
@@ -69,6 +70,20 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
     addr_watcher_.StopWatching();
   }
   WSACloseEvent(addr_overlapped_.hEvent);
+}
+
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
+  NetworkChangeCalculatorParams params;
+  // Delay values arrived at by simple experimentation and adjusted so as to
+  // produce a single signal when switching between network connections.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(1500);
+  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(1500);
+  params.connection_type_offline_delay_ =
+      base::TimeDelta::FromMilliseconds(1500);
+  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  return params;
 }
 
 // This implementation does not return the actual connection type but merely

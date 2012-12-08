@@ -63,7 +63,8 @@ class NetworkChangeNotifierMac::DnsConfigServiceThread : public base::Thread {
 };
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-    : connection_type_(CONNECTION_UNKNOWN),
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsMac()),
+      connection_type_(CONNECTION_UNKNOWN),
       connection_type_initialized_(false),
       initial_connection_type_cv_(&connection_type_lock_),
       forwarder_(this),
@@ -87,6 +88,20 @@ NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
                                                run_loop_.get(),
                                                kCFRunLoopCommonModes);
   }
+}
+
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierMac::NetworkChangeCalculatorParamsMac() {
+  NetworkChangeCalculatorParams params;
+  // Delay values arrived at by simple experimentation and adjusted so as to
+  // produce a single signal when switching between network connections.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(500);
+  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  params.connection_type_offline_delay_ =
+      base::TimeDelta::FromMilliseconds(1000);
+  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  return params;
 }
 
 NetworkChangeNotifier::ConnectionType

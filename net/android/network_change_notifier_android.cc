@@ -85,9 +85,24 @@ bool NetworkChangeNotifierAndroid::Register(JNIEnv* env) {
 
 NetworkChangeNotifierAndroid::NetworkChangeNotifierAndroid(
     NetworkChangeNotifierDelegateAndroid* delegate)
-    : delegate_(delegate) {
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsAndroid()),
+      delegate_(delegate) {
   SetConnectionType(NetworkChangeNotifier::CONNECTION_UNKNOWN);
   delegate_->AddObserver(this);
+}
+
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierAndroid::NetworkChangeCalculatorParamsAndroid() {
+  NetworkChangeCalculatorParams params;
+  // IPAddressChanged is produced immediately prior to ConnectionTypeChanged
+  // so delay IPAddressChanged so they get merged with the following
+  // ConnectionTypeChanged signal.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromSeconds(1);
+  params.ip_address_online_delay_ = base::TimeDelta::FromSeconds(1);
+  params.connection_type_offline_delay_ = base::TimeDelta::FromSeconds(0);
+  params.connection_type_online_delay_ = base::TimeDelta::FromSeconds(0);
+  return params;
 }
 
 void NetworkChangeNotifierAndroid::SetConnectionType(

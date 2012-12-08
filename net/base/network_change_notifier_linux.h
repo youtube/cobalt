@@ -23,6 +23,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
 
   NetworkChangeNotifierLinux();
   virtual ~NetworkChangeNotifierLinux();
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsLinux();
 
   // NetworkChangeNotifier:
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;

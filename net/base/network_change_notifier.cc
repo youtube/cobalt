@@ -46,12 +46,14 @@ class MockNetworkChangeNotifier : public NetworkChangeNotifier {
 class HistogramWatcher
     : public NetworkChangeNotifier::ConnectionTypeObserver,
       public NetworkChangeNotifier::IPAddressObserver,
-      public NetworkChangeNotifier::DNSObserver {
+      public NetworkChangeNotifier::DNSObserver,
+      public NetworkChangeNotifier::NetworkChangeObserver {
  public:
   HistogramWatcher()
       : last_ip_address_change_(base::TimeTicks::Now()),
         last_connection_change_(base::TimeTicks::Now()),
         last_dns_change_(base::TimeTicks::Now()),
+        last_network_change_(base::TimeTicks::Now()),
         last_connection_type_(NetworkChangeNotifier::CONNECTION_UNKNOWN),
         offline_packets_received_(0) {}
 
@@ -64,6 +66,7 @@ class HistogramWatcher
     NetworkChangeNotifier::AddConnectionTypeObserver(this);
     NetworkChangeNotifier::AddIPAddressObserver(this);
     NetworkChangeNotifier::AddDNSObserver(this);
+    NetworkChangeNotifier::AddNetworkChangeObserver(this);
   }
 
   virtual ~HistogramWatcher() {}
@@ -72,6 +75,9 @@ class HistogramWatcher
   virtual void OnIPAddressChanged() OVERRIDE {
     UMA_HISTOGRAM_MEDIUM_TIMES("NCN.IPAddressChange",
                                SinceLast(&last_ip_address_change_));
+    UMA_HISTOGRAM_MEDIUM_TIMES(
+        "NCN.ConnectionTypeChangeToIPAddressChange",
+        last_ip_address_change_ - last_connection_change_);
   }
 
   // NetworkChangeNotifier::ConnectionTypeObserver implementation.
@@ -98,6 +104,9 @@ class HistogramWatcher
       UMA_HISTOGRAM_MEDIUM_TIMES("NCN.OfflineChange",
                                  SinceLast(&last_connection_change_));
     }
+    UMA_HISTOGRAM_MEDIUM_TIMES(
+        "NCN.IPAddressChangeToConnectionTypeChange",
+        last_connection_change_ - last_ip_address_change_);
 
     offline_packets_received_ = 0;
     last_connection_type_ = type;
@@ -108,6 +117,18 @@ class HistogramWatcher
   virtual void OnDNSChanged() OVERRIDE {
     UMA_HISTOGRAM_MEDIUM_TIMES("NCN.DNSConfigChange",
                                SinceLast(&last_dns_change_));
+  }
+
+  // NetworkChangeNotifier::NetworkChangeObserver implementation.
+  virtual void OnNetworkChanged(
+      NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+    if (type != NetworkChangeNotifier::CONNECTION_NONE) {
+      UMA_HISTOGRAM_MEDIUM_TIMES("NCN.NetworkOnlineChange",
+                                 SinceLast(&last_network_change_));
+    } else {
+      UMA_HISTOGRAM_MEDIUM_TIMES("NCN.NetworkOfflineChange",
+                                 SinceLast(&last_network_change_));
+    }
   }
 
   // Record histogram data whenever we receive a packet but think we're
@@ -153,6 +174,7 @@ class HistogramWatcher
   base::TimeTicks last_ip_address_change_;
   base::TimeTicks last_connection_change_;
   base::TimeTicks last_dns_change_;
+  base::TimeTicks last_network_change_;
   base::TimeTicks last_offline_packet_received_;
   base::TimeTicks last_polled_connection_;
   // |polling_interval_| is initialized by |OnConnectionTypeChanged| on our
@@ -191,6 +213,79 @@ class NetworkChangeNotifier::NetworkState {
  private:
   mutable base::Lock lock_;
   DnsConfig dns_config_;
+};
+
+NetworkChangeNotifier::NetworkChangeCalculatorParams::
+    NetworkChangeCalculatorParams() {
+}
+
+// Calculates NetworkChange signal from IPAddress and ConnectionType signals.
+class NetworkChangeNotifier::NetworkChangeCalculator
+    : public ConnectionTypeObserver,
+      public IPAddressObserver {
+ public:
+  NetworkChangeCalculator(const NetworkChangeCalculatorParams& params)
+      : params_(params),
+        have_announced_(false),
+        last_announced_connection_type_(CONNECTION_NONE),
+        pending_connection_type_(CONNECTION_NONE) {}
+
+  void Init() {
+    AddConnectionTypeObserver(this);
+    AddIPAddressObserver(this);
+  }
+
+  virtual ~NetworkChangeCalculator() {
+    RemoveConnectionTypeObserver(this);
+    RemoveIPAddressObserver(this);
+  }
+
+  // NetworkChangeNotifier::IPAddressObserver implementation.
+  virtual void OnIPAddressChanged() OVERRIDE {
+    base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
+        ? params_.ip_address_offline_delay_ : params_.ip_address_online_delay_;
+    // Cancels any previous timer.
+    timer_.Start(FROM_HERE, delay, this, &NetworkChangeCalculator::Notify);
+  }
+
+  // NetworkChangeNotifier::ConnectionTypeObserver implementation.
+  virtual void OnConnectionTypeChanged(ConnectionType type) OVERRIDE {
+    pending_connection_type_ = type;
+    base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
+        ? params_.connection_type_offline_delay_
+        : params_.connection_type_online_delay_;
+    // Cancels any previous timer.
+    timer_.Start(FROM_HERE, delay, this, &NetworkChangeCalculator::Notify);
+  }
+
+ private:
+  void Notify() {
+    // Don't bother signaling about dead connections.
+    if (have_announced_ &&
+        (last_announced_connection_type_ == CONNECTION_NONE) &&
+        (pending_connection_type_ == CONNECTION_NONE)) {
+      return;
+    }
+    have_announced_ = true;
+    last_announced_connection_type_ = pending_connection_type_;
+    // Immediately before sending out an online signal, send out an offline
+    // signal to perform any destructive actions before constructive actions.
+    if (pending_connection_type_ != CONNECTION_NONE)
+      NetworkChangeNotifier::NotifyObserversOfNetworkChange(CONNECTION_NONE);
+    NetworkChangeNotifier::NotifyObserversOfNetworkChange(
+        pending_connection_type_);
+  }
+
+  const NetworkChangeCalculatorParams params_;
+
+  // Indicates if NotifyObserversOfNetworkChange has been called yet.
+  bool have_announced_;
+  // Last value passed to NotifyObserversOfNetworkChange.
+  ConnectionType last_announced_connection_type_;
+  // Value to pass to NotifyObserversOfNetworkChange when Notify is called.
+  ConnectionType pending_connection_type_;
+  // Used to delay notifications so duplicates can be combined.
+  base::OneShotTimer<NetworkChangeCalculator> timer_;
 };
 
 NetworkChangeNotifier::~NetworkChangeNotifier() {
@@ -346,6 +441,14 @@ void NetworkChangeNotifier::AddDNSObserver(DNSObserver* observer) {
   }
 }
 
+void NetworkChangeNotifier::AddNetworkChangeObserver(
+    NetworkChangeObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->network_change_observer_list_->AddObserver(
+        observer);
+  }
+}
+
 void NetworkChangeNotifier::RemoveIPAddressObserver(
     IPAddressObserver* observer) {
   if (g_network_change_notifier) {
@@ -369,7 +472,17 @@ void NetworkChangeNotifier::RemoveDNSObserver(DNSObserver* observer) {
   }
 }
 
-NetworkChangeNotifier::NetworkChangeNotifier()
+void NetworkChangeNotifier::RemoveNetworkChangeObserver(
+    NetworkChangeObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->network_change_observer_list_->RemoveObserver(
+        observer);
+  }
+}
+
+NetworkChangeNotifier::NetworkChangeNotifier(
+    const NetworkChangeCalculatorParams& params
+        /*= NetworkChangeCalculatorParams()*/)
     : ip_address_observer_list_(
         new ObserverListThreadSafe<IPAddressObserver>(
             ObserverListBase<IPAddressObserver>::NOTIFY_EXISTING_ONLY)),
@@ -379,10 +492,15 @@ NetworkChangeNotifier::NetworkChangeNotifier()
       resolver_state_observer_list_(
         new ObserverListThreadSafe<DNSObserver>(
             ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)),
+      network_change_observer_list_(
+        new ObserverListThreadSafe<NetworkChangeObserver>(
+            ObserverListBase<NetworkChangeObserver>::NOTIFY_EXISTING_ONLY)),
       network_state_(new NetworkState()),
-      histogram_watcher_(new HistogramWatcher()) {
+      histogram_watcher_(new HistogramWatcher()),
+      network_change_calculator_(new NetworkChangeCalculator(params)) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
+  network_change_calculator_->Init();
 }
 
 #if defined(OS_LINUX)
@@ -421,6 +539,15 @@ void NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange() {
     g_network_change_notifier->connection_type_observer_list_->Notify(
         &ConnectionTypeObserver::OnConnectionTypeChanged,
         GetConnectionType());
+  }
+}
+
+void NetworkChangeNotifier::NotifyObserversOfNetworkChange(
+    ConnectionType type) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->network_change_observer_list_->Notify(
+        &NetworkChangeObserver::OnNetworkChanged,
+        type);
   }
 }
 
