@@ -19,6 +19,7 @@ HybridSlowStart::HybridSlowStart(const QuicClock* clock)
       started_(false),
       found_ack_train_(false),
       found_delay_(false),
+      end_sequence_number_(0),
       sample_count_(0) {
 }
 
