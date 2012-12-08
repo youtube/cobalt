@@ -627,7 +627,7 @@ int TraceLog::AddTraceEvent(char phase,
                num_args, arg_names, arg_types, arg_values);
 #endif
 
-  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
+  TimeTicks now = TimeTicks::NowFromSystemTraceTime() - time_offset_;
   NotificationHelper notifier(this);
   int ret_begin_id = -1;
   {
@@ -802,6 +802,10 @@ void TraceLog::SetProcessID(int process_id) {
   unsigned long long fnv_prime = 1099511628211ull;
   unsigned long long pid = static_cast<unsigned long long>(process_id_);
   process_id_hash_ = (offset_basis ^ pid) * fnv_prime;
+}
+
+void TraceLog::SetTimeOffset(TimeDelta offset) {
+  time_offset_ = offset;
 }
 
 }  // namespace debug
