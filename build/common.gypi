@@ -2808,19 +2808,14 @@
             ],
           }],
           ['linux_use_gold_flags==1', {
+            'ldflags': [
+              # Experimentation found that using four linking threads
+              # saved ~20% of link time.
+              # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
+              '-Wl,--threads',
+              '-Wl,--thread-count=4',
+            ],
             'conditions': [
-              # Don't enable multi-threaded linking for 32-bit targets as it
-              # causes intermittent crashed on lucid32: http://crbug.com/161942
-              # TODO(sbc): remove this once gold bug is fixed
-              ['host_arch!="ia32"', {
-                'ldflags': [
-                  # Experimentation found that using four linking threads
-                  # saved ~20% of link time.
-                  # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
-                  '-Wl,--threads',
-                  '-Wl,--thread-count=4',
-                ],
-              }],
               ['release_valgrind_build==0', {
                 'target_conditions': [
                   ['_toolset=="target"', {
