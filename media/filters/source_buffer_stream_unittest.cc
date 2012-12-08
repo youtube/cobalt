@@ -11,6 +11,7 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
+#include "media/base/media_log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -28,7 +29,7 @@ class SourceBufferStreamTest : public testing::Test {
     config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                        VideoFrame::YV12, kCodedSize, gfx::Rect(kCodedSize),
                        kCodedSize, NULL, 0, false, false);
-    stream_.reset(new SourceBufferStream(config_));
+    stream_.reset(new SourceBufferStream(config_, LogCB()));
     SetStreamInfo(kDefaultFramesPerSecond, kDefaultKeyframesPerSecond);
   }
 

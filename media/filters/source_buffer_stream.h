@@ -18,6 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 #include "media/base/ranges.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
@@ -42,8 +43,10 @@ class MEDIA_EXPORT SourceBufferStream {
     kConfigChange,
   };
 
-  explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
-  explicit SourceBufferStream(const VideoDecoderConfig& video_config);
+  SourceBufferStream(const AudioDecoderConfig& audio_config,
+                     const LogCB& log_cb);
+  SourceBufferStream(const VideoDecoderConfig& video_config,
+                     const LogCB& log_cb);
 
   ~SourceBufferStream();
 
@@ -236,6 +239,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // GetNextBuffer() to stop returning kConfigChange and start returning
   // kSuccess.
   void CompleteConfigChange();
+
+  // Callback used to report error strings that can help the web developer
+  // figure out what is wrong with the content.
+  LogCB log_cb_;
 
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;

@@ -10,6 +10,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/webm/webm_parser.h"
 
@@ -23,7 +24,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
                     int audio_track_num,
                     int video_track_num,
                     const std::string& audio_encryption_key_id,
-                    const std::string& video_encryption_key_id);
+                    const std::string& video_encryption_key_id,
+                    const LogCB& log_cb);
   virtual ~WebMClusterParser();
 
   // Resets the parser state so it can accept a new cluster.
@@ -91,6 +93,8 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   Track audio_;
   Track video_;
+
+  LogCB log_cb_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
 };

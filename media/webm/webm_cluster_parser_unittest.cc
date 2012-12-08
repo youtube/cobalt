@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "media/webm/cluster_builder.h"
 #include "media/webm/webm_cluster_parser.h"
@@ -124,9 +125,8 @@ static void AppendToEnd(const WebMClusterParser::BufferQueue& src,
 class WebMClusterParserTest : public testing::Test {
  public:
   WebMClusterParserTest()
-      : parser_(new WebMClusterParser(kTimecodeScale,
-                                      kAudioTrackNum, kVideoTrackNum,
-                                      "", "")) {
+      : parser_(new WebMClusterParser(
+          kTimecodeScale, kAudioTrackNum, kVideoTrackNum, "", "", LogCB())) {
   }
 
  protected:

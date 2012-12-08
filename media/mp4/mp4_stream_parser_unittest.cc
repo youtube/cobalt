@@ -106,7 +106,8 @@ class MP4StreamParserTest : public testing::Test {
         base::Bind(&MP4StreamParserTest::KeyNeededF, base::Unretained(this)),
         base::Bind(&MP4StreamParserTest::NewSegmentF, base::Unretained(this)),
         base::Bind(&MP4StreamParserTest::EndOfSegmentF,
-                   base::Unretained(this)));
+                   base::Unretained(this)),
+        LogCB());
   }
 
   bool ParseMP4File(const std::string& filename, int append_bytes) {

@@ -54,6 +54,8 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "AUDIO_RENDERER_DISABLED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
+    case MediaLogEvent::MEDIA_SOURCE_ERROR:
+      return "MEDIA_SOURCE_ERROR";
   }
   NOTREACHED();
   return NULL;
@@ -96,6 +98,14 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
   }
   NOTREACHED();
   return NULL;
+}
+
+LogHelper::LogHelper(const LogCB& log_cb) : log_cb_(log_cb) {}
+
+LogHelper::~LogHelper() {
+  if (log_cb_.is_null())
+    return;
+  log_cb_.Run(stream_.str());
 }
 
 MediaLog::MediaLog() : id_(g_media_log_count.GetNext()) {}
@@ -175,6 +185,14 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateBufferedExtentsChangedEvent(
   event->params.SetInteger("buffer_start", start);
   event->params.SetInteger("buffer_current", current);
   event->params.SetInteger("buffer_end", end);
+  return event.Pass();
+}
+
+scoped_ptr<MediaLogEvent> MediaLog::CreateMediaSourceErrorEvent(
+    const std::string& error) {
+  scoped_ptr<MediaLogEvent> event(
+      CreateEvent(MediaLogEvent::MEDIA_SOURCE_ERROR));
+  event->params.SetString("error", error);
   return event.Pass();
 }
 

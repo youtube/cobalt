@@ -9,6 +9,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/media_log.h"
 #include "media/webm/webm_content_encodings_client.h"
 #include "media/webm/webm_parser.h"
 
@@ -17,7 +18,7 @@ namespace media {
 // Parser for WebM Tracks element.
 class WebMTracksParser : public WebMParserClient {
  public:
-  explicit WebMTracksParser();
+  explicit WebMTracksParser(const LogCB& log_cb);
   virtual ~WebMTracksParser();
 
   // Parses a WebM Tracks element in |buf|.
@@ -53,6 +54,7 @@ class WebMTracksParser : public WebMParserClient {
   int64 video_track_num_;
   std::string audio_encryption_key_id_;
   std::string video_encryption_key_id_;
+  LogCB log_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMTracksParser);
 };

@@ -40,7 +40,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   //   is ready to receive media data via AppenData().
   // |need_key_cb| Run when the demuxer determines that an encryption key is
   //   needed to decrypt the content.
-  ChunkDemuxer(const base::Closure& open_cb, const NeedKeyCB& need_key_cb);
+  // |log_cb| Run when parsing error messages need to be logged to the error
+  //   console.
+  ChunkDemuxer(const base::Closure& open_cb, const NeedKeyCB& need_key_cb,
+               const LogCB& log_cb);
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -171,6 +174,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   DemuxerHost* host_;
   base::Closure open_cb_;
   NeedKeyCB need_key_cb_;
+  LogCB log_cb_;
 
   PipelineStatusCB init_cb_;
   PipelineStatusCB seek_cb_;

@@ -23,11 +23,11 @@ static std::string GenerateCounterBlock(const uint8* iv, int iv_size) {
   return counter_block;
 }
 
-WebMClusterParser::WebMClusterParser(int64 timecode_scale,
-                                     int audio_track_num,
-                                     int video_track_num,
-                                     const std::string& audio_encryption_key_id,
-                                     const std::string& video_encryption_key_id)
+WebMClusterParser::WebMClusterParser(
+    int64 timecode_scale, int audio_track_num, int video_track_num,
+    const std::string& audio_encryption_key_id,
+    const std::string& video_encryption_key_id,
+    const LogCB& log_cb)
     : timecode_multiplier_(timecode_scale / 1000.0),
       audio_encryption_key_id_(audio_encryption_key_id),
       video_encryption_key_id_(video_encryption_key_id),
@@ -39,7 +39,8 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       cluster_start_time_(kNoTimestamp()),
       cluster_ended_(false),
       audio_(audio_track_num),
-      video_(video_track_num) {
+      video_(video_track_num),
+      log_cb_(log_cb) {
 }
 
 WebMClusterParser::~WebMClusterParser() {}
@@ -106,7 +107,7 @@ bool WebMClusterParser::OnListEnd(int id) {
 
   // Make sure the BlockGroup actually had a Block.
   if (block_data_size_ == -1) {
-    DVLOG(1) << "Block missing from BlockGroup.";
+    MEDIA_LOG(log_cb_) << "Block missing from BlockGroup.";
     return false;
   }
 
@@ -140,7 +141,7 @@ bool WebMClusterParser::ParseBlock(const uint8* buf, int size, int duration) {
   // Return an error if the trackNum > 127. We just aren't
   // going to support large track numbers right now.
   if (!(buf[0] & 0x80)) {
-    DVLOG(1) << "TrackNumber over 127 not supported";
+    MEDIA_LOG(log_cb_) << "TrackNumber over 127 not supported";
     return false;
   }
 
@@ -150,7 +151,7 @@ bool WebMClusterParser::ParseBlock(const uint8* buf, int size, int duration) {
   int lacing = (flags >> 1) & 0x3;
 
   if (lacing) {
-    DVLOG(1) << "Lacing " << lacing << " not supported yet.";
+    MEDIA_LOG(log_cb_) << "Lacing " << lacing << " is not supported yet.";
     return false;
   }
 
@@ -171,7 +172,7 @@ bool WebMClusterParser::OnBinary(int id, const uint8* data, int size) {
     return true;
 
   if (block_data_.get()) {
-    DVLOG(1) << "More than 1 Block in a BlockGroup is not supported.";
+    MEDIA_LOG(log_cb_) << "More than 1 Block in a BlockGroup is not supported.";
     return false;
   }
 
@@ -187,17 +188,19 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
                                 const uint8* data, int size) {
   DCHECK_GE(size, 0);
   if (cluster_timecode_ == -1) {
-    DVLOG(1) << "Got a block before cluster timecode.";
+    MEDIA_LOG(log_cb_) << "Got a block before cluster timecode.";
     return false;
   }
 
   if (timecode < 0) {
-    DVLOG(1) << "Got a block with negative timecode offset " << timecode;
+    MEDIA_LOG(log_cb_) << "Got a block with negative timecode offset "
+                       << timecode;
     return false;
   }
 
   if (last_block_timecode_ != -1 && timecode < last_block_timecode_) {
-    DVLOG(1) << "Got a block with a timecode before the previous block.";
+    MEDIA_LOG(log_cb_)
+        << "Got a block with a timecode before the previous block.";
     return false;
   }
 
@@ -210,7 +213,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     track = &video_;
     encryption_key_id = video_encryption_key_id_;
   } else {
-    DVLOG(1) << "Unexpected track number " << track_num;
+    MEDIA_LOG(log_cb_) << "Unexpected track number " << track_num;
     return false;
   }
 
@@ -231,7 +234,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   if (!encryption_key_id.empty()) {
     DCHECK_EQ(kWebMSignalByteSize, 1);
     if (size < kWebMSignalByteSize) {
-      DVLOG(1) << "Got a block from an encrypted stream with no data.";
+      MEDIA_LOG(log_cb_)
+          << "Got a block from an encrypted stream with no data.";
       return false;
     }
     uint8 signal_byte = data[0];
@@ -244,7 +248,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
 
     if (signal_byte & kWebMFlagEncryptedFrame) {
       if (size < kWebMSignalByteSize + kWebMIvSize) {
-        DVLOG(1) << "Got an encrypted block with not enough data " << size;
+        MEDIA_LOG(log_cb_) << "Got an encrypted block with not enough data "
+                           << size;
         return false;
       }
       counter_block = GenerateCounterBlock(data + data_offset, kWebMIvSize);

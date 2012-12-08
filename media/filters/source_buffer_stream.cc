@@ -286,8 +286,10 @@ static int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
 
 namespace media {
 
-SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
-    : current_config_index_(0),
+SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
+                                       const LogCB& log_cb)
+    : log_cb_(log_cb),
+      current_config_index_(0),
       append_config_index_(0),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
@@ -304,8 +306,10 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
   audio_configs_.back()->CopyFrom(audio_config);
 }
 
-SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
-    : current_config_index_(0),
+SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
+                                       const LogCB& log_cb)
+    : log_cb_(log_cb),
+      current_config_index_(0),
       append_config_index_(0),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
@@ -358,19 +362,20 @@ bool SourceBufferStream::Append(
 
   // New media segments must begin with a keyframe.
   if (new_media_segment_ && !buffers.front()->IsKeyframe()) {
-    DVLOG(1) << "Media segment did not begin with keyframe.";
+    MEDIA_LOG(log_cb_) <<"Media segment did not begin with keyframe.";
     return false;
   }
 
   // Buffers within a media segment should be monotonically increasing.
   if (!IsMonotonicallyIncreasing(buffers)) {
-    DVLOG(1) << "Buffers were not monotonically increasing.";
+    MEDIA_LOG(log_cb_) <<"Buffers were not monotonically increasing.";
     return false;
   }
 
   if (media_segment_start_time_ < base::TimeDelta() ||
       buffers.front()->GetDecodeTimestamp() < base::TimeDelta()) {
-    DVLOG(1) << "Cannot append a media segment with negative timestamps.";
+    MEDIA_LOG(log_cb_)
+        << "Cannot append a media segment with negative timestamps.";
     return false;
   }
 
@@ -1037,22 +1042,22 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
   DCHECK(video_configs_.empty());
 
   if (audio_configs_[0]->codec() != config.codec()) {
-    DVLOG(1) << "UpdateAudioConfig() : Codec changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Audio codec changes not allowed.";
     return false;
   }
 
   if (audio_configs_[0]->samples_per_second() != config.samples_per_second()) {
-    DVLOG(1) << "UpdateAudioConfig() : Sample rate changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Audio sample rate changes not allowed.";
     return false;
   }
 
   if (audio_configs_[0]->channel_layout() != config.channel_layout()) {
-    DVLOG(1) << "UpdateAudioConfig() : Channel layout changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Audio channel layout changes not allowed.";
     return false;
   }
 
   if (audio_configs_[0]->bits_per_channel() != config.bits_per_channel()) {
-    DVLOG(1) << "UpdateAudioConfig() : Bits per channel changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Audio bits per channel changes not allowed.";
     return false;
   }
 
@@ -1077,12 +1082,12 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(audio_configs_.empty());
 
   if (video_configs_[0]->is_encrypted() != config.is_encrypted()) {
-    DVLOG(1) << "UpdateVideoConfig() : Encryption changes not allowed.";
+    MEDIA_LOG(log_cb_) <<"Video Encryption changes not allowed.";
     return false;
   }
 
   if (video_configs_[0]->codec() != config.codec()) {
-    DVLOG(1) << "UpdateVideoConfig() : Codec changes not allowed.";
+    MEDIA_LOG(log_cb_) <<"Video codec changes not allowed.";
     return false;
   }
 
