@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 
 namespace media {
@@ -17,18 +18,31 @@ namespace media {
 COMPILE_ASSERT(DecoderBuffer::kPaddingSize >= FF_INPUT_BUFFER_PADDING_SIZE,
                decoder_buffer_padding_size_does_not_fit_ffmpeg_requirement);
 
-// Alignment requirement by FFmpeg for input buffers. This need to be updated
-// to match FFmpeg when it changes.
+// Alignment requirement by FFmpeg for input and output buffers. This need to
+// be updated to match FFmpeg when it changes.
 #if defined(ARCH_CPU_ARM_FAMILY)
-static const int kFFmpegInputBufferAlignmentSize = 16;
+static const int kFFmpegBufferAddressAlignment = 16;
 #else
-static const int kFFmpegInputBufferAlignmentSize = 32;
+static const int kFFmpegBufferAddressAlignment = 32;
 #endif
+
 // Check here to ensure FFmpeg only receives data aligned to its specifications.
 COMPILE_ASSERT(
-    DecoderBuffer::kAlignmentSize >= kFFmpegInputBufferAlignmentSize &&
-    DecoderBuffer::kAlignmentSize % kFFmpegInputBufferAlignmentSize == 0,
+    DecoderBuffer::kAlignmentSize >= kFFmpegBufferAddressAlignment &&
+    DecoderBuffer::kAlignmentSize % kFFmpegBufferAddressAlignment == 0,
     decoder_buffer_alignment_size_does_not_fit_ffmpeg_requirement);
+
+// Allows faster SIMD YUV convert. Also, FFmpeg overreads/-writes occasionally.
+// See video_get_buffer() in libavcodec/utils.c.
+static const int kFFmpegOutputBufferPaddingSize = 16;
+
+COMPILE_ASSERT(VideoFrame::kFrameSizePadding >= kFFmpegOutputBufferPaddingSize,
+               video_frame_padding_size_does_not_fit_ffmpeg_requirement);
+
+COMPILE_ASSERT(
+    VideoFrame::kFrameAddressAlignment >= kFFmpegBufferAddressAlignment &&
+    VideoFrame::kFrameAddressAlignment % kFFmpegBufferAddressAlignment == 0,
+    video_frame_address_alignment_does_not_fit_ffmpeg_requirement);
 
 static const AVRational kMicrosBase = { 1, base::Time::kMicrosecondsPerSecond };
 

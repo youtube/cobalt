@@ -9,12 +9,10 @@
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/aligned_memory.h"
 #include "base/string_piece.h"
 #include "media/base/limits.h"
 #include "media/base/video_util.h"
-#if !defined(OS_ANDROID)
-#include "media/ffmpeg/ffmpeg_common.h"
-#endif
 
 namespace media {
 
@@ -72,9 +70,8 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     base::TimeDelta timestamp,
     const ReadPixelsCB& read_pixels_cb,
     const base::Closure& no_longer_needed_cb) {
-  scoped_refptr<VideoFrame> frame(
-      new VideoFrame(NATIVE_TEXTURE, coded_size, visible_rect, natural_size,
-                     timestamp));
+  scoped_refptr<VideoFrame> frame(new VideoFrame(
+      NATIVE_TEXTURE, coded_size, visible_rect, natural_size, timestamp));
   frame->texture_id_ = texture_id;
   frame->texture_target_ = texture_target;
   frame->read_pixels_cb_ = read_pixels_cb;
@@ -144,20 +141,10 @@ static inline size_t RoundUp(size_t value, size_t alignment) {
   return ((value + (alignment - 1)) & ~(alignment-1));
 }
 
-static const int kFrameSizeAlignment = 16;
-// Allows faster SIMD YUV convert. Also, FFmpeg overreads/-writes occasionally.
-static const int kFramePadBytes = 15;
-
 // Release data allocated by AllocateRGB() or AllocateYUV().
 static void ReleaseData(uint8* data) {
   DCHECK(data);
-  if (data) {
-#if !defined(OS_ANDROID)
-    av_free(data);
-#else
-    delete[] data;
-#endif
-  }
+  base::AlignedFree(data);
 }
 
 void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
@@ -167,14 +154,9 @@ void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
                                  kFrameSizeAlignment) * bytes_per_pixel;
   size_t aligned_height = RoundUp(coded_size_.height(), kFrameSizeAlignment);
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
-#if !defined(OS_ANDROID)
-  // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
-  // doesn't need to be repeated in every single user of aligned data.
   data_[VideoFrame::kRGBPlane] = reinterpret_cast<uint8*>(
-      av_malloc(bytes_per_row * aligned_height + kFramePadBytes));
-#else
-  data_[VideoFrame::kRGBPlane] = new uint8_t[bytes_per_row * aligned_height];
-#endif
+      base::AlignedAlloc(bytes_per_row * aligned_height + kFrameSizePadding,
+                         kFrameAddressAlignment));
   no_longer_needed_cb_ = base::Bind(&ReleaseData, data_[VideoFrame::kRGBPlane]);
   DCHECK(!(reinterpret_cast<intptr_t>(data_[VideoFrame::kRGBPlane]) & 7));
   COMPILE_ASSERT(0 == VideoFrame::kRGBPlane, RGB_data_must_be_index_0);
@@ -203,18 +185,14 @@ void VideoFrame::AllocateYUV() {
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
 
-#if !defined(OS_ANDROID)
-  // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
-  // doesn't need to be repeated in every single user of aligned data.
   // The extra line of UV being allocated is because h264 chroma MC
   // overreads by one line in some cases, see libavcodec/utils.c:
   // avcodec_align_dimensions2() and libavcodec/x86/h264_chromamc.asm:
   // put_h264_chroma_mc4_ssse3().
   uint8* data = reinterpret_cast<uint8*>(
-      av_malloc(y_bytes + (uv_bytes * 2 + uv_stride) + kFramePadBytes));
-#else
-  uint8* data = new uint8_t[y_bytes + (uv_bytes * 2)];
-#endif
+      base::AlignedAlloc(
+          y_bytes + (uv_bytes * 2 + uv_stride) + kFrameSizePadding,
+          kFrameAddressAlignment));
   no_longer_needed_cb_ = base::Bind(&ReleaseData, data);
   COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
   data_[VideoFrame::kYPlane] = data;
