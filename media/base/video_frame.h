@@ -16,6 +16,12 @@ namespace media {
 class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   enum {
+    kFrameSizeAlignment = 16,
+    kFrameSizePadding = 16,
+    kFrameAddressAlignment = 32
+  };
+
+  enum {
     kMaxPlanes = 3,
 
     kRGBPlane = 0,
