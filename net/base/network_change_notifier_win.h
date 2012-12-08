@@ -71,6 +71,8 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   // created on.
   virtual bool WatchForAddressChangeInternal();
 
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsWin();
+
   // All member variables may only be accessed on the thread |this| was created
   // on.
 

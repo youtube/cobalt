@@ -69,7 +69,8 @@ NetworkChangeNotifierLinux* NetworkChangeNotifierLinux::Create() {
 }
 
 NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
-    : notifier_thread_(new Thread()) {
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsLinux()),
+      notifier_thread_(new Thread()) {
   // We create this notifier thread because the notification implementation
   // needs a MessageLoopForIO, and there's no guarantee that
   // MessageLoop::current() meets that criterion.
@@ -81,6 +82,20 @@ NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
   // Stopping from here allows us to sanity- check that the notifier
   // thread shut down properly.
   notifier_thread_->Stop();
+}
+
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierLinux::NetworkChangeCalculatorParamsLinux() {
+  NetworkChangeCalculatorParams params;
+  // Delay values arrived at by simple experimentation and adjusted so as to
+  // produce a single signal when switching between network connections.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(2000);
+  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(2000);
+  params.connection_type_offline_delay_ =
+      base::TimeDelta::FromMilliseconds(1500);
+  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  return params;
 }
 
 NetworkChangeNotifier::ConnectionType
