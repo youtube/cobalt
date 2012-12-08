@@ -593,7 +593,6 @@
             ['exclude', 'gfx/screen_gtk.cc'],
             ['exclude', 'base/dialogs/select_file_dialog_mac.mm'],
             ['exclude', 'base/dialogs/select_file_dialog_win.cc'],
-            ['exclude', 'base/dragdrop/drag_utils_win.cc'],
             ['exclude', 'base/work_area_watcher_observer.h'],
             ['exclude', 'base/x/active_window_watcher_x.cc'],
             ['exclude', 'base/x/active_window_watcher_x.h'],
@@ -616,8 +615,8 @@
         }],
         ['use_aura==1 and OS=="win"', {
           'sources/': [
-            ['exclude', 'base/dragdrop/os_exchange_data_provider_win.cc'],
-            ['exclude', 'base/dragdrop/os_exchange_data_provider_win.h'],
+            ['exclude', 'base/dragdrop/os_exchange_data_provider_aura.cc'],
+            ['exclude', 'base/dragdrop/drag_utils_aura.cc'],
           ],
         }],
         ['use_aura==0 and toolkit_views==0', {
