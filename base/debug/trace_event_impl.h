@@ -310,6 +310,10 @@ class BASE_EXPORT TraceLog {
 
   void SetProcessID(int process_id);
 
+  // Allow setting an offset between the current TimeTicks time and the time
+  // that should be reported.
+  void SetTimeOffset(TimeDelta offset);
+
  private:
   // This allows constructor and destructor to be private and usable only
   // by the Singleton class.
@@ -384,6 +388,8 @@ class BASE_EXPORT TraceLog {
   unsigned long long process_id_hash_;
 
   int process_id_;
+
+  TimeDelta time_offset_;
 
   // Allow tests to wake up when certain events occur.
   const unsigned char* watch_category_;
