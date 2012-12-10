@@ -6,7 +6,7 @@
 
 """Takes and saves a screenshot from an Android device.
 
-Usage: screenshot.py [-s SERIAL] [-f FILE]
+Usage: screenshot.py [-s SERIAL] [[-f] FILE]
 
 Options:
   -s SERIAL  connect to device with specified SERIAL
@@ -20,27 +20,30 @@ import sys
 from pylib import android_commands
 
 
-def main(argv):
+def main():
   # Parse options.
-  parser = OptionParser()
+  parser = OptionParser(usage='screenshot.py [-s SERIAL] [[-f] FILE]')
   parser.add_option('-s', '--serial', dest='serial',
                     help='connect to device with specified SERIAL',
                     metavar='SERIAL', default=None)
   parser.add_option('-f', '--file', dest='filename',
                     help='write screenshot to FILE (default: %default)',
                     metavar='FILE', default='Screenshot.png')
-  (options, args) = parser.parse_args(argv)
+  (options, args) = parser.parse_args()
 
   if not options.serial and len(android_commands.GetAttachedDevices()) > 1:
     parser.error('Multiple devices are attached. '
                  'Please specify SERIAL with -s.')
 
+  if len(args) > 1:
+    parser.error('Too many positional arguments.')
+  filename = os.path.abspath(args[0] if args else options.filename)
+
   # Grab screenshot and write to disk.
-  filename = os.path.abspath(options.filename)
   ac = android_commands.AndroidCommands(options.serial)
   ac.TakeScreenshot(filename)
   return 0
 
 
 if __name__ == '__main__':
-  sys.exit(main(sys.argv))
+  sys.exit(main())
