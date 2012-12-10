@@ -126,7 +126,8 @@ TEST_F(LibDispatchTaskRunnerTest, NoMessageLoop) {
   VerifyTaskOrder(expectations, arraysize(expectations));
 }
 
-TEST_F(LibDispatchTaskRunnerTest, DispatchAndPostTasks) {
+// This test is flaky, see http://crbug.com/165117.
+TEST_F(LibDispatchTaskRunnerTest, FLAKY_DispatchAndPostTasks) {
   dispatch_async(task_runner_->GetDispatchQueue(), ^{
       TaskOrderMarker marker(this, "First Block");
       task_runner_->PostTask(FROM_HERE,
