@@ -46,6 +46,13 @@ class VideoCaptureDeviceMFWin
   virtual void DeAllocate() OVERRIDE;
   virtual const Name& device_name() OVERRIDE;
 
+  // Returns true iff the current platform supports the Media Foundation API
+  // and that the DLLs are available.  On Vista this API is an optional download
+  // but the API is advertised as a part of Windows 7 and onwards.  However,
+  // we've seen that the required DLLs are not available in some Win7
+  // distributions such as Windows 7 N and Windows 7 KN.
+  static bool PlatformSupported();
+
   static void GetDeviceNames(Names* device_names);
 
   // Captured a new video frame.

@@ -12,6 +12,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/sys_string_conversions.h"
 #include "base/win/scoped_co_mem.h"
+#include "base/win/windows_version.h"
 #include "media/video/capture/win/capability_list_win.h"
 
 using base::win::ScopedCoMem;
@@ -143,6 +144,23 @@ HRESULT FillCapabilities(IMFSourceReader* source,
   return (hr == MF_E_NO_MORE_TYPES) ? S_OK : hr;
 }
 
+bool LoadMediaFoundationDlls() {
+  static const wchar_t* const kMfDLLs[] = {
+    L"%WINDIR%\\system32\\mf.dll",
+    L"%WINDIR%\\system32\\mfplat.dll",
+    L"%WINDIR%\\system32\\mfreadwrite.dll",
+  };
+
+  for (int i = 0; i < arraysize(kMfDLLs); ++i) {
+    wchar_t path[MAX_PATH] = {0};
+    ExpandEnvironmentStringsW(kMfDLLs[i], path, arraysize(path));
+    if (!LoadLibraryExW(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH))
+      return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 class MFReaderCallback
@@ -220,6 +238,17 @@ class MFReaderCallback
   VideoCaptureDeviceMFWin* observer_;
   base::WaitableEvent* wait_event_;
 };
+
+// static
+bool VideoCaptureDeviceMFWin::PlatformSupported() {
+  // Even though the DLLs might be available on Vista, we get crashes
+  // when running our tests on the build bots.
+  if (base::win::GetVersion() < base::win::VERSION_WIN7)
+    return false;
+
+  static bool g_dlls_available = LoadMediaFoundationDlls();
+  return g_dlls_available;
+}
 
 // static
 void VideoCaptureDeviceMFWin::GetDeviceNames(Names* device_names) {
