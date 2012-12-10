@@ -16,42 +16,6 @@
 
 namespace {
 
-bool LooksLikeUnixPermission(const string16& text) {
-  if (text.length() != 3)
-    return false;
-
-  // Meaning of the flags:
-  // r - file is readable
-  // w - file is writable
-  // x - file is executable
-  // s, S or l - setuid/setgid bit set
-  // t or T - "sticky" bit set
-  return ((text[0] == 'r' || text[0] == '-') &&
-          (text[1] == 'w' || text[1] == '-') &&
-          (text[2] == 'x' || text[2] == '-' ||
-           text[2] == 's' || text[2] == 'S' || text[2] == 'l' ||
-           text[2] == 't' || text[2] == 'T'));
-}
-
-bool LooksLikeUnixPermissionsListing(const string16& text) {
-  if (text.length() < 7)
-    return false;
-
-  // Do not check the first character (entry type). There are many weird
-  // servers that use special file types (for example Plan9 and append-only
-  // files). Fortunately, the rest of the permission listing is more consistent.
-
-  // Do not check the rest of the string. Some servers fail to properly
-  // separate this column from the next column (number of links), resulting
-  // in additional characters at the end. Also, sometimes there is a "+"
-  // sign at the end indicating the file has ACLs set.
-
-  // In fact, we don't even expect three "rwx" triplets of permission
-  // listing, as some FTP servers like Hylafax only send two.
-  return (LooksLikeUnixPermission(text.substr(1, 3)) &&
-          LooksLikeUnixPermission(text.substr(4, 3)));
-}
-
 bool TwoColumnDateListingToTime(const string16& date,
                                 const string16& time,
                                 base::Time* result) {
@@ -209,11 +173,12 @@ bool ParseFtpDirectoryListingLs(
       return false;
     }
 
-    if (!LooksLikeUnixPermissionsListing(columns[0]))
-      return false;
-    if (columns[0][0] == 'l') {
+    // Do not check "validity" of the permission listing. It's quirky,
+    // and some servers send garbage here while other parts of the line are OK.
+
+    if (!columns[0].empty() && columns[0][0] == 'l') {
       entry.type = FtpDirectoryListingEntry::SYMLINK;
-    } else if (columns[0][0] == 'd') {
+    } else if (!columns[0].empty() && columns[0][0] == 'd') {
       entry.type = FtpDirectoryListingEntry::DIRECTORY;
     } else {
       entry.type = FtpDirectoryListingEntry::FILE;
