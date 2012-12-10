@@ -227,42 +227,12 @@
                 "actions": [
                     {
                         "action": "click_element_interaction",
-                        "text": "Browse",
+                        "selector": "a[href=\"/channels?feature=promo\"]",
                         "wait_for_navigate": true
                     },
                     {
                         "action": "click_element_interaction",
-                        "selector": "a[href=\"/recommended\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/trending\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/autos\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/entertainment\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/film\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/gaming\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/howto\"]",
+                        "text": "Music",
                         "wait_for_navigate": true
                     }
                 ]
