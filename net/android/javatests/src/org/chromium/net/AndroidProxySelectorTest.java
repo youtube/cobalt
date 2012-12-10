@@ -234,20 +234,6 @@ public class AndroidProxySelectorTest extends InstrumentationTestCase {
     }
 
     /**
-     * Test https.proxyHost and default port.
-     *
-     * @throws Exception
-     */
-    @SmallTest
-    @Feature({"AndroidWebView"})
-    public void testHttpsProxyHostOnly() throws Exception {
-        System.setProperty("https.proxyHost", "httpproxy.com");
-        checkMapping("ftp://example.com/", "DIRECT");
-        checkMapping("http://example.com/", "DIRECT");
-        checkMapping("https://example.com/", "PROXY httpproxy.com:443");
-    }
-
-    /**
      * Default http proxy is used if a scheme-specific one is not found.
      *
      * @throws Exception
@@ -262,19 +248,6 @@ public class AndroidProxySelectorTest extends InstrumentationTestCase {
         checkMapping("ftp://example.com/", "PROXY httpproxy.com:8080");
         checkMapping("http://example.com/", "PROXY defaultproxy.com:8080");
         checkMapping("https://example.com/", "PROXY defaultproxy.com:8080");
-    }
-
-    /**
-     * Check that the default proxy port is as expected.
-     *
-     * @throws Exception
-     */
-    @SmallTest
-    @Feature({"AndroidWebView"})
-    public void testDefaultProxyDefaultPort() throws Exception {
-        System.setProperty("proxyHost", "defaultproxy.com");
-        checkMapping("http://example.com/", "PROXY defaultproxy.com:80");
-        checkMapping("https://example.com/", "PROXY defaultproxy.com:443");
     }
 
     /**
