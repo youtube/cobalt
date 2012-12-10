@@ -8,6 +8,7 @@
 #define BASE_STL_UTIL_H_
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
