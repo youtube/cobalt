@@ -557,6 +557,7 @@
           'sources/': [
             ['exclude', '\\.(cc|mm)$'],
             ['include', '_ios\\.(cc|mm)$'],
+            ['include', '(^|/)ios/'],
             ['include', '^gfx/'],
             ['exclude', '^gfx/codec/jpeg_codec\\.cc$'],
             ['exclude', '^gfx/pango_util\\.'],
