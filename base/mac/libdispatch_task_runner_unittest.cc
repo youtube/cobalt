@@ -152,7 +152,8 @@ TEST_F(LibDispatchTaskRunnerTest, FLAKY_DispatchAndPostTasks) {
   VerifyTaskOrder(expectations, arraysize(expectations));
 }
 
-TEST_F(LibDispatchTaskRunnerTest, NonNestable) {
+// This test is flaky, see http://crbug.com/165118.
+TEST_F(LibDispatchTaskRunnerTest, FLAKY_NonNestable) {
   task_runner_->PostTask(FROM_HERE, base::BindBlock(^{
       TaskOrderMarker marker(this, "First");
       task_runner_->PostNonNestableTask(FROM_HERE, base::BindBlock(^{
