@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/win/scoped_variant.h"
+#include "base/win/windows_version.h"
 #include "media/video/capture/win/video_capture_device_mf_win.h"
 
 using base::win::ScopedComPtr;
@@ -143,13 +144,20 @@ void DeleteMediaType(AM_MEDIA_TYPE* mt) {
   }
 }
 
+bool ShouldUseMediaFoundationAPI() {
+  // Although Media Foundation is supported on Vista, it requires a special
+  // update to be available.  For now we don't risk it and use DirectShow
+  // on Vista but MF on Win7 and higher.
+  return base::win::GetVersion() >= base::win::VERSION_WIN7;
+}
+
 }  // namespace
 
 namespace media {
 
 // static
 void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
-  if (VideoCaptureDeviceMFWin::PlatformSupported()) {
+  if (ShouldUseMediaFoundationAPI()) {
     VideoCaptureDeviceMFWin::GetDeviceNames(device_names);
   } else {
     VideoCaptureDeviceWin::GetDeviceNames(device_names);
@@ -159,7 +167,7 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
 // static
 VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
   VideoCaptureDevice* ret = NULL;
-  if (VideoCaptureDeviceMFWin::PlatformSupported()) {
+  if (ShouldUseMediaFoundationAPI()) {
     scoped_ptr<VideoCaptureDeviceMFWin> device(
         new VideoCaptureDeviceMFWin(device_name));
     if (device->Init())
