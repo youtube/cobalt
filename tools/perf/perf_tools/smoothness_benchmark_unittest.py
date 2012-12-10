@@ -82,43 +82,43 @@ class SmoothnessBenchmarkUnitTest(
       raise Exception('No browser found, cannot continue test.')
 
     with browser_to_create.Create() as browser:
-      with browser.ConnectToNthTab(0) as tab:
-        ps = self.CreatePageSetFromFileInUnittestDataDir('blank.html')
-        parsed_url = urlparse.urlparse(ps.pages[0].url)
-        path = os.path.join(parsed_url.netloc, parsed_url.path)
-        dirname, filename = os.path.split(path)
-        dirname = os.path.join(ps.base_dir, dirname[1:])
-        browser.SetHTTPServerDirectory(dirname)
-        target_side_url = browser.http_server.UrlOf(filename)
-        tab.page.Navigate(target_side_url)
+      tab = browser.tabs[0]
+      ps = self.CreatePageSetFromFileInUnittestDataDir('blank.html')
+      parsed_url = urlparse.urlparse(ps.pages[0].url)
+      path = os.path.join(parsed_url.netloc, parsed_url.path)
+      dirname, filename = os.path.split(path)
+      dirname = os.path.join(ps.base_dir, dirname[1:])
+      browser.SetHTTPServerDirectory(dirname)
+      target_side_url = browser.http_server.UrlOf(filename)
+      tab.page.Navigate(target_side_url)
 
-        # Verify that the rect returned by getBoundingVisibleRect() in
-        # scroll.js is completely contained within the viewport. Scroll
-        # events dispatched by the benchmarks use the center of this rect
-        # as their location, and this location needs to be within the
-        # viewport bounds to correctly decide between main-thread and
-        # impl-thread scrolling. If the scrollable area were not clipped
-        # to the viewport bounds, then the instance used here (the scrollable
-        # area being more than twice as tall as the viewport) would
-        # result in a scroll location outside of the viewport bounds.
-        tab.runtime.Execute("""document.body.style.height =
-                               (2 * window.innerHeight + 1) + 'px';""")
-        scroll_js_path = os.path.join(os.path.dirname(__file__), '..', '..',
-                                      'telemetry', 'telemetry', 'scroll.js')
-        scroll_js = open(scroll_js_path, 'r').read()
-        tab.runtime.Evaluate(scroll_js)
+      # Verify that the rect returned by getBoundingVisibleRect() in
+      # scroll.js is completely contained within the viewport. Scroll
+      # events dispatched by the benchmarks use the center of this rect
+      # as their location, and this location needs to be within the
+      # viewport bounds to correctly decide between main-thread and
+      # impl-thread scrolling. If the scrollable area were not clipped
+      # to the viewport bounds, then the instance used here (the scrollable
+      # area being more than twice as tall as the viewport) would
+      # result in a scroll location outside of the viewport bounds.
+      tab.runtime.Execute("""document.body.style.height =
+                             (2 * window.innerHeight + 1) + 'px';""")
+      scroll_js_path = os.path.join(os.path.dirname(__file__), '..', '..',
+                                    'telemetry', 'telemetry', 'scroll.js')
+      scroll_js = open(scroll_js_path, 'r').read()
+      tab.runtime.Evaluate(scroll_js)
 
-        rect_bottom = int(tab.runtime.Evaluate("""
-                  __ScrollTest_GetBoundingVisibleRect(document.body).top +
-                  __ScrollTest_GetBoundingVisibleRect(document.body).height"""))
-        rect_right = int(tab.runtime.Evaluate("""
-                  __ScrollTest_GetBoundingVisibleRect(document.body).left +
-                  __ScrollTest_GetBoundingVisibleRect(document.body).width"""))
-        viewport_width = int(tab.runtime.Evaluate('window.innerWidth'))
-        viewport_height = int(tab.runtime.Evaluate('window.innerHeight'))
+      rect_bottom = int(tab.runtime.Evaluate("""
+                __ScrollTest_GetBoundingVisibleRect(document.body).top +
+                __ScrollTest_GetBoundingVisibleRect(document.body).height"""))
+      rect_right = int(tab.runtime.Evaluate("""
+                __ScrollTest_GetBoundingVisibleRect(document.body).left +
+                __ScrollTest_GetBoundingVisibleRect(document.body).width"""))
+      viewport_width = int(tab.runtime.Evaluate('window.innerWidth'))
+      viewport_height = int(tab.runtime.Evaluate('window.innerHeight'))
 
-        self.assertTrue(rect_bottom <= viewport_height)
-        self.assertTrue(rect_right <= viewport_width)
+      self.assertTrue(rect_bottom <= viewport_height)
+      self.assertTrue(rect_right <= viewport_width)
 
   def testDoesImplThreadScroll(self):
     ps = self.CreatePageSetFromFileInUnittestDataDir('scrollable_page.html')
