@@ -206,8 +206,21 @@ void FieldTrial::FinalizeGroupChoice() {
 }
 
 bool FieldTrial::GetActiveGroup(ActiveGroup* active_group) const {
-  if (!group_reported_ || !enable_field_trial_)
+  if (!group_reported_ || !enable_field_trial_) {
+    // TODO(asvitkine): Temporary histogram. Remove this once it is not needed.
+    if (trial_name_ == "UMA-Uniformity-Trial-1-Percent") {
+      const int kGroupNotReported = 1;
+      const int kTrialDisabled = 2;
+      int value = 0;
+      if (!group_reported_)
+        value |= kGroupNotReported;
+      if (!enable_field_trial_)
+        value |= kTrialDisabled;
+      UMA_HISTOGRAM_ENUMERATION("Variations.UniformityTrialGroupNotActive",
+                                value, 4);
+    }
     return false;
+  }
   DCHECK_NE(group_, kNotFinalized);
   active_group->trial_name = trial_name_;
   active_group->group_name = group_name_;
