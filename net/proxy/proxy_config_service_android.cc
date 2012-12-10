@@ -118,12 +118,16 @@ void AddBypassRules(const std::string& scheme,
 bool GetProxyRules(const GetPropertyCallback& get_property,
                    ProxyConfig::ProxyRules* rules) {
   // See libcore/luni/src/main/java/java/net/ProxySelectorImpl.java for the
-  // equivalent Android implementation.
+  // mostly equivalent Android implementation.  There is one intentional
+  // difference: by default Chromium uses the HTTP port (80) for HTTPS
+  // connections via proxy.  This default is identical on other platforms.
+  // On the opposite, Java spec suggests to use HTTPS port (443) by default (the
+  // default value of https.proxyPort).
   rules->type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
   rules->proxy_for_http = LookupProxy("http", get_property,
                                       ProxyServer::SCHEME_HTTP);
   rules->proxy_for_https = LookupProxy("https", get_property,
-                                       ProxyServer::SCHEME_HTTPS);
+                                       ProxyServer::SCHEME_HTTP);
   rules->proxy_for_ftp = LookupProxy("ftp", get_property,
                                      ProxyServer::SCHEME_HTTP);
   rules->fallback_proxy = LookupSocksProxy(get_property);
