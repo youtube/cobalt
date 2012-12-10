@@ -17,5 +17,8 @@ class ImageDecoding(multi_page_benchmark.MultiPageBenchmark):
     iterations = tab.runtime.Evaluate('minIterations')
     decode_image = tab.timeline.timeline_events.GetAllOfType('DecodeImage')
     elapsed_times = [d.elapsed_time for d in decode_image[-iterations:]]
+    if not elapsed_times:
+      results.Add('ImageDecoding_avg', 'ms', 'unsupported')
+      return
     image_decoding_avg = sum(elapsed_times) / len(elapsed_times)
     results.Add('ImageDecoding_avg', 'ms', image_decoding_avg)
