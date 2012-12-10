@@ -136,6 +136,18 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
       "Shortcut to incoming.lnk -> /t11/member/incoming",
       FtpDirectoryListingEntry::SYMLINK, "Shortcut to incoming.lnk", -1,
       2007, 2, 8, 0, 0 },
+
+    // Garbage in permissions (with no effect on other bits).
+    // Also test multiple "columns" resulting from the garbage.
+    { "garbage    1 ftp      ftp           528 Nov 01  2007 README",
+      FtpDirectoryListingEntry::FILE, "README", 528,
+      2007, 11, 1, 0, 0 },
+    { "gar bage    1 ftp      ftp           528 Nov 01  2007 README",
+      FtpDirectoryListingEntry::FILE, "README", 528,
+      2007, 11, 1, 0, 0 },
+    { "g a r b a g e    1 ftp      ftp           528 Nov 01  2007 README",
+      FtpDirectoryListingEntry::FILE, "README", 528,
+      2007, 11, 1, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -182,16 +194,10 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     " foo",
     "garbage",
     "-rw-r--r-- ftp ftp",
-    "-rw-rgbr-- ftp ftp 528 Nov 01 2007 README",
-    "qrwwr--r-- ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- ftp ftp 528 Foo 01 2007 README",
     "-rw-r--r-- 1 ftp ftp",
-    "-rw-rgbr-- 1 ftp ftp 528 Nov 01 2007 README",
-    "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
     "drwxrwxrwx   1 owner    group               1024 Sep 13  0:3 audio",
-
-    "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
 
     // Invalid month value (30).
     "drwxrwxrwx 2 root root  4096 2012-30-07 00:31 notas_servico",
