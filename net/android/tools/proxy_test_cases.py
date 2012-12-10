@@ -154,7 +154,7 @@ test_cases = [
       "https.proxyPort" : "8080",
     },
     "mappings" : {
-      "https://example.com/" : "HTTPS httpproxy.com:8080",
+      "https://example.com/" : "PROXY httpproxy.com:8080",
       "http://example.com/" : "DIRECT",
       "ftp://example.com/" : "DIRECT",
     }
@@ -162,11 +162,14 @@ test_cases = [
   {
     "name": "HttpsProxyHostOnly",
     "description" : "Test https.proxyHost and default port.",
+    # Chromium differs from the Android platform by connecting to port 80 for
+    # HTTPS connections by default, hence cpp-only.
+    "cpp-only" : "",
     "properties" : {
       "https.proxyHost" : "httpproxy.com",
     },
     "mappings" : {
-      "https://example.com/" : "HTTPS httpproxy.com:443",
+      "https://example.com/" : "PROXY httpproxy.com:80",
       "http://example.com/" : "DIRECT",
       "ftp://example.com/" : "DIRECT",
     }
@@ -221,19 +224,22 @@ test_cases = [
     },
     "mappings" : {
       "http://example.com/" : "PROXY defaultproxy.com:8080",
-      "https://example.com/" : "HTTPS defaultproxy.com:8080",
+      "https://example.com/" : "PROXY defaultproxy.com:8080",
       "ftp://example.com/" : "PROXY httpproxy.com:8080",
     }
   },
   {
     "name": "DefaultProxyDefaultPort",
     "description" : "Check that the default proxy port is as expected.",
+    # Chromium differs from the Android platform by connecting to port 80 for
+    # HTTPS connections by default, hence cpp-only.
+    "cpp-only" : "",
     "properties" : {
       "proxyHost" : "defaultproxy.com",
     },
     "mappings" : {
       "http://example.com/" : "PROXY defaultproxy.com:80",
-      "https://example.com/" : "HTTPS defaultproxy.com:443",
+      "https://example.com/" : "PROXY defaultproxy.com:80",
     }
   },
   {
@@ -310,7 +316,7 @@ class GenerateJava:
       if "description" in test_case:
         self._GenerateDescription(test_case["description"]);
       print "    @SmallTest"
-      print "    @Feature({\"Android-WebView\"})"
+      print "    @Feature({\"AndroidWebView\"})"
       print "    public void test%s() throws Exception {" % test_case["name"]
       self._GenerateConfiguration(test_case["properties"])
       self._GenerateMappings(test_case["mappings"])
