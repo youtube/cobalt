@@ -67,6 +67,7 @@ TEST(CanonicalCookieTest, Constructor) {
 }
 
 TEST(CanonicalCookieTest, Create) {
+  // Test creating cookies from a cookie string.
   GURL url("http://www.example.com/test/foo.html");
   base::Time creation_time = base::Time::Now();
   CookieOptions options;
@@ -89,6 +90,26 @@ TEST(CanonicalCookieTest, Create) {
   EXPECT_EQ("/", cookie->Path());
   EXPECT_FALSE(cookie->IsSecure());
 
+  // Test creating secure cookies. RFC 6265 allows insecure urls to set secure
+  // cookies.
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; Secure", creation_time, options));
+  EXPECT_TRUE(cookie.get());
+  EXPECT_TRUE(cookie->IsSecure());
+
+  // Test creating http only cookies.
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; HttpOnly", creation_time, options));
+  EXPECT_FALSE(cookie.get());
+  CookieOptions httponly_options;
+  httponly_options.set_include_httponly();
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; HttpOnly", creation_time,
+                              httponly_options));
+  EXPECT_TRUE(cookie->IsHttpOnly());
+
+  // Test the creating cookies using specific parameter instead of a cookie
+  // string.
   cookie.reset(CanonicalCookie::Create(
       url, "A", "2", "www.example.com", "/test", "", "", creation_time,
       base::Time(), false, false));
