@@ -165,6 +165,7 @@ v8.log
 /third_party/cygwin
 /third_party/directxsdk
 /third_party/drmemory
+/third_party/eyesfree/src
 /third_party/findbugs
 /third_party/ffmpeg
 /third_party/flac
