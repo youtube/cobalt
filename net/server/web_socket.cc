@@ -115,14 +115,18 @@ class WebSocketHixie76 : public net::WebSocket {
     std::string key2 = request.GetHeaderValue("Sec-WebSocket-Key2");
 
     if (key1.empty()) {
-      connection->Send500("Invalid request format. "
-                          "Sec-WebSocket-Key1 is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key1 is empty or isn't specified.",
+                       "text/html");
       return;
     }
 
     if (key2.empty()) {
-      connection->Send500("Invalid request format. "
-                          "Sec-WebSocket-Key2 is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key2 is empty or isn't specified.",
+                       "text/html");
       return;
     }
 
@@ -175,8 +179,10 @@ class WebSocketHybi17 : public WebSocket {
 
     std::string key = request.GetHeaderValue("Sec-WebSocket-Key");
     if (key.empty()) {
-      connection->Send500("Invalid request format. "
-              "Sec-WebSocket-Key is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key is empty or isn't specified.",
+                       "text/html");
       return NULL;
     }
     return new WebSocketHybi17(connection, request, pos);
