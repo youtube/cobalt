@@ -1253,11 +1253,6 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringCanceledSeek) {
   // Start the first seek.
   demuxer_->StartWaitingForSeek();
 
-  // Call EndOfStream() before the demuxer is notified of the desired
-  // seek point. This simulates end of stream being called before the
-  // pipeline gets a chance to call Seek().
-  EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
-
   // Simulate the pipeline finally calling Seek().
   demuxer_->Seek(base::TimeDelta::FromMilliseconds(20),
                  NewExpectedStatusCB(PIPELINE_OK));
@@ -1265,10 +1260,6 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringCanceledSeek) {
   // Simulate another seek being requested before the first
   // seek has finished prerolling.
   demuxer_->CancelPendingSeek();
-
-  // Call EndOfStream() again since the second seek should clear the
-  // previous end of stream state.
-  EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
 
   // Finish second seek.
   demuxer_->StartWaitingForSeek();
@@ -2067,6 +2058,9 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamFailures) {
 
   ASSERT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
 
+  // Append an zero length buffer to transition out of the end of stream state.
+  ASSERT_TRUE(AppendData(NULL, 0));
+
   // Seek back to 0 and verify that EndOfStream() fails again.
   demuxer_->StartWaitingForSeek();
   demuxer_->Seek(base::TimeDelta::FromMilliseconds(0),
@@ -2081,6 +2075,51 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamFailures) {
   CheckExpectedRanges(video_id, "{ [0,50) }");
 
   ASSERT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
+}
+
+TEST_F(ChunkDemuxerTest, TestEndOfStreamStillSetAfterSeek) {
+  ASSERT_TRUE(InitDemuxer(true, true));
+
+  EXPECT_CALL(host_, SetDuration(_))
+      .Times(AnyNumber());
+
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  scoped_ptr<Cluster> cluster_b(kDefaultSecondCluster());
+  base::TimeDelta kLastAudioTimestamp = base::TimeDelta::FromMilliseconds(92);
+  base::TimeDelta kLastVideoTimestamp = base::TimeDelta::FromMilliseconds(99);
+
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+  ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
+  demuxer_->EndOfStream(PIPELINE_OK);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  DemuxerStream::Status status;
+  base::TimeDelta last_timestamp;
+
+  // Verify that we can read audio & video to the end w/o problems.
+  ReadUntilNotOkOrEndOfStream(audio, &status, &last_timestamp);
+  EXPECT_EQ(DemuxerStream::kOk, status);
+  EXPECT_EQ(kLastAudioTimestamp, last_timestamp);
+
+  ReadUntilNotOkOrEndOfStream(video, &status, &last_timestamp);
+  EXPECT_EQ(DemuxerStream::kOk, status);
+  EXPECT_EQ(kLastVideoTimestamp, last_timestamp);
+
+  // Seek back to 0 and verify that we can read to the end again..
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  ReadUntilNotOkOrEndOfStream(audio, &status, &last_timestamp);
+  EXPECT_EQ(DemuxerStream::kOk, status);
+  EXPECT_EQ(kLastAudioTimestamp, last_timestamp);
+
+  ReadUntilNotOkOrEndOfStream(video, &status, &last_timestamp);
+  EXPECT_EQ(DemuxerStream::kOk, status);
+  EXPECT_EQ(kLastVideoTimestamp, last_timestamp);
 }
 
 TEST_F(ChunkDemuxerTest, TestGetBufferedRangesBeforeInitSegment) {
