@@ -203,7 +203,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   bool UpdateVideoConfig(const VideoDecoderConfig& config);
 
   void EndOfStream();
+  void CancelEndOfStream();
   bool CanEndOfStream() const;
+
   void Shutdown();
 
   // DemuxerStream methods.
@@ -394,6 +396,12 @@ void ChunkDemuxerStream::EndOfStream() {
 
   for (ClosureQueue::iterator it = closures.begin(); it != closures.end(); ++it)
     it->Run();
+}
+
+void ChunkDemuxerStream::CancelEndOfStream() {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(end_of_stream_);
+  end_of_stream_ = false;
 }
 
 bool ChunkDemuxerStream::CanEndOfStream() const {
@@ -797,8 +805,6 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   DVLOG(1) << "AppendData(" << id << ", " << length << ")";
 
   DCHECK(!id.empty());
-  DCHECK(data);
-  DCHECK_GT(length, 0u);
 
   Ranges<TimeDelta> ranges;
 
@@ -808,6 +814,21 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
     // Capture if the SourceBuffer has a pending seek before we start parsing.
     bool old_seek_pending = IsSeekPending_Locked();
+
+    if (state_ == ENDED) {
+      ChangeState_Locked(INITIALIZED);
+
+      if (audio_)
+        audio_->CancelEndOfStream();
+
+      if (video_)
+        video_->CancelEndOfStream();
+    }
+
+    if (length == 0u)
+      return true;
+
+    DCHECK(data);
 
     switch (state_) {
       case INITIALIZING:
