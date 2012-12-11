@@ -34,7 +34,7 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/test_data_directory.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_data_stream.h"
 #include "net/base/upload_file_element_reader.h"
 #include "net/http/http_auth_handler_digest.h"
@@ -859,9 +859,9 @@ TEST_F(HttpNetworkTransactionSpdy3Test, ReuseConnection) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy3Test, Ignores100) {
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendBytes("foo", 3);
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(new UploadBytesElementReader("foo", 3));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -3690,9 +3690,9 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocketAfterZeroContentLength) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy3Test, ResendRequestOnWriteBodyError) {
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendBytes("foo", 3);
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(new UploadBytesElementReader("foo", 3));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request[2];
   // Transaction 1: a GET request that succeeds.  The socket is recycled
@@ -6529,9 +6529,10 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UploadFileSmallerThanLength) {
   UploadFileElementReader::ScopedOverridingContentLengthForTests
       overriding_content_length(kFakeSize);
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(
+      new UploadFileElementReader(temp_file_path, 0, kuint64max, base::Time()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -6581,9 +6582,10 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UploadUnreadableFile) {
                                    temp_file_content.length()));
   ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(
+      new UploadFileElementReader(temp_file, 0, kuint64max, base::Time()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -6636,9 +6638,10 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UnreadableUploadFileAfterAuthRestart) {
   ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_contents.c_str(),
                                    temp_file_contents.length()));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(
+      new UploadFileElementReader(temp_file, 0, kuint64max, base::Time()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";

@@ -6,7 +6,6 @@
 #define NET_BASE_UPLOAD_DATA_H_
 
 #include "base/basictypes.h"
-#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/supports_user_data.h"
@@ -28,10 +27,6 @@ namespace net {
 // Until there is a more abstract class for this, this one derives from
 // SupportsUserData to allow users to stash random data by
 // key and ensure its destruction when UploadData is finally deleted.
-//
-// Chunked uploads are handled by repeatedly calling AppendChunk() as data
-// becomes available, which adds to |elements_|.  Whenever this happens,
-// |chunk_callback_| is called, if non-NULL.
 class NET_EXPORT UploadData
     : public base::RefCounted<UploadData>,
       public base::SupportsUserData {
@@ -43,13 +38,6 @@ class NET_EXPORT UploadData
   void AppendFileRange(const FilePath& file_path,
                        uint64 offset, uint64 length,
                        const base::Time& expected_modification_time);
-
-  // Adds the given chunk of bytes to be sent immediately with chunked transfer
-  // encoding.
-  void AppendChunk(const char* bytes, int bytes_len, bool is_last_chunk);
-
-  // Sets the callback to be invoked when a new chunk is available to upload.
-  void set_chunk_callback(const base::Closure& callback);
 
   // Initializes the object to send chunks of upload data over time rather
   // than all at once. Chunked data may only contain bytes, not files.
@@ -85,7 +73,6 @@ class NET_EXPORT UploadData
 
   ScopedVector<UploadElement> elements_;
   int64 identifier_;
-  base::Closure chunk_callback_;
   bool is_chunked_;
   bool last_chunk_appended_;
 

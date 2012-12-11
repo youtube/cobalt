@@ -8,7 +8,7 @@
 
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_response_headers.h"
 #include "net/quic/quic_client_session.h"
@@ -350,9 +350,10 @@ TEST_F(QuicHttpStreamTest, SendPostRequest) {
 
   Initialize();
 
-  UploadData* upload_data = new UploadData();
-  upload_data->AppendBytes(kUploadData, strlen(kUploadData));
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(
+      new UploadBytesElementReader(kUploadData, strlen(kUploadData)));
+  UploadDataStream upload_data_stream(&element_readers, 0);
   request_.method = "POST";
   request_.url = GURL("http://www.google.com/");
   request_.upload_data_stream = &upload_data_stream;

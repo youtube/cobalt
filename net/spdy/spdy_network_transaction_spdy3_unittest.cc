@@ -14,8 +14,9 @@
 #include "base/memory/scoped_vector.h"
 #include "net/base/auth.h"
 #include "net/base/net_log_unittest.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_data_stream.h"
+#include "net/base/upload_file_element_reader.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/socket/client_socket_pool_base.h"
@@ -368,9 +369,10 @@ class SpdyNetworkTransactionSpdy3Test
 
   const HttpRequestInfo& CreatePostRequest() {
     if (!google_post_request_initialized_) {
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->AppendBytes(kUploadData, kUploadDataSize);
-      upload_data_stream_.reset(new UploadDataStream(upload_data));
+      ScopedVector<UploadElementReader> element_readers;
+      element_readers.push_back(
+          new UploadBytesElementReader(kUploadData, kUploadDataSize));
+      upload_data_stream_.reset(new UploadDataStream(&element_readers, 0));
 
       google_post_request_.method = "POST";
       google_post_request_.url = GURL(kDefaultURL);
@@ -387,9 +389,10 @@ class SpdyNetworkTransactionSpdy3Test
       CHECK_EQ(static_cast<int>(kUploadDataSize),
                file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
 
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->AppendFileRange(file_path, 0, kUploadDataSize, base::Time());
-      upload_data_stream_.reset(new UploadDataStream(upload_data));
+      ScopedVector<UploadElementReader> element_readers;
+      element_readers.push_back(new UploadFileElementReader(
+          file_path, 0, kUploadDataSize, base::Time()));
+      upload_data_stream_.reset(new UploadDataStream(&element_readers, 0));
 
       google_post_request_.method = "POST";
       google_post_request_.url = GURL(kDefaultURL);
@@ -410,14 +413,15 @@ class SpdyNetworkTransactionSpdy3Test
       CHECK_EQ(static_cast<int>(kUploadDataSize),
                file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
 
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->AppendBytes(kUploadData, kFileRangeOffset);
-      upload_data->AppendFileRange(
-          file_path, kFileRangeOffset, kFileRangeLength, base::Time());
-      upload_data->AppendBytes(
+      ScopedVector<UploadElementReader> element_readers;
+      element_readers.push_back(
+          new UploadBytesElementReader(kUploadData, kFileRangeOffset));
+      element_readers.push_back(new UploadFileElementReader(
+          file_path, kFileRangeOffset, kFileRangeLength, base::Time()));
+      element_readers.push_back(new UploadBytesElementReader(
           kUploadData + kFileRangeOffset + kFileRangeLength,
-          kUploadDataSize - (kFileRangeOffset + kFileRangeLength));
-      upload_data_stream_.reset(new UploadDataStream(upload_data));
+          kUploadDataSize - (kFileRangeOffset + kFileRangeLength)));
+      upload_data_stream_.reset(new UploadDataStream(&element_readers, 0));
 
       google_post_request_.method = "POST";
       google_post_request_.url = GURL(kDefaultURL);
@@ -429,11 +433,10 @@ class SpdyNetworkTransactionSpdy3Test
 
   const HttpRequestInfo& CreateChunkedPostRequest() {
     if (!google_chunked_post_request_initialized_) {
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->set_is_chunked(true);
-      upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
-      upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
-      upload_data_stream_.reset(new UploadDataStream(upload_data));
+      upload_data_stream_.reset(
+          new UploadDataStream(UploadDataStream::CHUNKED, 0));
+      upload_data_stream_->AppendChunk(kUploadData, kUploadDataSize, false);
+      upload_data_stream_->AppendChunk(kUploadData, kUploadDataSize, true);
 
       google_chunked_post_request_.method = "POST";
       google_chunked_post_request_.url = GURL(kDefaultURL);
@@ -1765,7 +1768,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NullPost) {
 // Test that a simple POST works.
 TEST_P(SpdyNetworkTransactionSpdy3Test, EmptyPost) {
   // Create an empty UploadDataStream.
-  UploadDataStream stream(new UploadData());
+  ScopedVector<UploadElementReader> element_readers;
+  UploadDataStream stream(&element_readers, 0);
 
   // Setup the request
   HttpRequestInfo request;
@@ -1802,9 +1806,10 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, EmptyPost) {
 // While we're doing a post, the server sends back a SYN_REPLY.
 TEST_P(SpdyNetworkTransactionSpdy3Test, PostWithEarlySynReply) {
   static const char upload[] = { "hello!" };
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->AppendBytes(upload, sizeof(upload));
-  UploadDataStream stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  element_readers.push_back(
+      new UploadBytesElementReader(upload, sizeof(upload)));
+  UploadDataStream stream(&element_readers, 0);
 
   // Setup the request
   HttpRequestInfo request;
@@ -2007,10 +2012,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateReceived) {
   DelayedSocketData data(0, reads, arraysize(reads),
                          writes, arraysize(writes));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  for (int i = 0; i < kFrameCount; ++i)
-    upload_data->AppendBytes(content->c_str(), content->size());
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  for (int i = 0; i < kFrameCount; ++i) {
+    element_readers.push_back(
+        new UploadBytesElementReader(content->c_str(), content->size()));
+  }
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   // Setup the request
   HttpRequestInfo request;
@@ -2158,10 +2165,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateOverflow) {
   DeterministicSocketData data(reads, arraysize(reads),
                                writes, arraysize(writes));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  for (int i = 0; i < kFrameCount; ++i)
-    upload_data->AppendBytes(content->c_str(), content->size());
-  UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<UploadElementReader> element_readers;
+  for (int i = 0; i < kFrameCount; ++i) {
+    element_readers.push_back(
+        new UploadBytesElementReader(content->c_str(), content->size()));
+  }
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   // Setup the request
   HttpRequestInfo request;
@@ -2257,12 +2266,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResume) {
   DelayedSocketData data(num_writes, reads, arraysize(reads),
                          writes.get(), num_writes);
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
+  ScopedVector<UploadElementReader> element_readers;
   std::string upload_data_string(kSpdyStreamInitialWindowSize, 'a');
   upload_data_string.append(kUploadData, kUploadDataSize);
-  upload_data->AppendBytes(upload_data_string.c_str(),
-                           upload_data_string.size());
-  UploadDataStream upload_data_stream(upload_data);
+  element_readers.push_back(new UploadBytesElementReader(
+      upload_data_string.c_str(), upload_data_string.size()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -2355,12 +2364,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResumeAfterSettings) {
   DelayedSocketData data(num_writes, reads, arraysize(reads),
                          writes.get(), num_writes);
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
+  ScopedVector<UploadElementReader> element_readers;
   std::string upload_data_string(kSpdyStreamInitialWindowSize, 'a');
   upload_data_string.append(kUploadData, kUploadDataSize);
-  upload_data->AppendBytes(upload_data_string.c_str(),
-                           upload_data_string.size());
-  UploadDataStream upload_data_stream(upload_data);
+  element_readers.push_back(new UploadBytesElementReader(
+      upload_data_string.c_str(), upload_data_string.size()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -2462,12 +2471,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlNegativeSendWindowSize) {
   DelayedSocketData data(num_writes, reads, arraysize(reads),
                          writes.get(), num_writes);
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
+  ScopedVector<UploadElementReader> element_readers;
   std::string upload_data_string(kSpdyStreamInitialWindowSize, 'a');
   upload_data_string.append(kUploadData, kUploadDataSize);
-  upload_data->AppendBytes(upload_data_string.c_str(),
-                           upload_data_string.size());
-  UploadDataStream upload_data_stream(upload_data);
+  element_readers.push_back(new UploadBytesElementReader(
+      upload_data_string.c_str(), upload_data_string.size()));
+  UploadDataStream upload_data_stream(&element_readers, 0);
 
   HttpRequestInfo request;
   request.method = "POST";

@@ -23,8 +23,10 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_data.h"
 #include "net/base/upload_data_stream.h"
+#include "net/base/upload_file_element_reader.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_context.h"
@@ -255,26 +257,49 @@ void URLRequest::UnregisterRequestInterceptor(Interceptor* interceptor) {
 }
 
 void URLRequest::EnableChunkedUpload() {
-  DCHECK(!upload_ || upload_->is_chunked());
-  if (!upload_) {
-    upload_ = new UploadData();
-    upload_->set_is_chunked(true);
-    upload_data_stream_.reset(new UploadDataStream(upload_));
+  DCHECK(!upload_data_stream_ || upload_data_stream_->is_chunked());
+  if (!upload_data_stream_) {
+    upload_data_stream_.reset(
+        new UploadDataStream(UploadDataStream::CHUNKED, 0));
   }
 }
 
 void URLRequest::AppendChunkToUpload(const char* bytes,
                                      int bytes_len,
                                      bool is_last_chunk) {
-  DCHECK(upload_);
-  DCHECK(upload_->is_chunked());
+  DCHECK(upload_data_stream_);
+  DCHECK(upload_data_stream_->is_chunked());
   DCHECK_GT(bytes_len, 0);
-  upload_->AppendChunk(bytes, bytes_len, is_last_chunk);
+  upload_data_stream_->AppendChunk(bytes, bytes_len, is_last_chunk);
 }
 
 void URLRequest::set_upload(UploadData* upload) {
+  DCHECK(!upload->is_chunked());
   upload_ = upload;
-  upload_data_stream_.reset(new UploadDataStream(upload_));
+  ScopedVector<UploadElementReader> element_readers;
+  const ScopedVector<UploadElement>& elements = upload->elements();
+  for (ScopedVector<UploadElement>::const_iterator it = elements.begin();
+       it != elements.end(); ++it) {
+    UploadElementReader* reader = NULL;
+    const UploadElement& element = **it;
+    switch (element.type()) {
+      case UploadElement::TYPE_BYTES:
+        reader = new UploadBytesElementReader(element.bytes(),
+                                              element.bytes_length());
+        break;
+      case UploadElement::TYPE_FILE:
+        reader = new UploadFileElementReader(
+            element.file_path(),
+            element.file_range_offset(),
+            element.file_range_length(),
+            element.expected_file_modification_time());
+        break;
+    }
+    DCHECK(reader);
+    element_readers.push_back(reader);
+  }
+  upload_data_stream_.reset(new UploadDataStream(&element_readers,
+                                                 upload->identifier()));
 }
 
 const UploadDataStream* URLRequest::get_upload() const {
@@ -515,7 +540,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
       NetLog::TYPE_URL_REQUEST_START_JOB,
       base::Bind(&NetLogURLRequestStartCallback,
                  &url(), &method_, load_flags_, priority_,
-                 upload_.get() ? upload_->identifier() : -1));
+                 upload_data_stream_ ? upload_data_stream_->identifier() : -1));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
