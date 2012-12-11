@@ -339,11 +339,25 @@ static const char* const supported_non_image_types[] = {
   "application/rss+xml",
   "application/xhtml+xml",
   "application/json",
-  "application/x-x509-user-cert",
   "multipart/related",  // For MHTML support.
   "multipart/x-mixed-replace"
   // Note: ADDING a new type here will probably render it AS HTML. This can
   // result in cross site scripting.
+};
+
+// Dictionary of cryptographic file mime types.
+struct CertificateMimeTypeInfo {
+  const char* mime_type;
+  CertificateMimeType cert_type;
+};
+
+static const CertificateMimeTypeInfo supported_certificate_types[] = {
+  { "application/x-x509-user-cert",
+      CERTIFICATE_MIME_TYPE_X509_USER_CERT },
+#if defined(OS_ANDROID)
+  { "application/x-x509-ca-cert", CERTIFICATE_MIME_TYPE_X509_CA_CERT },
+  { "application/x-pkcs12", CERTIFICATE_MIME_TYPE_PKCS12_ARCHIVE },
+#endif
 };
 
 // These types are excluded from the logic that allows all text/ types because
@@ -433,6 +447,8 @@ void MimeUtil::InitializeMimeTypeMaps() {
   // Initialize the supported non-image types.
   for (size_t i = 0; i < arraysize(supported_non_image_types); ++i)
     non_image_map_.insert(supported_non_image_types[i]);
+  for (size_t i = 0; i < arraysize(supported_certificate_types); ++i)
+    non_image_map_.insert(supported_certificate_types[i].mime_type);
   for (size_t i = 0; i < arraysize(unsupported_text_types); ++i)
     unsupported_text_map_.insert(unsupported_text_types[i]);
   for (size_t i = 0; i < arraysize(supported_javascript_types); ++i)
@@ -966,6 +982,23 @@ const std::string GetIANAMediaType(const std::string& mime_type) {
     }
   }
   return "";
+}
+
+CertificateMimeType GetCertificateMimeTypeForMimeType(
+    const std::string& mime_type) {
+  // Don't create a map, there is only one entry in the table,
+  // except on Android.
+  for (size_t i = 0; i < arraysize(supported_certificate_types); ++i) {
+    if (mime_type == net::supported_certificate_types[i].mime_type)
+      return net::supported_certificate_types[i].cert_type;
+  }
+  return CERTIFICATE_MIME_TYPE_UNKNOWN;
+}
+
+bool IsSupportedCertificateMimeType(const std::string& mime_type) {
+  CertificateMimeType file_type =
+      GetCertificateMimeTypeForMimeType(mime_type);
+  return file_type != CERTIFICATE_MIME_TYPE_UNKNOWN;
 }
 
 }  // namespace net

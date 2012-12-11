@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.security.KeyChain;
 import android.util.Log;
 
+import org.chromium.net.CertificateMimeType;
 import org.chromium.base.CalledByNative;
 import org.chromium.base.CalledByNativeUnchecked;
 
@@ -56,6 +57,47 @@ class AndroidNetworkLibrary {
             return true;
         } catch (ActivityNotFoundException e) {
             Log.w(TAG, "could not store key pair: " + e);
+        }
+        return false;
+    }
+
+    /**
+      * Adds a cryptographic file (User certificate, a CA certificate or
+      * PKCS#12 keychain) through the system's CertInstaller activity.
+      *
+      * @param context: current application context.
+      * @param file_type: cryptographic file type. E.g. CertificateMimeType.X509_USER_CERT
+      * @param data: certificate/keychain data bytes.
+      * @return true on success, false on failure.
+      *
+      * Note that failure only indicates that the function couldn't launch the
+      * CertInstaller activity, not that the certificate/keychain was properly
+      * installed to the keystore.
+      */
+    @CalledByNative
+    static public boolean storeCertificate(Context context, int cert_type, byte[] data) {
+        try {
+            Intent intent = KeyChain.createInstallIntent();
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            switch (cert_type) {
+              case CertificateMimeType.X509_USER_CERT:
+              case CertificateMimeType.X509_CA_CERT:
+                intent.putExtra(KeyChain.EXTRA_CERTIFICATE, data);
+                break;
+
+              case CertificateMimeType.PKCS12_ARCHIVE:
+                intent.putExtra(KeyChain.EXTRA_PKCS12, data);
+                break;
+
+              default:
+                Log.w(TAG, "invalid certificate type: " + cert_type);
+                return false;
+            }
+            context.startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "could not store crypto file: " + e);
         }
         return false;
     }
