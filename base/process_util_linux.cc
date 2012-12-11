@@ -623,7 +623,9 @@ SystemMemoryInfoKB::SystemMemoryInfoKB()
       inactive_anon(0),
       active_file(0),
       inactive_file(0),
-      shmem(0) {
+      shmem(0),
+      gem_objects(-1),
+      gem_size(-1) {
 }
 
 bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
@@ -678,11 +680,14 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   }
 #endif
 
-  // Check for gem data and report if present.
+  // Check for graphics memory data and report if present. Synchronously
+  // reading files in /sys is fast.
+#if defined(ARCH_CPU_ARM_FAMILY)
+  FilePath geminfo_file("/sys/kernel/debug/dri/0/exynos_gem_objects");
+#else
   FilePath geminfo_file("/sys/kernel/debug/dri/0/i915_gem_objects");
+#endif
   std::string geminfo_data;
-  FilePath mali_memory_file("/sys/devices/platform/mali.0/memory");
-  std::string mali_memory_data;
   meminfo->gem_objects = -1;
   meminfo->gem_size = -1;
   if (file_util::ReadFileToString(geminfo_file, &geminfo_data)) {
@@ -695,15 +700,20 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
       meminfo->gem_objects = gem_objects;
       meminfo->gem_size = gem_size;
     }
-  } else {
-    if (file_util::ReadFileToString(mali_memory_file, &mali_memory_data)) {
-      long long mali_size = -1;
-      int num_res = sscanf(mali_memory_data.c_str(), "%lld bytes", &mali_size);
-      if (num_res == 1)
-        meminfo->gem_size = mali_size;
-    }
-
   }
+
+#if defined(ARCH_CPU_ARM_FAMILY)
+  // Incorporate Mali graphics memory if present.
+  FilePath mali_memory_file("/sys/devices/platform/mali.0/memory");
+  std::string mali_memory_data;
+  if (file_util::ReadFileToString(mali_memory_file, &mali_memory_data)) {
+    long long mali_size = -1;
+    int num_res = sscanf(mali_memory_data.c_str(), "%lld bytes", &mali_size);
+    if (num_res == 1)
+      meminfo->gem_size += mali_size;
+  }
+#endif  // defined(ARCH_CPU_ARM_FAMILY)
+
   return true;
 }
 
