@@ -44,6 +44,7 @@ NET_EXPORT bool IsSupportedMediaMimeType(const std::string& mime_type);
 NET_EXPORT bool IsSupportedNonImageMimeType(const std::string& mime_type);
 NET_EXPORT bool IsUnsupportedTextMimeType(const std::string& mime_type);
 NET_EXPORT bool IsSupportedJavascriptMimeType(const std::string& mime_type);
+NET_EXPORT bool IsSupportedCertificateMimeType(const std::string& mime_type);
 
 // Get whether this mime type should be displayed in view-source mode.
 // (For example, XML.)
@@ -111,6 +112,17 @@ NET_EXPORT void GetMediaCodecsBlacklistedForTests(
 // Supported media types are defined at:
 // http://www.iana.org/assignments/media-types/index.html
 NET_EXPORT const std::string GetIANAMediaType(const std::string& mime_type);
+
+// A list of supported certificate-related mime types.
+enum CertificateMimeType {
+#define CERTIFICATE_MIME_TYPE(name, value) CERTIFICATE_MIME_TYPE_ ## name = value,
+#include "net/base/mime_util_certificate_type_list.h"
+#undef CERTIFICATE_MIME_TYPE
+};
+
+NET_EXPORT CertificateMimeType GetCertificateMimeTypeForMimeType(
+    const std::string& mime_type);
+
 }  // namespace net
 
 #endif  // NET_BASE_MIME_UTIL_H__
