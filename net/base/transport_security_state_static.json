@@ -565,6 +565,8 @@
     { "name": "silentcircle.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "silentcircle.org", "include_subdomains": true, "mode": "force-https" },
     { "name": "serverdensity.io", "include_subdomains": true, "mode": "force-https" },
+    { "name": "my.alfresco.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "webmail.gigahost.dk", "include_subdomains": true, "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
