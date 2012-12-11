@@ -22,9 +22,6 @@ class NET_EXPORT UploadElementReader {
   UploadElementReader() {}
   virtual ~UploadElementReader() {}
 
-  // Creates an appropriate UploadElementReader instance for the given element.
-  static UploadElementReader* Create(const UploadElement& element);
-
   // Returns this instance's pointer as UploadBytesElementReader when possible,
   // otherwise returns NULL.
   virtual const UploadBytesElementReader* AsBytesReader() const;

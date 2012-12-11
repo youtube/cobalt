@@ -17,7 +17,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/ssl_cert_request_info.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_data_stream.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_byte_range.h"
@@ -2341,10 +2341,9 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Hit) {
 
   const int64 kUploadId = 1;  // Just a dummy value.
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->set_identifier(kUploadId);
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, kUploadId);
   MockHttpRequest request(transaction);
   request.upload_data_stream = &upload_data_stream;
 
@@ -2373,10 +2372,9 @@ TEST(HttpCache, SimplePOST_WithRanges) {
 
   const int64 kUploadId = 1;  // Just a dummy value.
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->set_identifier(kUploadId);
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, kUploadId);
 
   MockHttpRequest request(transaction);
   request.upload_data_stream = &upload_data_stream;
@@ -2405,10 +2403,9 @@ TEST(HttpCache, SimplePOST_Invalidate) {
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->AppendBytes("hello", 5);
-  upload_data->set_identifier(1);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, 1);
 
   transaction.method = "POST";
   MockHttpRequest req2(transaction);
@@ -2428,9 +2425,9 @@ TEST(HttpCache, SimplePUT_Miss) {
   MockTransaction transaction(kSimplePOST_Transaction);
   transaction.method = "PUT";
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, 0);
 
   MockHttpRequest request(transaction);
   request.upload_data_stream = &upload_data_stream;
@@ -2457,9 +2454,9 @@ TEST(HttpCache, SimplePUT_Invalidate) {
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, 0);
 
   transaction.method = "PUT";
   MockHttpRequest req2(transaction);
@@ -2485,9 +2482,9 @@ TEST(HttpCache, SimpleDELETE_Miss) {
   MockTransaction transaction(kSimplePOST_Transaction);
   transaction.method = "DELETE";
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, 0);
 
   MockHttpRequest request(transaction);
   request.upload_data_stream = &upload_data_stream;
@@ -2514,9 +2511,9 @@ TEST(HttpCache, SimpleDELETE_Invalidate) {
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  scoped_refptr<net::UploadData> upload_data(new net::UploadData());
-  upload_data->AppendBytes("hello", 5);
-  net::UploadDataStream upload_data_stream(upload_data);
+  ScopedVector<net::UploadElementReader> element_readers;
+  element_readers.push_back(new net::UploadBytesElementReader("hello", 5));
+  net::UploadDataStream upload_data_stream(&element_readers, 0);
 
   transaction.method = "DELETE";
   MockHttpRequest req2(transaction);
