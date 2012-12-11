@@ -15,7 +15,7 @@ document.title.indexOf("Results") != -1 && document.readyState == "complete"
 """
     def _IsDone():
       return bool(tab.runtime.Evaluate(js_is_done))
-    util.WaitFor(_IsDone, 300)
+    util.WaitFor(_IsDone, 500, poll_interval=5)
 
     js_get_results = """
 var formElement = document.getElementsByTagName("input")[0];
