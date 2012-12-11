@@ -2266,6 +2266,15 @@
           ['win_use_allocator_shim==0', {
             'defines': ['NO_TCMALLOC'],
           }],
+          ['os_posix==1 and chromium_code==1', {
+            # Non-chromium code is not guaranteed to compile cleanly
+            # with _FORTIFY_SOURCE. Also, fortified build may fail
+            # when optimizations are disabled, so only do that for Release
+            # build.
+            'defines': [
+              '_FORTIFY_SOURCE=2',
+            ],
+          }],
           ['OS=="linux" or OS=="android"', {
             'target_conditions': [
               ['_toolset=="target"', {
@@ -2311,15 +2320,6 @@
         'ldflags': [
           '-Wl,-z,now',
           '-Wl,-z,relro',
-        ],
-        'conditions': [
-          ['chromium_code==1', {
-            # Non-chromium code is not guaranteed to compile cleanly
-            # with _FORTIFY_SOURCE.
-            'defines': [
-              '_FORTIFY_SOURCE=2',
-            ],
-          }],
         ],
       },
     }],
