@@ -23,4 +23,5 @@ class MemoryBenchmark(multi_page_benchmark.MultiPageBenchmark):
       name = histogram['name']
       data = tab.runtime.Evaluate(
           'window.domAutomationController.getHistogram("%s")' % name)
-      results.Add(name, histogram['units'], data, data_type='histogram')
+      results.Add(name.replace('.', '_'), histogram['units'], data,
+                  data_type='histogram')
