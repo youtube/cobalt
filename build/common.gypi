@@ -2867,12 +2867,10 @@
     # Android-specific options; note that most are set above with Linux.
     ['OS=="android"', {
       'variables': {
-        # This is the id for the archived chrome symbols. Each build that
-        # archives symbols is assigned an id which is then added to GYP_DEFINES.
-        # This is written to the device log on crashes just prior to dropping a
-        # tombstone. Tools can determine the location of the archived symbols
-        # from the id.
-        'chrome_symbols_id%': '',
+        # This is a unique identifier for a given build. It's used for
+        # identifying various build artifacts corresponding to a particular
+        # build of chrome (e.g. where to find archived symbols).
+        'chrome_build_id%': '',
         'conditions': [
           # Use shared stlport library when system one used.
           # Figure this out early since it needs symbols from libgcc.a, so it
@@ -2959,7 +2957,7 @@
               '__GNU_SOURCE=1',  # Necessary for clone()
               'USE_STLPORT=1',
               '_STLP_USE_PTR_SPECIALIZATIONS=1',
-              'CHROME_SYMBOLS_ID="<(chrome_symbols_id)"',
+              'CHROME_BUILD_ID="<(chrome_build_id)"',
             ],
             'ldflags!': [
               '-pthread',  # Not supported by Android toolchain.
