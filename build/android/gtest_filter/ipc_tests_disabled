@@ -7,6 +7,7 @@ IPCChannelPosixTest.ResetState
 IPCChannelPosixTest.MultiConnection
 IPCFuzzingTest.SanityTest
 IPCFuzzingTest.MsgBadPayloadArgs
+IPCFuzzingTest.MsgBadPayloadShort
 IPCChannelTest.DescriptorTest
 IPCChannelTest.ChannelTest
 IPCChannelTest.ChannelProxyTest
