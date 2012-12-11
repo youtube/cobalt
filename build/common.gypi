@@ -3106,6 +3106,7 @@
               }, { # else: use_system_stlport!=1
                 'cflags': [
                   '-I<(android_ndk_root)/sources/cxx-stl/stlport/stlport',
+                  '-I<(android_ndk_root)/sources/cxx-stl/gnu-libstdc++/4.6/include',
                 ],
                 'conditions': [
                   ['target_arch=="arm" and armv7==1', {
