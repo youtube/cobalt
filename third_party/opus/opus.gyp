@@ -5,6 +5,13 @@
 {
   'variables': {
     'use_system_opus%': 0,
+    'conditions': [
+      ['OS=="android"', {
+        'use_opus_floating_point%': 0,
+      }, {
+        'use_opus_floating_point%': 1,
+      }],
+    ],
   },
   'conditions': [
     ['use_system_opus==0', {
@@ -17,28 +24,10 @@
             'OPUS_EXPORT=',
             'WORDS_BIGENDIAN',
           ],
-          'conditions': [
-            ['OS!="win"', {
-              'defines': [
-                'HAVE_LRINT',
-                'HAVE_LRINTF',
-                'VAR_ARRAYS',
-              ],
-            }, {
-              'defines': [
-                'USE_ALLOCA',
-                'inline=__inline',
-              ],
-              'msvs_disabled_warnings': [
-                4305,  # Disable truncation warning in celt/pitch.c .
-              ],
-            }],
-          ],
           'include_dirs': [
             'src/celt',
             'src/include',
             'src/silk',
-            'src/silk/float',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
@@ -122,6 +111,34 @@
             'src/silk/encode_indices.c',
             'src/silk/encode_pulses.c',
             'src/silk/errors.h',
+            'src/silk/fixed/apply_sine_window_FIX.c',
+            'src/silk/fixed/autocorr_FIX.c',
+            'src/silk/fixed/burg_modified_FIX.c',
+            'src/silk/fixed/corrMatrix_FIX.c',
+            'src/silk/fixed/encode_frame_FIX.c',
+            'src/silk/fixed/find_LPC_FIX.c',
+            'src/silk/fixed/find_LTP_FIX.c',
+            'src/silk/fixed/find_pitch_lags_FIX.c',
+            'src/silk/fixed/find_pred_coefs_FIX.c',
+            'src/silk/fixed/k2a_FIX.c',
+            'src/silk/fixed/k2a_Q16_FIX.c',
+            'src/silk/fixed/LTP_analysis_filter_FIX.c',
+            'src/silk/fixed/LTP_scale_ctrl_FIX.c',
+            'src/silk/fixed/main_FIX.h',
+            'src/silk/fixed/noise_shape_analysis_FIX.c',
+            'src/silk/fixed/pitch_analysis_core_FIX.c',
+            'src/silk/fixed/prefilter_FIX.c',
+            'src/silk/fixed/process_gains_FIX.c',
+            'src/silk/fixed/regularize_correlations_FIX.c',
+            'src/silk/fixed/residual_energy16_FIX.c',
+            'src/silk/fixed/residual_energy_FIX.c',
+            'src/silk/fixed/schur64_FIX.c',
+            'src/silk/fixed/schur_FIX.c',
+            'src/silk/fixed/solve_LS_FIX.c',
+            'src/silk/fixed/structs_FIX.h',
+            'src/silk/fixed/vector_ops_FIX.c',
+            'src/silk/fixed/warped_autocorrelation_FIX.c',
+            'src/silk/fixed/structs_FIX.h',
             'src/silk/float/apply_sine_window_FLP.c',
             'src/silk/float/autocorrelation_FLP.c',
             'src/silk/float/burg_modified_FLP.c',
@@ -230,7 +247,70 @@
             'src/src/opus_multistream.c',
             'src/src/repacketizer.c',
           ],
+          'conditions': [
+            ['OS!="win"', {
+              'defines': [
+                'HAVE_LRINT',
+                'HAVE_LRINTF',
+                'VAR_ARRAYS',
+              ],
+            }, {
+              'defines': [
+                'USE_ALLOCA',
+                'inline=__inline',
+              ],
+              'msvs_disabled_warnings': [
+                4305,  # Disable truncation warning in celt/pitch.c .
+              ],
+            }],
+            ['use_opus_floating_point==1', {
+              'include_dirs': [
+                'src/silk/float',
+              ],
+              'sources/': [
+                ['exclude', '/fixed/[^/]*_FIX.(h|c)$'],
+              ],
+            }, {
+              'defines': [
+                'FIXED_POINT',
+              ],
+              'include_dirs': [
+                'src/silk/fixed',
+              ],
+              'sources/': [
+                ['exclude', '/float/[^/]*_FLP.(h|c)$'],
+              ],
+            }],
+          ],
         },  # target opus
+        {
+          'target_name': 'opus_demo',
+          'type': 'executable',
+          'dependencies': [
+            'opus'
+          ],
+          'conditions': [
+            ['OS == "win"', {
+              'defines': [
+                'inline=__inline',
+              ],
+            }],
+            ['OS=="android"', {
+              'link_settings': {
+                'libraries': [
+                  '-llog',
+                ],
+              },
+            }]
+          ],
+          'sources': [
+            'src/src/opus_demo.c',
+          ],
+          'include_dirs': [
+            'src/celt',
+            'src/silk',
+          ],
+        },  # target opus_demo
       ]
     }, {  # use_system_opus != 0
       'targets': [
