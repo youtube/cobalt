@@ -4,14 +4,9 @@
 
 #include "net/base/cert_database.h"
 
-#include <openssl/x509.h>
-
 #include "base/logging.h"
 #include "base/observer_list_threadsafe.h"
-#include "net/base/crypto_module.h"
 #include "net/base/net_errors.h"
-#include "net/base/openssl_private_key_store.h"
-#include "net/base/x509_certificate.h"
 
 namespace net {
 
@@ -22,19 +17,21 @@ CertDatabase::CertDatabase()
 CertDatabase::~CertDatabase() {}
 
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
-  if (!cert)
-    return ERR_CERT_INVALID;
-  if (cert->HasExpired())
-    return ERR_CERT_DATE_INVALID;
-
-  if (!OpenSSLPrivateKeyStore::GetInstance()->FetchPrivateKey(
-      X509_PUBKEY_get(X509_get_X509_PUBKEY(cert->os_cert_handle()))))
-    return ERR_NO_PRIVATE_KEY_FOR_CERT;
-
-  return OK;
+  // NOTE: This method shall never be called on Android.
+  //
+  // On other platforms, it is only used by the SSLAddCertHandler class
+  // to handle veritication and installation of downloaded certificates.
+  //
+  // On Android, the certificate data is passed directly to the system's
+  // CertInstaller activity, which handles verification, naming,
+  // installation and UI (for success/failure).
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
 }
 
 int CertDatabase::AddUserCert(X509Certificate* cert) {
+  // This method is only used by the content SSLAddCertHandler which is
+  // never used on Android.
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }

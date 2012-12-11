@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "net/base/mime_util.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -46,6 +47,12 @@ bool StoreKeyPair(const uint8* public_key,
                   size_t public_len,
                   const uint8* private_key,
                   size_t private_len);
+
+// Helper used to pass the DER-encoded bytes of an X.509 certificate or
+// a PKCS#12 archive holding a private key to the CertInstaller activity.
+void StoreCertificate(net::CertificateMimeType cert_type,
+                      const void* data,
+                      size_t data_len);
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.
