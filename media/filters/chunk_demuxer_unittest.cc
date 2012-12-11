@@ -294,7 +294,6 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendData(const std::string& source_id,
                   const uint8* data, size_t length) {
-    CHECK(length);
     EXPECT_CALL(host_, AddBufferedTimeRange(_, _)).Times(AnyNumber());
     return demuxer_->AppendData(source_id, data, length);
   }
@@ -2431,6 +2430,27 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamTruncateDuration) {
 
   EXPECT_CALL(host_, SetDuration(
       base::TimeDelta::FromMilliseconds(kDefaultFirstClusterEndTimestamp)));
+  demuxer_->EndOfStream(PIPELINE_OK);
+}
+
+
+TEST_F(ChunkDemuxerTest, TestZeroLengthAppend) {
+  ASSERT_TRUE(InitDemuxer(true, true));
+  ASSERT_TRUE(AppendData(NULL, 0));
+}
+
+TEST_F(ChunkDemuxerTest, TestAppendAfterEndOfStream) {
+  ASSERT_TRUE(InitDemuxer(true, true));
+
+  EXPECT_CALL(host_, SetDuration(_))
+      .Times(AnyNumber());
+
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+  demuxer_->EndOfStream(PIPELINE_OK);
+
+  scoped_ptr<Cluster> cluster_b(kDefaultSecondCluster());
+  ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
   demuxer_->EndOfStream(PIPELINE_OK);
 }
 
