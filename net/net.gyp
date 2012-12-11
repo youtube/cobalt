@@ -84,6 +84,7 @@
         'base/cache_type.h',
         'base/cert_database.cc',
         'base/cert_database.h',
+        'base/cert_database_android.cc',
         'base/cert_database_ios.cc',
         'base/cert_database_mac.cc',
         'base/cert_database_nss.cc',
@@ -1209,6 +1210,7 @@
               'net_jni_headers',
             ],
             'sources!': [
+              'base/cert_database_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
             ],
           }, {  # else OS! = "android"
@@ -2270,6 +2272,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             'net_errors_java',
+            'certificate_mime_types_java',
           ],
           'includes': [ '../build/java.gypi' ],
         },
@@ -2307,7 +2310,19 @@
             'package_name': 'org.chromium.net',
           },
           'includes': [ '../build/android/java_cpp_template.gypi' ],
-        }
+        },
+        {
+          'target_name': 'certificate_mime_types_java',
+          'type': 'none',
+          'sources': [
+            'base/mime_util_certificate_type_list.h',
+            'android/java/CertificateMimeType.template',
+          ],
+          'variables': {
+            'package_name': 'org.chromium.net',
+          },
+          'includes': [ '../build/android/java_cpp_template.gypi' ],
+        },
       ],
     }],
     # Special target to wrap a gtest_target_type==shared_library
