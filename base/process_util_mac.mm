@@ -635,15 +635,17 @@ void EnableTerminationOnHeapCorruption() {
   // by AddressSanitizer.
   return;
 #endif
+
+  // Only override once, otherwise CrMallocErrorBreak() will recurse
+  // to itself.
+  if (g_original_malloc_error_break)
+    return;
+
   malloc_error_break_t malloc_error_break = LookUpMallocErrorBreak();
   if (!malloc_error_break) {
     DLOG(WARNING) << "Could not find malloc_error_break";
     return;
   }
-
-  // Warm this up so that it doesn't require allocation when
-  // |CrMallocErrorBreak()| calls it.
-  ignore_result(g_unchecked_malloc.Get().Get());
 
   mach_error_t err = mach_override_ptr(
      (void*)malloc_error_break,
