@@ -45,42 +45,28 @@ void HttpServer::SendOverWebSocket(int connection_id,
   connection->web_socket_->Send(data);
 }
 
-void HttpServer::Send(int connection_id, const std::string& data) {
+void HttpServer::Send(int connection_id,
+                      HttpStatusCode status_code,
+                      const std::string& data,
+                      const std::string& content_type) {
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
-  connection->Send(data);
-}
-
-void HttpServer::Send(int connection_id, const char* bytes, int len) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-
-  connection->Send(bytes, len);
+  connection->Send(status_code, data, content_type);
 }
 
 void HttpServer::Send200(int connection_id,
                          const std::string& data,
                          const std::string& content_type) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-  connection->Send200(data, content_type);
+  Send(connection_id, HTTP_OK, data, content_type);
 }
 
 void HttpServer::Send404(int connection_id) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-  connection->Send404();
+  Send(connection_id, HTTP_NOT_FOUND, "", "text/html");
 }
 
 void HttpServer::Send500(int connection_id, const std::string& message) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-  connection->Send500(message);
+  Send(connection_id, HTTP_INTERNAL_SERVER_ERROR, message, "text/html");
 }
 
 void HttpServer::Close(int connection_id) {
