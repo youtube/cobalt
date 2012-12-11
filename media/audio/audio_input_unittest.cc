@@ -137,7 +137,13 @@ TEST(AudioInputTest, OpenStopAndClose) {
 }
 
 // Test a normal recording sequence using an AudioInputStream.
-TEST(AudioInputTest, Record) {
+// This test currently fails on the Linux bots (crbug.com/165401).
+#if defined(OS_LINUX)
+#define MAYBE_Record DISABLED_Record
+#else
+#define MAYBE_Record Record
+#endif // defined(OS_LINUX)
+TEST(AudioInputTest, MAYBE_Record) {
   scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!CanRunAudioTests(audio_man.get()))
     return;
