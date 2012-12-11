@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/stream_listen_socket.h"
+#include "net/http/http_status_code.h"
 
 namespace net {
 
@@ -45,13 +46,16 @@ class HttpServer : public StreamListenSocket::Delegate,
   void AcceptWebSocket(int connection_id,
                        const HttpServerRequestInfo& request);
   void SendOverWebSocket(int connection_id, const std::string& data);
-  void Send(int connection_id, const std::string& data);
-  void Send(int connection_id, const char* bytes, int len);
+  void Send(int connection_id,
+            HttpStatusCode status_code,
+            const std::string& data,
+            const std::string& mime_type);
   void Send200(int connection_id,
                const std::string& data,
                const std::string& mime_type);
   void Send404(int connection_id);
   void Send500(int connection_id, const std::string& message);
+
   void Close(int connection_id);
 
   // Copies the local address to |address|. Returns a network error code.
