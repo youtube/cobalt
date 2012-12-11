@@ -127,22 +127,20 @@ void AudioManagerLinux::GetCrasAudioInputDevices(
 void AudioManagerLinux::GetAlsaAudioInputDevices(
     media::AudioDeviceNames* device_names) {
   // Constants specified by the ALSA API for device hints.
+  static const int kGetAllDevices = -1;
   static const char kPcmInterfaceName[] = "pcm";
-  int card = -1;
 
-  // Loop through the sound cards to get ALSA device hints.
-  while (!wrapper_->CardNext(&card) && card >= 0) {
-    void** hints = NULL;
-    int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
-    if (!error) {
-      GetAlsaDevicesInfo(hints, device_names);
+  void** hints = NULL;
+  int error =
+      wrapper_->DeviceNameHint(kGetAllDevices, kPcmInterfaceName, &hints);
+  if (!error) {
+    GetAlsaDevicesInfo(hints, device_names);
 
-      // Destroy the hints now that we're done with it.
-      wrapper_->DeviceNameFreeHint(hints);
-    } else {
-      DLOG(WARNING) << "GetAudioInputDevices: unable to get device hints: "
-                    << wrapper_->StrError(error);
-    }
+    // Destroy the hints now that we're done with it.
+    wrapper_->DeviceNameFreeHint(hints);
+  } else {
+    DLOG(WARNING) << "GetAudioInputDevices: unable to get device hints: "
+                  << wrapper_->StrError(error);
   }
 }
 
@@ -218,40 +216,37 @@ bool AudioManagerLinux::IsAlsaDeviceAvailable(const char* device_name) {
 }
 
 bool AudioManagerLinux::HasAnyAlsaAudioDevice(StreamType stream) {
+  // Constants specified by the ALSA API for device hints.
+  static const int kGetAllDevices = -1;
   static const char kPcmInterfaceName[] = "pcm";
   static const char kIoHintName[] = "IOID";
   const char* kNotWantedDevice =
       (stream == kStreamPlayback ? "Input" : "Output");
   void** hints = NULL;
   bool has_device = false;
-  int card = -1;
 
-  // Loop through the sound cards.
-  // Don't use snd_device_name_hint(-1,..) since there is a access violation
-  // inside this ALSA API with libasound.so.2.0.0.
-  while (!wrapper_->CardNext(&card) && (card >= 0) && !has_device) {
-    int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
-    if (!error) {
-      for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
-        // Only examine devices that are |stream| capable.  Valid values are
-        // "Input", "Output", and NULL which means both input and output.
-        scoped_ptr_malloc<char> io(wrapper_->DeviceNameGetHint(*hint_iter,
-                                                               kIoHintName));
-        if (io != NULL && strcmp(kNotWantedDevice, io.get()) == 0)
-          continue;  // Wrong type, skip the device.
+  int error =
+      wrapper_->DeviceNameHint(kGetAllDevices, kPcmInterfaceName, &hints);
+  if (!error) {
+    for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
+      // Only examine devices that are |stream| capable.  Valid values are
+      // "Input", "Output", and NULL which means both input and output.
+      scoped_ptr_malloc<char> io(wrapper_->DeviceNameGetHint(*hint_iter,
+                                                             kIoHintName));
+      if (io != NULL && strcmp(kNotWantedDevice, io.get()) == 0)
+        continue;  // Wrong type, skip the device.
 
-        // Found an input device.
-        has_device = true;
-        break;
-      }
-
-      // Destroy the hints now that we're done with it.
-      wrapper_->DeviceNameFreeHint(hints);
-      hints = NULL;
-    } else {
-      DLOG(WARNING) << "HasAnyAudioDevice: unable to get device hints: "
-                    << wrapper_->StrError(error);
+      // Found an input device.
+      has_device = true;
+      break;
     }
+
+    // Destroy the hints now that we're done with it.
+    wrapper_->DeviceNameFreeHint(hints);
+    hints = NULL;
+  } else {
+    DLOG(WARNING) << "HasAnyAudioDevice: unable to get device hints: "
+                  << wrapper_->StrError(error);
   }
 
   return has_device;
