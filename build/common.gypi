@@ -75,6 +75,18 @@
             ['use_ash==1', {
               'use_aura%': 1,
             }],
+
+            # Compute the architecture that we're building on.
+            ['OS=="win" or OS=="mac" or OS=="ios"', {
+              'host_arch%': 'ia32',
+            }, {
+              # This handles the Unix platforms for which there is some support.
+              # Anything else gets passed through, which probably won't work
+              # very well; such hosts should pass an explicit target_arch to
+              # gyp.
+              'host_arch%':
+                '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
+            }],
           ],
         },
         # Copy conditionally-set variables out one scope.
@@ -87,24 +99,18 @@
         'enable_hidpi%': '<(enable_hidpi)',
         'enable_touch_ui%': '<(enable_touch_ui)',
         'buildtype%': '<(buildtype)',
+        'host_arch%': '<(host_arch)',
+
+        # Default architecture we're building for is the architecture we're
+        # building on.
+        'target_arch%': '<(host_arch)',
 
         # Sets whether we're building with the Android SDK/NDK (and hence with
         # Ant, value 0), or as part of the Android system (and hence with the
         # Android build system, value 1).
         'android_build_type%': 0,
 
-        # Compute the architecture that we're building on.
         'conditions': [
-          ['OS=="win" or OS=="mac" or OS=="ios"', {
-            'host_arch%': 'ia32',
-          }, {
-            # This handles the Unix platforms for which there is some support.
-            # Anything else gets passed through, which probably won't work very
-            # well; such hosts should pass an explicit target_arch to gyp.
-            'host_arch%':
-              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
-          }],
-
           # Set default value of toolkit_views based on OS.
           ['OS=="win" or chromeos==1 or use_aura==1', {
             'toolkit_views%': 1,
@@ -147,6 +153,7 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'host_arch%': '<(host_arch)',
+      'target_arch%': '<(target_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
       'use_aura%': '<(use_aura)',
@@ -159,6 +166,7 @@
       'android_build_type%': '<(android_build_type)',
       'enable_app_list%': '<(enable_app_list)',
       'use_default_render_theme%': '<(use_default_render_theme)',
+      'buildtype%': '<(buildtype)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -169,12 +177,6 @@
 
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
-
-      'buildtype%': '<(buildtype)',
-
-      # Default architecture we're building for is the architecture we're
-      # building on.
-      'target_arch%': '<(host_arch)',
 
       # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
       # are built under a chromium full build (1) or a webkit.org chromium
@@ -588,6 +590,17 @@
         }, {
           'enable_settings_app%': 0,
         }],
+
+        ['OS=="linux" and target_arch=="arm" and chromeos==0', {
+          # Set some defaults for arm/linux chrome builds
+          'armv7%': 1,
+          'linux_breakpad%': 0,
+          'linux_use_tcmalloc%': 0,
+          'linux_use_gold_flags%': 0,
+          # sysroot need to be an absolute path otherwise it generates
+          # incorrect results when passed to pkg-config
+          'sysroot%': '<!(cd <(DEPTH)/arm-sysroot && pwd -P)',
+        }], # OS=="linux" and target_arch=="arm" and chromeos==0
       ],
 
       # Set this to 1 to use the Google-internal file containing
@@ -1221,7 +1234,6 @@
           }],
         ],
       }],  # OS=="mac"
-
       ['OS=="win"', {
         'conditions': [
           ['component=="shared_library"', {
@@ -2603,10 +2615,10 @@
                         '-fuse-ld=gold',
                     ],
                     'conditions': [
-                      ['arm_thumb == 1', {
+                      ['arm_thumb==1', {
                         # Android toolchain doesn't support -mimplicit-it=thumb
-                        'cflags!': [ '-Wa,-mimplicit-it=thumb', ],
-                        'cflags': [ '-mthumb-interwork', ],
+                        'cflags!': [ '-Wa,-mimplicit-it=thumb' ],
+                        'cflags': [ '-mthumb-interwork' ],
                       }],
                       ['armv7==0', {
                         # Flags suitable for Android emulator
