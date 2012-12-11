@@ -11,8 +11,8 @@
 #include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
 #include "net/base/default_server_bound_cert_store.h"
-#include "net/base/upload_data.h"
 #include "net/base/upload_data_stream.h"
+#include "net/base/upload_element_reader.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -151,11 +151,9 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
   EXPECT_EQ(OK, InitSession(reads, arraysize(reads), writes, arraysize(writes),
                             host_port_pair));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->set_is_chunked(true);
-  upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
-  upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
-  UploadDataStream upload_stream(upload_data);
+  UploadDataStream upload_stream(UploadDataStream::CHUNKED, 0);
+  upload_stream.AppendChunk(kUploadData, kUploadDataSize, false);
+  upload_stream.AppendChunk(kUploadData, kUploadDataSize, true);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -251,9 +249,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
   EXPECT_EQ(OK,
             session_->InitializeWithSocket(connection.release(), false, OK));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->set_is_chunked(true);
-  UploadDataStream upload_stream(upload_data);
+  UploadDataStream upload_stream(UploadDataStream::CHUNKED, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -261,7 +257,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
   request.upload_data_stream = &upload_stream;
 
   ASSERT_EQ(OK, upload_stream.InitSync());
-  upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
+  upload_stream.AppendChunk(kUploadData, kUploadDataSize, false);
 
   BoundNetLog net_log;
   scoped_ptr<SpdyHttpStream> http_stream(
@@ -284,8 +280,8 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
   EXPECT_GT(callback.WaitForResult(), 0);
 
   // Now append the final two chunks which will enqueue two more writes.
-  upload_data->AppendChunk(kUploadData1, kUploadData1Size, false);
-  upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
+  upload_stream.AppendChunk(kUploadData1, kUploadData1Size, false);
+  upload_stream.AppendChunk(kUploadData, kUploadDataSize, true);
 
   // Finish writing all the chunks.
   data.RunFor(2);
@@ -383,9 +379,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPostWithWindowUpdate) {
   EXPECT_EQ(OK,
             session_->InitializeWithSocket(connection.release(), false, OK));
 
-  scoped_refptr<UploadData> upload_data(new UploadData());
-  upload_data->set_is_chunked(true);
-  UploadDataStream upload_stream(upload_data);
+  UploadDataStream upload_stream(UploadDataStream::CHUNKED, 0);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -393,7 +387,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPostWithWindowUpdate) {
   request.upload_data_stream = &upload_stream;
 
   ASSERT_EQ(OK, upload_stream.InitSync());
-  upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
+  upload_stream.AppendChunk(kUploadData, kUploadDataSize, true);
 
   BoundNetLog net_log;
   scoped_ptr<SpdyHttpStream> http_stream(
