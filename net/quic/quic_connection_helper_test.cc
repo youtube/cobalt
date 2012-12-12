@@ -105,15 +105,15 @@ class QuicConnectionHelperTest : public ::testing::Test {
     socket_data_.reset(new StaticSocketDataProvider(NULL, 0, mock_writes_.get(),
                                                     writes_.size()));
 
-    socket_.reset(new MockUDPClientSocket(socket_data_.get(),
-                                          net_log_.net_log()));
-    socket_->Connect(IPEndPoint());
+    MockUDPClientSocket* socket =
+        new MockUDPClientSocket(socket_data_.get(), net_log_.net_log());
+    socket->Connect(IPEndPoint());
     runner_ = new TestTaskRunner(&clock_);
-    helper_ = new QuicConnectionHelper(runner_.get(), &clock_, socket_.get());
+    helper_.reset(new QuicConnectionHelper(runner_.get(), &clock_, socket));
     scheduler_ = new MockScheduler();
     EXPECT_CALL(*scheduler_, TimeUntilSend(_)).
         WillRepeatedly(testing::Return(QuicTime::Delta()));
-    connection_.reset(new TestConnection(guid_, IPEndPoint(), helper_));
+    connection_.reset(new TestConnection(guid_, IPEndPoint(), helper_.get()));
     connection_->set_visitor(&visitor_);
     connection_->SetScheduler(scheduler_);
   }
@@ -163,7 +163,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
 
   MockScheduler* scheduler_;
   scoped_refptr<TestTaskRunner> runner_;
-  QuicConnectionHelper* helper_;
+  scoped_ptr<QuicConnectionHelper> helper_;
   scoped_array<MockWrite> mock_writes_;
   MockClock clock_;
   scoped_ptr<TestConnection> connection_;
@@ -194,7 +194,6 @@ class QuicConnectionHelperTest : public ::testing::Test {
   QuicPacketHeader header_;
   BoundNetLog net_log_;
   QuicStreamFrame frame_;
-  scoped_ptr<MockUDPClientSocket> socket_;
   scoped_ptr<StaticSocketDataProvider> socket_data_;
   std::vector<PacketToWrite> writes_;
 };

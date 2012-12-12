@@ -217,6 +217,9 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // This finds the new least unacked packet and updates the outgoing ack frame.
   void UpdateLeastUnacked(QuicPacketSequenceNumber acked_sequence_number);
 
+protected:
+  QuicConnectionHelperInterface* helper() { return helper_; }
+
  private:
   friend class QuicConnectionPeer;
   // Packets which have not been written to the wire.
@@ -271,7 +274,7 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // Closes any FEC groups protecting packets before |sequence_number|.
   void CloseFecGroupsBefore(QuicPacketSequenceNumber sequence_number);
 
-  scoped_ptr<QuicConnectionHelperInterface> helper_;
+  QuicConnectionHelperInterface* helper_;
   QuicFramer framer_;
   const QuicClock* clock_;
 

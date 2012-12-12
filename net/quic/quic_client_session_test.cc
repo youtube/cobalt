@@ -22,7 +22,7 @@ class QuicClientSessionTest : public ::testing::Test {
   QuicClientSessionTest()
       : guid_(1),
         connection_(new PacketSavingConnection(guid_, IPEndPoint())),
-        session_(connection_) {
+        session_(connection_, NULL, NULL) {
   }
 
  protected:
