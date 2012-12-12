@@ -43,6 +43,18 @@ VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
   return trusted ? VERIFY_OK : VERIFY_NO_TRUSTED_ROOT;
 }
 
+void AddTestRootCertificate(const uint8* cert, size_t len) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> cert_array = ToJavaByteArray(env, cert, len);
+  DCHECK(!cert_array.is_null());
+  Java_AndroidNetworkLibrary_addTestRootCertificate(env, cert_array.obj());
+}
+
+void ClearTestRootCertificates() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_AndroidNetworkLibrary_clearTestRootCertificates(env);
+}
+
 bool StoreKeyPair(const uint8* public_key,
                   size_t public_len,
                   const uint8* private_key,
