@@ -394,9 +394,8 @@ class BASE_EXPORT FieldTrialList {
   // Remove an observer.
   static void RemoveObserver(Observer* observer);
 
-  // Notify all observers that a group is finalized for the named Trial.
-  static void NotifyFieldTrialGroupSelection(const std::string& trial_name,
-                                             const std::string& group_name);
+  // Notify all observers that a group has been finalized for |field_trial|.
+  static void NotifyFieldTrialGroupSelection(FieldTrial* field_trial);
 
   // Return the number of active field trials.
   static size_t GetFieldTrialCount();
