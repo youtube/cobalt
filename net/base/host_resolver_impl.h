@@ -224,10 +224,9 @@ class NET_EXPORT HostResolverImpl
   // True if have a DnsClient with a valid DnsConfig.
   bool HaveDnsConfig() const;
 
-  // Called when a host name is successfully resolved and DnsTask was run on it.
-  // |success| is false iff the DnsTask failed to resolve it, but getaddrinfo
-  // succeeded.
-  void OnDnsTaskResolve(bool success);
+  // Called when a host name is successfully resolved and DnsTask was run on it
+  // and resulted in |net_error|.
+  void OnDnsTaskResolve(int net_error);
 
   // Allows the tests to catch slots leaking out of the dispatcher.
   size_t num_running_jobs_for_tests() const {
