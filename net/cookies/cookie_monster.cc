@@ -1602,9 +1602,6 @@ void CookieMonster::FindCookiesForKey(
     std::vector<CanonicalCookie*>* cookies) {
   lock_.AssertAcquired();
 
-  const std::string host(url.host());
-  bool secure = url.SchemeIsSecure();
-
   for (CookieMapItPair its = cookies_.equal_range(key);
        its.first != its.second; ) {
     CookieMap::iterator curit = its.first;
@@ -1617,22 +1614,13 @@ void CookieMonster::FindCookiesForKey(
       continue;
     }
 
-    // Filter out HttpOnly cookies, per options.
-    if (options.exclude_httponly() && cc->IsHttpOnly())
+    // Filter out cookies that should not be included for a request to the
+    // given |url|. HTTP only cookies are filtered depending on the passed
+    // cookie |options|.
+    if (!cc->IncludeForRequestURL(url, options))
       continue;
 
-    // Filter out secure cookies unless we're https.
-    if (!secure && cc->IsSecure())
-      continue;
-
-    // Filter out cookies that don't apply to this domain.
-    if (!cc->IsDomainMatch(host))
-      continue;
-
-    if (!cc->IsOnPath(url.path()))
-      continue;
-
-    // Add this cookie to the set of matching cookies.  Update the access
+    // Add this cookie to the set of matching cookies. Update the access
     // time if we've been requested to do so.
     if (update_access_time) {
       InternalUpdateCookieAccessTime(cc, current);
