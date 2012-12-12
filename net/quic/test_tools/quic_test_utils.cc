@@ -61,7 +61,8 @@ MockScheduler::~MockScheduler() {
 }
 
 MockConnection::MockConnection(QuicGuid guid, IPEndPoint address)
-    : QuicConnection(guid, address, new MockHelper()) {
+    : QuicConnection(guid, address, new MockHelper()),
+      helper_(helper()) {
 }
 
 MockConnection::~MockConnection() {

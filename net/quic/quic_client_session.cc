@@ -4,13 +4,26 @@
 
 #include "net/quic/quic_client_session.h"
 
+#include "base/message_loop.h"
+#include "base/stl_util.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/quic/quic_connection_helper.h"
+#include "net/quic/quic_stream_factory.h"
+#include "net/udp/datagram_client_socket.h"
 
 namespace net {
 
-QuicClientSession::QuicClientSession(QuicConnection* connection)
+QuicClientSession::QuicClientSession(QuicConnection* connection,
+                                     QuicConnectionHelper* helper,
+                                     QuicStreamFactory* stream_factory)
     : QuicSession(connection, false),
-      crypto_stream_(this) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(crypto_stream_(this)),
+      helper_(helper),
+      stream_factory_(stream_factory),
+      read_buffer_(new IOBufferWithSize(kMaxPacketSize)),
+      read_pending_(false) {
 }
 
 QuicClientSession::~QuicClientSession() {
@@ -68,11 +81,58 @@ void QuicClientSession::CloseStream(QuicStreamId stream_id) {
     streams_.erase(it);
     delete stream;
   }
+
+  if (GetNumOpenStreams() == 0) {
+    stream_factory_->OnIdleSession(this);
+  }
 }
 
 void QuicClientSession::OnCryptoHandshakeComplete(QuicErrorCode error) {
   if (!callback_.is_null()) {
     callback_.Run(error == QUIC_NO_ERROR ? OK : ERR_UNEXPECTED);
+  }
+}
+
+void QuicClientSession::StartReading() {
+  if (read_pending_) {
+    return;
+  }
+  read_pending_ = true;
+  int rv = helper_->Read(read_buffer_, read_buffer_->size(),
+                         base::Bind(&QuicClientSession::OnReadComplete,
+                                    weak_factory_.GetWeakPtr()));
+  if (rv == ERR_IO_PENDING) {
+    return;
+  }
+
+  // Data was read, process it.
+  // Schedule the work through the message loop to avoid recursive
+  // callbacks.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&QuicClientSession::OnReadComplete,
+                 weak_factory_.GetWeakPtr(), rv));
+}
+
+void QuicClientSession::OnReadComplete(int result) {
+  read_pending_ = false;
+  // TODO(rch): Inform the connection about the result.
+  if (result > 0) {
+    scoped_refptr<IOBufferWithSize> buffer(read_buffer_);
+    read_buffer_ = new IOBufferWithSize(kMaxPacketSize);
+    QuicEncryptedPacket packet(buffer->data(), result);
+    IPEndPoint local_address;
+    IPEndPoint peer_address;
+    helper_->GetLocalAddress(&local_address);
+    helper_->GetPeerAddress(&peer_address);
+    // ProcessUdpPacket might result in |this| being deleted, so we
+    // use a weak pointer to be safe.
+    connection()->ProcessUdpPacket(local_address, peer_address, packet);
+    if (!connection()->connected()) {
+      stream_factory_->OnSessionClose(this);
+      return;
+    }
+    StartReading();
   }
 }
 

@@ -92,6 +92,20 @@ void QuicConnectionHelper::UnregisterSendAlarmIfRegistered() {
   send_alarm_registered_ = false;
 }
 
+int QuicConnectionHelper::Read(IOBuffer* buf, int buf_len,
+                               const CompletionCallback& callback) {
+  return socket_->Read(buf, buf_len, callback);
+}
+
+void QuicConnectionHelper::GetLocalAddress(IPEndPoint* local_address) {
+  socket_->GetLocalAddress(local_address);
+}
+
+void QuicConnectionHelper::GetPeerAddress(IPEndPoint* peer_address) {
+  socket_->GetPeerAddress(peer_address);
+}
+
+
 void QuicConnectionHelper::OnResendAlarm(
     QuicPacketSequenceNumber sequence_number) {
   connection_->MaybeResendPacket(sequence_number);

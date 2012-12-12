@@ -14,8 +14,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-//DECLARE_int32(fake_packet_loss_percentage);
-
 using base::StringPiece;
 using std::map;
 using testing::_;
@@ -195,7 +193,7 @@ class QuicConnectionTest : public ::testing::Test {
         creator_(guid_, &framer_),
         scheduler_(new StrictMock<MockScheduler>),
         helper_(new TestConnectionHelper(&clock_)),
-        connection_(guid_, IPEndPoint(), helper_),
+        connection_(guid_, IPEndPoint(), helper_.get()),
         frame1_(1, false, 0, data1),
         frame2_(1, false, 3, data2),
         accept_packet_(true) {
@@ -327,7 +325,7 @@ class QuicConnectionTest : public ::testing::Test {
 
   MockScheduler* scheduler_;
   MockClock clock_;
-  TestConnectionHelper* helper_;
+  scoped_ptr<TestConnectionHelper> helper_;
   TestConnection connection_;
   testing::StrictMock<MockConnectionVisitor> visitor_;
 

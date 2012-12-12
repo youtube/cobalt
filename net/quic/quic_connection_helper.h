@@ -46,6 +46,13 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   virtual bool IsSendAlarmSet() OVERRIDE;
   virtual void UnregisterSendAlarmIfRegistered() OVERRIDE;
 
+  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
+  void GetLocalAddress(IPEndPoint* local_address);
+  void GetPeerAddress(IPEndPoint* peer_address);
+
+ private:
+  friend class QuicConnectionHelperPeer;
+
   // An alarm is scheduled for each data-bearing packet as it is sent out.
   // When the alarm goes off, the connection checks to see if the packet has
   // been acked, and resends if it has not.
@@ -58,16 +65,11 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   // A completion callback invoked when a write completes.
   void OnWriteComplete(int result);
 
- private:
-  friend class QuicConnectionHelperPeer;
-
   base::WeakPtrFactory<QuicConnectionHelper> weak_factory_;
-
   base::TaskRunner* task_runner_;
-  DatagramClientSocket* socket_;
+  scoped_ptr<DatagramClientSocket> socket_;
   QuicConnection* connection_;
   const QuicClock* clock_;
-
   bool send_alarm_registered_;
   bool timeout_alarm_registered_;
 
