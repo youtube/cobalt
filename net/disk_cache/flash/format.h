@@ -23,9 +23,9 @@ const int32 kFlashSummarySize = (1 + kFlashMaxEntryCount) * sizeof(int32);
 const int32 kFlashSegmentFreeSpace = kFlashSegmentSize - kFlashSummarySize;
 
 // An entry consists of a fixed number of streams.
-const int32 kFlashCacheEntryNumStreams = 4;
-const int32 kFlashCacheEntryHeaderSize =
-    kFlashCacheEntryNumStreams * sizeof(int32);
+const int32 kFlashLogStoreEntryNumStreams = 4;
+const int32 kFlashLogStoreEntryHeaderSize =
+    kFlashLogStoreEntryNumStreams * sizeof(int32);
 
 }  // namespace disk_cache
 
