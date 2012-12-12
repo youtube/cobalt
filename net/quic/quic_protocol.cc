@@ -61,6 +61,8 @@ bool ReceivedPacketInfo::IsAwaitingPacket(
 
 void ReceivedPacketInfo::ClearAcksBefore(
     QuicPacketSequenceNumber least_unacked) {
+  if (received_packet_times.empty())
+    return;
   missing_packets.erase(missing_packets.begin(),
                         missing_packets.lower_bound(least_unacked));
   // Clearing received_packet_times may not be necessary, since they're cleared
