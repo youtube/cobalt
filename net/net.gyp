@@ -275,6 +275,7 @@
         'base/test_root_certs_mac.cc',
         'base/test_root_certs_nss.cc',
         'base/test_root_certs_openssl.cc',
+        'base/test_root_certs_android.cc',
         'base/test_root_certs_win.cc',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
@@ -1212,8 +1213,9 @@
             'sources!': [
               'base/cert_database_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
+              'base/test_root_certs_openssl.cc',
             ],
-          }, {  # else OS! = "android"
+          }, {  # else OS != "android"
             'defines': [
               # These are the features Android doesn't support.
               'ENABLE_MEDIA_CODEC_THEORA',

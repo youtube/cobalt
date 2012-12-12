@@ -207,4 +207,23 @@ class AndroidNetworkLibrary {
         return X509Util.verifyServerCertificates(certChain, authType);
     }
 
+    /**
+     * Adds a test root certificate to the local trust store.
+     * @param rootCert DER encoded bytes of the certificate.
+     */
+    @CalledByNativeUnchecked
+    public static void addTestRootCertificate(byte[] rootCert) throws CertificateException,
+            KeyStoreException, NoSuchAlgorithmException {
+        X509Util.addTestRootCertificate(rootCert);
+    }
+
+    /**
+     * Removes all test root certificates added by |addTestRootCertificate| calls from the local
+     * trust store.
+     */
+    @CalledByNativeUnchecked
+    public static void clearTestRootCertificates() throws NoSuchAlgorithmException,
+            CertificateException, KeyStoreException {
+        X509Util.clearTestRootCertificates();
+    }
 }
