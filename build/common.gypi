@@ -1141,10 +1141,8 @@
         # Uses system APIs for decoding audio and video.
         'use_libffmpeg%': '0',
 
-        # Always use the chromium skia. The use_system_harfbuzz needs to
-        # match use_system_skia.
+        # Always use the chromium skia.
         'use_system_skia%': '0',
-        'use_system_harfbuzz%': '0',
 
         # Configure crash reporting and build options based on release type.
         'conditions': [
