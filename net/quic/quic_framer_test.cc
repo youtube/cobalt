@@ -210,6 +210,16 @@ class QuicFramerTest : public ::testing::Test {
     return reinterpret_cast<char*>(data);
   }
 
+  void CheckProcessingFails(unsigned char* packet, size_t len,
+                            string expected_error,
+                            QuicErrorCode error_code) {
+    QuicEncryptedPacket encrypted(AsChars(packet), len, false);
+    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
+                                       encrypted)) << "len: " << len;
+    EXPECT_EQ(expected_error, framer_.detailed_error()) << "len: " << len;
+    EXPECT_EQ(error_code, framer_.error()) << "len: " << len;
+  }
+
   test::TestEncrypter* encrypter_;
   test::TestDecrypter* decrypter_;
   QuicFramer framer_;
@@ -290,12 +300,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
     } else if (i < 16) {
       expected_error = "Unable to read fec group.";
     }
-
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error()) << " i: " << i;
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_PACKET_HEADER);
   }
 }
 
@@ -365,12 +370,7 @@ TEST_F(QuicFramerTest, StreamFrame) {
     } else if (i < kPacketHeaderSize + 29) {
       expected_error = "Unable to read frame data.";
     }
-
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_FRAME_DATA);
   }
 }
 
@@ -637,12 +637,7 @@ TEST_F(QuicFramerTest, AckFrame) {
     } else if (i < kPacketHeaderSize + 49) {
       expected_error = "Unable to read congestion info type.";
     }
-
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_FRAME_DATA);
   }
 }
 
@@ -744,12 +739,7 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
     } else if (i < kCongestionInfoOffset + 5) {
       expected_error = "Unable to read receive window.";
     }
-
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_FRAME_DATA);
   }
 }
 
@@ -857,11 +847,7 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
     } else if (i < kCongestionInfoOffset + 7) {
       expected_error = "Unable to read delta time.";
     }
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_FRAME_DATA);
   }
 }
 
@@ -958,11 +944,7 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
     } else if (i < kCongestionInfoOffset + 5) {
       expected_error = "Unable to read bitrate.";
     }
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error, QUIC_INVALID_FRAME_DATA);
   }
 }
 
@@ -1081,11 +1063,8 @@ TEST_F(QuicFramerTest, RstStreamFrame) {
     } else if (i < kPacketHeaderSize + 33) {
       expected_error = "Unable to read rst stream error details.";
     }
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_RST_STREAM_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error,
+                         QUIC_INVALID_RST_STREAM_DATA);
   }
 }
 
@@ -1207,12 +1186,8 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     } else if (i < kPacketHeaderSize + 21) {
       expected_error = "Unable to read connection close error details.";
     }
-
-    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
-    EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
-                                       encrypted));
-    EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_CONNECTION_CLOSE_DATA, framer_.error());
+    CheckProcessingFails(packet, i, expected_error,
+                         QUIC_INVALID_CONNECTION_CLOSE_DATA);
   }
 }
 
