@@ -9,7 +9,7 @@
 #include "base/path_service.h"
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
-#include "base/string_tokenizer.h"
+#include "base/string_split.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/ftp/ftp_directory_listing_parser.h"
@@ -56,26 +56,28 @@ TEST_P(FtpDirectoryListingParserTest, Parse) {
                   &expected_listing));
 
   std::vector<std::string> lines;
-  StringTokenizer tokenizer(expected_listing, "\r\n");
-  while (tokenizer.GetNext())
-    lines.push_back(tokenizer.token());
+  base::SplitStringUsingSubstr(expected_listing, "\r\n", &lines);
 
-  ASSERT_EQ(8 * entries.size(), lines.size());
+  // Special case for empty listings.
+  if (lines.size() == 1 && lines[0].empty())
+    lines.clear();
 
-  for (size_t i = 0; i < lines.size() / 8; i++) {
-    std::string type(lines[8 * i]);
-    std::string name(lines[8 * i + 1]);
+  ASSERT_EQ(9 * entries.size(), lines.size());
+
+  for (size_t i = 0; i < lines.size() / 9; i++) {
+    std::string type(lines[9 * i]);
+    std::string name(lines[9 * i + 1]);
     int64 size;
-    base::StringToInt64(lines[8 * i + 2], &size);
+    base::StringToInt64(lines[9 * i + 2], &size);
 
     SCOPED_TRACE(base::StringPrintf("Filename: %s", name.c_str()));
 
     int year, month, day_of_month, hour, minute;
-    base::StringToInt(lines[8 * i + 3], &year);
-    base::StringToInt(lines[8 * i + 4], &month);
-    base::StringToInt(lines[8 * i + 5], &day_of_month);
-    base::StringToInt(lines[8 * i + 6], &hour);
-    base::StringToInt(lines[8 * i + 7], &minute);
+    base::StringToInt(lines[9 * i + 3], &year);
+    base::StringToInt(lines[9 * i + 4], &month);
+    base::StringToInt(lines[9 * i + 5], &day_of_month);
+    base::StringToInt(lines[9 * i + 6], &hour);
+    base::StringToInt(lines[9 * i + 7], &minute);
 
     const FtpDirectoryListingEntry& entry = entries[i];
 
@@ -138,6 +140,7 @@ const char* kTestFiles[] = {
   "dir-listing-ls-28",  // Hylafax FTP server
   "dir-listing-ls-29",
   "dir-listing-ls-30",
+  "dir-listing-ls-31",
 
   "dir-listing-netware-1",
   "dir-listing-netware-2",
