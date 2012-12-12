@@ -11,7 +11,6 @@
 #include "base/command_line.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
-#include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_input_mac.h"
@@ -20,6 +19,7 @@
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/audio/mac/audio_synchronized_mac.h"
 #include "media/audio/mac/audio_unified_mac.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -264,29 +264,17 @@ static OSStatus OnDefaultDeviceChangedCallback(
 }
 
 AudioManagerMac::AudioManagerMac()
-    : listener_registered_(false) {
+    : listener_registered_(false),
+      creating_message_loop_(base::MessageLoopProxy::current()) {
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 
-  // Setting RunLoop to NULL here instructs HAL to manage its own thread for
-  // notifications.  This was the default behaviour on OS X 10.5 and earlier,
-  // but now must be explicitly specified.  Without this, OS X will try to run
-  // device notification callbacks on BrowserMainLoop.
-  const AudioObjectPropertyAddress kRunLoopAddress = {
-    kAudioHardwarePropertyRunLoop,
-    kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
-  };
-
-  CFRunLoopRef run_loop = NULL;
-  UInt32 size = sizeof(CFRunLoopRef);
-  OSStatus result = AudioObjectSetPropertyData(
-      kAudioObjectSystemObject, &kRunLoopAddress, 0, 0, size, &run_loop);
-  if (result != noErr) {
-    OSSTATUS_DLOG(ERROR, result) << "Failed to set property listener thread.";
+  // AudioManagerMac is expected to be created by the root platform thread, this
+  // is generally BrowserMainLoop, it's MessageLoop will drive the NSApplication
+  // pump which in turn fires the property listener callbacks.
+  if (!creating_message_loop_)
     return;
-  }
 
-  result = AudioObjectAddPropertyListener(
+  OSStatus result = AudioObjectAddPropertyListener(
       kAudioObjectSystemObject,
       &kDeviceChangePropertyAddress,
       &OnDefaultDeviceChangedCallback,
@@ -302,6 +290,9 @@ AudioManagerMac::AudioManagerMac()
 
 AudioManagerMac::~AudioManagerMac() {
   if (listener_registered_) {
+    // TODO(dalecurtis): CHECK destruction happens on |creating_message_loop_|,
+    // should be true, but currently several unit tests perform destruction in
+    // odd places so we can't CHECK here currently.
     OSStatus result = AudioObjectRemovePropertyListener(
         kAudioObjectSystemObject,
         &kDeviceChangePropertyAddress,
@@ -399,9 +390,15 @@ AudioParameters AudioManagerMac::GetPreferredLowLatencyOutputStreamParameters(
 }
 
 void AudioManagerMac::OnDeviceChange() {
-  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
-      &AudioManagerMac::NotifyAllOutputDeviceChangeListeners,
-      base::Unretained(this)));
+  CHECK(creating_message_loop_->BelongsToCurrentThread());
+
+  // Post the task to the |creating_message_loop_| to execute our listener
+  // callback.  The callback is created using BindToLoop() so will hop over
+  // to the audio thread upon execution.
+  creating_message_loop_->PostTask(FROM_HERE, BindToLoop(
+      GetMessageLoop(), base::Bind(
+          &AudioManagerMac::NotifyAllOutputDeviceChangeListeners,
+          base::Unretained(this))));
 }
 
 AudioManager* CreateAudioManager() {
