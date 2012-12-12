@@ -79,7 +79,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
 
 class FramerVisitorCapturingAcks : public NoOpFramerVisitor {
  public:
-  FramerVisitorCapturingAcks() {}
+  FramerVisitorCapturingAcks();
 
   // NoOpFramerVisitor
   virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;

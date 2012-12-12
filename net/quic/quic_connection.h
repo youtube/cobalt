@@ -324,6 +324,9 @@ protected:
   // Scheduler which drives packet send rate.
   scoped_ptr<QuicSendScheduler> scheduler_;
 
+  // The number of packets we resent since sending the last ack.
+  uint8 packets_resent_since_last_ack_;
+
   // True by default.  False if we've received or sent an explicit connection
   // close.
   bool connected_;
