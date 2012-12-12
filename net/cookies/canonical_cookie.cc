@@ -371,6 +371,26 @@ bool CanonicalCookie::IsDomainMatch(const std::string& host) const {
                        domain_.length(), domain_) == 0);
 }
 
+bool CanonicalCookie::IncludeForRequestURL(const GURL& url,
+                                           const CookieOptions& options) const {
+  // Filter out HttpOnly cookies, per options.
+  if (options.exclude_httponly() && IsHttpOnly())
+    return false;
+  // Secure cookies should not be included in requests for URLs with an
+  // insecure scheme.
+  if (IsSecure() && !url.SchemeIsSecure())
+    return false;
+  // Don't include cookies for requests that don't apply to the cookie domain.
+  if (!IsDomainMatch(url.host()))
+    return false;
+  // Don't include cookies for requests with a url path that does not path
+  // match the cookie-path.
+  if (!IsOnPath(url.path()))
+    return false;
+
+  return true;
+}
+
 std::string CanonicalCookie::DebugString() const {
   return base::StringPrintf(
       "name: %s value: %s domain: %s path: %s creation: %"
