@@ -390,8 +390,6 @@ AudioParameters AudioManagerMac::GetPreferredLowLatencyOutputStreamParameters(
 }
 
 void AudioManagerMac::OnDeviceChange() {
-  CHECK(creating_message_loop_->BelongsToCurrentThread());
-
   // Post the task to the |creating_message_loop_| to execute our listener
   // callback.  The callback is created using BindToLoop() so will hop over
   // to the audio thread upon execution.
