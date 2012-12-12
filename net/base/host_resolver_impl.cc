@@ -1411,7 +1411,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
         UMA_HISTOGRAM_CUSTOM_ENUMERATION("AsyncDNS.ResolveError",
                                          std::abs(dns_task_error_),
                                          GetAllErrorCodesForUma());
-        resolver_->OnDnsTaskResolve(false);
+        resolver_->OnDnsTaskResolve(dns_task_error_);
       } else {
         DNS_HISTOGRAM("AsyncDNS.FallbackFail", duration);
         UmaAsyncDnsResolveStatus(RESOLVE_STATUS_FAIL);
@@ -1474,7 +1474,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     UmaAsyncDnsResolveStatus(RESOLVE_STATUS_DNS_SUCCESS);
     RecordTTL(ttl);
 
-    resolver_->OnDnsTaskResolve(true);
+    resolver_->OnDnsTaskResolve(OK);
 
     base::TimeDelta bounded_ttl =
         std::max(ttl, base::TimeDelta::FromSeconds(kMinimumTTLSeconds));
@@ -2137,9 +2137,9 @@ bool HostResolverImpl::HaveDnsConfig() const {
   return (dns_client_.get() != NULL) && (dns_client_->GetConfig() != NULL);
 }
 
-void HostResolverImpl::OnDnsTaskResolve(bool success) {
+void HostResolverImpl::OnDnsTaskResolve(int net_error) {
   DCHECK(dns_client_);
-  if (success) {
+  if (net_error == OK) {
     num_dns_failures_ = 0;
     return;
   }
@@ -2151,6 +2151,9 @@ void HostResolverImpl::OnDnsTaskResolve(bool success) {
     it->second->AbortDnsTask();
   dns_client_->SetConfig(DnsConfig());
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DnsClientEnabled", false);
+  UMA_HISTOGRAM_CUSTOM_ENUMERATION("AsyncDNS.DnsClientDisabledReason",
+                                   std::abs(net_error),
+                                   GetAllErrorCodesForUma());
 }
 
 void HostResolverImpl::SetDnsClient(scoped_ptr<DnsClient> dns_client) {
