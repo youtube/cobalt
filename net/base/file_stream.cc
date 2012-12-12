@@ -113,7 +113,7 @@ int64 FileStream::Available() {
   if (size < 0)
     return size;
 
-  DCHECK_GT(size, cur_pos);
+  DCHECK_GE(size, cur_pos);
   return size - cur_pos;
 }
 
