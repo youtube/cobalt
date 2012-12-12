@@ -89,7 +89,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
                                // leads there.
     DNS_SIZE_MISMATCH,         // Got an address but size does not match.
     DNS_CNAME_AFTER_ADDRESS,   // Found CNAME after an address record.
-    DNS_ADDRESS_TTL_MISMATCH,  // TTL of all address records are not identical.
+    DNS_ADDRESS_TTL_MISMATCH,  // OBSOLETE. No longer used.
     DNS_NO_ADDRESSES,          // OBSOLETE. No longer used.
     // Only add new values here.
     DNS_PARSE_RESULT_MAX,      // Bounding value for histograms.
