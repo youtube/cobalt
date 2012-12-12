@@ -27,6 +27,9 @@ bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
   return true;
 }
 
+FramerVisitorCapturingAcks::FramerVisitorCapturingAcks() {
+}
+
 bool FramerVisitorCapturingAcks::OnPacketHeader(
     const QuicPacketHeader& header) {
   header_ = header;

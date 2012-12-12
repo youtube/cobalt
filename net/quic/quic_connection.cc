@@ -32,6 +32,12 @@ const QuicPacketSequenceNumber kMaxUnackedPackets = 192u;
 // The amount of time we wait before resending a packet.
 const int64 kDefaultResendTimeMs = 500;
 
+// The maximum number of missing packets we'll resend to the peer before
+// sending an ack to update least_awaiting.
+// 10 is somewhat arbitrary: it's good to keep this in line with
+// kMaxResendPerAck
+const int kMaxResendsBeforeAck = 10;
+
 // We want to make sure if we get a large nack packet, we don't queue up too
 // many packets at once.  10 is arbitrary.
 const int kMaxResendPerAck = 10;
@@ -61,6 +67,7 @@ QuicConnection::QuicConnection(QuicGuid guid,
       time_of_last_packet_(clock_->Now()),
       collector_(new QuicReceiptMetricsCollector(clock_, kTCP)),
       scheduler_(new QuicSendScheduler(clock_, kTCP)),
+      packets_resent_since_last_ack_(0),
       connected_(true) {
   helper_->SetConnection(this);
   helper_->SetTimeoutAlarm(timeout_);
@@ -470,6 +477,7 @@ void QuicConnection::MaybeResendPacket(
   UnackedPacketMap::iterator it = unacked_packets_.find(sequence_number);
 
   if (it != unacked_packets_.end()) {
+    ++packets_resent_since_last_ack_;
     QuicPacket* packet = it->second.packet;
     unacked_packets_.erase(it);
     // Re-frame the packet with a new sequence number for resend.
@@ -486,6 +494,10 @@ void QuicConnection::MaybeResendPacket(
     // outgoing ack.  If this wasn't the least unacked, this is a no-op.
     UpdateLeastUnacked(sequence_number);
     SendPacket(new_sequence_number, packet, true, false, true);
+
+    if (packets_resent_since_last_ack_ >= kMaxResendsBeforeAck) {
+      SendAck();
+    }
   } else {
     DVLOG(2) << "alarm fired for " << sequence_number
              << " but it has been acked";
@@ -499,7 +511,7 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
                                 bool is_retransmit) {
   DCHECK(packet->length() < kMaxPacketSize)
       << "Packet " << sequence_number << " will not be read; too large: "
-      << packet->length();
+      << packet->length() << " " << outgoing_ack_;
 
   // If this packet is being forced, don't bother checking to see if we should
   // write, just write.
@@ -569,6 +581,8 @@ bool QuicConnection::ShouldSimulateLostPacket() {
 }
 
 void QuicConnection::SendAck() {
+  packets_resent_since_last_ack_ = 0;
+
   if (!collector_->GenerateCongestionInfo(&outgoing_ack_.congestion_info)) {
     outgoing_ack_.congestion_info.type = kNone;
   }
