@@ -10,7 +10,10 @@ namespace base {
 namespace mac {
 
 LibDispatchTaskRunner::LibDispatchTaskRunner(const char* name)
-    : queue_(dispatch_queue_create(name, NULL)) {
+    : queue_(dispatch_queue_create(name, NULL)),
+      queue_finalized_(false, false) {
+  dispatch_set_context(queue_, this);
+  dispatch_set_finalizer_f(queue_, &LibDispatchTaskRunner::Finalizer);
 }
 
 bool LibDispatchTaskRunner::PostDelayedTask(
@@ -50,12 +53,27 @@ bool LibDispatchTaskRunner::PostNonNestableDelayedTask(
   return PostDelayedTask(from_here, task, delay);
 }
 
+void LibDispatchTaskRunner::Shutdown() {
+  dispatch_release(queue_);
+  queue_ = NULL;
+  queue_finalized_.Wait();
+}
+
 dispatch_queue_t LibDispatchTaskRunner::GetDispatchQueue() const {
   return queue_;
 }
 
 LibDispatchTaskRunner::~LibDispatchTaskRunner() {
-  dispatch_release(queue_);
+  if (queue_) {
+    dispatch_set_context(queue_, NULL);
+    dispatch_set_finalizer_f(queue_, NULL);
+    dispatch_release(queue_);
+  }
+}
+
+void LibDispatchTaskRunner::Finalizer(void* context) {
+  LibDispatchTaskRunner* self = static_cast<LibDispatchTaskRunner*>(context);
+  self->queue_finalized_.Signal();
 }
 
 }  // namespace mac
