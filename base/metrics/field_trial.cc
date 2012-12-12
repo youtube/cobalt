@@ -144,11 +144,7 @@ int FieldTrial::AppendGroup(const std::string& name,
 
 int FieldTrial::group() {
   FinalizeGroupChoice();
-  if (!group_reported_) {
-    if (enable_field_trial_)
-      FieldTrialList::NotifyFieldTrialGroupSelection(trial_name_, group_name_);
-    group_reported_ = true;
-  }
+  FieldTrialList::NotifyFieldTrialGroupSelection(this);
   return group_;
 }
 
@@ -438,15 +434,24 @@ void FieldTrialList::RemoveObserver(Observer* observer) {
 }
 
 // static
-void FieldTrialList::NotifyFieldTrialGroupSelection(
-    const std::string& trial_name,
-    const std::string& group_name) {
+void FieldTrialList::NotifyFieldTrialGroupSelection(FieldTrial* field_trial) {
   if (!global_)
     return;
+
+  {
+    AutoLock auto_lock(global_->lock_);
+    if (field_trial->group_reported_)
+      return;
+    field_trial->group_reported_ = true;
+  }
+
+  if (!field_trial->enable_field_trial_)
+    return;
+
   global_->observer_list_->Notify(
       &FieldTrialList::Observer::OnFieldTrialGroupFinalized,
-      trial_name,
-      group_name);
+      field_trial->trial_name(),
+      field_trial->group_name_internal());
 }
 
 // static
