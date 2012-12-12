@@ -627,8 +627,8 @@ TEST_F(QuicConnectionTest, LimitPacketsPerNack) {
   // Nack three times.
   ProcessAckPacket(&nack);
   ProcessAckPacket(&nack);
-  // The third call should trigger resending 10 packets.
-  EXPECT_CALL(*scheduler_, SentPacket(_, _, _)).Times(10);
+  // The third call should trigger resending 10 packets and an updated ack.
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _)).Times(11);
   ProcessAckPacket(&nack);
 
   // The fourth call should triggre resending the 11th packet.
