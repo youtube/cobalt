@@ -24,6 +24,7 @@ class LibDispatchTaskRunnerTest : public testing::Test {
         (&message_loop_)->PostTask(FROM_HERE, MessageLoop::QuitClosure());
     });
     message_loop_.Run();
+    task_runner_->Shutdown();
   }
 
   // VerifyTaskOrder takes the expectations from TaskOrderMarkers and compares
@@ -34,7 +35,7 @@ class LibDispatchTaskRunnerTest : public testing::Test {
 
     for (size_t i = 0; i < num_expectations; ++i) {
       if (i >= actual_size) {
-        EXPECT_LT(i, actual_size) << "Expected " << expectations[i];
+        EXPECT_LE(i, actual_size) << "Expected " << expectations[i];
         continue;
       }
 
@@ -126,17 +127,15 @@ TEST_F(LibDispatchTaskRunnerTest, NoMessageLoop) {
   VerifyTaskOrder(expectations, arraysize(expectations));
 }
 
-// This test is flaky, see http://crbug.com/165117.
-TEST_F(LibDispatchTaskRunnerTest, FLAKY_DispatchAndPostTasks) {
+TEST_F(LibDispatchTaskRunnerTest, DispatchAndPostTasks) {
   dispatch_async(task_runner_->GetDispatchQueue(), ^{
       TaskOrderMarker marker(this, "First Block");
-      task_runner_->PostTask(FROM_HERE,
-          BoundRecordTaskOrder(this, "Second Task"));
   });
   task_runner_->PostTask(FROM_HERE, BoundRecordTaskOrder(this, "First Task"));
   dispatch_async(task_runner_->GetDispatchQueue(), ^{
       TaskOrderMarker marker(this, "Second Block");
   });
+  task_runner_->PostTask(FROM_HERE, BoundRecordTaskOrder(this, "Second Task"));
   DispatchLastTask();
 
   const char* const expectations[] = {
@@ -152,24 +151,22 @@ TEST_F(LibDispatchTaskRunnerTest, FLAKY_DispatchAndPostTasks) {
   VerifyTaskOrder(expectations, arraysize(expectations));
 }
 
-// This test is flaky, see http://crbug.com/165118.
-TEST_F(LibDispatchTaskRunnerTest, FLAKY_NonNestable) {
+TEST_F(LibDispatchTaskRunnerTest, NonNestable) {
   task_runner_->PostTask(FROM_HERE, base::BindBlock(^{
       TaskOrderMarker marker(this, "First");
       task_runner_->PostNonNestableTask(FROM_HERE, base::BindBlock(^{
-          TaskOrderMarker marker(this, "Third NonNestable");
+          TaskOrderMarker marker(this, "Second NonNestable");
+          (&message_loop_)->PostTask(FROM_HERE, MessageLoop::QuitClosure());
       }));
   }));
-  task_runner_->PostTask(FROM_HERE, BoundRecordTaskOrder(this, "Second"));
-  DispatchLastTask();
+  message_loop_.Run();
+  task_runner_->Shutdown();
 
   const char* const expectations[] = {
     "BEGIN First",
     "END First",
-    "BEGIN Second",
-    "END Second",
-    "BEGIN Third NonNestable",
-    "END Third NonNestable"
+    "BEGIN Second NonNestable",
+    "END Second NonNestable"
   };
   VerifyTaskOrder(expectations, arraysize(expectations));
 }
@@ -188,6 +185,7 @@ TEST_F(LibDispatchTaskRunnerTest, PostDelayed) {
   }), delta);
   task_runner_->PostTask(FROM_HERE, BoundRecordTaskOrder(this, "Second"));
   message_loop_.Run();
+  task_runner_->Shutdown();
 
   const char* const expectations[] = {
     "BEGIN First",
@@ -200,4 +198,24 @@ TEST_F(LibDispatchTaskRunnerTest, PostDelayed) {
   VerifyTaskOrder(expectations, arraysize(expectations));
 
   EXPECT_GE(run_time, post_time + delta);
+}
+
+TEST_F(LibDispatchTaskRunnerTest, PostAfterShutdown) {
+  EXPECT_TRUE(task_runner_->PostTask(FROM_HERE,
+      BoundRecordTaskOrder(this, "First")));
+  EXPECT_TRUE(task_runner_->PostTask(FROM_HERE,
+      BoundRecordTaskOrder(this, "Second")));
+  task_runner_->Shutdown();
+  EXPECT_FALSE(task_runner_->PostTask(FROM_HERE, base::BindBlock(^{
+      TaskOrderMarker marker(this, "Not Run");
+      ADD_FAILURE() << "Should not run a task after Shutdown";
+  })));
+
+  const char* const expectations[] = {
+    "BEGIN First",
+    "END First",
+    "BEGIN Second",
+    "END Second"
+  };
+  VerifyTaskOrder(expectations, arraysize(expectations));
 }
