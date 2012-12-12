@@ -8,6 +8,7 @@
 #include <dispatch/dispatch.h>
 
 #include "base/single_thread_task_runner.h"
+#include "base/synchronization/waitable_event.h"
 
 namespace base {
 namespace mac {
@@ -48,16 +49,30 @@ class BASE_EXPORT LibDispatchTaskRunner : public base::SingleThreadTaskRunner {
       const Closure& task,
       base::TimeDelta delay) OVERRIDE;
 
+  // This blocks the calling thread until all work on the dispatch queue has
+  // been run and the queue has been destroyed. Destroying a queue requires
+  // ALL retained references to it to be released. Any new tasks posted to
+  // this thread after shutdown are dropped.
+  void Shutdown();
+
   // Returns the dispatch queue associated with this task runner, for use with
   // system APIs that take dispatch queues. The caller is responsible for
   // retaining the result.
+  //
+  // All properties (context, finalizer, etc.) are managed by this class, and
+  // clients should only use the result of this for dispatch_async().
   dispatch_queue_t GetDispatchQueue() const;
 
  protected:
   virtual ~LibDispatchTaskRunner();
 
  private:
+  static void Finalizer(void* context);
+
   dispatch_queue_t queue_;
+
+  // The event on which Shutdown waits until Finalizer runs.
+  base::WaitableEvent queue_finalized_;
 };
 
 }  // namespace mac
