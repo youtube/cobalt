@@ -148,6 +148,7 @@ class MockConnection : public QuicConnection {
   MOCK_METHOD0(OnCanWrite, bool());
 
  private:
+  scoped_ptr<QuicConnectionHelperInterface> helper_;
   DISALLOW_COPY_AND_ASSIGN(MockConnection);
 };
 
