@@ -91,6 +91,22 @@ class TestPackage(object):
     return ['DISABLED_', 'FLAKY_', 'FAILS_']
 
   def _ParseGTestListTests(self, all_tests):
+    """Parses and filters the raw test lists.
+
+    Args:
+    all_tests: The raw test listing with the following format:
+
+      IPCChannelTest.
+        SendMessageInChannelConnected
+      IPCSyncChannelTest.
+        Simple
+        DISABLED_SendWithTimeoutMixedOKAndTimeout
+
+    Returns:
+      A list of non-disabled tests. For the above raw listing:
+
+      [IPCChannelTest.SendMessageInChannelConnected, IPCSyncChannelTest.Simple]
+    """
     ret = []
     current = ''
     disabled_prefixes = self.GetDisabledPrefixes()
