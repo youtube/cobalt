@@ -329,10 +329,6 @@ class SingleTestRunner(BaseTestRunner):
       if self.test_package.rebaseline:
         self.RebaselineTests()
       else:
-        if not self._gtest_filter:
-          self._gtest_filter = ('-' + ':'.join(self.GetDisabledTests()) + ':' +
-                               ':'.join(['*.' + x + '*' for x in
-                                 self.test_package.GetDisabledPrefixes()]))
         self.RunTestsWithFilter()
     except errors.DeviceUnresponsiveError as e:
       # Make sure this device is not attached
