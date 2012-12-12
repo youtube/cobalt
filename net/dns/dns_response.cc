@@ -243,8 +243,7 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
   size_t expected_size = (expected_type == dns_protocol::kTypeAAAA)
       ? kIPv6AddressSize : kIPv4AddressSize;
 
-  uint32 cname_ttl_sec = kuint32max;
-  uint32 addr_ttl_sec = kuint32max;
+  uint32 ttl_sec = kuint32max;
   IPAddressList ip_addresses;
   DnsRecordParser parser = Parser();
   DnsResourceRecord record;
@@ -253,27 +252,27 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
     if (!parser.ReadRecord(&record))
       return DNS_MALFORMED_RESPONSE;
 
-    if (base::strcasecmp(record.name.c_str(), expected_name.c_str()) != 0)
-      return DNS_NAME_MISMATCH;
     if (record.type == dns_protocol::kTypeCNAME) {
       // Following the CNAME chain, only if no addresses seen.
       if (!ip_addresses.empty())
         return DNS_CNAME_AFTER_ADDRESS;
 
+      if (base::strcasecmp(record.name.c_str(), expected_name.c_str()) != 0)
+        return DNS_NAME_MISMATCH;
+
       if (record.rdata.size() !=
           parser.ReadName(record.rdata.begin(), &expected_name))
         return DNS_MALFORMED_CNAME;
 
-      cname_ttl_sec = std::min(cname_ttl_sec, record.ttl);
+      ttl_sec = std::min(ttl_sec, record.ttl);
     } else if (record.type == expected_type) {
       if (record.rdata.size() != expected_size)
         return DNS_SIZE_MISMATCH;
-      if (ip_addresses.empty()) {
-        addr_ttl_sec = record.ttl;
-      } else {
-        if (addr_ttl_sec != record.ttl)
-          return DNS_ADDRESS_TTL_MISMATCH;
-      }
+
+      if (base::strcasecmp(record.name.c_str(), expected_name.c_str()) != 0)
+        return DNS_NAME_MISMATCH;
+
+      ttl_sec = std::min(ttl_sec, record.ttl);
       ip_addresses.push_back(IPAddressNumber(record.rdata.begin(),
                                              record.rdata.end()));
     }
@@ -285,7 +284,7 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
   // If the response passed all the checks so far, then |expected_name| is it.
   *addr_list = AddressList::CreateFromIPAddressList(ip_addresses,
                                                     expected_name);
-  *ttl = base::TimeDelta::FromSeconds(std::min(cname_ttl_sec, addr_ttl_sec));
+  *ttl = base::TimeDelta::FromSeconds(ttl_sec);
   return DNS_PARSE_OK;
 }
 
