@@ -110,12 +110,24 @@ class NET_EXPORT CanonicalCookie {
     last_access_date_ = date;
   }
 
+  // Returns true if the given |url_path| path-matches the cookie-path as
+  // described in section 5.1.4 in RFC 6265.
   bool IsOnPath(const std::string& url_path) const;
+
+  // Returns true if the cookie domain matches the given |host| as described in
+  // section 5.1.3 of RFC 6265.
   bool IsDomainMatch(const std::string& host) const;
+
+  // Returns true if the cookie should be included for the given request |url|.
+  // HTTP only cookies can be filter by using appropriate cookie |options|.
+  // PLEASE NOTE that this method does not check whether a cookie is expired or
+  // not!
+  bool IncludeForRequestURL(const GURL& url,
+                            const CookieOptions& options) const;
 
   std::string DebugString() const;
 
-  // Returns the cookie source when cookies are set for |url|.  This function
+  // Returns the cookie source when cookies are set for |url|. This function
   // is public for unit test purposes only.
   static std::string GetCookieSourceFromURL(const GURL& url);
   static std::string CanonPath(const GURL& url, const ParsedCookie& pc);

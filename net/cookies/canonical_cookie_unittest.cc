@@ -271,4 +271,48 @@ TEST(CanonicalCookieTest, IsOnPath) {
   EXPECT_TRUE(cookie->IsOnPath("/test/sample/bar.html"));
 }
 
+TEST(CanonicalCookieTest, IncludeForRequestURL) {
+  GURL url("http://www.example.com");
+  base::Time creation_time = base::Time::Now();
+  CookieOptions options;
+
+  scoped_ptr<CanonicalCookie> cookie(
+      CanonicalCookie::Create(url, "A=2", creation_time, options));
+  EXPECT_TRUE(cookie->IncludeForRequestURL(url, options));
+  EXPECT_TRUE(cookie->IncludeForRequestURL(
+      GURL("http://www.example.com/foo/bar"), options));
+  EXPECT_TRUE(cookie->IncludeForRequestURL(
+      GURL("https://www.example.com/foo/bar"), options));
+  EXPECT_FALSE(cookie->IncludeForRequestURL(GURL("https://sub.example.com"),
+                                            options));
+  EXPECT_FALSE(cookie->IncludeForRequestURL(GURL("https://sub.www.example.com"),
+                                            options));
+
+  // Test that cookie with a cookie path that does not match the url path are
+  // not included.
+  cookie.reset(CanonicalCookie::Create(url, "A=2; Path=/foo/bar", creation_time,
+                                       options));
+  EXPECT_FALSE(cookie->IncludeForRequestURL(url, options));
+  EXPECT_TRUE(cookie->IncludeForRequestURL(
+      GURL("http://www.example.com/foo/bar/index.html"), options));
+
+  // Test that a secure cookie is not included for a non secure URL.
+  GURL secure_url("https://www.example.com");
+  cookie.reset(CanonicalCookie::Create(secure_url, "A=2; Secure", creation_time,
+                                       options));
+  EXPECT_TRUE(cookie->IsSecure());
+  EXPECT_TRUE(cookie->IncludeForRequestURL(secure_url, options));
+  EXPECT_FALSE(cookie->IncludeForRequestURL(url, options));
+
+  // Test that http only cookies are only included if the include httponly flag
+  // is set on the cookie options.
+  options.set_include_httponly();
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; HttpOnly", creation_time, options));
+  EXPECT_TRUE(cookie->IsHttpOnly());
+  EXPECT_TRUE(cookie->IncludeForRequestURL(url, options));
+  options.set_exclude_httponly();
+  EXPECT_FALSE(cookie->IncludeForRequestURL(url, options));
+}
+
 }  // namespace net
