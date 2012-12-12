@@ -9,6 +9,7 @@ H V MS: org.chromium.android_webview.test.LoadDataWithBaseUrlTest.WAIT_TIMEOUT_S
 H V MS: org.chromium.content.browser.ContentViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At ContentViewTestBase.java
 H V MS: org.chromium.content.browser.test.util.CallbackHelper.WAIT_TIMEOUT_SECONDS isn't final but should be  At CallbackHelper.java
 H V MS: org.chromium.content.browser.test.util.HistoryUtils.WAIT_TIMEOUT_SECONDS isn't final but should be  At HistoryUtils.java
+M B DE: org.chromium.net.X509Util.clearTestRootCertificates() might ignore java.io.IOException  At X509Util.java
 M B FS: Format string should use %n rather than \n in org.chromium.android_webview.test.AwSettingsTest.testUserAgentStringDefault()  At AwSettingsTest.java
 M B Nm: The method name org.chromium.base.test.util.ScalableTimeout.ScaleTimeout(long) doesn't start with a lower case letter  At ScalableTimeout.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.doArchiveTest(AwContents, String, boolean, String)  At ArchiveTest.java
@@ -31,7 +32,6 @@ M C CSM: Shouldn't use synchronized method, please narrow down the synchronizati
 M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SimpleSynchronizedMethod.java
 M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SimpleSynchronizedStaticMethod.java
 M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At TraceEvent.java
-M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At X509Util.java
 M C CST: Shouldn't use synchronized(this), please narrow down the synchronization scope.  At HttpAuthDatabase.java
 M C CST: Shouldn't use synchronized(this), please narrow down the synchronization scope.  At SimpleSynchronizedThis.java
 M C IJU: TestCase org.chromium.android_webview.test.AndroidWebViewTestBase defines setUp that doesn't call super.setUp()  At AndroidWebViewTestBase.java
