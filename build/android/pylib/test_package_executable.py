@@ -48,7 +48,7 @@ class TestPackageExecutable(TestPackage):
     ret_code_file = tempfile.NamedTemporaryFile()
     try:
       if not self.adb.Adb().Pull(
-          self.adb.GetExternalStorage() + '/' +
+          constants.TEST_EXECUTABLE_DIR + '/' +
           TestPackageExecutable._TEST_RUNNER_RET_VAL_FILE,
           ret_code_file.name):
         logging.critical('Unable to pull gtest ret val file %s',

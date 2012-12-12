@@ -133,6 +133,10 @@ class TestPackage(object):
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/content_resources.pak',
           external_storage + '/paks/content_resources.pak')
+    if self.test_suite_basename == 'breakpad_unittests':
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/linux_dumper_unittest_helper',
+          constants.TEST_EXECUTABLE_DIR + '/linux_dumper_unittest_helper')
 
   def _WatchTestOutput(self, p):
     """Watches the test output.
