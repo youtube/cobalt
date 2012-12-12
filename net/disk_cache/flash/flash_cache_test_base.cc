@@ -8,7 +8,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/time.h"
 #include "net/disk_cache/flash/format.h"
-#include "net/disk_cache/flash/log_structured_store.h"
+#include "net/disk_cache/flash/log_store.h"
 #include "net/disk_cache/flash/storage.h"
 
 namespace {
@@ -34,13 +34,12 @@ void FlashCacheTest::SetUp() {
   storage_.reset(new disk_cache::Storage(path, storage_size));
   ASSERT_TRUE(storage_->Init());
 
-  log_structured_store_.reset(
-      new disk_cache::LogStructuredStore(storage_.get()));
-  ASSERT_TRUE(log_structured_store_->Init());
+  log_store_.reset(new disk_cache::LogStore(storage_.get()));
+  ASSERT_TRUE(log_store_->Init());
 }
 
 void FlashCacheTest::TearDown() {
-  ASSERT_TRUE(log_structured_store_->Close());
-  log_structured_store_.reset();
+  ASSERT_TRUE(log_store_->Close());
+  log_store_.reset();
   storage_.reset();
 }
