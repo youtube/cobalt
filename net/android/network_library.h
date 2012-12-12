@@ -34,6 +34,13 @@ enum VerifyResult {
 VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
                                  const std::string& auth_type);
 
+// Adds a certificate as a root trust certificate to the trust manager.
+// |cert| is DER encoded certificate, |len| is its length in bytes.
+void AddTestRootCertificate(const uint8* cert, size_t len);
+
+// Removes all root certificates added by |AddTestRootCertificate| calls.
+void ClearTestRootCertificates();
+
 // Helper for the <keygen> handler. Passes the DER-encoded key  pair via
 // JNI to the Credentials store. Note that the public key must be a DER
 // encoded SubjectPublicKeyInfo (X.509), as returned by i2d_PUBKEY()
