@@ -81,9 +81,8 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
 void ShellDemuxerStream::ReadTask(const ReadCB &read_cb) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   base::AutoLock auto_lock(lock_);
+
   // Don't accept any additional reads if we've been told to stop.
-  //
-  // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
     read_cb.Run(DemuxerStream::kOk,
                 scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
@@ -94,8 +93,8 @@ void ShellDemuxerStream::ReadTask(const ReadCB &read_cb) {
   read_queue_.push_back(read_cb);
   FulfillPendingReadLocked();
 
-  // Check if there are still pending reads, demux some more.
-  if (!read_queue_.empty()) {
+  // if there are still pending reads and no available data demux some more.
+  if (!read_queue_.empty() && buffer_queue_.empty()) {
     demuxer_->PostDemuxTask();
   }
 }
@@ -149,6 +148,7 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
 void ShellDemuxerStream::FulfillPendingReadLocked() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   lock_.AssertAcquired();
+
   if (buffer_queue_.empty() || read_queue_.empty()) {
     return;
   }
@@ -232,10 +232,10 @@ void ShellDemuxer::PostDemuxTask() {
 }
 
 bool ShellDemuxer::StreamsHavePendingReads() {
-  if (audio_demuxer_stream_ && audio_demuxer_stream_->HasPendingReads()) {
+  if (video_demuxer_stream_ && video_demuxer_stream_->HasPendingReads()) {
     return true;
   }
-  if (video_demuxer_stream_ && video_demuxer_stream_->HasPendingReads()) {
+  if (audio_demuxer_stream_ && audio_demuxer_stream_->HasPendingReads()) {
     return true;
   }
   return false;
@@ -244,7 +244,7 @@ bool ShellDemuxer::StreamsHavePendingReads() {
 void ShellDemuxer::DemuxTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  // if neither stream is waiting on data we don't need to demux anymore, return
+  // if neither stream is waiting on data simply return
   if (!StreamsHavePendingReads()) {
     return;
   }
@@ -260,9 +260,11 @@ void ShellDemuxer::DemuxTask() {
     }
   }
 
-  // if an additional request for data has come in to the demux streams
-  // automatically post another DemuxTask
-  if (StreamsHavePendingReads()) {
+  // if an additional request for data has come in to the demux streams,
+  // and we aren't over-allocated in DecoderBuffers, automatically post another
+  // demux task
+  if (StreamsHavePendingReads() &&
+      !ShellBufferFactory::IsNearDecoderBufferOverflow()) {
     PostDemuxTask();
   }
 }
@@ -773,8 +775,8 @@ bool ShellDemuxer::ExtractAndEnqueueVideoNALUs(uint64_t stream_position,
     if (nal_size > 0 && nal_size < ShellVideoDecoderBufferMaxSize) {
       // create a decoder buffer, download the bytes, and enqueue
       scoped_refptr<DecoderBuffer> buffer =
-        ShellBufferFactory::GetVideoDecoderBuffer();
-        bytes_read = BlockingRead(
+          ShellBufferFactory::GetVideoDecoderBuffer();
+      bytes_read = BlockingRead(
           stream_position + stream_offset,
           nal_size,
           buffer->GetWritableData() + video_buffer_padding_);

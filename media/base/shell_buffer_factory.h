@@ -33,19 +33,34 @@ namespace media {
 // separate functions.
 
 // These constants are used by the demuxer to determine if an AU should even
-// be downloaded
+// be downloaded. We also allocate each DecoderBuffer to this size.
 static const int ShellVideoDecoderBufferMaxSize = 256 * 1024;
 static const int ShellAudioDecoderBufferMaxSize = 16 * 1024;
+
+// maximum total size in number of buffers we will recycle. We will continue
+// to allocate buffers above this maximum total count, but will free them when
+// they are returned instead of recycling them.
+static const int ShellMaxVideoDecoderBufferCount = 16;
+static const int ShellMaxAudioDecoderBufferCount = 16;
 
 class MEDIA_EXPORT ShellBufferFactory {
  public:
   static void Initialize();
+
+  // video DecoderBuffers
   static scoped_refptr<DecoderBuffer> GetVideoDecoderBuffer();
-  static void ReturnVideoDecoderBuffer(scoped_refptr<DecoderBuffer>
-      video_buffer);
+  static void ReturnVideoDecoderBuffer(
+      scoped_refptr<DecoderBuffer> video_buffer);
+
+  // Audio DecoderBuffers
   static scoped_refptr<DecoderBuffer> GetAudioDecoderBuffer();
-  static void ReturnAudioDecoderBuffer(scoped_refptr<DecoderBuffer>
-      audio_buffer);
+  static void ReturnAudioDecoderBuffer(
+      scoped_refptr<DecoderBuffer> audio_buffer);
+
+  // returns true if there are almost more than ShellMaxXXDecoderBufferCount
+  // buffers allocated.
+  static bool IsNearDecoderBufferOverflow();
+
   static void Terminate();
 
  private:

@@ -17,6 +17,7 @@
 #include "shell_buffer_factory.h"
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 namespace media {
 
@@ -31,8 +32,7 @@ void ShellBufferFactory::Initialize() {
 }
 
 // static
-scoped_refptr<DecoderBuffer>
-    ShellBufferFactory::GetVideoDecoderBuffer() {
+scoped_refptr<DecoderBuffer> ShellBufferFactory::GetVideoDecoderBuffer() {
   DCHECK(instance_);
   base::AutoLock lock(instance_->lock_);
   scoped_refptr<DecoderBuffer> video_buffer;
@@ -44,6 +44,12 @@ scoped_refptr<DecoderBuffer>
     // allocate new buffer and set a handle
     video_buffer = new DecoderBuffer(ShellVideoDecoderBufferMaxSize);
     video_buffer->SetHandle(++instance_->buffer_handle_counter_);
+    if (instance_->allocated_video_buffers_map_.size() >=
+        ShellMaxVideoDecoderBufferCount) {
+      DLOG(WARNING) << base::StringPrintf(
+          "allocating excess video DecoderBuffer, total count now: %d",
+          instance_->allocated_video_buffers_map_.size() + 1);
+    }
   }
   DCHECK(video_buffer);
   // store buffer in allocated map
@@ -58,18 +64,25 @@ void ShellBufferFactory::ReturnVideoDecoderBuffer(
   DCHECK(instance_);
   base::AutoLock lock(instance_->lock_);
   DecoderBufferMap::iterator it = instance_->allocated_video_buffers_map_.find(
-    video_buffer->GetHandle());
+      video_buffer->GetHandle());
   // must always find it
   DCHECK(it != instance_->allocated_video_buffers_map_.end());
   // remove from allocated map
   instance_->allocated_video_buffers_map_.erase(it);
-  // add to free list
-  instance_->free_video_buffers_list_.push_back(video_buffer);
+  int total_video_buffers = instance_->free_video_buffers_list_.size() +
+      instance_->allocated_video_buffers_map_.size();
+  // add to free list if we aren't over-allocated
+  if (total_video_buffers < ShellMaxVideoDecoderBufferCount) {
+    instance_->free_video_buffers_list_.push_back(video_buffer);
+  } else {
+    DLOG(WARNING) << base::StringPrintf(
+        "freeing excess video DecoderBuffer, total count now: %d",
+        total_video_buffers);
+  }
 }
 
 // static
-scoped_refptr<DecoderBuffer>
-    ShellBufferFactory::GetAudioDecoderBuffer() {
+scoped_refptr<DecoderBuffer> ShellBufferFactory::GetAudioDecoderBuffer() {
   DCHECK(instance_);
   base::AutoLock lock(instance_->lock_);
   scoped_refptr<DecoderBuffer> audio_buffer;
@@ -81,6 +94,12 @@ scoped_refptr<DecoderBuffer>
     // allocate new buffer and set a handle
     audio_buffer = new DecoderBuffer(ShellAudioDecoderBufferMaxSize);
     audio_buffer->SetHandle(++instance_->buffer_handle_counter_);
+    if (instance_->allocated_audio_buffers_map_.size() >=
+        ShellMaxAudioDecoderBufferCount) {
+      DLOG(WARNING) << base::StringPrintf(
+          "allocating excess audio DecoderBuffer, total count now: %d",
+          instance_->allocated_audio_buffers_map_.size() + 1);
+    }
   }
   DCHECK(audio_buffer);
   // store buffer in allocated map
@@ -95,13 +114,35 @@ void ShellBufferFactory::ReturnAudioDecoderBuffer(
   DCHECK(instance_);
   base::AutoLock lock(instance_->lock_);
   DecoderBufferMap::iterator it = instance_->allocated_audio_buffers_map_.find(
-    audio_buffer->GetHandle());
+      audio_buffer->GetHandle());
   // must always find it
   DCHECK(it != instance_->allocated_audio_buffers_map_.end());
   // remove from allocated map
   instance_->allocated_audio_buffers_map_.erase(it);
-  // add to free list
-  instance_->free_audio_buffers_list_.push_back(audio_buffer);
+  // add to free list if we aren't over-allocated
+  int total_audio_buffers = instance_->free_audio_buffers_list_.size() +
+      instance_->allocated_audio_buffers_map_.size();
+  if (total_audio_buffers < ShellMaxAudioDecoderBufferCount) {
+    instance_->free_audio_buffers_list_.push_back(audio_buffer);
+  } else {
+    DLOG(WARNING) << base::StringPrintf(
+        "freeing excess audio DecoderBuffer, total count now: %d",
+        total_audio_buffers);
+  }
+}
+
+// static
+bool ShellBufferFactory::IsNearDecoderBufferOverflow() {
+  base::AutoLock lock(instance_->lock_);
+  // return true if we are down to only one buffer in either audio
+  // or video max buffer counts
+  return (instance_->free_video_buffers_list_.size() +
+          instance_->allocated_video_buffers_map_.size() >
+          ShellMaxVideoDecoderBufferCount - 1) ||
+         (instance_->free_audio_buffers_list_.size() +
+          instance_->allocated_audio_buffers_map_.size() >
+          ShellMaxAudioDecoderBufferCount - 1);
+
 }
 
 // static
