@@ -119,19 +119,18 @@ class QuicHttpStreamTest : public ::testing::Test {
     socket_data_.reset(new StaticSocketDataProvider(NULL, 0, mock_writes_.get(),
                                                     writes_.size()));
 
-    socket_.reset(new MockUDPClientSocket(socket_data_.get(),
-                                          net_log_.net_log()));
-    socket_->Connect(peer_addr_);
+    MockUDPClientSocket* socket = new MockUDPClientSocket(socket_data_.get(),
+                                                          net_log_.net_log());
+    socket->Connect(peer_addr_);
     runner_ = new TestTaskRunner(&clock_);
     scheduler_ = new MockScheduler();
     EXPECT_CALL(*scheduler_, TimeUntilSend(_)).
         WillRepeatedly(testing::Return(QuicTime::Delta()));
-    connection_ = new TestQuicConnection(
-        guid_, peer_addr_, new QuicConnectionHelper(
-            runner_.get(), &clock_, socket_.get()));
+    helper_ = new QuicConnectionHelper(runner_.get(), &clock_, socket);
+    connection_ = new TestQuicConnection(guid_, peer_addr_, helper_);
     connection_->set_visitor(&visitor_);
     connection_->SetScheduler(scheduler_);
-    session_.reset(new QuicClientSession(connection_));
+    session_.reset(new QuicClientSession(connection_, helper_, NULL));
     CryptoHandshakeMessage message;
     message.tag = kSHLO;
     session_->GetCryptoStream()->OnHandshakeMessage(message);
@@ -198,6 +197,7 @@ class QuicHttpStreamTest : public ::testing::Test {
   scoped_array<MockWrite> mock_writes_;
   MockClock clock_;
   TestQuicConnection* connection_;
+  QuicConnectionHelper* helper_;
   testing::StrictMock<MockConnectionVisitor> visitor_;
   scoped_ptr<QuicHttpStream> stream_;
   scoped_ptr<QuicClientSession> session_;
@@ -232,7 +232,6 @@ class QuicHttpStreamTest : public ::testing::Test {
   IPEndPoint peer_addr_;
   QuicPacketCreator creator_;
   QuicPacketHeader header_;
-  scoped_ptr<MockUDPClientSocket> socket_;
   scoped_ptr<StaticSocketDataProvider> socket_data_;
   std::vector<PacketToWrite> writes_;
 };
