@@ -13,7 +13,7 @@
 
 namespace disk_cache {
 
-class LogStructuredStore;
+class LogStore;
 class Storage;
 
 }  // namespace disk_cache
@@ -26,7 +26,7 @@ class FlashCacheTest : public testing::Test {
   virtual void SetUp() OVERRIDE;
   virtual void TearDown() OVERRIDE;
 
-  scoped_ptr<disk_cache::LogStructuredStore> log_structured_store_;
+  scoped_ptr<disk_cache::LogStore> log_store_;
   scoped_ptr<disk_cache::Storage> storage_;
   base::ScopedTempDir temp_dir_;
   int32 num_segments_in_storage_;
