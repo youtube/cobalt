@@ -7,6 +7,10 @@
 #ifndef NET_QUIC_RELIABLE_QUIC_STREAM_H_
 #define NET_QUIC_RELIABLE_QUIC_STREAM_H_
 
+#include <sys/types.h>
+
+#include <list>
+
 #include "net/quic/quic_stream_sequencer.h"
 
 namespace net {
@@ -24,6 +28,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   bool WillAcceptStreamFrame(const QuicStreamFrame& frame) const;
   virtual bool OnStreamFrame(const QuicStreamFrame& frame);
+
+  virtual void OnCanWrite();
 
   // Called when we get a stream reset from the client.
   // The rst will be passed through the sequencer, which will call
@@ -59,26 +65,50 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   const IPEndPoint& GetPeerAddress() const;
 
  protected:
+  // TODO(alyssar): document the return value -- whether it can be negative and
+  // how a failure is reported.
   virtual int WriteData(base::StringPiece data, bool fin);
+
   // Close the read side of the socket.  Further frames will not be accepted.
   virtual void CloseReadSide();
+
   // Close the write side of the socket.  Further writes will fail.
   void CloseWriteSide();
 
   QuicSession* session() { return session_; }
 
+  // Sends as much of 'data' to the connection as the connection will consume,
+  // and then buffers any remaining data in queued_data_.
+  // Returns the number of bytes consumed or buffered, which should always equal
+  // data.size()
+  int WriteOrBuffer(base::StringPiece data, bool fin);
+
+  // Sends as much of 'data' to the connection as the connection will consume.
+  // Returns the number of bytes consumed by the connection.
+  int WriteDataInternal(base::StringPiece data, bool fin);
+
  private:
   friend class ReliableQuicStreamPeer;
+  friend class QuicStreamUtils;
+
+  std::list<string> queued_data_;
 
   QuicStreamSequencer sequencer_;
   QuicStreamId id_;
   QuicStreamOffset offset_;
   QuicSession* session_;
+  // Bytes read and written refer to payload bytes only: they do not include
+  // framing, encryption overhead etc.
+  uint64 stream_bytes_read_;
+  uint64 stream_bytes_written_;
   QuicErrorCode error_;
   // True if the read side is closed and further frames should be rejected.
   bool read_side_closed_;
   // True if the write side is closed, and further writes should fail.
   bool write_side_closed_;
+
+  bool fin_buffered_;
+  bool fin_sent_;
 };
 
 }  // namespace net

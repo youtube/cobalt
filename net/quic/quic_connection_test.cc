@@ -7,10 +7,12 @@
 #include "net/base/net_errors.h"
 #include "net/quic/congestion_control/quic_receipt_metrics_collector.h"
 #include "net/quic/congestion_control/quic_send_scheduler.h"
+#include "net/quic/crypto/null_encrypter.h"
 #include "net/quic/crypto/quic_decrypter.h"
 #include "net/quic/crypto/quic_encrypter.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/quic_test_utils.h"
+#include "net/quic/quic_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -43,6 +45,7 @@ class QuicConnectionPeer {
     return &connection->outgoing_ack_;
   }
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(QuicConnectionPeer);
 };
 
@@ -79,7 +82,7 @@ class TestCollector : public QuicReceiptMetricsCollector {
 
 class TestConnectionHelper : public QuicConnectionHelperInterface {
  public:
-  TestConnectionHelper(MockClock* clock)
+  explicit TestConnectionHelper(MockClock* clock)
       : clock_(clock),
         blocked_(false) {
   }
@@ -773,6 +776,7 @@ TEST_F(QuicConnectionTest, DISABLED_TestQueued) {
 
   // Unblock the writes and actually send.
   helper_->set_blocked(false);
+  EXPECT_CALL(visitor_, OnCanWrite());
   EXPECT_TRUE(connection_.OnCanWrite());
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -931,6 +935,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenSend) {
       QuicTime::Delta()));
   clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(1));
   EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+  EXPECT_CALL(visitor_, OnCanWrite());
   connection_.OnCanWrite();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -951,6 +956,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenRetransmit) {
   // Ensure the scheduler is notified this is a retransmit.
   EXPECT_CALL(*scheduler_, SentPacket(1, _, true));
   clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(1));
+  EXPECT_CALL(visitor_, OnCanWrite());
   connection_.OnCanWrite();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -980,6 +986,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndSend) {
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillRepeatedly(testing::Return(
       QuicTime::Delta()));
   EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+  EXPECT_CALL(visitor_, OnCanWrite());
   ProcessAckPacket(&frame);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -999,6 +1006,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndHold) {
   QuicAckFrame frame(0, QuicTime(), 1);
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
       QuicTime::Delta::FromMicroseconds(1)));
+  EXPECT_CALL(visitor_, OnCanWrite());
   ProcessAckPacket(&frame);
 
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
@@ -1013,8 +1021,35 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenOnCanWrite) {
 
   // OnCanWrite should not send the packet (because of the delay)
   // but should still return true.
+  EXPECT_CALL(visitor_, OnCanWrite());
   EXPECT_TRUE(connection_.OnCanWrite());
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
+}
+
+TEST_F(QuicConnectionTest, TestQueueLimitsOnSendStreamData) {
+  // Limit to one byte per packet.
+  size_t ciphertext_size = NullEncrypter().GetCiphertextSize(1);
+  connection_.options()->max_packet_length =
+      ciphertext_size + QuicUtils::StreamFramePacketOverhead(1);
+
+  // Queue the first packet.
+  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
+      QuicTime::Delta::FromMicroseconds(10)));
+  EXPECT_EQ(6u,
+            connection_.SendStreamData(1, "EnoughDataToQueue", 0, false, NULL));
+  EXPECT_EQ(6u, connection_.NumQueuedPackets());
+}
+
+TEST_F(QuicConnectionTest, LoopThroughSendingPackets) {
+  // Limit to one byte per packet.
+  size_t ciphertext_size = NullEncrypter().GetCiphertextSize(1);
+  connection_.options()->max_packet_length =
+      ciphertext_size + QuicUtils::StreamFramePacketOverhead(1);
+
+  // Queue the first packet.
+  EXPECT_CALL(*scheduler_, SentPacket(_, _, _)).Times(17);
+  EXPECT_EQ(17u,
+            connection_.SendStreamData(1, "EnoughDataToQueue", 0, false, NULL));
 }
 
 }  // namespace

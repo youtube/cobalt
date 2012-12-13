@@ -107,6 +107,7 @@ class MockConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD1(OnRstStream, void(const QuicRstStreamFrame& frame));
   MOCK_METHOD2(ConnectionClose, void(QuicErrorCode error, bool from_peer));
   MOCK_METHOD1(OnAck, void(AckedPackets acked_packets));
+  MOCK_METHOD0(OnCanWrite, bool());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockConnectionVisitor);

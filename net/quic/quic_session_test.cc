@@ -15,6 +15,7 @@
 using base::hash_map;
 using std::set;
 using testing::_;
+using testing::InSequence;
 
 namespace net {
 namespace test {
@@ -40,6 +41,8 @@ class TestStream : public ReliableQuicStream {
   virtual uint32 ProcessData(const char* data, uint32 data_len) {
     return data_len;
   }
+
+  MOCK_METHOD0(OnCanWrite, void());
 };
 
 class TestSession : public QuicSession {
@@ -69,6 +72,11 @@ class TestSession : public QuicSession {
 
   ReliableQuicStream* GetIncomingReliableStream(QuicStreamId stream_id) {
     return QuicSession::GetIncomingReliableStream(stream_id);
+  }
+
+  // Helper method for gmock
+  void MarkTwoWriteBlocked() {
+    this->MarkWriteBlocked(2);
   }
 
   TestCryptoStream crypto_stream_;
@@ -151,6 +159,41 @@ TEST_F(QuicSessionTest, StreamIdTooLarge) {
   EXPECT_CALL(*connection_, SendConnectionClose(QUIC_INVALID_STREAM_ID));
   scoped_ptr<ReliableQuicStream> stream5(
       session_.GetIncomingReliableStream(105));
+}
+
+TEST_F(QuicSessionTest, OnCanWrite) {
+  scoped_ptr<TestStream> stream2(session_.CreateOutgoingReliableStream());
+  scoped_ptr<TestStream> stream4(session_.CreateOutgoingReliableStream());
+  scoped_ptr<TestStream> stream6(session_.CreateOutgoingReliableStream());
+
+  session_.MarkWriteBlocked(2);
+  session_.MarkWriteBlocked(6);
+  session_.MarkWriteBlocked(4);
+
+  InSequence s;
+  EXPECT_CALL(*stream2.get(), OnCanWrite()).WillOnce(
+      // Reregister, to test the loop limit.
+      testing::InvokeWithoutArgs(&session_, &TestSession::MarkTwoWriteBlocked));
+  EXPECT_CALL(*stream6.get(), OnCanWrite());
+  EXPECT_CALL(*stream4.get(), OnCanWrite());
+
+  EXPECT_FALSE(session_.OnCanWrite());
+}
+
+TEST_F(QuicSessionTest, OnCanWriteWithClosedStream) {
+  scoped_ptr<TestStream> stream2(session_.CreateOutgoingReliableStream());
+  scoped_ptr<TestStream> stream4(session_.CreateOutgoingReliableStream());
+  scoped_ptr<TestStream> stream6(session_.CreateOutgoingReliableStream());
+
+  session_.MarkWriteBlocked(2);
+  session_.MarkWriteBlocked(6);
+  session_.MarkWriteBlocked(4);
+  CloseStream(6);
+
+  InSequence s;
+  EXPECT_CALL(*stream2.get(), OnCanWrite());
+  EXPECT_CALL(*stream4.get(), OnCanWrite());
+  EXPECT_TRUE(session_.OnCanWrite());
 }
 
 }  // namespace
