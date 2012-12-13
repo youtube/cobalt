@@ -27,9 +27,7 @@
 3.2.5  Chrome is installed on device.
 4. Run the binary in the device and stream the log to the host.
 4.1. Optionally, filter specific tests.
-4.2. Optionally, rebaseline: run the available tests and update the
-     suppressions file for failures.
-4.3. If we're running a single test suite and we have multiple devices
+4.2. If we're running a single test suite and we have multiple devices
      connected, we'll shard the tests.
 5. Clean up the device.
 
@@ -59,18 +57,16 @@ import subprocess
 import sys
 import time
 
+import emulator
 from pylib import android_commands
-from pylib.base_test_sharder import BaseTestSharder
 from pylib import buildbot_report
 from pylib import cmd_helper
-from pylib import constants
 from pylib import debug_info
-import emulator
 from pylib import ports
 from pylib import run_tests_helper
 from pylib import test_options_parser
+from pylib.base_test_sharder import BaseTestSharder
 from pylib.single_test_runner import SingleTestRunner
-from pylib.test_result import BaseTestResult, TestResults
 
 
 _TEST_SUITES = ['base_unittests',
@@ -89,7 +85,7 @@ _TEST_SUITES = ['base_unittests',
 
 
 def FullyQualifiedTestSuites(exe, option_test_suite, build_type):
-  """Return a fully qualified list
+  """Get a list of absolute paths to test suite targets.
 
   Args:
     exe: if True, use the executable-based test runner.
@@ -189,7 +185,7 @@ class TestSharder(BaseTestSharder):
   """Responsible for sharding the tests on the connected devices."""
 
   def __init__(self, attached_devices, test_suite, gtest_filter,
-               test_arguments, timeout, rebaseline, performance_test,
+               test_arguments, timeout, performance_test,
                cleanup_test_files, tool, log_dump_name, fast_and_loose,
                build_type, in_webkit_checkout):
     BaseTestSharder.__init__(self, attached_devices, build_type)
@@ -198,54 +194,62 @@ class TestSharder(BaseTestSharder):
     self.gtest_filter = gtest_filter or ''
     self.test_arguments = test_arguments
     self.timeout = timeout
-    self.rebaseline = rebaseline
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
     self.log_dump_name = log_dump_name
     self.fast_and_loose = fast_and_loose
-    self.build_type = build_type
     self.in_webkit_checkout = in_webkit_checkout
-    self.tests = []
+    self.all_tests = []
     if not self.gtest_filter:
       # No filter has been specified, let's add all tests then.
-      self.tests, self.attached_devices = self._GetTests()
+      self.all_tests = self._GetAllEnabledTests()
+    self.tests = self.all_tests
 
-  def _GetTests(self):
-    """Returns a tuple of (all_tests, available_devices).
+  def _GetAllEnabledTests(self):
+    """Returns a list of all enabled tests.
 
-    Tries to obtain the list of available tests.
+    Obtains a list of enabled tests from the test package on the device,
+    then filters it again using the diabled list on the host.
+
     Raises Exception if all devices failed.
     """
     available_devices = list(self.attached_devices)
     while available_devices:
       try:
-        logging.info('Obtaining tests from %s', available_devices[-1])
-        all_tests = self._GetTestsFromDevice(available_devices[-1])
-        return all_tests, available_devices
+        return self._GetTestsFromDevice(available_devices[-1])
       except Exception as e:
-        logging.info('Failed obtaining tests from %s %s',
-                     available_devices[-1], e)
+        logging.warning('Failed obtaining tests from %s %s',
+                        current_device, e)
         available_devices.pop()
+
     raise Exception('No device available to get the list of tests.')
 
   def _GetTestsFromDevice(self, device):
-    test = SingleTestRunner(device, self.test_suite, self.gtest_filter,
-                            self.test_arguments, self.timeout, self.rebaseline,
-                            self.performance_test, self.cleanup_test_files,
-                            self.tool, 0,
-                            not not self.log_dump_name, self.fast_and_loose,
-                            self.build_type, self.in_webkit_checkout)
+    logging.info('Obtaining tests from %s', device)
+    test_runner = SingleTestRunner(
+        device,
+        self.test_suite,
+        self.gtest_filter,
+        self.test_arguments,
+        self.timeout,
+        self.performance_test,
+        self.cleanup_test_files,
+        self.tool,
+        0,
+        not not self.log_dump_name,
+        self.fast_and_loose,
+        self.build_type,
+        self.in_webkit_checkout)
     # The executable/apk needs to be copied before we can call GetAllTests.
-    test.test_package.StripAndCopyExecutable()
-    all_tests = test.test_package.GetAllTests()
-    if not self.rebaseline:
-      disabled_list = test.GetDisabledTests()
-      # Only includes tests that do not have any match in the disabled list.
-      all_tests = filter(lambda t:
-                         not any([fnmatch.fnmatch(t, disabled_pattern)
-                                  for disabled_pattern in disabled_list]),
-                         all_tests)
+    test_runner.test_package.StripAndCopyExecutable()
+    all_tests = test_runner.test_package.GetAllTests()
+    disabled_list = test_runner.GetDisabledTests()
+    # Only includes tests that do not have any match in the disabled list.
+    all_tests = filter(lambda t:
+                       not any([fnmatch.fnmatch(t, disabled_pattern)
+                                for disabled_pattern in disabled_list]),
+                       all_tests)
     return all_tests
 
   def CreateShardedTestRunner(self, device, index):
@@ -262,24 +266,29 @@ class TestSharder(BaseTestSharder):
     shard_size = (len(self.tests) + device_num - 1) / device_num
     shard_test_list = self.tests[index * shard_size : (index + 1) * shard_size]
     test_filter = ':'.join(shard_test_list) + self.gtest_filter
-    return SingleTestRunner(device, self.test_suite,
-                            test_filter, self.test_arguments, self.timeout,
-                            self.rebaseline, self.performance_test,
-                            self.cleanup_test_files, self.tool, index,
-                            not not self.log_dump_name, self.fast_and_loose,
-                            self.build_type, self.in_webkit_checkout)
+    return SingleTestRunner(
+        device,
+        self.test_suite,
+        test_filter,
+        self.test_arguments,
+        self.timeout,
+        self.performance_test,
+        self.cleanup_test_files, self.tool, index,
+        not not self.log_dump_name,
+        self.fast_and_loose,
+        self.build_type,
+        self.in_webkit_checkout)
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
     test_results.LogFull('Unit test', os.path.basename(self.test_suite),
-                         self.build_type, self.tests)
+                         self.build_type, self.all_tests)
     test_results.PrintAnnotation()
-    if test_results.failed and self.rebaseline:
-      test_runners[0].UpdateFilter(test_results.failed)
     if self.log_dump_name:
       # Zip all debug info outputs into a file named by log_dump_name.
       debug_info.GTestDebugInfo.ZipAndCleanResults(
-          os.path.join(cmd_helper.OutDirectory.get(), self.build_type,
+          os.path.join(
+              cmd_helper.OutDirectory.get(), self.build_type,
               'debug_info_dumps'),
           self.log_dump_name)
 
@@ -305,7 +314,7 @@ def _RunATestSuite(options):
   if options.use_emulator:
     for n in range(options.emulator_count):
       t = TimeProfile('Emulator launch %d' % n)
-      avd_name =  None
+      avd_name = None
       if n > 0:
         # Creates a temporary AVD for the extra emulators.
         avd_name = 'run_tests_avd_%d' % n
@@ -333,15 +342,22 @@ def _RunATestSuite(options):
     raise Exception('Failed to reset test server port.')
 
   if options.performance_test or options.gtest_filter:
-    # These configuration can't be split in multiple devices.
+    logging.warning('Sharding is not possible with these configurations.')
     attached_devices = [attached_devices[0]]
-  sharder = TestSharder(attached_devices, options.test_suite,
-                        options.gtest_filter, options.test_arguments,
-                        options.timeout, options.rebaseline,
-                        options.performance_test,
-                        options.cleanup_test_files, options.tool,
-                        options.log_dump, options.fast_and_loose,
-                        options.build_type, options.webkit)
+
+  sharder = TestSharder(
+      attached_devices,
+      options.test_suite,
+      options.gtest_filter,
+      options.test_arguments,
+      options.timeout,
+      options.performance_test,
+      options.cleanup_test_files,
+      options.tool,
+      options.log_dump,
+      options.fast_and_loose,
+      options.build_type,
+      options.webkit)
   test_results = sharder.RunShardedTests()
 
   for buildbot_emulator in buildbot_emulators:
@@ -402,9 +418,6 @@ def main(argv):
                            'the build type. Only for non-Chromium uses.')
   option_parser.add_option('-d', '--device', dest='test_device',
                            help='Target device the test suite to run ')
-  option_parser.add_option('-r', dest='rebaseline',
-                           help='Rebaseline and update *testsuite_disabled',
-                           action='store_true')
   option_parser.add_option('-f', '--gtest_filter', dest='gtest_filter',
                            help='gtest filter')
   option_parser.add_option('-a', '--test_arguments', dest='test_arguments',
@@ -447,14 +460,20 @@ def main(argv):
                            'the APK.')
 
   options, args = option_parser.parse_args(argv)
+
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
     option_parser.print_usage()
     sys.exit(1)
+
   run_tests_helper.SetLogLevel(options.verbose_count)
+
   if options.out_directory:
     cmd_helper.OutDirectory.set(options.out_directory)
-  emulator.DeleteAllTempAVDs()
+
+  if options.use_emulator:
+    emulator.DeleteAllTempAVDs()
+
   failed_tests_count = Dispatch(options)
 
   # Failures of individual test suites are communicated by printing a

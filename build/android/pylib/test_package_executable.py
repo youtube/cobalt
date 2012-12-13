@@ -20,7 +20,7 @@ class TestPackageExecutable(TestPackage):
 
   _TEST_RUNNER_RET_VAL_FILE = 'gtest_retval'
 
-  def __init__(self, adb, device, test_suite, timeout, rebaseline,
+  def __init__(self, adb, device, test_suite, timeout,
                performance_test, cleanup_test_files, tool, dump_debug_info,
                symbols_dir=None):
     """
@@ -29,8 +29,6 @@ class TestPackageExecutable(TestPackage):
       device: Device to run the tests.
       test_suite: A specific test suite to run, empty to run all.
       timeout: Timeout for each test.
-      rebaseline: Whether or not to run tests in isolation and update the
-          filter.
       performance_test: Whether or not performance test(s).
       cleanup_test_files: Whether or not to cleanup test files on device.
       tool: Name of the Valgrind tool.
@@ -38,7 +36,7 @@ class TestPackageExecutable(TestPackage):
       symbols_dir: Directory to put the stripped binaries.
     """
     TestPackage.__init__(self, adb, device, test_suite, timeout,
-                         rebaseline, performance_test, cleanup_test_files,
+                         performance_test, cleanup_test_files,
                          tool, dump_debug_info)
     self.symbols_dir = symbols_dir
 
