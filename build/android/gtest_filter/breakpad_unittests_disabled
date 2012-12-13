@@ -1,1 +1,5 @@
 FileIDStripTest.StripSelf
+# crbug.com/165916
+ExceptionHandlerTest.InstructionPointerMemory
+ExceptionHandlerTest.InstructionPointerMemoryMinBound
+ExceptionHandlerTest.InstructionPointerMemoryMaxBound
