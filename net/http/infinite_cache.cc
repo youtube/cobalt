@@ -700,6 +700,7 @@ bool InfiniteCache::Worker::WriteData(PlatformFile file) {
   scoped_array<char> buffer(new char[kBufferSize]);
   size_t offset = sizeof(Header);
   uint32 hash = adler32(0, Z_NULL, 0);
+  int unused_entries = 0;
 
   DCHECK_EQ(header_->num_entries, static_cast<int32>(map_.size()));
   KeyMap::iterator iterator = map_.begin();
@@ -714,6 +715,8 @@ bool InfiniteCache::Worker::WriteData(PlatformFile file) {
         NOTREACHED();
         return false;
       }
+      if (!iterator->second.use_count)
+        unused_entries++;
       char* record = buffer.get() + i * kRecordSize;
       *reinterpret_cast<Key*>(record) = iterator->first;
       *reinterpret_cast<Details*>(record + sizeof(Key)) = iterator->second;
@@ -736,6 +739,16 @@ bool InfiniteCache::Worker::WriteData(PlatformFile file) {
     offset += num_bytes;
   }
   base::FlushPlatformFile(file);  // Ignore return value.
+
+  if (header_->num_entries)
+    unused_entries = unused_entries * 100 / header_->num_entries;
+
+  UMA_HISTOGRAM_PERCENTAGE("InfiniteCache.UnusedEntries", unused_entries);
+  UMA_HISTOGRAM_COUNTS("InfiniteCache.StoredEntries", header_->num_entries);
+  if (base::RandInt(0, 99) < unused_entries) {
+    UMA_HISTOGRAM_COUNTS("InfiniteCache.UnusedEntriesByStoredEntries",
+                         header_->num_entries);
+  }
   return true;
 }
 
