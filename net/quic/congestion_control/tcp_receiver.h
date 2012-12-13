@@ -21,8 +21,8 @@ class NET_EXPORT_PRIVATE TcpReceiver : public ReceiveAlgorithmInterface {
   TcpReceiver();
 
   // Start implementation of SendAlgorithmInterface.
-  virtual bool GenerateCongestionInfo(
-      CongestionInfo* congestion_info) OVERRIDE;
+  virtual bool GenerateCongestionFeedback(
+      QuicCongestionFeedbackFrame* feedback) OVERRIDE;
 
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,

@@ -23,8 +23,8 @@ class NET_EXPORT_PRIVATE FixRateSender : public SendAlgorithmInterface {
   explicit FixRateSender(const QuicClock* clock);
 
   // Start implementation of SendAlgorithmInterface.
-  virtual void OnIncomingCongestionInfo(
-      const CongestionInfo& congestion_info) OVERRIDE;
+  virtual void OnIncomingQuicCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& feedback) OVERRIDE;
   virtual void OnIncomingAck(QuicPacketSequenceNumber acked_sequence_number,
                              size_t acked_bytes,
                              QuicTime::Delta rtt) OVERRIDE;

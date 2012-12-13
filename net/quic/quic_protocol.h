@@ -71,6 +71,7 @@ enum QuicFrameType {
   STREAM_FRAME = 0,
   PDU_FRAME,
   ACK_FRAME,
+  CONGESTION_FEEDBACK_FRAME,
   RST_STREAM_FRAME,
   CONNECTION_CLOSE_FRAME,
   NUM_FRAME_TYPES
@@ -175,8 +176,8 @@ typedef std::map<QuicPacketSequenceNumber, QuicTime> TimeMap;
 struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   ReceivedPacketInfo();
   ~ReceivedPacketInfo();
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const ReceivedPacketInfo& s);
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os, const ReceivedPacketInfo& s);
 
   // Records a packet receipt.
   void RecordReceived(QuicPacketSequenceNumber sequence_number, QuicTime time);
@@ -207,17 +208,32 @@ struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
 struct NET_EXPORT_PRIVATE SentPacketInfo {
   SentPacketInfo();
   ~SentPacketInfo();
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const SentPacketInfo& s);
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os, const SentPacketInfo& s);
+
   // The lowest packet we've sent which is unacked, and we expect an ack for.
   QuicPacketSequenceNumber least_unacked;
+};
+
+struct NET_EXPORT_PRIVATE QuicAckFrame {
+  QuicAckFrame() {}
+  // Testing convenience method to construct a QuicAckFrame with all packets
+  // from least_unacked to largest_received acked at time_received.
+  QuicAckFrame(QuicPacketSequenceNumber largest_received,
+               QuicTime time_received,
+               QuicPacketSequenceNumber least_unacked);
+
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os, const QuicAckFrame& s);
+
+  SentPacketInfo sent_info;
+  ReceivedPacketInfo received_info;
 };
 
 // Defines for all types of congestion feedback that will be negotiated in QUIC,
 // kTCP MUST be supported by all QUIC implementations to guarentee 100%
 // compatibility.
 enum CongestionFeedbackType {
-  kNone = 0,  // No feedback provided
   kTCP,  // Used to mimic TCP.
   kInterArrival,  // Use additional inter arrival information.
   kFixRate,  // Provided for testing.
@@ -255,30 +271,16 @@ struct NET_EXPORT_PRIVATE CongestionFeedbackMessageFixRate {
   uint32 bitrate_in_bytes_per_second;
 };
 
-struct NET_EXPORT_PRIVATE CongestionInfo {
+struct NET_EXPORT_PRIVATE QuicCongestionFeedbackFrame {
   CongestionFeedbackType type;
-  friend std::ostream& operator<<(std::ostream& os, const CongestionInfo& c);
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os, const QuicCongestionFeedbackFrame& c);
+
   union {
     CongestionFeedbackMessageTCP tcp;
     CongestionFeedbackMessageInterArrival inter_arrival;
     CongestionFeedbackMessageFixRate fix_rate;
   };
-};
-
-struct NET_EXPORT_PRIVATE QuicAckFrame {
-  QuicAckFrame() {}
-  // Testing convenience method to construct a QuicAckFrame with all packets
-  // from least_unacked to largest_received acked at time_received.
-  QuicAckFrame(QuicPacketSequenceNumber largest_received,
-               QuicTime time_received,
-               QuicPacketSequenceNumber least_unacked);
-
-  NET_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
-                                                     const QuicAckFrame& s);
-
-  SentPacketInfo sent_info;
-  ReceivedPacketInfo received_info;
-  CongestionInfo congestion_info;
 };
 
 struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
@@ -309,6 +311,9 @@ struct NET_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicAckFrame* frame)
       : type(ACK_FRAME), ack_frame(frame) {
   }
+  explicit QuicFrame(QuicCongestionFeedbackFrame* frame)
+      : type(CONGESTION_FEEDBACK_FRAME), congestion_feedback_frame(frame) {
+  }
   explicit QuicFrame(QuicRstStreamFrame* frame)
       : type(RST_STREAM_FRAME),
         rst_stream_frame(frame) {
@@ -322,6 +327,7 @@ struct NET_EXPORT_PRIVATE QuicFrame {
   union {
     QuicStreamFrame* stream_frame;
     QuicAckFrame* ack_frame;
+    QuicCongestionFeedbackFrame* congestion_feedback_frame;
     QuicRstStreamFrame* rst_stream_frame;
     QuicConnectionCloseFrame* connection_close_frame;
   };

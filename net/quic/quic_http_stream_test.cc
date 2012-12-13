@@ -31,6 +31,11 @@ class QuicConnectionPeer {
                            QuicSendScheduler* scheduler) {
     connection->scheduler_.reset(scheduler);
   }
+
+  static void SetCollector(QuicConnection* connection,
+                           QuicReceiptMetricsCollector* collector) {
+    connection->collector_.reset(collector);
+  }
 };
 
 namespace test {
@@ -50,6 +55,36 @@ class TestQuicConnection : public QuicConnection {
   void SetScheduler(QuicSendScheduler* scheduler) {
     QuicConnectionPeer::SetScheduler(this, scheduler);
   }
+
+  void SetCollector(QuicReceiptMetricsCollector* collector) {
+    QuicConnectionPeer::SetCollector(this, collector);
+  }
+};
+
+class TestCollector : public QuicReceiptMetricsCollector {
+ public:
+  explicit TestCollector(QuicCongestionFeedbackFrame* feedback)
+      : QuicReceiptMetricsCollector(&clock_, kFixRate),
+        feedback_(feedback) {
+  }
+
+  bool GenerateCongestionFeedback(
+      QuicCongestionFeedbackFrame* congestion_feedback) {
+    if (feedback_ == NULL) {
+      return false;
+    }
+    *congestion_feedback = *feedback_;
+    return true;
+  }
+
+  MOCK_METHOD4(RecordIncomingPacket,
+               void(size_t, QuicPacketSequenceNumber, QuicTime, bool));
+
+ private:
+  MockClock clock_;
+  QuicCongestionFeedbackFrame* feedback_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestCollector);
 };
 
 }  // namespace
@@ -124,12 +159,14 @@ class QuicHttpStreamTest : public ::testing::Test {
     socket->Connect(peer_addr_);
     runner_ = new TestTaskRunner(&clock_);
     scheduler_ = new MockScheduler();
+    collector_ = new TestCollector(NULL);
     EXPECT_CALL(*scheduler_, TimeUntilSend(_)).
         WillRepeatedly(testing::Return(QuicTime::Delta()));
     helper_ = new QuicConnectionHelper(runner_.get(), &clock_, socket);
     connection_ = new TestQuicConnection(guid_, peer_addr_, helper_);
     connection_->set_visitor(&visitor_);
     connection_->SetScheduler(scheduler_);
+    connection_->SetCollector(collector_);
     session_.reset(new QuicClientSession(connection_, helper_, NULL));
     CryptoHandshakeMessage message;
     message.tag = kSHLO;
@@ -156,9 +193,6 @@ class QuicHttpStreamTest : public ::testing::Test {
     InitializeHeader(sequence_number);
 
     QuicAckFrame ack(largest_received, QuicTime(), sequence_number);
-    ack.congestion_info.type = kTCP;
-    ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
-    ack.congestion_info.tcp.receive_window = 16000;
     // TODO(rch): remove this grotty hack once we move the packet times
     // out of the ack frame.
     if (sequence_number == 4) {
@@ -169,30 +203,9 @@ class QuicHttpStreamTest : public ::testing::Test {
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
-  // Returns a newly created packet to send a connection close frame.
-  QuicEncryptedPacket* ConstructClosePacket(
-      QuicPacketSequenceNumber sequence_number,
-      bool with_congestion_info) {
-    InitializeHeader(sequence_number);
-
-    QuicFrames frames;
-    QuicAckFrame ack(0, QuicTime(), 0);
-    if (with_congestion_info) {
-      ack.congestion_info.type = kTCP;
-      ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
-      ack.congestion_info.tcp.receive_window = 16000;
-    } else {
-      ack.congestion_info.type = kNone;
-    }
-    QuicConnectionCloseFrame close;
-    close.error_code = QUIC_CONNECTION_TIMED_OUT;
-    close.ack_frame = ack;
-
-    return ConstructPacket(header_, QuicFrame(&close));
-  }
-
   BoundNetLog net_log_;
   MockScheduler* scheduler_;
+  TestCollector* collector_;
   scoped_refptr<TestTaskRunner> runner_;
   scoped_array<MockWrite> mock_writes_;
   MockClock clock_;
