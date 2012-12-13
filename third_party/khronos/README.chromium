@@ -42,4 +42,5 @@ GLES2/glchromium.h
    otherwise.
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
-
+DEPS
+ - Added DEPS file to prevent inclusion of external dependencies.
