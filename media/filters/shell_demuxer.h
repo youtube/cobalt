@@ -18,17 +18,26 @@
 #define MEDIA_FILTERS_SHELL_DEMUXER_H_
 
 #include <deque>
+#include <map>
+#include <vector>
 
 #include "base/message_loop.h"
-#include "base/synchronization/waitable_event.h"
-#include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
-#include "media/base/video_decoder_config.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/ranges.h"
+#include "media/base/shell_buffer_factory.h"
+#include "media/filters/shell_parser.h"
 
 namespace media {
 
 class DecoderBuffer;
 class ShellDemuxer;
+
+// Due to round-off error in calculation of timestamps and durations
+// not computed in SI time units it's possible contiguous timetamps
+// may not be exactly equal. We accept buffers that are within + or -
+// this time range.
+static const uint64_t kBufferTimeEpsilonMicroseconds = 100;
 
 class ShellDemuxerStream : public DemuxerStream {
  public:
@@ -42,35 +51,29 @@ class ShellDemuxerStream : public DemuxerStream {
   virtual Type type();
   virtual void EnableBitstreamConverter();
 
-  // functions for ShellDemuxer
-  bool HasPendingReads();
-  void EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer);
-  // Signals to empty the buffer queue and mark next packet as discontinuous.
+  // Functions used by ShellDemuxer
+  void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
   void FlushBuffers();
-  // Empties the queues and ignores any additional calls to Read().
   void Stop();
+  // returns the timestamp of the first buffer in buffer_queue_,
+  // or kNoTimestamp() if the queue is empty.
+  base::TimeDelta OldestEnqueuedTimestamp();
+  void SetBuffering(bool buffering);
 
  private:
-  // Carries out enqueuing a pending read on the demuxer thread.
-  void ReadTask(const ReadCB& read_cb);
-
-  // Attempts to fulfill a single pending read by dequeueing a buffer and read
-  // callback pair and executing the callback. The calling function must
-  // acquire lock_ before calling this function.
-  void FulfillPendingReadLocked();
-
-  // Returns all enqueued buffers to the buffer factory. Assumes lock_ is
-  // acquired
-  void ClearBufferQueueLocked();
-
+  // non-owning pointer to avoid circular reference
   ShellDemuxer* demuxer_;
   Type type_;
-  bool stopped_;
 
-  // used to protect buffer_queue_, read_queue_, and stopped_.
+  // Used to protect everything below.
   mutable base::Lock lock_;
+  Ranges<base::TimeDelta> buffered_ranges_;
+  bool stopped_;
+  // If true we store all read callbacks regardless of our ability
+  // to service them.
+  bool buffering_;
 
-  typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<ShellBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
 
   typedef std::deque<ReadCB> ReadQueue;
@@ -79,46 +82,11 @@ class ShellDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };
 
-// audio and video decoder configs are supplied with these structures as
-// extra data, allowing downstream decoders to supply the hardware with the
-// necessary information.
-struct AudioConfigExtraData {
- public:
-  uint8 aac_object_type;
-  uint8 aac_sampling_frequency_index;
-  uint8 channel_count;
-};
-
-// Unfortunately these extra data structs are confined to value containers only
-// right now, as they are byte-copied blindly into and out of the config
-// objects, meaning that any pointer we allocate inside of these structures
-// will be leaked. We need to store one sps and one pps for downstream decoders
-// and each can be at most 64K size in size, as the standard calls for 16 bits
-// to specify their size. 64K seems pretty unreasonable for a SPS or PPS
-// structure, and in practice most are much smaller. So rather than require
-// 128K of room in our extra data structure we limit these sizes to sane values
-// and then treat larger values as decode errors. Tune these values to
-// play all YT videos.
-static const int kShellMaxSPSSize = 256;
-static const int kShellMaxPPSSize = 256;
-
-struct VideoConfigExtraData {
- public:
-  uint32 num_ref_frames;
-  uint8 sps[kShellMaxSPSSize];
-  uint32 sps_size;
-  uint8 pps[kShellMaxPPSSize];
-  uint32 pps_size;
-  uint8 nal_header_size;
-};
-
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(MessageLoop* message_loop,
                const scoped_refptr<DataSource>& data_source);
-
-  // Posts a task to perform additional demuxing.
-  virtual void PostDemuxTask();
+  virtual ~ShellDemuxer();
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -132,86 +100,66 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
 
+  // Issues a task to the demuxer to identify the next buffer of provided type
+  // in the stream, allocate memory to contain that buffer, download the bytes
+  // in to it, and enqueue the data in the appropriate demuxer stream.
+  void Request(DemuxerStream::Type type);
+
   // The DemuxerStream objects ask their parent ShellDemuxer stream class
   // for these configuration data rather than duplicating in the child classes
-  const AudioDecoderConfig& audio_decoder_config();
-  const VideoDecoderConfig& video_decoder_config();
+  const AudioDecoderConfig& AudioConfig();
+  const VideoDecoderConfig& VideoConfig();
 
   // Provide access to ShellDemuxerStream.
   MessageLoop* message_loop() { return message_loop_; }
 
+  // Callback from ShellBufferFactory
+  void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
+
  private:
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
-  // running on the demuxer's own message loop, block until read is complete
-  // returns number of bytes read or -1 on error
-  int BlockingRead(int64 position, int size, uint8* data);
-
+  void RequestTask(DemuxerStream::Type type);
+  void DownloadTask(scoped_refptr<ShellBuffer> buffer);
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
-
-  // Carries out demuxing and satisfying stream reads on the demuxer thread.
-  void DemuxTask();
-
   // Carries out stopping the demuxer streams on the demuxer thread.
   void StopTask(const base::Closure& callback);
 
-  // demux a single item from the input stream. Returns false on error or EOS
-  bool DemuxSingleItem();
-  bool DemuxFLVTag();
+  // callback from DataSourceReader on read error from DataSource. We handle
+  // internally and propagate error to DemuxerHost.
+  void OnDataSourceReaderError();
 
-  // parse the AVCConfigRecord pointed to by avc_config, of size record_size,
-  // and set the values in video_decoder_config_ if successful,
-  // also sets video_decoder_config_known_ flag
-  void ParseAVCConfigRecord(uint8* avc_config, size_t record_size);
-
-  // Download individual video NALUs from an FLV AVCVIDEOPACKET tag and enqueue
-  // them into our video DemuxerStream. Returns false on download error.
-  bool ExtractAndEnqueueVideoNALUs(uint64_t stream_position,
-                                   size_t tag_avc_data_size,
-                                   base::TimeDelta timestamp);
-
-  // returns true if either DemuxerStream objects are waiting on a read
-  bool StreamsHavePendingReads();
+  bool WithinEpsilon(const base::TimeDelta& a, const base::TimeDelta& b);
 
   MessageLoop* message_loop_;
-  scoped_refptr<DataSource> data_source_;
   DemuxerHost* host_;
+  scoped_refptr<DataSource> data_source_;
+  scoped_refptr<ShellDataSourceReader> reader_;
 
-  // BlockingRead Support
-  base::WaitableEvent blocking_read_event_;
+  // Even normal beginning-to-end playback results in one seek, to the
+  // start time of the media. Before signaling to the pipeline that we
+  // have completed seeking, we attempt to preload until we have either
+  // kDemuxPreloadTimeMs demuxed, or we have filled our fixed-size demux
+  // buffer. At that point we call the seek_cb_ to signal the pipeline
+  // that we are prepared to play.
+  PipelineStatusCB seek_cb_;
+
   bool read_has_failed_;
-  int last_read_bytes_;
-  // callback, returns number of bytes read
-  int WaitForRead();
-  void SignalReadCompleted(int size);
 
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
+  scoped_refptr<ShellParser> parser_;
 
-  // general state demux variables
-  uint8 nal_header_size_;
+  base::TimeDelta next_audio_unit_;
+  base::TimeDelta next_video_unit_;
+  base::TimeDelta highest_video_unit_;
+  base::TimeDelta epsilon_;
+  base::TimeDelta preload_;
+  int video_out_of_order_frames_;
 
-  // mp4-specific state demux variables
-  bool is_mp4_;
-
-  // flv-specific state demux variables
-  bool is_flv_;
-  uint32 flv_tag_size_;
-
-  // NOTE: if we're going to be writing these outside of InitializeTask() then
-  // we'll need thread protection
-  bool audio_decoder_config_known_;
-  AudioDecoderConfig audio_decoder_config_;
-  bool video_decoder_config_known_;
-  VideoDecoderConfig video_decoder_config_;
-  int video_buffer_padding_;
-
-  uint64 read_position_;
-
-  // deferrred loading of metadata, this flag is true when available
-  bool metadata_known_;
-  base::TimeDelta start_time_;
+  typedef std::list<scoped_refptr<ShellAU> > AUList;
+  AUList active_aus_;
 };
 
 }  // namespace media

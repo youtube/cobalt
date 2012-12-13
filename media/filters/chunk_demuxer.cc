@@ -20,6 +20,10 @@
 #include "media/webm/webm_stream_parser.h"
 #endif
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_buffer_factory.h"
+#endif
+
 using base::TimeDelta;
 
 namespace media {
@@ -389,10 +393,14 @@ void ChunkDemuxerStream::Shutdown() {
     std::swap(read_cbs_, read_cbs);
   }
 
+// __LB_SHELL_FIX_ME__ need to reconcile buffer strategies with chunk_demuxer
+// b/8089709.
+#if !defined(__LB_SHELL__)
   // Pass end of stream buffers to all callbacks to signal that no more data
   // will be sent.
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
     it->Run(DemuxerStream::kOk, StreamParserBuffer::CreateEOSBuffer());
+#endif
 }
 
 // Helper function that makes sure |read_cb| runs on |message_loop|.
@@ -406,7 +414,10 @@ static void RunOnMessageLoop(const DemuxerStream::ReadCB& read_cb,
     return;
   }
 
+// __LB_SHELL_FIX_ME__ need to reconcile buffer strategies with chunk_demuxer
+#if !defined(__LB_SHELL__)
   read_cb.Run(status, buffer);
+#endif
 }
 
 // DemuxerStream methods.
@@ -421,7 +432,10 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
     }
   }
 
+// __LB_SHELL_FIX_ME__ need to reconcile buffer strategies with chunk_demuxer
+#if !defined(__LB_SHELL__)
   read_cb.Run(status, buffer);
+#endif
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
@@ -449,10 +463,13 @@ ChunkDemuxerStream::~ChunkDemuxerStream() {}
 
 void ChunkDemuxerStream::DeferRead_Locked(const ReadCB& read_cb) {
   lock_.AssertAcquired();
+// __LB_SHELL_FIX_ME__ need to reconcile buffer strategies with chunk_demuxer
+#if !defined(__LB_SHELL__)
   // Wrap & store |read_cb| so that it will
   // get called on the current MessageLoop.
   read_cbs_.push_back(base::Bind(&RunOnMessageLoop, read_cb,
                                  MessageLoop::current()));
+#endif
 }
 
 void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
@@ -466,8 +483,11 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
   while (!read_cbs_.empty()) {
     if (!GetNextBuffer_Locked(&status, &buffer))
       return;
+// __LB_SHELL_FIX_ME__ need to reconcile buffer strategies with chunk_demuxer
+#if !defined(__LB_SHELL__)
     closures->push_back(base::Bind(read_cbs_.front(),
                                    status, buffer));
+#endif
     read_cbs_.pop_front();
   }
 }
