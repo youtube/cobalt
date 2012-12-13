@@ -28,10 +28,19 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
     void Clear() {
       memset(this, 0, sizeof(Options));
       max_packet_length = kMaxPacketSize;
+      max_num_packets = std::numeric_limits<int>::max();
     }
 
     // TODO(alyssar, rch) max frames/packet
     size_t max_packet_length;
+    // The maximum number of packets we'd like to serialize.
+    // If the data can't be fully serialized, DataToStream will only consume as
+    // much data as fits into this many packets.
+    size_t max_num_packets;
+    // If true, the fin will be sent in its own packet.  In this case
+    // we may end up sending one packet beyond max_packet_length.
+    // TODO(alyssar) change the SendData APIs to communicate if a FIN was sent,
+    // so we can fix this.
     bool separate_fin_packet;
     bool random_reorder;   // Inefficient: rewrite if used at scale.
     // TODO(rch) should probably be max packets per group.
@@ -48,12 +57,15 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
 
   typedef std::pair<QuicPacketSequenceNumber, QuicPacket*> PacketPair;
 
-  // Converts a raw payload to a series of QuicPackets.
-  void DataToStream(QuicStreamId id,
-                    base::StringPiece data,
-                    QuicStreamOffset offset,
-                    bool fin,
-                    std::vector<PacketPair>* packets);
+  // Converts a raw payload to a series of QuicPackets.  Returns the number of
+  // bytes consumed from data.
+  // If data is empty and fin is true, the expected behavior is to consume the
+  // fin but return 0.
+  size_t DataToStream(QuicStreamId id,
+                      base::StringPiece data,
+                      QuicStreamOffset offset,
+                      bool fin,
+                      std::vector<PacketPair>* packets);
 
   PacketPair ResetStream(QuicStreamId id,
                          QuicStreamOffset offset,
