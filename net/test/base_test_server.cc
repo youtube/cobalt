@@ -112,7 +112,6 @@ std::string BaseTestServer::SSLOptions::GetOCSPArgument() const {
 }
 
 const char BaseTestServer::kLocalhost[] = "127.0.0.1";
-const char BaseTestServer::kGDataAuthToken[] = "testtoken";
 
 BaseTestServer::BaseTestServer(Type type, const std::string& host)
     : type_(type),
@@ -147,7 +146,6 @@ std::string BaseTestServer::GetScheme() const {
   switch (type_) {
     case TYPE_FTP:
       return "ftp";
-    case TYPE_GDATA:
     case TYPE_HTTP:
     case TYPE_SYNC:
       return "http";
