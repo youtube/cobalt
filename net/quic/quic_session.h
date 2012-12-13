@@ -38,6 +38,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   virtual void ConnectionClose(QuicErrorCode error, bool from_peer) OVERRIDE;
   // Not needed for HTTP.
   virtual void OnAck(AckedPackets acked_packets) OVERRIDE {}
+  virtual bool OnCanWrite() OVERRIDE;
 
   // Called by streams when they want to write data to the peer.
   virtual int WriteData(QuicStreamId id, base::StringPiece data,
@@ -74,6 +75,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Returns the number of currently open streams, including those which have
   // been implicitly created.
   virtual size_t GetNumOpenStreams();
+
+  void MarkWriteBlocked(QuicStreamId id);
 
  protected:
   // Creates a new stream, owned by the caller, to handle a peer-initiated
@@ -120,6 +123,10 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // Set of stream ids that have been "implicitly created" by receipt
   // of a stream id larger than the next expected stream id.
   base::hash_set<QuicStreamId> implicitly_created_streams_;
+
+  // A list of packets which need to write more data.
+  std::list<QuicStreamId> write_blocked_streams_;
+
   QuicStreamId largest_peer_created_stream_id_;
 };
 

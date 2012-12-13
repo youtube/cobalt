@@ -46,6 +46,11 @@ const int kMaxResendPerAck = 10;
 // delivery.
 const int kNumberOfNacksBeforeResend = 3;
 
+// The maxiumum number of packets we'd like to queue.  We may end up queueing
+// more in the case of many control frames.
+// 6 is arbitrary.
+const int kMaxPacketsToSerializeAtOnce = 6;
+
 bool Near(QuicPacketSequenceNumber a, QuicPacketSequenceNumber b) {
   QuicPacketSequenceNumber delta = (a > b) ? a - b : b - a;
   return delta <= kMaxUnackedPackets;
@@ -69,6 +74,7 @@ QuicConnection::QuicConnection(QuicGuid guid,
       scheduler_(new QuicSendScheduler(clock_, kTCP)),
       packets_resent_since_last_ack_(0),
       connected_(true) {
+  options()->max_num_packets = kMaxPacketsToSerializeAtOnce;
   helper_->SetConnection(this);
   helper_->SetTimeoutAlarm(timeout_);
   framer_.set_visitor(this);
@@ -401,27 +407,39 @@ size_t QuicConnection::SendStreamData(
     QuicStreamOffset offset,
     bool fin,
     QuicPacketSequenceNumber* last_packet) {
-  vector<PacketPair> packets;
-  packet_creator_.DataToStream(id, data, offset, fin, &packets);
-  DCHECK_LT(0u, packets.size());
+  int total_bytes_consumed = 0;
 
-  for (size_t i = 0; i < packets.size(); ++i) {
-    // Resend is false for FEC packets.
-    SendPacket(packets[i].first,
-               packets[i].second,
-               !packets[i].second->IsFecPacket(),
-               false,
-               false);
-    // TODO(alyssar) either only buffer this up if we send successfully,
-    // and make the upper levels deal with backup, or handle backup here.
-    unacked_packets_.insert(make_pair(packets[i].first,
-                                      UnackedPacket(packets[i].second)));
-  }
+  while (queued_packets_.empty()) {
+    vector<PacketPair> packets;
+    size_t bytes_consumed =
+        packet_creator_.DataToStream(id, data, offset, fin, &packets);
+    total_bytes_consumed += bytes_consumed;
+    offset += bytes_consumed;
+    data.remove_prefix(bytes_consumed);
+    DCHECK_LT(0u, packets.size());
 
-  if (last_packet != NULL) {
-    *last_packet = packets[packets.size() - 1].first;
+    for (size_t i = 0; i < packets.size(); ++i) {
+      SendPacket(packets[i].first,
+                 packets[i].second,
+                 // Resend is false for FEC packets.
+                 !packets[i].second->IsFecPacket(),
+                 false,
+                 false);
+      unacked_packets_.insert(make_pair(packets[i].first,
+                                        UnackedPacket(packets[i].second)));
+    }
+
+    if (last_packet != NULL) {
+      *last_packet = packets[packets.size() - 1].first;
+    }
+    if (data.size() == 0) {
+      // We're done writing the data.   Exit the loop.
+      // We don't make this a precondition beacuse we could have 0 bytes of data
+      // if we're simply writing a fin.
+      break;
+    }
   }
-  return data.size();
+  return total_bytes_consumed;
 }
 
 void QuicConnection::SendRstStream(QuicStreamId id,
@@ -458,6 +476,24 @@ bool QuicConnection::OnCanWrite() {
     queued_packets_.pop_front();
     SendPacket(p.sequence_number, p.packet, p.resend, false, p.retransmit);
   }
+
+  // If we've sent everything we had queued and we're still not blocked, let the
+  // visitor know it can write more.
+  if (!write_blocked_) {
+    bool all_bytes_written = visitor_->OnCanWrite();
+    // If the latest write caused a socket-level blockage, return false: we will
+    // be rescheduled by the kernel.
+    if (write_blocked_) {
+      return false;
+    }
+    if (!all_bytes_written && !helper_->IsSendAlarmSet()) {
+      // We're not write blocked, but some stream didn't write out all of its
+      // bytes.  Register for 'immediate' resumption so we'll keep writing after
+      // other quic connections have had a chance to use the socket.
+      helper_->SetSendAlarm(QuicTime::Delta());
+    }
+  }
+
   return !write_blocked_;
 }
 
