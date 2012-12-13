@@ -25,23 +25,22 @@ public class ActivityStatus {
     // Current main activity, or null if none.
     private static Activity sActivity;
 
-    // Current main activity's state. This can be set even if sActivity
-    // is null, to simplify unit testing.
+    // Current main activity's state. This can be set even if sActivity is null, to simplify unit
+    // testing.
     private static int sActivityState;
 
-    // Current activity instance, or null.
-    private static ActivityStatus sInstance;
+    private static final ArrayList<StateListener> sStateListeners = new ArrayList<StateListener>();
 
-    // List of pause/resume listeners.
-    private final ArrayList<Listener> mListeners;
-
-    // List of state listeners.
-    private final ArrayList<StateListener> mStateListeners;
-
-    protected ActivityStatus() {
-        mListeners = new ArrayList<Listener>();
-        mStateListeners = new ArrayList<StateListener>();
+    // Use this interface to listen to all state changes.
+    public interface StateListener {
+        /**
+         * Called when the activity's state changes.
+         * @param newState New activity state.
+         */
+        public void onActivityStateChange(int newState);
     }
+
+    private ActivityStatus() {}
 
     /**
      * Must be called by the main activity when it changes state.
@@ -53,76 +52,18 @@ public class ActivityStatus {
             sActivity = activity;
         }
         sActivityState = newState;
-        getInstance().changeState(newState);
-
+        for (StateListener listener : sStateListeners) {
+            listener.onActivityStateChange(newState);
+        }
         if (newState == DESTROYED) {
             sActivity = null;
         }
     }
 
-    private void changeState(int newState) {
-        for (StateListener listener : mStateListeners) {
-            listener.onActivityStateChange(newState);
-        }
-        if (newState == PAUSED || newState == RESUMED) {
-            boolean paused = (newState == PAUSED);
-            for (Listener listener : mListeners) {
-                listener.onActivityStatusChanged(paused);
-            }
-        }
-    }
-
-    // This interface can only be used to listen to PAUSED and RESUMED
-    // events. Deprecated, new code should use StateListener instead.
-    // TODO(digit): Remove once all users have switched to StateListener.
-    @Deprecated
-    public interface Listener {
-        /**
-         * Called when the activity is paused or resumed only.
-         * @param isPaused true if the activity is paused, false if not.
-         */
-        public void onActivityStatusChanged(boolean isPaused);
-    }
-
-    // Use this interface to listen to all state changes.
-    public interface StateListener {
-        /**
-         * Called when the activity's state changes.
-         * @param newState New activity state.
-         */
-        public void onActivityStateChange(int newState);
-    }
-
-    /**
-     * Returns the current ActivityStatus instance.
-     */
-    public static ActivityStatus getInstance() {
-        // Can only be called on the UI thread.
-        assert Looper.myLooper() == Looper.getMainLooper();
-        if (sInstance == null) {
-            sInstance = new ActivityStatus();
-        }
-        return sInstance;
-    }
-
-    /**
-     * Indicates that the parent activity was paused.
-     */
-    public void onPause() {
-       changeState(PAUSED);
-    }
-
-    /**
-     * Indicates that the parent activity was resumed.
-     */
-    public void onResume() {
-        changeState(RESUMED);
-    }
-
     /**
      * Indicates that the parent activity is currently paused.
      */
-    public boolean isPaused() {
+    public static boolean isPaused() {
         return sActivityState == PAUSED;
     }
 
@@ -137,26 +78,7 @@ public class ActivityStatus {
      * Returns the current main application activity's state.
      */
     public static int getState() {
-        // To simplify unit testing, don't check sActivity for null.
         return sActivityState;
-    }
-
-    /**
-     * Registers the given pause/resume listener to receive activity
-     * status updates. Use registerStateListener() instead.
-     * @param listener Listener to receive status updates.
-     */
-    public void registerListener(Listener listener) {
-        mListeners.add(listener);
-    }
-
-    /**
-     * Unregisters the given pause/resume listener from receiving activity
-     * status updates. Use unregisterStateListener() instead.
-     * @param listener Listener that doesn't want to receive status updates.
-     */
-    public void unregisterListener(Listener listener) {
-        mListeners.remove(listener);
     }
 
     /**
@@ -164,8 +86,7 @@ public class ActivityStatus {
      * @param listener Listener to receive state changes.
      */
     public static void registerStateListener(StateListener listener) {
-        ActivityStatus status = getInstance();
-        status.mStateListeners.add(listener);
+        sStateListeners.add(listener);
     }
 
     /**
@@ -173,7 +94,6 @@ public class ActivityStatus {
      * @param listener Listener that doesn't want to receive state changes.
      */
     public static void unregisterStateListener(StateListener listener) {
-        ActivityStatus status = getInstance();
-        status.mStateListeners.remove(listener);
+        sStateListeners.remove(listener);
     }
 }

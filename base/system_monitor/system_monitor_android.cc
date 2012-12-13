@@ -10,9 +10,16 @@ namespace base {
 namespace android {
 
 // Native implementation of SystemMonitor.java.
-void OnBatteryChargingChanged(JNIEnv* env,
-                              jclass clazz) {
+void OnBatteryChargingChanged(JNIEnv* env, jclass clazz) {
   SystemMonitor::Get()->ProcessPowerMessage(SystemMonitor::POWER_STATE_EVENT);
+}
+
+void OnMainActivityResumed(JNIEnv* env, jclass clazz) {
+  SystemMonitor::Get()->ProcessPowerMessage(SystemMonitor::RESUME_EVENT);
+}
+
+void OnMainActivitySuspended(JNIEnv* env, jclass clazz) {
+  SystemMonitor::Get()->ProcessPowerMessage(SystemMonitor::SUSPEND_EVENT);
 }
 
 }  // namespace android
