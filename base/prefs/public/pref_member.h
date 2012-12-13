@@ -284,6 +284,63 @@ class PrefMember : public subtle::PrefMemberBase {
   DISALLOW_COPY_AND_ASSIGN(PrefMember);
 };
 
+// Declaration of template specialization need to be repeated here
+// specifically for each specialization (rather than just once above)
+// or at least one of our compilers won't be happy in all cases.
+// Specifically, it was failing on ChromeOS with a complaint about
+// PrefMember<FilePath>::UpdateValueInternal not being defined when
+// built in a chroot with the following parameters:
+//
+// FEATURES="noclean nostrip" USE="-chrome_debug -chrome_remoting
+// -chrome_internal -chrome_pdf component_build"
+// ~/trunk/goma/goma-wrapper cros_chrome_make --board=${BOARD}
+// --install --runhooks
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<bool>::UpdatePref(const bool& value);
+
+template <>
+BASE_PREFS_EXPORT bool PrefMember<bool>::Internal::UpdateValueInternal(
+    const Value& value) const;
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<int>::UpdatePref(const int& value);
+
+template <>
+BASE_PREFS_EXPORT bool PrefMember<int>::Internal::UpdateValueInternal(
+    const Value& value) const;
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<double>::UpdatePref(const double& value);
+
+template <>
+BASE_PREFS_EXPORT bool PrefMember<double>::Internal::UpdateValueInternal(
+    const Value& value) const;
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<std::string>::UpdatePref(
+    const std::string& value);
+
+template <>
+BASE_PREFS_EXPORT bool PrefMember<std::string>::Internal::UpdateValueInternal(
+    const Value& value) const;
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<FilePath>::UpdatePref(const FilePath& value);
+
+template <>
+BASE_PREFS_EXPORT bool PrefMember<FilePath>::Internal::UpdateValueInternal(
+    const Value& value) const;
+
+template <>
+BASE_PREFS_EXPORT void PrefMember<std::vector<std::string> >::UpdatePref(
+    const std::vector<std::string>& value);
+
+template <>
+BASE_PREFS_EXPORT bool
+PrefMember<std::vector<std::string> >::Internal::UpdateValueInternal(
+    const Value& value) const;
+
 typedef PrefMember<bool> BooleanPrefMember;
 typedef PrefMember<int> IntegerPrefMember;
 typedef PrefMember<double> DoublePrefMember;
