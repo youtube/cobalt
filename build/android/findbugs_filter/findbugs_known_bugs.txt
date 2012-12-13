@@ -100,6 +100,7 @@ M D UuF: Unused public or protected field: org.chromium.content.browser.JavaBrid
 M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mPID; locked 66% of time  Unsynchronized access at SandboxedProcessConnection.java
 M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mService; locked 55% of time  Unsynchronized access at SandboxedProcessConnection.java
 M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mServiceConnectComplete; locked 60% of time  Unsynchronized access at SandboxedProcessConnection.java
+M M LI: Incorrect lazy initialization and update of static field org.chromium.base.SystemMonitor.sInstance in org.chromium.base.SystemMonitor.create(Context)  At SystemMonitor.java
 M M LI: Incorrect lazy initialization and update of static field org.chromium.content.browser.ContentVideoView.sContentVideoView in org.chromium.content.browser.ContentVideoView.createContentVideoView(int)  At ContentVideoView.java
 M M LI: Incorrect lazy initialization and update of static field org.chromium.net.test.util.TestWebServer.sReasons in org.chromium.net.test.util.TestWebServer.createResponse(int)  At TestWebServer.java
 M M LI: Incorrect lazy initialization of static field org.chromium.net.NetworkChangeNotifier.sInstance in org.chromium.net.NetworkChangeNotifier.createInstance(Context, int)  At NetworkChangeNotifier.java
