@@ -6,11 +6,10 @@
 
 #include "base/bind.h"
 #include "base/message_loop.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
 #include "chrome/test/base/testing_pref_service.h"
-#include "content/public/test/test_browser_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-using content::BrowserThread;
 
 namespace {
 
@@ -32,45 +31,46 @@ void RegisterTestPrefs(PrefService* prefs) {
                           PrefService::UNSYNCABLE_PREF);
 }
 
-class GetPrefValueCallback
-    : public base::RefCountedThreadSafe<GetPrefValueCallback> {
+class GetPrefValueHelper
+    : public base::RefCountedThreadSafe<GetPrefValueHelper> {
  public:
-  GetPrefValueCallback() : value_(false) {}
+  GetPrefValueHelper() : value_(false), pref_thread_("pref thread") {
+    pref_thread_.Start();
+  }
 
   void Init(const char* pref_name, PrefService* prefs) {
     pref_.Init(pref_name, prefs);
-    pref_.MoveToThread(
-        BrowserThread::GetMessageLoopProxyForThread(BrowserThread::IO));
+    pref_.MoveToThread(pref_thread_.message_loop_proxy());
   }
 
   void Destroy() {
     pref_.Destroy();
   }
 
-  bool FetchValue() {
-    if (!BrowserThread::PostTask(
-        BrowserThread::IO, FROM_HERE,
-        base::Bind(&GetPrefValueCallback::GetPrefValueOnIOThread, this))) {
-      return false;
-    }
-    MessageLoop::current()->Run();
-    return true;
+  void FetchValue() {
+    base::WaitableEvent event(true, false);
+    ASSERT_TRUE(
+        pref_thread_.message_loop_proxy()->PostTask(
+            FROM_HERE,
+            base::Bind(&GetPrefValueHelper::GetPrefValue, this, &event)));
+    event.Wait();
   }
 
   bool value() { return value_; }
 
  private:
-  friend class base::RefCountedThreadSafe<GetPrefValueCallback>;
-  ~GetPrefValueCallback() {}
+  friend class base::RefCountedThreadSafe<GetPrefValueHelper>;
+  ~GetPrefValueHelper() {}
 
-  void GetPrefValueOnIOThread() {
+  void GetPrefValue(base::WaitableEvent* event) {
     value_ = pref_.GetValue();
-    BrowserThread::PostTask(BrowserThread::UI, FROM_HERE,
-                            MessageLoop::QuitClosure());
+    event->Signal();
   }
 
   BooleanPrefMember pref_;
   bool value_;
+
+  base::Thread pref_thread_;  // The thread |pref_| runs on.
 };
 
 class PrefMemberTestClass {
@@ -297,25 +297,20 @@ TEST(PrefMemberTest, NoInit) {
 
 TEST(PrefMemberTest, MoveToThread) {
   TestingPrefService prefs;
-  scoped_refptr<GetPrefValueCallback> callback =
-      make_scoped_refptr(new GetPrefValueCallback());
-  MessageLoop message_loop;
-  content::TestBrowserThread ui_thread(BrowserThread::UI, &message_loop);
-  content::TestBrowserThread io_thread(BrowserThread::IO);
-  ASSERT_TRUE(io_thread.Start());
+  scoped_refptr<GetPrefValueHelper> helper(new GetPrefValueHelper());
   RegisterTestPrefs(&prefs);
-  callback->Init(kBoolPref, &prefs);
+  helper->Init(kBoolPref, &prefs);
 
-  ASSERT_TRUE(callback->FetchValue());
-  EXPECT_FALSE(callback->value());
+  helper->FetchValue();
+  EXPECT_FALSE(helper->value());
 
   prefs.SetBoolean(kBoolPref, true);
 
-  ASSERT_TRUE(callback->FetchValue());
-  EXPECT_TRUE(callback->value());
+  helper->FetchValue();
+  EXPECT_TRUE(helper->value());
 
-  callback->Destroy();
+  helper->Destroy();
 
-  ASSERT_TRUE(callback->FetchValue());
-  EXPECT_TRUE(callback->value());
+  helper->FetchValue();
+  EXPECT_TRUE(helper->value());
 }
