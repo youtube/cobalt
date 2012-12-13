@@ -74,6 +74,12 @@ bool QuicFramer::ConstructFrameDataPacket(
           return false;
         }
         break;
+      case CONGESTION_FEEDBACK_FRAME:
+        if (!AppendQuicCongestionFeedbackFramePayload(
+                *frame.congestion_feedback_frame, &writer)) {
+          return false;
+        }
+        break;
       case RST_STREAM_FRAME:
         if (!AppendRstStreamFramePayload(*frame.rst_stream_frame,
                                             &writer)) {
@@ -302,6 +308,13 @@ bool QuicFramer::ProcessFrameData() {
         }
         break;
       }
+      case CONGESTION_FEEDBACK_FRAME: {
+        QuicCongestionFeedbackFrame frame;
+        if (!ProcessQuicCongestionFeedbackFrame(&frame)) {
+          return RaiseError(QUIC_INVALID_FRAME_DATA);
+        }
+        break;
+      }
       case RST_STREAM_FRAME:
         if (!ProcessRstStreamFrame()) {
           return RaiseError(QUIC_INVALID_RST_STREAM_DATA);
@@ -363,9 +376,6 @@ bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
     return false;
   }
   if (!ProcessSentInfo(&frame->sent_info)) {
-    return false;
-  }
-  if (!ProcessCongestionInfo(&frame->congestion_info)) {
     return false;
   }
   visitor_->OnAckFrame(*frame);
@@ -443,21 +453,20 @@ bool QuicFramer::ProcessSentInfo(SentPacketInfo* sent_info) {
   return true;
 }
 
-bool QuicFramer::ProcessCongestionInfo(CongestionInfo* congestion_info) {
-  uint8 congestion_info_type;
-  if (!reader_->ReadBytes(&congestion_info_type, 1)) {
-    set_detailed_error("Unable to read congestion info type.");
+bool QuicFramer::ProcessQuicCongestionFeedbackFrame(
+    QuicCongestionFeedbackFrame* frame) {
+  uint8 feedback_type;
+  if (!reader_->ReadBytes(&feedback_type, 1)) {
+    set_detailed_error("Unable to read congestion feedback type.");
     return false;
   }
-  congestion_info->type =
-      static_cast<CongestionFeedbackType>(congestion_info_type);
+  frame->type =
+      static_cast<CongestionFeedbackType>(feedback_type);
 
-  switch (congestion_info->type) {
-    case kNone:
-      break;
+  switch (frame->type) {
     case kInterArrival: {
       CongestionFeedbackMessageInterArrival* inter_arrival =
-          &congestion_info->inter_arrival;
+          &frame->inter_arrival;
       if (!reader_->ReadUInt16(
               &inter_arrival->accumulated_number_of_lost_packets)) {
         set_detailed_error(
@@ -475,7 +484,7 @@ bool QuicFramer::ProcessCongestionInfo(CongestionInfo* congestion_info) {
       break;
     }
     case kFixRate: {
-      CongestionFeedbackMessageFixRate* fix_rate = &congestion_info->fix_rate;
+      CongestionFeedbackMessageFixRate* fix_rate = &frame->fix_rate;
       if (!reader_->ReadUInt32(&fix_rate->bitrate_in_bytes_per_second)) {
         set_detailed_error("Unable to read bitrate.");
         return false;
@@ -483,7 +492,7 @@ bool QuicFramer::ProcessCongestionInfo(CongestionInfo* congestion_info) {
       break;
     }
     case kTCP: {
-      CongestionFeedbackMessageTCP* tcp = &congestion_info->tcp;
+      CongestionFeedbackMessageTCP* tcp = &frame->tcp;
       if (!reader_->ReadUInt16(&tcp->accumulated_number_of_lost_packets)) {
         set_detailed_error(
             "Unable to read accumulated number of lost packets.");
@@ -496,12 +505,13 @@ bool QuicFramer::ProcessCongestionInfo(CongestionInfo* congestion_info) {
       break;
     }
     default:
-      set_detailed_error("Illegal congestion info type.");
-      DLOG(WARNING) << "Illegal congestion info type: "
-                    << congestion_info->type;
+      set_detailed_error("Illegal congestion feedback type.");
+      DLOG(WARNING) << "Illegal congestion feedback type: "
+                    << frame->type;
       return RaiseError(QUIC_INVALID_FRAME_DATA);
   }
 
+  visitor_->OnCongestionFeedbackFrame(*frame);
   return true;
 }
 
@@ -635,10 +645,14 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
         len += 6 * (ack.received_info.received_packet_times.size() - 1);
       }
       len += 6;  // least packet sequence number awaiting an ack
-      len += 1;  // congestion control type
-      switch (ack.congestion_info.type) {
-        case kNone:
           break;
+    }
+    case CONGESTION_FEEDBACK_FRAME: {
+      const QuicCongestionFeedbackFrame& congestion_feedback =
+          *frame.congestion_feedback_frame;
+      len += 1;  // congestion feedback type
+
+      switch (congestion_feedback.type) {
         case kInterArrival:
           len += 6;
           break;
@@ -650,7 +664,7 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
           break;
         default:
           set_detailed_error("Illegal feedback type.");
-          DLOG(INFO) << "Illegal feedback type: " << ack.congestion_info.type;
+          DLOG(INFO) << "Illegal feedback type: " << congestion_feedback.type;
           break;
       }
       break;
@@ -771,16 +785,20 @@ bool QuicFramer::AppendAckFramePayload(
     return false;
   }
 
-  if (!writer->WriteBytes(&frame.congestion_info.type, 1)) {
+  return true;
+}
+
+bool QuicFramer::AppendQuicCongestionFeedbackFramePayload(
+    const QuicCongestionFeedbackFrame& frame,
+    QuicDataWriter* writer) {
+  if (!writer->WriteBytes(&frame.type, 1)) {
     return false;
   }
 
-  switch (frame.congestion_info.type) {
-    case kNone:
-      break;
+  switch (frame.type) {
     case kInterArrival: {
       const CongestionFeedbackMessageInterArrival& inter_arrival =
-          frame.congestion_info.inter_arrival;
+          frame.inter_arrival;
       if (!writer->WriteUInt16(
               inter_arrival.accumulated_number_of_lost_packets)) {
         return false;
@@ -795,14 +813,14 @@ bool QuicFramer::AppendAckFramePayload(
     }
     case kFixRate: {
       const CongestionFeedbackMessageFixRate& fix_rate =
-          frame.congestion_info.fix_rate;
+          frame.fix_rate;
       if (!writer->WriteUInt32(fix_rate.bitrate_in_bytes_per_second)) {
         return false;
       }
       break;
     }
     case kTCP: {
-      const CongestionFeedbackMessageTCP& tcp = frame.congestion_info.tcp;
+      const CongestionFeedbackMessageTCP& tcp = frame.tcp;
       if (!writer->WriteUInt16(tcp.accumulated_number_of_lost_packets)) {
         return false;
       }

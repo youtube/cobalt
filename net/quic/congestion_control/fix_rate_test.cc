@@ -33,20 +33,20 @@ class FixRateTest : public ::testing::Test {
 };
 
 TEST_F(FixRateTest, ReceiverAPI) {
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   QuicTime timestamp;
   receiver_->SetBitrate(300000);  // Bytes per second.
   receiver_->RecordIncomingPacket(1, 1, timestamp, false);
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  EXPECT_EQ(kFixRate, info.type);
-  EXPECT_EQ(300000u, info.fix_rate.bitrate_in_bytes_per_second);
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  EXPECT_EQ(kFixRate, feedback.type);
+  EXPECT_EQ(300000u, feedback.fix_rate.bitrate_in_bytes_per_second);
 }
 
 TEST_F(FixRateTest, SenderAPI) {
-  CongestionInfo info;
-  info.type = kFixRate;
-  info.fix_rate.bitrate_in_bytes_per_second = 300000;
-  sender_->OnIncomingCongestionInfo(info);
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  feedback.fix_rate.bitrate_in_bytes_per_second = 300000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   EXPECT_EQ(300000, sender_->BandwidthEstimate());
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
@@ -71,10 +71,10 @@ TEST_F(FixRateTest, FixRatePacing) {
   const int64 packet_size = 1200;
   const int64 bit_rate = 240000;
   const int64 num_packets = 200;
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   receiver_->SetBitrate(240000);  // Bytes per second.
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  sender_->OnIncomingCongestionInfo(info);
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   QuicTime acc_advance_time;
   QuicPacketSequenceNumber sequence_number = 0;
   for (int i = 0; i < num_packets; i += 2) {

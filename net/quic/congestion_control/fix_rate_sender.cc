@@ -25,13 +25,13 @@ FixRateSender::FixRateSender(const QuicClock* clock)
   DLOG(INFO) << "FixRateSender";
 }
 
-void FixRateSender::OnIncomingCongestionInfo(
-    const CongestionInfo& congestion_info) {
-  DCHECK(congestion_info.type == kFixRate) <<
-      "Invalid incoming CongestionFeedbackType:" << congestion_info.type;
-  if (congestion_info.type == kFixRate) {
+void FixRateSender::OnIncomingQuicCongestionFeedbackFrame(
+    const QuicCongestionFeedbackFrame& feedback) {
+  DCHECK(feedback.type == kFixRate) <<
+      "Invalid incoming CongestionFeedbackType:" << feedback.type;
+  if (feedback.type == kFixRate) {
     bitrate_in_bytes_per_s_ =
-        congestion_info.fix_rate.bitrate_in_bytes_per_second;
+        feedback.fix_rate.bitrate_in_bytes_per_second;
     fix_rate_leaky_bucket_.SetDrainingRate(bitrate_in_bytes_per_s_);
     paced_sender_.UpdateBandwidthEstimate(bitrate_in_bytes_per_s_);
   }

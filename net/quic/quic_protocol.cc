@@ -91,7 +91,6 @@ QuicAckFrame::QuicAckFrame(QuicPacketSequenceNumber largest_received,
   }
   received_info.largest_received = largest_received;
   sent_info.least_unacked = least_unacked;
-  congestion_info.type = kNone;
 }
 
 ostream& operator<<(ostream& os, const SentPacketInfo& s) {
@@ -117,11 +116,9 @@ ostream& operator<<(ostream& os, const ReceivedPacketInfo& r) {
   return os;
 }
 
-ostream& operator<<(ostream& os, const CongestionInfo& c) {
+ostream& operator<<(ostream& os, const QuicCongestionFeedbackFrame& c) {
   os << "type: " << c.type;
   switch (c.type) {
-    case kNone:
-      break;
     case kInterArrival: {
       const CongestionFeedbackMessageInterArrival& inter_arrival =
           c.inter_arrival;
@@ -153,9 +150,8 @@ ostream& operator<<(ostream& os, const CongestionInfo& c) {
 
 ostream& operator<<(ostream& os, const QuicAckFrame& a) {
   os << "sent info { " << a.sent_info << " } "
-     << "received info { " << a.received_info << " } "
-     << "congestion info { " << a.congestion_info << " }\n";
-  return os;
+     << "received info { " << a.received_info << " }\n";
+ return os;
 }
 
 QuicFecData::QuicFecData() {}

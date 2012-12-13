@@ -22,11 +22,11 @@ class QuicReceiptMetricsCollectorTest : public ::testing::Test {
 
 TEST_F(QuicReceiptMetricsCollectorTest, FixedRateReceiverAPI) {
   SetUpCongestionType(kFixRate);
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   QuicTime timestamp;
   receiver_->RecordIncomingPacket(1, 1, timestamp, false);
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  EXPECT_EQ(kFixRate, info.type);
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  EXPECT_EQ(kFixRate, feedback.type);
 }
 
 }  // namespace net
