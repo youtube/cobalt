@@ -24,9 +24,33 @@
 namespace {
 
 // Client ID key in the user preferences.
-NSString* const kClientIdPreferenceKey = @"ChromiumClientID";
+NSString* const kLegacyClientIdPreferenceKey = @"ChromiumClientID";
+NSString* const kClientIdPreferenceKey = @"ChromeClientID";
 // Default salt for device ids.
 const char kDefaultSalt[] = "Salt";
+// Zero UUID returned on buggy iOS devices.
+NSString* const kZeroUUID = @"00000000-0000-0000-0000-000000000000";
+
+NSString* GenerateClientId() {
+  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+
+  // Try to migrate from legacy client id.
+  NSString* client_id = [defaults stringForKey:kLegacyClientIdPreferenceKey];
+
+  // Some iOS6 devices return a buggy identifierForVendor:
+  // http://openradar.appspot.com/12377282. If this is the case, revert to
+  // generating a new one.
+  if (!client_id || [client_id isEqualToString:kZeroUUID]) {
+    if (base::ios::IsRunningOnIOS6OrLater()) {
+      client_id = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
+      if ([client_id isEqualToString:kZeroUUID])
+        client_id = base::SysUTF8ToNSString(ios::device_util::GetRandomId());
+    } else {
+      client_id = base::SysUTF8ToNSString(ios::device_util::GetRandomId());
+    }
+  }
+  return client_id;
+}
 
 }  // namespace
 
@@ -104,10 +128,7 @@ std::string GetDeviceIdentifier(const char* salt) {
   NSString* client_id = [defaults stringForKey:kClientIdPreferenceKey];
 
   if (!client_id) {
-    if (base::ios::IsRunningOnIOS6OrLater())
-      client_id = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
-    else
-      client_id = base::SysUTF8ToNSString(GetRandomId());
+    client_id = GenerateClientId();
     [defaults setObject:client_id forKey:kClientIdPreferenceKey];
     [defaults synchronize];
   }
