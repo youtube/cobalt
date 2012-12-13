@@ -35,7 +35,6 @@ class BaseTestServer {
   enum Type {
     TYPE_BASIC_AUTH_PROXY,
     TYPE_FTP,
-    TYPE_GDATA,
     TYPE_HTTP,
     TYPE_HTTPS,
     TYPE_WS,
@@ -149,9 +148,6 @@ class BaseTestServer {
 
   // Pass as the 'host' parameter during construction to server on 127.0.0.1
   static const char kLocalhost[];
-
-  // The auth token to be used for TYPE_GDATA server.
-  static const char kGDataAuthToken[];
 
   // Initialize a TestServer listening on a specific host (IP or hostname).
   BaseTestServer(Type type,  const std::string& host);
