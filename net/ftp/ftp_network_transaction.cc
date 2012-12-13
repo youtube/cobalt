@@ -683,7 +683,7 @@ int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
       response_.socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
       next_state_ = STATE_CTRL_READ;
 
-      if (ip_endpoint.GetFamily() == AF_INET) {
+      if (ip_endpoint.GetFamily() == ADDRESS_FAMILY_IPV4) {
         // Do not use EPSV for IPv4 connections. Some servers become confused
         // and we time out while waiting to connect. PASV is perfectly fine for
         // IPv4. Note that this blacklists IPv4 not to use EPSV instead of
