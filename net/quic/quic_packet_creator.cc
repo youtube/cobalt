@@ -180,6 +180,19 @@ QuicPacketCreator::PacketPair QuicPacketCreator::AckPacket(
   return make_pair(header.packet_sequence_number, packet);
 }
 
+QuicPacketCreator::PacketPair QuicPacketCreator::CongestionFeedbackPacket(
+    QuicCongestionFeedbackFrame* feedback_frame) {
+
+  QuicPacketHeader header;
+  FillPacketHeader(0, PACKET_FLAGS_NONE, &header);
+
+  QuicPacket* packet;
+  QuicFrames frames;
+  frames.push_back(QuicFrame(feedback_frame));
+  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  return make_pair(header.packet_sequence_number, packet);
+}
+
 QuicPacketSequenceNumber QuicPacketCreator::SetNewSequenceNumber(
     QuicPacket* packet) {
   ++sequence_number_;

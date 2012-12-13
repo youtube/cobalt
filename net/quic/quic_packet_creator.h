@@ -70,6 +70,8 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
 
   PacketPair AckPacket(QuicAckFrame* ack_frame);
 
+  PacketPair CongestionFeedbackPacket(QuicCongestionFeedbackFrame* ack_frame);
+
   // Increments the current sequence number in QuicPacketCreator and sets it
   // into the packet and returns the new sequence number.
   QuicPacketSequenceNumber SetNewSequenceNumber(QuicPacket* packet);

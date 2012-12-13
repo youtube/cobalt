@@ -25,10 +25,10 @@ class QuicSendSchedulerTest : public ::testing::Test {
 
 TEST_F(QuicSendSchedulerTest, FixedRateSenderAPI) {
   SetUpCongestionType(kFixRate);
-  QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 30000;
-  sender_->OnIncomingAckFrame(ack);
+  QuicCongestionFeedbackFrame congestion_feedback;
+  congestion_feedback.type = kFixRate;
+  congestion_feedback.fix_rate.bitrate_in_bytes_per_second = 30000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(congestion_feedback);
   EXPECT_EQ(-1, sender_->PeakSustainedBandwidth());
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
@@ -46,10 +46,14 @@ TEST_F(QuicSendSchedulerTest, FixedRateSenderAPI) {
 TEST_F(QuicSendSchedulerTest, FixedRatePacing) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   ack.received_info.largest_received = 0;
   sender_->OnIncomingAckFrame(ack);
+
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  feedback.fix_rate.bitrate_in_bytes_per_second = 100000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
+
   QuicTime acc_advance_time;
   for (int i = 1; i <= 100; ++i) {
     EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
@@ -68,9 +72,13 @@ TEST_F(QuicSendSchedulerTest, FixedRatePacing) {
 TEST_F(QuicSendSchedulerTest, AvailableCongestionWindow) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
+
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  feedback.fix_rate.bitrate_in_bytes_per_second = 100000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
+
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
   const int32 num_packets = 12;
@@ -90,9 +98,13 @@ TEST_F(QuicSendSchedulerTest, AvailableCongestionWindow) {
 TEST_F(QuicSendSchedulerTest, FixedRateBandwidth) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
+
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  feedback.fix_rate.bitrate_in_bytes_per_second = 100000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
+
   for (int i = 1; i <= 100; ++i) {
     QuicTime::Delta advance_time = sender_->TimeUntilSend(false);
     clock_.AdvanceTime(advance_time);
@@ -111,9 +123,13 @@ TEST_F(QuicSendSchedulerTest, FixedRateBandwidth) {
 TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
+
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  feedback.fix_rate.bitrate_in_bytes_per_second = 100000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
+
   for (int i = 1; i <= 100; ++i) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
@@ -149,11 +165,15 @@ TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
 TEST_F(QuicSendSchedulerTest, Pacing) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
-  ack.congestion_info.type = kFixRate;
-  // Test a high bitrate (8Mbit/s) to trigger pacing.
-  ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 1000000;
   ack.received_info.largest_received = 0;
   sender_->OnIncomingAckFrame(ack);
+
+  QuicCongestionFeedbackFrame feedback;
+  feedback.type = kFixRate;
+  // Test a high bitrate (8Mbit/s) to trigger pacing.
+  feedback.fix_rate.bitrate_in_bytes_per_second = 1000000;
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
+
   QuicTime acc_advance_time;
   for (int i = 1; i <= 100;) {
     EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());

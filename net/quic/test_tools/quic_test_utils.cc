@@ -30,6 +30,9 @@ bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
 FramerVisitorCapturingAcks::FramerVisitorCapturingAcks() {
 }
 
+FramerVisitorCapturingAcks::~FramerVisitorCapturingAcks() {
+}
+
 bool FramerVisitorCapturingAcks::OnPacketHeader(
     const QuicPacketHeader& header) {
   header_ = header;
@@ -37,7 +40,12 @@ bool FramerVisitorCapturingAcks::OnPacketHeader(
 }
 
 void FramerVisitorCapturingAcks::OnAckFrame(const QuicAckFrame& frame) {
-  frame_ = frame;
+  ack_.reset(new QuicAckFrame(frame));
+}
+
+void FramerVisitorCapturingAcks::OnCongestionFeedbackFrame(
+    const QuicCongestionFeedbackFrame& frame) {
+  feedback_.reset(new QuicCongestionFeedbackFrame(frame));
 }
 
 MockHelper::MockHelper() {

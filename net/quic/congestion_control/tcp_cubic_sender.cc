@@ -33,21 +33,21 @@ TcpCubicSender::TcpCubicSender(const QuicClock* clock, bool reno)
       delay_min_() {
 }
 
-void TcpCubicSender::OnIncomingCongestionInfo(
-    const CongestionInfo& congestion_info) {
+void TcpCubicSender::OnIncomingQuicCongestionFeedbackFrame(
+    const QuicCongestionFeedbackFrame& feedback) {
   if (last_received_accumulated_number_of_lost_packets_ !=
-      congestion_info.tcp.accumulated_number_of_lost_packets) {
+      feedback.tcp.accumulated_number_of_lost_packets) {
     int recovered_lost_packets =
         last_received_accumulated_number_of_lost_packets_ -
-        congestion_info.tcp.accumulated_number_of_lost_packets;
+        feedback.tcp.accumulated_number_of_lost_packets;
     last_received_accumulated_number_of_lost_packets_ =
-        congestion_info.tcp.accumulated_number_of_lost_packets;
+        feedback.tcp.accumulated_number_of_lost_packets;
     if (recovered_lost_packets > 0) {
       OnIncomingLoss(recovered_lost_packets);
     }
   }
   receiver_congestion_window_in_bytes_ =
-      congestion_info.tcp.receive_window << 4;
+      feedback.tcp.receive_window << 4;
 }
 
 void TcpCubicSender::OnIncomingAck(

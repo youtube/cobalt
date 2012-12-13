@@ -45,6 +45,8 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnFecProtectedPayload, void(base::StringPiece payload));
   MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame& frame));
   MOCK_METHOD1(OnAckFrame, void(const QuicAckFrame& frame));
+  MOCK_METHOD1(OnCongestionFeedbackFrame,
+               void(const QuicCongestionFeedbackFrame& frame));
   MOCK_METHOD1(OnFecData, void(const QuicFecData& fec));
   MOCK_METHOD1(OnRstStreamFrame, void(const QuicRstStreamFrame& frame));
   MOCK_METHOD1(OnConnectionCloseFrame,
@@ -67,6 +69,8 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE {}
   virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE {}
   virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE {}
+  virtual void OnCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& frame) OVERRIDE {}
   virtual void OnFecData(const QuicFecData& fec) OVERRIDE {}
   virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE {}
   virtual void OnConnectionCloseFrame(
@@ -80,17 +84,23 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
 class FramerVisitorCapturingAcks : public NoOpFramerVisitor {
  public:
   FramerVisitorCapturingAcks();
+  virtual ~FramerVisitorCapturingAcks();
 
   // NoOpFramerVisitor
   virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
   virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
+  virtual void OnCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& frame) OVERRIDE;
 
   QuicPacketHeader* header() { return &header_; }
-  QuicAckFrame* frame() { return &frame_; }
+
+  QuicAckFrame* ack() { return ack_.get(); }
+  QuicCongestionFeedbackFrame* feedback() { return feedback_.get(); }
 
  private:
   QuicPacketHeader header_;
-  QuicAckFrame frame_;
+  scoped_ptr<QuicAckFrame> ack_;
+  scoped_ptr<QuicCongestionFeedbackFrame> feedback_;
 
   DISALLOW_COPY_AND_ASSIGN(FramerVisitorCapturingAcks);
 };

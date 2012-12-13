@@ -78,10 +78,13 @@ void QuicSendScheduler::SentPacket(QuicPacketSequenceNumber sequence_number,
   DLOG(INFO) << "Sent sequence number:" << sequence_number;
 }
 
-void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
-  if (ack_frame.congestion_info.type != kNone) {
-    send_algorithm_->OnIncomingCongestionInfo(ack_frame.congestion_info);
+void QuicSendScheduler::OnIncomingQuicCongestionFeedbackFrame(
+    const QuicCongestionFeedbackFrame& congestion_feedback_frame) {
+  send_algorithm_->OnIncomingQuicCongestionFeedbackFrame(
+      congestion_feedback_frame);
   }
+
+void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
   // We want to.
   // * Get all packets lower(including) than largest_received
   //   from pending_packets_.

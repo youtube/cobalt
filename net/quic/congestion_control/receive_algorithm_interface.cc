@@ -14,9 +14,6 @@ ReceiveAlgorithmInterface* ReceiveAlgorithmInterface::Create(
     const QuicClock* clock,
     CongestionFeedbackType type) {
   switch (type) {
-    case kNone:
-      LOG(DFATAL) << "Attempted to create a ReceiveAlgorithm with kNone.";
-      break;
     case kTCP:
       return new TcpReceiver();
     case kInterArrival:
