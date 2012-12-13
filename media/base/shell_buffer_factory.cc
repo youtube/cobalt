@@ -21,7 +21,42 @@
 
 namespace media {
 
-ShellBufferFactory* ShellBufferFactory::instance_ = NULL;
+// ==== ShellScopedArray =======================================================
+
+ShellScopedArray::ShellScopedArray(uint8* reusable_buffer, size_t size)
+    : array_(reusable_buffer)
+    , size_(size) {
+}
+
+ShellScopedArray::~ShellScopedArray() {
+  if (array_) {
+    ShellBufferFactory::Instance()->Reclaim(array_);
+  }
+}
+
+// ==== ShellBuffer ============================================================
+
+// static
+scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer() {
+  return scoped_refptr<ShellBuffer>(new ShellBuffer(NULL, 0));
+}
+
+ShellBuffer::ShellBuffer(uint8* reusable_buffer, size_t size)
+    : Buffer(kNoTimestamp(), kInfiniteDuration())
+    , buffer_(reusable_buffer)
+    , size_(size) {
+}
+
+ShellBuffer::~ShellBuffer() {
+  // recycle our buffer
+  if (buffer_) {
+    ShellBufferFactory::Instance()->Reclaim(buffer_);
+  }
+}
+
+// ==== ShellBufferFactory =====================================================
+
+scoped_refptr<ShellBufferFactory> ShellBufferFactory::instance_ = NULL;
 
 // static
 void ShellBufferFactory::Initialize() {
@@ -31,139 +66,228 @@ void ShellBufferFactory::Initialize() {
   }
 }
 
-// static
-scoped_refptr<DecoderBuffer> ShellBufferFactory::GetVideoDecoderBuffer() {
-  DCHECK(instance_);
-  base::AutoLock lock(instance_->lock_);
-  scoped_refptr<DecoderBuffer> video_buffer;
-  // check for available free buffer first
-  if (instance_->free_video_buffers_list_.size()) {
-    video_buffer = instance_->free_video_buffers_list_.front();
-    instance_->free_video_buffers_list_.pop_front();
+bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
+  // Zero-size buffers are allocation error, allocate an EOS buffer explicity
+  // with the provided EOS method.
+  if (size == 0) {
+    return false;
+  }
+  size_t aligned_size = SizeAlign(size);
+  // If we can allocate a buffer right now save a pointer to it so that we don't
+  // run the callback while holding the memory lock, for safety's sake.
+  scoped_refptr<ShellBuffer> instant_buffer = NULL;
+  if (aligned_size <= kShellMaxBufferSize) {
+    base::AutoLock lock(lock_);
+    // We only service requests directly if there's no callbacks pending and
+    // we can accommodate a buffer of the requested size
+    uint8* shell_buffer_bytes;
+    if (pending_allocs_.size() == 0 && aligned_size <= largest_free_space_) {
+      instant_buffer = new ShellBuffer(AllocateLockAcquired(aligned_size),
+                                       size);
+      DCHECK(!instant_buffer->IsEndOfStream());
+    } else {
+      // Alright, we have to wait, enqueue the buffer and size.
+      pending_allocs_.push_back(std::make_pair(cb, size));
+    }
   } else {
-    // allocate new buffer and set a handle
-    video_buffer = new DecoderBuffer(ShellVideoDecoderBufferMaxSize);
-    video_buffer->SetHandle(++instance_->buffer_handle_counter_);
-    if (instance_->allocated_video_buffers_map_.size() >=
-        ShellMaxVideoDecoderBufferCount) {
-      DLOG(WARNING) << base::StringPrintf(
-          "allocating excess video DecoderBuffer, total count now: %d",
-          instance_->allocated_video_buffers_map_.size() + 1);
+    // allocation size request was too large, return failure
+    return false;
+  }
+  // If we managed to create a buffer run the callback after releasing the lock.
+  if (instant_buffer) {
+    cb.Run(instant_buffer);
+  }
+  return true;
+}
+
+bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
+  base::AutoLock lock(lock_);
+  return (SizeAlign(size) <= largest_free_space_);
+}
+
+scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
+  uint8* allocated_bytes = NULL;
+  if (size == 0) {
+    return NULL;
+  }
+  size_t aligned_size = SizeAlign(size);
+  if (aligned_size <= kShellMaxArraySize) {
+    base::AutoLock lock(lock_);
+    // there should not already be somebody waiting on an array
+    if (array_requested_size_ > 0) {
+      NOTREACHED() << "Max one thread blocking on array allocation at a time.";
+      return NULL;
+    }
+    // Attempt to allocate.
+    allocated_bytes = AllocateLockAcquired(aligned_size);
+    // If we don't have room save state while we still have the lock
+    if (!allocated_bytes) {
+      array_requested_size_ = aligned_size;
+    }
+  } else {  // oversized requests always fail instantly.
+    return NULL;
+  }
+  // Lock is released. Now safe to block this thread if we need to.
+  if (!allocated_bytes) {
+    // Wait until enough memory has been released to service this allocation.
+    array_allocation_event_.Wait();
+    {
+      // acquire lock to get address and clear requested size
+      base::AutoLock lock(lock_);
+      // make sure this allocation makes sense
+      DCHECK_EQ(aligned_size, array_requested_size_);
+      DCHECK(array_allocation_);
+      allocated_bytes = array_allocation_;
+      array_allocation_ = NULL;
+      array_requested_size_ = 0;
     }
   }
-  DCHECK(video_buffer);
-  // store buffer in allocated map
-  instance_->allocated_video_buffers_map_[video_buffer->GetHandle()] =
-      video_buffer;
-  return video_buffer;
+  // Whether we blocked or not we should now have a pointer
+  DCHECK(allocated_bytes);
+  return scoped_refptr<ShellScopedArray>(new ShellScopedArray(allocated_bytes,
+                                                              size));
 }
 
-// static
-void ShellBufferFactory::ReturnVideoDecoderBuffer(
-    scoped_refptr<DecoderBuffer> video_buffer) {
-  DCHECK(instance_);
-  base::AutoLock lock(instance_->lock_);
-  DecoderBufferMap::iterator it = instance_->allocated_video_buffers_map_.find(
-      video_buffer->GetHandle());
-  // must always find it
-  DCHECK(it != instance_->allocated_video_buffers_map_.end());
-  // remove from allocated map
-  instance_->allocated_video_buffers_map_.erase(it);
-  int total_video_buffers = instance_->free_video_buffers_list_.size() +
-      instance_->allocated_video_buffers_map_.size();
-  // add to free list if we aren't over-allocated
-  if (total_video_buffers < ShellMaxVideoDecoderBufferCount) {
-    instance_->free_video_buffers_list_.push_back(video_buffer);
-  } else {
-    DLOG(WARNING) << base::StringPrintf(
-        "freeing excess video DecoderBuffer, total count now: %d",
-        total_video_buffers);
-  }
-}
+void ShellBufferFactory::Reclaim(uint8* p) {
+  typedef std::list<std::pair<AllocCB, scoped_refptr<ShellBuffer> > >
+      FinishList;
+  FinishList finished_allocs_;
 
-// static
-scoped_refptr<DecoderBuffer> ShellBufferFactory::GetAudioDecoderBuffer() {
-  DCHECK(instance_);
-  base::AutoLock lock(instance_->lock_);
-  scoped_refptr<DecoderBuffer> audio_buffer;
-  // check for available free buffer first
-  if (instance_->free_audio_buffers_list_.size()) {
-    audio_buffer = instance_->free_audio_buffers_list_.front();
-    instance_->free_audio_buffers_list_.pop_front();
-  } else {
-    // allocate new buffer and set a handle
-    audio_buffer = new DecoderBuffer(ShellAudioDecoderBufferMaxSize);
-    audio_buffer->SetHandle(++instance_->buffer_handle_counter_);
-    if (instance_->allocated_audio_buffers_map_.size() >=
-        ShellMaxAudioDecoderBufferCount) {
-      DLOG(WARNING) << base::StringPrintf(
-          "allocating excess audio DecoderBuffer, total count now: %d",
-          instance_->allocated_audio_buffers_map_.size() + 1);
+  // Reclaim() on a NULL buffer is a no-op, don't even acquire the lock.
+  if (p) {
+    base::AutoLock lock(lock_);
+    AllocMap::iterator p_it = allocs_.find(p);
+    // sanity-check that this offset is indeed in the map
+    if (p_it == allocs_.end()) {
+      NOTREACHED();
+      return;
+    }
+#if defined(_DEBUG)
+    // scribble recycled memory in debug builds with 0xef
+    memset(p, 0xef, p_it->second);
+#endif
+    // remove from the map
+    allocs_.erase(p_it);
+    // update memory block info
+    RecalculateLargestFreeSpaceLockAcquired();
+    // Try to service a blocking array request if there is one, and it hasn't
+    // already been serviced. If we can't service it then we won't allocate any
+    // additional ShellBuffers as arrays get priority treatment.
+    bool service_buffers = true;
+    if (array_requested_size_ > 0 && !array_allocation_) {
+      array_allocation_ = AllocateLockAcquired(array_requested_size_);
+      if (array_allocation_) {
+        // Wake up blocked thread
+        array_allocation_event_.Signal();
+      } else {
+        // Not enough room for the array so don't give away what room we have
+        // to the buffers.
+        service_buffers = false;
+      }
+    }
+    // Try to process any enqueued allocs in FIFO order until we run out of room
+    while (service_buffers && pending_allocs_.size()) {
+      size_t size = pending_allocs_.front().second;
+      size_t aligned_size = SizeAlign(size);
+      uint8* bytes = AllocateLockAcquired(aligned_size);
+      if (bytes) {
+        finished_allocs_.push_back(std::make_pair(
+            pending_allocs_.front().first,
+            new ShellBuffer(bytes, size)));
+        pending_allocs_.pop_front();
+      } else {
+        service_buffers = false;
+      }
     }
   }
-  DCHECK(audio_buffer);
-  // store buffer in allocated map
-  instance_->allocated_audio_buffers_map_[audio_buffer->GetHandle()] =
-      audio_buffer;
-  return audio_buffer;
-}
-
-// static
-void ShellBufferFactory::ReturnAudioDecoderBuffer(
-    scoped_refptr<DecoderBuffer> audio_buffer) {
-  DCHECK(instance_);
-  base::AutoLock lock(instance_->lock_);
-  DecoderBufferMap::iterator it = instance_->allocated_audio_buffers_map_.find(
-      audio_buffer->GetHandle());
-  // must always find it
-  DCHECK(it != instance_->allocated_audio_buffers_map_.end());
-  // remove from allocated map
-  instance_->allocated_audio_buffers_map_.erase(it);
-  // add to free list if we aren't over-allocated
-  int total_audio_buffers = instance_->free_audio_buffers_list_.size() +
-      instance_->allocated_audio_buffers_map_.size();
-  if (total_audio_buffers < ShellMaxAudioDecoderBufferCount) {
-    instance_->free_audio_buffers_list_.push_back(audio_buffer);
-  } else {
-    DLOG(WARNING) << base::StringPrintf(
-        "freeing excess audio DecoderBuffer, total count now: %d",
-        total_audio_buffers);
+  // OK, lock released, do callbacks for finished allocs
+  for (FinishList::iterator it = finished_allocs_.begin();
+       it != finished_allocs_.end(); ++it) {
+    it->first.Run(it->second);
   }
 }
 
-// static
-bool ShellBufferFactory::IsNearDecoderBufferOverflow() {
-  base::AutoLock lock(instance_->lock_);
-  // return true if we are down to only one buffer in either audio
-  // or video max buffer counts
-  return (instance_->free_video_buffers_list_.size() +
-          instance_->allocated_video_buffers_map_.size() >
-          ShellMaxVideoDecoderBufferCount - 1) ||
-         (instance_->free_audio_buffers_list_.size() +
-          instance_->allocated_audio_buffers_map_.size() >
-          ShellMaxAudioDecoderBufferCount - 1);
+uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
+  // should have acquired the lock already
+  lock_.AssertAcquired();
+  // and should have aligned the size already
+  DCHECK_EQ(aligned_size % kShellBufferAlignment, 0);
+  // Quick check that we have a reasonable expectation of fitting this size.
+  if (aligned_size > largest_free_space_) {
+    return NULL;
+  }
+  // find the best fit for this buffer
+  uint8* best_fit = buffer_;
+  size_t best_fit_size = kShellBufferSpaceSize;
+  uint8* last_alloc_end = buffer_;
+  for (AllocMap::iterator it = allocs_.begin(); it != allocs_.end(); it++) {
+    size_t free_block_size = it->first - last_alloc_end;
+    if (free_block_size >= aligned_size && free_block_size < best_fit_size) {
+      best_fit_size = free_block_size;
+      best_fit = last_alloc_end;
+    }
+    last_alloc_end = it->first + it->second;
+  }
+  // should have found a block that fits within at least the largest free space
+  // and also within our shared buffer overall
+  DCHECK_LE(best_fit_size, largest_free_space_) <<
+      "found a free block larger than largest_free_space";
+  DCHECK_LT(best_fit + aligned_size - buffer_, kShellBufferSpaceSize);
+  // save this new allocation in the map
+  allocs_[best_fit] = aligned_size;
+  // if we broke up the largest free space, recalculate it
+  if (best_fit_size == largest_free_space_) {
+    RecalculateLargestFreeSpaceLockAcquired();
+  }
+  return best_fit;
+}
 
+void ShellBufferFactory::RecalculateLargestFreeSpaceLockAcquired() {
+  // should have already acquired the lock
+  lock_.AssertAcquired();
+  // recalculate largest free space after allocation or release
+  largest_free_space_ = 0;
+  uint8* last_alloc_end = buffer_;
+  for (AllocMap::iterator it = allocs_.begin(); it != allocs_.end(); it++) {
+    // last_alloc_end describes the lowest byte-aligned value past the size of
+    // the last alloc, which is the lowest address that a new alloc could be
+    // created at. We compare this to the starting offset of this alloc in the
+    // shared memory space, as this defines the byte range of free space.
+    largest_free_space_ = std::max(largest_free_space_,
+                                   (size_t)(it->first - last_alloc_end));
+    last_alloc_end = it->first + it->second;
+  }
 }
 
 // static
 void ShellBufferFactory::Terminate() {
-  delete instance_;
   instance_ = NULL;
 }
 
-ShellBufferFactory::ShellBufferFactory() {
-  // no-op
+ShellBufferFactory::ShellBufferFactory()
+    : largest_free_space_(kShellBufferSpaceSize)
+    , array_allocation_event_(false, false)
+    , array_requested_size_(0)
+    , array_allocation_(NULL) {
+  buffer_ = (uint8*)memalign(kShellBufferAlignment, kShellBufferSpaceSize);
+  // we insert a guard alloc at the first byte after the end of the buffer
+  // space, to simplify the logic surrounding free space calculations
+  allocs_[buffer_ + kShellBufferSpaceSize] = 0;
 }
 
+// Will be called when all ShellBuffers have been deleted AND instance_ has
+// been set to NULL.
 ShellBufferFactory::~ShellBufferFactory() {
-  base::AutoLock lock(lock_);
-  // should have already had all buffers returned
-  DCHECK_EQ(allocated_audio_buffers_map_.size(), 0);
-  DCHECK_EQ(allocated_video_buffers_map_.size(), 0);
-  // explicitly wipe pointers, likely to happen on list dtor anyway but
-  // just to be absolutely sure..
-  free_audio_buffers_list_.clear();
-  free_video_buffers_list_.clear();
+  // should be nothing but the guard alloc remaining in the alloc_ map
+  if (allocs_.size() > 1) {
+    DLOG(WARNING) << base::StringPrintf(
+        "%d unfreed allocs on termination now pointing at invalid memory!",
+        allocs_.size() - 1);
+  }
+  // and no outstanding array requests
+  DCHECK_EQ(array_requested_size_, 0);
+  free(buffer_);
 }
+
 
 }  // namespace media

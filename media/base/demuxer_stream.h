@@ -13,7 +13,11 @@
 namespace media {
 
 class AudioDecoderConfig;
+#if defined(__LB_SHELL__)
+class ShellBuffer;
+#else
 class DecoderBuffer;
+#endif
 class VideoDecoderConfig;
 
 class MEDIA_EXPORT DemuxerStream
@@ -52,8 +56,13 @@ class MEDIA_EXPORT DemuxerStream
   // The first parameter indicates the status of the read.
   // The second parameter is non-NULL and contains media data
   // or the end of the stream if the first parameter is kOk. NULL otherwise.
+#if defined(__LB_SHELL__)
+  typedef base::Callback<void(Status,
+                              const scoped_refptr<ShellBuffer>&)>ReadCB;
+#else
   typedef base::Callback<void(Status,
                               const scoped_refptr<DecoderBuffer>&)>ReadCB;
+#endif
   virtual void Read(const ReadCB& read_cb) = 0;
 
   // Returns the audio decoder configuration. It is an error to call this method
