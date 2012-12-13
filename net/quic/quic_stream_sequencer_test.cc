@@ -63,6 +63,7 @@ class MockStream : public ReliableQuicStream {
   MOCK_METHOD1(TerminateFromPeer, void(bool half_close));
   MOCK_METHOD2(ProcessData, uint32(const char* data, uint32 data_len));
   MOCK_METHOD1(Close, void(QuicErrorCode error));
+  MOCK_METHOD0(OnCanWrite, void());
 };
 
 namespace {

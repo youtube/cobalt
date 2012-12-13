@@ -18,7 +18,9 @@ ReliableQuicStream::ReliableQuicStream(QuicStreamId id,
       session_(session),
       error_(QUIC_NO_ERROR),
       read_side_closed_(false),
-      write_side_closed_(false) {
+      write_side_closed_(false),
+      fin_buffered_(false),
+      fin_sent_(false) {
 }
 
 ReliableQuicStream::~ReliableQuicStream() {
@@ -95,17 +97,62 @@ const IPEndPoint& ReliableQuicStream::GetPeerAddress() const {
 }
 
 int ReliableQuicStream::WriteData(StringPiece data, bool fin) {
+  return WriteOrBuffer(data, fin);
+}
+
+int ReliableQuicStream::WriteOrBuffer(StringPiece data, bool fin) {
+  DCHECK(!fin_buffered_);
+
+  size_t bytes_written = 0;
+  fin_buffered_ = fin;
+
+  if (queued_data_.empty()) {
+    bytes_written = WriteDataInternal(string(data.data(), data.length()), fin);
+  }
+  if (bytes_written != data.length()) {
+    queued_data_.push_back(string(data.data() + bytes_written,
+                                  data.length() - bytes_written));
+  }
+  return data.size();
+}
+
+void ReliableQuicStream::OnCanWrite() {
+  bool fin = false;
+  bool all_bytes_written = true;
+  while (all_bytes_written && !queued_data_.empty()) {
+    const string& data = queued_data_.front();
+    if (queued_data_.size() == 1 && fin_buffered_) {
+      fin = true;
+    }
+    int bytes_written = WriteDataInternal(data, fin);
+    if (bytes_written == static_cast<int>(data.size())) {
+      queued_data_.pop_front();
+    } else {
+      all_bytes_written = false;
+      queued_data_.front() = string(data.data() + bytes_written,
+                                    data.length() - bytes_written);
+    }
+  }
+}
+
+int ReliableQuicStream::WriteDataInternal(StringPiece data, bool fin) {
   if (write_side_closed_) {
     DLOG(ERROR) << "Attempt to write when the write side is closed";
     return 0;
   }
 
-  int rv = session()->WriteData(id(), data, offset_, fin);
-  offset_ += data.length();
-  if (fin) {
-    CloseWriteSide();
+  int bytes_consumed = session()->WriteData(id(), data, offset_, fin);
+  offset_ += bytes_consumed;
+  stream_bytes_written_ += bytes_consumed;
+  if (bytes_consumed == static_cast<int>(data.length())) {
+    if (fin) {
+      fin_sent_ = true;
+      CloseWriteSide();
+    }
+  } else {
+    session_->MarkWriteBlocked(id());
   }
-  return rv;
+  return bytes_consumed;
 }
 
 void ReliableQuicStream::CloseReadSide() {
