@@ -331,7 +331,7 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
   // TODO(eroman): we only ever use the first address in the list. It would be
   //               more robust to try all the IP addresses we have before
   //               failing the connect attempt.
-  CHECK_EQ(AF_INET, endpoint.GetFamily());
+  CHECK_EQ(ADDRESS_FAMILY_IPV4, endpoint.GetFamily());
   CHECK_LE(endpoint.address().size(), sizeof(request.ip));
   memcpy(&request.ip, &endpoint.address()[0], endpoint.address().size());
 

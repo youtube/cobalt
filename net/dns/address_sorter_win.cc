@@ -58,7 +58,7 @@ class AddressSorterWin : public AddressSorter {
       for (size_t i = 0; i < list.size(); ++i) {
         IPEndPoint ipe = list[i];
         // Addresses must be sockaddr_in6.
-        if (ipe.GetFamily() == AF_INET) {
+        if (ipe.GetFamily() == ADDRESS_FAMILY_IPV4) {
           ipe = IPEndPoint(ConvertIPv4NumberToIPv6Number(ipe.address()),
                            ipe.port());
         }
@@ -165,7 +165,7 @@ class AddressSorterWinXP : public AddressSorter {
     AddressList list_ipv6;
     for (size_t i = 0; i < list.size(); ++i) {
       const IPEndPoint& ipe = list[i];
-      if (ipe.GetFamily() == AF_INET) {
+      if (ipe.GetFamily() == ADDRESS_FAMILY_IPV4) {
         list_ipv4.push_back(ipe);
       } else {
         list_ipv6.push_back(ipe);
