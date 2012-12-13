@@ -46,7 +46,6 @@ std::string GetServerTypeString(BaseTestServer::Type type) {
   switch (type) {
     case BaseTestServer::TYPE_FTP:
       return "ftp";
-    case BaseTestServer::TYPE_GDATA:
     case BaseTestServer::TYPE_HTTP:
     case BaseTestServer::TYPE_HTTPS:
       return "http";
