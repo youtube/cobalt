@@ -221,21 +221,6 @@
             "credentials": "google",
             "scrolling": {
                 "action": "scrolling_interaction"
-            },
-            "stress_memory": {
-                "action": "compound_interaction",
-                "actions": [
-                    {
-                        "action": "click_element_interaction",
-                        "selector": "a[href=\"/channels?feature=promo\"]",
-                        "wait_for_navigate": true
-                    },
-                    {
-                        "action": "click_element_interaction",
-                        "text": "Music",
-                        "wait_for_navigate": true
-                    }
-                ]
             }
         },
         {
