@@ -46,7 +46,8 @@
         "VeriSignClass3_G3",
         "Google1024",
         "Google2048",
-        "EquifaxSecureCA"
+        "EquifaxSecureCA",
+        "GeoTrustGlobal"
       ],
       "bad_static_spki_hashes": [
         "Aetna",
