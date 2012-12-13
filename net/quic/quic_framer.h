@@ -56,6 +56,10 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a AckFrame has been parsed.
   virtual void OnAckFrame(const QuicAckFrame& frame) = 0;
 
+  // Called when a CongestionFeedbackFrame has been parsed.
+  virtual void OnCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& frame) = 0;
+
   // Called when a RstStreamFrame has been parsed.
   virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) = 0;
 
@@ -167,7 +171,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessAckFrame(QuicAckFrame* frame);
   bool ProcessReceivedInfo(ReceivedPacketInfo* received_info);
   bool ProcessSentInfo(SentPacketInfo* sent_info);
-  bool ProcessCongestionInfo(CongestionInfo* congestion_info);
+  bool ProcessQuicCongestionFeedbackFrame(
+      QuicCongestionFeedbackFrame* congestion_feedback);
   bool ProcessRstStreamFrame();
   bool ProcessConnectionCloseFrame();
 
@@ -180,6 +185,9 @@ class NET_EXPORT_PRIVATE QuicFramer {
                                 QuicDataWriter* builder);
   bool AppendAckFramePayload(const QuicAckFrame& frame,
                              QuicDataWriter* builder);
+  bool AppendQuicCongestionFeedbackFramePayload(
+      const QuicCongestionFeedbackFrame& frame,
+      QuicDataWriter* builder);
   bool AppendRstStreamFramePayload(const QuicRstStreamFrame& frame,
                                    QuicDataWriter* builder);
   bool AppendConnectionCloseFramePayload(

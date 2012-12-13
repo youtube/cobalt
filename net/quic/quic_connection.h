@@ -152,6 +152,8 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE;
   virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE;
   virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
+  virtual void OnCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& frame) OVERRIDE;
   virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE;
   virtual void OnConnectionCloseFrame(
       const QuicConnectionCloseFrame& frame) OVERRIDE;
@@ -297,6 +299,7 @@ protected:
   std::vector<QuicStreamFrame> frames_;
 
   QuicAckFrame outgoing_ack_;
+  QuicCongestionFeedbackFrame outgoing_congestion_feedback_;
 
   // Track some client state so we can do less bookkeeping
   //

@@ -20,18 +20,18 @@ class QuicTcpReceiverTest : public ::testing::Test {
 };
 
 TEST_F(QuicTcpReceiverTest, SimpleReceiver) {
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   QuicTime timestamp;
   receiver_->RecordIncomingPacket(1, 1, timestamp, false);
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  EXPECT_EQ(kTCP, info.type);
-  EXPECT_EQ(256000, info.tcp.receive_window << 4);
-  EXPECT_EQ(0, info.tcp.accumulated_number_of_lost_packets);
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  EXPECT_EQ(kTCP, feedback.type);
+  EXPECT_EQ(256000, feedback.tcp.receive_window << 4);
+  EXPECT_EQ(0, feedback.tcp.accumulated_number_of_lost_packets);
   receiver_->RecordIncomingPacket(1, 2, timestamp, true);
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  EXPECT_EQ(kTCP, info.type);
-  EXPECT_EQ(256000, info.tcp.receive_window << 4);
-  EXPECT_EQ(1, info.tcp.accumulated_number_of_lost_packets);
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  EXPECT_EQ(kTCP, feedback.type);
+  EXPECT_EQ(256000, feedback.tcp.receive_window << 4);
+  EXPECT_EQ(1, feedback.tcp.accumulated_number_of_lost_packets);
 }
 
 }  // namespace testing

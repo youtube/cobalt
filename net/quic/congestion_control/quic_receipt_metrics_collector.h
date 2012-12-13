@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 //
 // This is the base class for QUIC receive side congestion control.
-// This class will provide the CongestionInfo objects to outgoing ACKs if
-// needed.
+// This class will provide the QuicCongestionFeedbackFrame objects for outgoing
+// packets if needed.
 // The acctual receive side algorithm is implemented via the
 // ReceiveAlgorithmInterface.
 
@@ -28,10 +28,11 @@ class NET_EXPORT_PRIVATE QuicReceiptMetricsCollector {
   virtual ~QuicReceiptMetricsCollector();
 
   // Should be called for each ACK packet to decide if we need to attach a
-  // CongestionInfo block.
-  // Returns false if no CongestionInfo block is needed otherwise fills in
-  // congestion_info and return true.
-  virtual bool GenerateCongestionInfo(CongestionInfo* congestion_info);
+  // QuicCongestionFeedbackFrame block.
+  // Returns false if no QuicCongestionFeedbackFrame block is needed.
+  // Otherwise fills in feedback and return true.
+  virtual bool GenerateCongestionFeedback(
+      QuicCongestionFeedbackFrame* feedback);
 
   // Should be called for each incoming packet.
   // bytes: is the packet size in bytes including IP headers.

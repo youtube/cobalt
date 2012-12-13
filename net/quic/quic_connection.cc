@@ -81,7 +81,7 @@ QuicConnection::QuicConnection(QuicGuid guid,
   memset(&last_header_, 0, sizeof(last_header_));
   outgoing_ack_.sent_info.least_unacked = 0;
   outgoing_ack_.received_info.largest_received = 0;
-  outgoing_ack_.congestion_info.type = kNone;
+
   /*
   if (FLAGS_fake_packet_loss_percentage > 0) {
     int32 seed = RandomBase::WeakSeed32();
@@ -125,7 +125,7 @@ void QuicConnection::OnRevivedPacket() {
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (!Near(header.packet_sequence_number,
             last_header_.packet_sequence_number)) {
-    DVLOG(1) << "Packet out of bounds.  Discarding";
+    DLOG(INFO) << "Packet out of bounds.  Discarding";
     // TODO(ianswett): Deal with this by truncating the ack packet instead of
     // discarding the packet entirely.
     return false;
@@ -184,6 +184,11 @@ void QuicConnection::OnAckFrame(const QuicAckFrame& incoming_ack) {
   } else {
     helper_->SetSendAlarm(delay);
   }
+}
+
+void QuicConnection::OnCongestionFeedbackFrame(
+    const QuicCongestionFeedbackFrame& feedback) {
+  scheduler_->OnIncomingQuicCongestionFeedbackFrame(feedback);
 }
 
 bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
@@ -619,10 +624,6 @@ bool QuicConnection::ShouldSimulateLostPacket() {
 void QuicConnection::SendAck() {
   packets_resent_since_last_ack_ = 0;
 
-  if (!collector_->GenerateCongestionInfo(&outgoing_ack_.congestion_info)) {
-    outgoing_ack_.congestion_info.type = kNone;
-  }
-
   if (!ContainsKey(unacked_packets_, outgoing_ack_.sent_info.least_unacked)) {
     // At some point, all packets were acked, and we set least_unacked to a
     // packet we will not resend.  Make sure we update it.
@@ -635,6 +636,13 @@ void QuicConnection::SendAck() {
   // Only send packet-timestamp pairs to the peer once, so clear them.
   outgoing_ack_.received_info.ClearAckTimes();
   SendPacket(packetpair.first, packetpair.second, false, false, false);
+
+  if (collector_->GenerateCongestionFeedback(&outgoing_congestion_feedback_)) {
+    DVLOG(1) << "Sending feedback " << outgoing_congestion_feedback_;
+    PacketPair packetpair = packet_creator_.CongestionFeedbackPacket(
+        &outgoing_congestion_feedback_);
+    SendPacket(packetpair.first, packetpair.second, false, false, false);
+  }
 }
 
 void QuicConnection::MaybeProcessRevivedPacket() {

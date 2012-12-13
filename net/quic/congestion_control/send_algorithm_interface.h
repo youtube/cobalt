@@ -24,9 +24,9 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
 
   virtual ~SendAlgorithmInterface() {}
 
-  // Called when we receive congestion information from remote peer.
-  virtual void OnIncomingCongestionInfo(
-      const CongestionInfo& congestion_info) = 0;
+  // Called when we receive congestion feedback from remote peer.
+  virtual void OnIncomingQuicCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& feedback) = 0;
 
   // Called for each received ACK, with sequence number from remote peer.
   virtual void OnIncomingAck(QuicPacketSequenceNumber acked_sequence_number,
