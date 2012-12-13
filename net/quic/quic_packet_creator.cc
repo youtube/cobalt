@@ -74,7 +74,7 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
       bool set_fin = false;
       if (unconsumed_bytes <= frame_len) {  // last loop
         frame_len = min(unconsumed_bytes, frame_len);
-        set_fin = fin && !options_.separate_fin_packet;
+        set_fin = fin;
       }
       StringPiece data_frame(data.data() + data.size() - unconsumed_bytes,
                                 frame_len);
@@ -98,10 +98,7 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
   }
 
   // Create a new packet for the fin, if necessary.
-  // We intentionally don't worry about separate_fin_packet messing with
-  // max_number_of_packets: we'd rather queue an extra packet than deal with a
-  // fin not getting consumed with the last data in a packet.
-  if (fin && (options_.separate_fin_packet || data.size() == 0)) {
+  if (fin && data.size() == 0) {
     FillPacketHeader(current_fec_group, PACKET_FLAGS_NONE, &header);
     QuicStreamFrame frame(id, true, offset, "");
     frames.push_back(QuicFrame(&frame));
@@ -136,8 +133,7 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
   }
   */
   fec_group_.reset(NULL);
-  DCHECK(options_.max_num_packets >= packets->size() ||
-         options_.separate_fin_packet);
+  DCHECK(options_.max_num_packets >= packets->size());
 
   return data.size() - unconsumed_bytes;
 }
