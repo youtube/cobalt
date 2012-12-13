@@ -361,7 +361,7 @@ void UDPSocketLibevent::LogRead(int result,
 }
 
 int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
-  socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
+  socket_ = socket(address.GetSockAddrFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
     return MapSystemError(errno);
   if (SetNonBlocking(socket_)) {
