@@ -14,9 +14,7 @@ from test_result import BaseTestResult, TestResults
 
 from android_commands import errors
 
-# TODO(bulach): TestPackage, TestPackageExecutable and
-# TestPackageApk are a work in progress related to making the native tests
-# run as a NDK-app from an APK rather than a stand-alone executable.
+
 class TestPackage(object):
   """A helper base class for both APK and stand-alone executables.
 
@@ -25,14 +23,13 @@ class TestPackage(object):
     device: Device to run the tests.
     test_suite: A specific test suite to run, empty to run all.
     timeout: Timeout for each test.
-    rebaseline: Whether or not to run tests in isolation and update the filter.
     performance_test: Whether or not performance test(s).
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     dump_debug_info: A debug_info object.
   """
 
-  def __init__(self, adb, device, test_suite, timeout, rebaseline,
+  def __init__(self, adb, device, test_suite, timeout,
                performance_test, cleanup_test_files, tool, dump_debug_info):
     self.adb = adb
     self.device = device
@@ -41,7 +38,6 @@ class TestPackage(object):
     self.test_suite_basename = self._GetTestSuiteBaseName()
     self.test_suite_dirname = os.path.dirname(
         self.test_suite.split(self.test_suite_basename)[0])
-    self.rebaseline = rebaseline
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
@@ -62,7 +58,7 @@ class TestPackage(object):
     """
     initial_io_stats = None
     # Try to get the disk I/O statistics for all performance tests.
-    if self.performance_test and not self.rebaseline:
+    if self.performance_test:
       initial_io_stats = self.adb.GetIoStats()
     return initial_io_stats
 
@@ -207,15 +203,15 @@ class TestPackage(object):
       timed_out = True
     finally:
       p.close()
-    if not self.rebaseline:
-      ok_tests += self._EndGetIOStats(io_stats_before)
-      ret_code = self._GetGTestReturnCode()
-      if ret_code:
-        failed_tests += [BaseTestResult('gtest exit code: %d' % ret_code,
-                                        'pexpect.before: %s'
-                                        '\npexpect.after: %s'
-                                        % (p.before,
-                                           p.after))]
+
+    ok_tests += self._EndGetIOStats(io_stats_before)
+    ret_code = self._GetGTestReturnCode()
+    if ret_code:
+      failed_tests += [BaseTestResult('gtest exit code: %d' % ret_code,
+                                      'pexpect.before: %s'
+                                      '\npexpect.after: %s'
+                                      % (p.before,
+                                         p.after))]
     # Create TestResults and return
     return TestResults.FromRun(ok=ok_tests, failed=failed_tests,
                                crashed=crashed_tests, timed_out=timed_out,
