@@ -401,11 +401,21 @@ double AUAudioOutputStream::GetHardwareLatency() {
 
 double AUAudioOutputStream::GetPlayoutLatency(
     const AudioTimeStamp* output_time_stamp) {
+  // Ensure mHostTime is valid.
+  if ((output_time_stamp->mFlags & kAudioTimeStampHostTimeValid) == 0)
+    return 0;
+
   // Get the delay between the moment getting the callback and the scheduled
   // time stamp that tells when the data is going to be played out.
   UInt64 output_time_ns = AudioConvertHostTimeToNanos(
       output_time_stamp->mHostTime);
   UInt64 now_ns = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime());
+
+  // Prevent overflow leading to huge delay information; occurs regularly on
+  // the bots, probably less so in the wild.
+  if (now_ns > output_time_ns)
+    return 0;
+
   double delay_frames = static_cast<double>
       (1e-9 * (output_time_ns - now_ns) * format_.mSampleRate);
 
