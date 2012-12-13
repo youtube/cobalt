@@ -192,6 +192,8 @@
         'base/seekable_buffer.h',
         'base/shell_buffer_factory.cc',
         'base/shell_buffer_factory.h',
+        'base/shell_data_source_reader.cc',
+        'base/shell_data_source_reader.h',
         'base/sinc_resampler.cc',
         'base/sinc_resampler.h',
         'base/state_matrix.cc',
@@ -245,9 +247,21 @@
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
         'filters/shell_audio_decoder.h',
+        'filters/shell_audio_renderer.h',
+        'filters/shell_avc_parser.cc',
+        'filters/shell_avc_parser.h',
         'filters/shell_demuxer.cc',
         'filters/shell_demuxer.h',
-        'filters/shell_audio_renderer_algorithm.h',
+        'filters/shell_flv_parser.cc',
+        'filters/shell_flv_parser.h',
+        'filters/shell_mp4_map.cc',
+        'filters/shell_mp4_map.h',
+        'filters/shell_mp4_parser.cc',
+        'filters/shell_mp4_parser.h',
+        'filters/shell_parser.cc',
+        'filters/shell_parser.h',
+        'filters/shell_rbsp_stream.cc',
+        'filters/shell_rbsp_stream.h',
         'filters/shell_video_decoder.h',
         'filters/source_buffer_stream.cc',
         'filters/source_buffer_stream.h',
@@ -349,10 +363,9 @@
           # media is not excluding windows sources automatically.
           # forcibly exclude them.
           ['exclude', 'win'],
-          # android excludes these, we include them again
+          # we use our own AudioRendererAlgorithm and Impl
+          ['exclude', 'filters/audio_renderer'],
           ['include', 'filters/chunk_demuxer'],
-          # we use our own AudioRendererAlgorithm
-          ['exclude', 'filters/audio_renderer_algorithm'],
          ],
         }, { # OS != lb_shell
           'dependencies': [
@@ -804,6 +817,13 @@
             'mp4/mp4_stream_parser_unittest.cc',
             'mp4/offset_byte_queue_unittest.cc',
             'mp4/track_run_iterator_unittest.cc',
+          ],
+        }],
+        ['OS == "lb_shell"', {
+          'sources': [
+            'base/mock_shell_data_source_reader.h',
+            'base/shell_buffer_factory_unittest.cc',
+            'filters/shell_mp4_map_unittest.cc',
           ],
         }],
       ],

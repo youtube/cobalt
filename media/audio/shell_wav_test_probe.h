@@ -18,7 +18,7 @@
 #define MEDIA_AUDIO_SHELL_WAV_TEST_PROBE_H_
 
 #include <stdio.h>
-#include "media/base/data_buffer.h"
+#include "media/base/buffers.h"
 
 // don't include me in release builds please
 #if !defined(__LB_SHELL__FOR_RELEASE__)
@@ -45,7 +45,7 @@ class MEDIA_EXPORT ShellWavTestProbe {
   // automatically close the file after arg milliseconds added to file,
   // Close() will happen on first call to AddData() with timestamp past argument
   void CloseAfter(uint64 milliseconds);
-  void AddData(scoped_refptr<DataBuffer> data_buffer);
+  void AddData(const scoped_refptr<Buffer>& buffer);
   // timestamp can be zero, in which case we will guess at timestamp based on
   // number of bytes written, size of samples, and sample rate
   void AddData(const uint8* data, uint32 length, uint64 timestamp);
