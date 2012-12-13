@@ -37,11 +37,6 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
     // If the data can't be fully serialized, DataToStream will only consume as
     // much data as fits into this many packets.
     size_t max_num_packets;
-    // If true, the fin will be sent in its own packet.  In this case
-    // we may end up sending one packet beyond max_packet_length.
-    // TODO(alyssar) change the SendData APIs to communicate if a FIN was sent,
-    // so we can fix this.
-    bool separate_fin_packet;
     bool random_reorder;   // Inefficient: rewrite if used at scale.
     // TODO(rch) should probably be max packets per group.
     bool use_fec;
