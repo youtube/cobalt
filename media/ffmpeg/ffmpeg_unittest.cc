@@ -152,7 +152,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
           << av_codec_context->codec_id;
 
       av_codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-      av_codec_context->err_recognition = AV_EF_CAREFUL;
       av_codec_context->thread_count = kDecodeThreads;
 
       EXPECT_EQ(0, avcodec_open2(av_codec_context, av_codec, NULL))

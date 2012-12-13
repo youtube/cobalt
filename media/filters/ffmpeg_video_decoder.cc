@@ -479,7 +479,6 @@ bool FFmpegVideoDecoder::ConfigureDecoder() {
   // Enable motion vector search (potentially slow), strong deblocking filter
   // for damaged macroblocks, and set our error detection sensitivity.
   codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-  codec_context_->err_recognition = AV_EF_CAREFUL;
   codec_context_->thread_count = GetThreadCount(codec_context_->codec_id);
   codec_context_->opaque = this;
   codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
