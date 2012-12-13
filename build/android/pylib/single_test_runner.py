@@ -7,13 +7,13 @@ import logging
 import os
 import sys
 
-from base_test_runner import BaseTestRunner
 import android_commands
-import debug_info
+from android_commands import errors
+from base_test_runner import BaseTestRunner
 import constants
+import debug_info
 import perf_tests_helper
 import run_tests_helper
-from android_commands import errors
 from test_package_apk import TestPackageApk
 from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
@@ -28,7 +28,6 @@ class SingleTestRunner(BaseTestRunner):
     gtest_filter: A gtest_filter flag.
     test_arguments: Additional arguments to pass to the test binary.
     timeout: Timeout for each test.
-    rebaseline: Whether or not to run tests in isolation and update the filter.
     performance_test: Whether or not performance test(s).
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
@@ -39,7 +38,7 @@ class SingleTestRunner(BaseTestRunner):
   """
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
-               rebaseline, performance_test, cleanup_test_files, tool_name,
+               performance_test, cleanup_test_files, tool_name,
                shard_index, dump_debug_info, fast_and_loose, build_type,
                in_webkit_checkout):
     BaseTestRunner.__init__(self, device, tool_name, shard_index, build_type)
@@ -48,8 +47,9 @@ class SingleTestRunner(BaseTestRunner):
     self._test_arguments = test_arguments
     self.test_results = TestResults()
     if dump_debug_info:
-      self.dump_debug_info = debug_info.GTestDebugInfo(self.adb, device,
-           os.path.basename(test_suite), gtest_filter)
+      self.dump_debug_info = debug_info.GTestDebugInfo(
+          self.adb, device,
+          os.path.basename(test_suite), gtest_filter)
     else:
       self.dump_debug_info = None
     self.fast_and_loose = fast_and_loose
@@ -57,18 +57,29 @@ class SingleTestRunner(BaseTestRunner):
 
     logging.warning('Test suite: ' + test_suite)
     if os.path.splitext(test_suite)[1] == '.apk':
-      self.test_package = TestPackageApk(self.adb, device,
-          test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
-          self.tool, self.dump_debug_info)
+      self.test_package = TestPackageApk(
+          self.adb,
+          device,
+          test_suite,
+          timeout,
+          performance_test,
+          cleanup_test_files,
+          self.tool,
+          self.dump_debug_info)
     else:
       # Put a copy into the android out/target directory, to allow stack trace
       # generation.
       symbols_dir = os.path.join(constants.CHROME_DIR, 'out', build_type,
                                  'lib.target')
       self.test_package = TestPackageExecutable(
-          self.adb, device,
-          test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
-          self.tool, self.dump_debug_info, symbols_dir)
+          self.adb,
+          device,
+          test_suite, timeout,
+          performance_test,
+          cleanup_test_files,
+          self.tool,
+          self.dump_debug_info,
+          symbols_dir)
     self._performance_test_setup = None
     if performance_test:
       self._performance_test_setup = perf_tests_helper.PerfTestSetup(self.adb)
@@ -82,12 +93,14 @@ class SingleTestRunner(BaseTestRunner):
 
   def _GetFilterFileName(self):
     """Returns the filename of gtest filter."""
-    return os.path.join(sys.path[0], 'gtest_filter',
+    return os.path.join(
+        sys.path[0], 'gtest_filter',
         self.test_package.test_suite_basename + '_disabled')
 
   def _GetAdditionalEmulatorFilterName(self):
     """Returns the filename of additional gtest filter for emulator."""
-    return os.path.join(sys.path[0], 'gtest_filter',
+    return os.path.join(
+        sys.path[0], 'gtest_filter',
         self.test_package.test_suite_basename +
         '_emulator_additional_disabled')
 
@@ -103,48 +116,6 @@ class SingleTestRunner(BaseTestRunner):
       disabled_tests.extend(run_tests_helper.GetExpectations(
           self._GetAdditionalEmulatorFilterName()))
     return disabled_tests
-
-  def UpdateFilter(self, failed_tests):
-    """Updates test_suite_disabled file with the new filter (deletes if empty).
-
-    If running in Emulator, only the failed tests which are not in the normal
-    filter returned by _GetFilterFileName() are written to emulator's
-    additional filter file.
-
-    Args:
-      failed_tests: A sorted list of failed tests.
-    """
-    disabled_tests = []
-    if not self._running_on_emulator:
-      filter_file_name = self._GetFilterFileName()
-    else:
-      filter_file_name = self._GetAdditionalEmulatorFilterName()
-      disabled_tests.extend(
-          run_tests_helper.GetExpectations(self._GetFilterFileName()))
-      logging.info('About to update emulator\'s additional filter (%s).'
-          % filter_file_name)
-
-    new_failed_tests = []
-    if failed_tests:
-      for test in failed_tests:
-        if test.name not in disabled_tests:
-          new_failed_tests.append(test.name)
-
-    if not new_failed_tests:
-      if os.path.exists(filter_file_name):
-        os.unlink(filter_file_name)
-      return
-
-    filter_file = file(filter_file_name, 'w')
-    if self._running_on_emulator:
-      filter_file.write('# Addtional list of suppressions from emulator\n')
-    else:
-      filter_file.write('# List of suppressions\n')
-    filter_file.write('# This file was automatically generated by %s\n'
-        % sys.argv[0])
-    filter_file.write('\n'.join(sorted(new_failed_tests)))
-    filter_file.write('\n')
-    filter_file.close()
 
   def GetDataFilesForTestSuite(self):
     """Returns a list of data files/dirs needed by the test suite."""
@@ -195,7 +166,7 @@ class SingleTestRunner(BaseTestRunner):
           'net/data/cache_tests/dirty_entry5',
           'net/data/ssl/certificates/',
           'ui/base/test/data/data_pack_unittest',
-        ]
+      ]
       if self.test_package.test_suite_basename == 'unit_tests':
         test_files += ['chrome/test/data/simple_open_search.xml']
         # The following are spell check data. Now only list the data under
@@ -277,64 +248,26 @@ class SingleTestRunner(BaseTestRunner):
 
     self.adb.PushIfNeeded(
         os.path.join(webkit_src, 'Source/WebKit/chromium/tests/data'),
-        os.path.join(self.adb.GetExternalStorage(),
+        os.path.join(
+            self.adb.GetExternalStorage(),
             'third_party/WebKit/Source/WebKit/chromium/tests/data'))
 
-  def RunTestsWithFilter(self):
-    """Runs a tests via a small, temporary shell script."""
-    self.test_package.CreateTestRunnerScript(self._gtest_filter,
-                                             self._test_arguments)
-    self.test_results = self.test_package.RunTestsAndListResults()
-
-  def RebaselineTests(self):
-    """Runs all available tests, restarting in case of failures."""
-    if self._gtest_filter:
-      all_tests = set(self._gtest_filter.split(':'))
-    else:
-      all_tests = set(self.test_package.GetAllTests())
-    failed_results = set()
-    executed_results = set()
-    while True:
-      executed_names = set([f.name for f in executed_results])
-      self._gtest_filter = ':'.join(all_tests - executed_names)
-      self.RunTestsWithFilter()
-      failed_results.update(self.test_results.crashed,
-          self.test_results.failed)
-      executed_results.update(self.test_results.crashed,
-                              self.test_results.failed,
-                              self.test_results.ok)
-      executed_names = set([f.name for f in executed_results])
-      logging.info('*' * 80)
-      logging.info(self.device)
-      logging.info('Executed: ' + str(len(executed_names)) + ' of ' +
-                   str(len(all_tests)))
-      logging.info('Failed so far: ' + str(len(failed_results)) + ' ' +
-                   str([f.name for f in failed_results]))
-      logging.info('Remaining: ' + str(len(all_tests - executed_names)) + ' ' +
-                   str(all_tests - executed_names))
-      logging.info('*' * 80)
-      if executed_names == all_tests:
-        break
-    self.test_results = TestResults.FromRun(
-        ok=list(executed_results - failed_results),
-        failed=list(failed_results))
-
   def RunTests(self):
-    """Runs all tests (in rebaseline mode, runs each test in isolation).
+    """Runs tests on a single device.
 
     Returns:
       A TestResults object.
     """
     try:
-      if self.test_package.rebaseline:
-        self.RebaselineTests()
-      else:
-        self.RunTestsWithFilter()
+      self.test_package.CreateTestRunnerScript(self._gtest_filter,
+                                               self._test_arguments)
+      self.test_results = self.test_package.RunTestsAndListResults()
     except errors.DeviceUnresponsiveError as e:
       # Make sure this device is not attached
       if android_commands.IsDeviceAttached(self.device):
         raise e
 
+      # TODO(frankf): We should report these as "skipped" not "failures".
       # Wrap the results
       logging.warning(e)
       failed_tests = []
