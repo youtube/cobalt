@@ -103,23 +103,17 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
   else:
     assert(result_type in ['histogram', 'unimportant-histogram'])
     assert isinstance(values, list)
-    assert len(values)
-    # Print out each histogram separately. We can't print the units, otherwise
-    # the histogram json output can't be parsed easily.
-    output = ''
-    ix = 1
-    for value in values:
-      name = '%s.%s_%d' % (_EscapePerfResult(measurement), trace_name, ix)
-      output += '%s%s%s : %s = %s' % (
-          '\n' if ix > 1 else '',
-          RESULT_TYPES[result_type],
-          name,
-          name,
-          value)
-      ix += 1
-    measurement = '%s.%s' % (measurement, trace_name)
-    means_and_sds = [GeomMeanAndStdDevFromHistogram(value) for value in values]
-    _, avg, sd = _MeanAndStdDevFromList([mean for (mean, _) in means_and_sds ])
+    # The histograms can only be printed individually, there's no computation
+    # across different histograms.
+    assert len(values) == 1
+    value = values[0]
+    measurement += '.' + trace_name
+    output = '%s%s: %s=%s' % (
+        RESULT_TYPES[result_type],
+        _EscapePerfResult(measurement),
+        _EscapePerfResult(measurement),
+        value)
+    avg, sd = GeomMeanAndStdDevFromHistogram(value)
 
   if avg:
     output += '\nAvg %s: %f%s' % (measurement, avg, units)
