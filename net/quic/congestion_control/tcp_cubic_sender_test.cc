@@ -58,15 +58,15 @@ class QuicTcpCubicSenderTest : public ::testing::Test {
 };
 
 TEST_F(QuicTcpCubicSenderTest, SimpleSender) {
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   // At startup make sure we are at the default.
   EXPECT_EQ(kDefaultWindowTCP,
             sender_->AvailableCongestionWindow());
   // At startup make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
-  // Get default CongestionInfo from receiver.
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  sender_->OnIncomingCongestionInfo(info);
+  // Get default QuicCongestionFeedbackFrame from receiver.
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   // Make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   // And that window is un-affected.
@@ -78,12 +78,12 @@ TEST_F(QuicTcpCubicSenderTest, SimpleSender) {
 
 TEST_F(QuicTcpCubicSenderTest, ExponentialSlowStart) {
   const int kNumberOfAck = 20;
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   // At startup make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
-  // Get default CongestionInfo from receiver.
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  sender_->OnIncomingCongestionInfo(info);
+  // Get default QuicCongestionFeedbackFrame from receiver.
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   // Make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
 
@@ -104,12 +104,12 @@ TEST_F(QuicTcpCubicSenderTest, SlowStartAckTrain) {
   // Since we start at 10 packet first round will be 5 second round 10 etc
   // Hence we should pass 30 at 65 = 5 + 10 + 20 + 30
   const int kNumberOfAck = 65;
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   // At startup make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
-  // Get default CongestionInfo from receiver.
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  sender_->OnIncomingCongestionInfo(info);
+  // Get default QuicCongestionFeedbackFrame from receiver.
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   // Make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
 
@@ -144,12 +144,12 @@ TEST_F(QuicTcpCubicSenderTest, SlowStartAckTrain) {
 TEST_F(QuicTcpCubicSenderTest, SlowStartPacketLoss) {
   // Make sure that we fall out of slow start when we encounter a packet loss.
   const int kNumberOfAck = 10;
-  CongestionInfo info;
+  QuicCongestionFeedbackFrame feedback;
   // At startup make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
-  // Get default CongestionInfo from receiver.
-  ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
-  sender_->OnIncomingCongestionInfo(info);
+  // Get default QuicCongestionFeedbackFrame from receiver.
+  ASSERT_TRUE(receiver_->GenerateCongestionFeedback(&feedback));
+  sender_->OnIncomingQuicCongestionFeedbackFrame(feedback);
   // Make sure we can send.
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
 

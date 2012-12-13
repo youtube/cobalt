@@ -133,27 +133,31 @@ class QuicConnectionHelperTest : public ::testing::Test {
 
     QuicAckFrame ack(0, QuicTime(), sequence_number);
 
-    ack.congestion_info.type = kTCP;
-    ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
-    ack.congestion_info.tcp.receive_window = 16000;
     return ConstructPacket(header_, QuicFrame(&ack));
+  }
+
+
+  // Returns a newly created packet to send congestion feedback data.
+  QuicEncryptedPacket* ConstructFeedbackPacket(
+      QuicPacketSequenceNumber sequence_number) {
+    InitializeHeader(sequence_number);
+
+    QuicCongestionFeedbackFrame frame;
+    frame.type = kTCP;
+    frame.tcp.accumulated_number_of_lost_packets = 0;
+    frame.tcp.receive_window = 16000;
+
+    return ConstructPacket(header_, QuicFrame(&frame));
   }
 
   // Returns a newly created packet to send a connection close frame.
   QuicEncryptedPacket* ConstructClosePacket(
       QuicPacketSequenceNumber sequence_number,
-      bool with_ack) {
+      QuicPacketSequenceNumber least_waiting) {
     InitializeHeader(sequence_number);
 
     QuicFrames frames;
-    QuicAckFrame ack(0, QuicTime(), sequence_number - 1);
-    if (with_ack) {
-      ack.congestion_info.type = kTCP;
-      ack.congestion_info.tcp.accumulated_number_of_lost_packets = 0;
-      ack.congestion_info.tcp.receive_window = 16000;
-    } else {
-      ack.congestion_info.type = kNone;
-    }
+    QuicAckFrame ack(0, QuicTime(), least_waiting);
     QuicConnectionCloseFrame close;
     close.error_code = QUIC_CONNECTION_TIMED_OUT;
     close.ack_frame = ack;
@@ -237,7 +241,7 @@ TEST_F(QuicConnectionHelperTest, TestResend) {
 }
 
 TEST_F(QuicConnectionHelperTest, InitialTimeout) {
-  AddWrite(SYNCHRONOUS, ConstructClosePacket(1, false));
+  AddWrite(SYNCHRONOUS, ConstructClosePacket(1, 0));
   Initialize();
 
   // Verify that a single task was posted.
@@ -267,7 +271,7 @@ TEST_F(QuicConnectionHelperTest, WritePacketToWire) {
 }
 
 TEST_F(QuicConnectionHelperTest, WritePacketToWireAsync) {
-  AddWrite(ASYNC, ConstructClosePacket(1, false));
+  AddWrite(ASYNC, ConstructClosePacket(1, 0));
   Initialize();
 
   EXPECT_CALL(visitor_, OnCanWrite()).WillOnce(testing::Return(true));
@@ -281,7 +285,8 @@ TEST_F(QuicConnectionHelperTest, WritePacketToWireAsync) {
 
 TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
   AddWrite(SYNCHRONOUS, ConstructAckPacket(1));
-  AddWrite(SYNCHRONOUS, ConstructClosePacket(2, true));
+  AddWrite(SYNCHRONOUS, ConstructFeedbackPacket(2));
+  AddWrite(SYNCHRONOUS, ConstructClosePacket(3, 1));
   Initialize();
 
   EXPECT_TRUE(connection_->connected());
@@ -291,11 +296,11 @@ TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
   clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(5000));
   EXPECT_EQ(5000u, clock_.Now().ToMicroseconds());
   EXPECT_CALL(*scheduler_, SentPacket(1, _, false));
+  EXPECT_CALL(*scheduler_, SentPacket(2, _, false));
 
   // Send an ack so we don't set the resend alarm.
   connection_->SendAck();
 
-  EXPECT_CALL(*scheduler_, SentPacket(2, _, false));
   // The original alarm will fire.  We should not time out because we had a
   // network event at t=5000.  The alarm will reregister.
   runner_->RunNextTask();
@@ -305,6 +310,7 @@ TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
 
   // This time, we should time out.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
+  EXPECT_CALL(*scheduler_, SentPacket(3, _, false));
   runner_->RunNextTask();
   EXPECT_EQ(kDefaultTimeoutUs + 5000, clock_.Now().ToMicroseconds());
   EXPECT_FALSE(connection_->connected());

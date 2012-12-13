@@ -17,9 +17,9 @@ QuicReceiptMetricsCollector::QuicReceiptMetricsCollector(
 QuicReceiptMetricsCollector::~QuicReceiptMetricsCollector() {
 }
 
-bool QuicReceiptMetricsCollector::GenerateCongestionInfo(
-    CongestionInfo* info) {
-  return receive_algorithm_->GenerateCongestionInfo(info);
+bool QuicReceiptMetricsCollector::GenerateCongestionFeedback(
+    QuicCongestionFeedbackFrame* feedback) {
+  return receive_algorithm_->GenerateCongestionFeedback(feedback);
 }
 
 void QuicReceiptMetricsCollector::RecordIncomingPacket(

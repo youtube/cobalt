@@ -57,6 +57,10 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   // Called when we have received an ack frame from remote peer.
   virtual void OnIncomingAckFrame(const QuicAckFrame& ack_frame);
 
+  // Called when we have received an congestion feedback frame from remote peer.
+  virtual void OnIncomingQuicCongestionFeedbackFrame(
+      const QuicCongestionFeedbackFrame& congestion_feedback_frame);
+
   // Inform that we sent x bytest to the wire, and if that was a retransmission.
   // Note: this function must be called for every packet sent to the wire.
   virtual void SentPacket(QuicPacketSequenceNumber sequence_number,

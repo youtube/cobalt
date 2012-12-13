@@ -57,16 +57,17 @@ const char data2[] = "bar";
 
 class TestCollector : public QuicReceiptMetricsCollector {
  public:
-  explicit TestCollector(CongestionInfo* info)
+  explicit TestCollector(QuicCongestionFeedbackFrame* feedback)
       : QuicReceiptMetricsCollector(&clock_, kFixRate),
-        info_(info) {
+        feedback_(feedback) {
   }
 
-  bool GenerateCongestionInfo(CongestionInfo* congestion_info) {
-    if (info_ == NULL) {
+  bool GenerateCongestionFeedback(
+      QuicCongestionFeedbackFrame* congestion_feedback) {
+    if (feedback_ == NULL) {
       return false;
     }
-    *congestion_info = *info_;
+    *congestion_feedback = *feedback_;
     return true;
   }
 
@@ -75,7 +76,7 @@ class TestCollector : public QuicReceiptMetricsCollector {
 
  private:
   MockClock clock_;
-  CongestionInfo* info_;
+  QuicCongestionFeedbackFrame* feedback_;
 
   DISALLOW_COPY_AND_ASSIGN(TestCollector);
 };
@@ -102,7 +103,12 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
     framer.set_visitor(&visitor);
     EXPECT_TRUE(framer.ProcessPacket(IPEndPoint(), IPEndPoint(), packet));
     header_ = *visitor.header();
-    frame_ = *visitor.frame();
+    if (visitor.ack()) {
+      ack_.reset(new QuicAckFrame(*visitor.ack()));
+    }
+    if (visitor.feedback()) {
+      feedback_.reset(new QuicCongestionFeedbackFrame(*visitor.feedback()));
+    }
     if (blocked_) {
       *error = ERR_IO_PENDING;
       return -1;
@@ -139,7 +145,9 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
 
   QuicPacketHeader* header() { return &header_; }
 
-  QuicAckFrame* frame() { return &frame_; }
+  QuicAckFrame* ack() { return ack_.get(); }
+
+  QuicCongestionFeedbackFrame* feedback() { return feedback_.get(); }
 
   void set_blocked(bool blocked) { blocked_ = blocked; }
 
@@ -149,7 +157,8 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
   QuicTime send_alarm_;
   QuicTime timeout_alarm_;
   QuicPacketHeader header_;
-  QuicAckFrame frame_;
+  scoped_ptr<QuicAckFrame> ack_;
+  scoped_ptr<QuicCongestionFeedbackFrame> feedback_;
   bool blocked_;
 
   DISALLOW_COPY_AND_ASSIGN(TestConnectionHelper);
@@ -202,12 +211,18 @@ class QuicConnectionTest : public ::testing::Test {
         accept_packet_(true) {
     connection_.set_visitor(&visitor_);
     connection_.SetScheduler(scheduler_);
+    // Simplify tests by not sending feedback unless specifically configured.
+    SetFeedback(NULL);
     EXPECT_CALL(*scheduler_, TimeUntilSend(_)).WillRepeatedly(Return(
         QuicTime::Delta()));
   }
 
-  QuicAckFrame* last_frame() {
-    return helper_->frame();
+  QuicAckFrame* last_ack() {
+    return helper_->ack();
+  }
+
+  QuicCongestionFeedbackFrame* last_feedback() {
+    return helper_->feedback();
   }
 
   QuicPacketHeader* last_header() {
@@ -290,7 +305,7 @@ class QuicConnectionTest : public ::testing::Test {
   }
 
   void SendAckPacketToPeer() {
-    EXPECT_CALL(*scheduler_, SentPacket(_, _, _));
+    EXPECT_CALL(*scheduler_, SentPacket(_, _, _)).Times(num_packets_per_ack_);
     connection_.SendAck();
   }
 
@@ -304,7 +319,7 @@ class QuicConnectionTest : public ::testing::Test {
   }
 
   bool IsMissing(QuicPacketSequenceNumber number) {
-    return last_frame()->received_info.IsAwaitingPacket(number);
+    return last_ack()->received_info.IsAwaitingPacket(number);
   }
 
   QuicPacket* ConstructDataPacket(QuicPacketSequenceNumber number,
@@ -322,11 +337,18 @@ class QuicConnectionTest : public ::testing::Test {
     return packet;
   }
 
+  void SetFeedback(QuicCongestionFeedbackFrame* feedback) {
+    num_packets_per_ack_ = feedback != NULL ? 2 : 1;
+    collector_ = new TestCollector(feedback);
+    connection_.SetCollector(collector_);
+  }
+
   QuicGuid guid_;
   QuicFramer framer_;
   QuicPacketCreator creator_;
 
   MockScheduler* scheduler_;
+  TestCollector* collector_;
   MockClock clock_;
   scoped_ptr<TestConnectionHelper> helper_;
   TestConnection connection_;
@@ -336,6 +358,7 @@ class QuicConnectionTest : public ::testing::Test {
   QuicStreamFrame frame1_;
   QuicStreamFrame frame2_;
   bool accept_packet_;
+  size_t num_packets_per_ack_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicConnectionTest);
@@ -343,86 +366,86 @@ class QuicConnectionTest : public ::testing::Test {
 
 TEST_F(QuicConnectionTest, PacketsInOrder) {
   ProcessPacket(1);
-  EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
+  EXPECT_EQ(0u, last_ack()->received_info.missing_packets.size());
 
   ProcessPacket(2);
-  EXPECT_EQ(2u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(2u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
+  EXPECT_EQ(0u, last_ack()->received_info.missing_packets.size());
 
   ProcessPacket(3);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
+  EXPECT_EQ(0u, last_ack()->received_info.missing_packets.size());
 }
 
 TEST_F(QuicConnectionTest, PacketsRejected) {
   ProcessPacket(1);
-  EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
+  EXPECT_EQ(0u, last_ack()->received_info.missing_packets.size());
 
   accept_packet_ = false;
   ProcessPacket(2);
   // We should not have an ack for two.
-  EXPECT_EQ(1u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(0u, last_frame()->received_info.received_packet_times.size());
-  EXPECT_EQ(0u, last_frame()->received_info.missing_packets.size());
+  EXPECT_EQ(1u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(0u, last_ack()->received_info.received_packet_times.size());
+  EXPECT_EQ(0u, last_ack()->received_info.missing_packets.size());
 }
 
 TEST_F(QuicConnectionTest, PacketsOutOfOrder) {
   ProcessPacket(3);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_FALSE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(1);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_FALSE(IsMissing(2));
   EXPECT_FALSE(IsMissing(1));
 }
 
 TEST_F(QuicConnectionTest, DuplicatePacket) {
   ProcessPacket(3);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   // Send packet 3 again, but do not set the expectation that
   // the visitor OnPacket() will be called.
   ProcessDataPacket(3, 0);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 }
 
 TEST_F(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   ProcessPacket(3);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
-  EXPECT_EQ(3u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(3u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(5);
-  EXPECT_EQ(5u, last_frame()->received_info.largest_received);
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(5u, last_ack()->received_info.largest_received);
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(1));
   EXPECT_TRUE(IsMissing(4));
 
@@ -437,7 +460,7 @@ TEST_F(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   // Force an ack to be sent.
   SendAckPacketToPeer();
   // 1 because the only received packet is the ack packet itself.
-  EXPECT_EQ(1u, last_frame()->received_info.received_packet_times.size());
+  EXPECT_EQ(1u, last_ack()->received_info.received_packet_times.size());
   EXPECT_TRUE(IsMissing(4));
 }
 
@@ -447,7 +470,7 @@ TEST_F(QuicConnectionTest, RejectPacketTooFarOut) {
   ProcessDataPacket(6000, 0);
 
   SendAckPacketToPeer();  // Packet 2
-  EXPECT_EQ(0u, last_frame()->received_info.largest_received);
+  EXPECT_EQ(0u, last_ack()->received_info.largest_received);
 }
 
 TEST_F(QuicConnectionTest, LeastUnackedLower) {
@@ -530,15 +553,15 @@ TEST_F(QuicConnectionTest, BasicSending) {
   EXPECT_EQ(1u, last_packet);
   SendAckPacketToPeer();  // Packet 2
 
-  EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(1u, last_ack()->sent_info.least_unacked);
 
   SendAckPacketToPeer();  // Packet 3
-  EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(1u, last_ack()->sent_info.least_unacked);
 
   SendStreamDataToPeer(1u, "bar", 3, false, &last_packet);  // Packet 4
   EXPECT_EQ(4u, last_packet);
   SendAckPacketToPeer();  // Packet 5
-  EXPECT_EQ(1u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(1u, last_ack()->sent_info.least_unacked);
 
   QuicConnectionVisitorInterface::AckedPackets expected_acks;
   expected_acks.insert(1);
@@ -551,7 +574,7 @@ TEST_F(QuicConnectionTest, BasicSending) {
 
   // As soon as we've acked one, we skip ack packets 2 and 3 and note lack of
   // ack for 4.
-  EXPECT_EQ(4u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(4u, last_ack()->sent_info.least_unacked);
 
   expected_acks.clear();
   expected_acks.insert(4);
@@ -563,17 +586,17 @@ TEST_F(QuicConnectionTest, BasicSending) {
   SendAckPacketToPeer();  // Packet 7
 
   // The least packet awaiting ack should now be 7
-  EXPECT_EQ(7u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(7u, last_ack()->sent_info.least_unacked);
 
   // If we force an ack, we shouldn't change our retransmit state.
   SendAckPacketToPeer();  // Packet 8
-  EXPECT_EQ(8u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(8u, last_ack()->sent_info.least_unacked);
 
   // But if we send more data it should.
   SendStreamDataToPeer(1, "eep", 6, false, &last_packet);  // Packet 9
   EXPECT_EQ(9u, last_packet);
   SendAckPacketToPeer();  // Packet10
-  EXPECT_EQ(9u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(9u, last_ack()->sent_info.least_unacked);
 }
 
 TEST_F(QuicConnectionTest, ResendOnNack) {
@@ -701,9 +724,8 @@ TEST_F(QuicConnectionTest, DontLatchUnackedPacket) {
   // set it to 3.
   SendAckPacketToPeer();  // Packet 3
   EXPECT_EQ(3u, outgoing_ack->sent_info.least_unacked);
-  EXPECT_EQ(3u, last_frame()->sent_info.least_unacked);
+  EXPECT_EQ(3u, last_ack()->sent_info.least_unacked);
 }
-
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterFecPacket) {
   // Don't send missing packet 1.
@@ -795,40 +817,34 @@ TEST_F(QuicConnectionTest, CloseFecGroup) {
   ASSERT_EQ(0u, connection_.NumFecGroups());
 }
 
-TEST_F(QuicConnectionTest, NoCongestionInfo) {
-  TestCollector* collector(new TestCollector(NULL));
-  connection_.SetCollector(collector);
+TEST_F(QuicConnectionTest, NoQuicCongestionFeedbackFrame) {
   SendAckPacketToPeer();
-  EXPECT_EQ(kNone, last_frame()->congestion_info.type);
+  EXPECT_TRUE(last_feedback() == NULL);
 }
 
-TEST_F(QuicConnectionTest, WithCongestionInfo) {
-  CongestionInfo info;
+TEST_F(QuicConnectionTest, WithQuicCongestionFeedbackFrame) {
+  QuicCongestionFeedbackFrame info;
   info.type = kFixRate;
   info.fix_rate.bitrate_in_bytes_per_second = 123;
-  TestCollector* collector(new TestCollector(&info));
-  connection_.SetCollector(collector);
+  SetFeedback(&info);
+
   SendAckPacketToPeer();
-  EXPECT_EQ(kFixRate, last_frame()->congestion_info.type);
+  EXPECT_EQ(kFixRate, last_feedback()->type);
   EXPECT_EQ(info.fix_rate.bitrate_in_bytes_per_second,
-      last_frame()->congestion_info.fix_rate.bitrate_in_bytes_per_second);
+            last_feedback()->fix_rate.bitrate_in_bytes_per_second);
 }
 
-TEST_F(QuicConnectionTest, UpdateCongestionInfo) {
-  TestCollector* collector(new TestCollector(NULL));
-  connection_.SetCollector(collector);
+TEST_F(QuicConnectionTest, UpdateQuicCongestionFeedbackFrame) {
   SendAckPacketToPeer();
-  EXPECT_CALL(*collector, RecordIncomingPacket(_, _, _, _));
+  EXPECT_CALL(*collector_, RecordIncomingPacket(_, _, _, _));
   ProcessPacket(1);
 }
 
-TEST_F(QuicConnectionTest, DontUpdateCongestionInfoForRevived) {
-  TestCollector* collector(new TestCollector(NULL));
-  connection_.SetCollector(collector);
+TEST_F(QuicConnectionTest, DontUpdateQuicCongestionFeedbackFrameForRevived) {
   SendAckPacketToPeer();
   // Process an FEC packet, and revive the missing data packet
   // but only contact the collector once.
-  EXPECT_CALL(*collector, RecordIncomingPacket(_, _, _, _));
+  EXPECT_CALL(*collector_, RecordIncomingPacket(_, _, _, _));
   ProcessFecPacket(2, 1, true);
 }
 

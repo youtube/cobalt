@@ -16,9 +16,6 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     const QuicClock* clock,
     CongestionFeedbackType type) {
   switch (type) {
-    case kNone:
-      LOG(DFATAL) << "Attempted to create a SendAlgorithm with kNone.";
-      break;
     case kTCP:
       return new TcpCubicSender(clock, kUseReno);
     case kInterArrival:

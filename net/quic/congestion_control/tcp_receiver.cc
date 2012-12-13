@@ -15,11 +15,12 @@ TcpReceiver::TcpReceiver()
       receive_window_in_bytes_(kReceiveWindowTCP) {
 }
 
-bool TcpReceiver::GenerateCongestionInfo(CongestionInfo* congestion_info) {
-  congestion_info->type = kTCP;
-  congestion_info->tcp.accumulated_number_of_lost_packets =
+bool TcpReceiver::GenerateCongestionFeedback(
+    QuicCongestionFeedbackFrame* feedback) {
+  feedback->type = kTCP;
+  feedback->tcp.accumulated_number_of_lost_packets =
       accumulated_number_of_recoverd_lost_packets_;
-  congestion_info->tcp.receive_window = receive_window_in_bytes_ >> 4;
+  feedback->tcp.receive_window = receive_window_in_bytes_ >> 4;
   return true;
 }
 

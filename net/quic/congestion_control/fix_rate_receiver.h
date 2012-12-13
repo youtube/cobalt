@@ -19,7 +19,8 @@ class NET_EXPORT_PRIVATE FixRateReceiver : public ReceiveAlgorithmInterface {
   FixRateReceiver();
 
   // Implements ReceiveAlgorithmInterface.
-  virtual bool GenerateCongestionInfo(CongestionInfo* congestion_info) OVERRIDE;
+  virtual bool GenerateCongestionFeedback(
+      QuicCongestionFeedbackFrame* feedback) OVERRIDE;
 
   // Implements ReceiveAlgorithmInterface.
   virtual void RecordIncomingPacket(size_t bytes,
