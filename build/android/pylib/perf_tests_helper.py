@@ -18,9 +18,8 @@ RESULT_TYPES = {'unimportant': 'RESULT ',
 
 def _EscapePerfResult(s):
   """Escapes |s| for use in a perf result."""
-  # Colons (:) and equal signs (=) are not allowed, and we chose an arbitrary
-  # limit of 40 chars.
-  return re.sub(':|=', '_', s[:40])
+  # Colons (:) and equal signs (=) are not allowed.
+  return re.sub(':|=', '_', s)
 
 
 def GeomMeanAndStdDevFromHistogram(histogram_json):
