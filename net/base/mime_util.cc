@@ -238,6 +238,7 @@ static const char* const supported_image_types[] = {
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
 // This set of codecs is supported by all variations of Chromium.
 static const char* const common_media_types[] = {
+#if !defined(__LB_SHELL__)
   // Ogg.
   "audio/ogg",
   "application/ogg",
@@ -252,6 +253,11 @@ static const char* const common_media_types[] = {
   // Wav.
   "audio/wav",
   "audio/x-wav",
+#else
+  // currently lbshell supports flv and mp4
+  "video/mp4",
+  "video/x-flv",
+#endif
 };
 
 // List of proprietary types only supported by Google Chrome.
@@ -277,12 +283,17 @@ static const char* const proprietary_media_types[] = {
 // The codecs for WAV are integers as defined in Appendix A of RFC2361:
 // http://tools.ietf.org/html/rfc2361
 static const char* const common_media_codecs[] = {
+#if !defined(__LB_SHELL__)
 #if defined(ENABLE_MEDIA_CODEC_THEORA)
   "theora",
 #endif
   "vorbis",
   "vp8",
   "1"  // WAVE_FORMAT_PCM.
+#else
+  "avc1",
+  "mp4a",
+#endif
 };
 
 // List of proprietary codecs only supported by Google Chrome.
