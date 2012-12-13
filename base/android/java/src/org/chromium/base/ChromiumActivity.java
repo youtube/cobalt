@@ -7,9 +7,8 @@ package org.chromium.base;
 import android.app.Activity;
 import android.os.Bundle;
 
-// All Chromium main activities should extend this class.
-// This allows various sub-systems to properly react to activity
-// state changes.
+// All Chromium main activities should extend this class. This allows various sub-systems to
+// properly react to activity state changes.
 public class ChromiumActivity extends Activity {
 
   @Override
@@ -27,18 +26,18 @@ public class ChromiumActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    ActivityStatus.onStateChange(this, ActivityStatus.STARTED);
+    ActivityStatus.onStateChange(this, ActivityStatus.RESUMED);
   }
 
   @Override
   protected void onPause() {
-    ActivityStatus.onStateChange(this, ActivityStatus.STARTED);
+    ActivityStatus.onStateChange(this, ActivityStatus.PAUSED);
     super.onPause();
   }
 
   @Override
   protected void onStop() {
-    ActivityStatus.onStateChange(this, ActivityStatus.STARTED);
+    ActivityStatus.onStateChange(this, ActivityStatus.STOPPED);
     super.onStop();
   }
 
