@@ -49,7 +49,7 @@ NET_EXPORT Error MapSystemError(int os_error);
 // Note that the error codes are all positive (since histograms expect positive
 // sample values). Also note that a guard bucket is created after any valid
 // error code that is not followed immediately by a valid error code.
-std::vector<int> GetAllErrorCodesForUma();
+NET_EXPORT std::vector<int> GetAllErrorCodesForUma();
 
 // A convenient function to translate platform file error to net error code.
 NET_EXPORT Error PlatformFileErrorToNetError(
