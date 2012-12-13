@@ -349,8 +349,8 @@ int UDPSocketWin::Bind(const IPEndPoint& address) {
 }
 
 int UDPSocketWin::CreateSocket(const IPEndPoint& address) {
-  socket_ = WSASocket(address.GetFamily(), SOCK_DGRAM, IPPROTO_UDP, NULL, 0,
-                      WSA_FLAG_OVERLAPPED);
+  socket_ = WSASocket(address.GetSockAddrFamily(), SOCK_DGRAM, IPPROTO_UDP,
+                      NULL, 0, WSA_FLAG_OVERLAPPED);
   if (socket_ == INVALID_SOCKET)
     return MapSystemError(WSAGetLastError());
   core_ = new Core(this);

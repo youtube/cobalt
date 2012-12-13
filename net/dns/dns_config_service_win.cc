@@ -262,10 +262,10 @@ HostsParseWinResult AddLocalhostEntries(DnsHosts* hosts) {
                             address->Address.iSockaddrLength)) {
         return HOSTS_PARSE_WIN_BAD_ADDRESS;
       }
-      if (!have_ipv4 && (ipe.GetFamily() == AF_INET)) {
+      if (!have_ipv4 && (ipe.GetFamily() == ADDRESS_FAMILY_IPV4)) {
         have_ipv4 = true;
         (*hosts)[DnsHostsKey(localname, ADDRESS_FAMILY_IPV4)] = ipe.address();
-      } else if (!have_ipv6 && (ipe.GetFamily() == AF_INET6)) {
+      } else if (!have_ipv6 && (ipe.GetFamily() == ADDRESS_FAMILY_IPV6)) {
         have_ipv6 = true;
         (*hosts)[DnsHostsKey(localname, ADDRESS_FAMILY_IPV6)] = ipe.address();
       }
