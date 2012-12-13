@@ -338,13 +338,6 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
                      "name1", "value1",
                      "name2", "value2");
 
-    TRACE_EVENT_IF_LONGER_THAN0(0, "all", "TRACE_EVENT_IF_LONGER_THAN0 call");
-    TRACE_EVENT_IF_LONGER_THAN1(0, "all", "TRACE_EVENT_IF_LONGER_THAN1 call",
-                                "name1", "value1");
-    TRACE_EVENT_IF_LONGER_THAN2(0, "all", "TRACE_EVENT_IF_LONGER_THAN2 call",
-                                "name1", "value1",
-                                "name2", "value2");
-
     TRACE_EVENT_ASYNC_BEGIN0("all", "TRACE_EVENT_ASYNC_BEGIN0 call", 5);
     TRACE_EVENT_ASYNC_BEGIN1("all", "TRACE_EVENT_ASYNC_BEGIN1 call", 5,
                              "name1", "value1");
@@ -452,16 +445,6 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_SUB_FIND_("name1");
   EXPECT_SUB_FIND_("value1");
   EXPECT_FIND_("TRACE_EVENT_END2 call");
-  EXPECT_SUB_FIND_("name1");
-  EXPECT_SUB_FIND_("value1");
-  EXPECT_SUB_FIND_("name2");
-  EXPECT_SUB_FIND_("value2");
-
-  EXPECT_FIND_("TRACE_EVENT_IF_LONGER_THAN0 call");
-  EXPECT_FIND_("TRACE_EVENT_IF_LONGER_THAN1 call");
-  EXPECT_SUB_FIND_("name1");
-  EXPECT_SUB_FIND_("value1");
-  EXPECT_FIND_("TRACE_EVENT_IF_LONGER_THAN2 call");
   EXPECT_SUB_FIND_("name1");
   EXPECT_SUB_FIND_("value1");
   EXPECT_SUB_FIND_("name2");
@@ -857,108 +840,6 @@ TEST_F(TraceEventTestFixture, Categories) {
   EXPECT_FALSE(FindMatchingValue("name", "not_inc"));
 }
 
-// Simple Test for time threshold events.
-TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
-  ManualTestSetUp();
-  BeginTrace();
-
-  // Test that events at the same level are properly filtered by threshold.
-  {
-    TRACE_EVENT_IF_LONGER_THAN0(100, "time", "threshold 100");
-    TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "threshold 1000");
-    TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "threshold 10000");
-    // 100+ seconds to avoid flakiness.
-    TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "threshold long1");
-    TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "threshold long2");
-    HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
-  }
-
-  // Test that a normal nested event remains after it's parent event is dropped.
-  {
-    TRACE_EVENT_IF_LONGER_THAN0(1000000, "time", "2threshold10000");
-    {
-      TRACE_EVENT0("time", "nonthreshold1");
-    }
-  }
-
-  // Test that parent thresholded events are dropped while some nested events
-  // remain.
-  {
-    TRACE_EVENT0("time", "nonthreshold3");
-    {
-      TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "3thresholdlong2");
-      {
-        TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "3thresholdlong1");
-        {
-          TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "3threshold10000");
-          {
-            TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "3threshold1000");
-            {
-              TRACE_EVENT_IF_LONGER_THAN0(100, "time", "3threshold100");
-              HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Test that child thresholded events are dropped while some parent events
-  // remain.
-  {
-    TRACE_EVENT0("time", "nonthreshold4");
-    {
-      TRACE_EVENT_IF_LONGER_THAN0(100, "time", "4threshold100");
-      {
-        TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "4threshold1000");
-        {
-          TRACE_EVENT_IF_LONGER_THAN0(10000, "time", "4threshold10000");
-          {
-            TRACE_EVENT_IF_LONGER_THAN0(100000000, "time",
-                                        "4thresholdlong1");
-            {
-              TRACE_EVENT_IF_LONGER_THAN0(200000000, "time",
-                                          "4thresholdlong2");
-              HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
-            }
-          }
-        }
-      }
-    }
-  }
-
-  EndTraceAndFlush();
-
-#define EXPECT_FIND_BE_(str) \
-  EXPECT_TRUE(FindNamePhase(str, "B")); \
-  EXPECT_TRUE(FindNamePhase(str, "E"))
-#define EXPECT_NOT_FIND_BE_(str) \
-  EXPECT_FALSE(FindNamePhase(str, "B")); \
-  EXPECT_FALSE(FindNamePhase(str, "E"))
-
-  EXPECT_FIND_BE_("threshold 100");
-  EXPECT_FIND_BE_("threshold 1000");
-  EXPECT_FIND_BE_("threshold 10000");
-  EXPECT_NOT_FIND_BE_("threshold long1");
-  EXPECT_NOT_FIND_BE_("threshold long2");
-
-  EXPECT_NOT_FIND_BE_("2threshold10000");
-  EXPECT_FIND_BE_("nonthreshold1");
-
-  EXPECT_FIND_BE_("nonthreshold3");
-  EXPECT_FIND_BE_("3threshold100");
-  EXPECT_FIND_BE_("3threshold1000");
-  EXPECT_FIND_BE_("3threshold10000");
-  EXPECT_NOT_FIND_BE_("3thresholdlong1");
-  EXPECT_NOT_FIND_BE_("3thresholdlong2");
-
-  EXPECT_FIND_BE_("nonthreshold4");
-  EXPECT_FIND_BE_("4threshold100");
-  EXPECT_FIND_BE_("4threshold1000");
-  EXPECT_FIND_BE_("4threshold10000");
-  EXPECT_NOT_FIND_BE_("4thresholdlong1");
-  EXPECT_NOT_FIND_BE_("4thresholdlong2");
-}
 
 // Test EVENT_WATCH_NOTIFICATION
 TEST_F(TraceEventTestFixture, EventWatchNotification) {

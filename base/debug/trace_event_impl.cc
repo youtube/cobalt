@@ -609,7 +609,7 @@ void TraceLog::Flush(const TraceLog::OutputCallback& cb) {
   }
 }
 
-int TraceLog::AddTraceEvent(char phase,
+void TraceLog::AddTraceEvent(char phase,
                             const unsigned char* category_enabled,
                             const char* name,
                             unsigned long long id,
@@ -617,8 +617,6 @@ int TraceLog::AddTraceEvent(char phase,
                             const char** arg_names,
                             const unsigned char* arg_types,
                             const unsigned long long* arg_values,
-                            int threshold_begin_id,
-                            long long threshold,
                             unsigned char flags) {
   DCHECK(name);
 
@@ -629,13 +627,12 @@ int TraceLog::AddTraceEvent(char phase,
 
   TimeTicks now = TimeTicks::NowFromSystemTraceTime() - time_offset_;
   NotificationHelper notifier(this);
-  int ret_begin_id = -1;
   {
     AutoLock lock(lock_);
     if (*category_enabled != CATEGORY_ENABLED)
-      return -1;
+      return;
     if (logged_events_.size() >= kTraceEventBufferSize)
-      return -1;
+      return;
 
     int thread_id = static_cast<int>(PlatformThread::CurrentId());
 
@@ -667,27 +664,9 @@ int TraceLog::AddTraceEvent(char phase,
       }
     }
 
-    if (threshold_begin_id > -1) {
-      DCHECK(phase == TRACE_EVENT_PHASE_END);
-      size_t begin_i = static_cast<size_t>(threshold_begin_id);
-      // Return now if there has been a flush since the begin event was posted.
-      if (begin_i >= logged_events_.size())
-        return -1;
-      // Determine whether to drop the begin/end pair.
-      TimeDelta elapsed = now - logged_events_[begin_i].timestamp();
-      if (elapsed < TimeDelta::FromMicroseconds(threshold)) {
-        // Remove begin event and do not add end event.
-        // This will be expensive if there have been other events in the
-        // mean time (should be rare).
-        logged_events_.erase(logged_events_.begin() + begin_i);
-        return -1;
-      }
-    }
-
     if (flags & TRACE_EVENT_FLAG_MANGLE_ID)
       id ^= process_id_hash_;
 
-    ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
         TraceEvent(thread_id,
                    now, phase, category_enabled, name, id,
@@ -702,8 +681,6 @@ int TraceLog::AddTraceEvent(char phase,
   }  // release lock
 
   notifier.SendNotificationIfAny();
-
-  return ret_begin_id;
 }
 
 void TraceLog::AddTraceEventEtw(char phase,

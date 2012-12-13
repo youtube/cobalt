@@ -254,14 +254,9 @@ class BASE_EXPORT TraceLog {
   static const char* GetCategoryName(const unsigned char* category_enabled);
 
   // Called by TRACE_EVENT* macros, don't call this directly.
-  // Returns the index in the internal vector of the event if it was added, or
-  //         -1 if the event was not added.
-  // On end events, the return value of the begin event can be specified along
-  // with a threshold in microseconds. If the elapsed time between begin and end
-  // is less than the threshold, the begin/end event pair is dropped.
   // If |copy| is set, |name|, |arg_name1| and |arg_name2| will be deep copied
   // into the event; see "Memory scoping note" and TRACE_EVENT_COPY_XXX above.
-  int AddTraceEvent(char phase,
+  void AddTraceEvent(char phase,
                     const unsigned char* category_enabled,
                     const char* name,
                     unsigned long long id,
@@ -269,8 +264,6 @@ class BASE_EXPORT TraceLog {
                     const char** arg_names,
                     const unsigned char* arg_types,
                     const unsigned long long* arg_values,
-                    int threshold_begin_id,
-                    long long threshold,
                     unsigned char flags);
   static void AddTraceEventEtw(char phase,
                                const char* name,
