@@ -41,6 +41,7 @@ class NET_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   typedef std::set<QuicPacketSequenceNumber> AckedPackets;
 
   virtual ~QuicConnectionVisitorInterface() {}
+
   // A simple visitor interface for dealing with data frames.  The session
   // should determine if all frames will be accepted, and return true if so.
   // If any frames can't be processed or buffered, none of the data should
@@ -49,13 +50,21 @@ class NET_EXPORT_PRIVATE QuicConnectionVisitorInterface {
                         const IPEndPoint& peer_address,
                         const QuicPacketHeader& header,
                         const std::vector<QuicStreamFrame>& frame) = 0;
+
   // Called when the stream is reset by the peer.
   virtual void OnRstStream(const QuicRstStreamFrame& frame) = 0;
+
   // Called when the connection is closed either locally by the framer, or
   // remotely by the peer.
   virtual void ConnectionClose(QuicErrorCode error, bool from_peer) = 0;
+
   // Called when packets are acked by the peer.
   virtual void OnAck(AckedPackets acked_packets) = 0;
+
+  // Called when a blocked socket becomes writable.  If all pending bytes for
+  // this visitor are consumed by the connection successfully this should
+  // return true, otherwise it should return false.
+  virtual bool OnCanWrite() = 0;
 };
 
 class NET_EXPORT_PRIVATE QuicConnectionHelperInterface {

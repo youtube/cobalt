@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "net/quic/quic_utils.h"
-//#include "util/random/acmrandom.h"
 
 using base::StringPiece;
 using std::make_pair;
@@ -35,11 +34,11 @@ void QuicPacketCreator::OnBuiltFecProtectedPayload(
   }
 }
 
-void QuicPacketCreator::DataToStream(QuicStreamId id,
-                                     StringPiece data,
-                                     QuicStreamOffset offset,
-                                     bool fin,
-                                     vector<PacketPair>* packets) {
+size_t QuicPacketCreator::DataToStream(QuicStreamId id,
+                                       StringPiece data,
+                                       QuicStreamOffset offset,
+                                       bool fin,
+                                       vector<PacketPair>* packets) {
   DCHECK_GT(options_.max_packet_length,
             QuicUtils::StreamFramePacketOverhead(1));
 
@@ -49,7 +48,12 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
   QuicFrames frames;
   QuicFecGroupNumber current_fec_group = 0;
   QuicFecData fec_data;
+
+  int num_data_packets = options_.max_num_packets;
+
   if (options_.use_fec) {
+    DCHECK_LT(1u, options_.max_num_packets);
+    --num_data_packets;
     DCHECK(!fec_group_.get());
     fec_group_.reset(new QuicFecGroup);
     current_fec_group = fec_group_number_;
@@ -57,28 +61,29 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
     fec_data.min_protected_packet_sequence_number = sequence_number_ + 1;
   }
 
+  size_t unconsumed_bytes = data.size();
   if (data.size() != 0) {
-    size_t data_to_send = data.size();
     size_t max_frame_len = framer_->GetMaxPlaintextSize(
         options_.max_packet_length -
         QuicUtils::StreamFramePacketOverhead(1));
     DCHECK_GT(max_frame_len, 0u);
-    size_t frame_len = min<size_t>(max_frame_len, data_to_send);
+    size_t frame_len = min<size_t>(max_frame_len, unconsumed_bytes);
 
-    while (data_to_send > 0) {
+    while (unconsumed_bytes > 0 && num_data_packets > 0) {
+      --num_data_packets;
       bool set_fin = false;
-      if (data_to_send <= frame_len) {  // last loop
-        frame_len = min(data_to_send, frame_len);
+      if (unconsumed_bytes <= frame_len) {  // last loop
+        frame_len = min(unconsumed_bytes, frame_len);
         set_fin = fin && !options_.separate_fin_packet;
       }
-      StringPiece data_frame(data.data() + data.size() - data_to_send,
+      StringPiece data_frame(data.data() + data.size() - unconsumed_bytes,
                                 frame_len);
 
       QuicStreamFrame frame(id, set_fin, offset, data_frame);
       frames.push_back(QuicFrame(&frame));
       FillPacketHeader(current_fec_group, PACKET_FLAGS_NONE, &header);
       offset += frame_len;
-      data_to_send -= frame_len;
+      unconsumed_bytes -= frame_len;
 
       // Produce the data packet (which might fin the stream).
       framer_->ConstructFrameDataPacket(header, frames, &packet);
@@ -86,9 +91,16 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
       packets->push_back(make_pair(header.packet_sequence_number, packet));
       frames.clear();
     }
+    // If we haven't finished serializing all the data, don't set any final fin.
+    if (unconsumed_bytes > 0) {
+      fin = false;
+    }
   }
 
   // Create a new packet for the fin, if necessary.
+  // We intentionally don't worry about separate_fin_packet messing with
+  // max_number_of_packets: we'd rather queue an extra packet than deal with a
+  // fin not getting consumed with the last data in a packet.
   if (fin && (options_.separate_fin_packet || data.size() == 0)) {
     FillPacketHeader(current_fec_group, PACKET_FLAGS_NONE, &header);
     QuicStreamFrame frame(id, true, offset, "");
@@ -124,6 +136,10 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
   }
   */
   fec_group_.reset(NULL);
+  DCHECK(options_.max_num_packets >= packets->size() ||
+         options_.separate_fin_packet);
+
+  return data.size() - unconsumed_bytes;
 }
 
 QuicPacketCreator::PacketPair QuicPacketCreator::ResetStream(
