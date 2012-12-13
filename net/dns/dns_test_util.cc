@@ -126,6 +126,9 @@ class MockTransaction : public DnsTransaction,
       case MockDnsClientRule::FAIL_ASYNC:
         callback_.Run(this, ERR_NAME_NOT_RESOLVED, NULL);
         break;
+      case MockDnsClientRule::TIMEOUT:
+        callback_.Run(this, ERR_DNS_TIMED_OUT, NULL);
+        break;
       default:
         NOTREACHED();
         break;

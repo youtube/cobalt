@@ -180,6 +180,7 @@ struct MockDnsClientRule {
   enum Result {
     FAIL_SYNC,   // Fail synchronously with ERR_NAME_NOT_RESOLVED.
     FAIL_ASYNC,  // Fail asynchronously with ERR_NAME_NOT_RESOLVED.
+    TIMEOUT,     // Fail asynchronously with ERR_DNS_TIMEOUT.
     EMPTY,       // Return an empty response.
     OK,          // Return a response with loopback address.
   };
