@@ -189,6 +189,7 @@ static const char* const kGoogleAcceptableCerts[] = {
   kSPKIHash_Google1024,
   kSPKIHash_Google2048,
   kSPKIHash_EquifaxSecureCA,
+  kSPKIHash_GeoTrustGlobal,
   NULL,
 };
 static const char* const kGoogleRejectedCerts[] = {
