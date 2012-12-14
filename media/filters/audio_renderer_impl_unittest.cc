@@ -20,6 +20,7 @@ using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::Return;
+using ::testing::ReturnRef;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
@@ -34,11 +35,16 @@ class AudioRendererImplTest : public ::testing::Test {
  public:
   // Give the decoder some non-garbage media properties.
   AudioRendererImplTest()
-      : renderer_(new AudioRendererImpl(new NiceMock<MockAudioRendererSink>())),
+      : renderer_(new AudioRendererImpl(new NiceMock<MockAudioRendererSink>(),
+                                        SetDecryptorReadyCB())),
         demuxer_stream_(new MockDemuxerStream()),
-        decoder_(new MockAudioDecoder()) {
+        decoder_(new MockAudioDecoder()),
+        audio_config_(kCodecVorbis, 16, CHANNEL_LAYOUT_STEREO,
+                      44100, NULL, 0, false) {
     EXPECT_CALL(*demuxer_stream_, type())
         .WillRepeatedly(Return(DemuxerStream::AUDIO));
+    EXPECT_CALL(*demuxer_stream_, audio_decoder_config())
+        .WillRepeatedly(ReturnRef(audio_config_));
 
     // Queue all reads from the decoder by default.
     ON_CALL(*decoder_, Read(_))
@@ -236,6 +242,7 @@ class AudioRendererImplTest : public ::testing::Test {
   AudioRendererImpl::AudioDecoderList decoders_;
   AudioDecoder::ReadCB read_cb_;
   scoped_ptr<AudioTimestampHelper> next_timestamp_;
+  AudioDecoderConfig audio_config_;
   MessageLoop message_loop_;
 
  private:
@@ -267,8 +274,8 @@ TEST_F(AudioRendererImplTest, Initialize_Successful) {
 
 TEST_F(AudioRendererImplTest, Initialize_DecoderInitFailure) {
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunCallback<1>(PIPELINE_ERROR_DECODE));
-  InitializeWithStatus(PIPELINE_ERROR_DECODE);
+      .WillOnce(RunCallback<1>(DECODER_ERROR_NOT_SUPPORTED));
+  InitializeWithStatus(DECODER_ERROR_NOT_SUPPORTED);
 
   // We should have no reads.
   EXPECT_TRUE(read_cb_.is_null());

@@ -217,7 +217,7 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   if (hashing_enabled_)
     audio_sink_->StartAudioHashForTesting();
   scoped_refptr<AudioRendererImpl> audio_renderer(new AudioRendererImpl(
-      audio_sink_));
+      audio_sink_, SetDecryptorReadyCB()));
   // Disable underflow if hashing is enabled.
   if (hashing_enabled_)
     audio_renderer->DisableUnderflowForTesting();
