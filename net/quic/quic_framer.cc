@@ -390,57 +390,19 @@ bool QuicFramer::ProcessReceivedInfo(ReceivedPacketInfo* received_info) {
 
   uint8 num_missing_packets;
   if (!reader_->ReadBytes(&num_missing_packets, 1)) {
-    set_detailed_error("Unable to read num unacked packets.");
+    set_detailed_error("Unable to read num missing packets.");
     return false;
   }
 
   for (int i = 0; i < num_missing_packets; ++i) {
     QuicPacketSequenceNumber sequence_number;
     if (!reader_->ReadUInt48(&sequence_number)) {
-      set_detailed_error("Unable to read sequence number in unacked packets.");
+      set_detailed_error("Unable to read sequence number in missing packets.");
       return false;
     }
     received_info->missing_packets.insert(sequence_number);
   }
 
-  uint8 num_acked_packets;
-  if (!reader_->ReadBytes(&num_acked_packets, 1)) {
-    set_detailed_error("Unable to read num acked packets.");
-    return false;
-  }
-
-  if (num_acked_packets > 0u) {
-    uint64 smallest_ack;
-    if (!reader_->ReadUInt48(&smallest_ack)) {
-      set_detailed_error("Unable to read smallest ack.");
-    return false;
-  }
-
-    uint64 time_received_us;
-    if (!reader_->ReadUInt64(&time_received_us)) {
-      set_detailed_error("Unable to read time received.");
-      return false;
-    }
-
-    received_info->received_packet_times[smallest_ack] =
-        QuicTime::FromMicroseconds(time_received_us);
-
-    for (int i = 0; i < num_acked_packets - 1; ++i) {
-      uint16 sequence_delta;
-      if (!reader_->ReadUInt16(&sequence_delta)) {
-        set_detailed_error("Unable to read sequence delta in acked packets.");
-        return false;
-      }
-
-      int32 time_delta_us;
-      if (!reader_->ReadBytes(&time_delta_us, sizeof(time_delta_us))) {
-        set_detailed_error("Unable to read time delta in acked packets.");
-        return false;
-      }
-      received_info->received_packet_times[smallest_ack + sequence_delta] =
-          QuicTime::FromMicroseconds(time_received_us + time_delta_us);
-    }
-  }
   return true;
 }
 
@@ -480,6 +442,47 @@ bool QuicFramer::ProcessQuicCongestionFeedbackFrame(
       if (!reader_->ReadUInt16(&inter_arrival->delta_time)) {
         set_detailed_error("Unable to read delta time.");
         return false;
+      }
+      uint8 num_received_packets;
+      if (!reader_->ReadBytes(&num_received_packets, 1)) {
+        set_detailed_error("Unable to read num received packets.");
+        return false;
+      }
+
+      if (num_received_packets > 0u) {
+        uint64 smallest_received;
+        if (!reader_->ReadUInt48(&smallest_received)) {
+          set_detailed_error("Unable to read smallest received.");
+          return false;
+        }
+
+        uint64 time_received_us;
+        if (!reader_->ReadUInt64(&time_received_us)) {
+          set_detailed_error("Unable to read time received.");
+          return false;
+        }
+
+        inter_arrival->received_packet_times[smallest_received] =
+            QuicTime::FromMicroseconds(time_received_us);
+
+        for (int i = 0; i < num_received_packets - 1; ++i) {
+          uint16 sequence_delta;
+          if (!reader_->ReadUInt16(&sequence_delta)) {
+            set_detailed_error(
+                "Unable to read sequence delta in received packets.");
+            return false;
+          }
+
+          int32 time_delta_us;
+          if (!reader_->ReadBytes(&time_delta_us, sizeof(time_delta_us))) {
+            set_detailed_error(
+                "Unable to read time delta in received packets.");
+            return false;
+          }
+          QuicPacketSequenceNumber packet = smallest_received + sequence_delta;
+          inter_arrival->received_packet_times[packet] =
+              QuicTime::FromMicroseconds(time_received_us + time_delta_us);
+        }
       }
       break;
     }
@@ -637,13 +640,6 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
       len += 6;  // largest received packet sequence number
       len += 1;  // num missing packets
       len += 6 * ack.received_info.missing_packets.size();
-      len += 1;  // num acked packets
-      if (ack.received_info.received_packet_times.size() > 0) {
-        len += 6;  // smallest ack
-        len += 8;  // time
-        // 2 bytes per sequence number delta plus 4 bytes per delta time.
-        len += 6 * (ack.received_info.received_packet_times.size() - 1);
-      }
       len += 6;  // least packet sequence number awaiting an ack
           break;
     }
@@ -653,9 +649,19 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
       len += 1;  // congestion feedback type
 
       switch (congestion_feedback.type) {
-        case kInterArrival:
+        case kInterArrival: {
+          const CongestionFeedbackMessageInterArrival& inter_arrival =
+              congestion_feedback.inter_arrival;
           len += 6;
+          len += 1;  // num received packets
+          if (inter_arrival.received_packet_times.size() > 0) {
+            len += 6;  // smallest received
+            len += 8;  // time
+            // 2 bytes per sequence number delta plus 4 bytes per delta time.
+            len += 6 * (inter_arrival.received_packet_times.size() - 1);
+          }
           break;
+        }
         case kFixRate:
           len += 4;
           break;
@@ -718,13 +724,6 @@ bool QuicFramer::AppendStreamFramePayload(
 bool QuicFramer::AppendAckFramePayload(
     const QuicAckFrame& frame,
     QuicDataWriter* writer) {
-  DCHECK_GE(numeric_limits<uint8>::max(),
-            frame.received_info.received_packet_times.size());
-  if (frame.received_info.received_packet_times.size() >
-      numeric_limits<uint8>::max()) {
-    return false;
-  }
-
   if (!writer->WriteUInt48(frame.received_info.largest_received)) {
     return false;
   }
@@ -740,44 +739,6 @@ bool QuicFramer::AppendAckFramePayload(
   for (; it != frame.received_info.missing_packets.end(); ++it) {
     if (!writer->WriteUInt48(*it)) {
       return false;
-    }
-  }
-
-  // TODO(ianswett): Make num_unacked_packets a varint.
-  uint8 num_acked_packets = frame.received_info.received_packet_times.size();
-  if (!writer->WriteBytes(&num_acked_packets, 1)) {
-      return false;
-    }
-  if (num_acked_packets > 0) {
-    TimeMap::const_iterator it =
-        frame.received_info.received_packet_times.begin();
-
-    QuicPacketSequenceNumber lowest_sequence = it->first;
-    if (!writer->WriteUInt48(lowest_sequence)) {
-      return false;
-    }
-
-    QuicTime lowest_time = it->second;
-    // TODO(ianswett): Use time deltas from the connection's first received
-    // packet.
-    if (!writer->WriteUInt64(lowest_time.ToMicroseconds())) {
-      return false;
-    }
-
-    for (++it; it != frame.received_info.received_packet_times.end(); ++it) {
-      QuicPacketSequenceNumber sequence_delta = it->first - lowest_sequence;
-      DCHECK_GE(numeric_limits<uint16>::max(), sequence_delta);
-      if (sequence_delta > numeric_limits<uint16>::max()) {
-        return false;
-      }
-      if (!writer->WriteUInt16(static_cast<uint16>(sequence_delta))) {
-        return false;
-      }
-
-      int32 time_delta_us = it->second.Subtract(lowest_time).ToMicroseconds();
-      if (!writer->WriteBytes(&time_delta_us, sizeof(time_delta_us))) {
-        return false;
-      }
     }
   }
 
@@ -808,6 +769,52 @@ bool QuicFramer::AppendQuicCongestionFeedbackFramePayload(
       }
       if (!writer->WriteUInt16(inter_arrival.delta_time)) {
         return false;
+      }
+      DCHECK_GE(numeric_limits<uint8>::max(),
+                inter_arrival.received_packet_times.size());
+      if (inter_arrival.received_packet_times.size() >
+          numeric_limits<uint8>::max()) {
+        return false;
+      }
+
+      // TODO(ianswett): Make num_received_packets a varint.
+      uint8 num_received_packets =
+          inter_arrival.received_packet_times.size();
+      if (!writer->WriteBytes(&num_received_packets, 1)) {
+        return false;
+      }
+      if (num_received_packets > 0) {
+        TimeMap::const_iterator it =
+            inter_arrival.received_packet_times.begin();
+
+        QuicPacketSequenceNumber lowest_sequence = it->first;
+        if (!writer->WriteUInt48(lowest_sequence)) {
+          return false;
+        }
+
+        QuicTime lowest_time = it->second;
+        // TODO(ianswett): Use time deltas from the connection's first received
+        // packet.
+        if (!writer->WriteUInt64(lowest_time.ToMicroseconds())) {
+          return false;
+        }
+
+        for (++it; it != inter_arrival.received_packet_times.end(); ++it) {
+          QuicPacketSequenceNumber sequence_delta = it->first - lowest_sequence;
+          DCHECK_GE(numeric_limits<uint16>::max(), sequence_delta);
+          if (sequence_delta > numeric_limits<uint16>::max()) {
+            return false;
+          }
+          if (!writer->WriteUInt16(static_cast<uint16>(sequence_delta))) {
+            return false;
+          }
+
+          int32 time_delta_us =
+              it->second.Subtract(lowest_time).ToMicroseconds();
+          if (!writer->WriteBytes(&time_delta_us, sizeof(time_delta_us))) {
+            return false;
+          }
+        }
       }
       break;
     }
