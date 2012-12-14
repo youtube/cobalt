@@ -108,7 +108,7 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
     assert len(values) == 1
     value = values[0]
     measurement += '.' + trace_name
-    output = '%s%s: %s=%s' % (
+    output = '%s%s: %s= %s' % (
         RESULT_TYPES[result_type],
         _EscapePerfResult(measurement),
         _EscapePerfResult(measurement),
