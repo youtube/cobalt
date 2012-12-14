@@ -13,18 +13,6 @@
 3. Environment:
 3.1. chrome/unit_tests requires (via chrome_paths.cc) a directory named:
      $EXTERNAL_STORAGE + /chrome/test/data
-3.2. page_cycler_tests have following requirements,
-3.2.1  the following data on host:
-       <chrome_src_dir>/tools/page_cycler
-       <chrome_src_dir>/data/page_cycler
-3.2.2. two data directories to store above test data on device named:
-       $EXTERNAL_STORAGE + /tools/ (for database perf test)
-       $EXTERNAL_STORAGE + /data/ (for other perf tests)
-3.2.3. a http server to serve http perf tests.
-       The http root is host's <chrome_src_dir>/data/page_cycler/, port 8000.
-3.2.4  a tool named forwarder is also required to run on device to
-       forward the http request/response between host and device.
-3.2.5  Chrome is installed on device.
 4. Run the binary in the device and stream the log to the host.
 4.1. Optionally, filter specific tests.
 4.2. If we're running a single test suite and we have multiple devices
@@ -185,16 +173,14 @@ class TestSharder(BaseTestSharder):
   """Responsible for sharding the tests on the connected devices."""
 
   def __init__(self, attached_devices, test_suite, gtest_filter,
-               test_arguments, timeout, performance_test,
-               cleanup_test_files, tool, log_dump_name, fast_and_loose,
-               build_type, in_webkit_checkout):
+               test_arguments, timeout, cleanup_test_files, tool,
+               log_dump_name, fast_and_loose, build_type, in_webkit_checkout):
     BaseTestSharder.__init__(self, attached_devices, build_type)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
     self.gtest_filter = gtest_filter or ''
     self.test_arguments = test_arguments
     self.timeout = timeout
-    self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
     self.log_dump_name = log_dump_name
@@ -233,7 +219,6 @@ class TestSharder(BaseTestSharder):
         self.gtest_filter,
         self.test_arguments,
         self.timeout,
-        self.performance_test,
         self.cleanup_test_files,
         self.tool,
         0,
@@ -272,7 +257,6 @@ class TestSharder(BaseTestSharder):
         test_filter,
         self.test_arguments,
         self.timeout,
-        self.performance_test,
         self.cleanup_test_files, self.tool, index,
         not not self.log_dump_name,
         self.fast_and_loose,
@@ -341,7 +325,7 @@ def _RunATestSuite(options):
   if not ports.ResetTestServerPortAllocation():
     raise Exception('Failed to reset test server port.')
 
-  if options.performance_test or options.gtest_filter:
+  if options.gtest_filter:
     logging.warning('Sharding is not possible with these configurations.')
     attached_devices = [attached_devices[0]]
 
@@ -351,7 +335,6 @@ def _RunATestSuite(options):
       options.gtest_filter,
       options.test_arguments,
       options.timeout,
-      options.performance_test,
       options.cleanup_test_files,
       options.tool,
       options.log_dump,
@@ -422,9 +405,6 @@ def main(argv):
                            help='gtest filter')
   option_parser.add_option('-a', '--test_arguments', dest='test_arguments',
                            help='Additional arguments to pass to the test')
-  option_parser.add_option('-p', dest='performance_test',
-                           help='Indicator of performance test',
-                           action='store_true')
   option_parser.add_option('-L', dest='log_dump',
                            help='file name of log dump, which will be put in '
                            'subfolder debug_info_dumps under the same '
