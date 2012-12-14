@@ -24,11 +24,11 @@ namespace media {
 
 DecryptingDemuxerStream::DecryptingDemuxerStream(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const RequestDecryptorNotificationCB& request_decryptor_notification_cb)
+    const SetDecryptorReadyCB& set_decryptor_ready_cb)
     : message_loop_(message_loop),
       state_(kUninitialized),
       stream_type_(UNKNOWN),
-      request_decryptor_notification_cb_(request_decryptor_notification_cb),
+      set_decryptor_ready_cb_(set_decryptor_ready_cb),
       decryptor_(NULL),
       key_added_while_decrypt_pending_(false) {
 }
@@ -139,7 +139,7 @@ void DecryptingDemuxerStream::DoInitialize(
   init_cb_ = status_cb;
 
   state_ = kDecryptorRequested;
-  request_decryptor_notification_cb_.Run(
+  set_decryptor_ready_cb_.Run(
       BIND_TO_LOOP(&DecryptingDemuxerStream::SetDecryptor));
 }
 
@@ -148,9 +148,9 @@ void DecryptingDemuxerStream::SetDecryptor(Decryptor* decryptor) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kDecryptorRequested) << state_;
   DCHECK(!init_cb_.is_null());
-  DCHECK(!request_decryptor_notification_cb_.is_null());
+  DCHECK(!set_decryptor_ready_cb_.is_null());
 
-  request_decryptor_notification_cb_.Reset();
+  set_decryptor_ready_cb_.Reset();
   decryptor_ = decryptor;
 
   switch (stream_type_) {

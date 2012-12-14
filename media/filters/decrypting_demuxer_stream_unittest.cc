@@ -210,8 +210,7 @@ class DecryptingDemuxerStreamTest : public testing::Test {
     message_loop_.RunUntilIdle();
   }
 
-  MOCK_METHOD1(RequestDecryptorNotification,
-               void(const DecryptingDemuxerStream::DecryptorNotificationCB&));
+  MOCK_METHOD1(RequestDecryptorNotification, void(const DecryptorReadyCB&));
 
   MOCK_METHOD2(BufferReady, void(DemuxerStream::Status,
                                  const scoped_refptr<DecoderBuffer>&));

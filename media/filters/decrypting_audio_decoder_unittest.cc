@@ -211,8 +211,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
     message_loop_.RunUntilIdle();
   }
 
-  MOCK_METHOD1(RequestDecryptorNotification,
-               void(const DecryptingAudioDecoder::DecryptorNotificationCB&));
+  MOCK_METHOD1(RequestDecryptorNotification, void(const DecryptorReadyCB&));
 
   MOCK_METHOD2(FrameReady, void(AudioDecoder::Status,
                                 const scoped_refptr<Buffer>&));
