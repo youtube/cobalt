@@ -42,7 +42,7 @@ void MockClientSocketPoolManager::SetSocketPoolForSSLWithProxy(
   ssl_socket_pools_for_proxies_[proxy_server] = pool;
 }
 
-void MockClientSocketPoolManager::FlushSocketPools() {
+void MockClientSocketPoolManager::FlushSocketPoolsWithError(int error) {
   NOTIMPLEMENTED();
 }
 

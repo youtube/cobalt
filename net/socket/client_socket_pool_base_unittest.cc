@@ -476,8 +476,8 @@ class TestClientSocketPool : public ClientSocketPool {
     base_.ReleaseSocket(group_name, socket, id);
   }
 
-  virtual void Flush() OVERRIDE {
-    base_.Flush();
+  virtual void FlushWithError(int error) OVERRIDE {
+    base_.FlushWithError(error);
   }
 
   virtual bool IsStalled() const OVERRIDE {
@@ -2486,7 +2486,7 @@ TEST_F(ClientSocketPoolBaseTest, CallbackThatReleasesPool) {
                                         pool_.get(),
                                         BoundNetLog()));
 
-  pool_->Flush();
+  pool_->FlushWithError(ERR_NETWORK_CHANGED);
 
   // We'll call back into this now.
   callback.WaitForResult();
@@ -2507,7 +2507,7 @@ TEST_F(ClientSocketPoolBaseTest, DoNotReuseSocketAfterFlush) {
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(ClientSocketHandle::UNUSED, handle.reuse_type());
 
-  pool_->Flush();
+  pool_->FlushWithError(ERR_NETWORK_CHANGED);
 
   handle.Reset();
   MessageLoop::current()->RunUntilIdle();
@@ -2584,8 +2584,8 @@ TEST_F(ClientSocketPoolBaseTest, AbortAllRequestsOnFlush) {
   // Second job will be started during the first callback, and will
   // asynchronously complete with OK.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  pool_->Flush();
-  EXPECT_EQ(ERR_ABORTED, callback.WaitForResult());
+  pool_->FlushWithError(ERR_NETWORK_CHANGED);
+  EXPECT_EQ(ERR_NETWORK_CHANGED, callback.WaitForResult());
   EXPECT_EQ(OK, callback.WaitForNestedResult());
 }
 
