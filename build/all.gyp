@@ -618,7 +618,6 @@
                 '../courgette/courgette.gyp:courgette64',
                 '../cloud_print/cloud_print.gyp:cloud_print',
                 '../remoting/remoting.gyp:remoting_webapp',
-                '../third_party/adobe/flash/flash_player.gyp:flash_player',
                 '../third_party/widevine/cdm/widevine_cdm.gyp:widevinecdmplugin',
               ],
               'conditions': [
