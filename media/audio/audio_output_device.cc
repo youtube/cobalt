@@ -179,7 +179,7 @@ void AudioOutputDevice::ShutDownOnIOThread() {
 
 void AudioOutputDevice::SetVolumeOnIOThread(double volume) {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  if (state_ >= PAUSED)
+  if (state_ >= CREATING_STREAM)
     ipc_->SetVolume(stream_id_, volume);
 }
 
