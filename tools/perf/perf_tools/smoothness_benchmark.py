@@ -112,6 +112,33 @@ def CalcFirstPaintTimeResults(results, tab):
 
   results.Add('first_paint', 'ms', round(first_paint_secs * 1000, 1))
 
+def CalcImageDecodingResults(rendering_stats_deltas, results):
+  totalDeferredImageDecodeCount = rendering_stats_deltas.get(
+      'totalDeferredImageDecodeCount', 0)
+  totalDeferredImageCacheHitCount = rendering_stats_deltas.get(
+      'totalDeferredImageCacheHitCount', 0)
+  totalImageGatheringCount = rendering_stats_deltas.get(
+      'totalImageGatheringCount', 0)
+  totalDeferredImageDecodeTimeInSeconds = rendering_stats_deltas.get(
+      'totalDeferredImageDecodeTimeInSeconds', 0)
+  totalImageGatheringTimeInSeconds = rendering_stats_deltas.get(
+      'totalImageGatheringTimeInSeconds', 0)
+
+  averageImageGatheringTime = DivideIfPossibleOrZero(
+      (totalImageGatheringTimeInSeconds * 1000), totalImageGatheringCount)
+
+  results.Add('total_deferred_image_decode_count', 'count',
+              totalDeferredImageDecodeCount,
+              data_type='unimportant')
+  results.Add('total_image_cache_hit_count', 'count',
+              totalDeferredImageCacheHitCount,
+              data_type='unimportant')
+  results.Add('average_image_gathering_time', 'ms', averageImageGatheringTime,
+              data_type='unimportant')
+  results.Add('total_deferred_image_decoding_time', 'seconds',
+              totalDeferredImageDecodeTimeInSeconds,
+              data_type='unimportant')
+
 class SmoothnessBenchmark(multi_page_benchmark.MultiPageBenchmark):
   def __init__(self):
     super(SmoothnessBenchmark, self).__init__('scrolling')
@@ -143,6 +170,7 @@ class SmoothnessBenchmark(multi_page_benchmark.MultiPageBenchmark):
     CalcScrollResults(rendering_stats_deltas, results)
     CalcPaintingResults(rendering_stats_deltas, results)
     CalcTextureUploadResults(rendering_stats_deltas, results)
+    CalcImageDecodingResults(rendering_stats_deltas, results)
 
     if self.options.report_all_results:
       for k, v in rendering_stats_deltas.iteritems():
