@@ -2,7 +2,7 @@ H B ES: Comparison of String parameter using == or != in org.chromium.android_we
 H B Nm: The class name org.chromium.content.browser.test.util.TouchUtils shadows the simple name of the superclass android.test.TouchUtils  At TouchUtils.java
 H C EC: Using pointer equality to compare a JavaBridgeCoercionTest$CustomType with a JavaBridgeCoercionTest$CustomType2 in org.chromium.content.browser.JavaBridgeCoercionTest.testPassJavaObject()  At JavaBridgeCoercionTest.java
 H D RCN: Redundant nullcheck of org.chromium.content.browser.SandboxedProcessConnection.mConnectionParams, which is known to be non-null in org.chromium.content.browser.SandboxedProcessConnection.doConnectionSetup()  Redundant null check at SandboxedProcessConnection.java
-H D ST: Write to static field org.chromium.content.app.SandboxedProcessService.sContext from instance method org.chromium.content.app.SandboxedProcessService.onCreate()  At SandboxedProcessService.java
+M D ST: Write to static field org.chromium.content.app.SandboxedProcessService.sContext from instance method org.chromium.content.app.SandboxedProcessService.onCreate()  At SandboxedProcessService.java
 H D ST: Write to static field org.chromium.net.test.util.TestWebServer.sInstance from instance method org.chromium.net.test.util.TestWebServer.shutdown()  At TestWebServer.java
 H V MS: org.chromium.android_webview.test.AndroidWebViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At AndroidWebViewTestBase.java
 H V MS: org.chromium.android_webview.test.LoadDataWithBaseUrlTest.WAIT_TIMEOUT_SECONDS isn't final but should be  At LoadDataWithBaseUrlTest.java
