@@ -36,10 +36,6 @@ GLES2/gl2ext.h
  - Added GL_CHROMIUM_async_pixel_transfers
  - Added GL_NVX_gpu_memory_info
  - Added include of gl2chromium.h
-GLES2/glchromium.h
- - Added This file defines macros to change glXXX to GLES2XXX
-   since Chromium includes the system GL there are conflicts
-   otherwise.
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
 DEPS
