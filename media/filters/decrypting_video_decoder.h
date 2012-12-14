@@ -31,21 +31,9 @@ class Decryptor;
 // DecryptingVideoDecoder for video decoding.
 class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
  public:
-  // Callback to notify decryptor creation.
-  typedef base::Callback<void(Decryptor*)> DecryptorNotificationCB;
-  // Callback to request/cancel decryptor creation notification.
-  // Calling this callback with a non-null callback registers decryptor creation
-  // notification. When the decryptor is created, notification will be sent
-  // through the provided callback.
-  // Calling this callback with a null callback cancels previously registered
-  // decryptor creation notification. Any previously provided callback will be
-  // fired immediately with NULL.
-  typedef base::Callback<void(const DecryptorNotificationCB&)>
-      RequestDecryptorNotificationCB;
-
   DecryptingVideoDecoder(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      const RequestDecryptorNotificationCB& request_decryptor_notification_cb);
+      const SetDecryptorReadyCB& set_decryptor_ready_cb);
 
   // VideoDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -116,7 +104,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   scoped_refptr<DemuxerStream> demuxer_stream_;
 
   // Callback to request/cancel decryptor creation notification.
-  RequestDecryptorNotificationCB request_decryptor_notification_cb_;
+  SetDecryptorReadyCB set_decryptor_ready_cb_;
 
   Decryptor* decryptor_;
 
