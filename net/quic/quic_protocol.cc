@@ -30,8 +30,10 @@ ReceivedPacketInfo::ReceivedPacketInfo() : largest_received(0) {}
 ReceivedPacketInfo::~ReceivedPacketInfo() {}
 
 void ReceivedPacketInfo::RecordReceived(
-    QuicPacketSequenceNumber sequence_number) {
+    QuicPacketSequenceNumber sequence_number,
+    QuicTime time) {
   DCHECK(IsAwaitingPacket(sequence_number));
+  received_packet_times[sequence_number] = time;
   if (largest_received < sequence_number) {
     DCHECK_LT(sequence_number - largest_received,
               numeric_limits<uint16>::max());
@@ -57,10 +59,22 @@ bool ReceivedPacketInfo::IsAwaitingPacket(
       ContainsKey(missing_packets, sequence_number);
 }
 
-void ReceivedPacketInfo::ClearMissingBefore(
+void ReceivedPacketInfo::ClearAcksBefore(
     QuicPacketSequenceNumber least_unacked) {
+  if (received_packet_times.empty())
+    return;
   missing_packets.erase(missing_packets.begin(),
                         missing_packets.lower_bound(least_unacked));
+  // Clearing received_packet_times may not be necessary, since they're cleared
+  // every time an ack is sent.
+  for (QuicPacketSequenceNumber i = received_packet_times.begin()->first;
+       i < least_unacked; ++i) {
+    received_packet_times.erase(i);
+  }
+}
+
+void ReceivedPacketInfo::ClearAckTimes() {
+  received_packet_times.clear();
 }
 
 SentPacketInfo::SentPacketInfo() {}
@@ -69,10 +83,11 @@ SentPacketInfo::~SentPacketInfo() {}
 
 // Testing convenience method.
 QuicAckFrame::QuicAckFrame(QuicPacketSequenceNumber largest_received,
+                           QuicTime time_received,
                            QuicPacketSequenceNumber least_unacked) {
   for (QuicPacketSequenceNumber seq_num = 1;
        seq_num <= largest_received; ++seq_num) {
-    received_info.RecordReceived(seq_num);
+    received_info.RecordReceived(seq_num, time_received);
   }
   received_info.largest_received = largest_received;
   sent_info.least_unacked = least_unacked;
@@ -91,13 +106,14 @@ ostream& operator<<(ostream& os, const ReceivedPacketInfo& r) {
        it != r.missing_packets.end(); ++it) {
     os << *it << " ";
   }
+
+  os << "] received packets: [ ";
+  for (TimeMap::const_iterator it = r.received_packet_times.begin();
+       it != r.received_packet_times.end(); ++it) {
+    os << it->first << "@" << it->second.ToMilliseconds() << " ";
+  }
+  os << "]";
   return os;
-}
-
-QuicCongestionFeedbackFrame::QuicCongestionFeedbackFrame() {
-}
-
-QuicCongestionFeedbackFrame::~QuicCongestionFeedbackFrame() {
 }
 
 ostream& operator<<(ostream& os, const QuicCongestionFeedbackFrame& c) {
@@ -110,13 +126,6 @@ ostream& operator<<(ostream& os, const QuicCongestionFeedbackFrame& c) {
          << inter_arrival.accumulated_number_of_lost_packets;
       os << " offset_time: " << inter_arrival.offset_time;
       os << " delta_time: " << inter_arrival.delta_time;
-      os << " received packets: [ ";
-      for (TimeMap::const_iterator it =
-               inter_arrival.received_packet_times.begin();
-           it != inter_arrival.received_packet_times.end(); ++it) {
-        os << it->first << "@" << it->second.ToMilliseconds() << " ";
-      }
-      os << "]";
       break;
     }
     case kFixRate: {
@@ -144,12 +153,6 @@ ostream& operator<<(ostream& os, const QuicAckFrame& a) {
      << "received info { " << a.received_info << " }\n";
  return os;
 }
-
-CongestionFeedbackMessageInterArrival::
-CongestionFeedbackMessageInterArrival() {}
-
-CongestionFeedbackMessageInterArrival::
-~CongestionFeedbackMessageInterArrival() {}
 
 QuicFecData::QuicFecData() {}
 
