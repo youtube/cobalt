@@ -220,7 +220,7 @@ class TestSharder(BaseTestSharder):
         return self._GetTestsFromDevice(available_devices[-1])
       except Exception as e:
         logging.warning('Failed obtaining tests from %s %s',
-                        current_device, e)
+                        available_devices[-1], e)
         available_devices.pop()
 
     raise Exception('No device available to get the list of tests.')
