@@ -67,7 +67,7 @@ class QuicStreamFactoryTest : public ::testing::Test {
     header.flags = PACKET_FLAGS_NONE;
     header.fec_group = 0;
 
-    QuicAckFrame ack(largest_received, QuicTime(), least_unacked);
+    QuicAckFrame ack(largest_received, least_unacked);
 
     return scoped_ptr<QuicEncryptedPacket>(
         ConstructPacket(header, QuicFrame(&ack)));

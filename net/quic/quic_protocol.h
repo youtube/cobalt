@@ -180,29 +180,21 @@ struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
       std::ostream& os, const ReceivedPacketInfo& s);
 
   // Records a packet receipt.
-  void RecordReceived(QuicPacketSequenceNumber sequence_number, QuicTime time);
+  void RecordReceived(QuicPacketSequenceNumber sequence_number);
 
   // True if the sequence number is greater than largest_received or is listed
   // as missing.
   // Always returns false for sequence numbers less than least_unacked.
   bool IsAwaitingPacket(QuicPacketSequenceNumber sequence_number) const;
 
-  // Clears all missing packets and ack times less than least_unacked.
-  void ClearAcksBefore(QuicPacketSequenceNumber least_unacked);
-
-  // Clears all packet sequence number and time pairs, preventing future
-  // transmission.
-  void ClearAckTimes();
+  // Clears all missing packets less than |least_unacked|.
+  void ClearMissingBefore(QuicPacketSequenceNumber least_unacked);
 
   // The highest packet sequence number we've received from the peer.
   QuicPacketSequenceNumber largest_received;
 
   // The set of packets which we're expecting and have not received.
   SequenceSet missing_packets;
-
-  // The set of received packets since the last ack was sent and their arrival
-  // times.
-  std::map<QuicPacketSequenceNumber, QuicTime> received_packet_times;
 };
 
 struct NET_EXPORT_PRIVATE SentPacketInfo {
@@ -218,9 +210,8 @@ struct NET_EXPORT_PRIVATE SentPacketInfo {
 struct NET_EXPORT_PRIVATE QuicAckFrame {
   QuicAckFrame() {}
   // Testing convenience method to construct a QuicAckFrame with all packets
-  // from least_unacked to largest_received acked at time_received.
+  // from least_unacked to largest_received acked.
   QuicAckFrame(QuicPacketSequenceNumber largest_received,
-               QuicTime time_received,
                QuicPacketSequenceNumber least_unacked);
 
   NET_EXPORT_PRIVATE friend std::ostream& operator<<(
@@ -245,9 +236,14 @@ struct NET_EXPORT_PRIVATE CongestionFeedbackMessageTCP {
 };
 
 struct NET_EXPORT_PRIVATE CongestionFeedbackMessageInterArrival {
+  CongestionFeedbackMessageInterArrival();
+  ~CongestionFeedbackMessageInterArrival();
   uint16 accumulated_number_of_lost_packets;
   int16 offset_time;
   uint16 delta_time;  // delta time is described below.
+  // The set of received packets since the last feedback was sent, along with
+  // their arrival times.
+  TimeMap received_packet_times;
 };
 
 /*
@@ -272,15 +268,18 @@ struct NET_EXPORT_PRIVATE CongestionFeedbackMessageFixRate {
 };
 
 struct NET_EXPORT_PRIVATE QuicCongestionFeedbackFrame {
-  CongestionFeedbackType type;
+  QuicCongestionFeedbackFrame();
+  ~QuicCongestionFeedbackFrame();
+
   NET_EXPORT_PRIVATE friend std::ostream& operator<<(
       std::ostream& os, const QuicCongestionFeedbackFrame& c);
 
-  union {
-    CongestionFeedbackMessageTCP tcp;
-    CongestionFeedbackMessageInterArrival inter_arrival;
-    CongestionFeedbackMessageFixRate fix_rate;
-  };
+  CongestionFeedbackType type;
+  // This should really be a union, but since the inter arrival struct
+  // is non-trivial, C++ prohibits it.
+  CongestionFeedbackMessageTCP tcp;
+  CongestionFeedbackMessageInterArrival inter_arrival;
+  CongestionFeedbackMessageFixRate fix_rate;
 };
 
 struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
