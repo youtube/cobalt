@@ -189,21 +189,28 @@ class TestSharder(BaseTestSharder):
     self.all_tests = []
     if not self.gtest_filter:
       # No filter has been specified, let's add all tests then.
-      self.all_tests = self._GetAllEnabledTests()
+      self.all_tests, self.attached_devices = self._GetAllEnabledTests()
     self.tests = self.all_tests
 
   def _GetAllEnabledTests(self):
-    """Returns a list of all enabled tests.
+    """Get all enabled tests and available devices.
 
     Obtains a list of enabled tests from the test package on the device,
     then filters it again using the diabled list on the host.
 
+    Returns:
+      Tuple of (all enabled tests, available devices).
+
     Raises Exception if all devices failed.
     """
+    # TODO(frankf): This method is doing too much in a non-systematic way.
+    # If the intention is to drop flaky devices, why not go through all devices
+    # instead of breaking on the first succesfull run?
     available_devices = list(self.attached_devices)
     while available_devices:
       try:
-        return self._GetTestsFromDevice(available_devices[-1])
+        return (self._GetTestsFromDevice(available_devices[-1]),
+                available_devices)
       except Exception as e:
         logging.warning('Failed obtaining tests from %s %s',
                         available_devices[-1], e)
