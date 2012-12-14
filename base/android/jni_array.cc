@@ -73,10 +73,12 @@ void AppendJavaStringArrayToStringVector(JNIEnv* env,
   if (!array)
     return;
   jsize len = env->GetArrayLength(array);
+  size_t back = out->size();
+  out->resize(back + len);
   for (jsize i = 0; i < len; ++i) {
     ScopedJavaLocalRef<jstring> str(env,
         static_cast<jstring>(env->GetObjectArrayElement(array, i)));
-    out->push_back(ConvertJavaStringToUTF16(str));
+    ConvertJavaStringToUTF16(env, str.obj(), &((*out)[back + i]));
   }
 }
 
@@ -87,10 +89,12 @@ void AppendJavaStringArrayToStringVector(JNIEnv* env,
   if (!array)
     return;
   jsize len = env->GetArrayLength(array);
+  size_t back = out->size();
+  out->resize(back + len);
   for (jsize i = 0; i < len; ++i) {
     ScopedJavaLocalRef<jstring> str(env,
         static_cast<jstring>(env->GetObjectArrayElement(array, i)));
-    out->push_back(ConvertJavaStringToUTF8(str));
+    ConvertJavaStringToUTF8(env, str.obj(), &((*out)[back + i]));
   }
 }
 
@@ -134,13 +138,13 @@ void JavaArrayOfByteArrayToStringVector(
   DCHECK(out);
   out->clear();
   jsize len = env->GetArrayLength(array);
+  out->resize(len);
   for (jsize i = 0; i < len; ++i) {
     jbyteArray bytes_array = static_cast<jbyteArray>(
         env->GetObjectArrayElement(array, i));
     jsize bytes_len = env->GetArrayLength(bytes_array);
     jbyte* bytes = env->GetByteArrayElements(bytes_array, NULL);
-    out->push_back(
-        std::string(reinterpret_cast<const char*>(bytes), bytes_len));
+    (*out)[i].assign(reinterpret_cast<const char*>(bytes), bytes_len);
     env->ReleaseByteArrayElements(bytes_array, bytes, JNI_ABORT);
   }
 }
