@@ -29,19 +29,23 @@
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/buffers.h"
+#include "media/base/decryptor.h"
 #include "media/filters/audio_renderer_algorithm.h"
 
 namespace media {
 
+class AudioDecoderSelector;
 class AudioSplicer;
+class DecryptingDemuxerStream;
 
 class MEDIA_EXPORT AudioRendererImpl
     : public AudioRenderer,
-      NON_EXPORTED_BASE(public media::AudioRendererSink::RenderCallback) {
+      NON_EXPORTED_BASE(public AudioRendererSink::RenderCallback) {
  public:
   // Methods called on Render thread ------------------------------------------
   // An AudioRendererSink is used as the destination for the rendered audio.
-  explicit AudioRendererImpl(media::AudioRendererSink* sink);
+  AudioRendererImpl(AudioRendererSink* sink,
+                    const SetDecryptorReadyCB& set_decryptor_ready_cb);
 
   // Methods called on pipeline thread ----------------------------------------
   // AudioRenderer implementation.
@@ -138,20 +142,17 @@ class MEDIA_EXPORT AudioRendererImpl
   // in the kPrerolling state.
   bool IsBeforePrerollTime(const scoped_refptr<Buffer>& buffer);
 
-  // Pops the front of |decoders|, assigns it to |decoder_| and then
-  // calls initialize on the new decoder.
-  void InitializeNextDecoder(const scoped_refptr<DemuxerStream>& demuxer_stream,
-                             scoped_ptr<AudioDecoderList> decoders);
+  // Called when |decoder_selector_| selected the |selected_decoder|.
+  // |decrypting_demuxer_stream| was also populated if a DecryptingDemuxerStream
+  // created to help decrypt the encrypted stream.
+  // Note: |decoder_selector| is passed here to keep the AudioDecoderSelector
+  // alive until OnDecoderSelected() finishes.
+  void OnDecoderSelected(
+      scoped_ptr<AudioDecoderSelector> decoder_selector,
+      const scoped_refptr<AudioDecoder>& selected_decoder,
+      const scoped_refptr<DecryptingDemuxerStream>& decrypting_demuxer_stream);
 
-  // Called when |decoder_| initialization completes.
-  // |demuxer_stream| & |decoders| are used if initialization failed and
-  // InitializeNextDecoder() needs to be called again.
-  void OnDecoderInitDone(const scoped_refptr<DemuxerStream>& demuxer_stream,
-                         scoped_ptr<AudioDecoderList> decoders,
-                         PipelineStatus status);
-
-  // Audio decoder.
-  scoped_refptr<AudioDecoder> decoder_;
+  void ResetDecoder(const base::Closure& callback);
 
   scoped_ptr<AudioSplicer> splicer_;
 
@@ -160,6 +161,12 @@ class MEDIA_EXPORT AudioRendererImpl
   // must never be called under |lock_| or the 3-way thread bridge between the
   // audio, pipeline, and decoder threads may deadlock.
   scoped_refptr<media::AudioRendererSink> sink_;
+
+  SetDecryptorReadyCB set_decryptor_ready_cb_;
+
+  // These two will be set by AudioDecoderSelector::SelectAudioDecoder().
+  scoped_refptr<AudioDecoder> decoder_;
+  scoped_refptr<DecryptingDemuxerStream> decrypting_demuxer_stream_;
 
   // Ensures certain methods are always called on the pipeline thread.
   base::ThreadChecker pipeline_thread_checker_;
