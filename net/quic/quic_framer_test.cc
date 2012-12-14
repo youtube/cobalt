@@ -550,11 +550,27 @@ TEST_F(QuicFramerTest, AckFrame) {
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-    // num missing packets
+    // num_unacked_packets
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // num_acked_packets
+    0x03,
+    // smallest ack sequence number
+    0xBA, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
+    // ack time
+    0x87, 0x96, 0xA5, 0xB4,
+    0xC3, 0xD2, 0xE1, 0x07,
+    // sequence delta
+    0x01, 0x00,
+    // time delta
+    0x01, 0x00, 0x00, 0x00,
+    // sequence delta (skip one packet)
+    0x03, 0x00,
+    // time delta
+    0x02, 0x00, 0x00, 0x00,
     // least packet sequence number awaiting an ack
     0xA0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -575,10 +591,25 @@ TEST_F(QuicFramerTest, AckFrame) {
   SequenceSet::const_iterator missing_iter =
       frame.received_info.missing_packets.begin();
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABE), *missing_iter);
+  ASSERT_EQ(3u, frame.received_info.received_packet_times.size());
+  TimeMap::const_iterator iter =
+      frame.received_info.received_packet_times.begin();
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABA), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
+            iter->second);
+  ++iter;
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABB), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59688)),
+            iter->second);
+  ++iter;
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABD), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59689)),
+            iter->second);
+
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
 
   // Now test framing boundaries
-  for (size_t i = 0; i < 16; ++i) {
+  for (size_t i = 0; i < 48; ++i) {
     string expected_error;
     if (i < 1) {
       expected_error = "Unable to read frame count.";
@@ -587,10 +618,24 @@ TEST_F(QuicFramerTest, AckFrame) {
     } else if (i < 8) {
       expected_error = "Unable to read largest received.";
     } else if (i < 9) {
-      expected_error = "Unable to read num missing packets.";
+      expected_error = "Unable to read num unacked packets.";
     } else if (i < 15) {
-      expected_error = "Unable to read sequence number in missing packets.";
+      expected_error = "Unable to read sequence number in unacked packets.";
     } else if (i < 16) {
+      expected_error = "Unable to read num acked packets.";
+    } else if (i < 22) {
+      expected_error = "Unable to read smallest ack.";
+    } else if (i < 30) {
+      expected_error = "Unable to read time received.";
+    } else if (i < 32) {
+      expected_error = "Unable to read sequence delta in acked packets.";
+    } else if (i < 36) {
+      expected_error = "Unable to read time delta in acked packets.";
+    } else if (i < 38) {
+      expected_error = "Unable to read sequence delta in acked packets.";
+    } else if (i < 42) {
+      expected_error = "Unable to read time delta in acked packets.";
+    } else if (i < 48) {
       expected_error = "Unable to read least unacked.";
     }
     CheckProcessingFails(packet, i + kPacketHeaderSize, expected_error,
@@ -683,22 +728,6 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameInterArrival) {
     0x04, 0x05,
     // delta_time
     0x06, 0x07,
-    // num received packets
-    0x03,
-    // smallest ack sequence number
-    0xBA, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
-    // ack time
-    0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0x07,
-    // sequence delta
-    0x01, 0x00,
-    // time delta
-    0x01, 0x00, 0x00, 0x00,
-    // sequence delta (skip one packet)
-    0x03, 0x00,
-    // time delta
-    0x02, 0x00, 0x00, 0x00,
   };
 
   QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
@@ -717,20 +746,9 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameInterArrival) {
             accumulated_number_of_lost_packets);
   EXPECT_EQ(0x0504, frame.inter_arrival.offset_time);
   EXPECT_EQ(0x0706, frame.inter_arrival.delta_time);
-  ASSERT_EQ(3u, frame.inter_arrival.received_packet_times.size());
-  TimeMap::const_iterator iter =
-      frame.inter_arrival.received_packet_times.begin();
-  EXPECT_EQ(GG_UINT64_C(0x0123456789ABA), iter->first);
-  EXPECT_EQ(QuicTime::FromMicroseconds(0x07E1D2C3B4A59687), iter->second);
-  ++iter;
-  EXPECT_EQ(GG_UINT64_C(0x0123456789ABB), iter->first);
-  EXPECT_EQ(QuicTime::FromMicroseconds(0x07E1D2C3B4A59688), iter->second);
-  ++iter;
-  EXPECT_EQ(GG_UINT64_C(0x0123456789ABD), iter->first);
-  EXPECT_EQ(QuicTime::FromMicroseconds(0x07E1D2C3B4A59689), iter->second);
 
   // Now test framing boundaries
-  for (size_t i = 0; i < 36; ++i) {
+  for (size_t i = 0; i < 7; ++i) {
     string expected_error;
     if (i < 1) {
       expected_error = "Unable to read frame count.";
@@ -744,20 +762,6 @@ TEST_F(QuicFramerTest, CongestionFeedbackFrameInterArrival) {
       expected_error = "Unable to read offset time.";
     } else if (i < 9) {
       expected_error = "Unable to read delta time.";
-    } else if (i < 10) {
-      expected_error = "Unable to read num received packets.";
-    } else if (i < 16) {
-      expected_error = "Unable to read smallest received.";
-    } else if (i < 24) {
-      expected_error = "Unable to read time received.";
-    } else if (i < 26) {
-      expected_error = "Unable to read sequence delta in received packets.";
-    } else if (i < 30) {
-      expected_error = "Unable to read time delta in received packets.";
-    } else if (i < 32) {
-      expected_error = "Unable to read sequence delta in received packets.";
-    } else if (i < 36) {
-      expected_error = "Unable to read time delta in received packets.";
     }
     CheckProcessingFails(packet, i + kPacketHeaderSize, expected_error,
                          QUIC_INVALID_FRAME_DATA);
@@ -945,11 +949,27 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-    // num missing packets
+    // num_unacked_packets
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // num_acked_packets
+    0x03,
+    // smallest ack sequence number
+    0xBA, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
+    // ack time
+    0x87, 0x96, 0xA5, 0xB4,
+    0xC3, 0xD2, 0xE1, 0x07,
+    // sequence delta
+    0x01, 0x00,
+    // time delta
+    0x01, 0x00, 0x00, 0x00,
+    // sequence delta (skip one packet)
+    0x03, 0x00,
+    // time delta
+    0x02, 0x00, 0x00, 0x00,
     // least packet sequence number awaiting an ack
     0xA0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -982,7 +1002,22 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
   SequenceSet::const_iterator missing_iter =
       frame.received_info.missing_packets.begin();
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABE), *missing_iter);
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.received_info.received_packet_times.size());
+  TimeMap::const_iterator iter =
+      frame.received_info.received_packet_times.begin();
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABA), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
+            iter->second);
+  ++iter;
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABB), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59688)),
+            iter->second);
+  ++iter;
+  EXPECT_EQ(GG_UINT64_C(0x0123456789ABD), iter->first);
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59689)),
+            iter->second);
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0),
+            frame.sent_info.least_unacked);
 
   // Now test framing boundaries
   for (size_t i = 3; i < 21; ++i) {
@@ -1103,6 +1138,12 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABF);
   ack_frame.received_info.missing_packets.insert(GG_UINT64_C(0x0123456789ABE));
+  ack_frame.received_info.received_packet_times[GG_UINT64_C(0x0123456789ABA)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
+  ack_frame.received_info.received_packet_times[GG_UINT64_C(0x0123456789ABB)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59688));
+  ack_frame.received_info.received_packet_times[GG_UINT64_C(0x0123456789ABD)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59689));
   ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
 
   QuicFrames frames;
@@ -1127,11 +1168,27 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-    // num missing packets
+    // num_unacked_packets
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // num_acked_packets
+    0x03,
+    // smallest ack sequence number
+    0xBA, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
+    // ack time
+    0x87, 0x96, 0xA5, 0xB4,
+    0xC3, 0xD2, 0xE1, 0x07,
+    // sequence delta
+    0x01, 0x00,
+    // time delta
+    0x01, 0x00, 0x00, 0x00,
+    // sequence delta (skip one packet)
+    0x03, 0x00,
+    // time delta
+    0x02, 0x00, 0x00, 0x00,
     // least packet sequence number awaiting an ack
     0xA0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1203,21 +1260,15 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicCongestionFeedbackFrame frame;
-  frame.type = kInterArrival;
-  frame.inter_arrival.accumulated_number_of_lost_packets
+  QuicCongestionFeedbackFrame congestion_feedback_frame;
+  congestion_feedback_frame.type = kInterArrival;
+  congestion_feedback_frame.inter_arrival.accumulated_number_of_lost_packets
       = 0x0302;
-  frame.inter_arrival.offset_time = 0x0504;
-  frame.inter_arrival.delta_time = 0x0706;
-  frame.inter_arrival.received_packet_times[GG_UINT64_C(0x0123456789ABA)] =
-      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
-  frame.inter_arrival.received_packet_times[GG_UINT64_C(0x0123456789ABB)] =
-      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59688));
-  frame.inter_arrival.received_packet_times[GG_UINT64_C(0x0123456789ABD)] =
-      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59689));
+  congestion_feedback_frame.inter_arrival.offset_time = 0x0504;
+  congestion_feedback_frame.inter_arrival.delta_time = 0x0706;
 
   QuicFrames frames;
-  frames.push_back(QuicFrame(&frame));
+  frames.push_back(QuicFrame(&congestion_feedback_frame));
 
   unsigned char packet[] = {
     // guid
@@ -1243,22 +1294,6 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
     0x04, 0x05,
     // delta_time
     0x06, 0x07,
-    // num received packets
-    0x03,
-    // smallest ack sequence number
-    0xBA, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
-    // ack time
-    0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0x07,
-    // sequence delta
-    0x01, 0x00,
-    // time delta
-    0x01, 0x00, 0x00, 0x00,
-    // sequence delta (skip one packet)
-    0x03, 0x00,
-    // time delta
-    0x02, 0x00, 0x00, 0x00,
   };
 
   QuicPacket* data;
@@ -1408,6 +1443,12 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
   QuicAckFrame* ack_frame = &close_frame.ack_frame;
   ack_frame->received_info.largest_received = GG_UINT64_C(0x0123456789ABF);
   ack_frame->received_info.missing_packets.insert(GG_UINT64_C(0x0123456789ABE));
+  ack_frame->received_info.received_packet_times[GG_UINT64_C(0x0123456789ABA)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
+  ack_frame->received_info.received_packet_times[GG_UINT64_C(0x0123456789ABB)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59688));
+  ack_frame->received_info.received_packet_times[GG_UINT64_C(0x0123456789ABD)] =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59689));
   ack_frame->sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
 
   QuicFrames frames;
@@ -1443,11 +1484,27 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-    // num missing packets
+    // num_unacked_packets
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // num_acked_packets
+    0x03,
+    // smallest ack sequence number
+    0xBA, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
+    // ack time
+    0x87, 0x96, 0xA5, 0xB4,
+    0xC3, 0xD2, 0xE1, 0x07,
+    // sequence delta
+    0x01, 0x00,
+    // time delta
+    0x01, 0x00, 0x00, 0x00,
+    // sequence delta (skip one packet)
+    0x03, 0x00,
+    // time delta
+    0x02, 0x00, 0x00, 0x00,
 
     // least packet sequence number awaiting an ack
     0xA0, 0x9A, 0x78, 0x56,
