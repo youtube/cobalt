@@ -23,14 +23,13 @@ class TestPackage(object):
     device: Device to run the tests.
     test_suite: A specific test suite to run, empty to run all.
     timeout: Timeout for each test.
-    performance_test: Whether or not performance test(s).
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     dump_debug_info: A debug_info object.
   """
 
   def __init__(self, adb, device, test_suite, timeout,
-               performance_test, cleanup_test_files, tool, dump_debug_info):
+               cleanup_test_files, tool, dump_debug_info):
     self.adb = adb
     self.device = device
     self.test_suite_full = test_suite
@@ -38,7 +37,6 @@ class TestPackage(object):
     self.test_suite_basename = self._GetTestSuiteBaseName()
     self.test_suite_dirname = os.path.dirname(
         self.test_suite.split(self.test_suite_basename)[0])
-    self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
     if timeout == 0:
@@ -48,40 +46,6 @@ class TestPackage(object):
       timeout = timeout * 2
     self.timeout = timeout * self.tool.GetTimeoutScale()
     self.dump_debug_info = dump_debug_info
-
-  def _BeginGetIOStats(self):
-    """Gets I/O statistics before running test.
-
-    Return:
-      I/O stats object.The I/O stats object may be None if the test is not
-      performance test.
-    """
-    initial_io_stats = None
-    # Try to get the disk I/O statistics for all performance tests.
-    if self.performance_test:
-      initial_io_stats = self.adb.GetIoStats()
-    return initial_io_stats
-
-  def _EndGetIOStats(self, initial_io_stats):
-    """Gets I/O statistics after running test and calcuate the I/O delta.
-
-    Args:
-      initial_io_stats: I/O stats object got from _BeginGetIOStats.
-
-    Return:
-      String for formated diso I/O statistics.
-    """
-    disk_io = ''
-    if self.performance_test and initial_io_stats:
-      final_io_stats = self.adb.GetIoStats()
-      for stat in final_io_stats:
-        disk_io += '\n' + PrintPerfResult(stat, stat,
-                                          [final_io_stats[stat] -
-                                           initial_io_stats[stat]],
-                                          stat.split('_')[1],
-                                          print_to_stdout=False)
-      logging.info(disk_io)
-    return disk_io
 
   def GetDisabledPrefixes(self):
     return ['DISABLED_', 'FLAKY_', 'FAILS_']
@@ -169,7 +133,6 @@ class TestPackage(object):
     re_fail = re.compile('\[  FAILED  \] ?(.*)\r\n')
     re_runner_fail = re.compile('\[ RUNNER_FAILED \] ?(.*)\r\n')
     re_ok = re.compile('\[       OK \] ?(.*?) .*\r\n')
-    io_stats_before = self._BeginGetIOStats()
     try:
       while True:
         found = p.expect([re_run, re_passed, re_runner_fail],
@@ -204,7 +167,6 @@ class TestPackage(object):
     finally:
       p.close()
 
-    ok_tests += self._EndGetIOStats(io_stats_before)
     ret_code = self._GetGTestReturnCode()
     if ret_code:
       failed_tests += [BaseTestResult('gtest exit code: %d' % ret_code,
