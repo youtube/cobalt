@@ -24,6 +24,7 @@ MSVC_PUSH_DISABLE_WARNING(4244);
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
+#include <libavutil/audioconvert.h>
 #include <libavutil/avutil.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/log.h>
