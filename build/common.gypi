@@ -597,9 +597,9 @@
           'linux_breakpad%': 0,
           'linux_use_tcmalloc%': 0,
           'linux_use_gold_flags%': 0,
-          # sysroot need to be an absolute path otherwise it generates
+          # sysroot needs to be an absolute path otherwise it generates
           # incorrect results when passed to pkg-config
-          'sysroot%': '<!(cd <(DEPTH)/arm-sysroot && pwd -P)',
+          'sysroot%': '<!(cd <(DEPTH) && pwd -P)/arm-sysroot',
         }], # OS=="linux" and target_arch=="arm" and chromeos==0
       ],
 
