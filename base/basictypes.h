@@ -19,12 +19,7 @@
 typedef signed char         schar;
 typedef signed char         int8;
 typedef short               int16;
-// TODO: Remove these type guards.  These are to avoid conflicts with
-// obsolete/protypes.h in the Gecko SDK.
-#ifndef _INT32
-#define _INT32
 typedef int                 int32;
-#endif
 
 // The NSPR system headers define 64-bit as |long| when possible, except on
 // Mac OS X.  In order to not have typedef mismatches, we do the same on LP64.
@@ -45,12 +40,7 @@ typedef long long           int64;
 
 typedef unsigned char      uint8;
 typedef unsigned short     uint16;
-// TODO: Remove these type guards.  These are to avoid conflicts with
-// obsolete/protypes.h in the Gecko SDK.
-#ifndef _UINT32
-#define _UINT32
 typedef unsigned int       uint32;
-#endif
 
 // See the comment above about NSPR and 64-bit.
 #if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
