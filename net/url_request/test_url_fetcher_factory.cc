@@ -114,16 +114,19 @@ void TestURLFetcher::SetStopOnRedirect(bool stop_on_redirect) {
 void TestURLFetcher::SetAutomaticallyRetryOn5xx(bool retry) {
 }
 
-void TestURLFetcher::SetMaxRetries(int max_retries) {
+void TestURLFetcher::SetMaxRetriesOn5xx(int max_retries) {
   fake_max_retries_ = max_retries;
 }
 
-int TestURLFetcher::GetMaxRetries() const {
+int TestURLFetcher::GetMaxRetriesOn5xx() const {
   return fake_max_retries_;
 }
 
 base::TimeDelta TestURLFetcher::GetBackoffDelay() const {
   return fake_backoff_delay_;
+}
+
+void TestURLFetcher::SetAutomaticallyRetryOnNetworkChanges(int max_retries) {
 }
 
 void TestURLFetcher::SaveResponseToFileAtPath(

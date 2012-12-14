@@ -10,10 +10,13 @@
 #include "base/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/message_loop_proxy.h"
+#include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
+#include "net/base/mock_host_resolver.h"
+#include "net/base/network_change_notifier.h"
 #include "net/http/http_response_headers.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_fetcher_delegate.h"
@@ -72,6 +75,24 @@ class ThrottlingTestURLRequestContextGetter
   TestURLRequestContext* const context_;
 };
 
+class TestNetworkChangeNotifier : public NetworkChangeNotifier {
+ public:
+  TestNetworkChangeNotifier() : connection_type_(CONNECTION_UNKNOWN) {}
+
+  // Implementation of NetworkChangeNotifier:
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE {
+    return connection_type_;
+  }
+
+  void SetCurrentConnectionType(ConnectionType type) {
+    connection_type_ = type;
+    NotifyObserversOfConnectionTypeChange();
+  }
+
+ private:
+  ConnectionType connection_type_;
+};
+
 }  // namespace
 
 class URLFetcherTest : public testing::Test,
@@ -79,7 +100,7 @@ class URLFetcherTest : public testing::Test,
  public:
   URLFetcherTest()
       : fetcher_(NULL),
-        context_(new ThrottlingTestURLRequestContext()) {
+        context_(NULL) {
   }
 
   static int GetNumFetcherCores() {
@@ -111,6 +132,7 @@ class URLFetcherTest : public testing::Test,
   virtual void SetUp() OVERRIDE {
     testing::Test::SetUp();
 
+    context_.reset(new ThrottlingTestURLRequestContext());
     io_message_loop_proxy_ = base::MessageLoopProxy::current();
 
 #if defined(USE_NSS) || defined(OS_IOS)
@@ -132,7 +154,29 @@ class URLFetcherTest : public testing::Test,
   scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
 
   URLFetcherImpl* fetcher_;
-  const scoped_ptr<TestURLRequestContext> context_;
+  scoped_ptr<TestURLRequestContext> context_;
+};
+
+// A test fixture that uses a MockHostResolver, so that name resolutions can
+// be manipulated by the tests to keep connections in the resolving state.
+class URLFetcherMockDnsTest : public URLFetcherTest {
+ public:
+  // testing::Test:
+  virtual void SetUp() OVERRIDE;
+
+  // URLFetcherTest:
+  virtual void CreateFetcher(const GURL& url) OVERRIDE;
+
+  // URLFetcherDelegate:
+  virtual void OnURLFetchComplete(const URLFetcher* source) OVERRIDE;
+
+ protected:
+  GURL test_url_;
+  scoped_ptr<TestServer> test_server_;
+  MockHostResolver resolver_;
+  scoped_ptr<URLFetcher> completed_fetcher_;
+  NetworkChangeNotifier::DisableForTest disable_default_notifier_;
+  TestNetworkChangeNotifier network_change_notifier_;
 };
 
 void URLFetcherTest::CreateFetcher(const GURL& url) {
@@ -161,6 +205,43 @@ void URLFetcherTest::CleanupAfterFetchComplete() {
   io_message_loop_proxy()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   // If the current message loop is not the IO loop, it will be shut down when
   // the main loop returns and this thread subsequently goes out of scope.
+}
+
+void URLFetcherMockDnsTest::SetUp() {
+  URLFetcherTest::SetUp();
+
+  resolver_.set_ondemand_mode(true);
+  resolver_.rules()->AddRule("example.com", "127.0.0.1");
+
+  context_.reset(new TestURLRequestContext(true));
+  context_->set_host_resolver(&resolver_);
+  context_->Init();
+
+  test_server_.reset(new TestServer(TestServer::TYPE_HTTP,
+                                    TestServer::kLocalhost,
+                                    FilePath(kDocRoot)));
+  ASSERT_TRUE(test_server_->Start());
+
+  // test_server_.GetURL() returns a URL with 127.0.0.1 (kLocalhost), that is
+  // immediately resolved by the MockHostResolver. Use a hostname instead to
+  // trigger an async resolve.
+  test_url_ = GURL(
+      base::StringPrintf("http://example.com:%d/defaultresponse",
+      test_server_->host_port_pair().port()));
+  ASSERT_TRUE(test_url_.is_valid());
+}
+
+void URLFetcherMockDnsTest::CreateFetcher(const GURL& url) {
+  fetcher_ = new URLFetcherImpl(url, URLFetcher::GET, this);
+  fetcher_->SetRequestContext(new ThrottlingTestURLRequestContextGetter(
+      io_message_loop_proxy(), request_context()));
+}
+
+void URLFetcherMockDnsTest::OnURLFetchComplete(const URLFetcher* source) {
+  io_message_loop_proxy()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  ASSERT_EQ(fetcher_, source);
+  EXPECT_EQ(test_url_, source->GetOriginalURL());
+  completed_fetcher_.reset(fetcher_);
 }
 
 namespace {
@@ -584,7 +665,7 @@ void URLFetcherProtectTest::CreateFetcher(const GURL& url) {
   fetcher_->SetRequestContext(new ThrottlingTestURLRequestContextGetter(
       io_message_loop_proxy(), request_context()));
   start_time_ = Time::Now();
-  fetcher_->SetMaxRetries(11);
+  fetcher_->SetMaxRetriesOn5xx(11);
   fetcher_->Start();
 }
 
@@ -623,7 +704,7 @@ void URLFetcherProtectTestPassedThrough::CreateFetcher(const GURL& url) {
       io_message_loop_proxy(), request_context()));
   fetcher_->SetAutomaticallyRetryOn5xx(false);
   start_time_ = Time::Now();
-  fetcher_->SetMaxRetries(11);
+  fetcher_->SetMaxRetriesOn5xx(11);
   fetcher_->Start();
 }
 
@@ -682,7 +763,7 @@ void URLFetcherCancelTest::CreateFetcher(const GURL& url) {
       new CancelTestURLRequestContextGetter(io_message_loop_proxy(),
                                             url);
   fetcher_->SetRequestContext(context_getter);
-  fetcher_->SetMaxRetries(2);
+  fetcher_->SetMaxRetriesOn5xx(2);
   fetcher_->Start();
   // We need to wait for the creation of the URLRequestContext, since we
   // rely on it being destroyed as a signal to end the test.
@@ -826,6 +907,205 @@ TEST_F(URLFetcherTest, CancelAll) {
   MessageLoop::current()->Run();
   EXPECT_EQ(0, GetNumFetcherCores());
   delete fetcher_;
+}
+
+TEST_F(URLFetcherMockDnsTest, DontRetryOnNetworkChangedByDefault) {
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // This posts a task to start the fetcher.
+  CreateFetcher(test_url_);
+  fetcher_->Start();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  MessageLoop::current()->RunUntilIdle();
+
+  // The fetcher is now running, but is pending the host resolve.
+  EXPECT_EQ(1, GetNumFetcherCores());
+  EXPECT_TRUE(resolver_.has_pending_requests());
+  ASSERT_FALSE(completed_fetcher_);
+
+  // A network change notification aborts the connect job.
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_TRUE(completed_fetcher_);
+
+  // And the owner of the fetcher gets the ERR_NETWORK_CHANGED error.
+  EXPECT_EQ(ERR_NETWORK_CHANGED, completed_fetcher_->GetStatus().error());
+}
+
+TEST_F(URLFetcherMockDnsTest, RetryOnNetworkChangedAndFail) {
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // This posts a task to start the fetcher.
+  CreateFetcher(test_url_);
+  fetcher_->SetAutomaticallyRetryOnNetworkChanges(3);
+  fetcher_->Start();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  MessageLoop::current()->RunUntilIdle();
+
+  // The fetcher is now running, but is pending the host resolve.
+  EXPECT_EQ(1, GetNumFetcherCores());
+  EXPECT_TRUE(resolver_.has_pending_requests());
+  ASSERT_FALSE(completed_fetcher_);
+
+  // Make it fail 3 times.
+  for (int i = 0; i < 3; ++i) {
+    // A network change notification aborts the connect job.
+    NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+    MessageLoop::current()->RunUntilIdle();
+
+    // But the fetcher retries automatically.
+    EXPECT_EQ(1, GetNumFetcherCores());
+    EXPECT_TRUE(resolver_.has_pending_requests());
+    ASSERT_FALSE(completed_fetcher_);
+  }
+
+  // A 4th failure doesn't trigger another retry, and propagates the error
+  // to the owner of the fetcher.
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_TRUE(completed_fetcher_);
+
+  // And the owner of the fetcher gets the ERR_NETWORK_CHANGED error.
+  EXPECT_EQ(ERR_NETWORK_CHANGED, completed_fetcher_->GetStatus().error());
+}
+
+TEST_F(URLFetcherMockDnsTest, RetryOnNetworkChangedAndSucceed) {
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // This posts a task to start the fetcher.
+  CreateFetcher(test_url_);
+  fetcher_->SetAutomaticallyRetryOnNetworkChanges(3);
+  fetcher_->Start();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  MessageLoop::current()->RunUntilIdle();
+
+  // The fetcher is now running, but is pending the host resolve.
+  EXPECT_EQ(1, GetNumFetcherCores());
+  EXPECT_TRUE(resolver_.has_pending_requests());
+  ASSERT_FALSE(completed_fetcher_);
+
+  // Make it fail 3 times.
+  for (int i = 0; i < 3; ++i) {
+    // A network change notification aborts the connect job.
+    NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+    MessageLoop::current()->RunUntilIdle();
+
+    // But the fetcher retries automatically.
+    EXPECT_EQ(1, GetNumFetcherCores());
+    EXPECT_TRUE(resolver_.has_pending_requests());
+    ASSERT_FALSE(completed_fetcher_);
+  }
+
+  // Now let it succeed by resolving the pending request.
+  resolver_.ResolveAllPending();
+  MessageLoop::current()->Run();
+
+  // URLFetcherMockDnsTest::OnURLFetchComplete() will quit the loop.
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_TRUE(completed_fetcher_);
+
+  // This time the request succeeded.
+  EXPECT_EQ(OK, completed_fetcher_->GetStatus().error());
+  EXPECT_EQ(200, completed_fetcher_->GetResponseCode());
+}
+
+TEST_F(URLFetcherMockDnsTest, RetryAfterComingBackOnline) {
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // This posts a task to start the fetcher.
+  CreateFetcher(test_url_);
+  fetcher_->SetAutomaticallyRetryOnNetworkChanges(1);
+  fetcher_->Start();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  MessageLoop::current()->RunUntilIdle();
+
+  // The fetcher is now running, but is pending the host resolve.
+  EXPECT_EQ(1, GetNumFetcherCores());
+  EXPECT_TRUE(resolver_.has_pending_requests());
+  ASSERT_FALSE(completed_fetcher_);
+
+  // Make it fail by changing the connection type to offline.
+  EXPECT_EQ(NetworkChangeNotifier::CONNECTION_UNKNOWN,
+            NetworkChangeNotifier::GetConnectionType());
+  EXPECT_FALSE(NetworkChangeNotifier::IsOffline());
+  network_change_notifier_.SetCurrentConnectionType(
+      NetworkChangeNotifier::CONNECTION_NONE);
+  // This makes the connect job fail:
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+  resolver_.ResolveAllPending();
+  MessageLoop::current()->RunUntilIdle();
+
+  // The fetcher is now waiting for the connection to become online again.
+  EXPECT_EQ(NetworkChangeNotifier::CONNECTION_NONE,
+            NetworkChangeNotifier::GetConnectionType());
+  EXPECT_TRUE(NetworkChangeNotifier::IsOffline());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_FALSE(completed_fetcher_);
+  // The core is still alive, but it dropped its request.
+  EXPECT_EQ(0, GetNumFetcherCores());
+
+  // It should retry once the connection is back.
+  network_change_notifier_.SetCurrentConnectionType(
+      NetworkChangeNotifier::CONNECTION_WIFI);
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(1, GetNumFetcherCores());
+  ASSERT_FALSE(completed_fetcher_);
+  EXPECT_TRUE(resolver_.has_pending_requests());
+
+  // Resolve the pending request; the fetcher should complete now.
+  resolver_.ResolveAllPending();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_TRUE(completed_fetcher_);
+  EXPECT_EQ(OK, completed_fetcher_->GetStatus().error());
+  EXPECT_EQ(200, completed_fetcher_->GetResponseCode());
+}
+
+TEST_F(URLFetcherMockDnsTest, StartOnlyWhenOnline) {
+  // Start offline.
+  network_change_notifier_.SetCurrentConnectionType(
+      NetworkChangeNotifier::CONNECTION_NONE);
+  EXPECT_TRUE(NetworkChangeNotifier::IsOffline());
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // Create a fetcher that retries on network changes. It will try to connect
+  // only once the network is back online.
+  CreateFetcher(test_url_);
+  fetcher_->SetAutomaticallyRetryOnNetworkChanges(1);
+  fetcher_->Start();
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+
+  // It should retry once the connection is back.
+  network_change_notifier_.SetCurrentConnectionType(
+      NetworkChangeNotifier::CONNECTION_WIFI);
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(1, GetNumFetcherCores());
+  ASSERT_FALSE(completed_fetcher_);
+  EXPECT_TRUE(resolver_.has_pending_requests());
+
+  // Resolve the pending request; the fetcher should complete now.
+  resolver_.ResolveAllPending();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(0, GetNumFetcherCores());
+  EXPECT_FALSE(resolver_.has_pending_requests());
+  ASSERT_TRUE(completed_fetcher_);
+  EXPECT_EQ(OK, completed_fetcher_->GetStatus().error());
+  EXPECT_EQ(200, completed_fetcher_->GetResponseCode());
 }
 
 #if defined(OS_MACOSX)

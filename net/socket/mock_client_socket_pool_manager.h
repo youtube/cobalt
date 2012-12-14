@@ -27,7 +27,7 @@ class MockClientSocketPoolManager : public ClientSocketPoolManager {
                                     SSLClientSocketPool* pool);
 
   // ClientSocketPoolManager methods:
-  virtual void FlushSocketPools() OVERRIDE;
+  virtual void FlushSocketPoolsWithError(int error) OVERRIDE;
   virtual void CloseIdleSockets() OVERRIDE;
   virtual TransportClientSocketPool* GetTransportSocketPool() OVERRIDE;
   virtual SSLClientSocketPool* GetSSLSocketPool() OVERRIDE;

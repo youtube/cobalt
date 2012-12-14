@@ -84,6 +84,9 @@ NET_ERROR(FILE_VIRUS_INFECTED, -19)
 // The client chose to block the request.
 NET_ERROR(BLOCKED_BY_CLIENT, -20)
 
+// The network changed.
+NET_ERROR(NETWORK_CHANGED, -21)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 

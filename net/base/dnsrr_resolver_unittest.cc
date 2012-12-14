@@ -97,7 +97,7 @@ TEST(DnsRRResolverTest, Resolve) {
   ASSERT_TRUE(handle != DnsRRResolver::kInvalidHandle);
   resolver.OnIPAddressChanged();
   ASSERT_TRUE(callback.have_result());
-  ASSERT_EQ(ERR_ABORTED, callback.WaitForResult());
+  ASSERT_EQ(ERR_NETWORK_CHANGED, callback.WaitForResult());
   ASSERT_EQ(4u, resolver.requests());
   ASSERT_EQ(2u, resolver.cache_hits());
   ASSERT_EQ(0u, resolver.inflight_joins());

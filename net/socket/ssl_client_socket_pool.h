@@ -206,7 +206,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
                              StreamSocket* socket,
                              int id) OVERRIDE;
 
-  virtual void Flush() OVERRIDE;
+  virtual void FlushWithError(int error) OVERRIDE;
 
   virtual bool IsStalled() const OVERRIDE;
 

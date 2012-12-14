@@ -702,6 +702,7 @@ void HttpPipelinedConnectionImpl::CheckHeadersForPipelineCompatibility(
       // Collect metrics to see if this code is useful.
       case ERR_ABORTED:
       case ERR_INTERNET_DISCONNECTED:
+      case ERR_NETWORK_CHANGED:
         // These errors are no fault of the server.
         break;
 
