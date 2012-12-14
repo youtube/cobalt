@@ -229,8 +229,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
     message_loop_.RunUntilIdle();
   }
 
-  MOCK_METHOD1(RequestDecryptorNotification,
-               void(const DecryptingVideoDecoder::DecryptorNotificationCB&));
+  MOCK_METHOD1(RequestDecryptorNotification, void(const DecryptorReadyCB&));
 
   MOCK_METHOD2(FrameReady, void(VideoDecoder::Status,
                                 const scoped_refptr<VideoFrame>&));
@@ -446,21 +445,21 @@ TEST_F(DecryptingVideoDecoderTest, Stop_DuringDecryptorRequested) {
                      NULL, 0, true, true);
   EXPECT_CALL(*demuxer_, video_decoder_config())
       .WillRepeatedly(ReturnRef(config_));
-  DecryptingVideoDecoder::DecryptorNotificationCB decryptor_notification_cb;
+  DecryptorReadyCB decryptor_ready_cb;
   EXPECT_CALL(*this, RequestDecryptorNotification(_))
-      .WillOnce(SaveArg<0>(&decryptor_notification_cb));
+      .WillOnce(SaveArg<0>(&decryptor_ready_cb));
   decoder_->Initialize(demuxer_,
                        NewExpectedStatusCB(DECODER_ERROR_NOT_SUPPORTED),
                        base::Bind(&MockStatisticsCB::OnStatistics,
                                   base::Unretained(&statistics_cb_)));
   message_loop_.RunUntilIdle();
-  // |decryptor_notification_cb| is saved but not called here.
-  EXPECT_FALSE(decryptor_notification_cb.is_null());
+  // |decryptor_ready_cb| is saved but not called here.
+  EXPECT_FALSE(decryptor_ready_cb.is_null());
 
   // During stop, RequestDecryptorNotification() should be called with a NULL
-  // callback to cancel the |decryptor_notification_cb|.
+  // callback to cancel the |decryptor_ready_cb|.
   EXPECT_CALL(*this, RequestDecryptorNotification(IsNullCallback()))
-      .WillOnce(ResetAndRunCallback(&decryptor_notification_cb,
+      .WillOnce(ResetAndRunCallback(&decryptor_ready_cb,
                                     reinterpret_cast<Decryptor*>(NULL)));
   Stop();
 }

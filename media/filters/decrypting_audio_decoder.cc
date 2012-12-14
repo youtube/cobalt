@@ -36,10 +36,10 @@ static inline bool IsOutOfSync(const base::TimeDelta& timestamp_1,
 
 DecryptingAudioDecoder::DecryptingAudioDecoder(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const RequestDecryptorNotificationCB& request_decryptor_notification_cb)
+    const SetDecryptorReadyCB& set_decryptor_ready_cb)
     : message_loop_(message_loop),
       state_(kUninitialized),
-      request_decryptor_notification_cb_(request_decryptor_notification_cb),
+      set_decryptor_ready_cb_(set_decryptor_ready_cb),
       decryptor_(NULL),
       key_added_while_decode_pending_(false),
       bits_per_channel_(0),
@@ -153,7 +153,7 @@ void DecryptingAudioDecoder::DoInitialize(
   init_cb_ = status_cb;
 
   state_ = kDecryptorRequested;
-  request_decryptor_notification_cb_.Run(
+  set_decryptor_ready_cb_.Run(
       BIND_TO_LOOP(&DecryptingAudioDecoder::SetDecryptor));
 }
 
@@ -162,9 +162,9 @@ void DecryptingAudioDecoder::SetDecryptor(Decryptor* decryptor) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kDecryptorRequested) << state_;
   DCHECK(!init_cb_.is_null());
-  DCHECK(!request_decryptor_notification_cb_.is_null());
+  DCHECK(!set_decryptor_ready_cb_.is_null());
 
-  request_decryptor_notification_cb_.Reset();
+  set_decryptor_ready_cb_.Reset();
   decryptor_ = decryptor;
 
   scoped_ptr<AudioDecoderConfig> scoped_config(new AudioDecoderConfig());

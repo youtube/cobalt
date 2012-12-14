@@ -22,10 +22,10 @@ namespace media {
 
 DecryptingVideoDecoder::DecryptingVideoDecoder(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const RequestDecryptorNotificationCB& request_decryptor_notification_cb)
+    const SetDecryptorReadyCB& set_decryptor_ready_cb)
     : message_loop_(message_loop),
       state_(kUninitialized),
-      request_decryptor_notification_cb_(request_decryptor_notification_cb),
+      set_decryptor_ready_cb_(set_decryptor_ready_cb),
       decryptor_(NULL),
       key_added_while_decode_pending_(false),
       trace_id_(0) {
@@ -60,7 +60,7 @@ void DecryptingVideoDecoder::Initialize(
   statistics_cb_ = statistics_cb;
 
   state_ = kDecryptorRequested;
-  request_decryptor_notification_cb_.Run(BindToCurrentLoop(base::Bind(
+  set_decryptor_ready_cb_.Run(BindToCurrentLoop(base::Bind(
       &DecryptingVideoDecoder::SetDecryptor, this)));
 }
 
@@ -129,10 +129,8 @@ void DecryptingVideoDecoder::Stop(const base::Closure& closure) {
     decryptor_->DeinitializeDecoder(Decryptor::kVideo);
     decryptor_ = NULL;
   }
-  if (!request_decryptor_notification_cb_.is_null()) {
-    base::ResetAndReturn(&request_decryptor_notification_cb_).Run(
-        DecryptorNotificationCB());
-  }
+  if (!set_decryptor_ready_cb_.is_null())
+    base::ResetAndReturn(&set_decryptor_ready_cb_).Run(DecryptorReadyCB());
   pending_buffer_to_decode_ = NULL;
   if (!init_cb_.is_null())
     base::ResetAndReturn(&init_cb_).Run(DECODER_ERROR_NOT_SUPPORTED);
@@ -157,8 +155,8 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
 
   DCHECK_EQ(state_, kDecryptorRequested) << state_;
   DCHECK(!init_cb_.is_null());
-  DCHECK(!request_decryptor_notification_cb_.is_null());
-  request_decryptor_notification_cb_.Reset();
+  DCHECK(!set_decryptor_ready_cb_.is_null());
+  set_decryptor_ready_cb_.Reset();
 
   decryptor_ = decryptor;
 
