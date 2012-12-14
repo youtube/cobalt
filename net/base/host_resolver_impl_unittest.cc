@@ -735,7 +735,7 @@ TEST_F(HostResolverImplTest, DeleteWithinAbortedCallback) {
   // |MyHandler| will send quit message once all the requests have finished.
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[1]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[2]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[3]->result());
@@ -830,7 +830,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   EXPECT_EQ(OK, req->WaitForResult());
 }
 
-// Test that IP address changes send ERR_ABORTED to pending requests.
+// Test that IP address changes send ERR_NETWORK_CHANGED to pending requests.
 TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   Request* req = CreateRequest("host1", 70);
   EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
@@ -841,7 +841,7 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalAll();
 
-  EXPECT_EQ(ERR_ABORTED, req->WaitForResult());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, req->WaitForResult());
   EXPECT_EQ(0u, resolver_->GetHostCache()->size());
 }
 
@@ -859,7 +859,7 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalMultiple(3u);  // Let the false-start go so that we can catch it.
 
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->WaitForResult());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->WaitForResult());
 
   EXPECT_EQ(1u, num_running_jobs());
 
@@ -901,9 +901,9 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   // This should abort all running jobs.
   MessageLoop::current()->RunUntilIdle();
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->result());
-  EXPECT_EQ(ERR_ABORTED, requests_[1]->result());
-  EXPECT_EQ(ERR_ABORTED, requests_[2]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[1]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[2]->result());
   ASSERT_EQ(6u, requests_.size());
   // Unblock all calls to proc.
   proc_->SignalMultiple(requests_.size());

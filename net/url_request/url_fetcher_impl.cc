@@ -89,17 +89,21 @@ void URLFetcherImpl::SetAutomaticallyRetryOn5xx(bool retry) {
   core_->SetAutomaticallyRetryOn5xx(retry);
 }
 
-void URLFetcherImpl::SetMaxRetries(int max_retries) {
-  core_->SetMaxRetries(max_retries);
+void URLFetcherImpl::SetMaxRetriesOn5xx(int max_retries) {
+  core_->SetMaxRetriesOn5xx(max_retries);
 }
 
-int URLFetcherImpl::GetMaxRetries() const {
-  return core_->GetMaxRetries();
+int URLFetcherImpl::GetMaxRetriesOn5xx() const {
+  return core_->GetMaxRetriesOn5xx();
 }
 
 
 base::TimeDelta URLFetcherImpl::GetBackoffDelay() const {
   return core_->GetBackoffDelay();
+}
+
+void URLFetcherImpl::SetAutomaticallyRetryOnNetworkChanges(int max_retries) {
+  core_->SetAutomaticallyRetryOnNetworkChanges(max_retries);
 }
 
 void URLFetcherImpl::SaveResponseToFileAtPath(

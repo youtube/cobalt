@@ -186,12 +186,20 @@ class NET_EXPORT URLFetcher {
   // after backoff_delay() elapses. URLFetcher has it set to true by default.
   virtual void SetAutomaticallyRetryOn5xx(bool retry) = 0;
 
-  virtual void SetMaxRetries(int max_retries) = 0;
-  virtual int GetMaxRetries() const = 0;
+  virtual void SetMaxRetriesOn5xx(int max_retries) = 0;
+  virtual int GetMaxRetriesOn5xx() const = 0;
 
   // Returns the back-off delay before the request will be retried,
   // when a 5xx response was received.
   virtual base::TimeDelta GetBackoffDelay() const = 0;
+
+  // Retries up to |max_retries| times when requests fail with
+  // ERR_NETWORK_CHANGED. If ERR_NETWORK_CHANGED is received after having
+  // retried |max_retries| times then it is propagated to the observer.
+  // Each retry can be delayed if the network if currently offline, and will be
+  // attempted once the network connection is back. The first fetch is also
+  // delayed if the network is offline when Start() is invoked.
+  virtual void SetAutomaticallyRetryOnNetworkChanges(int max_retries) = 0;
 
   // By default, the response is saved in a string. Call this method to save the
   // response to a file instead. Must be called before Start().

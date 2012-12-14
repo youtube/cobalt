@@ -106,9 +106,10 @@ class TestURLFetcher : public URLFetcher {
       const CreateDataCallback& create_data_callback) OVERRIDE;
   virtual void SetStopOnRedirect(bool stop_on_redirect) OVERRIDE;
   virtual void SetAutomaticallyRetryOn5xx(bool retry) OVERRIDE;
-  virtual void SetMaxRetries(int max_retries) OVERRIDE;
-  virtual int GetMaxRetries() const OVERRIDE;
+  virtual void SetMaxRetriesOn5xx(int max_retries) OVERRIDE;
+  virtual int GetMaxRetriesOn5xx() const OVERRIDE;
   virtual base::TimeDelta GetBackoffDelay() const OVERRIDE;
+  virtual void SetAutomaticallyRetryOnNetworkChanges(int max_retries) OVERRIDE;
   virtual void SaveResponseToFileAtPath(
       const FilePath& file_path,
       scoped_refptr<base::TaskRunner> file_task_runner) OVERRIDE;

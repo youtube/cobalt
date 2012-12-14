@@ -1102,7 +1102,7 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
     spdy_session_pool->Remove(session2);
     session2 = NULL;
   } else {
-    spdy_session_pool->CloseCurrentSessions();
+    spdy_session_pool->CloseCurrentSessions(net::ERR_ABORTED);
   }
 
   // Verify that the map is all cleaned up.

@@ -172,9 +172,9 @@ Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
 }
 
 void HttpNetworkSession::CloseAllConnections() {
-  normal_socket_pool_manager_->FlushSocketPools();
-  websocket_socket_pool_manager_->FlushSocketPools();
-  spdy_session_pool_.CloseCurrentSessions();
+  normal_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
+  websocket_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
+  spdy_session_pool_.CloseCurrentSessions(ERR_ABORTED);
 }
 
 void HttpNetworkSession::CloseIdleConnections() {

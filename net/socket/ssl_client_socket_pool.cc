@@ -530,8 +530,8 @@ void SSLClientSocketPool::ReleaseSocket(const std::string& group_name,
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void SSLClientSocketPool::Flush() {
-  base_.Flush();
+void SSLClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool SSLClientSocketPool::IsStalled() const {
@@ -603,7 +603,7 @@ ClientSocketPoolHistograms* SSLClientSocketPool::histograms() const {
 }
 
 void SSLClientSocketPool::OnSSLConfigChanged() {
-  Flush();
+  FlushWithError(ERR_NETWORK_CHANGED);
 }
 
 bool SSLClientSocketPool::CloseOneIdleConnection() {

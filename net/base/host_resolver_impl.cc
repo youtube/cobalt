@@ -1267,11 +1267,11 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     }
   }
 
-  // Called from AbortAllInProgressJobs. Completes all requests as aborted
-  // and destroys the job.
+  // Called from AbortAllInProgressJobs. Completes all requests and destroys
+  // the job. This currently assumes the abort is due to a network change.
   void Abort() {
     DCHECK(is_running());
-    CompleteRequestsWithError(ERR_ABORTED);
+    CompleteRequestsWithError(ERR_NETWORK_CHANGED);
   }
 
   // If DnsTask present, abort it and fall back to ProcTask.
@@ -1531,7 +1531,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
                             resolver_->received_dns_config_);
     }
 
-    bool did_complete = (entry.error != ERR_ABORTED) &&
+    bool did_complete = (entry.error != ERR_NETWORK_CHANGED) &&
                         (entry.error != ERR_HOST_RESOLVER_QUEUE_TOO_LARGE);
     if (did_complete)
       resolver_->CacheResult(key_, entry, ttl);

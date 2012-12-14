@@ -242,8 +242,8 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
                      StreamSocket* socket,
                      int id);
 
-  // See ClientSocketPool::Flush for documentation on this function.
-  void Flush();
+  // See ClientSocketPool::FlushWithError for documentation on this function.
+  void FlushWithError(int error);
 
   // See ClientSocketPool::IsStalled for documentation on this function.
   bool IsStalled() const;
@@ -505,9 +505,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // groups if they are no longer needed.
   void CancelAllConnectJobs();
 
-  // Iterates through |group_map_|, posting ERR_ABORTED callbacks for all
+  // Iterates through |group_map_|, posting |error| callbacks for all
   // requests, and then deleting groups if they are no longer needed.
-  void AbortAllRequests();
+  void CancelAllRequestsWithError(int error);
 
   // Returns true if we can't create any more sockets due to the total limit.
   bool ReachedMaxSocketsLimit() const;
@@ -584,9 +584,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // TODO(vandebo) Remove when backup jobs move to TransportClientSocketPool
   bool connect_backup_jobs_enabled_;
 
-  // A unique id for the pool.  It gets incremented every time we Flush() the
-  // pool.  This is so that when sockets get released back to the pool, we can
-  // make sure that they are discarded rather than reused.
+  // A unique id for the pool.  It gets incremented every time we
+  // FlushWithError() the pool.  This is so that when sockets get released back
+  // to the pool, we can make sure that they are discarded rather than reused.
   int pool_generation_number_;
 
   std::set<LayeredPool*> higher_layer_pools_;
@@ -708,7 +708,7 @@ class ClientSocketPoolBase {
     return helper_.ReleaseSocket(group_name, socket, id);
   }
 
-  void Flush() { helper_.Flush(); }
+  void FlushWithError(int error) { helper_.FlushWithError(error); }
 
   bool IsStalled() const { return helper_.IsStalled(); }
 

@@ -104,9 +104,9 @@ class NET_EXPORT SpdySessionPool
   // Close all SpdySessions, including any new ones created in the process of
   // closing the current ones.
   void CloseAllSessions();
-  // Close only the currently existing SpdySessions. Let any new ones created
-  // continue to live.
-  void CloseCurrentSessions();
+  // Close only the currently existing SpdySessions with |error|.
+  // Let any new ones created continue to live.
+  void CloseCurrentSessions(net::Error error);
   // Close only the idle SpdySessions.
   void CloseIdleSessions();
 
