@@ -28,7 +28,6 @@ class SingleTestRunner(BaseTestRunner):
     gtest_filter: A gtest_filter flag.
     test_arguments: Additional arguments to pass to the test binary.
     timeout: Timeout for each test.
-    performance_test: Whether or not performance test(s).
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     shard_index: index number of the shard on which the test suite will run.
@@ -38,9 +37,8 @@ class SingleTestRunner(BaseTestRunner):
   """
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
-               performance_test, cleanup_test_files, tool_name,
-               shard_index, dump_debug_info, fast_and_loose, build_type,
-               in_webkit_checkout):
+               cleanup_test_files, tool_name, shard_index, dump_debug_info,
+               fast_and_loose, build_type, in_webkit_checkout):
     BaseTestRunner.__init__(self, device, tool_name, shard_index, build_type)
     self._running_on_emulator = self.device.startswith('emulator')
     self._gtest_filter = gtest_filter
@@ -62,7 +60,6 @@ class SingleTestRunner(BaseTestRunner):
           device,
           test_suite,
           timeout,
-          performance_test,
           cleanup_test_files,
           self.tool,
           self.dump_debug_info)
@@ -75,14 +72,10 @@ class SingleTestRunner(BaseTestRunner):
           self.adb,
           device,
           test_suite, timeout,
-          performance_test,
           cleanup_test_files,
           self.tool,
           self.dump_debug_info,
           symbols_dir)
-    self._performance_test_setup = None
-    if performance_test:
-      self._performance_test_setup = perf_tests_helper.PerfTestSetup(self.adb)
 
   def _TestSuiteRequiresMockTestServer(self):
     """Returns True if the test suite requires mock test server."""
@@ -282,8 +275,6 @@ class SingleTestRunner(BaseTestRunner):
     """Sets up necessary test enviroment for the test suite."""
     super(SingleTestRunner, self).SetUp()
     self.adb.ClearApplicationState(constants.CHROME_PACKAGE)
-    if self._performance_test_setup:
-      self._performance_test_setup.SetUp()
     if self.dump_debug_info:
       self.dump_debug_info.StartRecordingLog(True)
     self.StripAndCopyFiles()
@@ -297,8 +288,6 @@ class SingleTestRunner(BaseTestRunner):
       self.adb.RemovePushedFiles()
     if self.dump_debug_info:
       self.dump_debug_info.StopRecordingLog()
-    if self._performance_test_setup:
-      self._performance_test_setup.TearDown()
     if self.dump_debug_info:
       self.dump_debug_info.ArchiveNewCrashFiles()
     super(SingleTestRunner, self).TearDown()
