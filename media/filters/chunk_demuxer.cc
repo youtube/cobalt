@@ -613,6 +613,7 @@ void ChunkDemuxer::OnAudioRendererDisabled() {
 // Demuxer implementation.
 scoped_refptr<DemuxerStream> ChunkDemuxer::GetStream(
     DemuxerStream::Type type) {
+  base::AutoLock auto_lock(lock_);
   if (type == DemuxerStream::VIDEO)
     return video_;
 
@@ -720,8 +721,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
 }
 
 void ChunkDemuxer::RemoveId(const std::string& id) {
-  CHECK(IsValidId(id));
   base::AutoLock auto_lock(lock_);
+  CHECK(IsValidId(id));
 
   delete stream_parser_map_[id];
   stream_parser_map_.erase(id);
@@ -741,11 +742,10 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
 }
 
 Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges(const std::string& id) const {
+  base::AutoLock auto_lock(lock_);
   DCHECK(!id.empty());
   DCHECK(IsValidId(id));
   DCHECK(id == source_id_audio_ || id == source_id_video_);
-
-  base::AutoLock auto_lock(lock_);
 
   if (id == source_id_audio_ && id != source_id_video_) {
     // Only include ranges that have been buffered in |audio_|
@@ -867,14 +867,15 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
 void ChunkDemuxer::Abort(const std::string& id) {
   DVLOG(1) << "Abort(" << id << ")";
+  base::AutoLock auto_lock(lock_);
   DCHECK(!id.empty());
   CHECK(IsValidId(id));
-
   stream_parser_map_[id]->Flush();
   source_info_map_[id].can_update_offset = true;
 }
 
 void ChunkDemuxer::SetDuration(base::TimeDelta duration) {
+  base::AutoLock auto_lock(lock_);
   DVLOG(1) << "SetDuration(" << duration.InSecondsF() << ")";
 
   if (duration == duration_)
@@ -890,6 +891,7 @@ void ChunkDemuxer::SetDuration(base::TimeDelta duration) {
 }
 
 bool ChunkDemuxer::SetTimestampOffset(const std::string& id, TimeDelta offset) {
+  base::AutoLock auto_lock(lock_);
   DVLOG(1) << "SetTimestampOffset(" << id << ", " << offset.InSecondsF() << ")";
   CHECK(IsValidId(id));
 
@@ -1200,6 +1202,7 @@ void ChunkDemuxer::AdjustBufferTimestamps(
 }
 
 bool ChunkDemuxer::IsValidId(const std::string& source_id) const {
+  lock_.AssertAcquired();
   return source_info_map_.count(source_id) > 0u &&
       stream_parser_map_.count(source_id) > 0u;
 }
