@@ -207,8 +207,8 @@ class NET_EXPORT HostResolverImpl
   // Removes |job| from |jobs_|, only if it exists.
   void RemoveJob(Job* job);
 
-  // Aborts all in progress jobs and notifies their requests.
-  // Might start new jobs.
+  // Aborts all in progress jobs with ERR_NETWORK_CHANGED and notifies their
+  // requests. Might start new jobs.
   void AbortAllInProgressJobs();
 
   // Attempts to serve each Job in |jobs_| from the HOSTS file if we have

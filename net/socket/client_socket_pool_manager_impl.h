@@ -68,7 +68,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
                               HttpNetworkSession::SocketPoolType pool_type);
   virtual ~ClientSocketPoolManagerImpl();
 
-  virtual void FlushSocketPools() OVERRIDE;
+  virtual void FlushSocketPoolsWithError(int error) OVERRIDE;
   virtual void CloseIdleSockets() OVERRIDE;
 
   virtual TransportClientSocketPool* GetTransportSocketPool() OVERRIDE;

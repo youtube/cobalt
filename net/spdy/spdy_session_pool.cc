@@ -275,12 +275,12 @@ Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
 }
 
 void SpdySessionPool::OnIPAddressChanged() {
-  CloseCurrentSessions();
+  CloseCurrentSessions(ERR_NETWORK_CHANGED);
   http_server_properties_->ClearSpdySettings();
 }
 
 void SpdySessionPool::OnSSLConfigChanged() {
-  CloseCurrentSessions();
+  CloseCurrentSessions(ERR_NETWORK_CHANGED);
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::GetExistingSession(
@@ -347,7 +347,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetFromAlias(
 }
 
 void SpdySessionPool::OnCertAdded(const X509Certificate* cert) {
-  CloseCurrentSessions();
+  CloseCurrentSessions(ERR_NETWORK_CHANGED);
 }
 
 void SpdySessionPool::OnCertTrustChanged(const X509Certificate* cert) {
@@ -355,7 +355,7 @@ void SpdySessionPool::OnCertTrustChanged(const X509Certificate* cert) {
   // reduced. CloseCurrentSessions now because OnCertTrustChanged does not
   // tell us this.
   // See comments in ClientSocketPoolManager::OnCertTrustChanged.
-  CloseCurrentSessions();
+  CloseCurrentSessions(ERR_NETWORK_CHANGED);
 }
 
 const HostPortProxyPair& SpdySessionPool::NormalizeListPair(
@@ -447,7 +447,7 @@ void SpdySessionPool::CloseAllSessions() {
   }
 }
 
-void SpdySessionPool::CloseCurrentSessions() {
+void SpdySessionPool::CloseCurrentSessions(net::Error error) {
   SpdySessionsMap old_map;
   old_map.swap(sessions_);
   for (SpdySessionsMap::const_iterator it = old_map.begin();
@@ -464,8 +464,7 @@ void SpdySessionPool::CloseCurrentSessions() {
     CHECK(list);
     const scoped_refptr<SpdySession>& session = list->front();
     CHECK(session);
-    session->CloseSessionOnError(
-        net::ERR_ABORTED, false, "Closing current sessions.");
+    session->CloseSessionOnError(error, false, "Closing current sessions.");
     list->pop_front();
     if (list->empty()) {
       delete list;

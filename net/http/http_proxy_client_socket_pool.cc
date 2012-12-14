@@ -451,8 +451,8 @@ void HttpProxyClientSocketPool::ReleaseSocket(const std::string& group_name,
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void HttpProxyClientSocketPool::Flush() {
-  base_.Flush();
+void HttpProxyClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool HttpProxyClientSocketPool::IsStalled() const {

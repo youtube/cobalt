@@ -90,7 +90,7 @@ ClientSocketPoolManagerImpl::~ClientSocketPoolManagerImpl() {
   CertDatabase::GetInstance()->RemoveObserver(this);
 }
 
-void ClientSocketPoolManagerImpl::FlushSocketPools() {
+void ClientSocketPoolManagerImpl::FlushSocketPoolsWithError(int error) {
   // Flush the highest level pools first, since higher level pools may release
   // stuff to the lower level pools.
 
@@ -98,46 +98,46 @@ void ClientSocketPoolManagerImpl::FlushSocketPools() {
        ssl_socket_pools_for_proxies_.begin();
        it != ssl_socket_pools_for_proxies_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (HTTPProxySocketPoolMap::const_iterator it =
        http_proxy_socket_pools_.begin();
        it != http_proxy_socket_pools_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (SSLSocketPoolMap::const_iterator it =
        ssl_socket_pools_for_https_proxies_.begin();
        it != ssl_socket_pools_for_https_proxies_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (TransportSocketPoolMap::const_iterator it =
        transport_socket_pools_for_https_proxies_.begin();
        it != transport_socket_pools_for_https_proxies_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (TransportSocketPoolMap::const_iterator it =
        transport_socket_pools_for_http_proxies_.begin();
        it != transport_socket_pools_for_http_proxies_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (SOCKSSocketPoolMap::const_iterator it =
        socks_socket_pools_.begin();
        it != socks_socket_pools_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
   for (TransportSocketPoolMap::const_iterator it =
        transport_socket_pools_for_socks_proxies_.begin();
        it != transport_socket_pools_for_socks_proxies_.end();
        ++it)
-    it->second->Flush();
+    it->second->FlushWithError(error);
 
-  ssl_socket_pool_->Flush();
-  transport_socket_pool_->Flush();
+  ssl_socket_pool_->FlushWithError(error);
+  transport_socket_pool_->FlushWithError(error);
 }
 
 void ClientSocketPoolManagerImpl::CloseIdleSockets() {
@@ -372,7 +372,7 @@ Value* ClientSocketPoolManagerImpl::SocketPoolInfoToValue() const {
 }
 
 void ClientSocketPoolManagerImpl::OnCertAdded(const X509Certificate* cert) {
-  FlushSocketPools();
+  FlushSocketPoolsWithError(ERR_NETWORK_CHANGED);
 }
 
 void ClientSocketPoolManagerImpl::OnCertTrustChanged(
@@ -387,7 +387,7 @@ void ClientSocketPoolManagerImpl::OnCertTrustChanged(
   // Since the OnCertTrustChanged method doesn't tell us what
   // kind of trust change it is, we have to flush the socket
   // pools to be safe.
-  FlushSocketPools();
+  FlushSocketPoolsWithError(ERR_NETWORK_CHANGED);
 }
 
 }  // namespace net

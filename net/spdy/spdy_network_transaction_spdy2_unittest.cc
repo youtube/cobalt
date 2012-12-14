@@ -170,7 +170,7 @@ class SpdyNetworkTransactionSpdy2Test
 
       output_.rv = callback.WaitForResult();
       if (output_.rv != OK) {
-        session_->spdy_session_pool()->CloseCurrentSessions();
+        session_->spdy_session_pool()->CloseCurrentSessions(net::ERR_ABORTED);
         return;
       }
 

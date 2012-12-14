@@ -65,6 +65,14 @@ class MockHostResolverBase : public HostResolver,
     synchronous_mode_ = is_synchronous;
   }
 
+  // Asynchronous requests are automatically resolved by default.
+  // If set_ondemand_mode() is set then Resolve() returns IO_PENDING and
+  // ResolveAllPending() must be explicitly invoked to resolve all requests
+  // that are pending.
+  void set_ondemand_mode(bool is_ondemand) {
+    ondemand_mode_ = is_ondemand;
+  }
+
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
@@ -76,6 +84,15 @@ class MockHostResolverBase : public HostResolver,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
+
+  // Resolves all pending requests. It is only valid to invoke this if
+  // set_ondemand_mode was set before. The requests are resolved asynchronously,
+  // after this call returns.
+  void ResolveAllPending();
+
+  // Returns true if there are pending requests that can be resolved by invoking
+  // ResolveAllPending().
+  bool has_pending_requests() const { return !requests_.empty(); }
 
  protected:
   explicit MockHostResolverBase(bool use_caching);
@@ -94,6 +111,7 @@ class MockHostResolverBase : public HostResolver,
   void ResolveNow(size_t id);
 
   bool synchronous_mode_;
+  bool ondemand_mode_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
   scoped_ptr<HostCache> cache_;
   RequestMap requests_;

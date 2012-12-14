@@ -274,6 +274,7 @@ class NET_EXPORT NetworkChangeNotifier {
   friend class NetworkChangeNotifierAndroidTest;
   friend class NetworkChangeNotifierLinuxTest;
   friend class NetworkChangeNotifierWinTest;
+  friend class URLFetcherMockDnsTest;
 
   class NetworkState;
   class NetworkChangeCalculator;
