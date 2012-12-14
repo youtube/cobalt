@@ -379,9 +379,6 @@
       # as PPAPI; see crbug.com/162667.
       'enable_plugins%': 1,
 
-      # Enable protector service by default.
-      'enable_protector_service%': 1,
-
       # Specifies whether to use canvas_skia.cc in place of platform
       # specific implementations of gfx::Canvas. Affects text drawing in the
       # Chrome UI.
@@ -533,12 +530,6 @@
           'enable_plugins%': 0,
         }, {
           'enable_plugins%': 1,
-        }],
-
-        ['OS=="android" or OS=="ios"', {
-          'enable_protector_service%': 0,
-        }, {
-          'enable_protector_service%': 1,
         }],
 
         # linux_use_gold_binary: whether to use the binary checked into
@@ -697,7 +688,6 @@
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
     'enable_plugins%': '<(enable_plugins)',
-    'enable_protector_service%': '<(enable_protector_service)',
     'enable_session_service%': '<(enable_session_service)',
     'enable_themes%': '<(enable_themes)',
     'use_oem_wallpaper%': '<(use_oem_wallpaper)',
@@ -1890,9 +1880,6 @@
       }],
       ['enable_plugins==1', {
         'defines': ['ENABLE_PLUGINS=1'],
-      }],
-      ['enable_protector_service==1', {
-        'defines': ['ENABLE_PROTECTOR_SERVICE=1'],
       }],
       ['enable_session_service==1', {
         'defines': ['ENABLE_SESSION_SERVICE=1'],
