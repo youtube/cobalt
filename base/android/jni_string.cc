@@ -23,10 +23,26 @@ jstring ConvertUTF16ToJavaStringImpl(JNIEnv* env,
 namespace base {
 namespace android {
 
+void ConvertJavaStringToUTF8(JNIEnv* env, jstring str, std::string* result) {
+  if (!str) {
+    LOG(WARNING) << "ConvertJavaStringToUTF8 called with null string.";
+    result->clear();
+    return;
+  }
+  // JNI's GetStringUTFChars() returns strings in Java "modified" UTF8, so
+  // instead get the String in UTF16 and convert using chromium's conversion
+  // function that yields plain (non Java-modified) UTF8.
+  const jchar* chars = env->GetStringChars(str, NULL);
+  DCHECK(chars);
+  UTF16ToUTF8(chars, env->GetStringLength(str), result);
+  env->ReleaseStringChars(str, chars);
+  CheckException(env);
+}
+
 std::string ConvertJavaStringToUTF8(JNIEnv* env, jstring str) {
-  // JNI's GetStringUTFChars() returns strings in Java-modified UTF8, so we
-  // instead get the String in UTF16 and convert using our own utility function.
-  return UTF16ToUTF8(ConvertJavaStringToUTF16(env, str));
+  std::string result;
+  ConvertJavaStringToUTF8(env, str, &result);
+  return result;
 }
 
 std::string ConvertJavaStringToUTF8(const JavaRef<jstring>& str) {
@@ -47,18 +63,24 @@ ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
       env, UTF8ToUTF16(str)));
 }
 
-string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
+void ConvertJavaStringToUTF16(JNIEnv* env, jstring str, string16* result) {
   if (!str) {
-    LOG(WARNING) << " ConvertJavaStringToUTF16 called with null string.";
-    return string16();
+    LOG(WARNING) << "ConvertJavaStringToUTF16 called with null string.";
+    result->clear();
+    return;
   }
   const jchar* chars = env->GetStringChars(str, NULL);
   DCHECK(chars);
   // GetStringChars isn't required to NULL-terminate the strings
   // it returns, so the length must be explicitly checked.
-  string16 result(chars, env->GetStringLength(str));
+  result->assign(chars, env->GetStringLength(str));
   env->ReleaseStringChars(str, chars);
   CheckException(env);
+}
+
+string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
+  string16 result;
+  ConvertJavaStringToUTF16(env, str, &result);
   return result;
 }
 
