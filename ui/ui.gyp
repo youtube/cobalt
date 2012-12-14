@@ -887,6 +887,9 @@
            'variables': {
              'package_name': 'ui',
              'java_in_dir': '../ui/android/java',
+             'has_java_resources': 1,
+             'R_package': 'org.chromium.ui',
+             'R_package_relpath': 'org/chromium/ui',
            },
            'dependencies': [
              '../base/base.gyp:base_java',
