@@ -20,10 +20,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
-#if defined(OS_ANDROID)
-#include "net/android/network_library.h"
-#endif
-
 namespace net {
 
 namespace {
@@ -161,52 +157,6 @@ void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
   }
 }
 
-#if defined(OS_ANDROID)
-// Returns true if we have verification result in |verify_result| from Android
-// Trust Manager. Otherwise returns false.
-bool VerifyFromAndroidTrustManager(const std::vector<std::string>& cert_bytes,
-                                   CertVerifyResult* verify_result) {
-  // TODO(joth): Fetch the authentication type from SSL rather than hardcode.
-  bool verified = true;
-  android::VerifyResult result =
-      android::VerifyX509CertChain(cert_bytes, "RSA");
-  switch (result) {
-    case android::VERIFY_OK:
-      break;
-    case android::VERIFY_NO_TRUSTED_ROOT:
-      verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
-      break;
-    case android::VERIFY_INVOCATION_ERROR:
-      verified = false;
-      break;
-    default:
-      verify_result->cert_status |= CERT_STATUS_INVALID;
-      break;
-  }
-  return verified;
-}
-
-void GetChainDEREncodedBytes(X509Certificate* cert,
-                             std::vector<std::string>* chain_bytes) {
-  X509Certificate::OSCertHandle cert_handle = cert->os_cert_handle();
-  X509Certificate::OSCertHandles cert_handles =
-      cert->GetIntermediateCertificates();
-
-  // Make sure the peer's own cert is the first in the chain, if it's not
-  // already there.
-  if (cert_handles.empty() || cert_handles[0] != cert_handle)
-    cert_handles.insert(cert_handles.begin(), cert_handle);
-
-  chain_bytes->reserve(cert_handles.size());
-  for (X509Certificate::OSCertHandles::const_iterator it =
-       cert_handles.begin(); it != cert_handles.end(); ++it) {
-    std::string cert_bytes;
-    X509Certificate::X509Certificate::GetDEREncoded(*it, &cert_bytes);
-    chain_bytes->push_back(cert_bytes);
-  }
-}
-#endif  // defined(OS_ANDROID)
-
 }  // namespace
 
 CertVerifyProcOpenSSL::CertVerifyProcOpenSSL() {}
@@ -223,54 +173,40 @@ int CertVerifyProcOpenSSL::VerifyInternal(X509Certificate* cert,
   if (!cert->VerifyNameMatch(hostname))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
-  bool verify_attempted = false;
+  crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
+      X509_STORE_CTX_new());
 
-#if defined(OS_ANDROID)
-  std::vector<std::string> cert_bytes;
-  GetChainDEREncodedBytes(cert, &cert_bytes);
+  crypto::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
+      sk_X509_new_null());
+  if (!intermediates.get())
+    return ERR_OUT_OF_MEMORY;
 
-  verify_attempted = VerifyFromAndroidTrustManager(cert_bytes, verify_result);
-#endif
-
-  if (verify_attempted) {
-    if (IsCertStatusError(verify_result->cert_status))
-      return MapCertStatusToNetError(verify_result->cert_status);
-  } else {
-    crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
-        X509_STORE_CTX_new());
-
-    crypto::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
-        sk_X509_new_null());
-    if (!intermediates.get())
+  const X509Certificate::OSCertHandles& os_intermediates =
+      cert->GetIntermediateCertificates();
+  for (X509Certificate::OSCertHandles::const_iterator it =
+       os_intermediates.begin(); it != os_intermediates.end(); ++it) {
+    if (!sk_X509_push(intermediates.get(), *it))
       return ERR_OUT_OF_MEMORY;
-
-    const X509Certificate::OSCertHandles& os_intermediates =
-        cert->GetIntermediateCertificates();
-    for (X509Certificate::OSCertHandles::const_iterator it =
-         os_intermediates.begin(); it != os_intermediates.end(); ++it) {
-      if (!sk_X509_push(intermediates.get(), *it))
-        return ERR_OUT_OF_MEMORY;
-    }
-    int rv = X509_STORE_CTX_init(ctx.get(), X509Certificate::cert_store(),
-                                 cert->os_cert_handle(), intermediates.get());
-    CHECK_EQ(1, rv);
-
-    if (X509_verify_cert(ctx.get()) != 1) {
-      int x509_error = X509_STORE_CTX_get_error(ctx.get());
-      CertStatus cert_status = MapCertErrorToCertStatus(x509_error);
-      LOG(ERROR) << "X509 Verification error "
-          << X509_verify_cert_error_string(x509_error)
-          << " : " << x509_error
-          << " : " << X509_STORE_CTX_get_error_depth(ctx.get())
-          << " : " << cert_status;
-      verify_result->cert_status |= cert_status;
-    }
-
-    GetCertChainInfo(ctx.get(), verify_result);
-    AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
-    if (IsCertStatusError(verify_result->cert_status))
-      return MapCertStatusToNetError(verify_result->cert_status);
   }
+  int rv = X509_STORE_CTX_init(ctx.get(), X509Certificate::cert_store(),
+                               cert->os_cert_handle(), intermediates.get());
+  CHECK_EQ(1, rv);
+
+  if (X509_verify_cert(ctx.get()) != 1) {
+    int x509_error = X509_STORE_CTX_get_error(ctx.get());
+    CertStatus cert_status = MapCertErrorToCertStatus(x509_error);
+    LOG(ERROR) << "X509 Verification error "
+        << X509_verify_cert_error_string(x509_error)
+        << " : " << x509_error
+        << " : " << X509_STORE_CTX_get_error_depth(ctx.get())
+        << " : " << cert_status;
+    verify_result->cert_status |= cert_status;
+  }
+
+  GetCertChainInfo(ctx.get(), verify_result);
+  AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
+  if (IsCertStatusError(verify_result->cert_status))
+    return MapCertStatusToNetError(verify_result->cert_status);
 
   // Currently we only ues OpenSSL's default root CA paths, so treat all
   // correctly verified certs as being from a known root.

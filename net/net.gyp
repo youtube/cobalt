@@ -96,6 +96,8 @@
         'base/cert_verifier.h',
         'base/cert_verify_proc.cc',
         'base/cert_verify_proc.h',
+        'base/cert_verify_proc_android.cc',
+        'base/cert_verify_proc_android.h',
         'base/cert_verify_proc_mac.cc',
         'base/cert_verify_proc_mac.h',
         'base/cert_verify_proc_nss.cc',
@@ -1214,6 +1216,7 @@
             ],
             'sources!': [
               'base/cert_database_openssl.cc',
+              'base/cert_verify_proc_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
               'base/test_root_certs_openssl.cc',
             ],
