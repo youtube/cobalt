@@ -234,6 +234,17 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
     }
   }
 
+  for (TimeMap::const_iterator iter =
+           incoming_ack.received_info.received_packet_times.begin();
+       iter != incoming_ack.received_info.received_packet_times.end(); ++iter) {
+    if (iter->first > incoming_ack.received_info.largest_received) {
+      DLOG(INFO) << "Cannot ack a packet:" << iter->first
+                 << " greater than largest received:"
+                 << incoming_ack.received_info.largest_received;
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -335,7 +346,7 @@ void QuicConnection::UpdatePacketInformationSentByPeer(
   // Make sure we also don't ack any packets lower than the peer's
   // last-packet-awaiting-ack.
   if (incoming_ack.sent_info.least_unacked > least_packet_awaiting_ack_) {
-    outgoing_ack_.received_info.ClearMissingBefore(
+    outgoing_ack_.received_info.ClearAcksBefore(
         incoming_ack.sent_info.least_unacked);
     least_packet_awaiting_ack_ = incoming_ack.sent_info.least_unacked;
   }
@@ -494,7 +505,7 @@ bool QuicConnection::OnCanWrite() {
 void QuicConnection::AckPacket(const QuicPacketHeader& header) {
   QuicPacketSequenceNumber sequence_number = header.packet_sequence_number;
   DCHECK(outgoing_ack_.received_info.IsAwaitingPacket(sequence_number));
-  outgoing_ack_.received_info.RecordReceived(sequence_number);
+  outgoing_ack_.received_info.RecordReceived(sequence_number, clock_->Now());
 
   // TODO(alyssar) delay sending until we have data, or enough time has elapsed.
   if (frames_.size() > 0) {
@@ -622,6 +633,8 @@ void QuicConnection::SendAck() {
   DVLOG(1) << "Sending ack " << outgoing_ack_;
 
   PacketPair packetpair = packet_creator_.AckPacket(&outgoing_ack_);
+  // Only send packet-timestamp pairs to the peer once, so clear them.
+  outgoing_ack_.received_info.ClearAckTimes();
   SendPacket(packetpair.first, packetpair.second, false, false, false);
 
   if (collector_->GenerateCongestionFeedback(&outgoing_congestion_feedback_)) {

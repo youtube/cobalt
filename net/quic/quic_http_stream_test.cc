@@ -192,7 +192,14 @@ class QuicHttpStreamTest : public ::testing::Test {
       QuicPacketSequenceNumber largest_received) {
     InitializeHeader(sequence_number);
 
-    QuicAckFrame ack(largest_received, sequence_number);
+    QuicAckFrame ack(largest_received, QuicTime(), sequence_number);
+    // TODO(rch): remove this grotty hack once we move the packet times
+    // out of the ack frame.
+    if (sequence_number == 4) {
+      ack.received_info.ClearAckTimes();
+      ack.received_info.received_packet_times[3] = QuicTime();
+    }
+
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
