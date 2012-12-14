@@ -1779,6 +1779,7 @@
             'Profile': 'true',
           },
         },
+        'defines': ['ADDRESS_SANITIZER'],
       }],  # asan==1 and OS=="win"
       ['coverage!=0', {
         'conditions': [
