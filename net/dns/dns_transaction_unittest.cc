@@ -321,7 +321,7 @@ class DnsTransactionTest : public testing::Test {
     socket_factory_.reset(new TestSocketFactory());
     session_ = new DnsSession(
         config_,
-        socket_factory_.get(),
+        DnsSocketPool::CreateNull(socket_factory_.get()),
         base::Bind(&DnsTransactionTest::GetNextId, base::Unretained(this)),
         NULL /* NetLog */);
     transaction_factory_ = DnsTransactionFactory::CreateFactory(session_.get());
