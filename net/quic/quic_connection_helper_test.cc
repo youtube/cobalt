@@ -131,8 +131,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
       QuicPacketSequenceNumber sequence_number) {
     InitializeHeader(sequence_number);
 
-    QuicAckFrame ack(0, QuicTime(), sequence_number);
-
+    QuicAckFrame ack(0, sequence_number);
     return ConstructPacket(header_, QuicFrame(&ack));
   }
 
@@ -157,7 +156,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
     InitializeHeader(sequence_number);
 
     QuicFrames frames;
-    QuicAckFrame ack(0, QuicTime(), least_waiting);
+    QuicAckFrame ack(0, least_waiting);
     QuicConnectionCloseFrame close;
     close.error_code = QUIC_CONNECTION_TIMED_OUT;
     close.ack_frame = ack;
