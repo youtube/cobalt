@@ -43,7 +43,7 @@ bool UnixDomainSocket::SendMsg(int fd,
     msg.msg_controllen = cmsg->cmsg_len;
   }
 
-  const ssize_t r = HANDLE_EINTR(sendmsg(fd, &msg, MSG_NOSIGNAL));
+  const ssize_t r = HANDLE_EINTR(sendmsg(fd, &msg, 0));
   const bool ret = static_cast<ssize_t>(length) == r;
   delete[] control_buffer;
   return ret;
