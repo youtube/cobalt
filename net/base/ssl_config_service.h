@@ -192,6 +192,10 @@ class NET_EXPORT SSLConfigService
   // Remove an observer of this service.
   void RemoveObserver(Observer* observer);
 
+  // Calls the OnSSLConfigChanged method of registered observers. Should only be
+  // called on the IO thread.
+  void NotifySSLConfigChange();
+
  protected:
   friend class base::RefCountedThreadSafe<SSLConfigService>;
 

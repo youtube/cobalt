@@ -140,6 +140,10 @@ void SSLConfigService::RemoveObserver(Observer* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
+void SSLConfigService::NotifySSLConfigChange() {
+  FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
+}
+
 SSLConfigService::~SSLConfigService() {
 }
 
@@ -160,7 +164,7 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       (orig_config.false_start_enabled != new_config.false_start_enabled);
 
   if (config_changed)
-    FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
+    NotifySSLConfigChange();
 }
 
 // static
