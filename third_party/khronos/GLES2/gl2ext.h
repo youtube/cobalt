@@ -2018,6 +2018,18 @@ typedef void (GL_APIENTRYP PFNGLPOSTSUBBUFFERCHROMIUM) (GLint x, GLint y, GLint 
 #define GL_CHROMIUM_front_buffer_cached 1
 #endif
 
+/* GL_CHROMIUM_gpu_memory_manager */
+/* This extension provides a mechanism for indicating to the implementation
+   which textures may be discarded by the client based on the recommendations
+   of the implementation's memory allocation changed callback (e.g, compositor
+   tiles), and which texture will not be discarded (e.g, WebGL textures). */
+#ifndef GL_CHROMIUM_gpu_memory_manager
+#define GL_CHROMIUM_gpu_memory_manager 1
+#define GL_TEXTURE_POOL_CHROMIUM           0x6000
+#define GL_TEXTURE_POOL_MANAGED_CHROMIUM   0x6001
+#define GL_TEXTURE_POOL_UNMANAGED_CHROMIUM 0x6002
+#endif
+
 /* GL_ARB_robustness */
 /* This extension is subsetted for the moment, incorporating only the
  * enums necessary to describe the reasons that we might encounter for
