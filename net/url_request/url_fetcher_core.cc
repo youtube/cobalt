@@ -280,13 +280,15 @@ URLFetcherCore::URLFetcherCore(URLFetcher* fetcher,
       url_request_data_key_(NULL),
       was_fetched_via_proxy_(false),
       is_chunked_upload_(false),
-      num_retries_(0),
       was_cancelled_(false),
       response_destination_(STRING),
       stop_on_redirect_(false),
       stopped_on_redirect_(false),
       automatically_retry_on_5xx_(true),
-      max_retries_(0),
+      num_retries_on_5xx_(0),
+      max_retries_on_5xx_(0),
+      num_retries_on_network_changes_(0),
+      max_retries_on_network_changes_(0),
       current_upload_bytes_(-1),
       current_response_bytes_(0),
       total_response_bytes_(-1) {
@@ -304,8 +306,17 @@ void URLFetcherCore::Start() {
   }
   DCHECK(network_task_runner_.get()) << "We need an IO task runner";
 
-  network_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
+  if (num_retries_on_network_changes_ < max_retries_on_network_changes_ &&
+      NetworkChangeNotifier::IsOffline()) {
+    // We're currently offline and this request will immediately fail. Try to
+    // start later if |max_retries_on_network_changes_| is set, indicating that
+    // our owner wants the fetcher to automatically retry on network changes.
+    ++num_retries_on_network_changes_;
+    NetworkChangeNotifier::AddConnectionTypeObserver(this);
+  } else {
+    network_task_runner_->PostTask(
+        FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
+  }
 }
 
 void URLFetcherCore::Stop() {
@@ -407,16 +418,20 @@ void URLFetcherCore::SetAutomaticallyRetryOn5xx(bool retry) {
   automatically_retry_on_5xx_ = retry;
 }
 
-void URLFetcherCore::SetMaxRetries(int max_retries) {
-  max_retries_ = max_retries;
+void URLFetcherCore::SetMaxRetriesOn5xx(int max_retries) {
+  max_retries_on_5xx_ = max_retries;
 }
 
-int URLFetcherCore::GetMaxRetries() const {
-  return max_retries_;
+int URLFetcherCore::GetMaxRetriesOn5xx() const {
+  return max_retries_on_5xx_;
 }
 
 base::TimeDelta URLFetcherCore::GetBackoffDelay() const {
   return backoff_delay_;
+}
+
+void URLFetcherCore::SetAutomaticallyRetryOnNetworkChanges(int max_retries) {
+  max_retries_on_network_changes_ = max_retries;
 }
 
 void URLFetcherCore::SaveResponseToFileAtPath(
@@ -604,6 +619,20 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
       RetryOrCompleteUrlFetch();
     }
   }
+}
+
+void URLFetcherCore::OnConnectionTypeChanged(
+    NetworkChangeNotifier::ConnectionType type) {
+  DCHECK_GT(num_retries_on_network_changes_, 0);
+  if (type == NetworkChangeNotifier::CONNECTION_NONE) {
+    // Keep waiting.
+    return;
+  }
+
+  // Stop observing and try again now.
+  NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
+  network_task_runner_->PostTask(
+      FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
 }
 
 void URLFetcherCore::CancelAll() {
@@ -838,7 +867,7 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
       status_.error() == ERR_TEMPORARILY_THROTTLED) {
     // When encountering a server error, we will send the request again
     // after backoff time.
-    ++num_retries_;
+    ++num_retries_on_5xx_;
 
     // Note that backoff_delay may be 0 because (a) the
     // URLRequestThrottlerManager and related code does not
@@ -850,13 +879,32 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
     if (backoff_delay < base::TimeDelta())
       backoff_delay = base::TimeDelta();
 
-    if (automatically_retry_on_5xx_ && num_retries_ <= max_retries_) {
+    if (automatically_retry_on_5xx_ &&
+        num_retries_on_5xx_ <= max_retries_on_5xx_) {
       StartOnIOThread();
       return;
     }
   } else {
     backoff_delay = base::TimeDelta();
   }
+
+  // Retry if the request failed due to network changes.
+  if (status_.error() == ERR_NETWORK_CHANGED &&
+      num_retries_on_network_changes_ < max_retries_on_network_changes_) {
+    ++num_retries_on_network_changes_;
+
+    if (NetworkChangeNotifier::IsOffline()) {
+      // Retry once we're back online.
+      NetworkChangeNotifier::AddConnectionTypeObserver(this);
+    } else {
+      // Retry soon, after flushing all the current tasks which may include
+      // further network change observers.
+      network_task_runner_->PostTask(
+          FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
+    }
+    return;
+  }
+
   request_context_getter_ = NULL;
   first_party_for_cookies_ = GURL();
   url_request_data_key_ = NULL;
@@ -871,6 +919,8 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
 }
 
 void URLFetcherCore::ReleaseRequest() {
+  if (num_retries_on_network_changes_ > 0)
+    NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
   upload_progress_checker_timer_.reset();
   request_.reset();
   g_registry.Get().RemoveURLFetcherCore(this);

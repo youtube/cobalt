@@ -115,10 +115,11 @@ class NET_EXPORT ClientSocketPool {
                              int id) = 0;
 
   // This flushes all state from the ClientSocketPool.  This means that all
-  // idle and connecting sockets are discarded.  Active sockets being
-  // held by ClientSocketPool clients will be discarded when released back to
-  // the pool.  Does not flush any pools wrapped by |this|.
-  virtual void Flush() = 0;
+  // idle and connecting sockets are discarded with the given |error|.
+  // Active sockets being held by ClientSocketPool clients will be discarded
+  // when released back to the pool.
+  // Does not flush any pools wrapped by |this|.
+  virtual void FlushWithError(int error) = 0;
 
   // Returns true if a there is currently a request blocked on the
   // per-pool (not per-host) max socket limit.

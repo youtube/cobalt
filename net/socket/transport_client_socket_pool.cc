@@ -419,8 +419,8 @@ void TransportClientSocketPool::ReleaseSocket(
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void TransportClientSocketPool::Flush() {
-  base_.Flush();
+void TransportClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool TransportClientSocketPool::IsStalled() const {
