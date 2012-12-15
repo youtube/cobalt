@@ -19,8 +19,8 @@
 
 namespace media {
 
-static const size_t kRawDataSize = 10 * 1024;
-static const int kSamplesPerSecond = 44100;
+static const size_t kRawDataSize = 2048;
+static const int kSamplesPerSecond = 3000;
 static const ChannelLayout kDefaultChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kDefaultSampleBits = 16;
 
@@ -33,13 +33,16 @@ class AudioRendererAlgorithmTest : public testing::Test {
   ~AudioRendererAlgorithmTest() {}
 
   void Initialize() {
-    Initialize(kDefaultChannelLayout, kDefaultSampleBits);
+    Initialize(kDefaultChannelLayout, kDefaultSampleBits, kSamplesPerSecond);
   }
 
-  void Initialize(ChannelLayout channel_layout, int bits_per_channel) {
+  void Initialize(ChannelLayout channel_layout, int bits_per_channel,
+                  int samples_per_second) {
+    static const int kFrames = kRawDataSize / ((kDefaultSampleBits / 8) *
+        ChannelLayoutToChannelCount(kDefaultChannelLayout));
     AudioParameters params(
         media::AudioParameters::AUDIO_PCM_LINEAR, channel_layout,
-        kSamplesPerSecond, bits_per_channel, kRawDataSize);
+        samples_per_second, bits_per_channel, kFrames);
 
     algorithm_.Initialize(1, params, base::Bind(
         &AudioRendererAlgorithmTest::EnqueueData, base::Unretained(this)));
@@ -50,61 +53,22 @@ class AudioRendererAlgorithmTest : public testing::Test {
     scoped_array<uint8> audio_data(new uint8[kRawDataSize]);
     CHECK_EQ(kRawDataSize % algorithm_.bytes_per_channel(), 0u);
     CHECK_EQ(kRawDataSize % algorithm_.bytes_per_frame(), 0u);
-    size_t length = kRawDataSize / algorithm_.bytes_per_channel();
-    switch (algorithm_.bytes_per_channel()) {
-      case 4:
-        WriteFakeData<int32>(audio_data.get(), length);
-        break;
-      case 2:
-        WriteFakeData<int16>(audio_data.get(), length);
-        break;
-      case 1:
-        WriteFakeData<uint8>(audio_data.get(), length);
-        break;
-      default:
-        NOTREACHED() << "Unsupported audio bit depth in crossfade.";
-    }
+    // The value of the data is meaningless; we just want non-zero data to
+    // differentiate it from muted data.
+    memset(audio_data.get(), 1, kRawDataSize);
     algorithm_.EnqueueBuffer(new DataBuffer(audio_data.Pass(), kRawDataSize));
     bytes_enqueued_ += kRawDataSize;
   }
 
-  template <class Type>
-  void WriteFakeData(uint8* audio_data, size_t length) {
-    Type* output = reinterpret_cast<Type*>(audio_data);
-    for (size_t i = 0; i < length; i++) {
-      // The value of the data is meaningless; we just want non-zero data to
-      // differentiate it from muted data.
-      output[i] = i % 5 + 10;
-    }
-  }
+  void CheckFakeData(uint8* audio_data, int frames_written) {
+    int sum = 0;
+    for (int i = 0; i < frames_written * algorithm_.bytes_per_frame(); ++i)
+      sum |= audio_data[i];
 
-  void CheckFakeData(uint8* audio_data, int frames_written,
-                     double playback_rate) {
-    size_t length =
-        (frames_written * algorithm_.bytes_per_frame())
-        / algorithm_.bytes_per_channel();
-
-    switch (algorithm_.bytes_per_channel()) {
-      case 4:
-        DoCheckFakeData<int32>(audio_data, length);
-        break;
-      case 2:
-        DoCheckFakeData<int16>(audio_data, length);
-        break;
-      case 1:
-        DoCheckFakeData<uint8>(audio_data, length);
-        break;
-      default:
-        NOTREACHED() << "Unsupported audio bit depth in crossfade.";
-    }
-  }
-
-  template <class Type>
-  void DoCheckFakeData(uint8* audio_data, size_t length) {
-    Type* output = reinterpret_cast<Type*>(audio_data);
-    for (size_t i = 0; i < length; i++) {
-      EXPECT_TRUE(algorithm_.is_muted() || output[i] != 0);
-    }
+    if (algorithm_.is_muted())
+      ASSERT_EQ(sum, 0);
+    else
+      ASSERT_NE(sum, 0);
   }
 
   int ComputeConsumedBytes(int initial_bytes_enqueued,
@@ -117,8 +81,8 @@ class AudioRendererAlgorithmTest : public testing::Test {
   }
 
   void TestPlaybackRate(double playback_rate) {
-    static const int kDefaultBufferSize = kSamplesPerSecond / 10;
-    static const int kDefaultFramesRequested = 5 * kSamplesPerSecond;
+    const int kDefaultBufferSize = algorithm_.samples_per_second() / 10;
+    const int kDefaultFramesRequested = 2 * algorithm_.samples_per_second();
 
     TestPlaybackRate(playback_rate, kDefaultBufferSize,
                      kDefaultFramesRequested);
@@ -147,8 +111,8 @@ class AudioRendererAlgorithmTest : public testing::Test {
       int frames_requested = std::min(buffer_size_in_frames, frames_remaining);
       int frames_written =
           algorithm_.FillBuffer(buffer.get(), frames_requested);
-      CHECK_GT(frames_written, 0);
-      CheckFakeData(buffer.get(), frames_written, playback_rate);
+      ASSERT_GT(frames_written, 0);
+      CheckFakeData(buffer.get(), frames_written);
       frames_remaining -= frames_written;
     }
 
@@ -189,6 +153,16 @@ class AudioRendererAlgorithmTest : public testing::Test {
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_NormalRate) {
   Initialize();
   TestPlaybackRate(1.0);
+}
+
+TEST_F(AudioRendererAlgorithmTest, FillBuffer_NearlyNormalFasterRate) {
+  Initialize();
+  TestPlaybackRate(1.0001);
+}
+
+TEST_F(AudioRendererAlgorithmTest, FillBuffer_NearlyNormalSlowerRate) {
+  Initialize();
+  TestPlaybackRate(0.9999);
 }
 
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_OneAndAQuarterRate) {
@@ -269,10 +243,17 @@ TEST_F(AudioRendererAlgorithmTest, FillBuffer_SmallBufferSize) {
   TestPlaybackRate(1.5, kBufferSizeInFrames, kFramesRequested);
 }
 
+TEST_F(AudioRendererAlgorithmTest, FillBuffer_LargeBufferSize) {
+  Initialize(kDefaultChannelLayout, kDefaultSampleBits, 44100);
+  TestPlaybackRate(1.0);
+  TestPlaybackRate(0.5);
+  TestPlaybackRate(1.5);
+}
+
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_LowerQualityAudio) {
   static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_MONO;
   static const int kSampleBits = 8;
-  Initialize(kChannelLayout, kSampleBits);
+  Initialize(kChannelLayout, kSampleBits, kSamplesPerSecond);
   TestPlaybackRate(1.0);
   TestPlaybackRate(0.5);
   TestPlaybackRate(1.5);
@@ -281,7 +262,7 @@ TEST_F(AudioRendererAlgorithmTest, FillBuffer_LowerQualityAudio) {
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_HigherQualityAudio) {
   static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
   static const int kSampleBits = 32;
-  Initialize(kChannelLayout, kSampleBits);
+  Initialize(kChannelLayout, kSampleBits, kSamplesPerSecond);
   TestPlaybackRate(1.0);
   TestPlaybackRate(0.5);
   TestPlaybackRate(1.5);

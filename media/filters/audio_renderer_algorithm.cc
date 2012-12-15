@@ -83,6 +83,11 @@ int AudioRendererAlgorithm::FillBuffer(
   if (playback_rate_ == 0.0f)
     return 0;
 
+  int slower_step = ceil(window_size_ * playback_rate_);
+  int faster_step = ceil(window_size_ / playback_rate_);
+  AlignToFrameBoundary(&slower_step);
+  AlignToFrameBoundary(&faster_step);
+
   int total_frames_rendered = 0;
   uint8* output_ptr = dest;
   while (total_frames_rendered < requested_frames) {
@@ -90,12 +95,15 @@ int AudioRendererAlgorithm::FillBuffer(
       ResetWindow();
 
     bool rendered_frame = true;
-    if (playback_rate_ > 1.0)
-      rendered_frame = OutputFasterPlayback(output_ptr);
-    else if (playback_rate_ < 1.0)
-      rendered_frame = OutputSlowerPlayback(output_ptr);
-    else
+    if (window_size_ > faster_step) {
+      rendered_frame = OutputFasterPlayback(
+          output_ptr, window_size_, faster_step);
+    } else if (slower_step < window_size_) {
+      rendered_frame = OutputSlowerPlayback(
+          output_ptr, slower_step, window_size_);
+    } else {
       rendered_frame = OutputNormalPlayback(output_ptr);
+    }
 
     if (!rendered_frame) {
       needs_more_data_ = true;
@@ -114,7 +122,11 @@ void AudioRendererAlgorithm::ResetWindow() {
   crossfade_frame_number_ = 0;
 }
 
-bool AudioRendererAlgorithm::OutputFasterPlayback(uint8* dest) {
+bool AudioRendererAlgorithm::OutputFasterPlayback(uint8* dest,
+                                                  int input_step,
+                                                  int output_step) {
+  // Ensure we don't run into OOB read/write situation.
+  CHECK_GT(input_step, output_step);
   DCHECK_LT(index_into_window_, window_size_);
   DCHECK_GT(playback_rate_, 1.0);
 
@@ -131,11 +143,6 @@ bool AudioRendererAlgorithm::OutputFasterPlayback(uint8* dest) {
   //
   // The duration of each phase is computed below based on the |window_size_|
   // and |playback_rate_|.
-  int input_step = window_size_;
-  int output_step = ceil(window_size_ / playback_rate_);
-  AlignToFrameBoundary(&output_step);
-  DCHECK_GT(input_step, output_step);
-
   int bytes_to_crossfade = bytes_in_crossfade_;
   if (muted_ || bytes_to_crossfade > output_step)
     bytes_to_crossfade = 0;
@@ -203,7 +210,11 @@ bool AudioRendererAlgorithm::OutputFasterPlayback(uint8* dest) {
   return true;
 }
 
-bool AudioRendererAlgorithm::OutputSlowerPlayback(uint8* dest) {
+bool AudioRendererAlgorithm::OutputSlowerPlayback(uint8* dest,
+                                                  int input_step,
+                                                  int output_step) {
+  // Ensure we don't run into OOB read/write situation.
+  CHECK_LT(input_step, output_step);
   DCHECK_LT(index_into_window_, window_size_);
   DCHECK_LT(playback_rate_, 1.0);
   DCHECK_NE(playback_rate_, 0.0);
@@ -224,11 +235,6 @@ bool AudioRendererAlgorithm::OutputSlowerPlayback(uint8* dest) {
   //
   // The duration of each phase is computed below based on the |window_size_|
   // and |playback_rate_|.
-  int input_step = ceil(window_size_ * playback_rate_);
-  AlignToFrameBoundary(&input_step);
-  int output_step = window_size_;
-  DCHECK_LT(input_step, output_step);
-
   int bytes_to_crossfade = bytes_in_crossfade_;
   if (muted_ || bytes_to_crossfade > input_step)
     bytes_to_crossfade = 0;
