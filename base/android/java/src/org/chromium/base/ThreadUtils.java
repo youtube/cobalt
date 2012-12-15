@@ -123,6 +123,16 @@ public class ThreadUtils {
     }
 
     /**
+     * Post the supplied Runnable to run on the main thread. The method will
+     * not block, even if called on the UI thread.
+     *
+     * @param task The Runnable to run
+     */
+    public static void postOnUiThread(Runnable r) {
+        LazyHolder.sUiThreadHandler.post(r);
+    }
+
+    /**
      * Asserts that the current thread is running on the main thread.
      */
     public static void assertOnUiThread() {
