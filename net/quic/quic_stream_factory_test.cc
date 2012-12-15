@@ -25,7 +25,8 @@ class QuicStreamFactoryTest : public ::testing::Test {
  protected:
   QuicStreamFactoryTest()
       : factory_(&host_resolver_, &socket_factory_,
-                 base::Bind(&QuicStreamFactoryTest::GenerateGuid), &clock_),
+                 base::Bind(&QuicStreamFactoryTest::GenerateGuid),
+                 new MockClock()),
         host_port_proxy_pair_(HostPortPair("www.google.com", 443),
                               ProxyServer::Direct()) {
   }
@@ -107,7 +108,6 @@ class QuicStreamFactoryTest : public ::testing::Test {
 
   MockHostResolver host_resolver_;
   MockClientSocketFactory socket_factory_;
-  MockClock clock_;
   QuicStreamFactory factory_;
   HostPortProxyPair host_port_proxy_pair_;
   BoundNetLog net_log_;
