@@ -173,12 +173,6 @@ NET_EXPORT std::string GetHostOrSpecFromURL(const GURL& url);
 NET_EXPORT std::string GetSpecificHeader(const std::string& headers,
                                          const std::string& name);
 
-// TODO(abarth): Move these functions to http_content_disposition.cc.
-bool DecodeFilenameValue(const std::string& input,
-                         const std::string& referrer_charset,
-                         std::string* output);
-bool DecodeExtValue(const std::string& value, std::string* output);
-
 // Converts the given host name to unicode characters. This can be called for
 // any host name, if the input is not IDN or is invalid in some way, we'll just
 // return the ASCII source so it is still usable.
@@ -252,9 +246,8 @@ NET_EXPORT string16 StripWWWFromHost(const GURL& url);
 // Generates a filename using the first successful method from the following (in
 // order):
 //
-// 1) The raw Content-Disposition header in |content_disposition| (as read from
-//    the network.  |referrer_charset| is used as described in the comment for
-//    GetFileNameFromCD().
+// 1) The raw Content-Disposition header in |content_disposition| as read from
+//    the network.  |referrer_charset| is used to decode non-ASCII strings.
 // 2) |suggested_name| if specified.  |suggested_name| is assumed to be in
 //    UTF-8.
 // 3) The filename extracted from the |url|.  |referrer_charset| will be used to
