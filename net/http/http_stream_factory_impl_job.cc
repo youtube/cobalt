@@ -28,7 +28,6 @@
 #include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_factory_impl_request.h"
-#include "net/quic/quic_http_stream.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/client_socket_pool_manager.h"
@@ -90,8 +89,6 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       waiting_job_(NULL),
       using_ssl_(false),
       using_spdy_(false),
-      using_quic_(false),
-      quic_request_(session_->quic_stream_factory()),
       force_spdy_always_(HttpStreamFactory::force_spdy_always()),
       force_spdy_over_ssl_(HttpStreamFactory::force_spdy_over_ssl()),
       spdy_certificate_error_(OK),
@@ -160,7 +157,7 @@ LoadState HttpStreamFactoryImpl::Job::GetLoadState() const {
     case STATE_RESOLVE_PROXY_COMPLETE:
       return session_->proxy_service()->GetLoadState(pac_request_);
     case STATE_CREATE_STREAM_COMPLETE:
-      return using_quic_ ? LOAD_STATE_CONNECTING : connection_->GetLoadState();
+      return connection_->GetLoadState();
     case STATE_INIT_CONNECTION_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     default:
@@ -641,12 +638,6 @@ bool HttpStreamFactoryImpl::Job::ShouldForceSpdyWithoutSSL() const {
   return rv && !HttpStreamFactory::HasSpdyExclusion(origin_);
 }
 
-bool HttpStreamFactoryImpl::Job::ShouldForceQuic() const {
-  return session_->params().origin_port_to_force_quic_on == origin_.port()
-      && session_->params().origin_port_to_force_quic_on != 0
-      && proxy_info_.is_direct();
-}
-
 int HttpStreamFactoryImpl::Job::DoWaitForJob() {
   DCHECK(blocking_job_);
   next_state_ = STATE_WAIT_FOR_JOB_COMPLETE;
@@ -668,12 +659,6 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
 
   using_ssl_ = request_info_.url.SchemeIs("https") || ShouldForceSpdySSL();
   using_spdy_ = false;
-
-  if (ShouldForceQuic()) {
-    next_state_ = STATE_CREATE_STREAM;
-    using_quic_ = true;
-    return OK;
-  }
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
@@ -918,7 +903,7 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
   DCHECK(connection_->socket() || existing_spdy_session_ ||
-         existing_available_pipeline_ || using_quic_);
+         existing_available_pipeline_);
 
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
@@ -929,11 +914,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     SetSocketMotivation();
 
   const ProxyServer& proxy_server = proxy_info_.proxy_server();
-
-  if (using_quic_) {
-    return quic_request_.Request(HostPortProxyPair(origin_, proxy_server),
-                                 net_log_, io_callback_);
-  }
 
   if (!using_spdy_) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
@@ -1016,10 +996,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
 int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
   if (result < 0)
     return result;
-
-  if (using_quic_) {
-    stream_ = quic_request_.ReleaseStream();
-  }
 
   session_->proxy_service()->ReportSuccess(proxy_info_);
   next_state_ = STATE_NONE;
