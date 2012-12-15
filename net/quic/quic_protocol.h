@@ -24,6 +24,8 @@
 
 namespace net {
 
+using ::operator<<;
+
 class QuicPacket;
 
 typedef uint64 QuicGuid;
