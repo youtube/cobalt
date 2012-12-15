@@ -12,24 +12,6 @@
 
 namespace net {
 
-namespace {
-
-// A subclass of UplodBytesElementReader which owns the data given as a vector.
-class UploadOwnedBytesElementReader : public UploadBytesElementReader {
- public:
-  UploadOwnedBytesElementReader(std::vector<char>* data)
-      : UploadBytesElementReader(&(*data)[0], data->size()) {
-    data_.swap(*data);
-  }
-
-  virtual ~UploadOwnedBytesElementReader() {}
-
- private:
-  std::vector<char> data_;
-};
-
-}  // namespace
-
 bool UploadDataStream::merge_chunks_ = true;
 
 // static
@@ -64,6 +46,14 @@ UploadDataStream::UploadDataStream(Chunked /*chunked*/, int64 identifier)
 }
 
 UploadDataStream::~UploadDataStream() {
+}
+
+UploadDataStream* UploadDataStream::CreateWithReader(
+    scoped_ptr<UploadElementReader> reader,
+    int64 identifier) {
+  ScopedVector<UploadElementReader> readers;
+  readers.push_back(reader.release());
+  return new UploadDataStream(&readers, identifier);
 }
 
 int UploadDataStream::Init(const CompletionCallback& callback) {

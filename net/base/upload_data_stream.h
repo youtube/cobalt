@@ -34,6 +34,11 @@ class NET_EXPORT UploadDataStream {
 
   ~UploadDataStream();
 
+  // Creates UploadDataStream with a reader.
+  static UploadDataStream* CreateWithReader(
+      scoped_ptr<UploadElementReader> reader,
+      int64 identifier);
+
   // Initializes the stream. This function must be called before calling any
   // other method. It is not valid to call any method (other than the
   // destructor) if Init() returns a failure. This method can be called multiple
