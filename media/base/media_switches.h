@@ -35,7 +35,7 @@ MEDIA_EXPORT extern const char kDisableAudioFallback[];
 
 MEDIA_EXPORT extern const char kDisableAudioOutputResampler[];
 
-#if defined(OS_WIN) || defined(OS_MAC)
+#if defined(OS_WIN) || defined(OS_MACOSX)
 MEDIA_EXPORT extern const char kDisableRendererSideMixing[];
 #else
 MEDIA_EXPORT extern const char kEnableRendererSideMixing[];

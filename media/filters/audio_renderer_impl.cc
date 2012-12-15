@@ -240,7 +240,7 @@ void AudioRendererImpl::OnDecoderSelected(
   // accurate and smooth delay information.  On other platforms like Linux there
   // are jitter issues.
   // TODO(dalecurtis): Fix bugs: http://crbug.com/138098 http://crbug.com/32757
-#if defined(OS_WIN) || defined(OS_MAC)
+#if defined(OS_WIN) || defined(OS_MACOSX)
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
   // Either AudioOutputResampler or renderer side mixing must be enabled to use
   // the low latency pipeline.
