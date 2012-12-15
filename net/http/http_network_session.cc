@@ -9,7 +9,6 @@
 #include "base/compiler_specific.h"
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
-#include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/values.h"
@@ -18,8 +17,6 @@
 #include "net/http/http_stream_factory_impl.h"
 #include "net/http/url_security_manager.h"
 #include "net/proxy/proxy_service.h"
-#include "net/quic/quic_clock.h"
-#include "net/quic/quic_stream_factory.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_pool_manager_impl.h"
 #include "net/socket/next_proto.h"
@@ -79,8 +76,7 @@ HttpNetworkSession::Params::Params()
       spdy_initial_recv_window_size(0),
       spdy_initial_max_concurrent_streams(0),
       spdy_max_concurrent_streams_limit(0),
-      time_func(&base::TimeTicks::Now),
-      origin_port_to_force_quic_on(0) {
+      time_func(&base::TimeTicks::Now) {
 }
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
@@ -97,10 +93,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
           CreateSocketPoolManager(NORMAL_SOCKET_POOL, params)),
       websocket_socket_pool_manager_(
           CreateSocketPoolManager(WEBSOCKET_SOCKET_POOL, params)),
-      quic_stream_factory_(params.host_resolver,
-                           net::ClientSocketFactory::GetDefaultFactory(),
-                           base::Bind(&base::RandUint64),
-                           new QuicClock()),
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties,
