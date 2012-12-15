@@ -33,7 +33,8 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
@@ -190,6 +191,8 @@ class OCSPRequestSession
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
                    const char* http_content_type) {
+    // |upload_content_| should not be modified if |request_| is active.
+    DCHECK(!request_);
     upload_content_.assign(http_data, http_data_len);
     upload_content_type_.assign(http_content_type);
   }
@@ -403,9 +406,10 @@ class OCSPRequestSession
       extra_request_headers_.SetHeader(
           HttpRequestHeaders::kContentType, upload_content_type_);
 
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->AppendBytes(upload_content_.data(), upload_content_.size());
-      request_->set_upload(upload_data);
+      scoped_ptr<UploadElementReader> reader(new UploadBytesElementReader(
+          upload_content_.data(), upload_content_.size()));
+      request_->set_upload(make_scoped_ptr(
+          UploadDataStream::CreateWithReader(reader.Pass(), 0)));
     }
     if (!extra_request_headers_.IsEmpty())
       request_->SetExtraRequestHeaders(extra_request_headers_);
@@ -420,7 +424,9 @@ class OCSPRequestSession
   URLRequest* request_;           // The actual request this wraps
   scoped_refptr<IOBuffer> buffer_;  // Read buffer
   HttpRequestHeaders extra_request_headers_;
-  std::string upload_content_;    // HTTP POST payload
+
+  // HTTP POST payload. |request_| reads bytes from this.
+  std::string upload_content_;
   std::string upload_content_type_;  // MIME type of POST payload
 
   int response_code_;             // HTTP status code for the request

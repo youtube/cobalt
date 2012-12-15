@@ -5,19 +5,25 @@
 #ifndef NET_BASE_UPLOAD_BYTES_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_BYTES_ELEMENT_READER_H_
 
+#include <string>
+#include <vector>
+
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "net/base/upload_element_reader.h"
 
 namespace net {
 
 // An UploadElementReader implementation for bytes.
-class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
+// |data| should outlive this class because this class does not take the
+// ownership of the data.
+class NET_EXPORT UploadBytesElementReader : public UploadElementReader {
  public:
-  UploadBytesElementReader(const char* bytes, int length);
+  UploadBytesElementReader(const char* bytes, uint64 length);
   virtual ~UploadBytesElementReader();
 
   const char* bytes() const { return bytes_; }
-  int length() const { return length_; }
+  uint64 length() const { return length_; }
 
   // UploadElementReader overrides:
   virtual const UploadBytesElementReader* AsBytesReader() const OVERRIDE;
@@ -33,10 +39,28 @@ class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
 
  private:
   const char* const bytes_;
-  const int length_;
-  int offset_;
+  const uint64 length_;
+  uint64 offset_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadBytesElementReader);
+};
+
+// A subclass of UplodBytesElementReader which owns the data given as a vector.
+class NET_EXPORT UploadOwnedBytesElementReader
+    : public UploadBytesElementReader {
+ public:
+  // |data| is cleared by this ctor.
+  explicit UploadOwnedBytesElementReader(std::vector<char>* data);
+  virtual ~UploadOwnedBytesElementReader();
+
+  // Creates UploadOwnedBytesElementReader with a string.
+  static UploadOwnedBytesElementReader* CreateWithString(
+      const std::string& string);
+
+ private:
+  std::vector<char> data_;
+
+  DISALLOW_COPY_AND_ASSIGN(UploadOwnedBytesElementReader);
 };
 
 }  // namespace net

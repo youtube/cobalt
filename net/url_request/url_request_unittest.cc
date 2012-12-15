@@ -39,7 +39,9 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/test_data_directory.h"
 #include "net/base/test_root_certs.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_data_stream.h"
+#include "net/base/upload_file_element_reader.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_store_test_helpers.h"
 #include "net/disk_cache/disk_cache.h"
@@ -110,10 +112,10 @@ void FillBuffer(char* buffer, size_t len) {
   }
 }
 
-scoped_refptr<UploadData> CreateSimpleUploadData(const char* data) {
-  scoped_refptr<UploadData> upload(new UploadData);
-  upload->AppendBytes(data, strlen(data));
-  return upload;
+UploadDataStream* CreateSimpleUploadData(const char* data) {
+  scoped_ptr<UploadElementReader> reader(
+      new UploadBytesElementReader(data, strlen(data)));
+  return UploadDataStream::CreateWithReader(reader.Pass(), 0);
 }
 
 // Verify that the SSLInfo of a successful SSL connection has valid values.
@@ -1909,7 +1911,7 @@ class URLRequestTestHTTP : public URLRequestTest {
     URLRequest req(redirect_url, &d, &default_context_);
     req.set_method(request_method);
     if (include_data) {
-      req.set_upload(CreateSimpleUploadData(kData).get());
+      req.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
       HttpRequestHeaders headers;
       headers.SetHeader(HttpRequestHeaders::kContentLength,
                         base::UintToString(arraysize(kData) - 1));
@@ -1954,9 +1956,7 @@ class URLRequestTestHTTP : public URLRequestTest {
       URLRequest r(test_server_.GetURL("echo"), &d, &default_context_);
       r.set_method(method.c_str());
 
-      scoped_refptr<UploadData> upload_data(new UploadData());
-      upload_data->AppendBytes(uploadBytes, kMsgSize);
-      r.set_upload(upload_data);
+      r.set_upload(make_scoped_ptr(CreateSimpleUploadData(uploadBytes)));
 
       r.Start();
       EXPECT_TRUE(r.is_pending());
@@ -2322,7 +2322,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestPost) {
     GURL original_url(test_server_.GetURL("empty.html"));
     URLRequest r(original_url, &d, &context);
     r.set_method("POST");
-    r.set_upload(CreateSimpleUploadData(kData).get());
+    r.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
     HttpRequestHeaders headers;
     headers.SetHeader(HttpRequestHeaders::kContentLength,
                       base::UintToString(arraysize(kData) - 1));
@@ -3128,7 +3128,7 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     PathService::Get(base::DIR_EXE, &dir);
     file_util::SetCurrentDirectory(dir);
 
-    scoped_refptr<UploadData> upload_data(new UploadData);
+    ScopedVector<UploadElementReader> element_readers;
 
     FilePath path;
     PathService::Get(base::DIR_SOURCE_ROOT, &path);
@@ -3136,14 +3136,15 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     path = path.Append(FILE_PATH_LITERAL("data"));
     path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
     path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
-    upload_data->AppendFileRange(path, 0, kuint64max, base::Time());
+    element_readers.push_back(new UploadFileElementReader(
+        path, 0, kuint64max, base::Time()));
 
     // This file should just be ignored in the upload stream.
-    upload_data->AppendFileRange(
+    element_readers.push_back(new UploadFileElementReader(
         FilePath(FILE_PATH_LITERAL(
             "c:\\path\\to\\non\\existant\\file.randomness.12345")),
-        0, kuint64max, base::Time());
-    r.set_upload(upload_data);
+        0, kuint64max, base::Time()));
+    r.set_upload(make_scoped_ptr(new UploadDataStream(&element_readers, 0)));
 
     r.Start();
     EXPECT_TRUE(r.is_pending());
@@ -3591,7 +3592,7 @@ TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
   URLRequest req(
       test_server_.GetURL("files/redirect-to-echoall"), &d, &default_context_);
   req.set_method("POST");
-  req.set_upload(CreateSimpleUploadData(kData));
+  req.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
 
   // Set headers (some of which are specific to the POST).
   HttpRequestHeaders headers;
@@ -3677,7 +3678,7 @@ TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
   TestDelegate d;
   URLRequest req(test_server_.GetURL("empty.html"), &d, &default_context_);
   req.set_method("POST");
-  req.set_upload(CreateSimpleUploadData(kData).get());
+  req.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
   HttpRequestHeaders headers;
   headers.SetHeader(HttpRequestHeaders::kContentLength,
                     base::UintToString(arraysize(kData) - 1));
@@ -3701,7 +3702,7 @@ TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
   TestDelegate d;
   URLRequest req(test_server_.GetURL("empty.html"), &d, &default_context_);
   req.set_method("POST");
-  req.set_upload(CreateSimpleUploadData(kData).get());
+  req.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
   HttpRequestHeaders headers;
   headers.SetHeader(HttpRequestHeaders::kContentLength,
                     base::UintToString(arraysize(kData) - 1));
@@ -4221,7 +4222,7 @@ TEST_F(HTTPSRequestTest, HSTSPreservesPosts) {
                  &d,
                  &context);
   req.set_method("POST");
-  req.set_upload(CreateSimpleUploadData(kData).get());
+  req.set_upload(make_scoped_ptr(CreateSimpleUploadData(kData)));
 
   req.Start();
   MessageLoop::current()->Run();
