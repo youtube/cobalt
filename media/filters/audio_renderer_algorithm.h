@@ -88,6 +88,8 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 
   int bytes_per_channel() { return bytes_per_channel_; }
 
+  int samples_per_second() { return samples_per_second_; }
+
   bool is_muted() { return muted_; }
 
  private:
@@ -103,7 +105,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // data at normal speed, then we "fast forward" by dropping the next bit of
   // audio data, and then we stich the pieces together by crossfading from one
   // audio chunk to the next.
-  bool OutputFasterPlayback(uint8* dest);
+  bool OutputFasterPlayback(uint8* dest, int input_step, int output_step);
 
   // Fills |dest| with one frame of audio data at slower than normal speed.
   // Returns true if a frame was rendered, false otherwise.
@@ -114,7 +116,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // by repeating some of the audio data from the previous audio segment.
   // Segments are stiched together by crossfading from one audio chunk to the
   // next.
-  bool OutputSlowerPlayback(uint8* dest);
+  bool OutputSlowerPlayback(uint8* dest, int input_step, int output_step);
 
   // Resets the window state to the start of a new window.
   void ResetWindow();
