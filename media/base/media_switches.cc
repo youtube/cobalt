@@ -42,7 +42,7 @@ const char kDisableAudioFallback[] = "disable-audio-fallback";
 const char kDisableAudioOutputResampler[] = "disable-audio-output-resampler";
 
 // Controls renderer side mixing and low latency audio path for media elements.
-#if defined(OS_WIN) || defined(OS_MAC)
+#if defined(OS_WIN) || defined(OS_MACOSX)
 const char kDisableRendererSideMixing[] = "disable-renderer-side-mixing";
 #else
 const char kEnableRendererSideMixing[] = "enable-renderer-side-mixing";
