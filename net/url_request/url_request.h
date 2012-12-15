@@ -91,7 +91,6 @@ class HostPortPair;
 class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
-class UploadData;
 class UploadDataStream;
 class URLRequestContext;
 class URLRequestJob;
@@ -412,10 +411,10 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
                            int bytes_len,
                            bool is_last_chunk);
 
-  // Set the upload data directly.
-  void set_upload(UploadData* upload);
+  // Sets the upload data.
+  void set_upload(scoped_ptr<UploadDataStream> upload);
 
-  // Get the upload data directly.
+  // Gets the upload data.
   const UploadDataStream* get_upload() const;
 
   // Returns true if the request has a non-empty message body to upload.
@@ -756,7 +755,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   BoundNetLog net_log_;
 
   scoped_refptr<URLRequestJob> job_;
-  scoped_refptr<UploadData> upload_;
   scoped_ptr<UploadDataStream> upload_data_stream_;
   std::vector<GURL> url_chain_;
   GURL first_party_for_cookies_;
