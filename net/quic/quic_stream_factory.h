@@ -66,7 +66,7 @@ class NET_EXPORT_PRIVATE QuicStreamFactory {
   QuicStreamFactory(HostResolver* host_resolver,
                     ClientSocketFactory* client_socket_factory,
                     const RandomUint64Callback& random_uint64_callback,
-                    const QuicClock* clock);
+                    QuicClock* clock);
   virtual ~QuicStreamFactory();
 
   // Creates a new QuicHttpStream to |host_port_proxy_pair| which will be
@@ -115,7 +115,7 @@ class NET_EXPORT_PRIVATE QuicStreamFactory {
   HostResolver* host_resolver_;
   ClientSocketFactory* client_socket_factory_;
   RandomUint64Callback random_uint64_callback_;
-  const QuicClock* clock_;
+  scoped_ptr<QuicClock> clock_;
 
   // Contains owning pointers to all sessions that currently exist.
   SessionSet all_sessions_;
