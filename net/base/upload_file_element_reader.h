@@ -18,7 +18,7 @@ namespace net {
 class FileStream;
 
 // An UploadElementReader implementation for file.
-class NET_EXPORT_PRIVATE UploadFileElementReader : public UploadElementReader {
+class NET_EXPORT UploadFileElementReader : public UploadElementReader {
  public:
   // Deletes FileStream on the worker pool to avoid blocking the IO thread.
   // This class is used as a template argument of scoped_ptr_malloc.

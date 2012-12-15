@@ -5,13 +5,14 @@
 #include "net/base/upload_bytes_element_reader.h"
 
 #include "base/logging.h"
+#include "base/stl_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
 namespace net {
 
 UploadBytesElementReader::UploadBytesElementReader(const char* bytes,
-                                                   int length)
+                                                   uint64 length)
     : bytes_(bytes),
       length_(length),
       offset_(0) {
@@ -67,6 +68,21 @@ int UploadBytesElementReader::ReadSync(IOBuffer* buf, int buf_length) {
 
   offset_ += num_bytes_to_read;
   return num_bytes_to_read;
+}
+
+
+UploadOwnedBytesElementReader::UploadOwnedBytesElementReader(
+    std::vector<char>* data)
+    : UploadBytesElementReader(vector_as_array(data), data->size()) {
+  data_.swap(*data);
+}
+
+UploadOwnedBytesElementReader::~UploadOwnedBytesElementReader() {}
+
+UploadOwnedBytesElementReader*
+UploadOwnedBytesElementReader::CreateWithString(const std::string& string) {
+  std::vector<char> data(string.begin(), string.end());
+  return new UploadOwnedBytesElementReader(&data);
 }
 
 }  // namespace net
