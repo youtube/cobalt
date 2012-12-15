@@ -20,8 +20,7 @@ This code has been patched to support unknown field retention in protobuf-lite.
 See r62331 for the patch.
 
 This code has been patched to ensure that files in the target protobuf_lite
-do not include headers from protobuf_full. See rXXXXXX for the patch.
-TODO(rsimha): Update rXXXXXX above once the patch is committed.
+do not include headers from protobuf_full. See r173228 for the patch.
 
 Revisions r427 and r430 were cherry-picked from upstream.
 
