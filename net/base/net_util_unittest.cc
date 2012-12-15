@@ -1179,7 +1179,7 @@ TEST(NetUtilTest, GenerateFileName) {
       L"default",
       L"default"
     },
-    // Below is a small subset of cases taken from GetFileNameFromCD test above.
+    // Below is a small subset of cases taken from HttpContentDisposition tests.
     {
       "http://www.google.com/",
       "attachment; filename=\"%EC%98%88%EC%88%A0%20"
