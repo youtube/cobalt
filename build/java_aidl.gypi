@@ -43,11 +43,13 @@
   'variables': {
     'aidl_import_include%': '',
     'additional_aidl_arguments': [],
+    'additional_aidl_input_paths': [],
   },
   'conditions': [
     ['"<(aidl_import_include)"!=""', {
       'variables': {
-        'additional_aidl_arguments': [ '-I<(aidl_import_include)' ]
+        'additional_aidl_arguments': [ '-I<(aidl_import_include)' ],
+        'additional_aidl_input_paths': [ '<!@(find <(aidl_import_include) -name "*.java")', ]
       }
     }],
   ],
@@ -58,6 +60,7 @@
       'inputs': [
         '<(android_sdk)/framework.aidl',
         '<(aidl_interface_file)',
+        '<@(additional_aidl_input_paths)',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/<(package_name)/aidl/<(RULE_INPUT_ROOT).java',
