@@ -56,6 +56,8 @@
         'net_resources',
       ],
       'sources': [
+        'android/gurl_utils.cc',
+        'android/gurl_utils.h',
         'android/net_jni_registrar.cc',
         'android/net_jni_registrar.h',
         'android/network_change_notifier_android.cc',
@@ -2265,6 +2267,7 @@
           'type': 'none',
           'sources': [
             'android/java/src/org/chromium/net/AndroidNetworkLibrary.java',
+            'android/java/src/org/chromium/net/GURLUtils.java',
             'android/java/src/org/chromium/net/NetworkChangeNotifier.java',
             'android/java/src/org/chromium/net/ProxyChangeListener.java',
           ],
