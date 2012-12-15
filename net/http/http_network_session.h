@@ -14,6 +14,7 @@
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
+#include "net/quic/quic_stream_factory.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace base {
@@ -79,6 +80,7 @@ class NET_EXPORT HttpNetworkSession
     size_t spdy_max_concurrent_streams_limit;
     SpdySessionPool::TimeFunc time_func;
     std::string trusted_spdy_proxy;
+    uint16 origin_port_to_force_quic_on;
   };
 
   enum SocketPoolType {
@@ -114,6 +116,7 @@ class NET_EXPORT HttpNetworkSession
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
   SpdySessionPool* spdy_session_pool() { return &spdy_session_pool_; }
+  QuicStreamFactory* quic_stream_factory() { return &quic_stream_factory_; }
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
@@ -173,6 +176,7 @@ class NET_EXPORT HttpNetworkSession
   SSLClientAuthCache ssl_client_auth_cache_;
   scoped_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
   scoped_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
+  QuicStreamFactory quic_stream_factory_;
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;

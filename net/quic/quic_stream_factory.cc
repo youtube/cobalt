@@ -156,7 +156,7 @@ QuicStreamRequest::QuicStreamRequest(QuicStreamFactory* factory)
 }
 
 QuicStreamRequest::~QuicStreamRequest() {
-  if (factory_)
+  if (factory_ && !callback_.is_null())
     factory_->CancelRequest(this);
 }
 
@@ -216,7 +216,7 @@ QuicStreamFactory::QuicStreamFactory(
     HostResolver* host_resolver,
     ClientSocketFactory* client_socket_factory,
     const RandomUint64Callback& random_uint64_callback,
-    const QuicClock* clock)
+    QuicClock* clock)
     : host_resolver_(host_resolver),
       client_socket_factory_(client_socket_factory),
       random_uint64_callback_(random_uint64_callback),
@@ -342,7 +342,7 @@ QuicClientSession* QuicStreamFactory::CreateSession(
 
   QuicConnectionHelper* helper = new QuicConnectionHelper(
       MessageLoop::current()->message_loop_proxy(),
-      clock_, socket);
+      clock_.get(), socket);
 
   QuicConnection* connection = new QuicConnection(guid, addr, helper);
   QuicClientSession* session = new QuicClientSession(connection, helper, this);
