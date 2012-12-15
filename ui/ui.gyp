@@ -377,7 +377,6 @@
         'gfx/color_utils.h',
         'gfx/display.cc',
         'gfx/display.h',
-        'gfx/display_observer.cc',
         'gfx/display_observer.h',
         'gfx/favicon_size.cc',
         'gfx/favicon_size.h',
