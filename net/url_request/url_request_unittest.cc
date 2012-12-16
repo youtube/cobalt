@@ -4524,6 +4524,8 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
 
   void DoConnection(const TestServer::SSLOptions& ssl_options,
                     CertStatus* out_cert_status) {
+    // We always overwrite out_cert_status.
+    *out_cert_status = 0;
     TestServer test_server(TestServer::TYPE_HTTPS,
                            ssl_options,
                            FilePath(FILE_PATH_LITERAL("net/data/ssl")));
@@ -4611,7 +4613,7 @@ TEST_F(HTTPSOCSPTest, Valid) {
   TestServer::SSLOptions ssl_options(TestServer::SSLOptions::CERT_AUTO);
   ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_OK;
 
-  CertStatus cert_status = 0;
+  CertStatus cert_status;
   DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
@@ -4653,7 +4655,7 @@ TEST_F(HTTPSOCSPTest, Invalid) {
       TestServer::SSLOptions::CERT_AUTO);
   ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
 
-  CertStatus cert_status = 0;
+  CertStatus cert_status;
   DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
@@ -4684,7 +4686,7 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndInvalidOCSP) {
   ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
 
-  CertStatus cert_status = 0;
+  CertStatus cert_status;
   DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
@@ -4747,7 +4749,7 @@ TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::EmptyCRLSetForTesting()));
 
-  CertStatus cert_status = 0;
+  CertStatus cert_status;
   DoConnection(ssl_options, &cert_status);
 
   // With a valid, fresh CRLSet the bad OCSP response shouldn't matter because
@@ -4804,7 +4806,7 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
 
-  CertStatus cert_status = 0;
+  CertStatus cert_status;
   DoConnection(ssl_options, &cert_status);
 
   // If we're not trying EV verification then, even if the CRLSet has expired,
