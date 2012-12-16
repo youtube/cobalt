@@ -11,6 +11,8 @@
 #include <propvarutil.h>
 #include <sddl.h>
 #include <shlobj.h>
+#include <signal.h>
+#include <stdlib.h>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -37,6 +39,10 @@ bool SetPropVariantValueForPropertyStore(
 
   PropVariantClear(property_value);
   return SUCCEEDED(result);
+}
+
+void __cdecl ForceCrashOnSigAbort(int) {
+  *((int*)0) = 0x1337;
 }
 
 }  // namespace
@@ -184,6 +190,19 @@ void SetShouldCrashOnProcessDetach(bool crash) {
 
 bool ShouldCrashOnProcessDetach() {
   return g_crash_on_process_detach;
+}
+
+void SetAbortBehaviorForCrashReporting() {
+  // Prevent CRT's abort code from prompting a dialog or trying to "report" it.
+  // Disabling the _CALL_REPORTFAULT behavior is important since otherwise it
+  // has the sideffect of clearing our exception filter, which means we
+  // don't get any crash.
+  _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+
+  // Set a SIGABRT handler for good measure. We will crash even if the default
+  // is left in place, however this allows us to crash earlier. And it also
+  // lets us crash in response to code which might directly call raise(SIGABRT)
+  signal(SIGABRT, ForceCrashOnSigAbort);
 }
 
 bool IsMachineATablet() {
