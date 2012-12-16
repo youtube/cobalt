@@ -106,6 +106,10 @@ BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
 BASE_EXPORT void SetShouldCrashOnProcessDetach(bool crash);
 BASE_EXPORT bool ShouldCrashOnProcessDetach();
 
+// Adjusts the abort behavior so that crash reports can be generated when the
+// process is aborted.
+BASE_EXPORT void SetAbortBehaviorForCrashReporting();
+
 // A tablet by this definition is something that has integrated multi-touch
 // ready to use and also has screen resolution not greater than 1366x768.
 BASE_EXPORT bool IsMachineATablet();
