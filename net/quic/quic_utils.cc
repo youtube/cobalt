@@ -19,15 +19,14 @@ size_t QuicUtils::StreamFramePacketOverhead(int num_frames) {
           kMinStreamFrameLength) * num_frames;
 }
 
-// TODO(jar): put into an anonymous namespage.
-// The following two constants are defined as part of the hash algorithm.
-// 309485009821345068724781371
-static uint128 kPrime(16777216, 315);
-// 14406626329776981559649562966706236762
-static uint128 kOffset(GG_UINT64_C(780984778246553632),
-                       GG_UINT64_C(4400696054689967450));
-
 uint128 QuicUtils::FNV1a_128_Hash(const char* data, int len) {
+  // The following two constants are defined as part of the hash algorithm.
+  // 309485009821345068724781371
+  const uint128 kPrime(16777216, 315);
+  // 14406626329776981559649562966706236762
+  const uint128 kOffset(GG_UINT64_C(780984778246553632),
+                        GG_UINT64_C(4400696054689967450));
+
   const uint8* octets = reinterpret_cast<const uint8*>(data);
 
   uint128 hash = kOffset;
