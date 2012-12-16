@@ -20,7 +20,7 @@ TEST(ValuesTest, Basic) {
   ASSERT_EQ(std::string("http://google.com"), homepage);
 
   ASSERT_FALSE(settings.Get("global", NULL));
-  settings.Set("global", Value::CreateBooleanValue(true));
+  settings.Set("global", new FundamentalValue(true));
   ASSERT_TRUE(settings.Get("global", NULL));
   settings.SetString("global.homepage", "http://scurvy.com");
   ASSERT_TRUE(settings.Get("global", NULL));
@@ -57,10 +57,10 @@ TEST(ValuesTest, Basic) {
 
 TEST(ValuesTest, List) {
   scoped_ptr<ListValue> mixed_list(new ListValue());
-  mixed_list->Set(0, Value::CreateBooleanValue(true));
-  mixed_list->Set(1, Value::CreateIntegerValue(42));
-  mixed_list->Set(2, Value::CreateDoubleValue(88.8));
-  mixed_list->Set(3, Value::CreateStringValue("foo"));
+  mixed_list->Set(0, new FundamentalValue(true));
+  mixed_list->Set(1, new FundamentalValue(42));
+  mixed_list->Set(2, new FundamentalValue(88.8));
+  mixed_list->Set(3, new StringValue("foo"));
   ASSERT_EQ(4u, mixed_list->GetSize());
 
   Value *value = NULL;
@@ -95,13 +95,13 @@ TEST(ValuesTest, List) {
   ASSERT_EQ("foo", string_value);
 
   // Try searching in the mixed list.
-  scoped_ptr<Value> sought_value(Value::CreateIntegerValue(42));
-  scoped_ptr<Value> not_found_value(Value::CreateBooleanValue(false));
+  base::FundamentalValue sought_value(42);
+  base::FundamentalValue not_found_value(false);
 
-  ASSERT_NE(mixed_list->end(), mixed_list->Find(*sought_value));
-  ASSERT_TRUE((*mixed_list->Find(*sought_value))->GetAsInteger(&int_value));
+  ASSERT_NE(mixed_list->end(), mixed_list->Find(sought_value));
+  ASSERT_TRUE((*mixed_list->Find(sought_value))->GetAsInteger(&int_value));
   ASSERT_EQ(42, int_value);
-  ASSERT_EQ(mixed_list->end(), mixed_list->Find(*not_found_value));
+  ASSERT_EQ(mixed_list->end(), mixed_list->Find(not_found_value));
 }
 
 TEST(ValuesTest, BinaryValue) {
@@ -139,11 +139,10 @@ TEST(ValuesTest, BinaryValue) {
 
 TEST(ValuesTest, StringValue) {
   // Test overloaded CreateStringValue.
-  scoped_ptr<Value> narrow_value(Value::CreateStringValue("narrow"));
+  scoped_ptr<Value> narrow_value(new StringValue("narrow"));
   ASSERT_TRUE(narrow_value.get());
   ASSERT_TRUE(narrow_value->IsType(Value::TYPE_STRING));
-  scoped_ptr<Value> utf16_value(
-      Value::CreateStringValue(ASCIIToUTF16("utf16")));
+  scoped_ptr<Value> utf16_value(new StringValue(ASCIIToUTF16("utf16")));
   ASSERT_TRUE(utf16_value.get());
   ASSERT_TRUE(utf16_value->IsType(Value::TYPE_STRING));
 
@@ -338,16 +337,15 @@ TEST(ValuesTest, DeepCopy) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
-  FundamentalValue* original_bool = Value::CreateBooleanValue(true);
+  FundamentalValue* original_bool = new FundamentalValue(true);
   original_dict.Set("bool", original_bool);
-  FundamentalValue* original_int = Value::CreateIntegerValue(42);
+  FundamentalValue* original_int = new FundamentalValue(42);
   original_dict.Set("int", original_int);
-  FundamentalValue* original_double = Value::CreateDoubleValue(3.14);
+  FundamentalValue* original_double = new FundamentalValue(3.14);
   original_dict.Set("double", original_double);
-  StringValue* original_string = Value::CreateStringValue("hello");
+  StringValue* original_string = new StringValue("hello");
   original_dict.Set("string", original_string);
-  StringValue* original_string16 =
-      Value::CreateStringValue(ASCIIToUTF16("hello16"));
+  StringValue* original_string16 = new StringValue(ASCIIToUTF16("hello16"));
   original_dict.Set("string16", original_string16);
 
   char* original_buffer = new char[42];
@@ -356,14 +354,14 @@ TEST(ValuesTest, DeepCopy) {
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
-  FundamentalValue* original_list_element_0 = Value::CreateIntegerValue(0);
+  FundamentalValue* original_list_element_0 = new FundamentalValue(0);
   original_list->Append(original_list_element_0);
-  FundamentalValue* original_list_element_1 = Value::CreateIntegerValue(1);
+  FundamentalValue* original_list_element_1 = new FundamentalValue(1);
   original_list->Append(original_list_element_1);
   original_dict.Set("list", original_list);
 
   DictionaryValue* original_nested_dictionary = new DictionaryValue();
-  original_nested_dictionary->Set("key", Value::CreateStringValue("value"));
+  original_nested_dictionary->Set("key", new StringValue("value"));
   original_dict.Set("dictionary", original_nested_dictionary);
 
   scoped_ptr<DictionaryValue> copy_dict(original_dict.DeepCopy());
@@ -481,7 +479,7 @@ TEST(ValuesTest, Equals) {
   EXPECT_NE(null1, null2);
   EXPECT_TRUE(null1->Equals(null2));
 
-  Value* boolean = Value::CreateBooleanValue(false);
+  Value* boolean = new FundamentalValue(false);
   EXPECT_FALSE(null1->Equals(boolean));
   delete null1;
   delete null2;
@@ -508,7 +506,7 @@ TEST(ValuesTest, Equals) {
   copy->Set("f", list->DeepCopy());
   EXPECT_TRUE(dv.Equals(copy.get()));
 
-  list->Append(Value::CreateBooleanValue(true));
+  list->Append(new FundamentalValue(true));
   EXPECT_FALSE(dv.Equals(copy.get()));
 
   // Check if Equals detects differences in only the keys.
@@ -525,9 +523,9 @@ TEST(ValuesTest, StaticEquals) {
   EXPECT_TRUE(Value::Equals(null1.get(), null2.get()));
   EXPECT_TRUE(Value::Equals(NULL, NULL));
 
-  scoped_ptr<Value> i42(Value::CreateIntegerValue(42));
-  scoped_ptr<Value> j42(Value::CreateIntegerValue(42));
-  scoped_ptr<Value> i17(Value::CreateIntegerValue(17));
+  scoped_ptr<Value> i42(new FundamentalValue(42));
+  scoped_ptr<Value> j42(new FundamentalValue(42));
+  scoped_ptr<Value> i17(new FundamentalValue(17));
   EXPECT_TRUE(Value::Equals(i42.get(), i42.get()));
   EXPECT_TRUE(Value::Equals(j42.get(), i42.get()));
   EXPECT_TRUE(Value::Equals(i42.get(), j42.get()));
@@ -546,16 +544,15 @@ TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
   DictionaryValue original_dict;
   Value* original_null = Value::CreateNullValue();
   original_dict.Set("null", original_null);
-  FundamentalValue* original_bool = Value::CreateBooleanValue(true);
+  FundamentalValue* original_bool = new FundamentalValue(true);
   original_dict.Set("bool", original_bool);
-  FundamentalValue* original_int = Value::CreateIntegerValue(42);
+  FundamentalValue* original_int = new FundamentalValue(42);
   original_dict.Set("int", original_int);
-  FundamentalValue* original_double = Value::CreateDoubleValue(3.14);
+  FundamentalValue* original_double = new FundamentalValue(3.14);
   original_dict.Set("double", original_double);
-  StringValue* original_string = Value::CreateStringValue("hello");
+  StringValue* original_string = new StringValue("hello");
   original_dict.Set("string", original_string);
-  StringValue* original_string16 =
-      Value::CreateStringValue(ASCIIToUTF16("hello16"));
+  StringValue* original_string16 = new StringValue(ASCIIToUTF16("hello16"));
   original_dict.Set("string16", original_string16);
 
   char* original_buffer = new char[42];
@@ -564,9 +561,9 @@ TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
-  FundamentalValue* original_list_element_0 = Value::CreateIntegerValue(0);
+  FundamentalValue* original_list_element_0 = new FundamentalValue(0);
   original_list->Append(original_list_element_0);
-  FundamentalValue* original_list_element_1 = Value::CreateIntegerValue(1);
+  FundamentalValue* original_list_element_1 = new FundamentalValue(1);
   original_list->Append(original_list_element_1);
   original_dict.Set("list", original_list);
 
@@ -663,7 +660,7 @@ TEST(ValuesTest, RemoveEmptyChildren) {
     ListValue* inner2 = new ListValue;
     inner->Append(new DictionaryValue);
     inner->Append(inner2);
-    inner2->Append(Value::CreateStringValue("hello"));
+    inner2->Append(new StringValue("hello"));
     root.reset(root->DeepCopyWithoutEmptyChildren());
     EXPECT_EQ(3U, root->size());
     EXPECT_TRUE(root->GetList("list_with_empty_children", &inner));
