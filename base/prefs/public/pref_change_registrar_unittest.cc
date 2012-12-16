@@ -13,6 +13,7 @@
 using testing::Mock;
 using testing::Eq;
 
+namespace base {
 namespace {
 
 const char kHomePage[] = "homepage";
@@ -39,7 +40,7 @@ class PrefChangeRegistrarTest : public testing::Test {
   virtual ~PrefChangeRegistrarTest() {}
 
  protected:
-  virtual void SetUp();
+  virtual void SetUp() OVERRIDE;
 
   base::Closure observer() const {
     return base::Bind(&base::DoNothing);
@@ -163,10 +164,10 @@ TEST_F(ObserveSetOfPreferencesTest, IsManaged) {
   scoped_ptr<PrefChangeRegistrar> pref_set(CreatePrefChangeRegistrar());
   EXPECT_FALSE(pref_set->IsManaged());
   pref_service_->SetManagedPref(kHomePage,
-                                Value::CreateStringValue("http://crbug.com"));
+                                new StringValue("http://crbug.com"));
   EXPECT_TRUE(pref_set->IsManaged());
   pref_service_->SetManagedPref(kHomePageIsNewTabPage,
-                                Value::CreateBooleanValue(true));
+                                new FundamentalValue(true));
   EXPECT_TRUE(pref_set->IsManaged());
   pref_service_->RemoveManagedPref(kHomePage);
   EXPECT_TRUE(pref_set->IsManaged());
@@ -187,17 +188,17 @@ TEST_F(ObserveSetOfPreferencesTest, Observe) {
   pref_set.Add(kHomePageIsNewTabPage, callback);
 
   EXPECT_CALL(*this, OnPreferenceChanged(kHomePage));
-  pref_service_->SetUserPref(kHomePage,
-                             Value::CreateStringValue("http://crbug.com"));
+  pref_service_->SetUserPref(kHomePage, new StringValue("http://crbug.com"));
   Mock::VerifyAndClearExpectations(this);
 
   EXPECT_CALL(*this, OnPreferenceChanged(kHomePageIsNewTabPage));
   pref_service_->SetUserPref(kHomePageIsNewTabPage,
-                             Value::CreateBooleanValue(true));
+                             new FundamentalValue(true));
   Mock::VerifyAndClearExpectations(this);
 
   EXPECT_CALL(*this, OnPreferenceChanged(_)).Times(0);
-  pref_service_->SetUserPref(kApplicationLocale,
-                             Value::CreateStringValue("en_US.utf8"));
+  pref_service_->SetUserPref(kApplicationLocale, new StringValue("en_US.utf8"));
   Mock::VerifyAndClearExpectations(this);
 }
+
+}  // namespace base

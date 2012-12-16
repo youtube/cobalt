@@ -92,15 +92,15 @@ void TestingPrefStore::ReportValueChanged(const std::string& key) {
 
 void TestingPrefStore::SetString(const std::string& key,
                                  const std::string& value) {
-  SetValue(key, Value::CreateStringValue(value));
+  SetValue(key, new base::StringValue(value));
 }
 
 void TestingPrefStore::SetInteger(const std::string& key, int value) {
-  SetValue(key, Value::CreateIntegerValue(value));
+  SetValue(key, new base::FundamentalValue(value));
 }
 
 void TestingPrefStore::SetBoolean(const std::string& key, bool value) {
-  SetValue(key, Value::CreateBooleanValue(value));
+  SetValue(key, new base::FundamentalValue(value));
 }
 
 bool TestingPrefStore::GetString(const std::string& key,

@@ -18,6 +18,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace base {
 namespace {
 
 const char kHomePage[] = "homepage";
@@ -46,7 +47,7 @@ class JsonPrefStoreTest : public testing::Test {
     data_dir_ = data_dir_.AppendASCII("test");
     data_dir_ = data_dir_.AppendASCII("data");
     data_dir_ = data_dir_.AppendASCII("pref_service");
-    LOG(WARNING) << data_dir_.value();
+    LOG(WARNING) << data_dir_.value().c_str();
     ASSERT_TRUE(file_util::PathExists(data_dir_));
   }
 
@@ -115,8 +116,7 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
   EXPECT_EQ(FilePath::StringType(FILE_PATH_LITERAL("/usr/local/")), path);
   FilePath some_path(FILE_PATH_LITERAL("/usr/sbin/"));
 
-  pref_store->SetValue(kSomeDirectory,
-                       Value::CreateStringValue(some_path.value()));
+  pref_store->SetValue(kSomeDirectory, new StringValue(some_path.value()));
   EXPECT_TRUE(pref_store->GetValue(kSomeDirectory, &actual));
   EXPECT_TRUE(actual->GetAsString(&path));
   EXPECT_EQ(some_path.value(), path);
@@ -127,8 +127,7 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
   EXPECT_TRUE(actual->GetAsBoolean(&boolean));
   EXPECT_TRUE(boolean);
 
-  pref_store->SetValue(kNewWindowsInTabs,
-                      Value::CreateBooleanValue(false));
+  pref_store->SetValue(kNewWindowsInTabs, new FundamentalValue(false));
   EXPECT_TRUE(pref_store->GetValue(kNewWindowsInTabs, &actual));
   EXPECT_TRUE(actual->GetAsBoolean(&boolean));
   EXPECT_FALSE(boolean);
@@ -137,14 +136,13 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
   int integer = 0;
   EXPECT_TRUE(actual->GetAsInteger(&integer));
   EXPECT_EQ(20, integer);
-  pref_store->SetValue(kMaxTabs, Value::CreateIntegerValue(10));
+  pref_store->SetValue(kMaxTabs, new FundamentalValue(10));
   EXPECT_TRUE(pref_store->GetValue(kMaxTabs, &actual));
   EXPECT_TRUE(actual->GetAsInteger(&integer));
   EXPECT_EQ(10, integer);
 
   pref_store->SetValue(kLongIntPref,
-                      Value::CreateStringValue(
-                          base::Int64ToString(214748364842LL)));
+                       new StringValue(base::Int64ToString(214748364842LL)));
   EXPECT_TRUE(pref_store->GetValue(kLongIntPref, &actual));
   EXPECT_TRUE(actual->GetAsString(&string_value));
   int64 value;
@@ -298,3 +296,5 @@ TEST_F(JsonPrefStoreTest, NeedsEmptyValue) {
   ASSERT_TRUE(file_util::PathExists(golden_output_file));
   EXPECT_TRUE(file_util::TextContentsEqual(golden_output_file, pref_file));
 }
+
+}  // namespace base
