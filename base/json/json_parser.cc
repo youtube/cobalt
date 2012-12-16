@@ -148,7 +148,7 @@ class JSONStringValue : public base::Value {
     return true;
   }
   virtual Value* DeepCopy() const OVERRIDE {
-    return Value::CreateStringValue(string_piece_.as_string());
+    return new StringValue(string_piece_.as_string());
   }
   virtual bool Equals(const Value* other) const OVERRIDE {
     std::string other_string;
@@ -865,12 +865,12 @@ Value* JSONParser::ConsumeNumber() {
 
   int num_int;
   if (StringToInt(num_string, &num_int))
-    return Value::CreateIntegerValue(num_int);
+    return new FundamentalValue(num_int);
 
   double num_double;
   if (base::StringToDouble(num_string.as_string(), &num_double) &&
       IsFinite(num_double)) {
-    return Value::CreateDoubleValue(num_double);
+    return new FundamentalValue(num_double);
   }
 
   return NULL;
@@ -906,7 +906,7 @@ Value* JSONParser::ConsumeLiteral() {
         return NULL;
       }
       NextNChars(kTrueLen - 1);
-      return Value::CreateBooleanValue(true);
+      return new FundamentalValue(true);
     }
     case 'f': {
       const char* kFalseLiteral = "false";
@@ -917,7 +917,7 @@ Value* JSONParser::ConsumeLiteral() {
         return NULL;
       }
       NextNChars(kFalseLen - 1);
-      return Value::CreateBooleanValue(false);
+      return new FundamentalValue(false);
     }
     case 'n': {
       const char* kNullLiteral = "null";

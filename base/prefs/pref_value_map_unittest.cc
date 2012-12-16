@@ -7,15 +7,18 @@
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace base {
+namespace {
+
 TEST(PrefValueMapTest, SetValue) {
   PrefValueMap map;
   const Value* result = NULL;
   EXPECT_FALSE(map.GetValue("key", &result));
   EXPECT_FALSE(result);
 
-  EXPECT_TRUE(map.SetValue("key", Value::CreateStringValue("test")));
-  EXPECT_FALSE(map.SetValue("key", Value::CreateStringValue("test")));
-  EXPECT_TRUE(map.SetValue("key", Value::CreateStringValue("hi mom!")));
+  EXPECT_TRUE(map.SetValue("key", new StringValue("test")));
+  EXPECT_FALSE(map.SetValue("key", new StringValue("test")));
+  EXPECT_TRUE(map.SetValue("key", new StringValue("hi mom!")));
 
   EXPECT_TRUE(map.GetValue("key", &result));
   EXPECT_TRUE(StringValue("hi mom!").Equals(result));
@@ -23,7 +26,7 @@ TEST(PrefValueMapTest, SetValue) {
 
 TEST(PrefValueMapTest, GetAndSetIntegerValue) {
   PrefValueMap map;
-  ASSERT_TRUE(map.SetValue("key", Value::CreateIntegerValue(5)));
+  ASSERT_TRUE(map.SetValue("key", new FundamentalValue(5)));
 
   int int_value = 0;
   EXPECT_TRUE(map.GetInteger("key", &int_value));
@@ -38,7 +41,7 @@ TEST(PrefValueMapTest, RemoveValue) {
   PrefValueMap map;
   EXPECT_FALSE(map.RemoveValue("key"));
 
-  EXPECT_TRUE(map.SetValue("key", Value::CreateStringValue("test")));
+  EXPECT_TRUE(map.SetValue("key", new StringValue("test")));
   EXPECT_TRUE(map.GetValue("key", NULL));
 
   EXPECT_TRUE(map.RemoveValue("key"));
@@ -49,7 +52,7 @@ TEST(PrefValueMapTest, RemoveValue) {
 
 TEST(PrefValueMapTest, Clear) {
   PrefValueMap map;
-  EXPECT_TRUE(map.SetValue("key", Value::CreateStringValue("test")));
+  EXPECT_TRUE(map.SetValue("key", new StringValue("test")));
   EXPECT_TRUE(map.GetValue("key", NULL));
 
   map.Clear();
@@ -59,9 +62,9 @@ TEST(PrefValueMapTest, Clear) {
 
 TEST(PrefValueMapTest, GetDifferingKeys) {
   PrefValueMap reference;
-  EXPECT_TRUE(reference.SetValue("b", Value::CreateStringValue("test")));
-  EXPECT_TRUE(reference.SetValue("c", Value::CreateStringValue("test")));
-  EXPECT_TRUE(reference.SetValue("e", Value::CreateStringValue("test")));
+  EXPECT_TRUE(reference.SetValue("b", new StringValue("test")));
+  EXPECT_TRUE(reference.SetValue("c", new StringValue("test")));
+  EXPECT_TRUE(reference.SetValue("e", new StringValue("test")));
 
   PrefValueMap check;
   std::vector<std::string> differing_paths;
@@ -73,9 +76,9 @@ TEST(PrefValueMapTest, GetDifferingKeys) {
   expected_differing_paths.push_back("e");
   EXPECT_EQ(expected_differing_paths, differing_paths);
 
-  EXPECT_TRUE(check.SetValue("a", Value::CreateStringValue("test")));
-  EXPECT_TRUE(check.SetValue("c", Value::CreateStringValue("test")));
-  EXPECT_TRUE(check.SetValue("d", Value::CreateStringValue("test")));
+  EXPECT_TRUE(check.SetValue("a", new StringValue("test")));
+  EXPECT_TRUE(check.SetValue("c", new StringValue("test")));
+  EXPECT_TRUE(check.SetValue("d", new StringValue("test")));
 
   reference.GetDifferingKeys(&check, &differing_paths);
   expected_differing_paths.clear();
@@ -88,14 +91,14 @@ TEST(PrefValueMapTest, GetDifferingKeys) {
 
 TEST(PrefValueMapTest, SwapTwoMaps) {
   PrefValueMap first_map;
-  EXPECT_TRUE(first_map.SetValue("a", Value::CreateStringValue("test")));
-  EXPECT_TRUE(first_map.SetValue("b", Value::CreateStringValue("test")));
-  EXPECT_TRUE(first_map.SetValue("c", Value::CreateStringValue("test")));
+  EXPECT_TRUE(first_map.SetValue("a", new StringValue("test")));
+  EXPECT_TRUE(first_map.SetValue("b", new StringValue("test")));
+  EXPECT_TRUE(first_map.SetValue("c", new StringValue("test")));
 
   PrefValueMap second_map;
-  EXPECT_TRUE(second_map.SetValue("d", Value::CreateStringValue("test")));
-  EXPECT_TRUE(second_map.SetValue("e", Value::CreateStringValue("test")));
-  EXPECT_TRUE(second_map.SetValue("f", Value::CreateStringValue("test")));
+  EXPECT_TRUE(second_map.SetValue("d", new StringValue("test")));
+  EXPECT_TRUE(second_map.SetValue("e", new StringValue("test")));
+  EXPECT_TRUE(second_map.SetValue("f", new StringValue("test")));
 
   first_map.Swap(&second_map);
 
@@ -107,3 +110,6 @@ TEST(PrefValueMapTest, SwapTwoMaps) {
   EXPECT_TRUE(second_map.GetValue("b", NULL));
   EXPECT_TRUE(second_map.GetValue("c", NULL));
 }
+
+}  // namespace
+}  // namespace base
