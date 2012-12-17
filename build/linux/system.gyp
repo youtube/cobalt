@@ -13,7 +13,6 @@
     ],
 
     'linux_link_libpci%': 0,
-    'linux_link_libspeechd%': 0,
   },
   'conditions': [
     [ 'os_posix==1 and OS!="mac"', {
@@ -379,62 +378,6 @@
                      'pci_lookup_name',
           ],
           'message': 'Generating libpci library loader.',
-          'process_outputs_as_sources': 1,
-        },
-      ],
-    },
-    {
-      'target_name': 'libspeechd',
-      'type': 'static_library',
-      'dependencies': [
-        '../../base/base.gyp:base',
-      ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '<(SHARED_INTERMEDIATE_DIR)',
-        ],
-        'conditions': [
-          ['linux_link_libspeechd==1', {
-            'link_settings': {
-              'libraries': [
-                '-lspeechd',
-              ],
-            }
-          }],
-        ],
-      },
-      'hard_dependency': 1,
-      'actions': [
-        {
-          'variables': {
-            'output_h': '<(SHARED_INTERMEDIATE_DIR)/library_loaders/libspeechd.h',
-            'output_cc': '<(INTERMEDIATE_DIR)/libspeechd_loader.cc',
-            'generator': '../../tools/generate_library_loader/generate_library_loader.py',
-          },
-          'action_name': 'generate_libspeechd_loader',
-          'inputs': [
-            '<(generator)',
-          ],
-          'outputs': [
-            '<(output_h)',
-            '<(output_cc)',
-          ],
-          'action': ['python',
-                     '<(generator)',
-                     '--name', 'LibSpeechdLoader',
-                     '--output-h', '<(output_h)',
-                     '--output-cc', '<(output_cc)',
-                     '--header', '<libspeechd.h>',
-                     '--link-directly=<(linux_link_libspeechd)',
-                     'spd_open',
-                     'spd_say',
-                     'spd_stop',
-                     'spd_close',
-                     'spd_set_notification_on',
-                     'spd_set_voice_rate',
-                     'spd_set_voice_pitch',
-          ],
-          'message': 'Generating libspeechd library loader.',
           'process_outputs_as_sources': 1,
         },
       ],
