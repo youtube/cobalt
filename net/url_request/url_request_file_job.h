@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/file_path.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 #include "net/url_request/url_request.h"
@@ -54,23 +55,49 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
+  // Meta information about the file. It's used as a member in the
+  // URLRequestFileJob and also passed between threads because disk access is
+  // necessary to obtain it.
+  struct FileMetaInfo {
+    FileMetaInfo();
+
+    // Size of the file.
+    int64 file_size;
+    // Mime type associated with the file.
+    std::string mime_type;
+    // Result returned from GetMimeTypeFromFile(), i.e. flag showing whether
+    // obtaining of the mime type was successful.
+    bool mime_type_result;
+    // Flag showing whether the file exists.
+    bool file_exists;
+    // Flag showing whether the file name actually refers to a directory.
+    bool is_directory;
+  };
+
+  // Fetches file info on a background thread.
+  static void FetchMetaInfo(const FilePath& file_path,
+                            FileMetaInfo* meta_info);
+
   // Callback after fetching file info on a background thread.
-  void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
+  void DidFetchMetaInfo(const FileMetaInfo* meta_info);
+
+  // Callback after opening file on a background thread.
+  void DidOpen(int result);
+
+  // Callback after seeking to the beginning of |byte_range_| in the file
+  // on a background thread.
+  void DidSeek(int64 result);
 
   // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
   scoped_ptr<FileStream> stream_;
-  bool is_directory_;
+  FileMetaInfo meta_info_;
 
   HttpByteRange byte_range_;
   int64 remaining_bytes_;
 
-  // The initial file metadata is fetched on a background thread.
-  // AsyncResolver runs that task.
-  class AsyncResolver;
-  friend class AsyncResolver;
-  scoped_refptr<AsyncResolver> async_resolver_;
+  base::WeakPtrFactory<URLRequestFileJob> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileJob);
 };
