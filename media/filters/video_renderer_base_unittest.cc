@@ -481,7 +481,7 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_Flushed) {
   Shutdown();
 }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(ADDRESS_SANITIZER)
 // http://crbug.com/109405
 #define MAYBE_GetCurrentFrame_EndOfStream DISABLED_GetCurrentFrame_EndOfStream
 #else
