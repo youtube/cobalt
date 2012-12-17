@@ -188,9 +188,11 @@ int CertVerifyProcOpenSSL::VerifyInternal(X509Certificate* cert,
     if (!sk_X509_push(intermediates.get(), *it))
       return ERR_OUT_OF_MEMORY;
   }
-  int rv = X509_STORE_CTX_init(ctx.get(), X509Certificate::cert_store(),
-                               cert->os_cert_handle(), intermediates.get());
-  CHECK_EQ(1, rv);
+  if (X509_STORE_CTX_init(ctx.get(), X509Certificate::cert_store(),
+                          cert->os_cert_handle(), intermediates.get()) != 1) {
+    NOTREACHED();
+    return ERR_FAILED;
+  }
 
   if (X509_verify_cert(ctx.get()) != 1) {
     int x509_error = X509_STORE_CTX_get_error(ctx.get());
