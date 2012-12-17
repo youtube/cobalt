@@ -32,21 +32,29 @@ namespace media {
 
 static const int kFrameDurationInMs = 10;
 static const int kVideoDurationInMs = kFrameDurationInMs * 100;
+static const VideoFrame::Format kVideoFormat = VideoFrame::YV12;
+static const gfx::Size kCodedSize(16u, 16u);
+static const gfx::Rect kVisibleRect(16u, 16u);
 static const gfx::Size kNaturalSize(16u, 16u);
 
 class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
       : decoder_(new MockVideoDecoder()),
-        demuxer_stream_(new MockDemuxerStream()) {
+        demuxer_stream_(new MockDemuxerStream()),
+        video_config_(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN, kVideoFormat,
+                      kCodedSize, kVisibleRect, kNaturalSize, NULL, 0, false) {
     renderer_ = new VideoRendererBase(
         message_loop_.message_loop_proxy(),
+        media::SetDecryptorReadyCB(),
         base::Bind(&VideoRendererBaseTest::OnPaint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
 
     EXPECT_CALL(*demuxer_stream_, type())
         .WillRepeatedly(Return(DemuxerStream::VIDEO));
+    EXPECT_CALL(*demuxer_stream_, video_decoder_config())
+        .WillRepeatedly(ReturnRef(video_config_));
 
     // We expect these to be called but we don't care how/when.
     EXPECT_CALL(*decoder_, Stop(_))
@@ -324,6 +332,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   MessageLoop message_loop_;
+
+  VideoDecoderConfig video_config_;
 
   // Used to protect |time_|.
   base::Lock lock_;
@@ -605,8 +615,8 @@ TEST_F(VideoRendererBaseTest, VideoDecoder_InitFailure) {
   InSequence s;
 
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunCallback<1>(PIPELINE_ERROR_DECODE));
-  InitializeRenderer(PIPELINE_ERROR_DECODE);
+      .WillOnce(RunCallback<1>(DECODER_ERROR_NOT_SUPPORTED));
+  InitializeRenderer(DECODER_ERROR_NOT_SUPPORTED);
 
   Stop();
 }

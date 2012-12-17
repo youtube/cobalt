@@ -13,6 +13,8 @@
 #include "media/base/limits.h"
 #include "media/base/pipeline.h"
 #include "media/base/video_frame.h"
+#include "media/filters/decrypting_demuxer_stream.h"
+#include "media/filters/video_decoder_selector.h"
 
 namespace media {
 
@@ -22,10 +24,12 @@ base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
 
 VideoRendererBase::VideoRendererBase(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const base::Closure& paint_cb,
     const SetOpaqueCB& set_opaque_cb,
     bool drop_frames)
     : message_loop_(message_loop),
+      set_decryptor_ready_cb_(set_decryptor_ready_cb),
       frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
@@ -62,12 +66,24 @@ void VideoRendererBase::Flush(const base::Closure& callback) {
   flush_cb_ = callback;
   state_ = kFlushingDecoder;
 
+  if (decrypting_demuxer_stream_) {
+    decrypting_demuxer_stream_->Reset(base::Bind(
+        &VideoRendererBase::ResetDecoder, this));
+    return;
+  }
+
+  decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderResetDone, this));
+}
+
+void VideoRendererBase::ResetDecoder() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  base::AutoLock auto_lock(lock_);
   decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderResetDone, this));
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  if (state_ == kStopped) {
+  if (state_ == kUninitialized || state_ == kStopped) {
     callback.Run();
     return;
   }
@@ -94,6 +110,18 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
+  if (decrypting_demuxer_stream_) {
+    decrypting_demuxer_stream_->Reset(base::Bind(
+        &VideoRendererBase::StopDecoder, this, callback));
+    return;
+  }
+
+  decoder_->Stop(callback);
+}
+
+void VideoRendererBase::StopDecoder(const base::Closure& callback) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  base::AutoLock auto_lock(lock_);
   decoder_->Stop(callback);
 }
 
@@ -151,52 +179,40 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
   get_time_cb_ = get_time_cb;
   get_duration_cb_ = get_duration_cb;
 
-  scoped_ptr<VideoDecoderList> decoder_list(new VideoDecoderList(decoders));
-  InitializeNextDecoder(stream, decoder_list.Pass());
+  scoped_ptr<VideoDecoderSelector> decoder_selector(
+      new VideoDecoderSelector(base::MessageLoopProxy::current(),
+                               decoders,
+                               set_decryptor_ready_cb_));
+
+  // To avoid calling |decoder_selector| methods and passing ownership of
+  // |decoder_selector| in the same line.
+  VideoDecoderSelector* decoder_selector_ptr = decoder_selector.get();
+
+  decoder_selector_ptr->SelectVideoDecoder(
+      stream,
+      statistics_cb,
+      base::Bind(&VideoRendererBase::OnDecoderSelected, this,
+                 base::Passed(&decoder_selector)));
 }
 
-void VideoRendererBase::InitializeNextDecoder(
-    const scoped_refptr<DemuxerStream>& demuxer_stream,
-    scoped_ptr<VideoDecoderList> decoders) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  lock_.AssertAcquired();
-  DCHECK(!decoders->empty());
-
-  scoped_refptr<VideoDecoder> decoder = decoders->front();
-  decoders->pop_front();
-
-  DCHECK(decoder);
-  decoder_ = decoder;
-
-  base::AutoUnlock auto_unlock(lock_);
-  decoder->Initialize(
-      demuxer_stream,
-      base::Bind(&VideoRendererBase::OnDecoderInitDone, this,
-                 demuxer_stream,
-                 base::Passed(&decoders)),
-      statistics_cb_);
-}
-
-void VideoRendererBase::OnDecoderInitDone(
-    const scoped_refptr<DemuxerStream>& demuxer_stream,
-    scoped_ptr<VideoDecoderList> decoders,
-    PipelineStatus status) {
+void VideoRendererBase::OnDecoderSelected(
+    scoped_ptr<VideoDecoderSelector> decoder_selector,
+    const scoped_refptr<VideoDecoder>& selected_decoder,
+    const scoped_refptr<DecryptingDemuxerStream>& decrypting_demuxer_stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
 
   if (state_ == kStopped)
     return;
 
-  if (!decoders->empty() && status == DECODER_ERROR_NOT_SUPPORTED) {
-    InitializeNextDecoder(demuxer_stream, decoders.Pass());
+  if (!selected_decoder) {
+    state_ = kUninitialized;
+    base::ResetAndReturn(&init_cb_).Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
-  if (status != PIPELINE_OK) {
-    state_ = kError;
-    base::ResetAndReturn(&init_cb_).Run(status);
-    return;
-  }
+  decoder_ = selected_decoder;
+  decrypting_demuxer_stream_ = decrypting_demuxer_stream;
 
   // We're all good!  Consider ourselves flushed. (ThreadMain() should never
   // see us in the kUninitialized state).

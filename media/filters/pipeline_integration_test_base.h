@@ -86,6 +86,8 @@ class PipelineIntegrationTestBase {
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(
       const scoped_refptr<Demuxer>& demuxer, Decryptor* decryptor);
+  void SetDecryptor(Decryptor* decryptor,
+                    const DecryptorReadyCB& decryptor_ready_cb);
   void OnVideoRendererPaint();
 
   MOCK_METHOD1(OnSetOpaque, void(bool));

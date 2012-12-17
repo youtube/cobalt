@@ -464,7 +464,7 @@ bool FFmpegVideoDecoder::ConfigureDecoder() {
     return false;
   }
 
-  if (config.is_encrypted() && !decryptor_) {
+  if (config.is_encrypted()) {
     DLOG(ERROR) << "Encrypted video stream not supported.";
     return false;
   }

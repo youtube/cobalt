@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include <string>
-#include <vector>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -11,7 +10,6 @@
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/decrypt_config.h"
 #include "media/base/gmock_callback_support.h"
 #include "media/base/limits.h"
 #include "media/base/mock_filters.h"
@@ -40,23 +38,6 @@ static const VideoFrame::Format kVideoFormat = VideoFrame::YV12;
 static const gfx::Size kCodedSize(320, 240);
 static const gfx::Rect kVisibleRect(320, 240);
 static const gfx::Size kNaturalSize(320, 240);
-static const uint8 kFakeKeyId[] = { 0x4b, 0x65, 0x79, 0x20, 0x49, 0x44 };
-static const uint8 kFakeIv[DecryptConfig::kDecryptionKeySize] = { 0 };
-
-// Create a fake non-empty encrypted buffer.
-static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
-  const int buffer_size = 16;  // Need a non-empty buffer;
-  const int encrypted_frame_offset = 1;  // This should be non-zero.
-  scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(buffer_size));
-  buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-      std::string(reinterpret_cast<const char*>(kFakeKeyId),
-                  arraysize(kFakeKeyId)),
-      std::string(reinterpret_cast<const char*>(kFakeIv),
-                  DecryptConfig::kDecryptionKeySize),
-      encrypted_frame_offset,
-      std::vector<SubsampleEntry>())));
-  return buffer;
-}
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer ? DemuxerStream::kOk : DemuxerStream::kAborted, buffer);
@@ -81,7 +62,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
     end_of_stream_buffer_ = DecoderBuffer::CreateEOSBuffer();
     i_frame_buffer_ = ReadTestDataFile("vp8-I-frame-320x240");
     corrupt_i_frame_buffer_ = ReadTestDataFile("vp8-corrupt-I-frame");
-    encrypted_i_frame_buffer_ = CreateFakeEncryptedBuffer();
   }
 
   virtual ~FFmpegVideoDecoderTest() {
@@ -249,7 +229,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
   scoped_refptr<DecoderBuffer> end_of_stream_buffer_;
   scoped_refptr<DecoderBuffer> i_frame_buffer_;
   scoped_refptr<DecoderBuffer> corrupt_i_frame_buffer_;
-  scoped_refptr<DecoderBuffer> encrypted_i_frame_buffer_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoderTest);
@@ -458,90 +437,6 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
   DecodeIFrameThenTestFile("vp8-I-frame-320x120", 320, 120);
 }
 
-TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
-  InitializeWithEncryptedConfig();
-
-  // Simulate decoding a single encrypted frame.
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunCallback<2>(Decryptor::kSuccess, i_frame_buffer_));
-
-  VideoDecoder::Status status;
-  scoped_refptr<VideoFrame> video_frame;
-  DecodeSingleFrame(encrypted_i_frame_buffer_, &status, &video_frame);
-
-  EXPECT_EQ(VideoDecoder::kOk, status);
-  ASSERT_TRUE(video_frame);
-  EXPECT_FALSE(video_frame->IsEndOfStream());
-}
-
-// Test the case that the decryptor fails to decrypt the encrypted buffer.
-TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_DecryptError) {
-  InitializeWithEncryptedConfig();
-
-  // Simulate decoding a single encrypted frame.
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunCallback<2>(Decryptor::kError,
-                                     scoped_refptr<media::DecoderBuffer>()));
-
-  // Our read should still get satisfied with end of stream frame during an
-  // error.
-  VideoDecoder::Status status;
-  scoped_refptr<VideoFrame> video_frame;
-  Read(&status, &video_frame);
-  EXPECT_EQ(VideoDecoder::kDecryptError, status);
-  EXPECT_FALSE(video_frame);
-}
-
-// Test the case that the decryptor has no key to decrypt the encrypted buffer.
-TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoDecryptionKey) {
-  InitializeWithEncryptedConfig();
-
-  // Simulate decoding a single encrypted frame.
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunCallback<2>(Decryptor::kNoKey,
-                                     scoped_refptr<media::DecoderBuffer>()));
-
-  // Our read should still get satisfied with end of stream frame during an
-  // error.
-  VideoDecoder::Status status;
-  scoped_refptr<VideoFrame> video_frame;
-  Read(&status, &video_frame);
-  EXPECT_EQ(VideoDecoder::kDecryptError, status);
-  EXPECT_FALSE(video_frame);
-}
-
-// Test the case that the decryptor fails to decrypt the encrypted buffer but
-// cannot detect the decryption error and returns a corrupted buffer.
-TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_CorruptedBufferReturned) {
-  InitializeWithEncryptedConfig();
-
-  // Simulate decoding a single encrypted frame.
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunCallback<2>(Decryptor::kSuccess,
-                                     corrupt_i_frame_buffer_));
-  // The decoder only detects the error at the second decoding call. So
-  // |statistics_cb_| still gets called once.
-  EXPECT_CALL(statistics_cb_, OnStatistics(_));
-
-  // Our read should still get satisfied with end of stream frame during an
-  // error.
-  VideoDecoder::Status status;
-  scoped_refptr<VideoFrame> video_frame;
-  Read(&status, &video_frame);
-  EXPECT_EQ(VideoDecoder::kDecodeError, status);
-  EXPECT_FALSE(video_frame);
-}
-
 // Test resetting when decoder has initialized but not decoded.
 TEST_F(FFmpegVideoDecoderTest, Reset_Initialized) {
   Initialize();
@@ -582,23 +477,6 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
   read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
 }
 
-// Test resetting when there is a pending decrypt on the decryptor.
-TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingDecrypt) {
-  InitializeWithEncryptedConfig();
-
-  // Request a read on the decoder and ensure the decryptor has been called.
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillOnce(SaveArg<2>(&decrypt_cb_));
-  decoder_->Read(read_cb_);
-  ASSERT_FALSE(decrypt_cb_.is_null());
-
-  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
-  Reset();
-}
-
 // Test stopping when decoder has initialized but not decoded.
 TEST_F(FFmpegVideoDecoderTest, Stop_Initialized) {
   Initialize();
@@ -636,23 +514,6 @@ TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingRead) {
   Stop();
 
   read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
-}
-
-// Test stopping when there is a pending decrypt on the decryptor.
-TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingDecrypt) {
-  InitializeWithEncryptedConfig();
-
-  // Request a read on the decoder and ensure the decryptor has been called.
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-  EXPECT_CALL(*decryptor_,
-              Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillOnce(SaveArg<2>(&decrypt_cb_));
-  decoder_->Read(read_cb_);
-  ASSERT_FALSE(decrypt_cb_.is_null());
-
-  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
-  Stop();
 }
 
 // Test aborted read on the demuxer stream.
