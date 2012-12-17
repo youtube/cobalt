@@ -95,7 +95,8 @@ bool DecodeBQEncoding(const std::string& part,
 bool DecodeWord(const std::string& encoded_word,
                 const std::string& referrer_charset,
                 bool* is_rfc2047,
-                std::string* output) {
+                std::string* output,
+                int* parse_result_flags) {
   *is_rfc2047 = false;
   output->clear();
   if (encoded_word.empty())
@@ -117,6 +118,7 @@ bool DecodeWord(const std::string& encoded_word,
       }
     }
 
+    *parse_result_flags |= net::HttpContentDisposition::HAS_NON_ASCII_STRINGS;
     return true;
   }
 
@@ -125,7 +127,7 @@ bool DecodeWord(const std::string& encoded_word,
   // =?charset?<E>?<encoded string>?= where '<E>' is either 'B' or 'Q'.
   // We don't care about the length restriction (72 bytes) because
   // many web servers generate encoded words longer than the limit.
-  std::string tmp;
+  std::string decoded_word;
   *is_rfc2047 = true;
   int part_index = 0;
   std::string charset;
@@ -158,7 +160,7 @@ bool DecodeWord(const std::string& encoded_word,
         ++part_index;
         break;
       case 3:
-        *is_rfc2047 = DecodeBQEncoding(part, enc_type, charset, &tmp);
+        *is_rfc2047 = DecodeBQEncoding(part, enc_type, charset, &decoded_word);
         if (!*is_rfc2047) {
           // Last minute failure. Invalid B/Q encoding. Rather than
           // passing it through, return now.
@@ -186,7 +188,9 @@ bool DecodeWord(const std::string& encoded_word,
 
   if (*is_rfc2047) {
     if (*(encoded_word.end() - 1) == '=') {
-      output->swap(tmp);
+      output->swap(decoded_word);
+      *parse_result_flags |=
+          net::HttpContentDisposition::HAS_RFC2047_ENCODED_STRINGS;
       return true;
     }
     // encoded_word ending prematurelly with '?' or extra '?'
@@ -199,9 +203,13 @@ bool DecodeWord(const std::string& encoded_word,
   // web browser.
 
   // What IE6/7 does: %-escaped UTF-8.
-  tmp = net::UnescapeURLComponent(encoded_word, net::UnescapeRule::SPACES);
-  if (IsStringUTF8(tmp)) {
-    output->swap(tmp);
+  decoded_word = net::UnescapeURLComponent(encoded_word,
+                                           net::UnescapeRule::SPACES);
+  if (decoded_word != encoded_word)
+    *parse_result_flags |=
+        net::HttpContentDisposition::HAS_PERCENT_ENCODED_STRINGS;
+  if (IsStringUTF8(decoded_word)) {
+    output->swap(decoded_word);
     return true;
     // We can try either the OS default charset or 'origin charset' here,
     // As far as I can tell, IE does not support it. However, I've seen
@@ -221,19 +229,21 @@ bool DecodeWord(const std::string& encoded_word,
 // strings. Non-ASCII strings are interpreted based on |referrer_charset|.
 bool DecodeFilenameValue(const std::string& input,
                          const std::string& referrer_charset,
-                         std::string* output) {
-  std::string tmp;
+                         std::string* output,
+                         int* parse_result_flags) {
+  int current_parse_result_flags = 0;
+  std::string decoded_value;
+  bool is_previous_token_rfc2047 = true;
+
   // Tokenize with whitespace characters.
   StringTokenizer t(input, " \t\n\r");
   t.set_options(StringTokenizer::RETURN_DELIMS);
-  bool is_previous_token_rfc2047 = true;
   while (t.GetNext()) {
     if (t.token_is_delim()) {
       // If the previous non-delimeter token is not RFC2047-encoded,
       // put in a space in its place. Otheriwse, skip over it.
-      if (!is_previous_token_rfc2047) {
-        tmp.push_back(' ');
-      }
+      if (!is_previous_token_rfc2047)
+        decoded_value.push_back(' ');
       continue;
     }
     // We don't support a single multibyte character split into
@@ -243,11 +253,13 @@ bool DecodeFilenameValue(const std::string& input,
     // it, either.
     std::string decoded;
     if (!DecodeWord(t.token(), referrer_charset, &is_previous_token_rfc2047,
-                    &decoded))
+                    &decoded, &current_parse_result_flags))
       return false;
-    tmp.append(decoded);
+    decoded_value.append(decoded);
   }
-  output->swap(tmp);
+  output->swap(decoded_value);
+  if (parse_result_flags && !output->empty())
+    *parse_result_flags |= current_parse_result_flags;
   return true;
 }
 
@@ -339,7 +351,8 @@ namespace net {
 
 HttpContentDisposition::HttpContentDisposition(
     const std::string& header, const std::string& referrer_charset)
-  : type_(INLINE) {
+  : type_(INLINE),
+    parse_result_flags_(INVALID) {
   Parse(header, referrer_charset);
 }
 
@@ -361,10 +374,18 @@ std::string::const_iterator HttpContentDisposition::ConsumeDispositionType(
   if (!HttpUtil::IsToken(type_begin, type_end))
     return begin;
 
+  parse_result_flags_ |= HAS_DISPOSITION_TYPE;
+
   DCHECK(std::find(type_begin, type_end, '=') == type_end);
 
-  if (!LowerCaseEqualsASCII(type_begin, type_end, "inline"))
+  if (LowerCaseEqualsASCII(type_begin, type_end, "inline")) {
+    type_ = INLINE;
+  } else if (LowerCaseEqualsASCII(type_begin, type_end, "attachment")) {
     type_ = ATTACHMENT;
+  } else {
+    parse_result_flags_ |= HAS_UNKNOWN_DISPOSITION_TYPE;
+    type_ = ATTACHMENT;
+  }
   return delimiter;
 }
 
@@ -404,15 +425,22 @@ void HttpContentDisposition::Parse(const std::string& header,
     if (filename.empty() && LowerCaseEqualsASCII(iter.name_begin(),
                                                  iter.name_end(),
                                                  "filename")) {
-      DecodeFilenameValue(iter.value(), referrer_charset, &filename);
+      DecodeFilenameValue(iter.value(), referrer_charset, &filename,
+                          &parse_result_flags_);
+      if (!filename.empty())
+        parse_result_flags_ |= HAS_FILENAME;
     } else if (name.empty() && LowerCaseEqualsASCII(iter.name_begin(),
                                                     iter.name_end(),
                                                     "name")) {
-      DecodeFilenameValue(iter.value(), referrer_charset, &name);
+      DecodeFilenameValue(iter.value(), referrer_charset, &name, NULL);
+      if (!name.empty())
+        parse_result_flags_ |= HAS_NAME;
     } else if (ext_filename.empty() && LowerCaseEqualsASCII(iter.name_begin(),
                                                             iter.name_end(),
                                                             "filename*")) {
       DecodeExtValue(iter.raw_value(), &ext_filename);
+      if (!ext_filename.empty())
+        parse_result_flags_ |= HAS_EXT_FILENAME;
     }
   }
 
