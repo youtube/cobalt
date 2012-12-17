@@ -565,6 +565,24 @@ TEST_F(URLRequestTest, FileTest) {
   }
 }
 
+TEST_F(URLRequestTest, FileTestCancel) {
+  FilePath app_path;
+  PathService::Get(base::FILE_EXE, &app_path);
+  GURL app_url = FilePathToFileURL(app_path);
+
+  TestDelegate d;
+  {
+    URLRequest r(app_url, &d, &default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+    r.Cancel();
+  }
+  // Async cancelation should be safe even when URLRequest has been already
+  // destroyed.
+  MessageLoop::current()->RunUntilIdle();
+}
+
 TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   const size_t buffer_size = 4000;
   scoped_array<char> buffer(new char[buffer_size]);

@@ -45,54 +45,21 @@
 
 namespace net {
 
-class URLRequestFileJob::AsyncResolver
-    : public base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver> {
- public:
-  explicit AsyncResolver(URLRequestFileJob* owner)
-      : owner_(owner), owner_loop_(MessageLoop::current()) {
-  }
-
-  void Resolve(const FilePath& file_path) {
-    base::PlatformFileInfo file_info;
-    bool exists = file_util::GetFileInfo(file_path, &file_info);
-    base::AutoLock locked(lock_);
-    if (owner_loop_) {
-      owner_loop_->PostTask(
-          FROM_HERE,
-          base::Bind(&AsyncResolver::ReturnResults, this, exists, file_info));
-    }
-  }
-
-  void Cancel() {
-    owner_ = NULL;
-
-    base::AutoLock locked(lock_);
-    owner_loop_ = NULL;
-  }
-
- private:
-  friend class base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver>;
-
-  ~AsyncResolver() {}
-
-  void ReturnResults(bool exists, const base::PlatformFileInfo& file_info) {
-    if (owner_)
-      owner_->DidResolve(exists, file_info);
-  }
-
-  URLRequestFileJob* owner_;
-
-  base::Lock lock_;
-  MessageLoop* owner_loop_;
-};
+URLRequestFileJob::FileMetaInfo::FileMetaInfo()
+    : file_size(0),
+      mime_type_result(false),
+      file_exists(false),
+      is_directory(false) {
+}
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      NetworkDelegate* network_delegate,
                                      const FilePath& file_path)
     : URLRequestJob(request, network_delegate),
       file_path_(file_path),
-      is_directory_(false),
-      remaining_bytes_(0) {
+      stream_(new FileStream(NULL)),
+      remaining_bytes_(0),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
 }
 
 // static
@@ -124,21 +91,20 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
 }
 
 void URLRequestFileJob::Start() {
-  DCHECK(!async_resolver_);
-  async_resolver_ = new AsyncResolver(this);
-  base::WorkerPool::PostTask(
+  FileMetaInfo* meta_info = new FileMetaInfo();
+  base::WorkerPool::PostTaskAndReply(
       FROM_HERE,
-      base::Bind(&AsyncResolver::Resolve, async_resolver_.get(), file_path_),
+      base::Bind(&URLRequestFileJob::FetchMetaInfo, file_path_,
+                 base::Unretained(meta_info)),
+      base::Bind(&URLRequestFileJob::DidFetchMetaInfo,
+                 weak_ptr_factory_.GetWeakPtr(),
+                 base::Owned(meta_info)),
       true);
 }
 
 void URLRequestFileJob::Kill() {
   stream_.reset();
-
-  if (async_resolver_) {
-    async_resolver_->Cancel();
-    async_resolver_ = NULL;
-  }
+  weak_ptr_factory_.InvalidateWeakPtrs();
 
   URLRequestJob::Kill();
 }
@@ -161,7 +127,7 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
 
   int rv = stream_->Read(dest, dest_size,
                          base::Bind(&URLRequestFileJob::DidRead,
-                                    base::Unretained(this)));
+                                    weak_ptr_factory_.GetWeakPtr()));
   if (rv >= 0) {
     // Data is immediately available.
     *bytes_read = rv;
@@ -181,7 +147,7 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
 
 bool URLRequestFileJob::IsRedirectResponse(GURL* location,
                                            int* http_status_code) {
-  if (is_directory_) {
+  if (meta_info_.is_directory) {
     // This happens when we discovered the file is a directory, so needs a
     // slash at the end of the path.
     std::string new_path = request_->url().path();
@@ -223,12 +189,12 @@ Filter* URLRequestFileJob::SetupFilter() const {
 }
 
 bool URLRequestFileJob::GetMimeType(std::string* mime_type) const {
-  // URL requests should not block on the disk!  On Windows this goes to the
-  // registry.
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
   DCHECK(request_);
-  return GetMimeTypeFromFile(file_path_, mime_type);
+  if (meta_info_.mime_type_result) {
+    *mime_type = meta_info_.mime_type;
+    return true;
+  }
+  return false;
 }
 
 void URLRequestFileJob::SetExtraRequestHeaders(
@@ -253,20 +219,25 @@ void URLRequestFileJob::SetExtraRequestHeaders(
 }
 
 URLRequestFileJob::~URLRequestFileJob() {
-  DCHECK(!async_resolver_);
 }
 
-void URLRequestFileJob::DidResolve(
-    bool exists, const base::PlatformFileInfo& file_info) {
-  async_resolver_ = NULL;
+void URLRequestFileJob::FetchMetaInfo(const FilePath& file_path,
+                                      FileMetaInfo* meta_info) {
+  base::PlatformFileInfo platform_info;
+  meta_info->file_exists = file_util::GetFileInfo(file_path, &platform_info);
+  if (meta_info->file_exists) {
+    meta_info->file_size = platform_info.size;
+    meta_info->is_directory = platform_info.is_directory;
+  }
+  // On Windows GetMimeTypeFromFile() goes to the registry. Thus it should be
+  // done in WorkerPool.
+  meta_info->mime_type_result = GetMimeTypeFromFile(file_path,
+                                                    &meta_info->mime_type);
+}
 
-  // We may have been orphaned...
-  if (!request_)
-    return;
+void URLRequestFileJob::DidFetchMetaInfo(const FileMetaInfo* meta_info) {
+  meta_info_ = *meta_info;
 
-  is_directory_ = file_info.is_directory;
-
-  int rv = OK;
   // We use URLRequestFileJob to handle files as well as directories without
   // trailing slash.
   // If a directory does not exist, we return ERR_FILE_NOT_FOUND. Otherwise,
@@ -275,27 +246,32 @@ void URLRequestFileJob::DidResolve(
   // However, Windows resolves "\" to "C:\", thus reports it as existent.
   // So what happens is we append it with trailing slash and redirect it to
   // FileDirJob where it is resolved as invalid.
-  if (!exists) {
-    rv = ERR_FILE_NOT_FOUND;
-  } else if (!is_directory_) {
-    stream_.reset(new FileStream(NULL));
-
-    // URL requests should not block on the disk!
-    //   http://code.google.com/p/chromium/issues/detail?id=59849
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-
-    int flags = base::PLATFORM_FILE_OPEN |
-                base::PLATFORM_FILE_READ |
-                base::PLATFORM_FILE_ASYNC;
-    rv = stream_->OpenSync(file_path_, flags);
+  if (!meta_info_.file_exists) {
+    DidOpen(ERR_FILE_NOT_FOUND);
+    return;
   }
-
-  if (rv != OK) {
-    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, rv));
+  if (meta_info_.is_directory) {
+    DidOpen(OK);
     return;
   }
 
-  if (!byte_range_.ComputeBounds(file_info.size)) {
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_READ |
+              base::PLATFORM_FILE_ASYNC;
+  int rv = stream_->Open(file_path_, flags,
+                         base::Bind(&URLRequestFileJob::DidOpen,
+                                    weak_ptr_factory_.GetWeakPtr()));
+  if (rv != ERR_IO_PENDING)
+    DidOpen(rv);
+}
+
+void URLRequestFileJob::DidOpen(int result) {
+  if (result != OK) {
+    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
+    return;
+  }
+
+  if (!byte_range_.ComputeBounds(meta_info_.file_size)) {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
                ERR_REQUEST_RANGE_NOT_SATISFIABLE));
     return;
@@ -305,19 +281,28 @@ void URLRequestFileJob::DidResolve(
                      byte_range_.first_byte_position() + 1;
   DCHECK_GE(remaining_bytes_, 0);
 
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    // Do the seek at the beginning of the request.
-    if (remaining_bytes_ > 0 &&
-        byte_range_.first_byte_position() != 0 &&
-        byte_range_.first_byte_position() !=
-        stream_->SeekSync(FROM_BEGIN, byte_range_.first_byte_position())) {
-      NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-                                  ERR_REQUEST_RANGE_NOT_SATISFIABLE));
-      return;
+  if (remaining_bytes_ > 0 && byte_range_.first_byte_position() != 0) {
+    int rv = stream_->Seek(FROM_BEGIN, byte_range_.first_byte_position(),
+                           base::Bind(&URLRequestFileJob::DidSeek,
+                                      weak_ptr_factory_.GetWeakPtr()));
+    if (rv != ERR_IO_PENDING) {
+      // stream_->Seek() failed, so pass an intentionally erroneous value
+      // into DidSeek().
+      DidSeek(-1);
     }
+  } else {
+    // We didn't need to call stream_->Seek() at all, so we pass to DidSeek()
+    // the value that would mean seek success. This way we skip the code
+    // handling seek failure.
+    DidSeek(byte_range_.first_byte_position());
+  }
+}
+
+void URLRequestFileJob::DidSeek(int64 result) {
+  if (result != byte_range_.first_byte_position()) {
+    NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
+                                ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+    return;
   }
 
   set_expected_content_size(remaining_bytes_);
