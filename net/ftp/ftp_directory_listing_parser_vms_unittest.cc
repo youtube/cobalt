@@ -46,6 +46,9 @@ TEST_F(FtpDirectoryListingParserVmsTest, Good) {
     { "ANNOUNCE.TXT;2 1 12-MAR-2005 08:44:57 [X] (ED,RED,WD,WED)",
       FtpDirectoryListingEntry::FILE, "announce.txt", 512,
       2005, 3, 12, 8, 44 },
+    { "VMS721.ISO;2 ******  6-MAY-2008 09:29 [ANONY,ANONYMOUS] (RE,RWED,RE,RE)",
+      FtpDirectoryListingEntry::FILE, "vms721.iso", -1,
+      2008, 5, 6, 9, 29 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,

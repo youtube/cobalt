@@ -95,6 +95,12 @@ std::string FtpUtil::VMSPathToUnix(const std::string& vms_path) {
   if (vms_path.empty())
     return ".";
 
+  if (vms_path[0] == '/') {
+    // This is not really a VMS path. Most likely the server is emulating UNIX.
+    // Return path as-is.
+    return vms_path;
+  }
+
   if (vms_path == "[]")
     return "/";
 
