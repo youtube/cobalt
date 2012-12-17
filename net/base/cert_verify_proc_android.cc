@@ -88,6 +88,16 @@ int CertVerifyProcAndroid::VerifyInternal(X509Certificate* cert,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
+  // TODO(ppi): Implement missing functionality: yielding the constructed trust
+  // chain, public key hashes of its certificates and |is_issued_by_known_root|
+  // flag. All of the above require specific support from the platform, missing
+  // in the Java APIs. See also: http://crbug.com/116838
+
+  // Until the required support is available in the platform, we don't know if
+  // the trust root at the end of the chain was standard or user-added, so we
+  // mark all correctly verified certificates as issued by a known root.
+  verify_result->is_issued_by_known_root = true;
+
   return OK;
 }
 
