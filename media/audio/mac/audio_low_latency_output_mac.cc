@@ -286,6 +286,13 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
       frames_filled, format_.mBitsPerChannel / 8, audio_data);
   uint32 filled = frames_filled * format_.mBytesPerFrame;
 
+  // Perform in-place, software-volume adjustments.
+  media::AdjustVolume(audio_data,
+                      filled,
+                      audio_bus_->channels(),
+                      format_.mBitsPerChannel / 8,
+                      volume_);
+
   // Handle channel order for 5.1 audio.
   // TODO(dalecurtis): Channel downmixing, upmixing, should be done in mixer;
   // volume adjust should use SSE optimized vector_fmul() prior to interleave.
