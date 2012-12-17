@@ -1365,6 +1365,9 @@
       ['use_oem_wallpaper==1', {
         'grit_defines': ['-D', 'use_oem_wallpaper'],
       }],
+      ['enable_app_list==1', {
+        'grit_defines': ['-D', 'enable_app_list'],
+      }],
       ['enable_settings_app==1', {
         'grit_defines': ['-D', 'enable_settings_app'],
       }],
