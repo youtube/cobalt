@@ -69,7 +69,7 @@ void DecryptingDemuxerStream::Reset(const base::Closure& closure) {
   DCHECK(init_cb_.is_null());  // No Reset() during pending initialization.
   DCHECK(reset_cb_.is_null());
 
-  reset_cb_ = closure;
+  reset_cb_ = BindToCurrentLoop(closure);
 
   decryptor_->CancelDecrypt(GetDecryptorStreamType());
 

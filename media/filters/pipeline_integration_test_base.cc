@@ -207,6 +207,8 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(
       message_loop_.message_loop_proxy(),
+      base::Bind(&PipelineIntegrationTestBase::SetDecryptor,
+                 base::Unretained(this), decryptor),
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnSetOpaque,
@@ -217,12 +219,20 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   if (hashing_enabled_)
     audio_sink_->StartAudioHashForTesting();
   scoped_refptr<AudioRendererImpl> audio_renderer(new AudioRendererImpl(
-      audio_sink_, SetDecryptorReadyCB()));
+      audio_sink_,
+      base::Bind(&PipelineIntegrationTestBase::SetDecryptor,
+                 base::Unretained(this), decryptor)));
   // Disable underflow if hashing is enabled.
   if (hashing_enabled_)
     audio_renderer->DisableUnderflowForTesting();
   collection->AddAudioRenderer(audio_renderer);
   return collection.Pass();
+}
+
+void PipelineIntegrationTestBase::SetDecryptor(
+    Decryptor* decryptor,
+    const DecryptorReadyCB& decryptor_ready_cb) {
+  decryptor_ready_cb.Run(decryptor);
 }
 
 void PipelineIntegrationTestBase::OnVideoRendererPaint() {
