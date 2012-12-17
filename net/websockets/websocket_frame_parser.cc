@@ -37,8 +37,8 @@ WebSocketFrameParser::WebSocketFrameParser()
     : current_read_pos_(0),
       frame_offset_(0),
       websocket_error_(WEB_SOCKET_OK) {
-  std::fill(masking_key_,
-            masking_key_ + WebSocketFrameHeader::kMaskingKeyLength,
+  std::fill(masking_key_.key,
+            masking_key_.key + WebSocketFrameHeader::kMaskingKeyLength,
             '\0');
 }
 
@@ -153,10 +153,10 @@ void WebSocketFrameParser::DecodeFrameHeader() {
   if (masked) {
     if (end - current < kMaskingKeyLength)
       return;
-    std::copy(current, current + kMaskingKeyLength, masking_key_);
+    std::copy(current, current + kMaskingKeyLength, masking_key_.key);
     current += kMaskingKeyLength;
   } else {
-    std::fill(masking_key_, masking_key_ + kMaskingKeyLength, '\0');
+    std::fill(masking_key_.key, masking_key_.key + kMaskingKeyLength, '\0');
   }
 
   current_frame_header_.reset(new WebSocketFrameHeader);
@@ -173,8 +173,6 @@ void WebSocketFrameParser::DecodeFrameHeader() {
 
 scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
     bool first_chunk) {
-  static const int kMaskingKeyLength = WebSocketFrameHeader::kMaskingKeyLength;
-
   const char* current = &buffer_.front() + current_read_pos_;
   const char* end = &buffer_.front() + buffer_.size();
   uint64 next_size = std::min<uint64>(
@@ -194,14 +192,10 @@ scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
     char* io_data = frame_chunk->data->data();
     memcpy(io_data, current, next_size);
     if (current_frame_header_->masked) {
-      // Unmask the payload.
-      // TODO(yutak): This could be faster by doing unmasking for each
-      // machine word (instead of each byte).
-      size_t key_offset = frame_offset_ % kMaskingKeyLength;
-      for (uint64 i = 0; i < next_size; ++i) {
-        io_data[i] ^= masking_key_[key_offset];
-        key_offset = (key_offset + 1) % kMaskingKeyLength;
-      }
+      // The masking function is its own inverse, so we use the same function to
+      // unmask as to mask.
+      MaskWebSocketFramePayload(masking_key_, frame_offset_,
+                                io_data, next_size);
     }
 
     current_read_pos_ += next_size;
