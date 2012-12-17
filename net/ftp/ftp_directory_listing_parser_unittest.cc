@@ -151,6 +151,9 @@ const char* kTestFiles[] = {
   "dir-listing-vms-3",
   "dir-listing-vms-4",
   "dir-listing-vms-5",
+  "dir-listing-vms-6",
+  "dir-listing-vms-7",
+  "dir-listing-vms-8",
   "dir-listing-windows-1",
   "dir-listing-windows-2",
 };
