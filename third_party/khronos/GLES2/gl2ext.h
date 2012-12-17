@@ -2173,6 +2173,15 @@ typedef void (GL_APIENTRYP PFNGLRELEASETEXIMAGE2DCHROMIUM) (GLenum target, GLint
 #define GL_ASYNC_PIXEL_TRANSFERS_COMPLETED_CHROMIUM 0x84F5
 #endif
 
+/* GL_CHROMIUM_lose_context */
+#ifndef GL_CHROMIUM_lose_context
+#define GL_CHROMIUM_lose_context 1
+#ifdef GL_GLEXT_PROTOTYPES
+GL_APICALL void GL_APIENTRY glLoseContextCHROMIUM (GLenum current, GLenum other);
+#endif
+typedef void (GL_APIENTRYP PFNGLLOSECONTEXTCHROMIUM) (GLenum current, GLenum other);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
