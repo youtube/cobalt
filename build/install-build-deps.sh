@@ -106,8 +106,7 @@ arm_list="libc6-armel-cross libc6-dev-armel-cross libgcc1-armel-cross
           libgcc1-dbg-armel-cross libgomp1-dbg-armel-cross
           binutils-arm-linux-gnueabi cpp-arm-linux-gnueabi
           gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-          cpp-4.5-arm-linux-gnueabi gcc-4.5-arm-linux-gnueabi
-          g++-4.5-arm-linux-gnueabi libmudflap0-dbg-armel-cross"
+          libmudflap0-dbg-armel-cross"
 
 # Plugin lists needed for tests.
 plugin_list="flashplugin-installer"
@@ -192,6 +191,13 @@ if test "$do_inst_syms" = "1"; then
 else
   echo "Skipping installation of debugging symbols."
   dbg_list=
+fi
+
+# When cross building for arm on 64-bit systems the host binaries
+# that are part of v8 need to be compiled with -m32 which means
+# that basic multilib support is needed.
+if [ "$(uname -m)" = "x86_64" ]; then
+  arm_list="$arm_list g++-multilib"
 fi
 
 if test "$do_inst_arm" = "1"; then
