@@ -834,19 +834,26 @@ int FtpNetworkTransaction::ProcessResponseSYST(
       // as unknown.
       if (IsStringASCII(line)) {
         line = StringToLowerASCII(line);
+
+        // Remove all whitespace, to correctly handle cases like fancy "V M S"
+        // response instead of "VMS".
+        RemoveChars(line, kWhitespaceASCII, &line);
+
         // The "magic" strings we test for below have been gathered by an
-        // empirical study.
-        if (line.find("l8") != std::string::npos ||
-            line.find("unix") != std::string::npos ||
-            line.find("bsd") != std::string::npos) {
+        // empirical study. VMS needs to come first because some VMS systems
+        // also respond with "UNIX emulation", which is not perfect. It is much
+        // more reliable to talk to these servers in their native language.
+        if (line.find("vms") != std::string::npos) {
+          system_type_ = SYSTEM_TYPE_VMS;
+        } else if (line.find("l8") != std::string::npos ||
+                   line.find("unix") != std::string::npos ||
+                   line.find("bsd") != std::string::npos) {
           system_type_ = SYSTEM_TYPE_UNIX;
         } else if (line.find("win32") != std::string::npos ||
                    line.find("windows") != std::string::npos) {
           system_type_ = SYSTEM_TYPE_WINDOWS;
         } else if (line.find("os/2") != std::string::npos) {
           system_type_ = SYSTEM_TYPE_OS2;
-        } else if (line.find("vms") != std::string::npos) {
-          system_type_ = SYSTEM_TYPE_VMS;
         }
       }
       next_state_ = STATE_CTRL_WRITE_PWD;
