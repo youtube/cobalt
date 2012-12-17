@@ -23,6 +23,18 @@ const uint64 kMaxPayloadLengthWithoutExtendedLengthField = 125;
 const uint64 kPayloadLengthWithTwoByteExtendedLengthField = 126;
 const uint64 kPayloadLengthWithEightByteExtendedLengthField = 127;
 
+inline void MaskWebSocketFramePayloadByBytes(
+    const net::WebSocketMaskingKey& masking_key,
+    size_t masking_key_offset,
+    char* const begin,
+    char* const end) {
+  for (char* masked = begin; masked != end; ++masked) {
+    *masked ^= masking_key.key[masking_key_offset++];
+    if (masking_key_offset == net::WebSocketFrameHeader::kMaskingKeyLength)
+      masking_key_offset = 0;
+  }
+}
+
 }  // Unnamed namespace.
 
 namespace net {
@@ -142,21 +154,77 @@ WebSocketMaskingKey GenerateWebSocketMaskingKey() {
 
 void MaskWebSocketFramePayload(const WebSocketMaskingKey& masking_key,
                                uint64 frame_offset,
-                               char* data,
+                               char* const data,
                                int data_size) {
   static const size_t kMaskingKeyLength =
       WebSocketFrameHeader::kMaskingKeyLength;
 
   DCHECK_GE(data_size, 0);
 
-  // TODO(yutak): Make masking more efficient by XOR'ing every machine word
-  // (4 or 8 bytes), instead of XOR'ing every byte.
-  size_t masking_key_offset = frame_offset % kMaskingKeyLength;
-  for (int i = 0; i < data_size; ++i) {
-    data[i] ^= masking_key.key[masking_key_offset++];
-    if (masking_key_offset == kMaskingKeyLength)
-      masking_key_offset = 0;
+  // Most of the masking is done one word at a time, except for the beginning
+  // and the end of the buffer which may be unaligned. We use size_t to get the
+  // word size for this architecture. We require it be a multiple of
+  // kMaskingKeyLength in size.
+  typedef size_t PackedMaskType;
+  PackedMaskType packed_mask_key = 0;
+  static const size_t kPackedMaskKeySize = sizeof(packed_mask_key);
+  COMPILE_ASSERT((kPackedMaskKeySize >= kMaskingKeyLength &&
+                  kPackedMaskKeySize % kMaskingKeyLength == 0),
+                 word_size_is_not_multiple_of_mask_length);
+  char* const end = data + data_size;
+  // If the buffer is too small for the vectorised version to be useful, revert
+  // to the byte-at-a-time implementation early.
+  if (data_size <= static_cast<int>(kPackedMaskKeySize * 2)) {
+    MaskWebSocketFramePayloadByBytes(masking_key,
+                                     frame_offset % kMaskingKeyLength,
+                                     data, end);
+    return;
   }
+  const size_t data_modulus =
+      reinterpret_cast<size_t>(data) % kPackedMaskKeySize;
+  char* const aligned_begin = data_modulus == 0 ? data :
+      (data + kPackedMaskKeySize - data_modulus);
+  // Guaranteed by the above check for small data_size.
+  DCHECK(aligned_begin < end);
+  MaskWebSocketFramePayloadByBytes(masking_key,
+                                   frame_offset % kMaskingKeyLength,
+                                   data, aligned_begin);
+  const size_t end_modulus = reinterpret_cast<size_t>(end) % kPackedMaskKeySize;
+  char* const aligned_end = end - end_modulus;
+  // Guaranteed by the above check for small data_size.
+  DCHECK(aligned_end > aligned_begin);
+  // Create a version of the mask which is rotated by the appropriate offset
+  // for our alignment. The "trick" here is that 0 XORed with the mask will
+  // give the value of the mask for the appropriate byte.
+  char realigned_mask[kMaskingKeyLength] = { 0 };
+  MaskWebSocketFramePayloadByBytes(masking_key,
+                                   (frame_offset + aligned_begin - data)
+                                   % kMaskingKeyLength,
+                                   realigned_mask,
+                                   realigned_mask + kMaskingKeyLength);
+
+  for (size_t i = 0; i < kPackedMaskKeySize; i += kMaskingKeyLength) {
+    // memcpy() is allegedly blessed by the C++ standard for type-punning.
+    memcpy(reinterpret_cast<char*>(&packed_mask_key) + i,
+           realigned_mask, kMaskingKeyLength);
+  }
+
+  // The main loop.
+  for (char* merged = aligned_begin;
+       merged != aligned_end;
+       merged += kPackedMaskKeySize) {
+    // This is not quite standard-compliant C++. However, the standard-compliant
+    // equivalent (using memcpy()) compiles to slower code using g++. In
+    // practice, this will work for the compilers and architectures currently
+    // supported by Chromium, and the tests are extremely unlikely to pass if a
+    // future compiler/architecture breaks it.
+    *reinterpret_cast<PackedMaskType*>(merged) ^= packed_mask_key;
+  }
+
+  MaskWebSocketFramePayloadByBytes(masking_key,
+                                   (frame_offset + (aligned_end - data))
+                                   % kMaskingKeyLength,
+                                     aligned_end, end);
 }
 
 }  // namespace net
