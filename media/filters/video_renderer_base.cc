@@ -596,15 +596,28 @@ void VideoRendererBase::AttemptRead_Locked() {
 
   if (pending_read_ ||
       NumFrames_Locked() == limits::kMaxVideoFrames ||
-      (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream()) ||
-      state_ == kFlushingDecoder ||
-      state_ == kFlushing ||
-      state_ == kEnded) {
+      (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream())) {
     return;
   }
 
-  pending_read_ = true;
-  decoder_->Read(base::Bind(&VideoRendererBase::FrameReady, this));
+  switch (state_) {
+    case kPaused:
+    case kFlushing:
+    case kPrerolling:
+    case kPlaying:
+      pending_read_ = true;
+      decoder_->Read(base::Bind(&VideoRendererBase::FrameReady, this));
+      return;
+
+    case kUninitialized:
+    case kPrerolled:
+    case kFlushingDecoder:
+    case kFlushed:
+    case kEnded:
+    case kStopped:
+    case kError:
+      return;
+  }
 }
 
 void VideoRendererBase::OnDecoderResetDone() {
