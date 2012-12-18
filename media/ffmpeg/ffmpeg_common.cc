@@ -83,6 +83,8 @@ AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
       return kCodecGSM_MS;
     case CODEC_ID_PCM_MULAW:
       return kCodecPCM_MULAW;
+    case CODEC_ID_OPUS:
+      return kCodecOpus;
     default:
       DVLOG(1) << "Unknown audio CodecID: " << codec_id;
   }
@@ -124,6 +126,8 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
       return CODEC_ID_GSM_MS;
     case kCodecPCM_MULAW:
       return CODEC_ID_PCM_MULAW;
+    case kCodecOpus:
+      return CODEC_ID_OPUS;
     default:
       DVLOG(1) << "Unknown AudioCodec: " << audio_codec;
   }
@@ -224,7 +228,17 @@ void AVCodecContextToAudioDecoderConfig(
   DCHECK_EQ(codec_context->codec_type, AVMEDIA_TYPE_AUDIO);
 
   AudioCodec codec = CodecIDToAudioCodec(codec_context->codec_id);
-  int bytes_per_channel = av_get_bytes_per_sample(codec_context->sample_fmt);
+
+  AVSampleFormat sample_format = codec_context->sample_fmt;
+  if (codec == kCodecOpus) {
+    // TODO(tomfinegan): |sample_fmt| in |codec_context| is -1... because
+    // libopusdec.c isn't built into ffmpegsumo...? Maybe it's not *that* big
+    // a deal since libopus will produce either float or S16 samples, and
+    // OpusAudioDecoder is the only provider of Opus support.
+    sample_format = AV_SAMPLE_FMT_S16;
+  }
+
+  int bytes_per_channel = av_get_bytes_per_sample(sample_format);
   ChannelLayout channel_layout =
       ChannelLayoutToChromeChannelLayout(codec_context->channel_layout,
                                          codec_context->channels);
