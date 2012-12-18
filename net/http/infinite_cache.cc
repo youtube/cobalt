@@ -85,7 +85,7 @@ uint32 kMagicSignature = 0x1f00cace;
 uint32 kCurrentVersion = 0x10002;
 
 // Basic limits for the experiment.
-int kMaxNumEntries = 200 * 1000;
+int kMaxNumEntries = 500 * 1000;
 int kMaxTrackingSize = 40 * 1024 * 1024;
 
 // Settings that control how we generate histograms.
