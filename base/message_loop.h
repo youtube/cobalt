@@ -162,6 +162,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // The MessageLoop takes ownership of the Task, and deletes it after it has
   // been Run().
   //
+  // PostTask(from_here, task) is equivalent to
+  // PostDelayedTask(from_here, task, 0).
+  //
   // NOTE: These methods may be called on any thread.  The Task will be invoked
   // on the thread that executes MessageLoop::Run().
   void PostTask(
