@@ -18,8 +18,8 @@ namespace base {
 //
 // Summary
 // -------
-// Barring delayed/non-nestable tasks, tasks posted will run one by
-// one in FIFO order.
+// Non-nested tasks with the same delay will run one by one in FIFO
+// order.
 //
 // Detailed guarantees
 // -------------------
@@ -36,18 +36,19 @@ namespace base {
 //
 //   - Given two tasks T2 and T1, T2 will start after T1 starts if:
 //
-//       * T2 is posted after T1;
+//       * T2 is posted after T1; and
 //       * T2 has equal or higher delay than T1; and
 //       * T2 is non-nestable or T1 is nestable.
 //
 //   - If T2 will start after T1 starts by the above guarantee, then
-//     T2 will start after T1 finishes if:
+//     T2 will start after T1 finishes and is destroyed if:
 //
 //       * T2 is non-nestable, or
 //       * T1 doesn't call any task-running methods.
 //
 //   - If T2 will start after T1 finishes by the above guarantee, then
-//     all memory changes in T1 will be visible to T2.
+//     all memory changes in T1 and T1's destruction will be visible
+//     to T2.
 //
 //   - If T2 runs nested within T1 via a call to the task-running
 //     method M, then all memory changes in T1 up to the call to M
