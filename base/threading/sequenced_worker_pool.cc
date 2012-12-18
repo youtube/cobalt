@@ -199,7 +199,9 @@ bool SequencedWorkerPoolSequencedTaskRunner::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here,
     const Closure& task,
     TimeDelta delay) {
-  return pool_->PostDelayedSequencedWorkerTask(token_, from_here, task, delay);
+  // There's no way to run nested tasks, so simply forward to
+  // PostDelayedTask.
+  return PostDelayedTask(from_here, task, delay);
 }
 
 // Create a process-wide unique ID to represent this task in trace events. This
