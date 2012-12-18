@@ -124,7 +124,7 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   // of a stream id larger than the next expected stream id.
   base::hash_set<QuicStreamId> implicitly_created_streams_;
 
-  // A list of packets which need to write more data.
+  // A list of streams which need to write more data.
   std::list<QuicStreamId> write_blocked_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;

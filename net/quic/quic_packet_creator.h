@@ -28,7 +28,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
     void Clear() {
       memset(this, 0, sizeof(Options));
       max_packet_length = kMaxPacketSize;
-      max_num_packets = std::numeric_limits<int>::max();
+      max_num_packets = std::numeric_limits<size_t>::max();
     }
 
     // TODO(alyssar, rch) max frames/packet
@@ -70,7 +70,8 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
 
   PacketPair AckPacket(QuicAckFrame* ack_frame);
 
-  PacketPair CongestionFeedbackPacket(QuicCongestionFeedbackFrame* ack_frame);
+  PacketPair CongestionFeedbackPacket(
+      QuicCongestionFeedbackFrame* feedback_frame);
 
   // Increments the current sequence number in QuicPacketCreator and sets it
   // into the packet and returns the new sequence number.

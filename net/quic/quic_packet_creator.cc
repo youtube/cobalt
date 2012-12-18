@@ -41,7 +41,7 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
                                        vector<PacketPair>* packets) {
   DCHECK_GT(options_.max_packet_length,
             QuicUtils::StreamFramePacketOverhead(1));
-
+  DCHECK_LT(0u, options_.max_num_packets);
   QuicPacketHeader header;
 
   QuicPacket* packet = NULL;
@@ -49,7 +49,7 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
   QuicFecGroupNumber current_fec_group = 0;
   QuicFecData fec_data;
 
-  int num_data_packets = options_.max_num_packets;
+  size_t num_data_packets = options_.max_num_packets;
 
   if (options_.use_fec) {
     DCHECK_LT(1u, options_.max_num_packets);
@@ -86,7 +86,8 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
       unconsumed_bytes -= frame_len;
 
       // Produce the data packet (which might fin the stream).
-      framer_->ConstructFrameDataPacket(header, frames, &packet);
+      packet = framer_->ConstructFrameDataPacket(header, frames);
+      DCHECK(packet);
       DCHECK_GE(options_.max_packet_length, packet->length());
       packets->push_back(make_pair(header.packet_sequence_number, packet));
       frames.clear();
@@ -102,7 +103,8 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
     FillPacketHeader(current_fec_group, PACKET_FLAGS_NONE, &header);
     QuicStreamFrame frame(id, true, offset, "");
     frames.push_back(QuicFrame(&frame));
-    framer_->ConstructFrameDataPacket(header, frames, &packet);
+    packet = framer_->ConstructFrameDataPacket(header, frames);
+    DCHECK(packet);
     packets->push_back(make_pair(header.packet_sequence_number, packet));
     frames.clear();
   }
@@ -111,8 +113,8 @@ size_t QuicPacketCreator::DataToStream(QuicStreamId id,
   if (current_fec_group != 0) {
     FillPacketHeader(current_fec_group, PACKET_FLAGS_FEC, &header);
     fec_data.redundancy = fec_group_->parity();
-    QuicPacket* fec_packet;
-    framer_->ConstructFecPacket(header, fec_data, &fec_packet);
+    QuicPacket* fec_packet = framer_->ConstructFecPacket(header, fec_data);
+    DCHECK(fec_packet);
     packets->push_back(make_pair(header.packet_sequence_number, fec_packet));
     ++fec_group_number_;
   }
@@ -147,10 +149,10 @@ QuicPacketCreator::PacketPair QuicPacketCreator::ResetStream(
 
   QuicRstStreamFrame close_frame(id, offset, error);
 
-  QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(&close_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  QuicPacket* packet = framer_->ConstructFrameDataPacket(header, frames);
+  DCHECK(packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 
@@ -160,10 +162,10 @@ QuicPacketCreator::PacketPair QuicPacketCreator::CloseConnection(
   QuicPacketHeader header;
   FillPacketHeader(0, PACKET_FLAGS_NONE, &header);
 
-  QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(close_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  QuicPacket* packet = framer_->ConstructFrameDataPacket(header, frames);
+  DCHECK(packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 
@@ -173,10 +175,10 @@ QuicPacketCreator::PacketPair QuicPacketCreator::AckPacket(
   QuicPacketHeader header;
   FillPacketHeader(0, PACKET_FLAGS_NONE, &header);
 
-  QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(ack_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  QuicPacket* packet = framer_->ConstructFrameDataPacket(header, frames);
+  DCHECK(packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 
@@ -186,10 +188,10 @@ QuicPacketCreator::PacketPair QuicPacketCreator::CongestionFeedbackPacket(
   QuicPacketHeader header;
   FillPacketHeader(0, PACKET_FLAGS_NONE, &header);
 
-  QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(feedback_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  QuicPacket* packet = framer_->ConstructFrameDataPacket(header, frames);
+  DCHECK(packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 

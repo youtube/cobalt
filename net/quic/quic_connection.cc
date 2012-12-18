@@ -24,9 +24,15 @@ using std::set;
 
 namespace net {
 
+// TODO(pwestin): kDefaultTimeoutUs is in int64.
+int32 kNegotiatedTimeoutUs = kDefaultTimeoutUs;
+
+// The largest gap in packets we'll accept without closing the connection.
+// This will likely have to be tuned.
+const QuicPacketSequenceNumber kMaxPacketGap = 5000;
+
 // The maximum number of nacks which can be transmitted in a single ack packet
-// without exceeding kMaxPacketSize.  Due to nacks, this also sets a limit on
-// the sequence number gap for two consecutive packets.
+// without exceeding kMaxPacketSize.
 const QuicPacketSequenceNumber kMaxUnackedPackets = 192u;
 
 // The amount of time we wait before resending a packet.
@@ -53,7 +59,7 @@ const int kMaxPacketsToSerializeAtOnce = 6;
 
 bool Near(QuicPacketSequenceNumber a, QuicPacketSequenceNumber b) {
   QuicPacketSequenceNumber delta = (a > b) ? a - b : b - a;
-  return delta <= kMaxUnackedPackets;
+  return delta <= kMaxPacketGap;
 }
 
 QuicConnection::QuicConnection(QuicGuid guid,
@@ -125,9 +131,9 @@ void QuicConnection::OnRevivedPacket() {
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (!Near(header.packet_sequence_number,
             last_header_.packet_sequence_number)) {
-    DLOG(INFO) << "Packet out of bounds.  Discarding";
-    // TODO(ianswett): Deal with this by truncating the ack packet instead of
-    // discarding the packet entirely.
+    DLOG(INFO) << "Packet " << header.packet_sequence_number
+               << " out of bounds.  Discarding";
+    // TODO(alyssar) close the connection entirely.
     return false;
   }
 
@@ -203,7 +209,7 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
 
   // We can't have too many unacked packets, or our ack frames go over
   // kMaxPacketSize.
-  DCHECK_LT(incoming_ack.received_info.missing_packets.size(),
+  DCHECK_LE(incoming_ack.received_info.missing_packets.size(),
             kMaxUnackedPackets);
 
   if (incoming_ack.sent_info.least_unacked < least_packet_awaiting_ack_) {
@@ -221,17 +227,6 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
                << " greater than the enclosing packet sequence number:"
                << last_header_.packet_sequence_number;
     return false;
-  }
-
-  for (SequenceSet::const_iterator iter =
-           incoming_ack.received_info.missing_packets.begin();
-       iter != incoming_ack.received_info.missing_packets.end(); ++iter) {
-    if (*iter >= incoming_ack.received_info.largest_received) {
-      DLOG(INFO) << "Cannot nack a packet:" << *iter
-                 << " greater than or equal to largest received:"
-                 << incoming_ack.received_info.largest_received;
-      return false;
-    }
   }
 
   return true;
@@ -514,7 +509,7 @@ void QuicConnection::MaybeResendPacket(
     QuicPacketSequenceNumber new_sequence_number  =
         packet_creator_.SetNewSequenceNumber(packet);
     DVLOG(1) << "Resending unacked packet " << sequence_number << " as "
-               << new_sequence_number;
+             << new_sequence_number;
     // Clear the FEC group.
     framer_.WriteFecGroup(0u, packet);
     unacked_packets_.insert(make_pair(new_sequence_number,
@@ -539,10 +534,6 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
                                 bool should_resend,
                                 bool force,
                                 bool is_retransmit) {
-  DCHECK(packet->length() < kMaxPacketSize)
-      << "Packet " << sequence_number << " will not be read; too large: "
-      << packet->length() << " " << outgoing_ack_;
-
   // If this packet is being forced, don't bother checking to see if we should
   // write, just write.
   if (!force) {
@@ -578,6 +569,10 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
   DLOG(INFO) << "Sending packet : "
              << (should_resend ? "data bearing " : " ack only ")
              << "packet " << sequence_number;
+  DCHECK(encrypted->length() <= kMaxPacketSize)
+      << "Packet " << sequence_number << " will not be read; too large: "
+      << packet->length() << " " << encrypted->length() << " " << outgoing_ack_;
+
   int rv = helper_->WritePacketToWire(*encrypted, &error);
   if (rv == -1) {
     if (error == ERR_IO_PENDING) {
@@ -668,7 +663,6 @@ void QuicConnection::SendConnectionClose(QuicErrorCode error) {
   QuicConnectionCloseFrame frame;
   frame.error_code = error;
   frame.ack_frame = outgoing_ack_;
-  LOG(INFO) << "outgoing_ack_: " << outgoing_ack_;
 
   PacketPair packetpair = packet_creator_.CloseConnection(&frame);
   // There's no point in resending this: we're closing the connection.

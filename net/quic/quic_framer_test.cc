@@ -24,7 +24,6 @@ using std::string;
 using std::vector;
 
 namespace net {
-
 namespace test {
 
 class TestEncrypter : public QuicEncrypter {
@@ -215,7 +214,8 @@ class QuicFramerTest : public ::testing::Test {
     return reinterpret_cast<char*>(data);
   }
 
-  void CheckProcessingFails(unsigned char* packet, size_t len,
+  void CheckProcessingFails(unsigned char* packet,
+                            size_t len,
                             string expected_error,
                             QuicErrorCode error_code) {
     QuicEncryptedPacket encrypted(AsChars(packet), len, false);
@@ -223,6 +223,15 @@ class QuicFramerTest : public ::testing::Test {
                                        encrypted)) << "len: " << len;
     EXPECT_EQ(expected_error, framer_.detailed_error()) << "len: " << len;
     EXPECT_EQ(error_code, framer_.error()) << "len: " << len;
+  }
+
+  void ValidateTruncatedAck(const QuicAckFrame* ack, int keys) {
+    for (int i = 1; i < keys; ++i) {
+      EXPECT_TRUE(ContainsKey(ack->received_info.missing_packets, i)) << i;
+    }
+    // With no gaps in the missing packets, we can't admit to having received
+    // anything.
+    EXPECT_EQ(0u, ack->received_info.largest_received);
   }
 
   test::TestEncrypter* encrypter_;
@@ -547,6 +556,9 @@ TEST_F(QuicFramerTest, AckFrame) {
     0x01,
     // frame type (ack frame)
     0x02,
+    // least packet sequence number awaiting an ack
+    0xA0, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -554,9 +566,6 @@ TEST_F(QuicFramerTest, AckFrame) {
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
-    // least packet sequence number awaiting an ack
-    0xA0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
   };
 
@@ -578,22 +587,21 @@ TEST_F(QuicFramerTest, AckFrame) {
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
 
   // Now test framing boundaries
-  for (size_t i = 0; i < 16; ++i) {
+  for (size_t i = 0; i < 21; ++i) {
     string expected_error;
     if (i < 1) {
       expected_error = "Unable to read frame count.";
     } else if (i < 2) {
       expected_error = "Unable to read frame type.";
     } else if (i < 8) {
-      expected_error = "Unable to read largest received.";
-    } else if (i < 9) {
-      expected_error = "Unable to read num missing packets.";
-    } else if (i < 15) {
-      expected_error = "Unable to read sequence number in missing packets.";
-    } else if (i < 16) {
       expected_error = "Unable to read least unacked.";
-    }
-    CheckProcessingFails(packet, i + kPacketHeaderSize, expected_error,
+    } else if (i < 14) {
+      expected_error = "Unable to read largest received.";
+    } else if (i < 15) {
+      expected_error = "Unable to read num missing packets.";
+    } else if (i < 21) {
+      expected_error = "Unable to read sequence number in missing packets.";
+    }    CheckProcessingFails(packet, i + kPacketHeaderSize, expected_error,
                          QUIC_INVALID_FRAME_DATA);
   }
 }
@@ -945,6 +953,9 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     'n',
 
     // Ack frame.
+    // least packet sequence number awaiting an ack
+    0xA0, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -952,9 +963,6 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     0x01,
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
-    // least packet sequence number awaiting an ack
-    0xA0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
     // congestion feedback type (inter arrival)
     0x02,
@@ -1086,14 +1094,12 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
     'r',  'l',  'd',  '!',
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructAckFramePacket) {
@@ -1127,6 +1133,9 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     0x01,
     // frame type (ack frame)
     0x02,
+    // least packet sequence number awaiting an ack
+    0xA0, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1135,19 +1144,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-    // least packet sequence number awaiting an ack
-    0xA0, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketTCP) {
@@ -1189,14 +1193,12 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketTCP) {
     0x03, 0x04,
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
@@ -1264,14 +1266,12 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInterArrival) {
     0x02, 0x00, 0x00, 0x00,
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketFixRate) {
@@ -1311,14 +1311,12 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketFixRate) {
     0x01, 0x02, 0x03, 0x04,
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInvalidFeedback) {
@@ -1335,8 +1333,8 @@ TEST_F(QuicFramerTest, ConstructCongestionFeedbackFramePacketInvalidFeedback) {
   QuicFrames frames;
   frames.push_back(QuicFrame(&congestion_feedback_frame));
 
-  QuicPacket* data;
-  EXPECT_FALSE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data == NULL);
 }
 
 TEST_F(QuicFramerTest, ConstructRstFramePacket) {
@@ -1387,14 +1385,12 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
   QuicFrames frames;
   frames.push_back(QuicFrame(&rst_frame));
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
@@ -1443,6 +1439,9 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     'n',
 
     // Ack frame.
+    // least packet sequence number awaiting an ack
+    0xA0, 0x9A, 0x78, 0x56,
+    0x34, 0x12,
     // largest received packet sequence number
     0xBF, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1451,20 +1450,14 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     // missing packet
     0xBE, 0x9A, 0x78, 0x56,
     0x34, 0x12,
-
-    // least packet sequence number awaiting an ack
-    0xA0, 0x9A, 0x78, 0x56,
-    0x34, 0x12,
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, ConstructFecPacket) {
@@ -1501,14 +1494,12 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
     'm',  'n',  'o',  'p',
   };
 
-  QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFecPacket(header, fec_data, &data));
+  scoped_ptr<QuicPacket> data(framer_.ConstructFecPacket(header, fec_data));
+  ASSERT_TRUE(data != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST_F(QuicFramerTest, EncryptPacket) {
@@ -1540,6 +1531,106 @@ TEST_F(QuicFramerTest, EncryptPacket) {
   EXPECT_TRUE(CheckEncryption(StringPiece(AsChars(packet), arraysize(packet))));
 }
 
-}  // namespace test
+TEST_F(QuicFramerTest, CalculateLargestReceived) {
+  SequenceSet missing;
+  missing.insert(1);
+  missing.insert(5);
+  missing.insert(7);
+  missing.insert(8);
+  missing.insert(9);
 
+  // These two we just walk to the next gap, and return the largest seen.
+  EXPECT_EQ(4u, QuicFramer::CalculateLargestReceived(missing, missing.find(1)));
+  EXPECT_EQ(6u, QuicFramer::CalculateLargestReceived(missing, missing.find(5)));
+
+  // 7+ are fun because there is no subsequent gap: we have to walk before
+  // them to find 6.
+  EXPECT_EQ(6u, QuicFramer::CalculateLargestReceived(missing, missing.find(7)));
+  EXPECT_EQ(6u, QuicFramer::CalculateLargestReceived(missing, missing.find(8)));
+  EXPECT_EQ(6u, QuicFramer::CalculateLargestReceived(missing, missing.find(9)));
+
+  // Fill in the gap of 6 to make sure we handle a gap of more than 1 by
+  // returning 4 rather than 3.
+  missing.insert(6);
+  EXPECT_EQ(4u, QuicFramer::CalculateLargestReceived(missing, missing.find(9)));
+
+  // Fill in the rest of the gaps: we should walk to 1 and return 0.
+  missing.insert(4);
+  missing.insert(3);
+  missing.insert(2);
+  EXPECT_EQ(0u, QuicFramer::CalculateLargestReceived(missing, missing.find(7)));
+
+  // If we add a gap after 7-9, we will return that.
+  missing.insert(11);
+  EXPECT_EQ(10u, QuicFramer::CalculateLargestReceived(missing,
+                                                      missing.find(7)));
+  EXPECT_EQ(10u, QuicFramer::CalculateLargestReceived(missing,
+                                                      missing.find(8)));
+  EXPECT_EQ(10u, QuicFramer::CalculateLargestReceived(missing,
+                                                      missing.find(9)));
+}
+
+TEST_F(QuicFramerTest, Truncation) {
+  QuicPacketHeader header;
+  header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
+  header.flags = PACKET_FLAGS_NONE;
+  header.fec_group = 0;
+
+  QuicConnectionCloseFrame close_frame;
+  QuicAckFrame* ack_frame = &close_frame.ack_frame;
+  close_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
+  close_frame.error_details = "because I can";
+  ack_frame->received_info.largest_received = 201;
+  for (uint64 i = 1; i < ack_frame->received_info.largest_received; ++i) {
+    ack_frame->received_info.missing_packets.insert(i);
+  }
+
+  // Create a packet with just the ack
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = ack_frame;
+  QuicFrames frames;
+  frames.push_back(frame);
+
+  scoped_ptr<QuicPacket> raw_ack_packet(
+      framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(raw_ack_packet != NULL);
+
+  scoped_ptr<QuicEncryptedPacket> ack_packet(
+      framer_.EncryptPacket(*raw_ack_packet));
+
+  // Create a packet with just connection close.
+  frames.clear();
+  frame.type = CONNECTION_CLOSE_FRAME;
+  frame.connection_close_frame = &close_frame;
+  frames.push_back(frame);
+
+  scoped_ptr<QuicPacket> raw_close_packet(
+      framer_.ConstructFrameDataPacket(header, frames));
+  ASSERT_TRUE(raw_close_packet != NULL);
+
+  scoped_ptr<QuicEncryptedPacket> close_packet(
+      framer_.EncryptPacket(*raw_close_packet));
+
+  // Now make sure we can turn our ack packet back into an ack frame
+  ASSERT_TRUE(framer_.ProcessPacket(self_address_, peer_address_, *ack_packet));
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  ASSERT_EQ(peer_address_, visitor_.peer_address_);
+  ASSERT_EQ(self_address_, visitor_.self_address_);
+  EXPECT_EQ(1u, visitor_.ack_frames_.size());
+
+  // And do the same for the close frame.
+  ASSERT_TRUE(framer_.ProcessPacket(self_address_, peer_address_,
+                                    *close_packet));
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_EQ(0x05060708, visitor_.connection_close_frame_.error_code);
+  EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
+
+  ValidateTruncatedAck(visitor_.ack_frames_[0], 190);
+  ValidateTruncatedAck(&visitor_.connection_close_frame_.ack_frame, 180);
+}
+
+}  // namespace test
 }  // namespace net

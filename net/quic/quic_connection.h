@@ -119,6 +119,7 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   virtual ~QuicConnection();
 
   // Send the data payload to the peer.
+  // TODO(wtc): document the return value.
   size_t SendStreamData(QuicStreamId id,
                         base::StringPiece data,
                         QuicStreamOffset offset,
@@ -167,6 +168,7 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   const IPEndPoint& self_address() const { return self_address_; }
   const IPEndPoint& peer_address() const { return peer_address_; }
   QuicGuid guid() const { return guid_; }
+  const QuicClock* clock() const { return clock_; }
 
   // Updates the internal state concerning which packets have been acked, and
   // sends an ack if new data frames have been received.
@@ -176,8 +178,6 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // acked it's a no op, otherwise the packet is resent and another alarm is
   // scheduled.
   void MaybeResendPacket(QuicPacketSequenceNumber sequence_number);
-
-  QuicGuid guid() { return guid_; }
 
   QuicPacketCreator::Options* options() { return packet_creator_.options(); }
 
@@ -201,6 +201,7 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // get an ack.  If force is true, then the packet will be sent immediately and
   // the send scheduler will not be consulted.  If is_retransmit is true, this
   // packet is being retransmitted with a new sequence number.
+  // TODO(wtc): none of the callers check the return value.
   virtual bool SendPacket(QuicPacketSequenceNumber number,
                           QuicPacket* packet,
                           bool should_resend,
@@ -228,7 +229,6 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // This finds the new least unacked packet and updates the outgoing ack frame.
   void UpdateLeastUnacked(QuicPacketSequenceNumber acked_sequence_number);
 
-protected:
   QuicConnectionHelperInterface* helper() { return helper_; }
 
  private:
@@ -289,7 +289,7 @@ protected:
   QuicFramer framer_;
   const QuicClock* clock_;
 
-  QuicGuid guid_;
+  const QuicGuid guid_;
   IPEndPoint self_address_;
   IPEndPoint peer_address_;
 

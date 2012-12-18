@@ -15,7 +15,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
-
 namespace test {
 
 PostedTask::PostedTask(const tracked_objects::Location& location,
@@ -84,5 +83,4 @@ void TestTaskRunner::RunNextTask() {
 }
 
 }  // namespace test
-
 }  // namespace net
