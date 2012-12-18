@@ -74,13 +74,14 @@
     </echo>
 
     <javac
-      srcdir="${javac.srcdir}"
-      destdir="${dest.dir}"
-      classpathref="javac.custom.classpath"
-      debug="true"
-      includeantruntime="false"
-      includes="${JAVAC_INCLUDES}"
-    />
+        srcdir="${javac.srcdir}"
+        destdir="${dest.dir}"
+        classpathref="javac.custom.classpath"
+        debug="true"
+        includeantruntime="false"
+        includes="${JAVAC_INCLUDES}">
+      <compilerarg value="-Xlint:unchecked"/>
+    </javac>
   </target>
 
   <target name="dist" depends="compile"
