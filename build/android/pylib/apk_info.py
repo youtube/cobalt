@@ -95,6 +95,7 @@ class ApkInfo(object):
         clazz = m.group(1).replace('/', '.')  # Change package delim.
         annotation = None
         continue
+
       m = self._PROGUARD_METHOD_RE.match(line)
       if m:
         method = m.group(1)
@@ -103,15 +104,18 @@ class ApkInfo(object):
         if method.startswith('test') and clazz.endswith('Test'):
           self._test_methods += [qualified_method]
         continue
+
+      if not qualified_method:
+        # Ignore non-method annotations.
+        continue
+
       m = self._PROGUARD_ANNOTATION_RE.match(line)
       if m:
-        assert qualified_method
         annotation = m.group(1).split('/')[-1]  # Ignore the annotation package.
         self._annotation_map[qualified_method].append(annotation)
         has_value = False
         continue
       if annotation:
-        assert qualified_method
         if not has_value:
           m = self._PROGUARD_ANNOTATION_CONST_RE.match(line)
           if m:
