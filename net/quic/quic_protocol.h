@@ -241,6 +241,10 @@ struct NET_EXPORT_PRIVATE CongestionFeedbackMessageInterArrival {
   CongestionFeedbackMessageInterArrival();
   ~CongestionFeedbackMessageInterArrival();
   uint16 accumulated_number_of_lost_packets;
+  // TODO(rch): These times should be QuicTime instances.  We can write
+  // them to the wire in the format specified below, but we should avoid
+  // storing them in memory that way.  As such, we should move this comment
+  // to QuicFramer.
   int16 offset_time;
   uint16 delta_time;  // delta time is described below.
   // The set of received packets since the last feedback was sent, along with
@@ -307,13 +311,16 @@ struct NET_EXPORT_PRIVATE QuicConnectionCloseFrame {
 struct NET_EXPORT_PRIVATE QuicFrame {
   QuicFrame() {}
   explicit QuicFrame(QuicStreamFrame* stream_frame)
-      : type(STREAM_FRAME), stream_frame(stream_frame) {
+      : type(STREAM_FRAME),
+        stream_frame(stream_frame) {
   }
   explicit QuicFrame(QuicAckFrame* frame)
-      : type(ACK_FRAME), ack_frame(frame) {
+      : type(ACK_FRAME),
+        ack_frame(frame) {
   }
   explicit QuicFrame(QuicCongestionFeedbackFrame* frame)
-      : type(CONGESTION_FEEDBACK_FRAME), congestion_feedback_frame(frame) {
+      : type(CONGESTION_FEEDBACK_FRAME),
+        congestion_feedback_frame(frame) {
   }
   explicit QuicFrame(QuicRstStreamFrame* frame)
       : type(RST_STREAM_FRAME),

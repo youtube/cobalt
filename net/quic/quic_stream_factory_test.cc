@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
-
 namespace test {
 
 class QuicStreamFactoryTest : public ::testing::Test {
@@ -99,11 +98,9 @@ class QuicStreamFactoryTest : public ::testing::Test {
                       QuicEncrypter::Create(kNULL));
     QuicFrames frames;
     frames.push_back(frame);
-    QuicPacket* packet;
-    framer.ConstructFrameDataPacket(header, frames, &packet);
-    QuicEncryptedPacket* encrypted = framer.EncryptPacket(*packet);
-    delete packet;
-    return scoped_ptr<QuicEncryptedPacket>(encrypted);
+    scoped_ptr<QuicPacket> packet(
+        framer.ConstructFrameDataPacket(header, frames));
+    return scoped_ptr<QuicEncryptedPacket>(framer.EncryptPacket(*packet));
   }
 
   MockHostResolver host_resolver_;
@@ -228,5 +225,4 @@ TEST_F(QuicStreamFactoryTest, CancelCreate) {
 }
 
 }  // namespace test
-
 }  // namespace net

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -81,7 +82,7 @@ char* QuicDataWriter::BeginWrite(size_t length) {
   return buffer_ + length_;
 }
 
-bool QuicDataWriter::WriteBytes(const void* data, uint32 data_len) {
+bool QuicDataWriter::WriteBytes(const void* data, size_t data_len) {
   char* dest = BeginWrite(data_len);
   if (!dest) {
     return false;
@@ -121,6 +122,22 @@ void QuicDataWriter::WriteUint128ToBuffer(uint128 value, char* buffer) {
   uint64 low = Uint128Low64(value);
   WriteUint64ToBuffer(low, buffer);
   WriteUint64ToBuffer(high, buffer + sizeof(low));
+}
+
+bool QuicDataWriter::WriteUInt8ToOffset(uint8 value, size_t offset) {
+  int latched_length = length_;
+  length_ = offset;
+  bool success = WriteUInt8(value);
+  length_ = latched_length;
+  return success;
+}
+
+bool QuicDataWriter::WriteUInt48ToOffset(uint64 value, size_t offset) {
+  int latched_length = length_;
+  length_ = offset;
+  bool success = WriteUInt48(value);
+  length_ = latched_length;
+  return success;
 }
 
 }  // namespace net

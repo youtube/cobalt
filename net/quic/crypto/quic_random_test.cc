@@ -7,7 +7,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
-
 namespace test {
 
 TEST(QuicRandomTest, RandBytes) {
@@ -38,5 +37,4 @@ TEST(QuicRandomTest, Reseed) {
 }
 
 }  // namespace test
-
 }  // namespace net
