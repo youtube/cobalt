@@ -439,6 +439,8 @@ int QuicHttpStream::ParseResponseHeaders() {
 }
 
 void QuicHttpStream::BufferResponseBody(const char* data, int length) {
+  if (length == 0)
+    return;
   IOBufferWithSize* io_buffer = new IOBufferWithSize(length);
   memcpy(io_buffer->data(), data, length);
   response_body_.push_back(make_scoped_refptr(io_buffer));

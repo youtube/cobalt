@@ -150,6 +150,10 @@ ReliableQuicStream* QuicSession::GetStream(const QuicStreamId stream_id) {
     return it->second;
   }
 
+  if (IsClosedStream(stream_id)) {
+    return NULL;
+  }
+
   if (stream_id % 2 == next_stream_id_ % 2) {
     // We've received a frame for a locally-created stream that is not
     // currently active.  This is an error.

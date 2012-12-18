@@ -8,7 +8,6 @@
 using base::StringPiece;
 
 namespace net {
-
 namespace test {
 
 TEST(NullEncrypterTest, Encrypt) {
@@ -46,5 +45,4 @@ TEST(NullEncrypterTest, GetCiphertextSize) {
 }
 
 }  // namespace test
-
 }  // namespace net
