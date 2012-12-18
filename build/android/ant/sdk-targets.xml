@@ -62,6 +62,7 @@
         <src>
           <path refid="javac.srcdirs.additional"/>
         </src>
+        <compilerarg value="-Xlint:unchecked"/>
         <compilerarg line="${java.compilerargs}"/>
       </javac>
       <!--
