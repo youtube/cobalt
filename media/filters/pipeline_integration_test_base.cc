@@ -199,8 +199,7 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   scoped_refptr<AudioDecoder> audio_decoder = new FFmpegAudioDecoder(
       message_loop_.message_loop_proxy());
   scoped_refptr<VideoDecoder> video_decoder = new FFmpegVideoDecoder(
-      message_loop_.message_loop_proxy(),
-      decryptor);
+      message_loop_.message_loop_proxy());
   collection->GetAudioDecoders()->push_back(audio_decoder);
   collection->GetVideoDecoders()->push_back(video_decoder);
 
