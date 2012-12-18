@@ -24,8 +24,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
-using ::testing::AtMost;
-using ::testing::Invoke;
 using ::testing::IsNull;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -46,16 +44,13 @@ ACTION_P(ReturnBuffer, buffer) {
 class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
-      : decryptor_(new MockDecryptor()),
-        decoder_(NULL),
+      : decoder_(NULL),
         demuxer_(new StrictMock<MockDemuxerStream>()),
         read_cb_(base::Bind(&FFmpegVideoDecoderTest::FrameReady,
                             base::Unretained(this))) {
     FFmpegGlue::InitializeFFmpeg();
 
-    decoder_ = new FFmpegVideoDecoder(
-        message_loop_.message_loop_proxy(),
-        decryptor_.get());
+    decoder_ = new FFmpegVideoDecoder(message_loop_.message_loop_proxy());
 
     // Initialize various test buffers.
     frame_buffer_.reset(new uint8[kCodedSize.GetArea()]);
@@ -98,27 +93,12 @@ class FFmpegVideoDecoderTest : public testing::Test {
     InitializeWithConfigAndStatus(config, PIPELINE_OK);
   }
 
-  void CancelDecrypt(Decryptor::StreamType stream_type) {
-    if (!decrypt_cb_.is_null()) {
-       base::ResetAndReturn(&decrypt_cb_).Run(
-           Decryptor::kError, scoped_refptr<DecoderBuffer>(NULL));
-    }
-  }
-
   void Reset() {
-    EXPECT_CALL(*decryptor_, CancelDecrypt(Decryptor::kVideo))
-        .WillOnce(Invoke(this, &FFmpegVideoDecoderTest::CancelDecrypt));
     decoder_->Reset(NewExpectedClosure());
     message_loop_.RunUntilIdle();
   }
 
   void Stop() {
-    // Use AtMost(1) here because CancelDecrypt() will be called once if the
-    // decoder was initialized and has not been stopped, and will not be
-    // called otherwise.
-    EXPECT_CALL(*decryptor_, CancelDecrypt(Decryptor::kVideo))
-        .Times(AtMost(1))
-        .WillRepeatedly(Invoke(this, &FFmpegVideoDecoderTest::CancelDecrypt));
     decoder_->Stop(NewExpectedClosure());
     message_loop_.RunUntilIdle();
   }
@@ -215,14 +195,12 @@ class FFmpegVideoDecoderTest : public testing::Test {
                                 const scoped_refptr<VideoFrame>&));
 
   MessageLoop message_loop_;
-  scoped_ptr<MockDecryptor> decryptor_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCB statistics_cb_;
   VideoDecoderConfig config_;
 
   VideoDecoder::ReadCB read_cb_;
-  Decryptor::DecryptCB decrypt_cb_;
 
   // Various buffers for testing.
   scoped_array<uint8_t> frame_buffer_;

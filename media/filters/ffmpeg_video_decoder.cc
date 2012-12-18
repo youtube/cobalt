@@ -56,13 +56,11 @@ static int GetThreadCount(CodecID codec_id) {
 }
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    Decryptor* decryptor)
+    const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : message_loop_(message_loop),
       state_(kUninitialized),
       codec_context_(NULL),
-      av_frame_(NULL),
-      decryptor_(decryptor) {
+      av_frame_(NULL) {
 }
 
 int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
@@ -179,9 +177,6 @@ void FFmpegVideoDecoder::Reset(const base::Closure& closure) {
   DCHECK(reset_cb_.is_null());
   reset_cb_ = BindToCurrentLoop(closure);
 
-  if (decryptor_)
-    decryptor_->CancelDecrypt(Decryptor::kVideo);
-
   // Defer the reset if a read is pending.
   if (!read_cb_.is_null())
     return;
@@ -204,9 +199,6 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
   if (state_ == kUninitialized)
     return;
 
-  if (decryptor_)
-    decryptor_->CancelDecrypt(Decryptor::kVideo);
-
   if (!read_cb_.is_null())
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
 
@@ -226,10 +218,10 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
   DCHECK(!read_cb_.is_null());
 
   demuxer_stream_->Read(base::Bind(
-      &FFmpegVideoDecoder::DecryptOrDecodeBuffer, this));
+      &FFmpegVideoDecoder::BufferReady, this));
 }
 
-void FFmpegVideoDecoder::DecryptOrDecodeBuffer(
+void FFmpegVideoDecoder::BufferReady(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -263,45 +255,6 @@ void FFmpegVideoDecoder::DecryptOrDecodeBuffer(
   }
 
   DCHECK_EQ(status, DemuxerStream::kOk);
-
-  // TODO(xhwang): Remove decryptor after DecryptingDemuxerStream is ready.
-  if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
-    decryptor_->Decrypt(Decryptor::kVideo, buffer, BindToCurrentLoop(
-        base::Bind(&FFmpegVideoDecoder::BufferDecrypted, this)));
-    return;
-  }
-
-  DecodeBuffer(buffer);
-}
-
-void FFmpegVideoDecoder::BufferDecrypted(
-    Decryptor::Status decrypt_status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK_NE(state_, kDecodeFinished);
-
-  if (state_ == kUninitialized)
-    return;
-
-  DCHECK(!read_cb_.is_null());
-
-  if (!reset_cb_.is_null()) {
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
-    DoReset();
-    return;
-  }
-
-  if (decrypt_status == Decryptor::kNoKey ||
-      decrypt_status == Decryptor::kError) {
-    state_ = kDecodeFinished;
-    base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);
-    return;
-  }
-
-  DCHECK_EQ(Decryptor::kSuccess, decrypt_status);
-  DCHECK(buffer);
-  DCHECK(buffer->GetDataSize());
-  DCHECK(!buffer->GetDecryptConfig());
   DecodeBuffer(buffer);
 }
 
