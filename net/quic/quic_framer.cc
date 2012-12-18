@@ -17,6 +17,8 @@ using std::numeric_limits;
 
 namespace net {
 
+bool kQuicAllowOversizedPacketsForTest = false;
+
 QuicFramer::QuicFramer(QuicDecrypter* decrypter, QuicEncrypter* encrypter)
     : visitor_(NULL),
       fec_builder_(NULL),
@@ -27,10 +29,18 @@ QuicFramer::QuicFramer(QuicDecrypter* decrypter, QuicEncrypter* encrypter)
 
 QuicFramer::~QuicFramer() {}
 
-bool QuicFramer::ConstructFrameDataPacket(
+bool CanTruncate(const QuicFrames& frames) {
+  if (frames.size() == 1 && (
+      frames[0].type == ACK_FRAME ||
+      frames[0].type == CONNECTION_CLOSE_FRAME)) {
+    return true;
+  }
+  return false;
+}
+
+QuicPacket* QuicFramer::ConstructFrameDataPacket(
     const QuicPacketHeader& header,
-    const QuicFrames& frames,
-    QuicPacket** packet) {
+    const QuicFrames& frames) {
   // Compute the length of the packet.  We use "magic numbers" here because
   // sizeof(member_) is not necessarily the same as sizeof(member_wire_format).
   size_t len = kPacketHeaderSize;
@@ -40,76 +50,92 @@ bool QuicFramer::ConstructFrameDataPacket(
     len += ComputeFramePayloadLength(frames[i]);
   }
 
+  bool truncating = false;
+  size_t max_plaintext_size = GetMaxPlaintextSize(kMaxPacketSize);
+  if (len > max_plaintext_size) {
+    if (CanTruncate(frames)) {
+      // Truncate the ack frame so the packet will not exceed kMaxPacketSize.
+      // Note that we may not use every byte of the writer in this case.
+      len = max_plaintext_size;
+      truncating = true;
+      DLOG(INFO) << "Truncating large ack";
+    } else {
+      return NULL;
+    }
+  }
+
   QuicDataWriter writer(len);
 
   if (!WritePacketHeader(header, &writer)) {
-    return false;
+    return NULL;
   }
 
   // frame count
   if (frames.size() > 256u) {
-    return false;
+    return NULL;
   }
   if (!writer.WriteUInt8(frames.size())) {
-    return false;
+    return NULL;
   }
 
   for (size_t i = 0; i < frames.size(); ++i) {
     const QuicFrame& frame = frames[i];
     if (!writer.WriteUInt8(frame.type)) {
-          return false;
+          return NULL;
     }
 
     switch (frame.type) {
       case STREAM_FRAME:
         if (!AppendStreamFramePayload(*frame.stream_frame,
                                          &writer)) {
-          return false;
+          return NULL;
         }
         break;
       case PDU_FRAME:
-        return RaiseError(QUIC_INVALID_FRAME_DATA);
+        RaiseError(QUIC_INVALID_FRAME_DATA);
+        return NULL;
       case ACK_FRAME:
         if (!AppendAckFramePayload(*frame.ack_frame, &writer)) {
-          return false;
+          return NULL;
         }
         break;
       case CONGESTION_FEEDBACK_FRAME:
         if (!AppendQuicCongestionFeedbackFramePayload(
                 *frame.congestion_feedback_frame, &writer)) {
-          return false;
+          return NULL;
         }
         break;
       case RST_STREAM_FRAME:
         if (!AppendRstStreamFramePayload(*frame.rst_stream_frame,
                                             &writer)) {
-          return false;
+          return NULL;
         }
         break;
       case CONNECTION_CLOSE_FRAME:
         if (!AppendConnectionCloseFramePayload(
             *frame.connection_close_frame, &writer)) {
-          return false;
+          return NULL;
         }
         break;
       default:
-        return RaiseError(QUIC_INVALID_FRAME_DATA);
+        RaiseError(QUIC_INVALID_FRAME_DATA);
+        return NULL;
     }
   }
 
-  DCHECK_EQ(len, writer.length());
-  *packet = new QuicPacket(writer.take(), len, true, PACKET_FLAGS_NONE);
+  DCHECK(truncating || len == writer.length());
+  QuicPacket* packet = new QuicPacket(writer.take(), len, true,
+                                      PACKET_FLAGS_NONE);
   if (fec_builder_) {
     fec_builder_->OnBuiltFecProtectedPayload(header,
-                                             (*packet)->FecProtectedData());
+                                             packet->FecProtectedData());
   }
 
-  return true;
+  return packet;
 }
 
-bool QuicFramer::ConstructFecPacket(const QuicPacketHeader& header,
-                                    const QuicFecData& fec,
-                                    QuicPacket** packet) {
+QuicPacket* QuicFramer::ConstructFecPacket(const QuicPacketHeader& header,
+                                           const QuicFecData& fec) {
   // Compute the length of the packet.  We use "magic numbers" here because
   // sizeof(member_) is not necessairly the same as sizeof(member_wire_format).
   size_t len = kPacketHeaderSize;
@@ -119,20 +145,18 @@ bool QuicFramer::ConstructFecPacket(const QuicPacketHeader& header,
   QuicDataWriter writer(len);
 
   if (!WritePacketHeader(header, &writer)) {
-    return false;
+    return NULL;
   }
 
   if (!writer.WriteUInt48(fec.min_protected_packet_sequence_number)) {
-    return false;
+    return NULL;
   }
 
   if (!writer.WriteBytes(fec.redundancy.data(), fec.redundancy.length())) {
-    return false;
+    return NULL;
   }
 
-  *packet = new QuicPacket(writer.take(), len, true, PACKET_FLAGS_FEC);
-
-  return true;
+  return new QuicPacket(writer.take(), len, true, PACKET_FLAGS_FEC);
 }
 
 bool QuicFramer::ProcessPacket(const IPEndPoint& self_address,
@@ -372,10 +396,10 @@ bool QuicFramer::ProcessPDUFrame() {
 }
 
 bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
-  if (!ProcessReceivedInfo(&frame->received_info)) {
+  if (!ProcessSentInfo(&frame->sent_info)) {
     return false;
   }
-  if (!ProcessSentInfo(&frame->sent_info)) {
+  if (!ProcessReceivedInfo(&frame->received_info)) {
     return false;
   }
   visitor_->OnAckFrame(*frame);
@@ -641,7 +665,7 @@ size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
       len += 1;  // num missing packets
       len += 6 * ack.received_info.missing_packets.size();
       len += 6;  // least packet sequence number awaiting an ack
-          break;
+      break;
     }
     case CONGESTION_FEEDBACK_FRAME: {
       const QuicCongestionFeedbackFrame& congestion_feedback =
@@ -719,31 +743,75 @@ bool QuicFramer::AppendStreamFramePayload(
   return true;
 }
 
+// TODO(alyssar): revisit the complexity here to rch's satisfaction
+QuicPacketSequenceNumber QuicFramer::CalculateLargestReceived(
+    const SequenceSet& missing_packets,
+    SequenceSet::const_iterator largest_written) {
+  SequenceSet::const_iterator it = largest_written;
+  QuicPacketSequenceNumber previous_missing = *it;
+  ++it;
+
+  // Try to find a gap in the missing packets: any gap indicates a non-missing
+  // packet which we can then return.
+  for (; it != missing_packets.end(); ++it) {
+    if (previous_missing + 1 != *it) {
+      return *it - 1;
+    }
+    previous_missing = *it;
+  }
+
+  // If we've hit the end of the list, and we're not missing any packets, try
+  // finding a gap between the largest written and the beginning of the set.
+  it = largest_written++;
+  previous_missing = *it;
+  do {
+    --it;
+    if (previous_missing - 1 != *it) {
+      return previous_missing - 1;
+    }
+    previous_missing = *it;
+  } while (it != missing_packets.begin());
+
+  // The missing packets are entirely contiguous.  Return the value of the first
+  // missing packet - 1, as that must have been seen.
+  return  *missing_packets.begin() - 1;
+}
+
 // TODO(ianswett): Use varints or another more compact approach for all deltas.
-// TODO(ianswett): Deal with acks which are too large to fit into a packet.
 bool QuicFramer::AppendAckFramePayload(
     const QuicAckFrame& frame,
     QuicDataWriter* writer) {
+  if (!writer->WriteUInt48(frame.sent_info.least_unacked)) {
+    return false;
+  }
+
+  size_t largest_received_offset = writer->length();
   if (!writer->WriteUInt48(frame.received_info.largest_received)) {
     return false;
   }
 
-  DCHECK_GE(numeric_limits<uint8>::max(),
-            frame.received_info.missing_packets.size());
+  // We don't check for overflowing uint8 here, because we only can fit 192 acks
+  // per packet, so if we overflow we will be truncated.
   uint8 num_missing_packets = frame.received_info.missing_packets.size();
+  size_t num_missing_packets_offset = writer->length();
   if (!writer->WriteBytes(&num_missing_packets, 1)) {
     return false;
   }
 
   SequenceSet::const_iterator it = frame.received_info.missing_packets.begin();
+  int num_missing_packets_written = 0;
   for (; it != frame.received_info.missing_packets.end(); ++it) {
     if (!writer->WriteUInt48(*it)) {
-      return false;
+      // We are truncating.  Overwrite largest_received.
+      QuicPacketSequenceNumber largest_received =
+          CalculateLargestReceived(frame.received_info.missing_packets, --it);
+      writer->WriteUInt48ToOffset(largest_received, largest_received_offset);
+      writer->WriteUInt8ToOffset(num_missing_packets_written,
+                                 num_missing_packets_offset);
+      return true;
     }
-  }
-
-  if (!writer->WriteUInt48(frame.sent_info.least_unacked)) {
-    return false;
+    ++num_missing_packets_written;
+    DCHECK_GE(numeric_limits<uint8>::max(), num_missing_packets_written);
   }
 
   return true;
