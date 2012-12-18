@@ -95,6 +95,13 @@ class NET_EXPORT_PRIVATE QuicFramer {
 
   virtual ~QuicFramer();
 
+  // Calculates the largest received packet to advertise in the case an Ack
+  // Frame was truncated.  last_written in this case is the iterator for the
+  // last missing packet which fit in the outgoing ack.
+  static QuicPacketSequenceNumber CalculateLargestReceived(
+      const SequenceSet& missing_packets,
+      SequenceSet::const_iterator last_written);
+
   // Set callbacks to be called from the framer.  A visitor must be set, or
   // else the framer will likely crash.  It is acceptable for the visitor
   // to do nothing.  If this is called multiple times, only the last visitor
@@ -130,19 +137,15 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessRevivedPacket(const QuicPacketHeader& header,
                             base::StringPiece payload);
 
-  // Creates a new QuicPacket populated with the fields in |header| and
-  // |frames|.  Assigns |*packet| to the address of the new object.
-  // Returns true upon success.
-  bool ConstructFrameDataPacket(const QuicPacketHeader& header,
-                                const QuicFrames& frames,
-                                QuicPacket** packet);
+  // Returns a new QuicPacket, owned by the caller, populated with the fields
+  // in |header| and |frames|, or NULL if the packet could not be created.
+  QuicPacket* ConstructFrameDataPacket(const QuicPacketHeader& header,
+                                       const QuicFrames& frames);
 
-  // Creates a new QuicPacket populated with the fields in |header| and
-  // |fec|.  Assigns |*packet| to the address of the new object.
-  // Returns true upon success.
-  bool ConstructFecPacket(const QuicPacketHeader& header,
-                          const QuicFecData& fec,
-                          QuicPacket** packet);
+  // Returns a new QuicPacket, owned by the caller, populated with the fields
+  // in |header| and |fec|, or NULL if the packet could not be created.
+  QuicPacket* ConstructFecPacket(const QuicPacketHeader& header,
+                                 const QuicFecData& fec);
 
   void WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,
                            QuicPacket* packet);

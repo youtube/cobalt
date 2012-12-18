@@ -118,8 +118,7 @@ int ReliableQuicStream::WriteOrBuffer(StringPiece data, bool fin) {
 
 void ReliableQuicStream::OnCanWrite() {
   bool fin = false;
-  bool all_bytes_written = true;
-  while (all_bytes_written && !queued_data_.empty()) {
+  while (!queued_data_.empty()) {
     const string& data = queued_data_.front();
     if (queued_data_.size() == 1 && fin_buffered_) {
       fin = true;
@@ -128,9 +127,9 @@ void ReliableQuicStream::OnCanWrite() {
     if (bytes_written == static_cast<int>(data.size())) {
       queued_data_.pop_front();
     } else {
-      all_bytes_written = false;
       queued_data_.front() = string(data.data() + bytes_written,
                                     data.length() - bytes_written);
+      break;
     }
   }
 }

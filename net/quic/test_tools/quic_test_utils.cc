@@ -11,7 +11,6 @@ using std::min;
 using std::string;
 
 namespace net {
-
 namespace test {
 
 MockFramerVisitor::MockFramerVisitor() {
@@ -205,11 +204,8 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   QuicFrame frame(&stream_frame);
   QuicFrames frames;
   frames.push_back(frame);
-  QuicPacket* packet;
-  quic_framer.ConstructFrameDataPacket(header, frames, &packet);
-  return packet;
+  return quic_framer.ConstructFrameDataPacket(header, frames);
 }
 
 }  // namespace test
-
 }  // namespace net

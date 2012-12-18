@@ -184,11 +184,9 @@ class QuicConnectionHelperTest : public ::testing::Test {
                                        const QuicFrame& frame) {
     QuicFrames frames;
     frames.push_back(frame);
-    QuicPacket* packet;
-    framer_.ConstructFrameDataPacket(header_, frames, &packet);
-    QuicEncryptedPacket* encrypted = framer_.EncryptPacket(*packet);
-    delete packet;
-    return encrypted;
+    scoped_ptr<QuicPacket> packet(
+        framer_.ConstructFrameDataPacket(header_, frames));
+    return framer_.EncryptPacket(*packet);
   }
 
   QuicGuid guid_;

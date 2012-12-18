@@ -45,7 +45,12 @@ class NET_EXPORT_PRIVATE QuicDataWriter {
   bool WriteUInt64(uint64 value);
   bool WriteUInt128(uint128 value);
   bool WriteStringPiece16(base::StringPiece val);
-  bool WriteBytes(const void* data, uint32 data_len);
+  bool WriteBytes(const void* data, size_t data_len);
+
+  // Methods for editing the payload at a specific offset.
+  // Return true if there is enough space at that offset, false otherwise.
+  bool WriteUInt8ToOffset(uint8 value, size_t offset);
+  bool WriteUInt48ToOffset(uint64 value, size_t offset);
 
   static void WriteUint8ToBuffer(uint8 value, char* buffer);
   static void WriteUint16ToBuffer(uint16 value, char* buffer);
