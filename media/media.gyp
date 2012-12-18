@@ -27,6 +27,7 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
         '../skia/skia.gyp:skia',
+        '../third_party/opus/opus.gyp:opus',
         '../ui/ui.gyp:ui',
       ],
       'defines': [
@@ -299,6 +300,8 @@
         'filters/h264_to_annex_b_bitstream_converter.h',
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
+        'filters/opus_audio_decoder.cc',
+        'filters/opus_audio_decoder.h',
         'filters/skcanvas_video_renderer.cc',
         'filters/skcanvas_video_renderer.h',
         'filters/source_buffer_stream.cc',

@@ -61,4 +61,7 @@ const char kVideoThreads[] = "video-threads";
 // incomplete and this flag is used for development and testing.
 const char kEnableEncryptedMedia[] = "enable-encrypted-media";
 
+// Enables Opus playback in media elements.
+const char kEnableOpusPlayback[] = "enable-opus-playback";
+
 }  // namespace switches
