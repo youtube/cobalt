@@ -7,7 +7,6 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder.h"
 
@@ -24,8 +23,8 @@ class DecoderBuffer;
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
-  FFmpegVideoDecoder(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-                     Decryptor* decryptor);
+  explicit FFmpegVideoDecoder(
+      const scoped_refptr<base::MessageLoopProxy>& message_loop);
 
   // VideoDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -53,14 +52,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Reads from the demuxer stream and corresponding read callback.
   void ReadFromDemuxerStream();
-  void DecryptOrDecodeBuffer(DemuxerStream::Status status,
-                             const scoped_refptr<DecoderBuffer>& buffer);
-
-  // Callback called by the decryptor to deliver decrypted data buffer and
-  // reporting decrypt status. This callback could be called synchronously or
-  // asynchronously.
-  void BufferDecrypted(Decryptor::Status decrypt_status,
-                       const scoped_refptr<DecoderBuffer>& buffer);
+  void BufferReady(DemuxerStream::Status status,
+                   const scoped_refptr<DecoderBuffer>& buffer);
 
   // Handles decoding an unencrypted encoded buffer.
   void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
@@ -93,8 +86,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
-
-  Decryptor* decryptor_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoder);
 };
