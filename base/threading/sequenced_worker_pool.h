@@ -33,6 +33,15 @@ class SequencedTaskRunner;
 // To enforce ordering, get a unique sequence token from the pool and post all
 // tasks you want to order with the token. All tasks with the same token are
 // guaranteed to execute serially, though not necessarily on the same thread.
+// This means that:
+//
+//   - No two tasks with the same token will run at the same time.
+//
+//   - Given two tasks T1 and T2 with the same token such that T2 will
+//     run after T1, then T2 will start after T1 is destroyed.
+//
+//   - If T2 will run after T1, then all memory changes in T1 and T1's
+//     destruction will be visible to T2.
 //
 // Example:
 //   SequencedWorkerPool::SequenceToken token = pool.GetSequenceToken();
