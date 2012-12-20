@@ -5,7 +5,15 @@
 #include "base/test/test_suite.h"
 #include "crypto/nss_util.h"
 
+#if defined(__LB_SHELL__)
+#include "lb_shell_platform_delegate.h"
+#endif
+
 int main(int argc, char** argv) {
+#if defined(__LB_SHELL__)
+  LBShellPlatformDelegate::PlatformInit();
+#endif
+
 #if defined(USE_NSS)
   // This is most likely not needed, but it basically replaces a similar call
   // that was performed on test_support_base.

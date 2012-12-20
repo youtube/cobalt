@@ -5,7 +5,15 @@
 #include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
 
+#if defined(__LB_SHELL__)
+#include "lb_shell_platform_delegate.h"
+#endif
+
 int main(int argc, char** argv) {
+#if defined(__LB_SHELL__)
+  LBShellPlatformDelegate::PlatformInit();
+#endif
+
   MainHook hook(main, argc, argv);
   return base::TestSuite(argc, argv).Run();
 }

@@ -8,6 +8,10 @@
 #include "base/test/test_suite.h"
 #include "media/base/media.h"
 
+#if defined(__LB_SHELL__)
+#include "lb_shell_platform_delegate.h"
+#endif
+
 class TestSuiteNoAtExit : public base::TestSuite {
  public:
   TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv, false) {}
@@ -15,6 +19,10 @@ class TestSuiteNoAtExit : public base::TestSuite {
 };
 
 int main(int argc, char** argv) {
+#if defined(__LB_SHELL__)
+  LBShellPlatformDelegate::PlatformInit();
+#endif
+
   // By default command-line parsing happens only in TestSuite::Run(), but
   // that's too late to get VLOGs and so on from
   // InitializeMediaLibraryForTesting() below.  Instead initialize logging
@@ -28,7 +36,10 @@ int main(int argc, char** argv) {
       logging::ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS));
   base::AtExitManager exit_manager;
 
+#if !defined(__LB_SHELL__)
+  // link error: platform specific implementation, not implemented in shell
   media::InitializeMediaLibraryForTesting();
+#endif
 
   return TestSuiteNoAtExit(argc, argv).Run();
 }
