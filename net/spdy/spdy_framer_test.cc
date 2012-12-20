@@ -3035,9 +3035,19 @@ TEST_P(SpdyFramerTest, GetMinimumControlFrameSizeTest) {
   EXPECT_EQ(SpdySettingsControlFrame::size(),
             SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
                                                    SETTINGS));
+
+#if defined(__LB_PS3__)
+  // PS3 compile error: <function> declared using a type with no linkage,
+  // must be defined in this translation unit
+  unsigned int spdy_frame_header_size = SpdyFrame::kHeaderSize;
+  EXPECT_EQ(spdy_frame_header_size,
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   NOOP));
+#else
   EXPECT_EQ(SpdyFrame::kHeaderSize,
             SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
                                                    NOOP));
+#endif
   EXPECT_EQ(SpdyPingControlFrame::size(),
             SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
                                                    PING));
