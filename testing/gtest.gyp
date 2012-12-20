@@ -122,6 +122,23 @@
             ],
           },
         }],
+        ['OS=="lb_shell"', {
+          'variables': {
+            'gtest_defines': [
+              'GTEST_USE_OWN_TR1_TUPLE=1',
+              'GTEST_HAS_POSIX_RE=0',
+              '_POSIX_PATH_MAX=255',
+            ],
+          },
+          'defines': [
+            '<@(gtest_defines)',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              '<@(gtest_defines)',
+            ],
+          },
+        }],
       ],
       'direct_dependent_settings': {
         'defines': [

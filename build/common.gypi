@@ -1086,6 +1086,7 @@
         'use_openssl': 1,
         'use_cups': 0,
         'input_speech': 0,
+        'gtest_target_type': 'static_library',
       }],
       # Native Client glibc toolchain is enabled by default except on arm.
       ['target_arch=="arm"', {
