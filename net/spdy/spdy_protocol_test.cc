@@ -40,9 +40,23 @@ INSTANTIATE_TEST_CASE_P(SpdyProtocolTests,
 
 // Test our protocol constants
 TEST_P(SpdyProtocolTest, ProtocolConstants) {
+#if defined(__LB_PS3__)
+  // PS3 compile error: <function> declared using a type with no linkage,
+  // must be defined in this translation unit
+  unsigned int spdy_frame_header_size = SpdyFrame::kHeaderSize;
+  EXPECT_EQ(8u, spdy_frame_header_size);
+#else
   EXPECT_EQ(8u, SpdyFrame::kHeaderSize);
+#endif
   EXPECT_EQ(8u, SpdyDataFrame::size());
+#if defined(__LB_PS3__)
+  // PS3 compile error: <function> declared using a type with no linkage,
+  // must be defined in this translation unit
+  unsigned int spdy_control_frame_header_size = SpdyFrame::kHeaderSize;
+  EXPECT_EQ(8u, spdy_control_frame_header_size);
+#else
   EXPECT_EQ(8u, SpdyControlFrame::kHeaderSize);
+#endif
   EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
   EXPECT_EQ(12u, SpdySynReplyControlFrame::size());
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
