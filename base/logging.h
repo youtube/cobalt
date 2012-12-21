@@ -675,6 +675,10 @@ const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
 
 #else  // defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 
+#if defined(NDEBUG) && defined(__LB_SHELL__FORCE_LOGGING__)
+BASE_EXPORT extern DcheckState g_dcheck_state;
+#endif
+
 // On a regular debug build, we want to have DCHECKs enabled.
 #define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
   COMPACT_GOOGLE_LOG_EX_FATAL(ClassName , ##__VA_ARGS__)

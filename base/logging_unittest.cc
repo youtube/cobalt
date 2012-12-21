@@ -188,7 +188,7 @@ TEST_F(LoggingTest, CheckStreamsAreLazy) {
 #endif
 
 TEST_F(LoggingTest, DebugLoggingReleaseBehavior) {
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)
   int debug_only_variable = 1;
 #endif
   // These should avoid emitting references to |debug_only_variable|
