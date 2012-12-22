@@ -103,7 +103,7 @@ class NET_EXPORT HostResolver {
   // This value can be passed into CreateSystemHostResolver as the
   // |max_retry_attempts| parameter. This is the maximum number of times we
   // will retry for host resolution.
-  static const size_t kDefaultRetryAttempts = -1;
+  static const size_t kDefaultRetryAttempts = (size_t) -1;
 
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
