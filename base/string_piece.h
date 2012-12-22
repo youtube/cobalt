@@ -153,7 +153,7 @@ StringPieceDetail<STRING_TYPE>::npos =
     typename StringPieceDetail<STRING_TYPE>::size_type(-1);
 
 // MSVC doesn't like complex extern templates and DLLs.
-#if !defined(COMPILER_MSVC) && !defined(__SNC__)
+#if !defined(COMPILER_MSVC) && !defined(COMPILER_SNC) && !defined(COMPILER_GHS)
 extern template class BASE_EXPORT StringPieceDetail<std::string>;
 extern template class BASE_EXPORT StringPieceDetail<string16>;
 #endif
@@ -342,7 +342,7 @@ template <> class BasicStringPiece<std::string> :
 };
 
 // MSVC doesn't like complex extern templates and DLLs.
-#if !defined(COMPILER_MSVC) && !defined(__SNC__)
+#if !defined(COMPILER_MSVC) && !defined(COMPILER_SNC) && !defined(COMPILER_GHS)
 // We can't explicitly declare the std::string instantiation here because it was
 // already instantiated when specialized, above. Not only is it a no-op, but
 // currently it also crashes Clang (see http://crbug.com/107412).

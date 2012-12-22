@@ -13,7 +13,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
 
-#if defined(OS_OPENBSD)
+#if defined(OS_OPENBSD) || defined(__LB_WIIU__)
 #define AI_ADDRCONFIG 0
 #endif
 

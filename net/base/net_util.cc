@@ -2010,7 +2010,7 @@ bool IPv6Supported() {
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
   return true;
-#elif defined(__LB_PS3__) || defined(__LB_BLUE__)
+#elif defined(__LB_PS3__) || defined(__LB_WIIU__)
   return false;
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
