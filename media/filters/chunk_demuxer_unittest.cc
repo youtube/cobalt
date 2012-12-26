@@ -2493,4 +2493,14 @@ TEST_F(ChunkDemuxerTest, TestAppendAfterEndOfStream) {
   demuxer_->EndOfStream(PIPELINE_OK);
 }
 
+// Test receiving a Shutdown() call before we get an Initialize()
+// call. This can happen if video element gets destroyed before
+// the pipeline has a chance to initialize the demuxer.
+TEST_F(ChunkDemuxerTest, TestShutdownBeforeInitialize) {
+  demuxer_->Shutdown();
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  message_loop_.RunUntilIdle();
+}
+
 }  // namespace media

@@ -655,6 +655,12 @@ void ChunkDemuxer::Initialize(DemuxerHost* host, const PipelineStatusCB& cb) {
 #endif
 
   base::AutoLock auto_lock(lock_);
+
+  if (state_ == SHUTDOWN) {
+    base::MessageLoopProxy::current()->PostTask(FROM_HERE, base::Bind(
+        cb, DEMUXER_ERROR_COULD_NOT_OPEN));
+    return;
+  }
   DCHECK_EQ(state_, WAITING_FOR_INIT);
   host_ = host;
 
