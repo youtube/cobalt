@@ -28,5 +28,6 @@
              '-f', 'GRIT_DIR/../gritsettings/resource_ids',
              '-o', '<(grit_out_dir)',
              '<@(grit_defines)' ],
+  'msvs_cygwin_shell': 1,
   'message': 'Generating resources from <(grit_grd_file) to <@(_outputs)',
 }

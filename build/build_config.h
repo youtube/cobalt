@@ -88,6 +88,8 @@
 #elif defined(__LB_BLUE__)
 #define COMPILER_GCC 1  // close enough.
 // better than defining everything needed to support another compiler.
+#elif defined(__LB_WIIU__)
+#define COMPILER_GCC 1
 #else
 #error Please add support for your compiler in build/build_config.h
 #endif
@@ -101,7 +103,7 @@
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#elif defined(__LB_PS3__) || defined(__LB_BLUE__)
+#elif defined(__LB_PS3__) || defined(__LB_BLUE__) || defined(__LB_WIIU__)
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_BIG_ENDIAN 1
 #define ARCH_CPU_PPC_FAMILY 1
@@ -127,7 +129,7 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_BLUE__)
+#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_BLUE__) || defined(__LB_WIIU__)
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \
