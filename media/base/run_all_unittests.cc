@@ -10,6 +10,7 @@
 
 #if defined(__LB_SHELL__)
 #include "lb_shell_platform_delegate.h"
+#include "lb_stack.h"
 #endif
 
 class TestSuiteNoAtExit : public base::TestSuite {
@@ -21,6 +22,7 @@ class TestSuiteNoAtExit : public base::TestSuite {
 int main(int argc, char** argv) {
 #if defined(__LB_SHELL__)
   LBShellPlatformDelegate::PlatformInit();
+  LB::SetStackSize();
 #endif
 
   // By default command-line parsing happens only in TestSuite::Run(), but
