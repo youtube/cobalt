@@ -1901,7 +1901,9 @@ class QuitDelegate : public MessageLoopForIO::Watcher {
   }
 };
 
-#if !defined(__LB_PS3__)  // pipe() doesn't exist on PS3
+// LB_SHELL platforms don't implement WatchFileDescriptor().
+// pipe() may not exist on some platforms.
+#if !defined(__LB_SHELL__)
 TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
   // Simulate a MessageLoop that dies before an FileDescriptorWatcher.
   // This could happen when people use the Singleton pattern or atexit.
