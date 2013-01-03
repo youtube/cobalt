@@ -63,7 +63,16 @@ inline const char* PickleIterator::GetReadPointerAndAdvance(int num_elements,
 }
 
 bool PickleIterator::ReadBool(bool* result) {
+#if defined(__LB_SHELL__)
+  // Endian-agnostic method
+  int value;
+  bool status = ReadBuiltinType(&value);
+  if (status && result)
+    *result = (value != 0);
+  return status;
+#else
   return ReadBuiltinType(result);
+#endif
 }
 
 bool PickleIterator::ReadInt(int* result) {
