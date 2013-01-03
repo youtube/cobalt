@@ -578,8 +578,13 @@ class SpdyFrame {
 
   void set_length(uint32 length) {
     DCHECK_EQ(0u, (length & ~kLengthMask));
-    length = htonl(length & kLengthMask);
-    frame_->flags_length_.length_ = flags() | length;
+    /*
+    +----------------------------------+
+    | Flags (8)  |  Length (24 bits)   |
+    +----------------------------------+
+    */
+    frame_->flags_length_.length_ = htonl(length & kLengthMask
+                                          | (flags() << 24));
   }
 
   bool is_control_frame() const {
@@ -656,9 +661,13 @@ class SpdyControlFrame : public SpdyFrame {
   }
 
   void set_version(uint16 version) {
-    const uint16 kControlBit = 0x80;
-    DCHECK_EQ(0, version & kControlBit);
-    mutable_block()->control_.version_ = kControlBit | htons(version);
+    /*
+    +----------------------------------+
+    |C| Version(15bits) | Type(16bits) |
+    +----------------------------------+
+    */
+    DCHECK_EQ(0, version & kControlFlagMask);
+    mutable_block()->control_.version_ = htons(kControlFlagMask | version);
   }
 
   SpdyControlType type() const {

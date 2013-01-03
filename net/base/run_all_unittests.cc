@@ -17,6 +17,7 @@
 
 #if defined(__LB_SHELL__)
 #include "lb_shell_platform_delegate.h"
+#include "lb_stack.h"
 #endif
 
 using net::internal::ClientSocketPoolBaseHelper;
@@ -25,6 +26,7 @@ using net::SpdySession;
 int main(int argc, char** argv) {
 #if defined(__LB_SHELL__)
   LBShellPlatformDelegate::PlatformInit();
+  LB::SetStackSize();
 #endif
 
   // Record histograms, so we can get histograms data in tests.
