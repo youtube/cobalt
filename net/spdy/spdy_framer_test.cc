@@ -1991,6 +1991,21 @@ TEST_P(SpdyFramerTest, CreateSettings) {
     const char kDescription[] = "Basic SETTINGS frame";
 
     SettingsMap settings;
+#if defined(__LB_SHELL__)
+    // second argument is expected to be in network byte order
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0x00000000), 0x00000001);  // 1st Setting
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0x02000001), 0x00000002);  // 2nd Setting
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0x03000002), 0x00000003);  // 3rd Setting
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0x04000003), 0xff000004);  // 4th Setting
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0x050000ff), 0x00000005);  // 5th Setting
+    AddSpdySettingFromWireFormat(
+        &settings, htonl(0xffffffff), 0x00000006);  // 6th Setting
+#else
     AddSpdySettingFromWireFormat(
         &settings, 0x00000000, 0x00000001);  // 1st Setting
     AddSpdySettingFromWireFormat(
@@ -2003,6 +2018,7 @@ TEST_P(SpdyFramerTest, CreateSettings) {
         &settings, 0xff000005, 0x00000005);  // 5th Setting
     AddSpdySettingFromWireFormat(
         &settings, 0xffffffff, 0x00000006);  // 6th Setting
+#endif
 
     const unsigned char kFrameData[] = {
       0x80, spdy_version_, 0x00, 0x04,
