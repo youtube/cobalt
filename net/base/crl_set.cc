@@ -9,6 +9,7 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/sys_byteorder.h"
 #include "base/values.h"
 #include "crypto/sha2.h"
 #include "net/base/crl_set.h"
@@ -128,7 +129,9 @@ static base::DictionaryValue* ReadHeader(base::StringPiece* data) {
   if (data->size() < 2)
     return NULL;
   uint16 header_len;
-  memcpy(&header_len, data->data(), 2);  // assumes little-endian.
+  // Data is in little endian format
+  memcpy(&header_len, data->data(), 2);
+  header_len = base::ByteSwapToLE16(header_len);
   data->remove_prefix(2);
 
   if (data->size() < header_len)
@@ -161,7 +164,9 @@ static bool ReadCRL(base::StringPiece* data, std::string* out_parent_spki_hash,
   if (data->size() < sizeof(uint32))
     return false;
   uint32 num_serials;
-  memcpy(&num_serials, data->data(), sizeof(uint32));  // assumes little endian
+  // Data is in little endian format
+  memcpy(&num_serials, data->data(), sizeof(uint32));
+  num_serials = base::ByteSwapToLE32(num_serials);
   data->remove_prefix(sizeof(uint32));
 
   for (uint32 i = 0; i < num_serials; ++i) {
@@ -204,19 +209,6 @@ bool CRLSet::CopyBlockedSPKIsFromHeader(base::DictionaryValue* header_dict) {
 
 // static
 bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
-  // Other parts of Chrome assume that we're little endian, so we don't lose
-  // anything by doing this.
-#if defined(__LB_SHELL__)
-  return false;
-#else
-#if defined(__BYTE_ORDER)
-  // Linux check
-  COMPILE_ASSERT(__BYTE_ORDER == __LITTLE_ENDIAN, assumes_little_endian);
-#elif defined(__BIG_ENDIAN__)
-  // Mac check
-  #error assumes little endian
-#endif
-
   scoped_ptr<base::DictionaryValue> header_dict(ReadHeader(&data));
   if (!header_dict.get())
     return false;
@@ -264,7 +256,6 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
 
   *out_crl_set = crl_set;
   return true;
-#endif
 }
 
 // kMaxUncompressedChangesLength is the largest changes array that we'll
@@ -277,10 +268,12 @@ static bool ReadChanges(base::StringPiece* data,
   uint32 uncompressed_size, compressed_size;
   if (data->size() < 2 * sizeof(uint32))
     return false;
-  // assumes little endian.
+  // Data is in little endian format
   memcpy(&uncompressed_size, data->data(), sizeof(uint32));
+  uncompressed_size = base::ByteSwapToLE32(uncompressed_size);
   data->remove_prefix(4);
   memcpy(&compressed_size, data->data(), sizeof(uint32));
+  compressed_size = base::ByteSwapToLE32(compressed_size);
   data->remove_prefix(4);
 
   if (uncompressed_size > kMaxUncompressedChangesLength)
@@ -513,7 +506,8 @@ std::string CRLSet::Serialize() const {
   for (CRLList::const_iterator i = crls_.begin(); i != crls_.end(); ++i) {
     memcpy(out + off, i->first.data(), i->first.size());
     off += i->first.size();
-    const uint32 num_serials = i->second.size();
+    // num_serials is stored in little endian format
+    const uint32 num_serials = base::ByteSwapToLE32(i->second.size());
     memcpy(out + off, &num_serials, sizeof(num_serials));
     off += sizeof(num_serials);
 
