@@ -436,7 +436,7 @@ bool ClientSocketPoolBaseHelper::AssignIdleSocketToRequest(
       idle_time_sec = std::max(1, idle_time_sec);
 
       if (g_socket_reuse_policy_penalty_exponent >= 0 && num_kb >= 0) {
-        score = num_kb / pow(idle_time_sec,
+        score = num_kb / pow((double)idle_time_sec,
                              g_socket_reuse_policy_penalty_exponent);
       }
 
