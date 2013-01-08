@@ -384,7 +384,7 @@ BASE_EXPORT bool TouchFile(const FilePath& path,
 BASE_EXPORT bool SetLastModifiedTime(const FilePath& path,
                                      const base::Time& last_modified);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_WIIU__)
 // Store inode number of |path| in |inode|. Return true on success.
 BASE_EXPORT bool GetInode(const FilePath& path, ino_t* inode);
 #endif
@@ -562,7 +562,7 @@ class BASE_EXPORT FileEnumerator {
   bool has_find_data_;
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_WIIU__)
   struct DirectoryEntryInfo {
     FilePath filename;
     struct stat stat;
