@@ -119,6 +119,7 @@ void WebMStreamParser::ChangeState(State new_state) {
 }
 
 int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
+  DVLOG(2) << "ParseInfoAndTracks()";
   DCHECK(data);
   DCHECK_GT(size, 0);
 

@@ -594,6 +594,7 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
           }
           return false;
         case SourceBufferStream::kConfigChange:
+          DVLOG(2) << "Config change reported to ChunkDemuxerStream.";
           *status = kConfigChanged;
           *buffer = NULL;
           return true;
@@ -1265,7 +1266,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     }
   }
 
-  DVLOG(1) << "OnNewConfigs() : success " << success;
+  DVLOG(1) << "OnNewConfigs() : " << (success ? "success" : "failed");
   return success;
 }
 
