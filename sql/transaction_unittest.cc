@@ -15,9 +15,13 @@ class SQLTransactionTest : public testing::Test {
   SQLTransactionTest() {}
 
   void SetUp() {
+#if defined(__LB_SHELL__)
+    ASSERT_TRUE(db_.OpenInMemory());
+#else
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(
         temp_dir_.path().AppendASCII("SQLTransactionTest.db")));
+#endif
 
     ASSERT_TRUE(db().Execute("CREATE TABLE foo (a, b)"));
   }

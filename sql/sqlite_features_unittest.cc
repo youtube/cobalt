@@ -50,8 +50,12 @@ class SQLiteFeaturesTest : public testing::Test {
   SQLiteFeaturesTest() : error_handler_(new StatementErrorHandler) {}
 
   void SetUp() {
+#if defined(__LB_SHELL__)
+    ASSERT_TRUE(db_.OpenInMemory());
+#else
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
+#endif
 
     // The |error_handler_| will be called if any sqlite statement operation
     // returns an error code.
