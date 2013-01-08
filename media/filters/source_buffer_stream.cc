@@ -429,13 +429,13 @@ bool SourceBufferStream::Append(
 
   // New media segments must begin with a keyframe.
   if (new_media_segment_ && !buffers.front()->IsKeyframe()) {
-    MEDIA_LOG(log_cb_) <<"Media segment did not begin with keyframe.";
+    MEDIA_LOG(log_cb_) << "Media segment did not begin with keyframe.";
     return false;
   }
 
   // Buffers within a media segment should be monotonically increasing.
   if (!IsMonotonicallyIncreasing(buffers)) {
-    MEDIA_LOG(log_cb_) <<"Buffers were not monotonically increasing.";
+    MEDIA_LOG(log_cb_) << "Buffers were not monotonically increasing.";
     return false;
   }
 
@@ -1028,6 +1028,7 @@ SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
     DCHECK(selected_range_);
     if (track_buffer_.front()->GetConfigId() != current_config_index_) {
       config_change_pending_ = true;
+      DVLOG(1) << "Config change (track buffer config ID does not match).";
       return kConfigChange;
     }
 
@@ -1041,6 +1042,7 @@ SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
 
   if (selected_range_->GetNextConfigId() != current_config_index_) {
     config_change_pending_ = true;
+    DVLOG(1) << "Config change (selected range config ID does not match).";
     return kConfigChange;
   }
 
@@ -1138,6 +1140,7 @@ base::TimeDelta SourceBufferStream::GetMaxInterbufferDistance() const {
 bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
   DCHECK(!audio_configs_.empty());
   DCHECK(video_configs_.empty());
+  DVLOG(3) << "UpdateAudioConfig.";
 
   if (audio_configs_[0]->codec() != config.codec()) {
     MEDIA_LOG(log_cb_) << "Audio codec changes not allowed.";
@@ -1174,6 +1177,7 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
 
   // No matches found so let's add this one to the list.
   append_config_index_ = audio_configs_.size();
+  DVLOG(2) << "New audio config - index: " << append_config_index_;
   audio_configs_.resize(audio_configs_.size() + 1);
   audio_configs_[append_config_index_] = new AudioDecoderConfig();
   audio_configs_[append_config_index_]->CopyFrom(config);
@@ -1183,14 +1187,15 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
 bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(!video_configs_.empty());
   DCHECK(audio_configs_.empty());
+  DVLOG(3) << "UpdateVideoConfig.";
 
   if (video_configs_[0]->is_encrypted() != config.is_encrypted()) {
-    MEDIA_LOG(log_cb_) <<"Video Encryption changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Video Encryption changes not allowed.";
     return false;
   }
 
   if (video_configs_[0]->codec() != config.codec()) {
-    MEDIA_LOG(log_cb_) <<"Video codec changes not allowed.";
+    MEDIA_LOG(log_cb_) << "Video codec changes not allowed.";
     return false;
   }
 
@@ -1209,6 +1214,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
 
   // No matches found so let's add this one to the list.
   append_config_index_ = video_configs_.size();
+  DVLOG(2) << "New video config - index: " << append_config_index_;
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = new VideoDecoderConfig();
   video_configs_[append_config_index_]->CopyFrom(config);

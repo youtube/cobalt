@@ -180,6 +180,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   DemuxerHost* host_;
   base::Closure open_cb_;
   NeedKeyCB need_key_cb_;
+  // Callback used to report error strings that can help the web developer
+  // figure out what is wrong with the content.
   LogCB log_cb_;
 
   PipelineStatusCB init_cb_;
