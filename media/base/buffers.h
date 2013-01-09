@@ -42,6 +42,8 @@ namespace media {
 static const int kShellMediaBufferAlignment = 128;
 #elif defined(__LB_LINUX__)
 static const int kShellMediaBufferAlignment = 4;
+#elif defined(__LB_WIIU__)
+static const int kShellMediaBufferAlignment = 64;
 #elif
 #error need to define kShellMediaBufferAlignment for your platform.
 #endif
