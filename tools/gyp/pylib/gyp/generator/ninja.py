@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Google Inc. All rights reserved.
+# Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -821,7 +821,12 @@ class NinjaWriter:
       cflags_c = self.msvs_settings.GetCflagsC(config_name)
       cflags_cc = self.msvs_settings.GetCflagsCC(config_name)
       extra_defines = self.msvs_settings.GetComputedDefines(config_name)
-      self.WriteVariableList('pdbname', [self.name + '.pdb'])
+      obj = 'obj'
+      if self.toolset != 'target':
+        obj += '.' + self.toolset
+      pdbpath = os.path.normpath(os.path.join(obj, self.base_dir,
+                                              self.name + '.pdb'))
+      self.WriteVariableList('pdbname', [pdbpath])
       self.WriteVariableList('pchprefix', [self.name])
     else:
       cflags = config.get('cflags', [])
