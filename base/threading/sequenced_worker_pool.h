@@ -118,10 +118,6 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
 
    private:
     friend class SequencedWorkerPool;
-#if defined(__LB_BLUE__)
-    // inner classes don't have the access rights of their containers
-    friend class Inner;
-#endif
 
     explicit SequenceToken(int id) : id_(id) {}
 
