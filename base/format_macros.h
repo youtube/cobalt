@@ -46,6 +46,15 @@
 #define PRIuS "zu"
 #endif
 
+#if defined(__LB_WIIU__)
+#define PRIu8     "u"
+#define PRId32    "I32d"
+#define PRIu32    "I32u"
+#define PRId64    "lld"
+#define PRIu64    "llu"
+#define PRIx64    "I64x"
+#endif
+
 #else  // OS_WIN
 
 #if !defined(PRId64)
