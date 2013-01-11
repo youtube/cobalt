@@ -20,6 +20,10 @@
 #include "lb_stack.h"
 #endif
 
+#if defined(__LB_SHELL__FOR_RELEASE__)
+#error You cannot build unit tests in gold builds.
+#endif
+
 using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
 
