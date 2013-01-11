@@ -10,6 +10,10 @@
 #include "lb_stack.h"
 #endif
 
+#if defined(__LB_SHELL__FOR_RELEASE__)
+#error You cannot build the unit tests in gold builds.
+#endif
+
 int main(int argc, char** argv) {
 #if defined(__LB_SHELL__)
   LBShellPlatformDelegate::PlatformInit();
