@@ -13,6 +13,10 @@
 #include "lb_stack.h"
 #endif
 
+#if defined(__LB_SHELL__FOR_RELEASE__)
+#error You cannot build unit tests in gold builds.
+#endif
+
 class TestSuiteNoAtExit : public base::TestSuite {
  public:
   TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv, false) {}
