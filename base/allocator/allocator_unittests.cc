@@ -81,6 +81,17 @@ static int NextSize(int size) {
   }
 }
 
+#if defined(__LB_SHELL__)
+#if defined(GG_ULONGLONG)
+// GG_ULONGLONG is already defined in base/port.h
+#undef GG_ULONGLONG
+#endif
+
+// namespace resolution for typedefs
+using base::subtle::AtomicWord;
+using base::subtle::Atomic32;
+#endif
+
 #define GG_ULONGLONG(x)  static_cast<uint64>(x)
 
 template <class AtomicType>
@@ -279,8 +290,19 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   if (!ok) {
     EXPECT_EQ(NULL, p) << "calloc(n, s) should not succeed";
   } else {
+#if defined(__LB_SHELL__)
+    if (n == 0 || s == 0) {
+      // LB_SHELL returns NULL for size 0 calloc.
+      EXPECT_EQ(reinterpret_cast<void*>(NULL), p) <<
+        "calloc(n, s) should fail";
+    } else {
+      EXPECT_NE(reinterpret_cast<void*>(NULL), p) <<
+        "calloc(n, s) should succeed";
+    }
+#else
     EXPECT_NE(reinterpret_cast<void*>(NULL), p) <<
         "calloc(n, s) should succeed";
+#endif
     for (int i = 0; i < n*s; i++) {
       EXPECT_EQ('\0', p[i]);
     }
@@ -288,6 +310,8 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   }
 }
 
+#if !defined(__LB_PS3__)
+// PS3 compiler complains about exceptions being disabled.
 
 // A global test counter for number of times the NewHandler is called.
 static int news_handled = 0;
@@ -331,7 +355,7 @@ static void TestNothrowNew(void* (*func)(size_t)) {
   EXPECT_EQ(news_handled, 1) << "nothrow new_handler was not called.";
   std::set_new_handler(saved_handler);
 }
-
+#endif
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -384,11 +408,32 @@ TEST(Allocators, Calloc) {
   TestCalloc(kMaxSignedSize, kMaxSignedSize, false);
 }
 
+#if !defined(__LB_PS3__)
+// PS3 compiler complains about exceptions being disabled.
 TEST(Allocators, New) {
   TestNothrowNew(&::operator new);
   TestNothrowNew(&::operator new[]);
 }
+#endif
 
+#if defined(__LB_SHELL__)
+// Whether or not the pointer is the same is highly implementation specific.
+// Only test reallocating to a smaller size.
+TEST(Allocators, ReallocSteel) {
+  int start_sizes[] = { 100, 1000, 10000, 100000 };
+  int deltas[] = { -1, -2, -4, -8, -16, -32, -64, -128 };
+
+  for (int s = 0; s < sizeof(start_sizes)/sizeof(*start_sizes); ++s) {
+    void* p = malloc(start_sizes[s]);
+    ASSERT_TRUE(p);
+    for (int d = 0; d < s*2; ++d) {
+      void* new_p = realloc(p, start_sizes[s] + deltas[d]);
+      ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
+    }
+    free(p);
+  }
+}
+#else
 // This makes sure that reallocing a small number of bytes in either
 // direction doesn't cause us to allocate new memory.
 TEST(Allocators, Realloc1) {
@@ -411,6 +456,7 @@ TEST(Allocators, Realloc1) {
     free(p);
   }
 }
+#endif
 
 TEST(Allocators, Realloc2) {
   for (int src_size = 0; src_size >= 0; src_size = NextSize(src_size)) {
@@ -452,9 +498,22 @@ TEST(Allocators, ReallocZero) {
   // Test that realloc to zero does not return NULL.
   for (int size = 0; size >= 0; size = NextSize(size)) {
     char* ptr = reinterpret_cast<char*>(malloc(size));
+#if defined(__LB_SHELL__)
+    if (size == 0)
+      // LB_SHELL returns NULL for size 0 malloc.
+      EXPECT_EQ(static_cast<char*>(NULL), ptr);
+    else
+      EXPECT_NE(static_cast<char*>(NULL), ptr);
+#else
     EXPECT_NE(static_cast<char*>(NULL), ptr);
+#endif
     ptr = reinterpret_cast<char*>(realloc(ptr, 0));
+#if defined(__LB_SHELL__)
+    // LB_SHELL returns NULL for size 0 realloc.
+    EXPECT_EQ(static_cast<char*>(NULL), ptr);
+#else
     EXPECT_NE(static_cast<char*>(NULL), ptr);
+#endif
     if (ptr)
       free(ptr);
   }
@@ -481,8 +540,9 @@ TEST(Allocators, Recalloc) {
 }
 #endif
 
-
+#if !defined(__LB_SHELL__)  // main defined in run_all_unittests
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+#endif
