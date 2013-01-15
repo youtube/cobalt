@@ -310,7 +310,7 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   }
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 // PS3 compiler complains about exceptions being disabled.
 
 // A global test counter for number of times the NewHandler is called.
@@ -408,7 +408,7 @@ TEST(Allocators, Calloc) {
   TestCalloc(kMaxSignedSize, kMaxSignedSize, false);
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 // PS3 compiler complains about exceptions being disabled.
 TEST(Allocators, New) {
   TestNothrowNew(&::operator new);
