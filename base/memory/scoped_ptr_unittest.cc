@@ -122,6 +122,7 @@ TEST(ScopedPtrTest, ScopedPtr) {
 TEST(ScopedPtrTest, ScopedPtrDepthSubtyping) {
   int constructed = 0;
 
+#if !defined(COMPILER_GHS)
   // Test construction from a scoped_ptr to a derived class.
   {
     scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
@@ -138,6 +139,7 @@ TEST(ScopedPtrTest, ScopedPtrDepthSubtyping) {
     EXPECT_EQ(10, (*scoper_parent).SomeMeth(10));
   }
   EXPECT_EQ(0, constructed);
+#endif
 
   // Test assignment from a scoped_ptr to a derived class.
   {
@@ -153,6 +155,10 @@ TEST(ScopedPtrTest, ScopedPtrDepthSubtyping) {
   }
   EXPECT_EQ(0, constructed);
 
+#if !defined(COMPILER_GHS)
+  // For the GHS compiler we have had to disable depth subtyping constructor,
+  // since that interferes with the move constructor. Luckily, we don't use
+  // the subtyping constructor anywhere in chromium, yet.
   // Test construction of a scoped_ptr with an additional const annotation.
   {
     scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
@@ -169,6 +175,7 @@ TEST(ScopedPtrTest, ScopedPtrDepthSubtyping) {
     EXPECT_EQ(10, (*scoper_const).SomeMeth(10));
   }
   EXPECT_EQ(0, constructed);
+#endif
 
   // Test assignment to a scoped_ptr with an additional const annotation.
   {
