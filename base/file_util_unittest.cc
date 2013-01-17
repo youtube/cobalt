@@ -12,8 +12,11 @@
 #include <winioctl.h>
 #endif
 
+#if !defined(__LB_PS3__)
+// These headers are not available on the PS3
 #include <algorithm>
 #include <fstream>
+#endif
 #include <set>
 
 #include "base/base_paths.h"
@@ -180,21 +183,35 @@ class FindResultCollector {
 // Simple function to dump some text into a new file.
 void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
+#if defined(__LB_PS3__)
+  FILE *file = fopen(filename.value().c_str(), "w");
+  ASSERT_TRUE(file != NULL);
+  fputws(contents.c_str(), file);
+  fclose(file);
+#else
   std::wofstream file;
   file.open(filename.value().c_str());
   ASSERT_TRUE(file.is_open());
   file << contents;
   file.close();
+#endif
 }
 
 // Simple function to take out some text from a file.
 std::wstring ReadTextFile(const FilePath& filename) {
   wchar_t contents[64];
+#if defined(__LB_PS3__)
+  FILE *file = fopen(filename.value().c_str(), "r");
+  EXPECT_TRUE(file != NULL);
+  fgetws(contents, arraysize(contents), file);
+  fclose(file);
+#else
   std::wifstream file;
   file.open(filename.value().c_str());
   EXPECT_TRUE(file.is_open());
   file.getline(contents, arraysize(contents));
   file.close();
+#endif
   return std::wstring(contents);
 }
 
@@ -630,7 +647,8 @@ TEST_F(FileUtilTest, GetPlatformFileInfoForDirectory) {
 
 #endif  // defined(OS_WIN)
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
+// Symbolic links not supported in steel
 
 TEST_F(FileUtilTest, CreateAndReadSymlinks) {
   FilePath link_from = temp_dir_.path().Append(FPL("from_file"));
@@ -740,7 +758,9 @@ TEST_F(FileUtilTest, DeleteFile) {
   EXPECT_FALSE(file_util::PathExists(file_name));
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
+// Symbolic links not supported in steel
+
 TEST_F(FileUtilTest, DeleteSymlinkToExistentFile) {
   // Create a file.
   FilePath file_name = temp_dir_.path().Append(FPL("Test DeleteFile 2.txt"));
@@ -1808,11 +1828,16 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_FALSE(file_util::PathExists(test_root));
   EXPECT_FALSE(file_util::PathExists(test_path));
 
+#if !defined(__LB_PS3__)
+  // kCurrentDirectory is ".", and PS3 does NOT support relative paths.
+
   // Verify assumptions made by the Windows implementation:
   // 1. The current directory always exists.
   // 2. The root directory always exists.
   ASSERT_TRUE(file_util::DirectoryExists(
       FilePath(FilePath::kCurrentDirectory)));
+#endif
+
   FilePath top_level = test_root;
   while (top_level != top_level.DirName()) {
     top_level = top_level.DirName();
@@ -2068,6 +2093,12 @@ TEST_F(FileUtilTest, TouchFile) {
   ASSERT_TRUE(base::Time::FromString("Tue, 15 Nov 1994, 12:45:26 GMT",
               &modification_time));
 
+#if !defined(__LB_PS3__)
+  // file_util::TouchFile creates a platform file and passes its descriptor to
+  // base::TouchPlatformFile().
+  // Unfortunately, PS3 only implements utime, not futime, which means it
+  // can only touch a file path, not a file descriptor.
+
   ASSERT_TRUE(file_util::TouchFile(foobar, access_time, modification_time));
   base::PlatformFileInfo file_info;
   ASSERT_TRUE(file_util::GetFileInfo(foobar, &file_info));
@@ -2075,6 +2106,7 @@ TEST_F(FileUtilTest, TouchFile) {
             access_time.ToInternalValue());
   EXPECT_EQ(file_info.last_modified.ToInternalValue(),
             modification_time.ToInternalValue());
+#endif
 }
 
 TEST_F(FileUtilTest, IsDirectoryEmpty) {
@@ -2093,7 +2125,8 @@ TEST_F(FileUtilTest, IsDirectoryEmpty) {
   EXPECT_FALSE(file_util::IsDirectoryEmpty(empty_dir));
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
+// We don't support uids or symlinks in steel
 
 // Testing VerifyPathControlledByAdmin() is hard, because there is no
 // way a test can make a file owned by root, or change file paths
@@ -2186,6 +2219,9 @@ TEST_F(VerifyPathControlledByUserTest, BadPaths) {
       file_util::VerifyPathControlledByUser(
           base_dir_, sub_dir_, uid_, ok_gids_));
 }
+
+#if !defined(__LB_SHELL__)
+// We don't support uids or symlinks in steel
 
 TEST_F(VerifyPathControlledByUserTest, Symlinks) {
   // Symlinks in the path should cause failure.
@@ -2462,6 +2498,7 @@ TEST_F(VerifyPathControlledByUserTest, WriteBitChecks) {
       file_util::VerifyPathControlledByUser(
           sub_dir_, text_file_, uid_, ok_gids_));
 }
+#endif
 
 #endif  // defined(OS_POSIX)
 
