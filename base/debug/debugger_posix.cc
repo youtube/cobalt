@@ -176,11 +176,7 @@ bool BeingDebugged() {
 #elif defined(__LB_SHELL__)
 
 bool BeingDebugged() {
-#if defined(NDEBUG)
-  return false;
-#else
-  return true;
-#endif
+  return LB::Platform::BeingDebugged();
 }
 
 #else
@@ -206,15 +202,16 @@ bool BeingDebugged() {
 // Linux: Debug mode, send SIGTRAP; Release mode, send SIGABRT.
 // Mac: Always send SIGTRAP.
 
-#if defined(NDEBUG) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if defined(__LB_SHELL__)
+#define DEBUG_BREAK() LB::Platform::DEBUG_BREAK()
+#elif defined(NDEBUG) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 #define DEBUG_BREAK() abort()
 #elif defined(OS_NACL)
 // The NaCl verifier doesn't let use use int3.  For now, we call abort().  We
 // should ask for advice from some NaCl experts about the optimum thing here.
 // http://code.google.com/p/nativeclient/issues/detail?id=645
 #define DEBUG_BREAK() abort()
-#elif defined(__LB_SHELL__)
-#define DEBUG_BREAK() LB::Platform::DEBUG_BREAK()
+
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #if defined(OS_ANDROID)
 // Though Android has a "helpful" process called debuggerd to catch native

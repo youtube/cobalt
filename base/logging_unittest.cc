@@ -219,13 +219,13 @@ TEST_F(LoggingTest, Dcheck) {
   // Official build.
   EXPECT_FALSE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
-#elif defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
+#elif defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON) && !defined(__LB_SHELL__FORCE_LOGGING__)
   // Unofficial release build.
   g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
   SetLogReportHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
-#elif defined(NDEBUG) && defined(DCHECK_ALWAYS_ON)
+#elif defined(NDEBUG) && (defined(DCHECK_ALWAYS_ON) || defined(__LB_SHELL__FORCE_LOGGING__))
   // Unofficial release build with real DCHECKS.
   g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
   SetLogAssertHandler(&LogSink);
@@ -238,17 +238,21 @@ TEST_F(LoggingTest, Dcheck) {
   EXPECT_TRUE(DLOG_IS_ON(DCHECK));
 #endif  // defined(LOGGING_IS_OFFICIAL_BUILD)
 
-#if defined(__LB_SHELL__) && defined(NDEBUG)
+#if defined(__LB_SHELL__)
   // These only break when the Logging class thinks a debugger is attached.
   // Unfortunately, LB_SHELL assumes a debugger is attached as long as
-  // NDEBUG is not defined (see debugger_posix.cc:BeingDebugged()).
-  EXPECT_EQ(0, log_sink_call_count);
-  DCHECK(false);
-  EXPECT_EQ(DCHECK_IS_ON() ? 1 : 0, log_sink_call_count);
-  DPCHECK(false);
-  EXPECT_EQ(DCHECK_IS_ON() ? 2 : 0, log_sink_call_count);
-  DCHECK_EQ(0, 1);
-  EXPECT_EQ(DCHECK_IS_ON() ? 3 : 0, log_sink_call_count);
+  // NDEBUG is not defined for some platforms (see debugger_posix.cc:BeingDebugged()).
+  if (!base::debug::BeingDebugged()) {
+#endif
+    EXPECT_EQ(0, log_sink_call_count);
+    DCHECK(false);
+    EXPECT_EQ(DCHECK_IS_ON() ? 1 : 0, log_sink_call_count);
+    DPCHECK(false);
+    EXPECT_EQ(DCHECK_IS_ON() ? 2 : 0, log_sink_call_count);
+    DCHECK_EQ(0, 1);
+    EXPECT_EQ(DCHECK_IS_ON() ? 3 : 0, log_sink_call_count);
+#if defined(__LB_SHELL__)
+  }
 #endif
 }
 
