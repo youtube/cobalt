@@ -648,7 +648,7 @@ TEST_F(FileUtilTest, GetPlatformFileInfoForDirectory) {
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX) && !defined(__LB_SHELL__)
-// Symbolic links not supported in steel
+// Symbolic links not supported in lbshell
 
 TEST_F(FileUtilTest, CreateAndReadSymlinks) {
   FilePath link_from = temp_dir_.path().Append(FPL("from_file"));
@@ -759,7 +759,7 @@ TEST_F(FileUtilTest, DeleteFile) {
 }
 
 #if defined(OS_POSIX) && !defined(__LB_SHELL__)
-// Symbolic links not supported in steel
+// Symbolic links not supported in lbshell
 
 TEST_F(FileUtilTest, DeleteSymlinkToExistentFile) {
   // Create a file.
@@ -2126,7 +2126,7 @@ TEST_F(FileUtilTest, IsDirectoryEmpty) {
 }
 
 #if defined(OS_POSIX) && !defined(__LB_SHELL__)
-// We don't support uids or symlinks in steel
+// We don't support uids or symlinks in lbshell
 
 // Testing VerifyPathControlledByAdmin() is hard, because there is no
 // way a test can make a file owned by root, or change file paths
@@ -2221,7 +2221,7 @@ TEST_F(VerifyPathControlledByUserTest, BadPaths) {
 }
 
 #if !defined(__LB_SHELL__)
-// We don't support uids or symlinks in steel
+// We don't support uids or symlinks in lbshell
 
 TEST_F(VerifyPathControlledByUserTest, Symlinks) {
   // Symlinks in the path should cause failure.
