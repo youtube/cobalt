@@ -419,7 +419,7 @@ TEST(Allocators, New) {
 #if defined(__LB_SHELL__)
 // Whether or not the pointer is the same is highly implementation specific.
 // Only test reallocating to a smaller size.
-TEST(Allocators, ReallocSteel) {
+TEST(Allocators, ReallocLBShell) {
   int start_sizes[] = { 100, 1000, 10000, 100000 };
   int deltas[] = { -1, -2, -4, -8, -16, -32, -64, -128 };
 
