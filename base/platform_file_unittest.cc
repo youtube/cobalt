@@ -191,7 +191,16 @@ TEST(PlatformFile, ReadWritePlatformFile) {
 
   // Make sure the file was extended.
   int64 file_size = 0;
+#if defined(__LB_SHELL__)
+  // At this point, the file buffer may not have been flushed to disk,
+  // so reading the new file size from disk is flaky.  Instead, read the file
+  // size from the file descriptor using GetPlatformFileInfo.
+  base::PlatformFileInfo file_info;
+  EXPECT_TRUE(base::GetPlatformFileInfo(file, &file_info));
+  file_size = file_info.size;
+#else
   EXPECT_TRUE(file_util::GetFileSize(file_path, &file_size));
+#endif
   EXPECT_EQ(kOffsetBeyondEndOfFile + kPartialWriteLength, file_size);
 
   // Make sure the file was zero-padded.
@@ -301,8 +310,12 @@ TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   base::Time new_last_modified =
       info.last_modified + base::TimeDelta::FromMinutes(567);
 
+#if !defined(__LB_PS3__)
+  // base::TouchPlatformFile() will never work on PS3 as long as PS3 does not
+  // implement futime().
   EXPECT_TRUE(base::TouchPlatformFile(file, new_last_accessed,
                                       new_last_modified));
+#endif
 
   // Make sure the file info was updated accordingly.
   EXPECT_TRUE(base::GetPlatformFileInfo(file, &info));
@@ -311,6 +324,7 @@ TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   EXPECT_FALSE(info.is_symbolic_link);
 
   // ext2/ext3 and HPS/HPS+ seem to have a timestamp granularity of 1s.
+#if !defined(__LB_PS3__)
 #if defined(OS_POSIX)
   EXPECT_EQ(info.last_accessed.ToTimeVal().tv_sec,
             new_last_accessed.ToTimeVal().tv_sec);
@@ -321,6 +335,7 @@ TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
             new_last_accessed.ToInternalValue());
   EXPECT_EQ(info.last_modified.ToInternalValue(),
             new_last_modified.ToInternalValue());
+#endif
 #endif
 
   EXPECT_EQ(info.creation_time.ToInternalValue(),
