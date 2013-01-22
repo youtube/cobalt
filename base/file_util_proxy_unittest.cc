@@ -325,6 +325,12 @@ TEST_F(FileUtilProxyTest, WriteAndFlush) {
   }
 }
 
+#if !defined(__LB_PS3__)
+// FileUtilProxy::Touch creates a platform file and passes its descriptor to
+// base::TouchPlatformFile().
+// Unfortunately, PS3 only implements utime, not futime, which means it
+// can only touch a file path, not a file descriptor.
+
 TEST_F(FileUtilProxyTest, Touch) {
   Time last_accessed_time = Time::Now() - TimeDelta::FromDays(12345);
   Time last_modified_time = Time::Now() - TimeDelta::FromHours(98765);
@@ -350,6 +356,7 @@ TEST_F(FileUtilProxyTest, Touch) {
   EXPECT_EQ(static_cast<int>(last_accessed_time.ToDoubleT()),
             static_cast<int>(info.last_accessed.ToDoubleT()));
 }
+#endif
 
 TEST_F(FileUtilProxyTest, Truncate_Shrink) {
   // Setup.
