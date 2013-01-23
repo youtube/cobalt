@@ -52,7 +52,7 @@
 #define PRIu32    "I32u"
 #define PRId64    "lld"
 #define PRIu64    "llu"
-#define PRIx64    "I64x"
+#define PRIx64    "llx"
 #endif
 
 #else  // OS_WIN
