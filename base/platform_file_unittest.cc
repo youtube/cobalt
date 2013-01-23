@@ -324,7 +324,7 @@ TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   EXPECT_FALSE(info.is_symbolic_link);
 
   // ext2/ext3 and HPS/HPS+ seem to have a timestamp granularity of 1s.
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 #if defined(OS_POSIX)
   EXPECT_EQ(info.last_accessed.ToTimeVal().tv_sec,
             new_last_accessed.ToTimeVal().tv_sec);
