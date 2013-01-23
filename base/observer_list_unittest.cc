@@ -101,6 +101,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
  public:
   AddRemoveThread(ObserverListThreadSafe<Foo>* list, bool notify)
       : list_(list),
+        loop_(NULL),
         in_list_(false),
         start_(Time::Now()),
         count_observes_(0),
@@ -123,6 +124,10 @@ class AddRemoveThread : public PlatformThread::Delegate,
     delete loop_;
     loop_ = reinterpret_cast<MessageLoop*>(0xdeadbeef);
     delete this;
+  }
+
+  bool Started() {
+    return loop_ != NULL;
   }
 
   // This task just keeps posting to itself in an attempt
@@ -389,6 +394,14 @@ static void ThreadSafeObserverHarness(int num_threads,
     threaded_observer[index] = new AddRemoveThread(observer_list.get(), false);
     EXPECT_TRUE(PlatformThread::Create(0,
                 threaded_observer[index], &threads[index]));
+  }
+
+  // Wait for all threads to start do avoid NULL ptr dereference
+  // when calling Quit()
+  for (int index = 0; index < num_threads; ++index) {
+    while (!threaded_observer[index]->Started()) {
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(50));
+    }
   }
 
   Time start = Time::Now();
