@@ -98,7 +98,10 @@ TEST_F(TimeTest, JsTime) {
   EXPECT_EQ(800730.0, t.ToJsTime());
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
+// FromTimeVal is only used on Macs, and ToTimeVal is only used in conjunction
+// with TouchPlatformFile(), which is not well supported in lb_shell.
+
 TEST_F(TimeTest, FromTimeVal) {
   Time now = Time::Now();
   Time also_now = Time::FromTimeVal(now.ToTimeVal());
@@ -571,7 +574,9 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(13, TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
+// ToTimeSpec() only ever called for Macs (see process_util_posix.cc)
+
 TEST(TimeDelta, TimeSpecConversion) {
   struct timespec result = TimeDelta::FromSeconds(0).ToTimeSpec();
   EXPECT_EQ(result.tv_sec, 0);
