@@ -9,7 +9,7 @@
 
 typedef PlatformTest SysInfoTest;
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_SHELL__)
 TEST_F(SysInfoTest, MaxSharedMemorySize) {
   // We aren't actually testing that it's correct, just that it's sane.
   EXPECT_GT(base::SysInfo::MaxSharedMemorySize(), 0u);
@@ -27,6 +27,9 @@ TEST_F(SysInfoTest, AmountOfMem) {
   EXPECT_GT(base::SysInfo::AmountOfPhysicalMemoryMB(), 0);
 }
 
+#if !defined(__LB_SHELL__)
+// Disk space queries are not available cross-platform.
+
 TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
   // We aren't actually testing that it's correct, just that it's sane.
   FilePath tmp_path;
@@ -34,6 +37,7 @@ TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
   EXPECT_GT(base::SysInfo::AmountOfFreeDiskSpace(tmp_path), 0)
             << tmp_path.value();
 }
+#endif
 
 #if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_CHROMEOS)
 TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
