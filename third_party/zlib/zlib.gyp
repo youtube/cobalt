@@ -100,7 +100,7 @@
             ],
           },
         }],
-        ['OS=="mac" or OS=="ios" or os_bsd==1 or OS=="android" or target_arch=="wiiu"', {
+        ['OS in ["mac", "ios", "android"] or os_bsd==1 or target_arch in ["ps3", "wiiu"]', {
           # Mac, Android and the BSDs don't have fopen64, ftello64, or
           # fseeko64. We use fopen, ftell, and fseek instead on these
           # systems.
