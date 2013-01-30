@@ -4,6 +4,10 @@
 
 #include "net/base/x509_certificate.h"
 
+#if defined(__LB_SHELL__)
+#include <algorithm>  // for std::replace()
+#endif
+
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
