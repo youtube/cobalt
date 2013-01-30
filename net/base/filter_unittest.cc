@@ -119,6 +119,7 @@ TEST(FilterTest, SdchEncoding) {
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP_HELPING_SDCH, encoding_types[1]);
 }
 
+#if !defined(__LB_SHELL__)  // SDCH not supported
 TEST(FilterTest, MissingSdchEncoding) {
   // Handle interesting case where entire SDCH encoding assertion "got lost."
   const std::string kTextHtmlMime("text/html");
@@ -155,6 +156,7 @@ TEST(FilterTest, MissingSdchEncoding) {
   EXPECT_EQ(Filter::FILTER_TYPE_SDCH_POSSIBLE, encoding_types[0]);
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP_HELPING_SDCH, encoding_types[1]);
 }
+#endif
 
 TEST(FilterTest, Svgz) {
   MockFilterContext filter_context;

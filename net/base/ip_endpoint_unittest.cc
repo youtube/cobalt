@@ -82,8 +82,14 @@ TEST_F(IPEndPointTest, ToFromSockAddr) {
     EXPECT_TRUE(ip_endpoint.ToSockAddr(storage.addr, &storage.addr_len));
 
     // Basic verification.
+#if !defined(IN6ADDR_ANY_INIT)
+    socklen_t expected_size = sizeof(struct sockaddr_in);
+    if (tests[index].ipv6)
+      continue;
+#else
     socklen_t expected_size = tests[index].ipv6 ?
         sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
+#endif
     EXPECT_EQ(expected_size, storage.addr_len);
     EXPECT_EQ(ip_endpoint.port(), GetPortFromSockaddr(storage.addr,
                                                       storage.addr_len));
