@@ -102,6 +102,7 @@ TEST(AddressListTest, CreateFromIPAddressList) {
       offsetof(struct sockaddr_in, sin_addr),
       sizeof(struct in_addr),
     },
+#if defined(IN6ADDR_ANY_INIT)
     { "2001:db8:0::42",
       "\x20\x01\x0d\xb8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x42",
       AF_INET6,
@@ -109,6 +110,7 @@ TEST(AddressListTest, CreateFromIPAddressList) {
       offsetof(struct sockaddr_in6, sin6_addr),
       sizeof(struct in6_addr),
     },
+#endif
     { "192.168.1.1",
       "\xc0\xa8\x01\x01",
       AF_INET,

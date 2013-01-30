@@ -415,6 +415,7 @@ void MakeIPv4Address(const uint8* bytes, int port, SockaddrStorage* storage) {
   memcpy(&addr4->sin_addr, bytes, 4);
 }
 
+#if defined(IN6ADDR_ANY_INIT)
 // Fills in sockaddr for the given 128-bit address (IPv6.)
 // |bytes| should be an array of length 16.
 void MakeIPv6Address(const uint8* bytes, int port, SockaddrStorage* storage) {
@@ -425,6 +426,7 @@ void MakeIPv6Address(const uint8* bytes, int port, SockaddrStorage* storage) {
   addr6->sin6_family = AF_INET6;
   memcpy(&addr6->sin6_addr, bytes, 16);
 }
+#endif
 
 // A helper for IDN*{Fast,Slow}.
 // Append "::<language list>" to |expected| and |actual| to make it
@@ -533,8 +535,13 @@ TEST(NetUtilTest, FileURLConversion) {
     {L"/Chinese/\x6240\x6709\x4e2d\x6587\x7f51\x9875.doc",
      "file:///Chinese/%E6%89%80%E6%9C%89%E4%B8%AD%E6%96%87%E7%BD"
          "%91%E9%A1%B5.doc"},
+#if defined(WCHAR_T_IS_UTF16)
+    {L"/plane1/\xD835\xDC00\xD835\xDC01.txt",  // Math alphabet "AB"
+     "file:///plane1/%F0%9D%90%80%F0%9D%90%81.txt"},
+#else
     {L"/plane1/\x1D400\x1D401.txt",  // Math alphabet "AB"
      "file:///plane1/%F0%9D%90%80%F0%9D%90%81.txt"},
+#endif
 #endif
   };
 
@@ -2273,6 +2280,7 @@ TEST(NetUtilTest, NetAddressToString_IPv4) {
   }
 }
 
+#if defined(IN6ADDR_ANY_INIT)
 TEST(NetUtilTest, NetAddressToString_IPv6) {
   const struct {
     uint8 addr[16];
@@ -2293,6 +2301,7 @@ TEST(NetUtilTest, NetAddressToString_IPv6) {
       EXPECT_EQ(std::string(tests[i].result), result);
   }
 }
+#endif
 
 TEST(NetUtilTest, NetAddressToStringWithPort_IPv4) {
   uint8 addr[] = {127, 0, 0, 1};
@@ -2303,6 +2312,7 @@ TEST(NetUtilTest, NetAddressToStringWithPort_IPv4) {
   EXPECT_EQ("127.0.0.1:166", result);
 }
 
+#if defined(IN6ADDR_ANY_INIT)
 TEST(NetUtilTest, NetAddressToStringWithPort_IPv6) {
   uint8 addr[] = {
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xFE, 0xDC, 0xBA,
@@ -2317,6 +2327,7 @@ TEST(NetUtilTest, NetAddressToStringWithPort_IPv6) {
   if (!result.empty())
     EXPECT_EQ("[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:361", result);
 }
+#endif
 
 TEST(NetUtilTest, GetHostName) {
   // We can't check the result of GetHostName() directly, since the result
@@ -3182,8 +3193,10 @@ TEST(NetUtilTest, IsLocalhost) {
   EXPECT_TRUE(net::IsLocalhost("127.0.0.255"));
   EXPECT_TRUE(net::IsLocalhost("127.0.255.0"));
   EXPECT_TRUE(net::IsLocalhost("127.255.0.0"));
+#if defined(IN6ADDR_ANY_INIT)
   EXPECT_TRUE(net::IsLocalhost("::1"));
   EXPECT_TRUE(net::IsLocalhost("0:0:0:0:0:0:0:1"));
+#endif
 
   EXPECT_FALSE(net::IsLocalhost("localhostx"));
   EXPECT_FALSE(net::IsLocalhost("foo.localdomain"));
@@ -3192,11 +3205,13 @@ TEST(NetUtilTest, IsLocalhost) {
   EXPECT_FALSE(net::IsLocalhost("localhost6.localdomain"));
   EXPECT_FALSE(net::IsLocalhost("127.0.0.1.1"));
   EXPECT_FALSE(net::IsLocalhost(".127.0.0.255"));
+#if defined(IN6ADDR_ANY_INIT)
   EXPECT_FALSE(net::IsLocalhost("::2"));
   EXPECT_FALSE(net::IsLocalhost("::1:1"));
   EXPECT_FALSE(net::IsLocalhost("0:0:0:0:1:0:0:1"));
   EXPECT_FALSE(net::IsLocalhost("::1:1"));
   EXPECT_FALSE(net::IsLocalhost("0:0:0:0:0:0:0:0:1"));
+#endif
 }
 
 // Verify GetNetworkList().
