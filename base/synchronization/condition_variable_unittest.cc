@@ -342,7 +342,13 @@ TEST_F(ConditionVariableTest, MAYBE_MultiThreadConsumerTest) {
 }
 
 TEST_F(ConditionVariableTest, LargeFastTaskTest) {
+#if defined(__LB_PS3__) || defined(__LB_WIIU__)
+  // Game consoles don't support that many threads. We have a max threads
+  // macro in pthread.h. Leave a few to system and test with the rest.
+  const int kThreadCount = SHELL_MAX_THREADS - 8;
+#else
   const int kThreadCount = 200;
+#endif
   WorkQueue queue(kThreadCount);  // Start the threads.
 
   Lock private_lock;  // Used locally for master to wait.
