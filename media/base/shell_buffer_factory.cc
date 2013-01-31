@@ -16,6 +16,8 @@
 
 #include "shell_buffer_factory.h"
 
+#include <malloc.h> // for memalign
+
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
