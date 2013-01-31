@@ -16,6 +16,8 @@
 
 #include "media/filters/shell_mp4_map.h"
 
+#include <algorithm>  // for std::min
+
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/mock_shell_data_source_reader.h"
@@ -1352,8 +1354,8 @@ class ShellMP4MapTest : public testing::Test {
     LB::Platform::store_uint32_big_endian(kTestTableEntries_stsz,
                                           stsz_header + 8);
     // map should load smaller of first cache segment of table, or entire table
-    uint32 load_size = std::min(cache_size_entries * kEntrySize_stsz,
-                                sizeof(kTestTable_stsz));
+    uint32 load_size = std::min<uint32>(cache_size_entries * kEntrySize_stsz,
+                                        sizeof(kTestTable_stsz));
     // Set expectations on reader, we expect it will load the first cache
     // segment of the atom. We retire this expectation once it is met so that
     // it does not complicate our test code.
