@@ -179,7 +179,11 @@
  *	used for input more than STRTOD_DIGLIM digits long (default 40).
  */
 
+#if defined(ARCH_CPU_BIG_ENDIAN)
+#define IEEE_MC68k
+#else
 #define IEEE_8087
+#endif
 #define NO_HEX_FP
 
 #ifndef Long

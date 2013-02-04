@@ -363,12 +363,21 @@ TEST(StringNumberConversionsTest, DoubleToString) {
   }
 
   // The following two values were seen in crashes in the wild.
+#if defined(ARCH_CPU_BIG_ENDIAN)
+  const char input_bytes[8] = {'\x42', '\x73', '\x6d', '\xee', 0, 0, 0, 0};
+#else
   const char input_bytes[8] = {0, 0, 0, 0, '\xee', '\x6d', '\x73', '\x42'};
+#endif
   double input = 0;
   memcpy(&input, input_bytes, arraysize(input_bytes));
   EXPECT_EQ("1335179083776", DoubleToString(input));
+#if defined(ARCH_CPU_BIG_ENDIAN)
+  const char input_bytes2[8] =
+      {'\x42', '\x73', '\x6c', '\xda', '\xa0', 0, 0, 0};
+#else
   const char input_bytes2[8] =
       {0, 0, 0, '\xa0', '\xda', '\x6c', '\x73', '\x42'};
+#endif
   input = 0;
   memcpy(&input, input_bytes2, arraysize(input_bytes2));
   EXPECT_EQ("1334890332160", DoubleToString(input));
