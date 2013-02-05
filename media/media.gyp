@@ -824,6 +824,7 @@
             'base/mock_shell_data_source_reader.h',
             'base/shell_buffer_factory_unittest.cc',
             'filters/shell_mp4_map_unittest.cc',
+            'filters/shell_rbsp_stream_unittest.cc',
           ],
         }],
       ],

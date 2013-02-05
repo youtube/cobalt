@@ -31,34 +31,38 @@ class ShellRBSPStream {
   // NON-OWNING pointer to buffer. It is assumed the client will dispose of
   // this buffer.
   ShellRBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size);
+  // all Read/Skip methods return the value by reference and return true
+  // on success, false on read error/EOB. Once the object has returned
+  // false the consistency of the data is not guaranteed.
   // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-  uint32 ReadUEV();
+  bool ReadUEV(uint32& uev_out);
   // read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-  int32 ReadSEV();
+  bool ReadSEV(int32& sev_out);
   // read and return up to 32 bits, filling from the right, meaning that
-  // ReadBits(17) on a stream of all 1s would return 0x01ff
-  uint32 ReadBits(size_t bits);
-  uint8 ReadByte() { return ReadRBSPByte(); }
-  uint8 ReadBit() { return ReadRBSPBit(); }
+  // ReadBits(17) on a stream of all 1s would return 0x01ffff
+  bool ReadBits(size_t bits, uint32& bits_out);
+  bool ReadByte(uint8& byte_out) { return ReadRBSPByte(byte_out); }
+  bool ReadBit(uint8& bit_out) { return ReadRBSPBit(bit_out); }
   // jump over bytes in the RBSP stream
-  void SkipBytes(size_t bytes);
+  bool SkipBytes(size_t bytes);
   // jump over bits in the RBSP stream
-  void SkipBits(size_t bits);
+  bool SkipBits(size_t bits);
 
  private:
   // advance by one byte through the NALU buffer, respecting the encoding of
   // 00 00 03 => 00 00. Updates the state of current_nalu_byte_ to the new value.
-  void ConsumeNALUByte();
+  // returns fale if we have moved past the end of the buffer.
+  bool ConsumeNALUByte();
   // return single bit in the LSb from the RBSP stream. Bits are read from MSb
   // to LSb in the stream.
-  uint8 ReadRBSPBit();
-  uint8 ReadRBSPByte();
+  bool ReadRBSPBit(uint8& bit_out);
+  bool ReadRBSPByte(uint8& byte_out);
 
   const uint8* nalu_buffer_;
   size_t nalu_buffer_size_;
   size_t nalu_buffer_byte_offset_;
   uint8 current_nalu_byte_;
-  bool at_first_coded_zero_;
+  int number_consecutive_zeros_;
   // location of rbsp bit cursor within current_nalu_byte_
   size_t rbsp_bit_offset_;
 };
