@@ -1239,7 +1239,7 @@ class ShellMP4MapTest : public testing::Test {
     map_ = new ShellMP4Map(reader_);
   }
 
-  ~ShellMP4MapTest() {
+  virtual ~ShellMP4MapTest() {
     // wipe out the map or ShellBufferFactory may complain of unfreed allocs
     map_ = NULL;
     ShellBufferFactory::Terminate();
