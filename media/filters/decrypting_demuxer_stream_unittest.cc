@@ -238,22 +238,6 @@ TEST_F(DecryptingDemuxerStreamTest, Initialize_NormalAudio) {
   Initialize();
 }
 
-// Ensure that DecryptingDemuxerStream only accepts encrypted audio.
-TEST_F(DecryptingDemuxerStreamTest, Initialize_UnencryptedAudioConfig) {
-  AudioDecoderConfig config(kCodecVorbis, 16, CHANNEL_LAYOUT_STEREO, 44100,
-                            NULL, 0, false);
-
-  InitializeAudioAndExpectStatus(config, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-}
-
-// Ensure DecryptingDemuxerStream handles invalid audio config without crashing.
-TEST_F(DecryptingDemuxerStreamTest, Initialize_InvalidAudioConfig) {
-  AudioDecoderConfig config(kUnknownAudioCodec, 0, CHANNEL_LAYOUT_STEREO, 0,
-                            NULL, 0, true);
-
-  InitializeAudioAndExpectStatus(config, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-}
-
 TEST_F(DecryptingDemuxerStreamTest, Initialize_NormalVideo) {
   EXPECT_CALL(*this, RequestDecryptorNotification(_))
       .WillOnce(RunCallbackIfNotNull(decryptor_.get()));
@@ -278,26 +262,6 @@ TEST_F(DecryptingDemuxerStreamTest, Initialize_NormalVideo) {
   EXPECT_EQ(kNaturalSize, output_config.natural_size());
   EXPECT_FALSE(output_config.extra_data());
   EXPECT_EQ(0u, output_config.extra_data_size());
-}
-
-// Ensure that DecryptingDemuxerStream only accepts encrypted video.
-TEST_F(DecryptingDemuxerStreamTest, Initialize_UnencryptedVideoConfig) {
-  VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
-                            kVideoFormat,
-                            kCodedSize, kVisibleRect, kNaturalSize,
-                            NULL, 0, false);
-
-  InitializeVideoAndExpectStatus(config, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-}
-
-// Ensure DecryptingDemuxerStream handles invalid video config without crashing.
-TEST_F(DecryptingDemuxerStreamTest, Initialize_InvalidVideoConfig) {
-  VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
-                            VideoFrame::INVALID,
-                            kCodedSize, kVisibleRect, kNaturalSize,
-                            NULL, 0, true);
-
-  InitializeVideoAndExpectStatus(config, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
 }
 
 // Test normal read case.
@@ -445,12 +409,17 @@ TEST_F(DecryptingDemuxerStreamTest, DemuxerRead_AbortedDuringReset) {
 TEST_F(DecryptingDemuxerStreamTest, DemuxerRead_ConfigChanged) {
   Initialize();
 
+  AudioDecoderConfig new_config(
+      kCodecVorbis, 32, CHANNEL_LAYOUT_STEREO, 88200, NULL, 0, true);
+
+  EXPECT_CALL(*input_audio_stream_, audio_decoder_config())
+      .WillRepeatedly(ReturnRef(new_config));
+
   EXPECT_CALL(*input_audio_stream_, Read(_))
       .WillOnce(RunCallback<0>(DemuxerStream::kConfigChanged,
                                scoped_refptr<DecoderBuffer>()));
 
-  // TODO(xhwang): Update this when kConfigChanged is supported.
-  ReadAndExpectBufferReadyWith(DemuxerStream::kAborted, NULL);
+  ReadAndExpectBufferReadyWith(DemuxerStream::kConfigChanged, NULL);
 }
 
 }  // namespace media

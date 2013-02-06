@@ -108,6 +108,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   uint32 audio_track_id_;
   uint32 video_track_id_;
   bool has_sbr_;
+  bool is_audio_track_encrypted_;
+  bool is_video_track_encrypted_;
 
   DISALLOW_COPY_AND_ASSIGN(MP4StreamParser);
 };

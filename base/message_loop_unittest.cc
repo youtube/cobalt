@@ -1369,6 +1369,23 @@ void RunTest_RunLoopQuitDeep(MessageLoop::Type message_loop_type) {
   EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
 }
 
+void PostNTasksThenQuit(int posts_remaining) {
+  if (posts_remaining > 1) {
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&PostNTasksThenQuit, posts_remaining - 1));
+  } else {
+    MessageLoop::current()->QuitWhenIdle();
+  }
+}
+
+void RunTest_RecursivePosts(MessageLoop::Type message_loop_type,
+                            int num_times) {
+  MessageLoop loop(message_loop_type);
+  loop.PostTask(FROM_HERE, base::Bind(&PostNTasksThenQuit, num_times));
+  loop.Run();
+}
+
 #if defined(OS_WIN)
 
 class DispatcherImpl : public MessageLoopForUI::Dispatcher {
@@ -1774,16 +1791,6 @@ TEST(MessageLoopTest, RunLoopQuitOrderAfter) {
   RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_IO);
 }
 
-void PostNTasksThenQuit(int posts_remaining) {
-  if (posts_remaining > 1) {
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(&PostNTasksThenQuit, posts_remaining - 1));
-  } else {
-    MessageLoop::current()->Quit();
-  }
-}
-
 class DummyTaskObserver : public MessageLoop::TaskObserver {
  public:
   explicit DummyTaskObserver(int num_tasks)
@@ -2058,4 +2065,19 @@ TEST(MessageLoopTest, IsType) {
   EXPECT_TRUE(loop.IsType(MessageLoop::TYPE_UI));
   EXPECT_FALSE(loop.IsType(MessageLoop::TYPE_IO));
   EXPECT_FALSE(loop.IsType(MessageLoop::TYPE_DEFAULT));
+}
+
+TEST(MessageLoopTest, RecursivePosts) {
+  // There was a bug in the MessagePumpGLib where posting tasks recursively
+  // caused the message loop to hang, due to the buffer of the internal pipe
+  // becoming full. Test all MessageLoop types to ensure this issue does not
+  // exist in other MessagePumps.
+
+  // On Linux, the pipe buffer size is 64KiB by default. The bug caused one
+  // byte accumulated in the pipe per two posts, so we should repeat 128K
+  // times to reproduce the bug.
+  const int kNumTimes = 1 << 17;
+  RunTest_RecursivePosts(MessageLoop::TYPE_DEFAULT, kNumTimes);
+  RunTest_RecursivePosts(MessageLoop::TYPE_UI, kNumTimes);
+  RunTest_RecursivePosts(MessageLoop::TYPE_IO, kNumTimes);
 }

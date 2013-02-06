@@ -53,6 +53,8 @@
 // between char[]-based pathnames on POSIX systems and wchar_t[]-based
 // pathnames on Windows.
 //
+// Paths can't contain NULs as a precaution agaist premature truncation.
+//
 // Because a FilePath object should not be instantiated at the global scope,
 // instead, use a FilePath::CharType[] and initialize it with
 // FILE_PATH_LITERAL.  At runtime, a FilePath object can be created from the
@@ -343,7 +345,7 @@ class BASE_EXPORT FilePath {
   // AsUTF8Unsafe() for details.
   static FilePath FromUTF8Unsafe(const std::string& utf8);
 
-  void WriteToPickle(Pickle* pickle);
+  void WriteToPickle(Pickle* pickle) const;
   bool ReadFromPickle(PickleIterator* iter);
 
   // Normalize all path separators to backslash on Windows

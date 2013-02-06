@@ -588,6 +588,26 @@ void FFmpegDemuxer::OnReadFrameDone(ScopedAVPacket packet, int result) {
       streams_[packet->stream_index] &&
       (!audio_disabled_ ||
        streams_[packet->stream_index]->type() != DemuxerStream::AUDIO)) {
+
+    // TODO(scherkus): Fix demuxing upstream to never return packets w/o data
+    // when av_read_frame() returns success code. See bug comment for ideas:
+    //
+    // https://code.google.com/p/chromium/issues/detail?id=169133#c10
+    if (!packet->data) {
+      ScopedAVPacket new_packet(new AVPacket());
+      av_new_packet(new_packet.get(), 0);
+
+      new_packet->pts = packet->pts;
+      new_packet->dts = packet->dts;
+      new_packet->pos = packet->pos;
+      new_packet->duration = packet->duration;
+      new_packet->convergence_duration = packet->convergence_duration;
+      new_packet->flags = packet->flags;
+      new_packet->stream_index = packet->stream_index;
+
+      packet.swap(new_packet);
+    }
+
     FFmpegDemuxerStream* demuxer_stream = streams_[packet->stream_index];
     demuxer_stream->EnqueuePacket(packet.Pass());
   }

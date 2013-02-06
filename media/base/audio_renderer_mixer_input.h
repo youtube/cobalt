@@ -51,7 +51,6 @@ class MEDIA_EXPORT AudioRendererMixerInput
 
   bool playing_;
   bool initialized_;
-  bool started_;
   double volume_;
 
   // AudioConverter::InputCallback implementation.

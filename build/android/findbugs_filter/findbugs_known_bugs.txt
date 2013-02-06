@@ -100,7 +100,7 @@ M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedPr
 M M LI: Incorrect lazy initialization and update of static field org.chromium.base.SystemMonitor.sInstance in org.chromium.base.SystemMonitor.create(Context)  At SystemMonitor.java
 M M LI: Incorrect lazy initialization and update of static field org.chromium.content.browser.ContentVideoView.sContentVideoView in org.chromium.content.browser.ContentVideoView.createContentVideoView(int)  At ContentVideoView.java
 M M LI: Incorrect lazy initialization and update of static field org.chromium.net.test.util.TestWebServer.sReasons in org.chromium.net.test.util.TestWebServer.createResponse(int)  At TestWebServer.java
-M M LI: Incorrect lazy initialization of static field org.chromium.net.NetworkChangeNotifier.sInstance in org.chromium.net.NetworkChangeNotifier.createInstance(Context, int)  At NetworkChangeNotifier.java
+M M LI: Incorrect lazy initialization of static field org.chromium.net.NetworkChangeNotifier.sInstance in org.chromium.net.NetworkChangeNotifier.init(Context)  At NetworkChangeNotifier.java
 M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getBooleanValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setBooleanValue(boolean) is synchronized  At JavaBridgeReturnValuesTest.java
 M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getStringValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setStringValue(String) is synchronized  At JavaBridgeReturnValuesTest.java
 M P SIC: Should org.chromium.android_webview.test.TestAwContentsClient$AddMessageToConsoleHelper be a _static_ inner class?  At TestAwContentsClient.java

@@ -79,6 +79,7 @@ void DecryptingAudioDecoder::Reset(const base::Closure& closure) {
 
   DVLOG(2) << "Reset() - state: " << state_;
   DCHECK(state_ == kIdle ||
+         state_ == kPendingConfigChange ||
          state_ == kPendingDemuxerRead ||
          state_ == kPendingDecode ||
          state_ == kWaitingForKey ||
@@ -94,7 +95,9 @@ void DecryptingAudioDecoder::Reset(const base::Closure& closure) {
   // Defer the resetting process in this case. The |reset_cb_| will be fired
   // after the read callback is fired - see DoDecryptAndDecodeBuffer() and
   // DoDeliverFrame().
-  if (state_ == kPendingDemuxerRead || state_ == kPendingDecode) {
+  if (state_ == kPendingConfigChange ||
+      state_ == kPendingDemuxerRead ||
+      state_ == kPendingDecode) {
     DCHECK(!read_cb_.is_null());
     return;
   }
@@ -206,6 +209,31 @@ void DecryptingAudioDecoder::FinishInitialization(bool success) {
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
 
+void DecryptingAudioDecoder::FinishConfigChange(bool success) {
+  DVLOG(2) << "FinishConfigChange()";
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_EQ(state_, kPendingConfigChange) << state_;
+  DCHECK(!read_cb_.is_null());
+
+  if (!success) {
+    base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+    state_ = kDecodeFinished;
+    if (!reset_cb_.is_null())
+      base::ResetAndReturn(&reset_cb_).Run();
+    return;
+  }
+
+  // Config change succeeded.
+  if (!reset_cb_.is_null()) {
+    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+    DoReset();
+    return;
+  }
+
+  state_ = kPendingDemuxerRead;
+  ReadFromDemuxerStream();
+}
+
 void DecryptingAudioDecoder::DoRead(const ReadCB& read_cb) {
   DVLOG(3) << "DoRead()";
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -254,6 +282,20 @@ void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
   DCHECK(!read_cb_.is_null());
   DCHECK_EQ(buffer != NULL, status == DemuxerStream::kOk) << status;
 
+  if (status == DemuxerStream::kConfigChanged) {
+    DVLOG(2) << "DoDecryptAndDecodeBuffer() - kConfigChanged";
+
+    scoped_ptr<AudioDecoderConfig> scoped_config(new AudioDecoderConfig());
+    scoped_config->CopyFrom(demuxer_stream_->audio_decoder_config());
+
+    state_ = kPendingConfigChange;
+    decryptor_->DeinitializeDecoder(Decryptor::kAudio);
+    decryptor_->InitializeAudioDecoder(
+        scoped_config.Pass(), BindToCurrentLoop(base::Bind(
+            &DecryptingAudioDecoder::FinishConfigChange, this)));
+    return;
+  }
+
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
     DoReset();
@@ -264,16 +306,6 @@ void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
     DVLOG(2) << "DoDecryptAndDecodeBuffer() - kAborted";
     state_ = kIdle;
     base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
-    return;
-  }
-
-  if (status == DemuxerStream::kConfigChanged) {
-    // TODO(xhwang): Add config change support.
-    // The |state_| is chosen to be kDecodeFinished here to be consistent with
-    // the implementation of FFmpegVideoDecoder.
-    DVLOG(2) << "DoDecryptAndDecodeBuffer() - kConfigChanged";
-    state_ = kDecodeFinished;
-    base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;
   }
 

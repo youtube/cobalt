@@ -5,15 +5,15 @@
 #ifndef BASE_MESSAGE_PUMP_AURAX11_H
 #define BASE_MESSAGE_PUMP_AURAX11_H
 
+#include <bitset>
+#include <map>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/message_pump.h"
 #include "base/message_pump_glib.h"
 #include "base/message_pump_dispatcher.h"
 #include "base/message_pump_observer.h"
-
-#include <bitset>
-#include <map>
-#include <vector>
+#include "base/observer_list.h"
 
 // It would be nice to include the X11 headers here so that we use Window
 // instead of its typedef of unsigned long, but we can't because everything in
@@ -77,7 +77,6 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib,
 
  private:
   typedef std::map<unsigned long, MessagePumpDispatcher*> DispatchersMap;
-  typedef std::vector<MessagePumpDispatcher*> Dispatchers;
 
   // Initializes the glib event source for X.
   void InitXSource();
@@ -106,7 +105,11 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib,
   scoped_ptr<GPollFD> x_poll_;
 
   DispatchersMap dispatchers_;
-  Dispatchers root_window_dispatchers_;
+
+  // Dispatch calls can cause addition of new dispatchers as we iterate
+  // through them. Use ObserverList to ensure the iterator remains valid across
+  // additions.
+  ObserverList<MessagePumpDispatcher> root_window_dispatchers_;
 
   unsigned long x_root_window_;
 

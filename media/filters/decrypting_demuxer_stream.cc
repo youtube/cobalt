@@ -22,6 +22,16 @@ namespace media {
 #define BIND_TO_LOOP(function) \
     media::BindToLoop(message_loop_, base::Bind(function, this))
 
+static bool IsStreamValidAndEncrypted(
+    const scoped_refptr<DemuxerStream>& stream) {
+  return ((stream->type() == DemuxerStream::AUDIO &&
+           stream->audio_decoder_config().IsValidConfig() &&
+           stream->audio_decoder_config().is_encrypted()) ||
+          (stream->type() == DemuxerStream::VIDEO &&
+           stream->video_decoder_config().IsValidConfig() &&
+           stream->video_decoder_config().is_encrypted()));
+}
+
 DecryptingDemuxerStream::DecryptingDemuxerStream(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const SetDecryptorReadyCB& set_decryptor_ready_cb)
@@ -122,21 +132,12 @@ void DecryptingDemuxerStream::DoInitialize(
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kUninitialized) << state_;
 
-  // Only valid potentially encrypted audio or video stream is accepted.
-  if (!((stream->type() == AUDIO &&
-         stream->audio_decoder_config().IsValidConfig() &&
-         stream->audio_decoder_config().is_encrypted()) ||
-        (stream->type() == VIDEO &&
-         stream->video_decoder_config().IsValidConfig() &&
-         stream->video_decoder_config().is_encrypted()))) {
-    status_cb.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
-    return;
-  }
-
   DCHECK(!demuxer_stream_);
   demuxer_stream_ = stream;
   stream_type_ = stream->type();
   init_cb_ = status_cb;
+
+  SetDecoderConfig(stream);
 
   state_ = kDecryptorRequested;
   set_decryptor_ready_cb_.Run(
@@ -152,44 +153,6 @@ void DecryptingDemuxerStream::SetDecryptor(Decryptor* decryptor) {
 
   set_decryptor_ready_cb_.Reset();
   decryptor_ = decryptor;
-
-  switch (stream_type_) {
-    case AUDIO: {
-      const AudioDecoderConfig& input_audio_config =
-          demuxer_stream_->audio_decoder_config();
-      audio_config_.reset(new AudioDecoderConfig());
-      audio_config_->Initialize(input_audio_config.codec(),
-                                input_audio_config.bits_per_channel(),
-                                input_audio_config.channel_layout(),
-                                input_audio_config.samples_per_second(),
-                                input_audio_config.extra_data(),
-                                input_audio_config.extra_data_size(),
-                                false,  // Output audio is not encrypted.
-                                false);
-      break;
-    }
-
-    case VIDEO: {
-      const VideoDecoderConfig& input_video_config =
-          demuxer_stream_->video_decoder_config();
-      video_config_.reset(new VideoDecoderConfig());
-      video_config_->Initialize(input_video_config.codec(),
-                                input_video_config.profile(),
-                                input_video_config.format(),
-                                input_video_config.coded_size(),
-                                input_video_config.visible_rect(),
-                                input_video_config.natural_size(),
-                                input_video_config.extra_data(),
-                                input_video_config.extra_data_size(),
-                                false,  // Output video is not encrypted.
-                                false);
-      break;
-    }
-
-    default:
-      NOTREACHED();
-      return;
-  }
 
   decryptor_->RegisterKeyAddedCB(
       GetDecryptorStreamType(),
@@ -235,9 +198,13 @@ void DecryptingDemuxerStream::DoDecryptBuffer(
 
   if (status == kConfigChanged) {
     DVLOG(2) << "DoDecryptBuffer() - kConfigChanged.";
+    DCHECK_EQ(demuxer_stream_->type(), stream_type_);
+
+    // Update the decoder config, which the decoder will use when it is notified
+    // of kConfigChanged.
+    SetDecoderConfig(demuxer_stream_);
     state_ = kIdle;
-    // TODO(xhwang): Support kConfigChanged!
-    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
+    base::ResetAndReturn(&read_cb_).Run(kConfigChanged, NULL);
     return;
   }
 
@@ -346,6 +313,51 @@ void DecryptingDemuxerStream::DoReset() {
 Decryptor::StreamType DecryptingDemuxerStream::GetDecryptorStreamType() const {
   DCHECK(stream_type_ == AUDIO || stream_type_ == VIDEO);
   return stream_type_ == AUDIO ? Decryptor::kAudio : Decryptor::kVideo;
+}
+
+void DecryptingDemuxerStream::SetDecoderConfig(
+    const scoped_refptr<DemuxerStream>& stream) {
+  // The decoder selector or upstream demuxer make sure the stream is valid and
+  // potentially encrypted.
+  DCHECK(IsStreamValidAndEncrypted(stream));
+
+  switch (stream_type_) {
+    case AUDIO: {
+      const AudioDecoderConfig& input_audio_config =
+          stream->audio_decoder_config();
+      audio_config_.reset(new AudioDecoderConfig());
+      audio_config_->Initialize(input_audio_config.codec(),
+                                input_audio_config.bits_per_channel(),
+                                input_audio_config.channel_layout(),
+                                input_audio_config.samples_per_second(),
+                                input_audio_config.extra_data(),
+                                input_audio_config.extra_data_size(),
+                                false,  // Output audio is not encrypted.
+                                false);
+      break;
+    }
+
+    case VIDEO: {
+      const VideoDecoderConfig& input_video_config =
+          stream->video_decoder_config();
+      video_config_.reset(new VideoDecoderConfig());
+      video_config_->Initialize(input_video_config.codec(),
+                                input_video_config.profile(),
+                                input_video_config.format(),
+                                input_video_config.coded_size(),
+                                input_video_config.visible_rect(),
+                                input_video_config.natural_size(),
+                                input_video_config.extra_data(),
+                                input_video_config.extra_data_size(),
+                                false,  // Output video is not encrypted.
+                                false);
+      break;
+    }
+
+    default:
+      NOTREACHED();
+      return;
+  }
 }
 
 }  // namespace media
