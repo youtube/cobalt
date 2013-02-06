@@ -95,15 +95,12 @@ TEST_F(AudioRendererMixerInputTest, GetSetVolume) {
 // crashing; functional tests for these methods are in AudioRendererMixerTest.
 TEST_F(AudioRendererMixerInputTest, StartPlayPauseStopPlaying) {
   mixer_input_->Start();
-  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
   mixer_input_->Play();
   EXPECT_DOUBLE_EQ(ProvideInput(), 1);
   mixer_input_->Pause(false);
-  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
   mixer_input_->Play();
   EXPECT_DOUBLE_EQ(ProvideInput(), 1);
   mixer_input_->Stop();
-  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
 }
 
 // Test that Stop() can be called before Initialize() and Start().

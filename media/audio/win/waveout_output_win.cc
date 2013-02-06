@@ -11,8 +11,6 @@
 #include "base/basictypes.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/message_loop_proxy.h"
-#include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
@@ -110,11 +108,6 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
   }
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
   format_.Samples.wValidBitsPerSample = params.bits_per_sample();
-
-  // Boost thread priority.  Required for glitch free background audio.
-  DCHECK(manager_->GetMessageLoop()->BelongsToCurrentThread());
-  base::PlatformThread::SetThreadPriority(
-      GetCurrentThread(), base::kThreadPriority_RealtimeAudio);
 }
 
 PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {

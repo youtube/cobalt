@@ -107,12 +107,12 @@ TEST_F(AudioFileReaderTest, WaveS24LE) {
 }
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
-TEST_F(AudioFileReaderTest, MP3) {
+TEST_F(AudioFileReaderTest, DISABLED_MP3) {
   RunTest("sfx.mp3", "2a5847207fdcba1c05e52f65ad010f66", 1, 44100,
           base::TimeDelta::FromMicroseconds(313470), 13824, 12719);
 }
 
-TEST_F(AudioFileReaderTest, AAC) {
+TEST_F(AudioFileReaderTest, DISABLED_AAC) {
   RunTest("sfx.m4a", "d4d3207758d1e8cb0aa176ff77fa6932", 1, 44100,
           base::TimeDelta::FromMicroseconds(312001), 13759, 13312);
 }

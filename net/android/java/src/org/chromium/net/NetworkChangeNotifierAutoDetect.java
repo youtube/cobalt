@@ -25,18 +25,25 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
 
     /** Queries the ConnectivityManager for information about the current connection. */
     static class ConnectivityManagerDelegate {
-        private ConnectivityManager mConnectivityManager;
+        private final ConnectivityManager mConnectivityManager;
 
         ConnectivityManagerDelegate(Context context) {
-            if (context != null) {
-                mConnectivityManager = (ConnectivityManager)
-                       context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            }
+            mConnectivityManager =
+                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        }
+
+        // For testing.
+        ConnectivityManagerDelegate() {
+            // All the methods below should be overridden.
+            mConnectivityManager = null;
         }
 
         boolean activeNetworkExists() {
-            return mConnectivityManager != null &&
-                    mConnectivityManager.getActiveNetworkInfo() != null;
+            return mConnectivityManager.getActiveNetworkInfo() != null;
+        }
+
+        boolean isConnected() {
+            return mConnectivityManager.getActiveNetworkInfo().isConnected();
         }
 
         int getNetworkType() {
@@ -71,10 +78,10 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         mObserver = observer;
         mContext = context;
         mConnectivityManagerDelegate = new ConnectivityManagerDelegate(context);
-        mConnectionType = currentConnectionType(context);
+        mConnectionType = getCurrentConnectionType();
 
         if (ActivityStatus.getState() != ActivityStatus.PAUSED) {
-          registerReceiver();
+            registerReceiver();
         }
         ActivityStatus.registerStateListener(this);
     }
@@ -110,9 +117,10 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         }
     }
 
-    private int currentConnectionType(Context context) {
+    public int getCurrentConnectionType() {
         // Track exactly what type of connection we have.
-        if (!mConnectivityManagerDelegate.activeNetworkExists()) {
+        if (!mConnectivityManagerDelegate.activeNetworkExists() ||
+                !mConnectivityManagerDelegate.isConnected()) {
             return NetworkChangeNotifier.CONNECTION_NONE;
         }
 
@@ -155,16 +163,7 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
     // BroadcastReceiver
     @Override
     public void onReceive(Context context, Intent intent) {
-        boolean noConnection =
-                intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
-        int newConnectionType = noConnection ?
-                NetworkChangeNotifier.CONNECTION_NONE : currentConnectionType(context);
-
-        if (newConnectionType != mConnectionType) {
-            mConnectionType = newConnectionType;
-            Log.d(TAG, "Network connectivity changed, type is: " + mConnectionType);
-            mObserver.onConnectionTypeChanged(newConnectionType);
-        }
+        connectionTypeChanged();
     }
 
     // ActivityStatus.StateListener
@@ -173,8 +172,18 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         if (state == ActivityStatus.PAUSED) {
             unregisterReceiver();
         } else if (state == ActivityStatus.RESUMED) {
+            connectionTypeChanged();
             registerReceiver();
         }
+    }
+
+    private void connectionTypeChanged() {
+        int newConnectionType = getCurrentConnectionType();
+        if (newConnectionType == mConnectionType) return;
+
+        mConnectionType = newConnectionType;
+        Log.d(TAG, "Network connectivity changed, type is: " + mConnectionType);
+        mObserver.onConnectionTypeChanged(newConnectionType);
     }
 
     private static class NetworkConnectivityIntentFilter extends IntentFilter {

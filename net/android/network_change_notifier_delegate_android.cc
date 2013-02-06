@@ -11,8 +11,10 @@ namespace net {
 
 namespace {
 
-// Returns whether the provided connection type is known.
-bool CheckConnectionType(int connection_type) {
+// Converts a Java side connection type (integer) to
+// the native side NetworkChangeNotifier::ConnectionType.
+NetworkChangeNotifier::ConnectionType ConvertConnectionType(
+    jint connection_type) {
   switch (connection_type) {
     case NetworkChangeNotifier::CONNECTION_UNKNOWN:
     case NetworkChangeNotifier::CONNECTION_ETHERNET:
@@ -21,29 +23,42 @@ bool CheckConnectionType(int connection_type) {
     case NetworkChangeNotifier::CONNECTION_3G:
     case NetworkChangeNotifier::CONNECTION_4G:
     case NetworkChangeNotifier::CONNECTION_NONE:
-      return true;
+      break;
     default:
       NOTREACHED() << "Unknown connection type received: " << connection_type;
-      return false;
+      return NetworkChangeNotifier::CONNECTION_UNKNOWN;
   }
+  return static_cast<NetworkChangeNotifier::ConnectionType>(connection_type);
 }
 
 }  // namespace
 
 NetworkChangeNotifierDelegateAndroid::NetworkChangeNotifierDelegateAndroid()
     : observers_(new ObserverListThreadSafe<Observer>()) {
+  JNIEnv* env = base::android::AttachCurrentThread();
   java_network_change_notifier_.Reset(
-      Java_NetworkChangeNotifier_createInstance(
-          base::android::AttachCurrentThread(),
-          base::android::GetApplicationContext(),
-          reinterpret_cast<jint>(this)));
+      Java_NetworkChangeNotifier_init(
+          env, base::android::GetApplicationContext()));
+  Java_NetworkChangeNotifier_addNativeObserver(
+      env, java_network_change_notifier_.obj(), reinterpret_cast<jint>(this));
+  SetCurrentConnectionType(
+      ConvertConnectionType(
+          Java_NetworkChangeNotifier_getCurrentConnectionType(
+              env, java_network_change_notifier_.obj())));
 }
 
 NetworkChangeNotifierDelegateAndroid::~NetworkChangeNotifierDelegateAndroid() {
   DCHECK(thread_checker_.CalledOnValidThread());
   observers_->AssertEmpty();
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_NetworkChangeNotifier_destroyInstance(env);
+  Java_NetworkChangeNotifier_removeNativeObserver(
+      env, java_network_change_notifier_.obj(), reinterpret_cast<jint>(this));
+}
+
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierDelegateAndroid::GetCurrentConnectionType() const {
+  base::AutoLock auto_lock(connection_type_lock_);
+  return connection_type_;
 }
 
 void NetworkChangeNotifierDelegateAndroid::NotifyConnectionTypeChanged(
@@ -51,16 +66,16 @@ void NetworkChangeNotifierDelegateAndroid::NotifyConnectionTypeChanged(
     jobject obj,
     jint new_connection_type) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  connection_type_ = CheckConnectionType(new_connection_type) ?
-      static_cast<ConnectionType>(new_connection_type) :
-      NetworkChangeNotifier::CONNECTION_UNKNOWN;
-  observers_->Notify(&Observer::OnConnectionTypeChanged, connection_type_);
+  const ConnectionType actual_connection_type = ConvertConnectionType(
+      new_connection_type);
+  SetCurrentConnectionType(actual_connection_type);
+  observers_->Notify(&Observer::OnConnectionTypeChanged);
 }
 
 jint NetworkChangeNotifierDelegateAndroid::GetConnectionType(JNIEnv*,
                                                              jobject) const {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return connection_type_;
+  return GetCurrentConnectionType();
 }
 
 void NetworkChangeNotifierDelegateAndroid::AddObserver(
@@ -73,16 +88,25 @@ void NetworkChangeNotifierDelegateAndroid::RemoveObserver(
   observers_->RemoveObserver(observer);
 }
 
-void NetworkChangeNotifierDelegateAndroid::ForceConnectivityState(
-    ConnectivityState state) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_NetworkChangeNotifier_forceConnectivityState(env, state == ONLINE);
-}
-
 // static
 bool NetworkChangeNotifierDelegateAndroid::Register(JNIEnv* env) {
   return RegisterNativesImpl(env);
+}
+
+void NetworkChangeNotifierDelegateAndroid::SetCurrentConnectionType(
+    ConnectionType new_connection_type) {
+  base::AutoLock auto_lock(connection_type_lock_);
+  connection_type_ = new_connection_type;
+}
+
+void NetworkChangeNotifierDelegateAndroid::SetOnline() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_NetworkChangeNotifier_forceConnectivityState(env, true);
+}
+
+void NetworkChangeNotifierDelegateAndroid::SetOffline() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_NetworkChangeNotifier_forceConnectivityState(env, false);
 }
 
 }  // namespace net

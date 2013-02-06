@@ -12,6 +12,9 @@
 // This macro helps avoid wrapped lines in the test structs.
 #define FPL(x) FILE_PATH_LITERAL(x)
 
+// This macro constructs strings which can contain NULs.
+#define FPS(x) FilePath::StringType(FPL(x), arraysize(FPL(x)) - 1)
+
 struct UnaryTestData {
   const FilePath::CharType* input;
   const FilePath::CharType* expected;
@@ -1113,6 +1116,40 @@ TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
     // Test the two file paths are identical.
     EXPECT_EQ(from_utf8.value(), from_native.value());
   }
+}
+
+TEST_F(FilePathTest, ConstructWithNUL) {
+  // Assert FPS() works.
+  ASSERT_TRUE(FPS("a\0b").length() == 3);
+
+  // Test constructor strips '\0'
+  FilePath path(FPS("a\0b"));
+  EXPECT_TRUE(path.value().length() == 1);
+  EXPECT_EQ(path.value(), FPL("a"));
+}
+
+TEST_F(FilePathTest, AppendWithNUL) {
+  // Assert FPS() works.
+  ASSERT_TRUE(FPS("b\0b").length() == 3);
+
+  // Test Append() strips '\0'
+  FilePath path(FPL("a"));
+  path = path.Append(FPS("b\0b"));
+  EXPECT_TRUE(path.value().length() == 3);
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+  EXPECT_EQ(path.value(), FPL("a\\b"));
+#else
+  EXPECT_EQ(path.value(), FPL("a/b"));
+#endif
+}
+
+TEST_F(FilePathTest, ReferencesParentWithNUL) {
+  // Assert FPS() works.
+  ASSERT_TRUE(FPS("..\0").length() == 3);
+
+  // Test ReferencesParent() doesn't break with "..\0"
+  FilePath path(FPS("..\0"));
+  EXPECT_TRUE(path.ReferencesParent());
 }
 
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)

@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list_threadsafe.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "net/base/network_change_notifier.h"
 
@@ -21,10 +22,7 @@ namespace net {
 // unless otherwise stated (e.g. AddObserver()/RemoveObserver()).
 class NET_EXPORT_PRIVATE NetworkChangeNotifierDelegateAndroid {
  public:
-  enum ConnectivityState {
-    OFFLINE,
-    ONLINE,
-  };
+  typedef NetworkChangeNotifier::ConnectionType ConnectionType;
 
   // Observer interface implemented by NetworkChangeNotifierAndroid which
   // subscribes to network change notifications fired by the delegate (and
@@ -34,8 +32,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierDelegateAndroid {
     virtual ~Observer() {}
 
     // Updates the current connection type.
-    virtual void OnConnectionTypeChanged(
-        NetworkChangeNotifier::ConnectionType new_connection_type) = 0;
+    virtual void OnConnectionTypeChanged() = 0;
   };
 
   NetworkChangeNotifierDelegateAndroid();
@@ -55,21 +52,26 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierDelegateAndroid {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // Exposed for testing.
-  void ForceConnectivityState(ConnectivityState state);
+  // Can be called from any thread.
+  ConnectionType GetCurrentConnectionType() const;
 
   // Initializes JNI bindings.
   static bool Register(JNIEnv* env);
 
  private:
-  friend class NetworkChangeNotifierDelegateAndroidTest;
+  friend class BaseNetworkChangeNotifierAndroidTest;
 
-  typedef NetworkChangeNotifier::ConnectionType ConnectionType;
+  void SetCurrentConnectionType(ConnectionType connection_type);
+
+  // Methods calling the Java side exposed for testing.
+  void SetOnline();
+  void SetOffline();
 
   base::ThreadChecker thread_checker_;
   scoped_refptr<ObserverListThreadSafe<Observer> > observers_;
   scoped_refptr<base::SingleThreadTaskRunner> jni_task_runner_;
   base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
+  mutable base::Lock connection_type_lock_;  // Protects the state below.
   ConnectionType connection_type_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierDelegateAndroid);

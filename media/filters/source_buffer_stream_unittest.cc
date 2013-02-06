@@ -2349,6 +2349,27 @@ TEST_F(SourceBufferStreamTest, DISABLED_GarbageCollection_WaitingForKeyframe) {
   CheckExpectedRanges("{ [15,15) [20,28) }");
 }
 
+// Test the performance of garbage collection.
+TEST_F(SourceBufferStreamTest, GarbageCollection_Performance) {
+  // Force |keyframes_per_second_| to be equal to kDefaultFramesPerSecond.
+  SetStreamInfo(kDefaultFramesPerSecond, kDefaultFramesPerSecond);
+
+  const int kBuffersToKeep = 1000;
+  SetMemoryLimit(kBuffersToKeep);
+
+  int buffers_appended = 0;
+
+  NewSegmentAppend(0, kBuffersToKeep);
+  buffers_appended += kBuffersToKeep;
+
+  const int kBuffersToAppend = 1000;
+  const int kGarbageCollections = 3;
+  for (int i = 0; i < kGarbageCollections; ++i) {
+    AppendBuffers(buffers_appended, kBuffersToAppend);
+    buffers_appended += kBuffersToAppend;
+  }
+}
+
 TEST_F(SourceBufferStreamTest, ConfigChange_Basic) {
   gfx::Size kNewCodedSize(kCodedSize.width() * 2, kCodedSize.height() * 2);
   VideoDecoderConfig new_config(

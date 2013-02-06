@@ -2317,11 +2317,11 @@
           'target_name': 'net_errors_java',
           'type': 'none',
           'sources': [
-            'base/net_error_list.h',
             'android/java/NetError.template',
           ],
           'variables': {
             'package_name': 'org.chromium.net',
+            'template_deps': ['base/net_error_list.h'],
           },
           'includes': [ '../build/android/java_cpp_template.gypi' ],
         },
@@ -2329,11 +2329,11 @@
           'target_name': 'certificate_mime_types_java',
           'type': 'none',
           'sources': [
-            'base/mime_util_certificate_type_list.h',
             'android/java/CertificateMimeType.template',
           ],
           'variables': {
             'package_name': 'org.chromium.net',
+            'template_deps': ['base/mime_util_certificate_type_list.h'],
           },
           'includes': [ '../build/android/java_cpp_template.gypi' ],
         },

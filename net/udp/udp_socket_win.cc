@@ -9,6 +9,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/metrics/stats_counters.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/rand_util.h"
@@ -190,7 +191,10 @@ void UDPSocketWin::Close() {
   recv_from_address_ = NULL;
   write_callback_.Reset();
 
+  base::TimeTicks start_time = base::TimeTicks::Now();
   closesocket(socket_);
+  UMA_HISTOGRAM_TIMES("Net.UDPSocketWinClose",
+                      base::TimeTicks::Now() - start_time);
   socket_ = INVALID_SOCKET;
 
   core_->Detach();

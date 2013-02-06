@@ -38,6 +38,9 @@ enum {
   kMaxSamplesPerPacket = kMaxSampleRate,
   kMaxPacketSizeInBytes =
       (kMaxBitsPerSample / 8) * kMaxChannels * kMaxSamplesPerPacket,
+
+  // This limit is used by ParamTraits<VideoCaptureParams>.
+  kMaxFramesPerSecond = 1000,
 };
 
 }  // namespace limits

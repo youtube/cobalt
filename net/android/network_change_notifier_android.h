@@ -8,7 +8,6 @@
 #include "base/android/jni_android.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/synchronization/lock.h"
 #include "net/android/network_change_notifier_delegate_android.h"
 #include "net/base/network_change_notifier.h"
 
@@ -49,8 +48,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierAndroid
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
   // NetworkChangeNotifierDelegateAndroid::Observer:
-  virtual void OnConnectionTypeChanged(
-      ConnectionType new_connection_type) OVERRIDE;
+  virtual void OnConnectionTypeChanged() OVERRIDE;
 
   static bool Register(JNIEnv* env);
 
@@ -61,13 +59,9 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierAndroid
   explicit NetworkChangeNotifierAndroid(
       NetworkChangeNotifierDelegateAndroid* delegate);
 
-  void SetConnectionType(ConnectionType new_connection_type);
-
   static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsAndroid();
 
   NetworkChangeNotifierDelegateAndroid* const delegate_;
-  mutable base::Lock connection_type_lock_;  // Protects the state below.
-  ConnectionType connection_type_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierAndroid);
 };

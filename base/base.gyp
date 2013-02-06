@@ -141,6 +141,9 @@
           'sources!': [
             'debug/stack_trace_posix.cc',
           ],
+          'includes': [
+            '../build/android/cpufeatures.gypi',
+          ],
         }],
         ['OS == "android" and _toolset == "target" and android_build_type == 0', {
           'dependencies': [
@@ -1018,6 +1021,7 @@
           'type': 'none',
           'sources': [
             'android/java/src/org/chromium/base/BuildInfo.java',
+            'android/java/src/org/chromium/base/CpuFeatures.java',
             'android/java/src/org/chromium/base/LocaleUtils.java',
             'android/java/src/org/chromium/base/PathService.java',
             'android/java/src/org/chromium/base/PathUtils.java',

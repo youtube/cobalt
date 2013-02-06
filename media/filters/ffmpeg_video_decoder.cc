@@ -217,8 +217,7 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
 
-  demuxer_stream_->Read(base::Bind(
-      &FFmpegVideoDecoder::BufferReady, this));
+  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::BufferReady, this));
 }
 
 void FFmpegVideoDecoder::BufferReady(
@@ -233,6 +232,21 @@ void FFmpegVideoDecoder::BufferReady(
 
   DCHECK(!read_cb_.is_null());
 
+  if (status == DemuxerStream::kConfigChanged) {
+    if (!ConfigureDecoder()) {
+      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+      state_ = kDecodeFinished;
+      if (!reset_cb_.is_null())
+        base::ResetAndReturn(&reset_cb_).Run();
+      return;
+    }
+
+    if (reset_cb_.is_null()) {
+      ReadFromDemuxerStream();
+      return;
+    }
+  }
+
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
     DoReset();
@@ -241,16 +255,6 @@ void FFmpegVideoDecoder::BufferReady(
 
   if (status == DemuxerStream::kAborted) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
-    return;
-  }
-
-  if (status == DemuxerStream::kConfigChanged) {
-    if (!ConfigureDecoder()) {
-      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
-      return;
-    }
-
-    ReadFromDemuxerStream();
     return;
   }
 

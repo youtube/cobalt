@@ -91,6 +91,9 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // Returns Decryptor::StreamType converted from |stream_type_|.
   Decryptor::StreamType GetDecryptorStreamType() const;
 
+  // Sets |{audio|video}_config_| from |stream|.
+  void SetDecoderConfig(const scoped_refptr<DemuxerStream>& stream);
+
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   State state_;
