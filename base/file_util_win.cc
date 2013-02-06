@@ -204,12 +204,16 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
 bool ShellCopy(const FilePath& from_path, const FilePath& to_path,
                bool recursive) {
+  // WinXP SHFileOperation doesn't like trailing separators.
+  FilePath stripped_from = from_path.StripTrailingSeparators();
+  FilePath stripped_to = to_path.StripTrailingSeparators();
+
   base::ThreadRestrictions::AssertIOAllowed();
 
   // NOTE: I suspect we could support longer paths, but that would involve
   // analyzing all our usage of files.
-  if (from_path.value().length() >= MAX_PATH ||
-      to_path.value().length() >= MAX_PATH) {
+  if (stripped_from.value().length() >= MAX_PATH ||
+      stripped_to.value().length() >= MAX_PATH) {
     return false;
   }
 
@@ -219,9 +223,9 @@ bool ShellCopy(const FilePath& from_path, const FilePath& to_path,
   wchar_t double_terminated_path_from[MAX_PATH + 1] = {0};
   wchar_t double_terminated_path_to[MAX_PATH + 1] = {0};
 #pragma warning(suppress:4996)  // don't complain about wcscpy deprecation
-  wcscpy(double_terminated_path_from, from_path.value().c_str());
+  wcscpy(double_terminated_path_from, stripped_from.value().c_str());
 #pragma warning(suppress:4996)  // don't complain about wcscpy deprecation
-  wcscpy(double_terminated_path_to, to_path.value().c_str());
+  wcscpy(double_terminated_path_to, stripped_to.value().c_str());
 
   SHFILEOPSTRUCT file_operation = {0};
   file_operation.wFunc = FO_COPY;

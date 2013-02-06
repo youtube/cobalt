@@ -9,11 +9,10 @@
 #include "base/threading/thread_restrictions.h"
 
 namespace base {
-
-PlatformFile CreatePlatformFile(const FilePath& name,
-                                int flags,
-                                bool* created,
-                                PlatformFileError* error_code) {
+PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
+                                      int flags,
+                                      bool* created,
+                                      PlatformFileError* error) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   DWORD disposition = 0;
@@ -83,26 +82,26 @@ PlatformFile CreatePlatformFile(const FilePath& name,
       *created = true;
   }
 
-  if (error_code) {
+  if (error) {
     if (file != kInvalidPlatformFileValue)
-      *error_code = PLATFORM_FILE_OK;
+      *error = PLATFORM_FILE_OK;
     else {
       DWORD last_error = GetLastError();
       switch (last_error) {
         case ERROR_SHARING_VIOLATION:
-          *error_code = PLATFORM_FILE_ERROR_IN_USE;
+          *error = PLATFORM_FILE_ERROR_IN_USE;
           break;
         case ERROR_FILE_EXISTS:
-          *error_code = PLATFORM_FILE_ERROR_EXISTS;
+          *error = PLATFORM_FILE_ERROR_EXISTS;
           break;
         case ERROR_FILE_NOT_FOUND:
-          *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+          *error = PLATFORM_FILE_ERROR_NOT_FOUND;
           break;
         case ERROR_ACCESS_DENIED:
-          *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+          *error = PLATFORM_FILE_ERROR_ACCESS_DENIED;
           break;
         default:
-          *error_code = PLATFORM_FILE_ERROR_FAILED;
+          *error = PLATFORM_FILE_ERROR_FAILED;
       }
     }
   }

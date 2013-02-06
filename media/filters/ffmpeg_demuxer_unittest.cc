@@ -617,4 +617,15 @@ TEST_F(FFmpegDemuxerTest, UnsupportedVideoSupportedAudioDemux) {
   EXPECT_TRUE(demuxer_->GetStream(DemuxerStream::AUDIO));
 }
 
+// FFmpeg returns null data pointers when samples have zero size, leading to
+// mistakenly creating end of stream buffers http://crbug.com/169133
+TEST_F(FFmpegDemuxerTest, MP4_ZeroStszEntry) {
+#if !defined(USE_PROPRIETARY_CODECS)
+  return;
+#endif
+  CreateDemuxer("bear-1280x720-zero-stsz-entry.mp4");
+  InitializeDemuxer();
+  ReadUntilEndOfStream();
+}
+
 }  // namespace media

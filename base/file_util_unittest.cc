@@ -1466,6 +1466,43 @@ TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
+TEST_F(FileUtilTest, CopyDirectoryWithTrailingSeparators) {
+  // Create a directory.
+  FilePath dir_name_from =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
+  file_util::CreateDirectory(dir_name_from);
+  ASSERT_TRUE(file_util::PathExists(dir_name_from));
+
+  // Create a file under the directory.
+  FilePath file_name_from =
+      dir_name_from.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // Copy the directory recursively.
+  FilePath dir_name_to =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_To_Subdir"));
+  FilePath file_name_to =
+      dir_name_to.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+
+  // Create from path with trailing separators.
+#if defined(OS_WIN)
+  FilePath from_path =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir\\\\\\"));
+#elif defined (OS_POSIX)
+  FilePath from_path =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir///"));
+#endif
+
+  EXPECT_TRUE(file_util::CopyDirectory(from_path, dir_name_to, true));
+
+  // Check everything has been copied.
+  EXPECT_TRUE(file_util::PathExists(dir_name_from));
+  EXPECT_TRUE(file_util::PathExists(file_name_from));
+  EXPECT_TRUE(file_util::PathExists(dir_name_to));
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+}
+
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
   FilePath dir_name_from =

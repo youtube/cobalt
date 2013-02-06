@@ -24,11 +24,6 @@ class Decryptor;
 // encrypted audio buffers and return decrypted and decompressed audio frames.
 // All public APIs and callbacks are trampolined to the |message_loop_| so
 // that no locks are required for thread safety.
-//
-// TODO(xhwang): For now, DecryptingAudioDecoder relies on the decryptor to do
-// both decryption and audio decoding. Add the path to use the decryptor for
-// decryption only and use other AudioDecoder implementations within
-// DecryptingAudioDecoder for audio decoding.
 class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
  public:
   DecryptingAudioDecoder(
@@ -58,6 +53,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
     kDecryptorRequested,
     kPendingDecoderInit,
     kIdle,
+    kPendingConfigChange,
     kPendingDemuxerRead,
     kPendingDecode,
     kWaitingForKey,
@@ -72,8 +68,11 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   // Callback for DecryptorHost::RequestDecryptor().
   void SetDecryptor(Decryptor* decryptor);
 
-  // Callback for Decryptor::InitializeAudioDecoder().
+  // Callback for Decryptor::InitializeAudioDecoder() during initialization.
   void FinishInitialization(bool success);
+
+  // Callback for Decryptor::InitializeAudioDecoder() during config change.
+  void FinishConfigChange(bool success);
 
   // Carries out the buffer reading operation scheduled by Read().
   void DoRead(const ReadCB& read_cb);

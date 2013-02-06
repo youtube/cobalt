@@ -47,6 +47,8 @@ namespace {
 const char* kCommonDoubleExtensionSuffixes[] = { "gz", "z", "bz2" };
 const char* kCommonDoubleExtensions[] = { "user.js" };
 
+const FilePath::CharType kStringTerminator = FILE_PATH_LITERAL('\0');
+
 // If this FilePath contains a drive letter specification, returns the
 // position of the last character of the drive letter specification,
 // otherwise returns npos.  This can only be true on Windows, when a pathname
@@ -182,6 +184,9 @@ FilePath::FilePath(const FilePath& that) : path_(that.path_) {
 }
 
 FilePath::FilePath(const StringType& path) : path_(path) {
+  StringType::size_type nul_pos = path_.find(kStringTerminator);
+  if (nul_pos != StringType::npos)
+    path_.erase(nul_pos, StringType::npos);
 }
 
 FilePath::~FilePath() {
@@ -454,7 +459,17 @@ bool FilePath::MatchesExtension(const StringType& extension) const {
 }
 
 FilePath FilePath::Append(const StringType& component) const {
-  DCHECK(!IsPathAbsolute(component));
+  const StringType* appended = &component;
+  StringType without_nuls;
+
+  StringType::size_type nul_pos = component.find(kStringTerminator);
+  if (nul_pos != StringType::npos) {
+    without_nuls = component.substr(0, nul_pos);
+    appended = &without_nuls;
+  }
+
+  DCHECK(!IsPathAbsolute(*appended));
+
   if (path_.compare(kCurrentDirectory) == 0) {
     // Append normally doesn't do any normalization, but as a special case,
     // when appending to kCurrentDirectory, just return a new path for the
@@ -463,7 +478,7 @@ FilePath FilePath::Append(const StringType& component) const {
     // it's likely in practice to wind up with FilePath objects containing
     // only kCurrentDirectory when calling DirName on a single relative path
     // component.
-    return FilePath(component);
+    return FilePath(*appended);
   }
 
   FilePath new_path(path_);
@@ -472,7 +487,7 @@ FilePath FilePath::Append(const StringType& component) const {
   // Don't append a separator if the path is empty (indicating the current
   // directory) or if the path component is empty (indicating nothing to
   // append).
-  if (component.length() > 0 && new_path.path_.length() > 0) {
+  if (appended->length() > 0 && new_path.path_.length() > 0) {
     // Don't append a separator if the path still ends with a trailing
     // separator after stripping (indicating the root directory).
     if (!IsSeparator(new_path.path_[new_path.path_.length() - 1])) {
@@ -483,7 +498,7 @@ FilePath FilePath::Append(const StringType& component) const {
     }
   }
 
-  new_path.path_.append(component);
+  new_path.path_.append(*appended);
   return new_path;
 }
 
@@ -589,7 +604,7 @@ FilePath FilePath::FromUTF8Unsafe(const std::string& utf8) {
 }
 #endif
 
-void FilePath::WriteToPickle(Pickle* pickle) {
+void FilePath::WriteToPickle(Pickle* pickle) const {
 #if defined(OS_WIN)
   pickle->WriteString16(path_);
 #else
@@ -605,6 +620,9 @@ bool FilePath::ReadFromPickle(PickleIterator* iter) {
   if (!iter->ReadString(&path_))
     return false;
 #endif
+
+  if (path_.find(kStringTerminator) != StringType::npos)
+    return false;
 
   return true;
 }

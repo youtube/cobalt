@@ -29,23 +29,6 @@ static std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-// Reorder PCM from AAC layout to Core Audio 5.1 layout.
-// TODO(fbarchard): Switch layout when ffmpeg is updated.
-template<class Format>
-static void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
-  static const int kNumSurroundChannels = 6;
-  Format aac[kNumSurroundChannels];
-  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
-    memcpy(aac, b, sizeof(aac));
-    b[0] = aac[1];  // L
-    b[1] = aac[2];  // R
-    b[2] = aac[0];  // C
-    b[3] = aac[5];  // LFE
-    b[4] = aac[3];  // Ls
-    b[5] = aac[4];  // Rs
-  }
-}
-
 static AudioObjectPropertyAddress kDefaultOutputDeviceAddress = {
   kAudioHardwarePropertyDefaultOutputDevice,
   kAudioObjectPropertyScopeGlobal,
@@ -292,19 +275,6 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
                       audio_bus_->channels(),
                       format_.mBitsPerChannel / 8,
                       volume_);
-
-  // Handle channel order for 5.1 audio.
-  // TODO(dalecurtis): Channel downmixing, upmixing, should be done in mixer;
-  // volume adjust should use SSE optimized vector_fmul() prior to interleave.
-  if (format_.mChannelsPerFrame == 6) {
-    if (format_.mBitsPerChannel == 8) {
-      SwizzleCoreAudioLayout5_1(reinterpret_cast<uint8*>(audio_data), filled);
-    } else if (format_.mBitsPerChannel == 16) {
-      SwizzleCoreAudioLayout5_1(reinterpret_cast<int16*>(audio_data), filled);
-    } else if (format_.mBitsPerChannel == 32) {
-      SwizzleCoreAudioLayout5_1(reinterpret_cast<int32*>(audio_data), filled);
-    }
-  }
 
   return noErr;
 }
