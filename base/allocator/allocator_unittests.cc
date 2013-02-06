@@ -290,9 +290,9 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   if (!ok) {
     EXPECT_EQ(NULL, p) << "calloc(n, s) should not succeed";
   } else {
-#if defined(__LB_SHELL__)
+#if defined(__LB_PS3__)
     if (n == 0 || s == 0) {
-      // LB_SHELL returns NULL for size 0 calloc.
+      // calloc in PS3 compiler returns NULL for size 0 calloc.
       EXPECT_EQ(reinterpret_cast<void*>(NULL), p) <<
         "calloc(n, s) should fail";
     } else {
