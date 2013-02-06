@@ -88,6 +88,7 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
   static void CancelAll();
 
   static void SetEnableInterceptionForTests(bool enabled);
+  static void SetIgnoreCertificateRequests(bool ignored);
 
   // TODO(akalin): Make these private again once URLFetcher::Create()
   // is in net/.

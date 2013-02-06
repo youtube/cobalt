@@ -14,21 +14,21 @@
 #    'target_name': 'android_net_java_constants',
 #    'type': 'none',
 #    'sources': [
-#      'net/base/certificate_mime_type_list.h',
 #      'net/android/NetError.template',
 #    ],
 #    'variables': {
 #      'package_name': 'org.chromium.net',
+#      'template_deps': ['net/base/certificate_mime_type_list.h'],
 #    },
 #    'includes': [ '../build/android/java_constants.gypi' ],
 #  },
 #
-# The 'sources' entry should list all input files. The template file
+# The 'sources' entry should only list template file. The template file
 # itself should use the 'ClassName.template' format, and will generate
-# 'gen/templates/<package-name>/ClassName.java. Other source files
-# are those typically included by the template. Any change to them
-# will force a rebuild of the template, and hence of any source that
-# depends on it.
+# 'gen/templates/<package-name>/ClassName.java. The files which template
+# dependents on and typically included by the template should be listed
+# in template_deps variables. Any change to them will force a rebuild of
+# the template, and hence of any source that depends on it.
 #
 
 {
@@ -51,9 +51,8 @@
     {
       'rule_name': 'generate_java_constants',
       'extension': 'template',
-      'inputs': [
-        '<(RULE_INPUT_PATH)',
-      ],
+      # Set template_deps as additional dependencies.
+      'inputs': ['<@(template_deps)'],
       'outputs': [
         '<(output_dir)/<(RULE_INPUT_ROOT).java'
       ],

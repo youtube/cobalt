@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <limits>
+
 #include "base/logging.h"
 
 namespace base {
@@ -64,7 +66,7 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
     DPLOG(ERROR) << "close";
 }
 
-bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
+bool SharedMemory::CreateAndMapAnonymous(size_t size) {
   // Untrusted code can't create descriptors or handles.
   return false;
 }
@@ -82,8 +84,11 @@ bool SharedMemory::Open(const std::string& name, bool read_only) {
   return false;
 }
 
-bool SharedMemory::Map(uint32 bytes) {
+bool SharedMemory::Map(size_t bytes) {
   if (mapped_file_ == -1)
+    return false;
+
+  if (bytes > static_cast<size_t>(std::numeric_limits<int>::max()))
     return false;
 
   memory_ = mmap(NULL, bytes, PROT_READ | (read_only_ ? 0 : PROT_WRITE),

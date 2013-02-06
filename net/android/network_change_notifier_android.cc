@@ -67,13 +67,10 @@ NetworkChangeNotifierAndroid::~NetworkChangeNotifierAndroid() {
 
 NetworkChangeNotifier::ConnectionType
 NetworkChangeNotifierAndroid::GetCurrentConnectionType() const {
-  base::AutoLock auto_lock(connection_type_lock_);
-  return connection_type_;
+  return delegate_->GetCurrentConnectionType();
 }
 
-void NetworkChangeNotifierAndroid::OnConnectionTypeChanged(
-    ConnectionType new_connection_type) {
-  SetConnectionType(new_connection_type);
+void NetworkChangeNotifierAndroid::OnConnectionTypeChanged() {
   NetworkChangeNotifier::NotifyObserversOfIPAddressChange();
   NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange();
 }
@@ -87,7 +84,6 @@ NetworkChangeNotifierAndroid::NetworkChangeNotifierAndroid(
     NetworkChangeNotifierDelegateAndroid* delegate)
     : NetworkChangeNotifier(NetworkChangeCalculatorParamsAndroid()),
       delegate_(delegate) {
-  SetConnectionType(NetworkChangeNotifier::CONNECTION_UNKNOWN);
   delegate_->AddObserver(this);
 }
 
@@ -103,12 +99,6 @@ NetworkChangeNotifierAndroid::NetworkChangeCalculatorParamsAndroid() {
   params.connection_type_offline_delay_ = base::TimeDelta::FromSeconds(0);
   params.connection_type_online_delay_ = base::TimeDelta::FromSeconds(0);
   return params;
-}
-
-void NetworkChangeNotifierAndroid::SetConnectionType(
-    ConnectionType new_connection_type) {
-  base::AutoLock auto_lock(connection_type_lock_);
-  connection_type_ = new_connection_type;
 }
 
 }  // namespace net

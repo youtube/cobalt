@@ -98,7 +98,7 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
     DPLOG(ERROR) << "close";
 }
 
-bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
+bool SharedMemory::CreateAndMapAnonymous(size_t size) {
   return CreateAnonymous(size) && Map(size);
 }
 
@@ -112,6 +112,9 @@ bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
 bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
   DCHECK_EQ(-1, mapped_file_);
   if (options.size == 0) return false;
+
+  if (options.size > static_cast<size_t>(std::numeric_limits<int>::max()))
+    return false;
 
   // This function theoretically can block on the disk, but realistically
   // the temporary files we create will just go into the buffer cache
@@ -153,7 +156,7 @@ bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
       file_util::CloseFile(fp);
       return false;
     }
-    const uint32 current_size = stat.st_size;
+    const size_t current_size = stat.st_size;
     if (current_size != options.size) {
       if (HANDLE_EINTR(ftruncate(fileno(fp), options.size)) != 0) {
         file_util::CloseFile(fp);
@@ -216,8 +219,11 @@ bool SharedMemory::Open(const std::string& name, bool read_only) {
 
 #endif  // !defined(OS_ANDROID)
 
-bool SharedMemory::Map(uint32 bytes) {
+bool SharedMemory::Map(size_t bytes) {
   if (mapped_file_ == -1)
+    return false;
+
+  if (bytes > static_cast<size_t>(std::numeric_limits<int>::max()))
     return false;
 
 #if defined(OS_ANDROID)

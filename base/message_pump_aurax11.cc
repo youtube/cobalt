@@ -169,19 +169,12 @@ void MessagePumpAuraX11::RemoveDispatcherForWindow(unsigned long xid) {
 
 void MessagePumpAuraX11::AddDispatcherForRootWindow(
     MessagePumpDispatcher* dispatcher) {
-  DCHECK(std::find(root_window_dispatchers_.begin(),
-                   root_window_dispatchers_.end(),
-                   dispatcher) ==
-         root_window_dispatchers_.end());
-  root_window_dispatchers_.push_back(dispatcher);
+  root_window_dispatchers_.AddObserver(dispatcher);
 }
 
 void MessagePumpAuraX11::RemoveDispatcherForRootWindow(
     MessagePumpDispatcher* dispatcher) {
-  root_window_dispatchers_.erase(
-      std::remove(root_window_dispatchers_.begin(),
-                  root_window_dispatchers_.end(),
-                  dispatcher));
+  root_window_dispatchers_.RemoveObserver(dispatcher);
 }
 
 bool MessagePumpAuraX11::DispatchXEvents() {
@@ -303,11 +296,8 @@ bool MessagePumpAuraX11::Dispatch(const base::NativeEvent& xev) {
   }
 
   if (FindEventTarget(xev) == x_root_window_) {
-    for (Dispatchers::const_iterator it = root_window_dispatchers_.begin();
-         it != root_window_dispatchers_.end();
-         ++it) {
-      (*it)->Dispatch(xev);
-    }
+    FOR_EACH_OBSERVER(MessagePumpDispatcher, root_window_dispatchers_,
+                      Dispatch(xev));
     return true;
   }
   MessagePumpDispatcher* dispatcher = GetDispatcherForXEvent(xev);

@@ -184,6 +184,11 @@ void URLFetcherImpl::SetEnableInterceptionForTests(bool enabled) {
 }
 
 // static
+void URLFetcherImpl::SetIgnoreCertificateRequests(bool ignored) {
+  URLFetcherCore::SetIgnoreCertificateRequests(ignored);
+}
+
+// static
 int URLFetcherImpl::GetNumFetcherCores() {
   return URLFetcherCore::GetNumFetcherCores();
 }

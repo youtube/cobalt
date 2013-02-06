@@ -42,4 +42,30 @@ TEST(RefCountedMemoryUnitTest, RefCountedString) {
   EXPECT_EQ('e', mem->front()[1]);
 }
 
+TEST(RefCountedMemoryUnitTest, Equals) {
+  std::string s1("same");
+  scoped_refptr<RefCountedMemory> mem1 = RefCountedString::TakeString(&s1);
+
+  std::vector<unsigned char> d2;
+  d2.push_back('s');
+  d2.push_back('a');
+  d2.push_back('m');
+  d2.push_back('e');
+  scoped_refptr<RefCountedMemory> mem2 = RefCountedBytes::TakeVector(&d2);
+
+  EXPECT_TRUE(mem1->Equals(mem2));
+
+  std::string s3("diff");
+  scoped_refptr<RefCountedMemory> mem3 = RefCountedString::TakeString(&s3);
+
+  EXPECT_FALSE(mem1->Equals(mem3));
+  EXPECT_FALSE(mem2->Equals(mem3));
+}
+
+TEST(RefCountedMemoryUnitTest, EqualsNull) {
+  std::string s("str");
+  scoped_refptr<RefCountedMemory> mem = RefCountedString::TakeString(&s);
+  EXPECT_FALSE(mem->Equals(NULL));
+}
+
 }  //  namespace base

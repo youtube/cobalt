@@ -41,8 +41,10 @@ static int CallFstat(int fd, stat_wrapper_t *sb) {
 #endif
 
 // TODO(erikkay): does it make sense to support PLATFORM_FILE_EXCLUSIVE_* here?
-PlatformFile CreatePlatformFile(const FilePath& name, int flags,
-                                bool* created, PlatformFileError* error_code) {
+PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
+                                      int flags,
+                                      bool* created,
+                                      PlatformFileError* error) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   int open_flags = 0;
@@ -67,8 +69,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
     errno = EOPNOTSUPP;
-    if (error_code)
-      *error_code = PLATFORM_FILE_ERROR_FAILED;
+    if (error)
+      *error = PLATFORM_FILE_ERROR_FAILED;
     return kInvalidPlatformFileValue;
   }
 
@@ -117,40 +119,40 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     unlink(name.value().c_str());
   }
 
-  if (error_code) {
+  if (error) {
     if (descriptor >= 0)
-      *error_code = PLATFORM_FILE_OK;
+      *error = PLATFORM_FILE_OK;
     else {
       switch (errno) {
         case EACCES:
         case EISDIR:
         case EROFS:
         case EPERM:
-          *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+          *error = PLATFORM_FILE_ERROR_ACCESS_DENIED;
           break;
         case ETXTBSY:
-          *error_code = PLATFORM_FILE_ERROR_IN_USE;
+          *error = PLATFORM_FILE_ERROR_IN_USE;
           break;
         case EEXIST:
-          *error_code = PLATFORM_FILE_ERROR_EXISTS;
+          *error = PLATFORM_FILE_ERROR_EXISTS;
           break;
         case ENOENT:
-          *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+          *error = PLATFORM_FILE_ERROR_NOT_FOUND;
           break;
         case EMFILE:
-          *error_code = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
+          *error = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
           break;
         case ENOMEM:
-          *error_code = PLATFORM_FILE_ERROR_NO_MEMORY;
+          *error = PLATFORM_FILE_ERROR_NO_MEMORY;
           break;
         case ENOSPC:
-          *error_code = PLATFORM_FILE_ERROR_NO_SPACE;
+          *error = PLATFORM_FILE_ERROR_NO_SPACE;
           break;
         case ENOTDIR:
-          *error_code = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
+          *error = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
           break;
         default:
-          *error_code = PLATFORM_FILE_ERROR_FAILED;
+          *error = PLATFORM_FILE_ERROR_FAILED;
       }
     }
   }
