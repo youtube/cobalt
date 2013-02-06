@@ -237,14 +237,19 @@ bool MessagePumpGlib::HandleCheck() {
   if (!state_)  // state_ may be null during tests.
     return false;
 
-  // We should only ever have a single message on the wakeup pipe, since we
-  // are only signaled when the queue went from empty to non-empty.  The glib
-  // poll will tell us whether there was data, so this read shouldn't block.
+  // We usually have a single message on the wakeup pipe, since we are only
+  // signaled when the queue went from empty to non-empty, but there can be
+  // two messages if a task posted a task, hence we read at most two bytes.
+  // The glib poll will tell us whether there was data, so this read
+  // shouldn't block.
   if (wakeup_gpollfd_->revents & G_IO_IN) {
-    char msg;
-    if (HANDLE_EINTR(read(wakeup_pipe_read_, &msg, 1)) != 1 || msg != '!') {
+    char msg[2];
+    const int num_bytes = HANDLE_EINTR(read(wakeup_pipe_read_, msg, 2));
+    if (num_bytes < 1) {
       NOTREACHED() << "Error reading from the wakeup pipe.";
     }
+    DCHECK((num_bytes == 1 && msg[0] == '!') ||
+           (num_bytes == 2 && msg[0] == '!' && msg[1] == '!'));
     // Since we ate the message, we need to record that we have more work,
     // because HandleCheck() may be called without HandleDispatch being called
     // afterwards.

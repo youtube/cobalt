@@ -119,11 +119,21 @@ struct BASE_EXPORT PlatformFileInfo {
 // Creates or opens the given file. If |created| is provided, it will be set to
 // true if a new file was created [or an old one truncated to zero length to
 // simulate a new file, which can happen with PLATFORM_FILE_CREATE_ALWAYS], and
-// false otherwise.  |error_code| can be NULL.
+// false otherwise.  |error| can be NULL.
+//
+// This function fails with 'access denied' if the |name| contains path
+// traversal ('..') components.
 BASE_EXPORT PlatformFile CreatePlatformFile(const FilePath& name,
                                             int flags,
                                             bool* created,
-                                            PlatformFileError* error_code);
+                                            PlatformFileError* error);
+
+// Same as CreatePlatformFile but allows paths with traversal (like \..\)
+// components. Use only with extreme care.
+BASE_EXPORT PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
+                                                  int flags,
+                                                  bool* created,
+                                                  PlatformFileError* error);
 
 // Closes a file handle. Returns |true| on success and |false| otherwise.
 BASE_EXPORT bool ClosePlatformFile(PlatformFile file);

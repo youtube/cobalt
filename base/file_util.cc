@@ -152,6 +152,8 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 }
 
 bool ReadFileToString(const FilePath& path, std::string* contents) {
+  if (path.ReferencesParent())
+    return false;
   FILE* file = OpenFile(path, "rb");
   if (!file) {
     return false;

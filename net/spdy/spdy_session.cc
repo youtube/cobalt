@@ -449,7 +449,7 @@ int SpdySession::CreateStream(
 
   stalled_streams_++;
   net_log().AddEvent(NetLog::TYPE_SPDY_SESSION_STALLED_MAX_STREAMS);
-  create_stream_queues_[priority].push(
+  pending_create_stream_queues_[priority].push(
       PendingCreateStream(url, priority, spdy_stream,
                           stream_net_log, callback));
   return ERR_IO_PENDING;
@@ -457,12 +457,14 @@ int SpdySession::CreateStream(
 
 void SpdySession::ProcessPendingCreateStreams() {
   while (!max_concurrent_streams_ ||
-         active_streams_.size() < max_concurrent_streams_) {
+         (active_streams_.size() + created_streams_.size() <
+          max_concurrent_streams_)) {
     bool no_pending_create_streams = true;
     for (int i = NUM_PRIORITIES - 1; i >= MINIMUM_PRIORITY; --i) {
-      if (!create_stream_queues_[i].empty()) {
-        PendingCreateStream pending_create = create_stream_queues_[i].front();
-        create_stream_queues_[i].pop();
+      if (!pending_create_stream_queues_[i].empty()) {
+        PendingCreateStream pending_create =
+            pending_create_stream_queues_[i].front();
+        pending_create_stream_queues_[i].pop();
         no_pending_create_streams = false;
         int error = CreateStreamImpl(*pending_create.url,
                                      pending_create.priority,
@@ -495,15 +497,16 @@ void SpdySession::CancelPendingCreateStreams(
   for (int i = 0; i < NUM_PRIORITIES; ++i) {
     PendingCreateStreamQueue tmp;
     // Make a copy removing this trans
-    while (!create_stream_queues_[i].empty()) {
-      PendingCreateStream pending_create = create_stream_queues_[i].front();
-      create_stream_queues_[i].pop();
+    while (!pending_create_stream_queues_[i].empty()) {
+      PendingCreateStream pending_create =
+          pending_create_stream_queues_[i].front();
+      pending_create_stream_queues_[i].pop();
       if (pending_create.spdy_stream != spdy_stream)
         tmp.push(pending_create);
     }
     // Now copy it back
     while (!tmp.empty()) {
-      create_stream_queues_[i].push(tmp.front());
+      pending_create_stream_queues_[i].push(tmp.front());
       tmp.pop();
     }
   }
@@ -728,6 +731,7 @@ void SpdySession::CloseStream(SpdyStreamId stream_id, int status) {
 void SpdySession::CloseCreatedStream(SpdyStream* stream, int status) {
   DCHECK_EQ(0u, stream->stream_id());
   created_streams_.erase(scoped_refptr<SpdyStream>(stream));
+  ProcessPendingCreateStreams();
 }
 
 void SpdySession::ResetStream(SpdyStreamId stream_id,
@@ -987,9 +991,10 @@ void SpdySession::CloseAllStreams(net::Error status) {
   }
 
   for (int i = 0; i < NUM_PRIORITIES; ++i) {
-    while (!create_stream_queues_[i].empty()) {
-      PendingCreateStream pending_create = create_stream_queues_[i].front();
-      create_stream_queues_[i].pop();
+    while (!pending_create_stream_queues_[i].empty()) {
+      PendingCreateStream pending_create =
+          pending_create_stream_queues_[i].front();
+      pending_create_stream_queues_[i].pop();
       pending_create.callback.Run(ERR_ABORTED);
     }
   }

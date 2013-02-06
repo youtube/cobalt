@@ -28,6 +28,7 @@ namespace {
 const int kBufferSize = 4096;
 const int kUploadProgressTimerInterval = 100;
 bool g_interception_enabled = false;
+bool g_ignore_certificate_requests = false;
 
 }  // namespace
 
@@ -307,17 +308,8 @@ void URLFetcherCore::Start() {
   }
   DCHECK(network_task_runner_.get()) << "We need an IO task runner";
 
-  if (num_retries_on_network_changes_ < max_retries_on_network_changes_ &&
-      NetworkChangeNotifier::IsOffline()) {
-    // We're currently offline and this request will immediately fail. Try to
-    // start later if |max_retries_on_network_changes_| is set, indicating that
-    // our owner wants the fetcher to automatically retry on network changes.
-    ++num_retries_on_network_changes_;
-    NetworkChangeNotifier::AddConnectionTypeObserver(this);
-  } else {
-    network_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
-  }
+  network_task_runner_->PostTask(
+      FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
 }
 
 void URLFetcherCore::Stop() {
@@ -569,6 +561,19 @@ void URLFetcherCore::OnResponseStarted(URLRequest* request) {
   ReadResponse();
 }
 
+void URLFetcherCore::OnCertificateRequested(
+    URLRequest* request,
+    SSLCertRequestInfo* cert_request_info) {
+  DCHECK_EQ(request, request_.get());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
+
+  if (g_ignore_certificate_requests) {
+    request->ContinueWithCertificate(NULL);
+  } else {
+    request->Cancel();
+  }
+}
+
 void URLFetcherCore::OnReadCompleted(URLRequest* request,
                                      int bytes_read) {
   DCHECK(request == request_);
@@ -622,20 +627,6 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
   }
 }
 
-void URLFetcherCore::OnConnectionTypeChanged(
-    NetworkChangeNotifier::ConnectionType type) {
-  DCHECK_GT(num_retries_on_network_changes_, 0);
-  if (type == NetworkChangeNotifier::CONNECTION_NONE) {
-    // Keep waiting.
-    return;
-  }
-
-  // Stop observing and try again now.
-  NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
-  network_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
-}
-
 void URLFetcherCore::CancelAll() {
   g_registry.Get().CancelAll();
 }
@@ -646,6 +637,10 @@ int URLFetcherCore::GetNumFetcherCores() {
 
 void URLFetcherCore::SetEnableInterceptionForTests(bool enabled) {
   g_interception_enabled = enabled;
+}
+
+void URLFetcherCore::SetIgnoreCertificateRequests(bool ignored) {
+  g_ignore_certificate_requests = ignored;
 }
 
 URLFetcherCore::~URLFetcherCore() {
@@ -894,15 +889,10 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
       num_retries_on_network_changes_ < max_retries_on_network_changes_) {
     ++num_retries_on_network_changes_;
 
-    if (NetworkChangeNotifier::IsOffline()) {
-      // Retry once we're back online.
-      NetworkChangeNotifier::AddConnectionTypeObserver(this);
-    } else {
-      // Retry soon, after flushing all the current tasks which may include
-      // further network change observers.
-      network_task_runner_->PostTask(
-          FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
-    }
+    // Retry soon, after flushing all the current tasks which may include
+    // further network change observers.
+    network_task_runner_->PostTask(
+        FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
     return;
   }
 
@@ -920,8 +910,6 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
 }
 
 void URLFetcherCore::ReleaseRequest() {
-  if (num_retries_on_network_changes_ > 0)
-    NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
   upload_progress_checker_timer_.reset();
   request_.reset();
   g_registry.Get().RemoveURLFetcherCore(this);

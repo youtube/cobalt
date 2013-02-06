@@ -53,7 +53,7 @@ struct SharedMemoryCreateOptions {
 
   // Size of the shared memory object to be created.
   // When opening an existing object, this has no effect.
-  uint32 size;
+  size_t size;
 
   // If true, and the shared memory already exists, Create() will open the
   // existing shared memory and ignore the size parameter.  If false,
@@ -107,11 +107,11 @@ class BASE_EXPORT SharedMemory {
 
   // Creates and maps an anonymous shared memory segment of size size.
   // Returns true on success and false on failure.
-  bool CreateAndMapAnonymous(uint32 size);
+  bool CreateAndMapAnonymous(size_t size);
 
   // Creates an anonymous shared memory segment of size size.
   // Returns true on success and false on failure.
-  bool CreateAnonymous(uint32 size) {
+  bool CreateAnonymous(size_t size) {
     SharedMemoryCreateOptions options;
     options.size = size;
     return Create(options);
@@ -123,7 +123,7 @@ class BASE_EXPORT SharedMemory {
   // If open_existing is false, shared memory must not exist.
   // size is the size of the block to be created.
   // Returns true on success, false on failure.
-  bool CreateNamed(const std::string& name, bool open_existing, uint32 size) {
+  bool CreateNamed(const std::string& name, bool open_existing, size_t size) {
     SharedMemoryCreateOptions options;
     options.name = &name;
     options.open_existing = open_existing;
@@ -144,7 +144,7 @@ class BASE_EXPORT SharedMemory {
   // Returns true on success, false otherwise.  The memory address
   // is accessed via the memory() accessor.  The mapped address is guaranteed to
   // have an alignment of at least MAP_MINIMUM_ALIGNMENT.
-  bool Map(uint32 bytes);
+  bool Map(size_t bytes);
   enum { MAP_MINIMUM_ALIGNMENT = 32 };
 
   // Unmaps the shared memory from the caller's address space.
@@ -160,7 +160,7 @@ class BASE_EXPORT SharedMemory {
   // Deprecated method, please keep track of the size yourself if you created
   // it.
   // http://crbug.com/60821
-  uint32 created_size() const { return created_size_; }
+  size_t created_size() const { return created_size_; }
 
   // Gets a pointer to the opened memory space if it has been
   // Mapped via Map().  Returns NULL if it is not mapped.
@@ -239,12 +239,12 @@ class BASE_EXPORT SharedMemory {
   HANDLE             mapped_file_;
 #elif defined(OS_POSIX)
   int                mapped_file_;
-  uint32             mapped_size_;
+  size_t             mapped_size_;
   ino_t              inode_;
 #endif
   void*              memory_;
   bool               read_only_;
-  uint32             created_size_;
+  size_t             created_size_;
 #if !defined(OS_POSIX)
   SharedMemoryLock   lock_;
 #endif

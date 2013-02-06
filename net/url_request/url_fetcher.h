@@ -115,6 +115,13 @@ class NET_EXPORT URLFetcher {
   // of testing code that uses an URLFetcher.
   static void SetEnableInterceptionForTests(bool enabled);
 
+  // Normally, URLFetcher will abort loads that request SSL client certificate
+  // authentication, but this method may be used to cause URLFetchers to ignore
+  // requests for client certificates and continue anonymously. Because such
+  // behaviour affects the URLRequestContext's shared network state and socket
+  // pools, it should only be used for testing.
+  static void SetIgnoreCertificateRequests(bool ignored);
+
   // Sets data only needed by POSTs.  All callers making POST requests should
   // call this before the request is started.  |upload_content_type| is the MIME
   // type of the content, while |upload_content| is the data to be sent (the
@@ -196,9 +203,6 @@ class NET_EXPORT URLFetcher {
   // Retries up to |max_retries| times when requests fail with
   // ERR_NETWORK_CHANGED. If ERR_NETWORK_CHANGED is received after having
   // retried |max_retries| times then it is propagated to the observer.
-  // Each retry can be delayed if the network if currently offline, and will be
-  // attempted once the network connection is back. The first fetch is also
-  // delayed if the network is offline when Start() is invoked.
   virtual void SetAutomaticallyRetryOnNetworkChanges(int max_retries) = 0;
 
   // By default, the response is saved in a string. Call this method to save the

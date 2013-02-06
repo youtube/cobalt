@@ -308,6 +308,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   }
   size_t num_created_streams() const { return created_streams_.size(); }
 
+  size_t pending_create_stream_queues(int priority) {
+    DCHECK_LT(priority, NUM_PRIORITIES);
+    return pending_create_stream_queues_[priority].size();
+  }
+
   // Returns true if flow control is enabled for the session.
   bool is_flow_control_enabled() const {
     return flow_control_;
@@ -598,7 +603,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Queue, for each priority, of pending Create Streams that have not
   // yet been satisfied
-  PendingCreateStreamQueue create_stream_queues_[NUM_PRIORITIES];
+  PendingCreateStreamQueue pending_create_stream_queues_[NUM_PRIORITIES];
 
   // Map from stream id to all active streams.  Streams are active in the sense
   // that they have a consumer (typically SpdyNetworkTransaction and regardless
