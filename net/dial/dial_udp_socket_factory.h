@@ -13,7 +13,7 @@ class IPEndPoint;
 
 class UdpSocketFactory {
  public:
-  virtual scoped_refptr<UDPListenSocket> CreateAndBind(
+  scoped_refptr<UDPListenSocket> CreateAndBind(
       const IPEndPoint& address, UDPListenSocket::Delegate* del);
   virtual ~UdpSocketFactory() {}
 
@@ -23,7 +23,8 @@ class UdpSocketFactory {
 };
 
 class DialUdpSocketFactory : public UdpSocketFactory {
-  virtual ~DialUdpSocketFactory();
+ public:
+  virtual ~DialUdpSocketFactory() { }
  protected:
   // UdpSocketFactory implementation
   virtual void SetupSocketAfterCreate(SocketDescriptor) OVERRIDE;

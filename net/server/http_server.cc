@@ -48,11 +48,20 @@ void HttpServer::SendOverWebSocket(int connection_id,
 void HttpServer::Send(int connection_id,
                       HttpStatusCode status_code,
                       const std::string& data,
-                      const std::string& content_type) {
+                      const std::string& content_type,
+                      const std::vector<std::string>& headers) {
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
-  connection->Send(status_code, data, content_type);
+  connection->Send(status_code, data, content_type, headers);
+}
+
+void HttpServer::Send(int connection_id,
+                      HttpStatusCode status_code,
+                      const std::string& data,
+                      const std::string& content_type) {
+  Send(connection_id, status_code, data, content_type,
+       std::vector<std::string>());
 }
 
 void HttpServer::Send200(int connection_id,
