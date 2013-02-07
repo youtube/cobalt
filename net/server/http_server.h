@@ -49,6 +49,11 @@ class HttpServer : public StreamListenSocket::Delegate,
   void Send(int connection_id,
             HttpStatusCode status_code,
             const std::string& data,
+            const std::string& mime_type,
+            const std::vector<std::string>& headers);
+  void Send(int connection_id,
+            HttpStatusCode status_code,
+            const std::string& data,
             const std::string& mime_type);
   void Send200(int connection_id,
                const std::string& data,
