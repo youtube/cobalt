@@ -875,7 +875,6 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
   ResetConfigService(config_service);
 }
 
-#if WEBKIT_USING_V8
 // static
 ProxyService* ProxyService::CreateUsingSystemProxyResolver(
     ProxyConfigService* proxy_config_service,
