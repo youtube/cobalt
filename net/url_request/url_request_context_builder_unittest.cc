@@ -11,10 +11,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_fixed.h"
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 namespace net {
 
@@ -40,10 +40,10 @@ class URLRequestContextBuilderTest : public PlatformTest {
   URLRequestContextBuilderTest()
       : test_server_(
           FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest"))) {
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
     builder_.set_proxy_config_service(
         new ProxyConfigServiceFixed(ProxyConfig::CreateDirect()));
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
   }
 
   LocalHttpTestServer test_server_;

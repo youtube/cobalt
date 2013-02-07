@@ -60,12 +60,12 @@ class NET_EXPORT DatagramServerSocket : public DatagramSocket {
   // Set the send buffer size (in bytes) for the socket.
   virtual bool SetSendBufferSize(int32 size) = 0;
 
-  // Allow the socket to share the local address to which socket will
+  // Allow the socket to share the local address to which the socket will
   // be bound with other processes. Should be called before Listen().
   virtual void AllowAddressReuse() = 0;
 
-  // Allow sending and receiving packets sent to and from broadcast
-  // addresses. Should be called before Listen().
+  // Allow sending and receiving packets to and from broadcast addresses.
+  // Should be called before Listen().
   virtual void AllowBroadcast() = 0;
 };
 

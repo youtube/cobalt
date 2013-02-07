@@ -6,6 +6,7 @@
 #define MEDIA_FILTERS_IN_MEMORY_URL_PROTOCOL_H_
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "media/filters/ffmpeg_glue.h"
 
 namespace media {
@@ -21,7 +22,7 @@ class MEDIA_EXPORT InMemoryUrlProtocol : public FFmpegURLProtocol {
   virtual ~InMemoryUrlProtocol();
 
   // FFmpegURLProtocol methods.
-  virtual size_t Read(size_t size, uint8* data) OVERRIDE;
+  virtual int Read(int size, uint8* data) OVERRIDE;
   virtual bool GetPosition(int64* position_out) OVERRIDE;
   virtual bool SetPosition(int64 position) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;

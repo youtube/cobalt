@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/base_paths.h"
+// Defines base::PathProviderAndroid which replaces base::PathProviderPosix for
+// Android in base/path_service.cc.
 
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
 #include "base/android/path_utils.h"
+#include "base/base_paths.h"
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/logging.h"
-
-namespace {
-
-const char kSelfExe[] = "/proc/self/exe";
-
-}  // namespace
+#include "base/process_util.h"
 
 namespace base {
 
@@ -23,9 +21,9 @@ bool PathProviderAndroid(int key, FilePath* result) {
   switch (key) {
     case base::FILE_EXE: {
       char bin_dir[PATH_MAX + 1];
-      int bin_dir_size = readlink(kSelfExe, bin_dir, PATH_MAX);
+      int bin_dir_size = readlink(kProcSelfExe, bin_dir, PATH_MAX);
       if (bin_dir_size < 0 || bin_dir_size > PATH_MAX) {
-        NOTREACHED() << "Unable to resolve " << kSelfExe << ".";
+        NOTREACHED() << "Unable to resolve " << kProcSelfExe << ".";
         return false;
       }
       bin_dir[bin_dir_size] = 0;
@@ -36,21 +34,24 @@ bool PathProviderAndroid(int key, FilePath* result) {
       // dladdr didn't work in Android as only the file name was returned.
       NOTIMPLEMENTED();
       return false;
-    case base::DIR_MODULE: {
-      *result = FilePath(base::android::GetNativeLibraryDirectory());
-      return true;
-    }
+    case base::DIR_MODULE:
+      return base::android::GetNativeLibraryDirectory(result);
     case base::DIR_SOURCE_ROOT:
-      // This const is only used for tests. Files in this directory are pushed
-      // to the device via test script.
-      *result = FilePath(FILE_PATH_LITERAL("/data/local/tmp/"));
-      return true;
+      // This const is only used for tests.
+      return base::android::GetExternalStorageDirectory(result);
+    case base::DIR_USER_DESKTOP:
+      // Android doesn't support GetUserDesktop.
+      NOTIMPLEMENTED();
+      return false;
     case base::DIR_CACHE:
-      *result = FilePath(base::android::GetCacheDirectory());
-      return true;
+      return base::android::GetCacheDirectory(result);
     case base::DIR_ANDROID_APP_DATA:
-      *result = FilePath(base::android::GetDataDirectory());
+      return base::android::GetDataDirectory(result);
+    case base::DIR_HOME:
+      *result = file_util::GetHomeDir();
       return true;
+    case base::DIR_ANDROID_EXTERNAL_STORAGE:
+      return base::android::GetExternalStorageDirectory(result);
     default:
       // Note: the path system expects this function to override the default
       // behavior. So no need to log an error if we don't support a given

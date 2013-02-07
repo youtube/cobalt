@@ -18,6 +18,7 @@
 #define MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_
 
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/compiler_specific.h"
 #include "media/audio/audio_io.h"
@@ -97,6 +98,9 @@ class AUAudioOutputStream : public AudioOutputStream {
 
   // The flag used to stop the streaming.
   bool stopped_;
+
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };

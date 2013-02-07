@@ -6,6 +6,7 @@
 #define BASE_ANDROID_JNI_REGISTRAR_H_
 
 #include <jni.h>
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -16,9 +17,9 @@ struct RegistrationMethod;
 // Registers the JNI bindings for the specified |method| definition containing
 // |count| elements.  Returns whether the registration of the given methods
 // succeeded.
-bool RegisterNativeMethods(JNIEnv* env,
-                           const RegistrationMethod* method,
-                           size_t count);
+BASE_EXPORT bool RegisterNativeMethods(JNIEnv* env,
+                                       const RegistrationMethod* method,
+                                       size_t count);
 
 }  // namespace android
 }  // namespace base

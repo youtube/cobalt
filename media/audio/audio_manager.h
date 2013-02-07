@@ -106,22 +106,26 @@ class MEDIA_EXPORT AudioManager {
   virtual AudioInputStream* MakeAudioInputStream(
       const AudioParameters& params, const std::string& device_id) = 0;
 
-  // Muting continues playback but effectively the volume is set to zero.
-  // Un-muting returns the volume to the previous level.
-  virtual void MuteAll() = 0;
-  virtual void UnMuteAll() = 0;
-
   // Used to determine if something else is currently making use of audio input.
   virtual bool IsRecordingInProcess() = 0;
 
   // Returns message loop used for audio IO.
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() = 0;
 
+  // Allows clients to listen for device state changes; e.g. preferred sample
+  // rate or channel layout changes.  The typical response to receiving this
+  // callback is to recreate the stream.
+  class AudioDeviceListener {
+   public:
+    virtual void OnDeviceChange() = 0;
+  };
+
+  virtual void AddOutputDeviceChangeListener(AudioDeviceListener* listener) = 0;
+  virtual void RemoveOutputDeviceChangeListener(
+      AudioDeviceListener* listener) = 0;
+
  protected:
   AudioManager();
-
-  // Called from Create() to initialize the instance.
-  virtual void Init() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManager);

@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,7 +9,10 @@
 //
 // Author: Christian Duvivier (cduvivier@google.com)
 
-#if defined(__SSE2__) || defined(_MSC_VER)
+#include "./dsp.h"
+
+#if defined(WEBP_USE_SSE2)
+#include <stdlib.h>  // for abs()
 #include <emmintrin.h>
 
 #include "../enc/vp8enci.h"
@@ -831,4 +834,4 @@ void VP8EncDspInitSSE2(void) {
 }    // extern "C"
 #endif
 
-#endif   //__SSE2__
+#endif   // WEBP_USE_SSE2

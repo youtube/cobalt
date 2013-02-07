@@ -38,7 +38,7 @@ bool AddressListOnlyContainsIPv6(const AddressList& list) {
   DCHECK(!list.empty());
   for (AddressList::const_iterator iter = list.begin(); iter != list.end();
        ++iter) {
-    if (iter->GetFamily() != AF_INET6)
+    if (iter->GetFamily() != ADDRESS_FAMILY_IPV6)
       return false;
   }
   return true;
@@ -116,7 +116,7 @@ LoadState TransportConnectJob::GetLoadState() const {
 // static
 void TransportConnectJob::MakeAddressListStartWithIPv4(AddressList* list) {
   for (AddressList::iterator i = list->begin(); i != list->end(); ++i) {
-    if (i->GetFamily() == AF_INET) {
+    if (i->GetFamily() == ADDRESS_FAMILY_IPV4) {
       std::rotate(list->begin(), i, list->end());
       break;
     }
@@ -189,7 +189,7 @@ int TransportConnectJob::DoTransportConnect() {
   int rv = transport_socket_->Connect(
       base::Bind(&TransportConnectJob::OnIOComplete, base::Unretained(this)));
   if (rv == ERR_IO_PENDING &&
-      addresses_.front().GetFamily() == AF_INET6 &&
+      addresses_.front().GetFamily() == ADDRESS_FAMILY_IPV6 &&
       !AddressListOnlyContainsIPv6(addresses_)) {
     fallback_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kIPv6FallbackTimerInMs),
@@ -200,7 +200,7 @@ int TransportConnectJob::DoTransportConnect() {
 
 int TransportConnectJob::DoTransportConnectComplete(int result) {
   if (result == OK) {
-    bool is_ipv4 = addresses_.front().GetFamily() != AF_INET6;
+    bool is_ipv4 = addresses_.front().GetFamily() == ADDRESS_FAMILY_IPV4;
     DCHECK(connect_start_time_ != base::TimeTicks());
     DCHECK(start_time_ != base::TimeTicks());
     base::TimeTicks now = base::TimeTicks::Now();
@@ -419,8 +419,8 @@ void TransportClientSocketPool::ReleaseSocket(
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void TransportClientSocketPool::Flush() {
-  base_.Flush();
+void TransportClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool TransportClientSocketPool::IsStalled() const {

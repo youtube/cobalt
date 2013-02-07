@@ -9,9 +9,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
@@ -21,9 +21,12 @@
 
 namespace base {
 
-#if defined(OS_BSD) || defined(OS_IOS) || (defined(OS_MACOSX) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5) || \
-    defined(__LB_WIIU__)
+// Make sure our Whence mappings match the system headers.
+COMPILE_ASSERT(PLATFORM_FILE_FROM_BEGIN   == SEEK_SET &&
+               PLATFORM_FILE_FROM_CURRENT == SEEK_CUR &&
+               PLATFORM_FILE_FROM_END     == SEEK_END, whence_matches_system);
+
+#if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_WIIU__)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -38,8 +41,10 @@ static int CallFstat(int fd, stat_wrapper_t *sb) {
 #endif
 
 // TODO(erikkay): does it make sense to support PLATFORM_FILE_EXCLUSIVE_* here?
-PlatformFile CreatePlatformFile(const FilePath& name, int flags,
-                                bool* created, PlatformFileError* error_code) {
+PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
+                                      int flags,
+                                      bool* created,
+                                      PlatformFileError* error) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   int open_flags = 0;
@@ -64,8 +69,8 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       !(flags & PLATFORM_FILE_OPEN_ALWAYS)) {
     NOTREACHED();
     errno = EOPNOTSUPP;
-    if (error_code)
-      *error_code = PLATFORM_FILE_ERROR_FAILED;
+    if (error)
+      *error = PLATFORM_FILE_ERROR_FAILED;
     return kInvalidPlatformFileValue;
   }
 
@@ -114,40 +119,40 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     unlink(name.value().c_str());
   }
 
-  if (error_code) {
+  if (error) {
     if (descriptor >= 0)
-      *error_code = PLATFORM_FILE_OK;
+      *error = PLATFORM_FILE_OK;
     else {
       switch (errno) {
         case EACCES:
         case EISDIR:
         case EROFS:
         case EPERM:
-          *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+          *error = PLATFORM_FILE_ERROR_ACCESS_DENIED;
           break;
         case ETXTBSY:
-          *error_code = PLATFORM_FILE_ERROR_IN_USE;
+          *error = PLATFORM_FILE_ERROR_IN_USE;
           break;
         case EEXIST:
-          *error_code = PLATFORM_FILE_ERROR_EXISTS;
+          *error = PLATFORM_FILE_ERROR_EXISTS;
           break;
         case ENOENT:
-          *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+          *error = PLATFORM_FILE_ERROR_NOT_FOUND;
           break;
         case EMFILE:
-          *error_code = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
+          *error = PLATFORM_FILE_ERROR_TOO_MANY_OPENED;
           break;
         case ENOMEM:
-          *error_code = PLATFORM_FILE_ERROR_NO_MEMORY;
+          *error = PLATFORM_FILE_ERROR_NO_MEMORY;
           break;
         case ENOSPC:
-          *error_code = PLATFORM_FILE_ERROR_NO_SPACE;
+          *error = PLATFORM_FILE_ERROR_NO_SPACE;
           break;
         case ENOTDIR:
-          *error_code = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
+          *error = PLATFORM_FILE_ERROR_NOT_A_DIRECTORY;
           break;
         default:
-          *error_code = PLATFORM_FILE_ERROR_FAILED;
+          *error = PLATFORM_FILE_ERROR_FAILED;
       }
     }
   }
@@ -158,6 +163,16 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
 bool ClosePlatformFile(PlatformFile file) {
   base::ThreadRestrictions::AssertIOAllowed();
   return !HANDLE_EINTR(close(file));
+}
+
+int64 SeekPlatformFile(PlatformFile file,
+                       PlatformFileWhence whence,
+                       int64 offset) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || offset < 0)
+    return -1;
+
+  return lseek(file, static_cast<off_t>(offset), static_cast<int>(whence));
 }
 
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
@@ -206,6 +221,15 @@ int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
   return HANDLE_EINTR(pread(file, data, size, offset));
 }
 
+int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
+                                       char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  return HANDLE_EINTR(read(file, data, size));
+}
+
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -243,6 +267,15 @@ int WritePlatformFileAtCurrentPos(PlatformFile file,
   } while (bytes_written < size);
 
   return bytes_written ? bytes_written : rv;
+}
+
+int WritePlatformFileCurPosNoBestEffort(PlatformFile file,
+                                        const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  return HANDLE_EINTR(write(file, data, size));
 }
 
 bool TruncatePlatformFile(PlatformFile file, int64 length) {

@@ -1,0 +1,9 @@
+{
+    "description": "Moz2 page_cycler benchmark",
+    "pages": [
+        {
+            "url": "file:///../../../../data/page_cycler/moz2/start.html?iterations=10&auto=1",
+            "url_base_dir": "file:///../../../../data/page_cycler/"
+        }
+    ]
+}

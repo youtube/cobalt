@@ -25,6 +25,7 @@ NET_EXPORT base::Value* NetLogURLRequestStartCallback(
     const std::string* method,
     int load_flags,
     RequestPriority priority,
+    int64 upload_id,
     NetLog::LogLevel /* log_level */);
 
 // Attempts to extract the load flags from a Value created by the above

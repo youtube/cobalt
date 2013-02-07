@@ -66,16 +66,18 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual ~SSLClientSocketNSS();
 
   // SSLClientSocket implementation.
-  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
+
+  // SSLSocket implementation.
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    bool has_context,
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) OVERRIDE;
-  virtual NextProtoStatus GetNextProto(std::string* proto,
-                                       std::string* server_protos) OVERRIDE;
+  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
@@ -91,6 +93,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool UsingTCPFastOpen() const OVERRIDE;
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
@@ -112,7 +115,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
     STATE_NONE,
     STATE_HANDSHAKE,
     STATE_HANDSHAKE_COMPLETE,
-    STATE_VERIFY_DNSSEC,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
   };
@@ -132,7 +134,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoHandshakeLoop(int last_io_result);
   int DoHandshake();
   int DoHandshakeComplete(int result);
-  int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
 
@@ -154,12 +155,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CompletionCallback user_connect_callback_;
 
   CertVerifyResult server_cert_verify_result_;
-  std::vector<SHA1Fingerprint> side_pinned_public_keys_;
+  HashValueVector side_pinned_public_keys_;
 
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
-  // For domain bound certificates in client auth.
+  // The service for retrieving Channel ID keys.  May be NULL.
   ServerBoundCertService* server_bound_cert_service_;
 
   // ssl_session_cache_shard_ is an opaque string that partitions the SSL

@@ -19,9 +19,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
-#include "net/http/http_auth.h"
-#include "net/http/http_auth_cache.h"
-#include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/url_request/url_request.h"
@@ -33,7 +30,7 @@ class AuthChallengeInfo;
 class ClientSocketFactory;
 class CookieOptions;
 class HostResolver;
-class HttpAuthHandlerFactory;
+class HttpAuthController;
 class SSLConfigService;
 class SSLInfo;
 class SingleRequestHostResolver;
@@ -60,9 +57,7 @@ class NET_EXPORT SocketStream
   class NET_EXPORT Delegate {
    public:
     virtual int OnStartOpenConnection(SocketStream* socket,
-                                      const CompletionCallback& callback) {
-      return OK;
-    }
+                                      const CompletionCallback& callback);
 
     // Called when socket stream has been connected.  The socket stream accepts
     // at most |max_pending_send_allowed| so that a client of the socket stream
@@ -86,19 +81,14 @@ class NET_EXPORT SocketStream
     // The delegate should call RestartWithAuth() if credential for |auth_info|
     // is found in password database, or call Close() to close the connection.
     virtual void OnAuthRequired(SocketStream* socket,
-                                AuthChallengeInfo* auth_info) {
-      // By default, no credential is available and close the connection.
-      socket->Close();
-    }
+                                AuthChallengeInfo* auth_info);
 
     // Called when using SSL and the server responds with a certificate with an
     // error. The delegate should call CancelBecauseOfCertError() or
     // ContinueDespiteCertError() to resume connection handling.
     virtual void OnSSLCertificateError(SocketStream* socket,
                                        const SSLInfo& ssl_info,
-                                       bool fatal) {
-      socket->CancelWithSSLError(ssl_info);
-    }
+                                       bool fatal);
 
     // Called when an error occured.
     // This is only for error reporting to the delegate.
@@ -107,18 +97,14 @@ class NET_EXPORT SocketStream
 
     // Called when reading cookies to allow the delegate to block access to the
     // cookie.
-    virtual bool CanGetCookies(SocketStream* socket, const GURL& url) {
-      return true;
-    }
+    virtual bool CanGetCookies(SocketStream* socket, const GURL& url);
 
     // Called when a cookie is set to allow the delegate to block access to the
     // cookie.
     virtual bool CanSetCookie(SocketStream* request,
                               const GURL& url,
                               const std::string& cookie_line,
-                              CookieOptions* options) {
-      return true;
-    }
+                              CookieOptions* options);
 
    protected:
     virtual ~Delegate() {}
@@ -211,7 +197,7 @@ class NET_EXPORT SocketStream
     std::string headers_;
 
     private:
-     virtual ~RequestHeaders() { data_ = NULL; }
+     virtual ~RequestHeaders();
   };
 
   class ResponseHeaders : public IOBuffer {
@@ -241,6 +227,8 @@ class NET_EXPORT SocketStream
     STATE_RESOLVE_PROTOCOL_COMPLETE,
     STATE_TCP_CONNECT,
     STATE_TCP_CONNECT_COMPLETE,
+    STATE_GENERATE_PROXY_AUTH_TOKEN,
+    STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_WRITE_TUNNEL_HEADERS,
     STATE_WRITE_TUNNEL_HEADERS_COMPLETE,
     STATE_READ_TUNNEL_HEADERS,
@@ -299,6 +287,8 @@ class NET_EXPORT SocketStream
   int DoResolveProtocolComplete(int result);
   int DoTcpConnect(int result);
   int DoTcpConnectComplete(int result);
+  int DoGenerateProxyAuthToken();
+  int DoGenerateProxyAuthTokenComplete(int result);
   int DoWriteTunnelHeaders();
   int DoWriteTunnelHeadersComplete(int result);
   int DoReadTunnelHeaders();
@@ -339,7 +329,6 @@ class NET_EXPORT SocketStream
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
   ServerBoundCertService* server_bound_cert_service_;
-  HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 
   ProxyMode proxy_mode_;
@@ -348,10 +337,7 @@ class NET_EXPORT SocketStream
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
 
-  HttpAuthCache auth_cache_;
-  scoped_ptr<HttpAuthHandler> auth_handler_;
-  HttpAuth::Identity auth_identity_;
-  scoped_refptr<AuthChallengeInfo> auth_info_;
+  scoped_refptr<HttpAuthController> proxy_auth_controller_;
 
   scoped_refptr<RequestHeaders> tunnel_request_headers_;
   size_t tunnel_request_headers_bytes_sent_;

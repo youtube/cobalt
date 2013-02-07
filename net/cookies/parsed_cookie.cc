@@ -47,11 +47,112 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 
+namespace {
+
+const char kPathTokenName[] = "path";
+const char kDomainTokenName[] = "domain";
+const char kMACKeyTokenName[] = "mac-key";
+const char kMACAlgorithmTokenName[] = "mac-algorithm";
+const char kExpiresTokenName[] = "expires";
+const char kMaxAgeTokenName[] = "max-age";
+const char kSecureTokenName[] = "secure";
+const char kHttpOnlyTokenName[] = "httponly";
+
+const char kTerminator[] = "\n\r\0";
+const int kTerminatorLen = sizeof(kTerminator) - 1;
+const char kWhitespace[] = " \t";
+const char kValueSeparator[] = ";";
+const char kTokenSeparator[] = ";=";
+
+// Returns true if |c| occurs in |chars|
+// TODO(erikwright): maybe make this take an iterator, could check for end also?
+inline bool CharIsA(const char c, const char* chars) {
+  return strchr(chars, c) != NULL;
+}
+// Seek the iterator to the first occurrence of a character in |chars|.
+// Returns true if it hit the end, false otherwise.
+inline bool SeekTo(std::string::const_iterator* it,
+                   const std::string::const_iterator& end,
+                   const char* chars) {
+  for (; *it != end && !CharIsA(**it, chars); ++(*it)) {}
+  return *it == end;
+}
+// Seek the iterator to the first occurrence of a character not in |chars|.
+// Returns true if it hit the end, false otherwise.
+inline bool SeekPast(std::string::const_iterator* it,
+                     const std::string::const_iterator& end,
+                     const char* chars) {
+  for (; *it != end && CharIsA(**it, chars); ++(*it)) {}
+  return *it == end;
+}
+inline bool SeekBackPast(std::string::const_iterator* it,
+                         const std::string::const_iterator& end,
+                         const char* chars) {
+  for (; *it != end && CharIsA(**it, chars); --(*it)) {}
+  return *it == end;
+}
+
+// Validate whether |value| is a valid token according to [RFC2616],
+// Section 2.2.
+bool IsValidToken(const std::string& value) {
+  if (value.empty())
+    return false;
+
+  // Check that |value| has no separators.
+  std::string separators = "()<>@,;:\\\"/[]?={} \t";
+  if (value.find_first_of(separators) != std::string::npos)
+    return false;
+
+  // Check that |value| has no CTLs.
+  for (std::string::const_iterator i = value.begin(); i != value.end(); ++i) {
+    if ((*i >= 0 && *i <= 31) || *i >= 127)
+      return false;
+  }
+
+  return true;
+}
+
+// Validate value, which may be according to RFC 6265
+// cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+// cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+//                      ; US-ASCII characters excluding CTLs,
+//                      ; whitespace DQUOTE, comma, semicolon,
+//                      ; and backslash
+bool IsValidCookieValue(const std::string& value) {
+  // Number of characters to skip in validation at beginning and end of string.
+  size_t skip = 0;
+  if (value.size() >= 2 && *value.begin() == '"' && *(value.end()-1) == '"')
+    skip = 1;
+  for (std::string::const_iterator i = value.begin() + skip;
+       i != value.end() - skip; ++i) {
+    bool valid_octet =
+        (*i == 0x21 ||
+         (*i >= 0x23 && *i <= 0x2B) ||
+         (*i >= 0x2D && *i <= 0x3A) ||
+         (*i >= 0x3C && *i <= 0x5B) ||
+         (*i >= 0x5D && *i <= 0x7E));
+    if (!valid_octet)
+      return false;
+  }
+  return true;
+}
+
+bool IsValidCookieAttributeValue(const std::string& value) {
+  // The greatest common denominator of cookie attribute values is
+  // <any CHAR except CTLs or ";"> according to RFC 6265.
+  for (std::string::const_iterator i = value.begin(); i != value.end(); ++i) {
+    if ((*i >= 0 && *i <= 31) || *i == ';')
+      return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 namespace net {
 
 ParsedCookie::ParsedCookie(const std::string& cookie_line)
-    : is_valid_(false),
-      path_index_(0),
+    : path_index_(0),
       domain_index_(0),
       mac_key_index_(0),
       mac_algorithm_index_(0),
@@ -66,60 +167,79 @@ ParsedCookie::ParsedCookie(const std::string& cookie_line)
   }
 
   ParseTokenValuePairs(cookie_line);
-  if (!pairs_.empty()) {
-    is_valid_ = true;
+  if (!pairs_.empty())
     SetupAttributes();
-  }
 }
 
 ParsedCookie::~ParsedCookie() {
 }
 
-// Returns true if |c| occurs in |chars|
-// TODO(erikwright): maybe make this take an iterator, could check for end also?
-static inline bool CharIsA(const char c, const char* chars) {
-  return strchr(chars, c) != NULL;
-}
-// Seek the iterator to the first occurrence of a character in |chars|.
-// Returns true if it hit the end, false otherwise.
-static inline bool SeekTo(std::string::const_iterator* it,
-                          const std::string::const_iterator& end,
-                          const char* chars) {
-  for (; *it != end && !CharIsA(**it, chars); ++(*it)) {}
-  return *it == end;
-}
-// Seek the iterator to the first occurrence of a character not in |chars|.
-// Returns true if it hit the end, false otherwise.
-static inline bool SeekPast(std::string::const_iterator* it,
-                            const std::string::const_iterator& end,
-                            const char* chars) {
-  for (; *it != end && CharIsA(**it, chars); ++(*it)) {}
-  return *it == end;
-}
-static inline bool SeekBackPast(std::string::const_iterator* it,
-                                const std::string::const_iterator& end,
-                                const char* chars) {
-  for (; *it != end && CharIsA(**it, chars); --(*it)) {}
-  return *it == end;
+bool ParsedCookie::IsValid() const {
+  return !pairs_.empty();
 }
 
-const char ParsedCookie::kTerminator[] = "\n\r\0";
-const int ParsedCookie::kTerminatorLen = sizeof(kTerminator) - 1;
-const char ParsedCookie::kWhitespace[] = " \t";
-const char ParsedCookie::kValueSeparator[] = ";";
-const char ParsedCookie::kTokenSeparator[] = ";=";
+bool ParsedCookie::SetName(const std::string& name) {
+  if (!IsValidToken(name))
+    return false;
+  if (pairs_.empty())
+    pairs_.push_back(std::make_pair("", ""));
+  pairs_[0].first = name;
+  return true;
+}
 
-// Create a cookie-line for the cookie.  For debugging only!
-// If we want to use this for something more than debugging, we
-// should rewrite it better...
-std::string ParsedCookie::DebugString() const {
+bool ParsedCookie::SetValue(const std::string& value) {
+  if (!IsValidCookieValue(value))
+    return false;
+  if (pairs_.empty())
+    pairs_.push_back(std::make_pair("", ""));
+  pairs_[0].second = value;
+  return true;
+}
+
+bool ParsedCookie::SetPath(const std::string& path) {
+  return SetString(&path_index_, kPathTokenName, path);
+}
+
+bool ParsedCookie::SetDomain(const std::string& domain) {
+  return SetString(&domain_index_, kDomainTokenName, domain);
+}
+
+bool ParsedCookie::SetMACKey(const std::string& mac_key) {
+  return SetString(&mac_key_index_, kMACKeyTokenName, mac_key);
+}
+
+bool ParsedCookie::SetMACAlgorithm(const std::string& mac_algorithm) {
+  return SetString(&mac_algorithm_index_, kMACAlgorithmTokenName,
+      mac_algorithm);
+}
+
+bool ParsedCookie::SetExpires(const std::string& expires) {
+  return SetString(&expires_index_, kExpiresTokenName, expires);
+}
+
+bool ParsedCookie::SetMaxAge(const std::string& maxage) {
+  return SetString(&maxage_index_, kMaxAgeTokenName, maxage);
+}
+
+bool ParsedCookie::SetIsSecure(bool is_secure) {
+  return SetBool(&secure_index_, kSecureTokenName, is_secure);
+}
+
+bool ParsedCookie::SetIsHttpOnly(bool is_http_only) {
+  return SetBool(&httponly_index_, kHttpOnlyTokenName, is_http_only);
+}
+
+std::string ParsedCookie::ToCookieLine() const {
   std::string out;
   for (PairList::const_iterator it = pairs_.begin();
        it != pairs_.end(); ++it) {
+    if (!out.empty())
+      out.append("; ");
     out.append(it->first);
-    out.append("=");
-    out.append(it->second);
-    out.append("; ");
+    if (it->first != kSecureTokenName && it->first != kHttpOnlyTokenName) {
+      out.append("=");
+      out.append(it->second);
+    }
   }
   return out;
 }
@@ -279,15 +399,6 @@ void ParsedCookie::ParseTokenValuePairs(const std::string& cookie_line) {
 }
 
 void ParsedCookie::SetupAttributes() {
-  static const char kPathTokenName[] = "path";
-  static const char kDomainTokenName[] = "domain";
-  static const char kMACKeyTokenName[] = "mac-key";
-  static const char kMACAlgorithmTokenName[] = "mac-algorithm";
-  static const char kExpiresTokenName[] = "expires";
-  static const char kMaxAgeTokenName[] = "max-age";
-  static const char kSecureTokenName[] = "secure";
-  static const char kHttpOnlyTokenName[] = "httponly";
-
   // We skip over the first token/value, the user supplied one.
   for (size_t i = 1; i < pairs_.size(); ++i) {
     if (pairs_[i].first == kPathTokenName) {
@@ -310,6 +421,63 @@ void ParsedCookie::SetupAttributes() {
       /* some attribute we don't know or don't care about. */
     }
   }
+}
+
+bool ParsedCookie::SetString(size_t* index,
+                             const std::string& key,
+                             const std::string& value) {
+  if (value.empty()) {
+    ClearAttributePair(*index);
+    return true;
+  } else {
+    return SetAttributePair(index, key, value);
+  }
+}
+
+bool ParsedCookie::SetBool(size_t* index,
+                           const std::string& key,
+                           bool value) {
+  if (!value) {
+    ClearAttributePair(*index);
+    return true;
+  } else {
+    return SetAttributePair(index, key, "");
+  }
+}
+
+bool ParsedCookie::SetAttributePair(size_t* index,
+                                    const std::string& key,
+                                    const std::string& value) {
+  if (!IsValidToken(key) || !IsValidCookieAttributeValue(value))
+    return false;
+  if (!IsValid())
+    return false;
+  if (*index) {
+    pairs_[*index].second = value;
+  } else {
+    pairs_.push_back(std::make_pair(key, value));
+    *index = pairs_.size() - 1;
+  }
+  return true;
+}
+
+void ParsedCookie::ClearAttributePair(size_t index) {
+  // The first pair (name/value of cookie at pairs_[0]) cannot be cleared.
+  // Cookie attributes that don't have a value at the moment, are represented
+  // with an index being equal to 0.
+  if (index == 0)
+    return;
+
+  size_t* indexes[] = {&path_index_, &domain_index_, &mac_key_index_,
+      &mac_algorithm_index_, &expires_index_, &maxage_index_, &secure_index_,
+      &httponly_index_};
+  for (size_t i = 0; i < arraysize(indexes); ++i) {
+    if (*indexes[i] == index)
+      *indexes[i] = 0;
+    else if (*indexes[i] > index)
+      --*indexes[i];
+  }
+  pairs_.erase(pairs_.begin() + index);
 }
 
 }  // namespace

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/logging.h"
-#include "base/stl_util.h"
 #include "content/browser/speech/audio_buffer.h"
 
-namespace speech {
+#include "base/logging.h"
+#include "base/stl_util.h"
+
+namespace content {
 
 AudioChunk::AudioChunk(int bytes_per_sample)
     : bytes_per_sample_(bytes_per_sample) {
@@ -87,4 +88,4 @@ bool AudioBuffer::IsEmpty() const {
   return chunks_.empty();
 }
 
-}  // namespace speech
+}  // namespace content

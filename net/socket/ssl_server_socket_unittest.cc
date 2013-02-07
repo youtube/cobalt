@@ -38,6 +38,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/ssl_info.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/x509_certificate.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
@@ -236,8 +237,16 @@ class FakeSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
+
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
  private:

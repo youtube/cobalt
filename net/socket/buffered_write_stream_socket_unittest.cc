@@ -19,7 +19,7 @@ namespace {
 class BufferedWriteStreamSocketTest : public testing::Test {
  public:
   void Finish() {
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     EXPECT_TRUE(data_->at_read_eof());
     EXPECT_TRUE(data_->at_write_eof());
   }
@@ -86,7 +86,7 @@ TEST_F(BufferedWriteStreamSocketTest, WriteWhileBlocked) {
   };
   Initialize(writes, arraysize(writes));
   TestWrite("abc");
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   TestWrite("def");
   data_->RunFor(1);
   TestWrite("ghi");

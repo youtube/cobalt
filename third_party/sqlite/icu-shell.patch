@@ -20,16 +20,18 @@ Index: src/shell.c
    Argv0 = argv[0];
    main_init(&data);
    stdin_is_interactive = isatty(0);
-Index: src/shell_icu_linux.c
-===================================================================
---- src/shell_icu_linux.c	1969-12-31 16:00:00.000000000 -0800
-+++ src/shell_icu_linux.c	2009-09-17 13:48:49.000000000 -0700
-@@ -0,0 +1,26 @@
+diff --git src/shell_icu_linux.c src/shell_icu_linux.c
+new file mode 100644
+index 0000000..4ad0e42
+--- /dev/null
++++ src/shell_icu_linux.c
+@@ -0,0 +1,27 @@
 +/* Copyright 2007 Google Inc. All Rights Reserved.
 +**/
 +
 +#include <limits.h>
 +#include <unistd.h>
++#include "unicode/putil.h"
 +#include "unicode/udata.h"
 +
 +/*

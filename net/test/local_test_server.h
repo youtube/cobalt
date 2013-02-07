@@ -29,9 +29,10 @@ class LocalTestServer : public BaseTestServer {
                   const std::string& host,
                   const FilePath& document_root);
 
-  // Initialize a HTTPS TestServer with a specific set of HTTPSOptions.
+  // Initialize a TestServer with a specific set of SSLOptions.
   // |document_root| must be a relative path under the root tree.
-  LocalTestServer(const HTTPSOptions& https_options,
+  LocalTestServer(Type type,
+                  const SSLOptions& ssl_options,
                   const FilePath& document_root);
 
   virtual ~LocalTestServer();
@@ -42,15 +43,30 @@ class LocalTestServer : public BaseTestServer {
   bool Stop();
 
   // Modify PYTHONPATH to contain libraries we need.
-  static bool SetPythonPath() WARN_UNUSED_RESULT;
+  virtual bool SetPythonPath() const WARN_UNUSED_RESULT;
+
+  // This is a static version so that RunSyncTest in run_testserver.cc can use
+  // it.
+  // TODO(mattm): We should refactor so this isn't necessary (crbug.com/159731).
+  static bool SetPythonPathStatic() WARN_UNUSED_RESULT;
 
   // Returns true if successfully stored the FilePath for the directory of the
   // testserver python script in |*directory|.
   static bool GetTestServerDirectory(FilePath* directory) WARN_UNUSED_RESULT;
 
+  // Returns true if successfully stored the FilePath for the testserver python
+  // script in |*testserver_path|.
+  virtual bool GetTestServerPath(FilePath* testserver_path) const
+      WARN_UNUSED_RESULT;
+
   // Adds the command line arguments for the Python test server to
   // |command_line|. Returns true on success.
-  virtual bool AddCommandLineArguments(CommandLine* command_line) const;
+  virtual bool AddCommandLineArguments(CommandLine* command_line) const
+      WARN_UNUSED_RESULT;
+
+  // Returns the actual path of document root for test cases. This function
+  // should be called by test cases to retrieve the actual document root path.
+  FilePath GetDocumentRoot() const { return document_root(); };
 
  private:
   bool Init(const FilePath& document_root);

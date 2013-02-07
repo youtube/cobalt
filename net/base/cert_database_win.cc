@@ -8,13 +8,17 @@
 #include <wincrypt.h>
 #pragma comment(lib, "crypt32.lib")
 
+#include "base/observer_list_threadsafe.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
 
-CertDatabase::CertDatabase() {
+CertDatabase::CertDatabase()
+    : observer_list_(new ObserverListThreadSafe<Observer>) {
 }
+
+CertDatabase::~CertDatabase() {}
 
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (!cert)
@@ -50,7 +54,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert) {
   if (!added)
     return ERR_ADD_USER_CERT_FAILED;
 
-  CertDatabase::NotifyObserversOfUserCertAdded(cert);
+  NotifyObserversOfCertAdded(cert);
   return OK;
 }
 

@@ -35,10 +35,6 @@
 //
 // Core Audio API details:
 //
-// - CoInitializeEx() is called on the creating thread and on the internal
-//   capture thread. Each thread's concurrency model and apartment is set
-//   to multi-threaded (MTA). CHECK() is called to ensure that we crash if
-//   CoInitializeEx(MTA) fails.
 // - Utilized MMDevice interfaces:
 //     o IMMDeviceEnumerator
 //     o IMMDevice
@@ -110,7 +106,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   static int HardwareSampleRate(const std::string& device_id);
 
   // Retrieves the number of audio channels used by the audio engine for its
-  // internal processing/mixing of shared-mode streams given a specifed device.
+  // internal processing/mixing of shared-mode streams given a specified device.
   static uint32 HardwareChannelCount(const std::string& device_id);
 
   bool started() const { return started_; }
@@ -133,10 +129,6 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // processing/mixing of shared-mode streams.
   static HRESULT GetMixFormat(const std::string& device_id,
                               WAVEFORMATEX** device_format);
-
-  // Initializes the COM library for use by the calling thread and set the
-  // thread's concurrency model to multi-threaded.
-  base::win::ScopedCOMInitializer com_init_;
 
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerWin* manager_;

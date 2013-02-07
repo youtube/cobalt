@@ -351,6 +351,7 @@ struct _xmlNs {
     struct _xmlNs  *next;	/* next Ns link for this node  */
     xmlNsType      type;	/* global or local */
     const xmlChar *href;	/* URL for the namespace */
+    const char* dummy_children; /* lines up with node->children */
     const xmlChar *prefix;	/* prefix for the namespace */
     void           *_private;   /* application data */
     struct _xmlDoc *context;		/* normally an xmlDoc */

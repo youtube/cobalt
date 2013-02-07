@@ -106,13 +106,13 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   const BoundNetLog& NetLog() const { return net_log_; }
 
   // Sets corresponding flags in |socket_options_| to allow the socket
-  // to share the local address to which socket will be bound with
+  // to share the local address to which the socket will be bound with
   // other processes. Should be called before Bind().
   void AllowAddressReuse();
 
   // Sets corresponding flags in |socket_options_| to allow sending
-  // and receiving packets sent to and from broadcast
-  // addresses. Should be called before Bind().
+  // and receiving packets to and from broadcast addresses. Should be
+  // called before Bind().
   void AllowBroadcast();
 
  private:
@@ -121,29 +121,7 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     SOCKET_OPTION_BROADCAST     = 1 << 1
   };
 
-  class ReadDelegate : public base::win::ObjectWatcher::Delegate {
-   public:
-    explicit ReadDelegate(UDPSocketWin* socket) : socket_(socket) {}
-    virtual ~ReadDelegate() {}
-
-    // base::ObjectWatcher::Delegate methods:
-    virtual void OnObjectSignaled(HANDLE object);
-
-   private:
-    UDPSocketWin* const socket_;
-  };
-
-  class WriteDelegate : public base::win::ObjectWatcher::Delegate {
-   public:
-    explicit WriteDelegate(UDPSocketWin* socket) : socket_(socket) {}
-    virtual ~WriteDelegate() {}
-
-    // base::ObjectWatcher::Delegate methods:
-    virtual void OnObjectSignaled(HANDLE object);
-
-   private:
-    UDPSocketWin* const socket_;
-  };
+  class Core;
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
@@ -183,8 +161,8 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   SOCKET socket_;
 
-  // Bitwise-or'd combination of SocketOptions. Specifies set of
-  // options that should be applied to |socket_| before bind.
+  // Bitwise-or'd combination of SocketOptions. Specifies the set of
+  // options that should be applied to |socket_| before Bind().
   int socket_options_;
 
   // How to do source port binding, used only when UDPSocket is part of
@@ -199,30 +177,16 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   mutable scoped_ptr<IPEndPoint> local_address_;
   mutable scoped_ptr<IPEndPoint> remote_address_;
 
-  // The socket's win wrappers
-  ReadDelegate read_delegate_;
-  WriteDelegate write_delegate_;
+  // The core of the socket that can live longer than the socket itself. We pass
+  // resources to the Windows async IO functions and we have to make sure that
+  // they are not destroyed while the OS still references them.
+  scoped_refptr<Core> core_;
 
-  // Watchers to watch for events from Read() and Write().
-  base::win::ObjectWatcher read_watcher_;
-  base::win::ObjectWatcher write_watcher_;
-
-  // OVERLAPPED for pending read and write operations.
-  OVERLAPPED read_overlapped_;
-  OVERLAPPED write_overlapped_;
-
-  // The buffer used by InternalRead() to retry Read requests
-  scoped_refptr<IOBuffer> read_iobuffer_;
-  struct sockaddr_storage recv_addr_storage_;
-  socklen_t recv_addr_len_;
   IPEndPoint* recv_from_address_;
 
   // Cached copy of the current address we're sending to, if any.  Used for
   // logging.
   scoped_ptr<IPEndPoint> send_to_address_;
-
-  // The buffer used by InternalWrite() to retry Write requests
-  scoped_refptr<IOBuffer> write_iobuffer_;
 
   // External callback; called when read is complete.
   CompletionCallback read_callback_;

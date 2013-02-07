@@ -36,7 +36,7 @@
             # libevent has platform-specific implementation files.  Since its
             # native build uses autoconf, platform-specific config.h files are
             # provided and live in platform-specific directories.
-            [ 'OS == "linux"', {
+            [ 'OS == "linux" or (OS == "android" and _toolset == "host")', {
               'sources': [ 'epoll.c', 'epoll_sub.c' ],
               'include_dirs': [ 'linux' ],
               'link_settings': {
@@ -47,7 +47,7 @@
                 ],
               },
             }],
-            [ 'OS == "android"', {
+            [ 'OS == "android" and _toolset == "target"', {
               # On android, epoll_create(), epoll_ctl(), epoll_wait() and
               # clock_gettime() are all in libc.so, so no need to add
               # epoll_sub.c and link librt.

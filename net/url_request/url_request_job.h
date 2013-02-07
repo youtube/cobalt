@@ -17,12 +17,13 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/base/upload_progress.h"
+#include "net/cookies/canonical_cookie.h"
 
 namespace net {
 
 class AuthChallengeInfo;
 class AuthCredentials;
-class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseInfo;
@@ -31,7 +32,7 @@ class NetworkDelegate;
 class SSLCertRequestInfo;
 class SSLInfo;
 class URLRequest;
-class UploadData;
+class UploadDataStream;
 class URLRequestStatus;
 class X509Certificate;
 
@@ -49,7 +50,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // Sets the upload data, most requests have no upload data, so this is a NOP.
   // Job types supporting upload data will override this.
-  virtual void SetUpload(UploadData* upload);
+  virtual void SetUpload(UploadDataStream* upload_data_stream);
 
   // Sets extra request headers for Job types that support request headers.
   virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
@@ -99,7 +100,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual LoadState GetLoadState() const;
 
   // Called to get the upload progress in bytes.
-  virtual uint64 GetUploadProgress() const;
+  virtual UploadProgress GetUploadProgress() const;
 
   // Called to fetch the charset for this request.  Only makes sense for some
   // types of requests. Returns true on success.  Calling this on a type that
@@ -240,8 +241,8 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Should only be called if the job has not started a resposne.
   void NotifyRestartRequired();
 
-  // Called when the delegate blocks or unblocks this request when intercepting
-  // certain requests.
+  // Called when the network delegate blocks or unblocks this request when
+  // intercepting certain requests.
   void SetBlockedOnDelegate();
   void SetUnblockedOnDelegate();
 
@@ -333,6 +334,9 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Subclasses may implement this method to record packet arrival times.
   // The default implementation does nothing.
   virtual void UpdatePacketReadTimes();
+
+  // Custom handler for derived classes when the request is detached.
+  virtual void OnDetachRequest() {}
 
   // Indicates that the job is done producing data, either it has completed
   // all the data or an error has been encountered. Set exclusively by

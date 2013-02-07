@@ -19,8 +19,11 @@ namespace media {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, uint32(uint8* dest, uint32 max_size,
-                                  AudioBuffersState buffers_state));
+  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
+                               AudioBuffersState buffers_state));
+  MOCK_METHOD3(OnMoreIOData, int(AudioBus* source,
+                                 AudioBus* dest,
+                                 AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 
@@ -29,8 +32,6 @@ class MockAudioManagerLinux : public AudioManagerLinux {
   MOCK_METHOD0(Init, void());
   MOCK_METHOD0(HasAudioOutputDevices, bool());
   MOCK_METHOD0(HasAudioInputDevices, bool());
-  MOCK_METHOD0(MuteAll, void());
-  MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD1(MakeLinearOutputStream, AudioOutputStream*(
       const AudioParameters& params));
   MOCK_METHOD1(MakeLowLatencyOutputStream, AudioOutputStream*(
@@ -195,16 +196,14 @@ TEST_F(CrasOutputStreamTest, StartStop) {
 TEST_F(CrasOutputStreamTest, RenderFrames) {
   CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   MockAudioSourceCallback mock_callback;
-  const uint32 amount_rendered_return = 2048;
 
   // Open the stream.
   ASSERT_TRUE(test_stream->Open());
   EXPECT_EQ(CrasOutputStream::kIsOpened, test_stream->state());
 
   // Render Callback.
-  EXPECT_CALL(mock_callback, OnMoreData(_,
-          kTestFramesPerPacket * kTestBytesPerFrame, _))
-      .WillRepeatedly(Return(amount_rendered_return));
+  EXPECT_CALL(mock_callback, OnMoreData(_, _))
+      .WillRepeatedly(Return(kTestFramesPerPacket));
 
   // Start.
   test_stream->Start(&mock_callback);

@@ -29,7 +29,7 @@ struct SimpleMessage {
   SimpleEnum simple_enum;
   ScopedVector<int> ints;
   ScopedVector<std::string> string_values;
-  SimpleMessage() : foo(0), baz(false), bstruct(false) {}
+  SimpleMessage() : foo(0), baz(false), bstruct(false), simple_enum(FOO) {}
 
   static bool ParseSimpleEnum(const StringPiece& value, SimpleEnum* field) {
     if (value == "foo") {

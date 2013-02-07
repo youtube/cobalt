@@ -21,6 +21,10 @@
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_service.h"
 
+#if (defined(OS_LINUX) || defined(OS_OPENBSD)) && !defined(OS_CHROMEOS)
+#include <glib-object.h>
+#endif
+
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif
@@ -51,29 +55,6 @@ const char* ConnectionTypeToString(
   }
 }
 
-std::string DNSDetailToString(unsigned detail) {
-  const char kSeparator[] = " | ";
-  std::string detail_str;
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_SETTINGS)
-    detail_str += "CHANGE_DNS_SETTINGS";
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_HOSTS) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_HOSTS";
-  }
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_WATCH_STARTED";
-  }
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_WATCH_FAILED";
-  }
-  return detail_str;
-}
-
 std::string ProxyConfigToString(const net::ProxyConfig& config) {
   scoped_ptr<base::Value> config_value(config.ToValue());
   std::string str;
@@ -100,6 +81,7 @@ class NetWatcher :
       public net::NetworkChangeNotifier::IPAddressObserver,
       public net::NetworkChangeNotifier::ConnectionTypeObserver,
       public net::NetworkChangeNotifier::DNSObserver,
+      public net::NetworkChangeNotifier::NetworkChangeObserver,
       public net::ProxyConfigService::Observer {
  public:
   NetWatcher() {}
@@ -119,8 +101,15 @@ class NetWatcher :
   }
 
   // net::NetworkChangeNotifier::DNSObserver implementation.
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE {
-    LOG(INFO) << "OnDNSChanged(" << DNSDetailToString(detail) << ")";
+  virtual void OnDNSChanged() OVERRIDE {
+    LOG(INFO) << "OnDNSChanged()";
+  }
+
+  // net::NetworkChangeNotifier::NetworkChangeObserver implementation.
+  virtual void OnNetworkChanged(
+      net::NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+    LOG(INFO) << "OnNetworkChanged("
+              << ConnectionTypeToString(type) << ")";
   }
 
   // net::ProxyConfigService::Observer implementation.
@@ -141,6 +130,11 @@ class NetWatcher :
 int main(int argc, char* argv[]) {
 #if defined(OS_MACOSX)
   base::mac::ScopedNSAutoreleasePool pool;
+#endif
+#if (defined(OS_LINUX) || defined(OS_OPENBSD)) && !defined(OS_CHROMEOS)
+  // Needed so ProxyConfigServiceLinux can use gconf.
+  // Normally handled by BrowserMainLoop::InitializeToolkit().
+  g_type_init();
 #endif
   base::AtExitManager exit_manager;
   CommandLine::Init(argc, argv);
@@ -169,6 +163,7 @@ int main(int argc, char* argv[]) {
   net::NetworkChangeNotifier::AddIPAddressObserver(&net_watcher);
   net::NetworkChangeNotifier::AddConnectionTypeObserver(&net_watcher);
   net::NetworkChangeNotifier::AddDNSObserver(&net_watcher);
+  net::NetworkChangeNotifier::AddNetworkChangeObserver(&net_watcher);
 
   proxy_config_service->AddObserver(&net_watcher);
 
@@ -187,12 +182,6 @@ int main(int argc, char* argv[]) {
 
   LOG(INFO) << "Watching for network events...";
 
-  if (net::NetworkChangeNotifier::IsWatchingDNS()) {
-    LOG(INFO) << "Watching for DNS changes...";
-  } else {
-    LOG(INFO) << "Not watching for DNS changes";
-  }
-
   // Start watching for events.
   network_loop.Run();
 
@@ -202,6 +191,7 @@ int main(int argc, char* argv[]) {
   net::NetworkChangeNotifier::RemoveDNSObserver(&net_watcher);
   net::NetworkChangeNotifier::RemoveConnectionTypeObserver(&net_watcher);
   net::NetworkChangeNotifier::RemoveIPAddressObserver(&net_watcher);
+  net::NetworkChangeNotifier::RemoveNetworkChangeObserver(&net_watcher);
 
   return 0;
 }

@@ -28,7 +28,6 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
  protected:
   virtual ~DummyDemuxerStream();
 
@@ -50,14 +49,11 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-  virtual int GetBitrate() OVERRIDE;
 
  protected:
   virtual ~DummyDemuxer();
 
  private:
-  bool has_video_;
-  bool has_audio_;
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);

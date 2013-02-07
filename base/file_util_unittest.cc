@@ -22,8 +22,9 @@
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
-#include "base/scoped_temp_dir.h"
+#include "base/test/test_file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -133,10 +134,8 @@ void ChangePosixFilePermissions(const FilePath& path,
 
 const wchar_t bogus_content[] = L"I'm cannon fodder.";
 
-const file_util::FileEnumerator::FileType FILES_AND_DIRECTORIES =
-    static_cast<file_util::FileEnumerator::FileType>(
-        file_util::FileEnumerator::FILES |
-        file_util::FileEnumerator::DIRECTORIES);
+const int FILES_AND_DIRECTORIES =
+    file_util::FileEnumerator::FILES | file_util::FileEnumerator::DIRECTORIES;
 
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest
@@ -147,7 +146,7 @@ class FileUtilTest : public PlatformTest {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
 
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
 };
 
 // Collects all the results from the given file enumerator, and provides an
@@ -643,6 +642,56 @@ TEST_F(FileUtilTest, GetPlatformFileInfoForDirectory) {
   EXPECT_TRUE(info.is_directory);
   EXPECT_FALSE(info.is_symbolic_link);
   EXPECT_EQ(0, info.size);
+}
+
+TEST_F(FileUtilTest, CreateTemporaryFileInDirLongPathTest) {
+  // Test that CreateTemporaryFileInDir() creates a path and returns a long path
+  // if it is available. This test requires that:
+  // - the filesystem at |temp_dir_| supports long filenames.
+  // - the account has FILE_LIST_DIRECTORY permission for all ancestor
+  //   directories of |temp_dir_|.
+  const FilePath::CharType kLongDirName[] = FPL("A long path");
+  const FilePath::CharType kTestSubDirName[] = FPL("test");
+  FilePath long_test_dir = temp_dir_.path().Append(kLongDirName);
+  ASSERT_TRUE(file_util::CreateDirectory(long_test_dir));
+
+  // kLongDirName is not a 8.3 component. So GetShortName() should give us a
+  // different short name.
+  WCHAR path_buffer[MAX_PATH];
+  DWORD path_buffer_length = GetShortPathName(long_test_dir.value().c_str(),
+                                              path_buffer, MAX_PATH);
+  ASSERT_LT(path_buffer_length, DWORD(MAX_PATH));
+  ASSERT_NE(DWORD(0), path_buffer_length);
+  FilePath short_test_dir(path_buffer);
+  ASSERT_STRNE(kLongDirName, short_test_dir.BaseName().value().c_str());
+
+  FilePath temp_file;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(short_test_dir, &temp_file));
+  EXPECT_STREQ(kLongDirName, temp_file.DirName().BaseName().value().c_str());
+  EXPECT_TRUE(file_util::PathExists(temp_file));
+
+  // Create a subdirectory of |long_test_dir| and make |long_test_dir|
+  // unreadable. We should still be able to create a temp file in the
+  // subdirectory, but we won't be able to determine the long path for it. This
+  // mimics the environment that some users run where their user profiles reside
+  // in a location where the don't have full access to the higher level
+  // directories. (Note that this assumption is true for NTFS, but not for some
+  // network file systems. E.g. AFS).
+  FilePath access_test_dir = long_test_dir.Append(kTestSubDirName);
+  ASSERT_TRUE(file_util::CreateDirectory(access_test_dir));
+  file_util::PermissionRestorer long_test_dir_restorer(long_test_dir);
+  ASSERT_TRUE(file_util::MakeFileUnreadable(long_test_dir));
+
+  // Use the short form of the directory to create a temporary filename.
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(
+      short_test_dir.Append(kTestSubDirName), &temp_file));
+  EXPECT_TRUE(file_util::PathExists(temp_file));
+  EXPECT_TRUE(short_test_dir.IsParent(temp_file.DirName()));
+
+  // Check that the long path can't be determined for |temp_file|.
+  path_buffer_length = GetLongPathName(temp_file.value().c_str(),
+                                       path_buffer, MAX_PATH);
+  EXPECT_EQ(DWORD(0), path_buffer_length);
 }
 
 #endif  // defined(OS_WIN)
@@ -1437,6 +1486,43 @@ TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
+TEST_F(FileUtilTest, CopyDirectoryWithTrailingSeparators) {
+  // Create a directory.
+  FilePath dir_name_from =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir"));
+  file_util::CreateDirectory(dir_name_from);
+  ASSERT_TRUE(file_util::PathExists(dir_name_from));
+
+  // Create a file under the directory.
+  FilePath file_name_from =
+      dir_name_from.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // Copy the directory recursively.
+  FilePath dir_name_to =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_To_Subdir"));
+  FilePath file_name_to =
+      dir_name_to.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+
+  // Create from path with trailing separators.
+#if defined(OS_WIN)
+  FilePath from_path =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir\\\\\\"));
+#elif defined (OS_POSIX)
+  FilePath from_path =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("Copy_From_Subdir///"));
+#endif
+
+  EXPECT_TRUE(file_util::CopyDirectory(from_path, dir_name_to, true));
+
+  // Check everything has been copied.
+  EXPECT_TRUE(file_util::PathExists(dir_name_from));
+  EXPECT_TRUE(file_util::PathExists(file_name_from));
+  EXPECT_TRUE(file_util::PathExists(dir_name_to));
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+}
+
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
   FilePath dir_name_from =
@@ -1614,71 +1700,6 @@ TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
 
 // We don't need equivalent functionality outside of Windows.
 #if defined(OS_WIN)
-TEST_F(FileUtilTest, ResolveShortcutTest) {
-  FilePath target_file = temp_dir_.path().Append(L"Target.txt");
-  CreateTextFile(target_file, L"This is the target.");
-
-  FilePath link_file = temp_dir_.path().Append(L"Link.lnk");
-
-  HRESULT result;
-  IShellLink* shell = NULL;
-  IPersistFile* persist = NULL;
-
-  CoInitialize(NULL);
-  // Temporarily create a shortcut for test
-  result = CoCreateInstance(CLSID_ShellLink, NULL,
-                          CLSCTX_INPROC_SERVER, IID_IShellLink,
-                          reinterpret_cast<LPVOID*>(&shell));
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = shell->QueryInterface(IID_IPersistFile,
-                             reinterpret_cast<LPVOID*>(&persist));
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = shell->SetPath(target_file.value().c_str());
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = shell->SetDescription(L"ResolveShortcutTest");
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = persist->Save(link_file.value().c_str(), TRUE);
-  EXPECT_TRUE(SUCCEEDED(result));
-  if (persist)
-    persist->Release();
-  if (shell)
-    shell->Release();
-
-  bool is_solved;
-  is_solved = file_util::ResolveShortcut(&link_file);
-  EXPECT_TRUE(is_solved);
-  std::wstring contents;
-  contents = ReadTextFile(link_file);
-  EXPECT_EQ(L"This is the target.", contents);
-
-  // Cleaning
-  DeleteFile(target_file.value().c_str());
-  DeleteFile(link_file.value().c_str());
-  CoUninitialize();
-}
-
-TEST_F(FileUtilTest, CreateShortcutTest) {
-  const wchar_t* file_contents = L"This is another target.";
-  FilePath target_file = temp_dir_.path().Append(L"Target1.txt");
-  CreateTextFile(target_file, file_contents);
-
-  FilePath link_file = temp_dir_.path().Append(L"Link1.lnk");
-
-  CoInitialize(NULL);
-  EXPECT_TRUE(file_util::CreateOrUpdateShortcutLink(
-                  target_file.value().c_str(), link_file.value().c_str(), NULL,
-                  NULL, NULL, NULL, 0, NULL,
-                  file_util::SHORTCUT_CREATE_ALWAYS));
-  FilePath resolved_name = link_file;
-  EXPECT_TRUE(file_util::ResolveShortcut(&resolved_name));
-  std::wstring read_contents = ReadTextFile(resolved_name);
-  EXPECT_EQ(file_contents, read_contents);
-
-  DeleteFile(target_file.value().c_str());
-  DeleteFile(link_file.value().c_str());
-  CoUninitialize();
-}
-
 TEST_F(FileUtilTest, CopyAndDeleteDirectoryTest) {
   // Create a directory
   FilePath dir_name_from =
@@ -1888,8 +1909,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
 
   // Test an empty directory, non-recursively, including "..".
   file_util::FileEnumerator f0_dotdot(temp_dir_.path(), false,
-      static_cast<file_util::FileEnumerator::FileType>(
-          FILES_AND_DIRECTORIES | file_util::FileEnumerator::INCLUDE_DOT_DOT));
+      FILES_AND_DIRECTORIES | file_util::FileEnumerator::INCLUDE_DOT_DOT);
   EXPECT_EQ(temp_dir_.path().Append(FILE_PATH_LITERAL("..")).value(),
             f0_dotdot.Next().value());
   EXPECT_EQ(FILE_PATH_LITERAL(""),
@@ -1944,11 +1964,9 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_EQ(c2_non_recursive.size(), 2);
 
   // Only enumerate directories, non-recursively, including "..".
-  file_util::FileEnumerator f2_dotdot(
-      temp_dir_.path(), false,
-      static_cast<file_util::FileEnumerator::FileType>(
-          file_util::FileEnumerator::DIRECTORIES |
-          file_util::FileEnumerator::INCLUDE_DOT_DOT));
+  file_util::FileEnumerator f2_dotdot(temp_dir_.path(), false,
+      file_util::FileEnumerator::DIRECTORIES |
+      file_util::FileEnumerator::INCLUDE_DOT_DOT);
   FindResultCollector c2_dotdot(f2_dotdot);
   EXPECT_TRUE(c2_dotdot.HasFile(dir1));
   EXPECT_TRUE(c2_dotdot.HasFile(dir2));

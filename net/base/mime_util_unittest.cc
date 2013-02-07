@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/string_split.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,25 +61,39 @@ TEST(MimeUtilTest, FileTest) {
 }
 
 TEST(MimeUtilTest, LookupTypes) {
+  EXPECT_FALSE(IsUnsupportedTextMimeType("text/banana"));
+  EXPECT_TRUE(IsUnsupportedTextMimeType("text/vcard"));
+
   EXPECT_TRUE(IsSupportedImageMimeType("image/jpeg"));
   EXPECT_FALSE(IsSupportedImageMimeType("image/lolcat"));
   EXPECT_TRUE(IsSupportedNonImageMimeType("text/html"));
-  EXPECT_FALSE(IsSupportedNonImageMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedNonImageMimeType("text/banana"));
+  EXPECT_FALSE(IsSupportedNonImageMimeType("text/vcard"));
+  EXPECT_FALSE(IsSupportedNonImageMimeType("application/virus"));
+  EXPECT_TRUE(IsSupportedNonImageMimeType("application/x-x509-user-cert"));
+#if defined(OS_ANDROID)
+  EXPECT_TRUE(IsSupportedNonImageMimeType("application/x-x509-ca-cert"));
+  EXPECT_TRUE(IsSupportedNonImageMimeType("application/x-pkcs12"));
+#endif
 
   EXPECT_TRUE(IsSupportedMimeType("image/jpeg"));
   EXPECT_FALSE(IsSupportedMimeType("image/lolcat"));
   EXPECT_TRUE(IsSupportedMimeType("text/html"));
-  EXPECT_FALSE(IsSupportedMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedMimeType("text/banana"));
+  EXPECT_FALSE(IsSupportedMimeType("text/vcard"));
+  EXPECT_FALSE(IsSupportedMimeType("application/virus"));
 }
 
 TEST(MimeUtilTest, MatchesMimeType) {
   EXPECT_TRUE(MatchesMimeType("*", "video/x-mpeg"));
   EXPECT_TRUE(MatchesMimeType("video/*", "video/x-mpeg"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/*"));
   EXPECT_TRUE(MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
   EXPECT_TRUE(MatchesMimeType("application/*+xml",
                                    "application/html+xml"));
   EXPECT_TRUE(MatchesMimeType("application/*+xml", "application/+xml"));
   EXPECT_TRUE(MatchesMimeType("aaa*aaa", "aaaaaa"));
+  EXPECT_TRUE(MatchesMimeType("*", ""));
   EXPECT_FALSE(MatchesMimeType("video/", "video/x-mpeg"));
   EXPECT_FALSE(MatchesMimeType("", "video/x-mpeg"));
   EXPECT_FALSE(MatchesMimeType("", ""));
@@ -89,6 +104,46 @@ TEST(MimeUtilTest, MatchesMimeType) {
   EXPECT_FALSE(MatchesMimeType("application/*+xml",
                                     "applcation/html+xml"));
   EXPECT_FALSE(MatchesMimeType("aaa*aaa", "aaaaa"));
+
+  EXPECT_TRUE(MatchesMimeType("*", "video/x-mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/mpeg"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/mpeg;param=other"));
+  EXPECT_TRUE(MatchesMimeType("video/*;param=val", "video/mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg", "video/x-mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val",
+                              "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param2=val2",
+                               "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param2=val2",
+                               "video/x-mpeg;param2=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val;param2=val2",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param2=val2;param=val",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param3=val3;param=val",
+                               "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val ;param2=val2 ",
+                              "video/x-mpeg;param=val;param2=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("*/*;param=val", "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("*/*;param=val", "video/x-mpeg;param=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("*", "*"));
+  EXPECT_TRUE(MatchesMimeType("*", "*/*"));
+  EXPECT_TRUE(MatchesMimeType("*/*", "*/*"));
+  EXPECT_TRUE(MatchesMimeType("*/*", "*"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/*"));
+  EXPECT_FALSE(MatchesMimeType("video/*", "*/*"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/*"));
+  EXPECT_TRUE(MatchesMimeType("video/*;param=val", "video/*;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/*;param=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("ab*cd", "abxxxcd"));
+  EXPECT_TRUE(MatchesMimeType("ab*cd", "abx/xcd"));
+  EXPECT_TRUE(MatchesMimeType("ab/*cd", "ab/xxxcd"));
 }
 
 // Note: codecs should only be a list of 2 or fewer; hence the restriction of
@@ -159,6 +214,86 @@ TEST(MimeUtilTest, TestIsMimeType) {
   EXPECT_FALSE(IsMimeType("x-/mime"));
   EXPECT_FALSE(IsMimeType("mime/looking"));
   EXPECT_FALSE(IsMimeType("text/"));
+}
+
+TEST(MimeUtilTest, TestToIANAMediaType) {
+  EXPECT_EQ("", GetIANAMediaType("texting/driving"));
+  EXPECT_EQ("", GetIANAMediaType("ham/sandwich"));
+  EXPECT_EQ("", GetIANAMediaType(""));
+  EXPECT_EQ("", GetIANAMediaType("/application/hamsandwich"));
+
+  EXPECT_EQ("application", GetIANAMediaType("application/poodle-wrestler"));
+  EXPECT_EQ("audio", GetIANAMediaType("audio/mpeg"));
+  EXPECT_EQ("example", GetIANAMediaType("example/yomomma"));
+  EXPECT_EQ("image", GetIANAMediaType("image/png"));
+  EXPECT_EQ("message", GetIANAMediaType("message/sipfrag"));
+  EXPECT_EQ("model", GetIANAMediaType("model/vrml"));
+  EXPECT_EQ("multipart", GetIANAMediaType("multipart/mixed"));
+  EXPECT_EQ("text", GetIANAMediaType("text/plain"));
+  EXPECT_EQ("video", GetIANAMediaType("video/H261"));
+}
+
+TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
+  const struct {
+    const char* mime_type;
+    size_t min_expected_size;
+    const char* contained_result;
+  } tests[] = {
+    { "text/plain", 2, "txt" },
+    { "*",          0, NULL  },
+    { "message/*",  1, "eml" },
+    { "MeSsAge/*",  1, "eml" },
+    { "image/bmp",  1, "bmp" },
+    { "video/*",    6, "mp4" },
+#if defined(OS_LINUX) || defined(OS_ANDROID) || defined(OS_IOS)
+    { "video/*",    6, "mpg" },
+#else
+    { "video/*",    6, "mpeg" },
+#endif
+    { "audio/*",    6, "oga" },
+    { "aUDIo/*",    6, "wav" },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::vector<FilePath::StringType> extensions;
+    GetExtensionsForMimeType(tests[i].mime_type, &extensions);
+    ASSERT_TRUE(tests[i].min_expected_size <= extensions.size());
+
+    if (!tests[i].contained_result)
+      continue;
+
+    bool found = false;
+    for (size_t j = 0; !found && j < extensions.size(); ++j) {
+#if defined(OS_WIN)
+      if (extensions[j] == UTF8ToWide(tests[i].contained_result))
+        found = true;
+#else
+      if (extensions[j] == tests[i].contained_result)
+        found = true;
+#endif
+    }
+    ASSERT_TRUE(found) << "Must find at least the contained result within "
+                       << tests[i].mime_type;
+  }
+}
+
+TEST(MimeUtilTest, TestGetCertificateMimeTypeForMimeType) {
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_X509_USER_CERT,
+            GetCertificateMimeTypeForMimeType("application/x-x509-user-cert"));
+#if defined(OS_ANDROID)
+  // Only Android supports CA Certs and PKCS12 archives.
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_X509_CA_CERT,
+            GetCertificateMimeTypeForMimeType("application/x-x509-ca-cert"));
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_PKCS12_ARCHIVE,
+            GetCertificateMimeTypeForMimeType("application/x-pkcs12"));
+#else
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_UNKNOWN,
+            GetCertificateMimeTypeForMimeType("application/x-x509-ca-cert"));
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_UNKNOWN,
+            GetCertificateMimeTypeForMimeType("application/x-pkcs12"));
+#endif
+  EXPECT_EQ(CERTIFICATE_MIME_TYPE_UNKNOWN,
+            GetCertificateMimeTypeForMimeType("text/plain"));
 }
 
 }  // namespace net

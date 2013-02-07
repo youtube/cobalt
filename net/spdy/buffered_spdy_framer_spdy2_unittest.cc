@@ -16,13 +16,13 @@ namespace {
 class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
  public:
   TestBufferedSpdyVisitor()
-    : buffered_spdy_framer_(2),
-      error_count_(0),
-      setting_count_(0),
-      syn_frame_count_(0),
-      syn_reply_frame_count_(0),
-      headers_frame_count_(0),
-      header_stream_id_(-1) {
+      : buffered_spdy_framer_(2, true),
+        error_count_(0),
+        setting_count_(0),
+        syn_frame_count_(0),
+        syn_reply_frame_count_(0),
+        headers_frame_count_(0),
+        header_stream_id_(-1) {
   }
 
   void OnError(SpdyFramer::SpdyError error_code) {
@@ -174,9 +174,6 @@ class BufferedSpdyFramerSpdy2Test : public PlatformTest {
     }
     return true;
   }
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(BufferedSpdyFramerSpdy2Test, OnSetting) {
@@ -201,7 +198,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["aa"] = "vv";
   headers["bb"] = "ww";
-  BufferedSpdyFramer framer(2);
+  BufferedSpdyFramer framer(2, true);
   scoped_ptr<SpdySynStreamControlFrame> control_frame(
       framer.CreateSynStream(1,                        // stream_id
                              0,                        // associated_stream_id
@@ -227,7 +224,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynReplyHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
-  BufferedSpdyFramer framer(2);
+  BufferedSpdyFramer framer(2, true);
   scoped_ptr<SpdySynReplyControlFrame> control_frame(
       framer.CreateSynReply(1,                        // stream_id
                             CONTROL_FLAG_NONE,
@@ -250,7 +247,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadHeadersHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
-  BufferedSpdyFramer framer(2);
+  BufferedSpdyFramer framer(2, true);
   scoped_ptr<SpdyHeadersControlFrame> control_frame(
       framer.CreateHeaders(1,                        // stream_id
                            CONTROL_FLAG_NONE,

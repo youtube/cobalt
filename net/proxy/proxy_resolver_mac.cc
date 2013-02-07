@@ -5,7 +5,6 @@
 #include "net/proxy/proxy_resolver_mac.h"
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <CoreServices/CoreServices.h>
 
 #include "base/logging.h"
 #include "base/mac/foundation_util.h"
@@ -15,6 +14,12 @@
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_server.h"
+
+#if defined(OS_IOS)
+#include <CFNetwork/CFProxySupport.h>
+#else
+#include <CoreServices/CoreServices.h>
+#endif
 
 namespace {
 

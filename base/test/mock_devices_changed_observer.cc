@@ -4,8 +4,6 @@
 
 #include "base/test/mock_devices_changed_observer.h"
 
-#include "base/file_path.h"
-
 namespace base {
 
 MockDevicesChangedObserver::MockDevicesChangedObserver() {

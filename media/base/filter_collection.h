@@ -18,10 +18,16 @@ class Demuxer;
 class VideoDecoder;
 class VideoRenderer;
 
-// This is a collection of Filter objects used to form a media playback
-// pipeline. See src/media/base/pipeline.h for more information.
+// Represents a set of uninitialized demuxer and audio/video decoders and
+// renderers. Used to start a Pipeline object for media playback.
+//
+// TODO(scherkus): Replace FilterCollection with something sensible, see
+// http://crbug.com/110800
 class MEDIA_EXPORT FilterCollection {
  public:
+  typedef std::list<scoped_refptr<AudioDecoder> > AudioDecoderList;
+  typedef std::list<scoped_refptr<VideoDecoder> > VideoDecoderList;
+
   FilterCollection();
   ~FilterCollection();
 
@@ -31,12 +37,8 @@ class MEDIA_EXPORT FilterCollection {
 
   // Adds a filter to the collection.
   void AddAudioDecoder(AudioDecoder* audio_decoder);
-  void AddVideoDecoder(VideoDecoder* video_decoder);
   void AddAudioRenderer(AudioRenderer* audio_renderer);
   void AddVideoRenderer(VideoRenderer* video_renderer);
-
-  // Is the collection empty?
-  bool IsEmpty() const;
 
   // Remove remaining filters.
   void Clear();
@@ -45,15 +47,16 @@ class MEDIA_EXPORT FilterCollection {
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
   // Filters are selected in FIFO order.
-  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
-  void SelectVideoDecoder(scoped_refptr<VideoDecoder>* out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* out);
 
+  AudioDecoderList* GetAudioDecoders();
+  VideoDecoderList* GetVideoDecoders();
+
  private:
   scoped_refptr<Demuxer> demuxer_;
-  std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
-  std::list<scoped_refptr<VideoDecoder> > video_decoders_;
+  AudioDecoderList audio_decoders_;
+  VideoDecoderList video_decoders_;
   std::list<scoped_refptr<AudioRenderer> > audio_renderers_;
   std::list<scoped_refptr<VideoRenderer> > video_renderers_;
 

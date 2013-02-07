@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/callback.h"
+#include "media/base/audio_converter.h"
 #include "media/base/audio_renderer_sink.h"
 
 namespace media {
@@ -15,7 +16,8 @@ namespace media {
 class AudioRendererMixer;
 
 class MEDIA_EXPORT AudioRendererMixerInput
-    : NON_EXPORTED_BASE(public AudioRendererSink) {
+    : NON_EXPORTED_BASE(public AudioRendererSink),
+      public AudioConverter::InputCallback {
  public:
   typedef base::Callback<AudioRendererMixer*(
       const AudioParameters& params)> GetMixerCB;
@@ -23,9 +25,6 @@ class MEDIA_EXPORT AudioRendererMixerInput
 
   AudioRendererMixerInput(
       const GetMixerCB& get_mixer_cb, const RemoveMixerCB& remove_mixer_cb);
-
-  AudioRendererSink::RenderCallback* callback() { return callback_; }
-  bool playing() { return playing_; }
 
   // AudioRendererSink implementation.
   virtual void Start() OVERRIDE;
@@ -36,15 +35,27 @@ class MEDIA_EXPORT AudioRendererMixerInput
   virtual void Initialize(const AudioParameters& params,
                           AudioRendererSink::RenderCallback* renderer) OVERRIDE;
 
-  void GetVolume(double* volume);
+  // Called by AudioRendererMixer when new delay information is available.
+  void set_audio_delay_milliseconds(int audio_delay_milliseconds) {
+    current_audio_delay_milliseconds_ = audio_delay_milliseconds;
+  }
+
+  // Called by AudioRendererMixer when an error occurs.
+  void OnRenderError();
 
  protected:
   virtual ~AudioRendererMixerInput();
 
  private:
+  friend class AudioRendererMixerInputTest;
+
   bool playing_;
   bool initialized_;
   double volume_;
+
+  // AudioConverter::InputCallback implementation.
+  virtual double ProvideInput(AudioBus* audio_bus,
+                              base::TimeDelta buffer_delay) OVERRIDE;
 
   // Callbacks provided during construction which allow AudioRendererMixerInput
   // to retrieve a mixer during Initialize() and notify when it's done with it.
@@ -60,6 +71,9 @@ class MEDIA_EXPORT AudioRendererMixerInput
 
   // Source of audio data which is provided to the mixer.
   AudioRendererSink::RenderCallback* callback_;
+
+  // The current audio delay as last provided by AudioRendererMixer.
+  int current_audio_delay_milliseconds_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioRendererMixerInput);
 };

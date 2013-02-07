@@ -26,7 +26,7 @@ uint32 ReadBigEndian32(const uint8* buffer) {
 
 }  // namespace
 
-namespace speech {
+namespace content {
 
 ChunkedByteBuffer::ChunkedByteBuffer()
     : partial_chunk_(new Chunk()),
@@ -76,8 +76,14 @@ void ChunkedByteBuffer::Append(const uint8* start, size_t length) {
 
     if (header_completed) {
       DCHECK_EQ(partial_chunk_->header.size(), kHeaderLength);
-      DCHECK_NE(partial_chunk_->ExpectedContentLength(), 0U);
-      partial_chunk_->content->reserve(partial_chunk_->ExpectedContentLength());
+      if (partial_chunk_->ExpectedContentLength() == 0) {
+        // Handle zero-byte chunks.
+        chunks_.push_back(partial_chunk_.release());
+        partial_chunk_.reset(new Chunk());
+      } else {
+        partial_chunk_->content->reserve(
+            partial_chunk_->ExpectedContentLength());
+      }
     } else if (content_completed) {
       DCHECK_EQ(partial_chunk_->content->size(),
                 partial_chunk_->ExpectedContentLength());
@@ -127,4 +133,4 @@ size_t ChunkedByteBuffer::Chunk::ExpectedContentLength() const {
   return static_cast<size_t>(ReadBigEndian32(&header[0]));
 }
 
-}  // namespace speech
+}  // namespace content

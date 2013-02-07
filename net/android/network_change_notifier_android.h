@@ -5,36 +5,67 @@
 #ifndef NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
 #define NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
 
-#include "base/android/scoped_java_ref.h"
+#include "base/android/jni_android.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "net/android/network_change_notifier_delegate_android.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
-namespace android {
 
-class NetworkChangeNotifier : public net::NetworkChangeNotifier {
+class NetworkChangeNotifierAndroidTest;
+class NetworkChangeNotifierFactoryAndroid;
+
+// NetworkChangeNotifierAndroid observes network events from the Android
+// notification system and forwards them to observers.
+//
+// The implementation is complicated by the differing lifetime and thread
+// affinity requirements of Android notifications and of NetworkChangeNotifier.
+//
+// High-level overview:
+// NetworkChangeNotifier.java - Receives notifications from Android system, and
+// notifies native code via JNI (on the main application thread).
+// NetworkChangeNotifierDelegateAndroid ('Delegate') - Listens for notifications
+//   sent via JNI on the main application thread, and forwards them to observers
+//   on their threads. Owned by Factory, lives exclusively on main application
+//   thread.
+// NetworkChangeNotifierFactoryAndroid ('Factory') - Creates the Delegate on the
+//   main thread to receive JNI events, and vends Notifiers. Lives exclusively
+//   on main application thread, and outlives all other classes.
+// NetworkChangeNotifierAndroid ('Notifier') - Receives event notifications from
+//   the Delegate. Processes and forwards these events to the
+//   NetworkChangeNotifier observers on their threads. May live on any thread
+//   and be called by any thread.
+//
+// For more details, see the implementation file.
+class NET_EXPORT_PRIVATE NetworkChangeNotifierAndroid
+    : public NetworkChangeNotifier,
+      public NetworkChangeNotifierDelegateAndroid::Observer {
  public:
-  NetworkChangeNotifier();
-  virtual ~NetworkChangeNotifier();
+  virtual ~NetworkChangeNotifierAndroid();
 
-  void NotifyObservers(JNIEnv* env, jobject obj);
+  // NetworkChangeNotifier:
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
+
+  // NetworkChangeNotifierDelegateAndroid::Observer:
+  virtual void OnConnectionTypeChanged() OVERRIDE;
 
   static bool Register(JNIEnv* env);
 
  private:
-  void CreateJavaObject(JNIEnv* env);
+  friend class NetworkChangeNotifierAndroidTest;
+  friend class NetworkChangeNotifierFactoryAndroid;
 
-  // NetworkChangeNotifier:
-  virtual net::NetworkChangeNotifier::ConnectionType
-      GetCurrentConnectionType() const OVERRIDE;
+  explicit NetworkChangeNotifierAndroid(
+      NetworkChangeNotifierDelegateAndroid* delegate);
 
-  base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsAndroid();
 
-  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
+  NetworkChangeNotifierDelegateAndroid* const delegate_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierAndroid);
 };
 
-}  // namespace android
 }  // namespace net
 
 #endif  // NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_

@@ -46,6 +46,9 @@ int ParseAddressList(const std::string& host_list,
 //
 // Replacement doesn't have to be string representing an IP address. It can
 // re-map one hostname to another as well.
+//
+// By default, MockHostResolvers include a single rule that maps all hosts to
+// 127.0.0.1.
 
 // Base class shared by MockHostResolver and MockCachingHostResolver.
 class MockHostResolverBase : public HostResolver,
@@ -55,10 +58,19 @@ class MockHostResolverBase : public HostResolver,
   virtual ~MockHostResolverBase();
 
   RuleBasedHostResolverProc* rules() { return rules_; }
+  void set_rules(RuleBasedHostResolverProc* rules) { rules_ = rules; }
 
   // Controls whether resolutions complete synchronously or asynchronously.
   void set_synchronous_mode(bool is_synchronous) {
     synchronous_mode_ = is_synchronous;
+  }
+
+  // Asynchronous requests are automatically resolved by default.
+  // If set_ondemand_mode() is set then Resolve() returns IO_PENDING and
+  // ResolveAllPending() must be explicitly invoked to resolve all requests
+  // that are pending.
+  void set_ondemand_mode(bool is_ondemand) {
+    ondemand_mode_ = is_ondemand;
   }
 
   // HostResolver methods:
@@ -72,6 +84,15 @@ class MockHostResolverBase : public HostResolver,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
+
+  // Resolves all pending requests. It is only valid to invoke this if
+  // set_ondemand_mode was set before. The requests are resolved asynchronously,
+  // after this call returns.
+  void ResolveAllPending();
+
+  // Returns true if there are pending requests that can be resolved by invoking
+  // ResolveAllPending().
+  bool has_pending_requests() const { return !requests_.empty(); }
 
  protected:
   explicit MockHostResolverBase(bool use_caching);
@@ -90,8 +111,8 @@ class MockHostResolverBase : public HostResolver,
   void ResolveNow(size_t id);
 
   bool synchronous_mode_;
+  bool ondemand_mode_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
-  scoped_refptr<HostResolverProc> proc_;
   scoped_ptr<HostCache> cache_;
   RequestMap requests_;
   size_t next_request_id_;

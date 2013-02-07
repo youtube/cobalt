@@ -15,7 +15,7 @@ namespace net {
 
 class NET_EXPORT URLRequestAboutJob : public URLRequestJob {
  public:
-  explicit URLRequestAboutJob(URLRequest* request);
+  URLRequestAboutJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   static URLRequest::ProtocolFactory Factory;
 

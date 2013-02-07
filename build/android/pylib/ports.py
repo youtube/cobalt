@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Functions that deals with local and device ports."""
+"""Functions that deal with local and device ports."""
 
 import contextlib
 import fcntl
@@ -17,12 +17,13 @@ import cmd_helper
 import constants
 
 
-#The following two methods are used to allocate the port source for various
-# types of test servers. Because some net relates tests can be run on shards
-# at same time, it's important to have a mechanism to allocate the port process
-# safe. In here, we implement the safe port allocation by leveraging flock.
+# The following two methods are used to allocate the port source for various
+# types of test servers. Because some net-related tests can be run on shards at
+# same time, it's important to have a mechanism to allocate the port
+# process-safe. In here, we implement the safe port allocation by leveraging
+# flock.
 def ResetTestServerPortAllocation():
-  """Reset the port allocation to start from TEST_SERVER_PORT_FIRST.
+  """Resets the port allocation to start from TEST_SERVER_PORT_FIRST.
 
   Returns:
     Returns True if reset successes. Otherwise returns False.
@@ -39,22 +40,26 @@ def ResetTestServerPortAllocation():
 
 
 def AllocateTestServerPort():
-  """Allocate a port incrementally.
+  """Allocates a port incrementally.
 
   Returns:
     Returns a valid port which should be in between TEST_SERVER_PORT_FIRST and
     TEST_SERVER_PORT_LAST. Returning 0 means no more valid port can be used.
   """
   port = 0
+  ports_tried = []
   try:
     fp_lock = open(constants.TEST_SERVER_PORT_LOCKFILE, 'w')
     fcntl.flock(fp_lock, fcntl.LOCK_EX)
     # Get current valid port and calculate next valid port.
-    assert os.path.exists(constants.TEST_SERVER_PORT_FILE)
+    if not os.path.exists(constants.TEST_SERVER_PORT_FILE):
+      ResetTestServerPortAllocation()
     with open(constants.TEST_SERVER_PORT_FILE, 'r+') as fp:
       port = int(fp.read())
+      ports_tried.append(port)
       while IsHostPortUsed(port):
         port += 1
+        ports_tried.append(port)
       if (port > constants.TEST_SERVER_PORT_LAST or
           port < constants.TEST_SERVER_PORT_FIRST):
         port = 0
@@ -67,7 +72,11 @@ def AllocateTestServerPort():
     if fp_lock:
       fcntl.flock(fp_lock, fcntl.LOCK_UN)
       fp_lock.close()
-  logging.info('Allocate port %d for test server.', port)
+  if port:
+    logging.info('Allocate port %d for test server.', port)
+  else:
+    logging.error('Could not allocate port for test server. '
+                  'List of ports tried: %s', str(ports_tried))
   return port
 
 
@@ -82,10 +91,12 @@ def IsHostPortUsed(host_port):
   Returns:
     True if the port on host is already used, otherwise returns False.
   """
-  port_info = '(127\.0\.0\.1)|(localhost)\:%d' % host_port
-  # TODO(jnd): Find a better way to filter the port.
+  port_info = '(\*)|(127\.0\.0\.1)|(localhost):%d' % host_port
+  # TODO(jnd): Find a better way to filter the port. Note that connecting to the
+  # socket and closing it would leave it in the TIME_WAIT state. Setting
+  # SO_LINGER on it and then closing it makes the Python HTTP server crash.
   re_port = re.compile(port_info, re.MULTILINE)
-  if re_port.findall(cmd_helper.GetCmdOutput(['lsof', '-nPi:%d' % host_port])):
+  if re_port.search(cmd_helper.GetCmdOutput(['lsof', '-nPi:%d' % host_port])):
     return True
   return False
 
@@ -107,6 +118,11 @@ def IsDevicePortUsed(adb, device_port, state=''):
   for single_connect in netstat_results:
     # Column 3 is the local address which we want to check with.
     connect_results = single_connect.split()
+    if connect_results[0] != 'tcp':
+      continue
+    if len(connect_results) < 6:
+      raise Exception('Unexpected format while parsing netstat line: ' +
+                      single_connect)
     is_state_match = connect_results[5] == state if state else True
     if connect_results[3] == base_url and is_state_match:
       return True

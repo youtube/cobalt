@@ -3,18 +3,19 @@
 // found in the LICENSE file.
 
 // Time represents an absolute point in time, internally represented as
-// microseconds (s/1,000,000) since a platform-dependent epoch.  Each
-// platform's epoch, along with other system-dependent clock interface
-// routines, is defined in time_PLATFORM.cc.
+// microseconds (s/1,000,000) since the Windows epoch (1601-01-01 00:00:00 UTC)
+// (See http://crbug.com/14734).  System-dependent clock interface routines are
+// defined in time_PLATFORM.cc.
 //
 // TimeDelta represents a duration of time, internally represented in
 // microseconds.
 //
-// TimeTicks represents an abstract time that is always incrementing for use
-// in measuring time durations. It is internally represented in microseconds.
-// It can not be converted to a human-readable time, but is guaranteed not to
-// decrease (if the user changes the computer clock, Time::Now() may actually
-// decrease or jump).
+// TimeTicks represents an abstract time that is most of the time incrementing
+// for use in measuring time durations. It is internally represented in
+// microseconds.  It can not be converted to a human-readable time, but is
+// guaranteed not to decrease (if the user changes the computer clock,
+// Time::Now() may actually decrease or jump).  But note that TimeTicks may
+// "stand still", for example if the computer suspended.
 //
 // These classes are represented as only a 64-bit value, so they can be
 // efficiently passed by value.
@@ -34,6 +35,12 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+#if defined(OS_MACOSX)
+#include <CoreFoundation/CoreFoundation.h>
+// Avoid Mac system header macro leak.
+#undef TYPE_BOOL
+#endif
+
 #if defined(OS_POSIX)
 // For struct timeval.
 #include <sys/time.h>
@@ -44,6 +51,8 @@
 // See TODO(iyengar) below.
 #include <windows.h>
 #endif
+
+#include <limits>
 
 namespace base {
 
@@ -64,6 +73,9 @@ class BASE_EXPORT TimeDelta {
   static TimeDelta FromSeconds(int64 secs);
   static TimeDelta FromMilliseconds(int64 ms);
   static TimeDelta FromMicroseconds(int64 us);
+#if defined(OS_WIN)
+  static TimeDelta FromQPCValue(LONGLONG qpc_value);
+#endif
 
   // Converts an integer value representing TimeDelta to a class. This is used
   // when deserializing a |TimeDelta| structure, using a value known to be
@@ -243,6 +255,11 @@ class BASE_EXPORT Time {
     return us_ == 0;
   }
 
+  // Returns true if the time object is the maximum time.
+  bool is_max() const {
+    return us_ == std::numeric_limits<int64>::max();
+  }
+
   // Returns the time for epoch in Unix-like system (Jan 1, 1970).
   static Time UnixEpoch();
 
@@ -250,6 +267,10 @@ class BASE_EXPORT Time {
   // in which case time will actually go backwards. We don't guarantee that
   // times are increasing, or that two calls to Now() won't be the same.
   static Time Now();
+
+  // Returns the maximum time, which should be greater than any reasonable time
+  // with which we might compare it.
+  static Time Max();
 
   // Returns the current time. Same as Now() except that this function always
   // uses system time so that there are no discrepancies between the returned
@@ -280,6 +301,11 @@ class BASE_EXPORT Time {
 #if defined(OS_POSIX)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
+#endif
+
+#if defined(OS_MACOSX)
+  static Time FromCFAbsoluteTime(CFAbsoluteTime t);
+  CFAbsoluteTime ToCFAbsoluteTime() const;
 #endif
 
 #if defined(OS_WIN)
@@ -335,10 +361,17 @@ class BASE_EXPORT Time {
   // Converts a string representation of time to a Time object.
   // An example of a time string which is converted is as below:-
   // "Tue, 15 Nov 1994 12:45:26 GMT". If the timezone is not specified
-  // in the input string, we assume local time.
+  // in the input string, FromString assumes local time and FromUTCString
+  // assumes UTC. A timezone that cannot be parsed (e.g. "UTC" which is not
+  // specified in RFC822) is treated as if the timezone is not specified.
   // TODO(iyengar) Move the FromString/FromTimeT/ToTimeT/FromFileTime to
   // a new time converter class.
-  static bool FromString(const char* time_string, Time* parsed_time);
+  static bool FromString(const char* time_string, Time* parsed_time) {
+    return FromStringInternal(time_string, true, parsed_time);
+  }
+  static bool FromUTCString(const char* time_string, Time* parsed_time) {
+    return FromStringInternal(time_string, false, parsed_time);
+  }
 
   // For serializing, use FromInternalValue to reconstitute. Please don't use
   // this and do arithmetic on it, as it is more error prone than using the
@@ -422,6 +455,17 @@ class BASE_EXPORT Time {
   // |is_local = true| or UTC |is_local = false|.
   static Time FromExploded(bool is_local, const Exploded& exploded);
 
+  // Converts a string representation of time to a Time object.
+  // An example of a time string which is converted is as below:-
+  // "Tue, 15 Nov 1994 12:45:26 GMT". If the timezone is not specified
+  // in the input string, local time |is_local = true| or
+  // UTC |is_local = false| is assumed. A timezone that cannot be parsed
+  // (e.g. "UTC" which is not specified in RFC822) is treated as if the
+  // timezone is not specified.
+  static bool FromStringInternal(const char* time_string,
+                                 bool is_local,
+                                 Time* parsed_time);
+
   // The representation of Jan 1, 1970 UTC in microseconds since the
   // platform-dependent epoch.
   static const int64 kTimeTToMicrosecondsOffset;
@@ -504,6 +548,8 @@ class BASE_EXPORT TimeTicks {
 #if defined(OS_WIN)
   // Get the absolute value of QPC time drift. For testing.
   static int64 GetQPCDriftMicroseconds();
+
+  static TimeTicks FromQPCValue(LONGLONG qpc_value);
 
   // Returns true if the high resolution clock is working on this system.
   // This is only for testing.

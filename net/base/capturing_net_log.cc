@@ -87,7 +87,7 @@ void CapturingNetLog::SetLogLevel(NetLog::LogLevel log_level) {
 
 void CapturingNetLog::OnAddEntry(const net::NetLog::Entry& entry) {
   // Only BoundNetLogs without a NetLog should have an invalid source.
-  DCHECK(entry.source().is_valid());
+  CHECK(entry.source().IsValid());
 
   // Using Dictionaries instead of Values makes checking values a little
   // simpler.

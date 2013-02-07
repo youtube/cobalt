@@ -30,7 +30,7 @@ inline char IntToHex(int i) {
 // Does quick bit-flicking to lookup needed characters.
 struct Charmap {
   bool Contains(unsigned char c) const {
-    return (map[c >> 5] & (1 << (c & 31))) ? true : false;
+    return ((map[c >> 5] & (1 << (c & 31))) != 0);
   }
 
   uint32 map[8];

@@ -9,14 +9,13 @@
 #include "base/message_loop.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_status.h"
 
 namespace net {
 
-URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestSimpleJob::URLRequestSimpleJob(
+    URLRequest* request, NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       data_offset_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
@@ -57,13 +56,19 @@ void URLRequestSimpleJob::StartAsync() {
   if (!request_)
     return;
 
-  if (GetData(&mime_type_, &charset_, &data_)) {
+  int result = GetData(&mime_type_, &charset_, &data_,
+                       base::Bind(&URLRequestSimpleJob::OnGetDataCompleted,
+                                  weak_factory_.GetWeakPtr()));
+  if (result != ERR_IO_PENDING)
+    OnGetDataCompleted(result);
+}
+
+void URLRequestSimpleJob::OnGetDataCompleted(int result) {
+  if (result == OK) {
     // Notify that the headers are complete
     NotifyHeadersComplete();
   } else {
-    // what should the error code be?
-    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED,
-                                      ERR_INVALID_URL));
+    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
 }
 

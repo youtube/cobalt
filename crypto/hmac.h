@@ -38,7 +38,6 @@ class CRYPTO_EXPORT HMAC {
 
   // Initializes this instance using |key| of the length |key_length|. Call Init
   // only once. It returns false on the second or later calls.
-  // TODO(abarth): key_length should be a size_t.
   //
   // NOTE: the US Federal crypto standard FIPS 198, Section 3 says:
   //   The size of the key, K, shall be equal to or greater than L/2, where L
@@ -47,7 +46,7 @@ class CRYPTO_EXPORT HMAC {
   // this requirement is gone.  But a system crypto library may still enforce
   // this old requirement.  If the key is shorter than this recommended value,
   // Init() may fail.
-  bool Init(const unsigned char* key, int key_length) WARN_UNUSED_RESULT;
+  bool Init(const unsigned char* key, size_t key_length) WARN_UNUSED_RESULT;
 
   // Initializes this instance using |key|. Call Init
   // only once. It returns false on the second or later calls.
@@ -57,15 +56,14 @@ class CRYPTO_EXPORT HMAC {
   // false on the second or later calls.
   bool Init(const base::StringPiece& key) WARN_UNUSED_RESULT {
     return Init(reinterpret_cast<const unsigned char*>(key.data()),
-                static_cast<int>(key.size()));
+                key.size());
   }
 
   // Calculates the HMAC for the message in |data| using the algorithm supplied
   // to the constructor and the key supplied to the Init method. The HMAC is
   // returned in |digest|, which has |digest_length| bytes of storage available.
-  // TODO(abarth): digest_length should be a size_t.
   bool Sign(const base::StringPiece& data, unsigned char* digest,
-            int digest_length) const WARN_UNUSED_RESULT;
+            size_t digest_length) const WARN_UNUSED_RESULT;
 
   // Verifies that the HMAC for the message in |data| equals the HMAC provided
   // in |digest|, using the algorithm supplied to the constructor and the key

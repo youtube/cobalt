@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "sql/connection.h"
+#include "sql/meta_table.h"
 #include "sql/statement.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/sqlite/sqlite3.h"
@@ -29,7 +30,7 @@ class SQLConnectionTest : public testing::Test {
   }
 
  private:
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
   sql::Connection db_;
 };
 
@@ -141,10 +142,21 @@ TEST_F(SQLConnectionTest, Raze) {
   ASSERT_TRUE(db().Execute(kCreateSql));
   ASSERT_TRUE(db().Execute("INSERT INTO foo (value) VALUES (12)"));
 
+  int pragma_auto_vacuum = 0;
+  {
+    sql::Statement s(db().GetUniqueStatement("PRAGMA auto_vacuum"));
+    ASSERT_TRUE(s.Step());
+    pragma_auto_vacuum = s.ColumnInt(0);
+    ASSERT_TRUE(pragma_auto_vacuum == 0 || pragma_auto_vacuum == 1);
+  }
+
+  // If auto_vacuum is set, there's an extra page to maintain a freelist.
+  const int kExpectedPageCount = 2 + pragma_auto_vacuum;
+
   {
     sql::Statement s(db().GetUniqueStatement("PRAGMA page_count"));
     ASSERT_TRUE(s.Step());
-    EXPECT_EQ(2, s.ColumnInt(0));
+    EXPECT_EQ(kExpectedPageCount, s.ColumnInt(0));
   }
 
   {
@@ -153,7 +165,8 @@ TEST_F(SQLConnectionTest, Raze) {
     EXPECT_EQ("table", s.ColumnString(0));
     EXPECT_EQ("foo", s.ColumnString(1));
     EXPECT_EQ("foo", s.ColumnString(2));
-    EXPECT_EQ(2, s.ColumnInt(3));
+    // Table "foo" is stored in the last page of the file.
+    EXPECT_EQ(kExpectedPageCount, s.ColumnInt(3));
     EXPECT_EQ(kCreateSql, s.ColumnString(4));
   }
 
@@ -168,6 +181,13 @@ TEST_F(SQLConnectionTest, Raze) {
   {
     sql::Statement s(db().GetUniqueStatement("SELECT * FROM sqlite_master"));
     ASSERT_FALSE(s.Step());
+  }
+
+  {
+    sql::Statement s(db().GetUniqueStatement("PRAGMA auto_vacuum"));
+    ASSERT_TRUE(s.Step());
+    // The new database has the same auto_vacuum as a fresh database.
+    EXPECT_EQ(pragma_auto_vacuum, s.ColumnInt(0));
   }
 }
 
@@ -258,6 +278,19 @@ TEST_F(SQLConnectionTest, RazeLocked) {
   ASSERT_FALSE(s.Step());
   ASSERT_TRUE(db().Raze());
 }
+
+#if defined(OS_ANDROID)
+TEST_F(SQLConnectionTest, SetTempDirForSQL) {
+
+  sql::MetaTable meta_table;
+  // Below call needs a temporary directory in sqlite3
+  // On Android, it can pass only when the temporary directory is set.
+  // Otherwise, sqlite3 doesn't find the correct directory to store
+  // temporary files and will report the error 'unable to open
+  // database file'.
+  ASSERT_TRUE(meta_table.Init(&db(), 4, 4));
+}
+#endif
 
 // TODO(shess): Spin up a background thread to hold other_db, to more
 // closely match real life.  That would also allow testing

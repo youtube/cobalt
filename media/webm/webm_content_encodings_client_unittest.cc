@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "media/webm/webm_constants.h"
 #include "media/webm/webm_content_encodings_client.h"
 #include "media/webm/webm_parser.h"
@@ -12,7 +13,8 @@ namespace media {
 class WebMContentEncodingsClientTest : public testing::Test {
  public:
   WebMContentEncodingsClientTest()
-      : parser_(kWebMIdContentEncodings, &client_) {}
+      : client_(LogCB()),
+        parser_(kWebMIdContentEncodings, &client_) {}
 
   void ParseAndExpectToFail(const uint8* buf, int size) {
     int result = parser_.Parse(buf, size);
@@ -67,8 +69,7 @@ TEST_F(WebMContentEncodingsClientTest, SingleContentEncoding) {
   EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
   EXPECT_EQ(ContentEncoding::kEncAlgoAes,
             content_encodings[0]->encryption_algo());
-  EXPECT_TRUE(content_encodings[0]->encryption_key_id());
-  EXPECT_EQ(8, content_encodings[0]->encryption_key_id_size());
+  EXPECT_EQ(8u, content_encodings[0]->encryption_key_id().size());
 }
 
 TEST_F(WebMContentEncodingsClientTest, MultipleContentEncoding) {
@@ -107,8 +108,7 @@ TEST_F(WebMContentEncodingsClientTest, MultipleContentEncoding) {
     EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[i]->type());
     EXPECT_EQ(!i ? ContentEncoding::kEncAlgoAes : ContentEncoding::kEncAlgoDes,
               content_encodings[i]->encryption_algo());
-    EXPECT_TRUE(content_encodings[i]->encryption_key_id());
-    EXPECT_EQ(8, content_encodings[i]->encryption_key_id_size());
+    EXPECT_EQ(8u, content_encodings[i]->encryption_key_id().size());
   }
 }
 
@@ -136,8 +136,7 @@ TEST_F(WebMContentEncodingsClientTest, DefaultValues) {
   EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
   EXPECT_EQ(ContentEncoding::kEncAlgoNotEncrypted,
             content_encodings[0]->encryption_algo());
-  EXPECT_FALSE(content_encodings[0]->encryption_key_id());
-  EXPECT_EQ(0, content_encodings[0]->encryption_key_id_size());
+  EXPECT_TRUE(content_encodings[0]->encryption_key_id().empty());
 }
 
 TEST_F(WebMContentEncodingsClientTest, ContentEncodingsClientReuse) {
@@ -172,8 +171,7 @@ TEST_F(WebMContentEncodingsClientTest, ContentEncodingsClientReuse) {
   EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
   EXPECT_EQ(ContentEncoding::kEncAlgoAes,
             content_encodings[0]->encryption_algo());
-  EXPECT_TRUE(content_encodings[0]->encryption_key_id());
-  EXPECT_EQ(8, content_encodings[0]->encryption_key_id_size());
+  EXPECT_EQ(8u, content_encodings[0]->encryption_key_id().size());
 }
 
 TEST_F(WebMContentEncodingsClientTest, InvalidContentEncodingOrder) {
@@ -237,4 +235,4 @@ TEST_F(WebMContentEncodingsClientTest, InvalidContentEncAlgo) {
   ParseAndExpectToFail(kContentEncodings, size);
 }
 
-}  // media
+}  // namespace media

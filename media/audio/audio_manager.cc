@@ -5,6 +5,8 @@
 #include "media/audio/audio_manager.h"
 
 #include "base/at_exit.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 
@@ -21,9 +23,7 @@ AudioManager::~AudioManager() {
 
 // static
 AudioManager* AudioManager::Create() {
-  AudioManager* ret = CreateAudioManager();
-  ret->Init();
-  return ret;
+  return CreateAudioManager();
 }
 
 }  // namespace media

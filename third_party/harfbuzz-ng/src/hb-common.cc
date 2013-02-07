@@ -58,6 +58,15 @@ hb_tag_from_string (const char *s, int len)
   return HB_TAG_CHAR4 (tag);
 }
 
+void
+hb_tag_to_string (hb_tag_t tag, char *buf)
+{
+  buf[0] = (char) (uint8_t) (tag >> 24);
+  buf[1] = (char) (uint8_t) (tag >> 16);
+  buf[2] = (char) (uint8_t) (tag >>  8);
+  buf[3] = (char) (uint8_t) (tag >>  0);
+}
+
 
 /* hb_direction_t */
 
@@ -98,7 +107,7 @@ hb_direction_to_string (hb_direction_t direction)
 
 /* hb_language_t */
 
-struct _hb_language_t {
+struct hb_language_impl_t {
   const char s[1];
 };
 
@@ -238,17 +247,12 @@ hb_language_to_string (hb_language_t language)
 hb_language_t
 hb_language_get_default (void)
 {
-  static hb_language_t default_language;
+  static hb_language_t default_language = HB_LANGUAGE_INVALID;
 
-  if (!default_language) {
-    /* This block is not quite threadsafe, but is not as bad as
-     * it looks since it's idempotent.  As long as pointer ops
-     * are atomic, we are safe. */
-
-    /* I hear that setlocale() doesn't honor env vars on Windows,
-     * but for now we ignore that. */
-
-    default_language = hb_language_from_string (setlocale (LC_CTYPE, NULL), -1);
+  hb_language_t language = (hb_language_t) hb_atomic_ptr_get (&default_language);
+  if (unlikely (language == HB_LANGUAGE_INVALID)) {
+    language = hb_language_from_string (setlocale (LC_CTYPE, NULL), -1);
+    hb_atomic_ptr_cmpexch (&default_language, HB_LANGUAGE_INVALID, language);
   }
 
   return default_language;

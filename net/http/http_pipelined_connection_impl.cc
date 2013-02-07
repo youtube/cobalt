@@ -52,6 +52,22 @@ Value* NetLogHostPortPairCallback(const HostPortPair* host_port_pair,
 
 }  // anonymous namespace
 
+HttpPipelinedConnection*
+HttpPipelinedConnectionImpl::Factory::CreateNewPipeline(
+    ClientSocketHandle* connection,
+    HttpPipelinedConnection::Delegate* delegate,
+    const HostPortPair& origin,
+    const SSLConfig& used_ssl_config,
+    const ProxyInfo& used_proxy_info,
+    const BoundNetLog& net_log,
+    bool was_npn_negotiated,
+    NextProto protocol_negotiated) {
+  return new HttpPipelinedConnectionImpl(connection, delegate, origin,
+                                         used_ssl_config, used_proxy_info,
+                                         net_log, was_npn_negotiated,
+                                         protocol_negotiated);
+}
+
 HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
     ClientSocketHandle* connection,
     HttpPipelinedConnection::Delegate* delegate,
@@ -158,7 +174,6 @@ int HttpPipelinedConnectionImpl::SendRequest(
     int pipeline_id,
     const std::string& request_line,
     const HttpRequestHeaders& headers,
-    scoped_ptr<UploadDataStream> request_body,
     HttpResponseInfo* response,
     const CompletionCallback& callback) {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
@@ -171,7 +186,6 @@ int HttpPipelinedConnectionImpl::SendRequest(
   send_request->pipeline_id = pipeline_id;
   send_request->request_line = request_line;
   send_request->headers = headers;
-  send_request->request_body.reset(request_body.release());
   send_request->response = response;
   send_request->callback = callback;
   pending_send_request_queue_.push(send_request);
@@ -261,7 +275,6 @@ int HttpPipelinedConnectionImpl::DoSendActiveRequest(int result) {
   int rv = stream_info_map_[active_send_request_->pipeline_id].parser->
       SendRequest(active_send_request_->request_line,
                   active_send_request_->headers,
-                  active_send_request_->request_body.Pass(),
                   active_send_request_->response,
                   base::Bind(&HttpPipelinedConnectionImpl::OnSendIOCallback,
                              base::Unretained(this)));
@@ -599,7 +612,8 @@ int HttpPipelinedConnectionImpl::ReadResponseBody(
       buf, buf_len, callback);
 }
 
-uint64 HttpPipelinedConnectionImpl::GetUploadProgress(int pipeline_id) const {
+UploadProgress HttpPipelinedConnectionImpl::GetUploadProgress(
+    int pipeline_id) const {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   CHECK(stream_info_map_.find(pipeline_id)->second.parser.get());
   return stream_info_map_.find(pipeline_id)->second.parser->GetUploadProgress();
@@ -688,6 +702,7 @@ void HttpPipelinedConnectionImpl::CheckHeadersForPipelineCompatibility(
       // Collect metrics to see if this code is useful.
       case ERR_ABORTED:
       case ERR_INTERNET_DISCONNECTED:
+      case ERR_NETWORK_CHANGED:
         // These errors are no fault of the server.
         break;
 
@@ -809,7 +824,6 @@ NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
 
 HttpPipelinedConnectionImpl::PendingSendRequest::PendingSendRequest()
     : pipeline_id(0),
-      request_body(NULL),
       response(NULL) {
 }
 

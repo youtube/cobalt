@@ -7,8 +7,8 @@
 
 #include <string>
 
-#include "base/gtest_prod_util.h"
-#include "base/synchronization/lock.h"
+#include "base/file_path.h"
+#include "base/file_util.h"
 #include "media/base/data_source.h"
 
 namespace media {
@@ -18,9 +18,8 @@ namespace media {
 class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
-  FileDataSource(bool disable_file_size);
 
-  PipelineStatus Initialize(const std::string& url);
+  bool Initialize(const FilePath& file_path);
 
   // Implementation of DataSource.
   virtual void set_host(DataSourceHost* host) OVERRIDE;
@@ -31,6 +30,10 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   virtual bool IsStreaming() OVERRIDE;
   virtual void SetBitrate(int bitrate) OVERRIDE;
 
+  // Unit test helpers. Recreate the object if you want the default behaviour.
+  void force_read_errors_for_testing() { force_read_errors_ = true; }
+  void force_streaming_for_testing() { force_streaming_ = true; }
+
  protected:
   virtual ~FileDataSource();
 
@@ -38,22 +41,10 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   // Informs the host of changes in total and buffered bytes.
   void UpdateHostBytes();
 
-  // File handle.  NULL if not initialized or an error occurs.
-  FILE* file_;
+  file_util::MemoryMappedFile file_;
 
-  // Size of the file in bytes.
-  int64 file_size_;
-
-  // True if the FileDataSource should ignore its set file size, false
-  // otherwise.
-  bool disable_file_size_;
-
-  // Critical section that protects all of the DataSource methods to prevent
-  // a Stop from happening while in the middle of a file I/O operation.
-  // TODO(ralphl): Ideally this would use asynchronous I/O or we will know
-  // that we will block for a short period of time in reads.  Otherwise, we can
-  // hang the pipeline Stop.
-  base::Lock lock_;
+  bool force_read_errors_;
+  bool force_streaming_;
 
   DISALLOW_COPY_AND_ASSIGN(FileDataSource);
 };
