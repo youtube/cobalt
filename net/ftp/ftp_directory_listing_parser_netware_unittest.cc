@@ -24,6 +24,9 @@ TEST_F(FtpDirectoryListingParserNetwareTest, Good) {
     { "- [RW------] ftpadmin 123 Nov 11  18:25 afile",
       FtpDirectoryListingEntry::FILE, "afile", 123,
       1994, 11, 11, 18, 25 },
+    { "d [RWCEAFMS] daniel 512 May 17  2010 NVP anyagok",
+      FtpDirectoryListingEntry::DIRECTORY, "NVP anyagok", -1,
+      2010, 5, 17, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,

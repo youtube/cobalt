@@ -7,10 +7,14 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
+#include "base/string_piece.h"
+
 namespace base {
 class DictionaryValue;
 class ListValue;
 class StringValue;
+class Value;
 
 // All the functions below expect that the value for the given key in
 // the given dictionary equals the given expected value.
@@ -39,6 +43,14 @@ void ExpectDictStringValue(const std::string& expected_value,
 void ExpectStringValue(const std::string& expected_str,
                        StringValue* actual);
 
+namespace test {
+
+// Parses |json| as JSON, allowing trailing commas, and returns the
+// resulting value.  If the json fails to parse, causes an EXPECT
+// failure and returns the Null Value (but never a NULL pointer).
+scoped_ptr<Value> ParseJson(base::StringPiece json);
+
+}  // namespace test
 }  // namespace base
 
 #endif  // BASE_TEST_VALUES_TEST_UTIL_H_

@@ -30,19 +30,23 @@ class BaseTestServer {
  public:
   typedef std::pair<std::string, std::string> StringPair;
 
+  // Following types represent protocol schemes. See also
+  // http://www.iana.org/assignments/uri-schemes.html
   enum Type {
+    TYPE_BASIC_AUTH_PROXY,
     TYPE_FTP,
-    TYPE_GDATA,
     TYPE_HTTP,
     TYPE_HTTPS,
+    TYPE_WS,
+    TYPE_WSS,
     TYPE_SYNC,
     TYPE_TCP_ECHO,
     TYPE_UDP_ECHO,
   };
 
-  // Container for various options to control how the HTTPS server is
+  // Container for various options to control how the HTTPS or WSS server is
   // initialized.
-  struct HTTPSOptions {
+  struct SSLOptions {
     enum ServerCertificate {
       CERT_OK,
 
@@ -95,12 +99,12 @@ class BaseTestServer {
       TLS_INTOLERANT_TLS1_2 = 3,  // Intolerant of TLS 1.2 or higher.
     };
 
-    // Initialize a new HTTPSOptions using CERT_OK as the certificate.
-    HTTPSOptions();
+    // Initialize a new SSLOptions using CERT_OK as the certificate.
+    SSLOptions();
 
-    // Initialize a new HTTPSOptions that will use the specified certificate.
-    explicit HTTPSOptions(ServerCertificate cert);
-    ~HTTPSOptions();
+    // Initialize a new SSLOptions that will use the specified certificate.
+    explicit SSLOptions(ServerCertificate cert);
+    ~SSLOptions();
 
     // Returns the relative filename of the file that contains the
     // |server_certificate|.
@@ -145,14 +149,11 @@ class BaseTestServer {
   // Pass as the 'host' parameter during construction to server on 127.0.0.1
   static const char kLocalhost[];
 
-  // The auth token to be used for TYPE_GDATA server.
-  static const char kGDataAuthToken[];
-
   // Initialize a TestServer listening on a specific host (IP or hostname).
   BaseTestServer(Type type,  const std::string& host);
 
-  // Initialize a HTTPS TestServer with a specific set of HTTPSOptions.
-  explicit BaseTestServer(const HTTPSOptions& https_options);
+  // Initialize a TestServer with a specific set of SSLOptions for HTTPS or WSS.
+  explicit BaseTestServer(Type type, const SSLOptions& ssl_options);
 
   // Returns the host port pair used by current Python based test server only
   // if the server is started.
@@ -176,6 +177,11 @@ class BaseTestServer {
       const std::string& original_path,
       const std::vector<StringPair>& text_to_replace,
       std::string* replacement_path);
+
+  static bool UsingSSL(Type type) {
+    return type == BaseTestServer::TYPE_HTTPS ||
+           type == BaseTestServer::TYPE_WSS;
+  }
 
  protected:
   virtual ~BaseTestServer();
@@ -204,7 +210,13 @@ class BaseTestServer {
 
   // Generates a DictionaryValue with the arguments for launching the external
   // Python test server.
-  bool GenerateArguments(base::DictionaryValue* arguments) const;
+  bool GenerateArguments(base::DictionaryValue* arguments) const
+    WARN_UNUSED_RESULT;
+
+  // Subclasses can override this to add arguments that are specific to their
+  // own test servers.
+  virtual bool GenerateAdditionalArguments(
+      base::DictionaryValue* arguments) const WARN_UNUSED_RESULT;
 
  private:
   void Init(const std::string& host);
@@ -225,8 +237,9 @@ class BaseTestServer {
   // Holds the data sent from the server (e.g., port number).
   scoped_ptr<base::DictionaryValue> server_data_;
 
-  // If |type_| is TYPE_HTTPS, the TLS settings to use for the test server.
-  HTTPSOptions https_options_;
+  // If |type_| is TYPE_HTTPS or TYPE_WSS, the TLS settings to use for the test
+  // server.
+  SSLOptions ssl_options_;
 
   Type type_;
 

@@ -1,4 +1,4 @@
-// Copyright 2010 Google Inc.
+// Copyright 2010 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -59,8 +59,8 @@ static const int8_t kMVRef[8] = {
 };
 
 static const int8_t kMVRef4[6] = {
-  -LEFT4, 1
-    -ABOVE4, 2
+  -LEFT4, 1,
+    -ABOVE4, 2,
       -ZERO4, -NEW4
 };
 #endif

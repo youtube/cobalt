@@ -26,7 +26,7 @@ namespace net {
 class NET_EXPORT ProxyConfigServiceMac : public ProxyConfigService {
  public:
   // Constructs a ProxyConfigService that watches the Mac OS system settings.
-  // This instance is expected to be operated and deleted on the IO thread
+  // This instance is expected to be operated and deleted on the same thread
   // (however it may be constructed from a different thread).
   explicit ProxyConfigServiceMac(
       base::SingleThreadTaskRunner* io_thread_task_runner);
@@ -50,13 +50,9 @@ class NET_EXPORT ProxyConfigServiceMac : public ProxyConfigService {
 
     // NetworkConfigWatcherMac::Delegate implementation:
     virtual void StartReachabilityNotifications() OVERRIDE {}
-    virtual void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store)
-        OVERRIDE {
-      proxy_config_service_->SetDynamicStoreNotificationKeys(store);
-    }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE {
-      proxy_config_service_->OnNetworkConfigChange(changed_keys);
-    }
+    virtual void SetDynamicStoreNotificationKeys(
+        SCDynamicStoreRef store) OVERRIDE;
+    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE;
 
    private:
     ProxyConfigServiceMac* const proxy_config_service_;

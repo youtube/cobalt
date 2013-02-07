@@ -9,6 +9,8 @@
 #include <wpcapi.h>
 
 #include "base/base_export.h"
+#include "base/callback.h"
+#include "base/file_path.h"
 #include "base/string16.h"
 
 namespace base {
@@ -16,12 +18,13 @@ namespace win {
 
 // Identifies the type of the metro launch.
 enum MetroLaunchType {
-  LAUNCH,
-  SEARCH,
-  SHARE,
-  FILE,
-  PROTOCOL,
-  LASTLAUNCHTYPE,
+  METRO_LAUNCH,
+  METRO_SEARCH,
+  METRO_SHARE,
+  METRO_FILE,
+  METRO_PROTOCOL,
+  METRO_LAUNCH_ERROR,
+  METRO_LASTLAUNCHTYPE,
 };
 
 // In metro mode, this enum identifies the last execution state, i.e. whether
@@ -35,17 +38,31 @@ enum MetroPreviousExecutionState {
   LASTEXECUTIONSTATE,
 };
 
+// Enum values for UMA histogram reporting of site-specific tile pinning.
+// TODO(tapted): Move this to win8/util when ready (http://crbug.com/160288).
+enum MetroSecondaryTilePinUmaResult {
+  METRO_PIN_STATE_NONE,
+  METRO_PIN_INITIATED,
+  METRO_PIN_LOGO_READY,
+  METRO_PIN_REQUEST_SHOW_ERROR,
+  METRO_PIN_RESULT_CANCEL,
+  METRO_PIN_RESULT_OK,
+  METRO_PIN_RESULT_OTHER,
+  METRO_PIN_RESULT_ERROR,
+  METRO_UNPIN_INITIATED,
+  METRO_UNPIN_REQUEST_SHOW_ERROR,
+  METRO_UNPIN_RESULT_CANCEL,
+  METRO_UNPIN_RESULT_OK,
+  METRO_UNPIN_RESULT_OTHER,
+  METRO_UNPIN_RESULT_ERROR,
+  METRO_PIN_STATE_LIMIT
+};
+
 // Contains information about the currently displayed tab in metro mode.
 struct CurrentTabInfo {
   wchar_t* title;
   wchar_t* url;
 };
-
-// The types of exports in metro_driver.dll.
-typedef HRESULT (*ActivateApplicationFn)(const wchar_t*);
-
-// The names of the exports in metro_driver.dll.
-BASE_EXPORT extern const char kActivateApplication[];
 
 // Returns the handle to the metro dll loaded in the process. A NULL return
 // indicates that the metro dll was not loaded in the process.
@@ -54,6 +71,21 @@ BASE_EXPORT HMODULE GetMetroModule();
 // Returns true if this process is running as an immersive program
 // in Windows Metro mode.
 BASE_EXPORT bool IsMetroProcess();
+
+// Returns true if the process identified by the handle passed in is an
+// immersive (Metro) process.
+BASE_EXPORT bool IsProcessImmersive(HANDLE process);
+
+// Returns true if this process is running under Text Services Framework (TSF)
+// and browser must be TSF-aware.
+BASE_EXPORT bool IsTSFAwareRequired();
+
+// Sets browser to use Text Services Framework (TSF) regardless of process
+// status. On Windows 8, this function also disables CUAS (Cicero Unaware
+// Application Support) to emulate Windows Metro mode in terms of IME
+// functionality. This should be beneficial in QA process because on can test
+// IME functionality in Windows 8 desktop mode.
+BASE_EXPORT void SetForceToUseTSF();
 
 // Allocates and returns the destination string via the LocalAlloc API after
 // copying the src to it.
@@ -66,6 +98,43 @@ BASE_EXPORT bool IsTouchEnabled();
 // feature is available on Windows Vista and beyond.
 // This function should ideally be called on the UI thread.
 BASE_EXPORT bool IsParentalControlActivityLoggingOn();
+
+// Returns the type of launch and the activation params. For example if the
+// the launch is for METRO_PROTOCOL then the params is a url.
+BASE_EXPORT MetroLaunchType GetMetroLaunchParams(string16* params);
+
+// Handler function for the buttons on a metro dialog box
+typedef void (*MetroDialogButtonPressedHandler)();
+
+// Handler function invoked when a metro style notification is clicked.
+typedef void (*MetroNotificationClickedHandler)(const wchar_t* context);
+
+// Function to display metro style notifications.
+typedef void (*MetroNotification)(const char* origin_url,
+                                  const char* icon_url,
+                                  const wchar_t* title,
+                                  const wchar_t* body,
+                                  const wchar_t* display_source,
+                                  const char* notification_id,
+                                  MetroNotificationClickedHandler handler,
+                                  const wchar_t* handler_context);
+
+// Callback for UMA invoked by Metro Pin and UnPin functions after user gesture.
+typedef base::Callback<void(MetroSecondaryTilePinUmaResult)>
+    MetroPinUmaResultCallback;
+
+// Function to pin a site-specific tile (bookmark) to the start screen.
+typedef void (*MetroPinToStartScreen)(
+    const string16& tile_id,
+    const string16& title,
+    const string16& url,
+    const FilePath& logo_path,
+    const MetroPinUmaResultCallback& callback);
+
+// Function to un-pin a site-specific tile (bookmark) from the start screen.
+typedef void (*MetroUnPinFromStartScreen)(
+    const string16& title_id,
+    const MetroPinUmaResultCallback& callback);
 
 }  // namespace win
 }  // namespace base

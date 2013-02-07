@@ -10,6 +10,7 @@
 #include <set>
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/rcheck.h"
 
@@ -78,8 +79,10 @@ bool BufferReader::Read4sInto8s(int64* v) {
 }
 
 
-BoxReader::BoxReader(const uint8* buf, const int size)
+BoxReader::BoxReader(const uint8* buf, const int size,
+                     const LogCB& log_cb)
     : BufferReader(buf, size),
+      log_cb_(log_cb),
       type_(FOURCC_NULL),
       version_(0),
       flags_(0),
@@ -95,28 +98,69 @@ BoxReader::~BoxReader() {
   }
 }
 
+// static
 BoxReader* BoxReader::ReadTopLevelBox(const uint8* buf,
                                       const int buf_size,
+                                      const LogCB& log_cb,
                                       bool* err) {
-  BoxReader* reader = new BoxReader(buf, buf_size);
-  if (reader->ReadHeader(err) && reader->size() <= buf_size) {
-    return reader;
+  scoped_ptr<BoxReader> reader(new BoxReader(buf, buf_size, log_cb));
+  if (!reader->ReadHeader(err))
+    return NULL;
+
+  if (!IsValidTopLevelBox(reader->type(), log_cb)) {
+    *err = true;
+    return NULL;
   }
-  delete reader;
+
+  if (reader->size() <= buf_size)
+    return reader.release();
+
   return NULL;
 }
 
 // static
 bool BoxReader::StartTopLevelBox(const uint8* buf,
                                  const int buf_size,
+                                 const LogCB& log_cb,
                                  FourCC* type,
                                  int* box_size,
                                  bool* err) {
-  BoxReader reader(buf, buf_size);
+  BoxReader reader(buf, buf_size, log_cb);
   if (!reader.ReadHeader(err)) return false;
+  if (!IsValidTopLevelBox(reader.type(), log_cb)) {
+    *err = true;
+    return false;
+  }
   *type = reader.type();
   *box_size = reader.size();
   return true;
+}
+
+// static
+bool BoxReader::IsValidTopLevelBox(const FourCC& type,
+                                   const LogCB& log_cb) {
+  switch (type) {
+    case FOURCC_FTYP:
+    case FOURCC_PDIN:
+    case FOURCC_MOOV:
+    case FOURCC_MOOF:
+    case FOURCC_MFRA:
+    case FOURCC_MDAT:
+    case FOURCC_FREE:
+    case FOURCC_SKIP:
+    case FOURCC_META:
+    case FOURCC_MECO:
+    case FOURCC_STYP:
+    case FOURCC_SIDX:
+    case FOURCC_SSIX:
+    case FOURCC_PRFT:
+      return true;
+    default:
+      // Hex is used to show nonprintable characters and aid in debugging
+      MEDIA_LOG(log_cb) << "Unrecognized top-level box type 0x"
+                        << std::hex << type;
+      return false;
+  }
 }
 
 bool BoxReader::ScanChildren() {
@@ -124,10 +168,8 @@ bool BoxReader::ScanChildren() {
   scanned_ = true;
 
   bool err = false;
-  // TODO(strobe): Check or correct for multimap not inserting elements in
-  // consistent order.
   while (pos() < size()) {
-    BoxReader child(&buf_[pos_], size_ - pos_);
+    BoxReader child(&buf_[pos_], size_ - pos_, log_cb_);
     if (!child.ReadHeader(&err)) break;
 
     children_.insert(std::pair<FourCC, BoxReader>(child.type(), child));

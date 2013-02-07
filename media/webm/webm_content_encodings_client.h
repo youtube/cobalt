@@ -7,9 +7,11 @@
 
 #include <vector>
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 #include "media/webm/webm_content_encodings.h"
 #include "media/webm/webm_parser.h"
 
@@ -20,7 +22,7 @@ typedef std::vector<ContentEncoding*> ContentEncodings;
 // Parser for WebM ContentEncodings element.
 class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
  public:
-  WebMContentEncodingsClient();
+  explicit WebMContentEncodingsClient(const LogCB& log_cb);
   virtual ~WebMContentEncodingsClient();
 
   const ContentEncodings& content_encodings() const;
@@ -32,6 +34,7 @@ class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
   virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
 
  private:
+  LogCB log_cb_;
   scoped_ptr<ContentEncoding> cur_content_encoding_;
   bool content_encryption_encountered_;
   ContentEncodings content_encodings_;

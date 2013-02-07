@@ -8,11 +8,19 @@
 #include "base/callback.h"
 #include "base/md5.h"
 #include "media/base/buffers.h"
+#include "ui/gfx/rect.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
 class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
+  enum {
+    kFrameSizeAlignment = 16,
+    kFrameSizePadding = 16,
+    kFrameAddressAlignment = 32
+  };
+
   enum {
     kMaxPlanes = 3,
 
@@ -39,52 +47,96 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 
   // Creates a new frame in system memory with given parameters. Buffers for
   // the frame are allocated but not initialized.
+  // |coded_size| is the width and height of the frame data in pixels.
+  // |visible_rect| is the visible portion of |coded_size|, after cropping (if
+  // any) is applied.
+  // |natural_size| is the width and height of the frame when the frame's aspect
+  // ratio is applied to |visible_rect|.
   static scoped_refptr<VideoFrame> CreateFrame(
       Format format,
-      size_t width,
-      size_t height,
-      base::TimeDelta timestamp,
-      base::TimeDelta duration);
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      base::TimeDelta timestamp);
 
   // Call prior to CreateFrame to ensure validity of frame configuration. Called
   // automatically by VideoDecoderConfig::IsValidConfig().
   // TODO(scherkus): VideoDecoderConfig shouldn't call this method
-  static bool IsValidConfig(
-      Format format,
-      size_t width,
-      size_t height);
+  static bool IsValidConfig(Format format, const gfx::Size& coded_size,
+                            const gfx::Rect& visible_rect,
+                            const gfx::Size& natural_size);
+
+  // CB to write pixels from the texture backing this frame into the
+  // |void*| parameter.
+  typedef base::Callback<void(void*)> ReadPixelsCB;
 
   // Wraps a native texture of the given parameters with a VideoFrame.  When the
-  // frame is destroyed |no_longer_needed.Run()| will be called.
+  // frame is destroyed |no_longer_needed_cb.Run()| will be called.
+  // |coded_size| is the width and height of the frame data in pixels.
+  // |visible_rect| is the visible portion of |coded_size|, after cropping (if
+  // any) is applied.
+  // |natural_size| is the width and height of the frame when the frame's aspect
+  // ratio is applied to |visible_rect|.
+  // |read_pixels_cb| may be used to do (slow!) readbacks from the
+  // texture to main memory.
   static scoped_refptr<VideoFrame> WrapNativeTexture(
       uint32 texture_id,
       uint32 texture_target,
-      size_t width,
-      size_t height,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
       base::TimeDelta timestamp,
-      base::TimeDelta duration,
-      const base::Closure& no_longer_needed);
+      const ReadPixelsCB& read_pixels_cb,
+      const base::Closure& no_longer_needed_cb);
 
-  // Creates a frame with format equals to VideoFrame::EMPTY, width, height
-  // timestamp and duration are all 0.
+  // Read pixels from the native texture backing |*this| and write
+  // them to |*pixels| as BGRA.  |pixels| must point to a buffer at
+  // least as large as 4*visible_rect().width()*visible_rect().height().
+  void ReadPixelsFromNativeTexture(void* pixels);
+
+  // Wraps external YUV data of the given parameters with a VideoFrame.
+  // The returned VideoFrame does not own the data passed in. When the frame
+  // is destroyed |no_longer_needed_cb.Run()| will be called.
+  static scoped_refptr<VideoFrame> WrapExternalYuvData(
+      Format format,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      int32 y_stride,
+      int32 u_stride,
+      int32 v_stride,
+      uint8* y_data,
+      uint8* u_data,
+      uint8* v_data,
+      base::TimeDelta timestamp,
+      const base::Closure& no_longer_needed_cb);
+
+  // Creates a frame with format equals to VideoFrame::EMPTY, width, height,
+  // and timestamp are all 0.
   static scoped_refptr<VideoFrame> CreateEmptyFrame();
 
-  // Allocates YV12 frame based on |width| and |height|, and sets its data to
-  // the YUV equivalent of RGB(0,0,0).
-  static scoped_refptr<VideoFrame> CreateBlackFrame(int width, int height);
+  // Allocates YV12 frame based on |size|, and sets its data to the YUV(y,u,v).
+  static scoped_refptr<VideoFrame> CreateColorFrame(
+      const gfx::Size& size,
+      uint8 y, uint8 u, uint8 v,
+      base::TimeDelta timestamp);
+
+  // Allocates YV12 frame based on |size|, and sets its data to the YUV
+  // equivalent of RGB(0,0,0).
+  static scoped_refptr<VideoFrame> CreateBlackFrame(const gfx::Size& size);
 
   Format format() const { return format_; }
 
-  size_t width() const { return width_; }
-
-  size_t height() const { return height_; }
+  const gfx::Size& coded_size() const { return coded_size_; }
+  const gfx::Rect& visible_rect() const { return visible_rect_; }
+  const gfx::Size& natural_size() const { return natural_size_; }
 
   int stride(size_t plane) const;
 
   // Returns the number of bytes per row and number of rows for a given plane.
   //
   // As opposed to stride(), row_bytes() refers to the bytes representing
-  // visible pixels.
+  // frame data scanlines (coded_size.width() pixels, without stride padding).
   int row_bytes(size_t plane) const;
   int rows(size_t plane) const;
 
@@ -109,13 +161,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     timestamp_ = timestamp;
   }
 
-  base::TimeDelta GetDuration() const {
-    return duration_;
-  }
-  void SetDuration(const base::TimeDelta& duration) {
-    duration_ = duration;
-  }
-
   // Used to keep a running hash of seen frames.  Expects an initialized MD5
   // context.  Calls MD5Update with the context and the contents of the frame.
   void HashFrameForTesting(base::MD5Context* context);
@@ -124,10 +169,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   friend class base::RefCountedThreadSafe<VideoFrame>;
   // Clients must use the static CreateFrame() method to create a new frame.
   VideoFrame(Format format,
-             size_t video_width,
-             size_t video_height,
-             base::TimeDelta timestamp,
-             base::TimeDelta duration);
+             const gfx::Size& coded_size,
+             const gfx::Rect& visible_rect,
+             const gfx::Size& natural_size,
+             base::TimeDelta timestamp);
   virtual ~VideoFrame();
 
   // Used internally by CreateFrame().
@@ -140,9 +185,15 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Frame format.
   Format format_;
 
-  // Width and height of surface.
-  size_t width_;
-  size_t height_;
+  // Width and height of the video frame.
+  gfx::Size coded_size_;
+
+  // Width, height, and offsets of the visible portion of the video frame.
+  gfx::Rect visible_rect_;
+
+  // Width and height of the visible portion of the video frame with aspect
+  // ratio taken into account.
+  gfx::Size natural_size_;
 
   // Array of strides for each plane, typically greater or equal to the width
   // of the surface divided by the horizontal sampling period.  Note that
@@ -155,10 +206,11 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Native texture ID, if this is a NATIVE_TEXTURE frame.
   uint32 texture_id_;
   uint32 texture_target_;
-  base::Closure texture_no_longer_needed_;
+  ReadPixelsCB read_pixels_cb_;
+
+  base::Closure no_longer_needed_cb_;
 
   base::TimeDelta timestamp_;
-  base::TimeDelta duration_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(VideoFrame);
 };

@@ -146,7 +146,7 @@ class FetcherClient {
 
   void FinishTestAllowCleanup() {
     fetcher_->FinishTest();
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   TestCompletionCallback callback_;
@@ -203,7 +203,7 @@ TEST(DhcpProxyScriptAdapterFetcher, CancelWhileDhcp) {
   FetcherClient client;
   client.RunTest();
   client.fetcher_->Cancel();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_FALSE(client.fetcher_->DidFinish());
   ASSERT_TRUE(client.fetcher_->WasCancelled());
   EXPECT_EQ(ERR_ABORTED, client.fetcher_->GetResult());
@@ -221,10 +221,10 @@ TEST(DhcpProxyScriptAdapterFetcher, CancelWhileFetcher) {
   int max_loops = 4;
   while (!client.fetcher_->IsWaitingForFetcher() && max_loops--) {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
   client.fetcher_->Cancel();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_FALSE(client.fetcher_->DidFinish());
   ASSERT_TRUE(client.fetcher_->WasCancelled());
   EXPECT_EQ(ERR_ABORTED, client.fetcher_->GetResult());

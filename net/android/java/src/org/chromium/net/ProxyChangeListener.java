@@ -75,9 +75,15 @@ public class ProxyChangeListener {
     }
 
     private void proxySettingsChanged() {
-        if (mNativePtr == 0)
+        if (!sEnabled) {
             return;
-
+        }
+        if (mDelegate != null) {
+          mDelegate.proxySettingsChanged();
+        }
+        if (mNativePtr == 0) {
+          return;
+        }
         // Note that this code currently runs on a MESSAGE_LOOP_UI thread, but
         // the C++ code must run the callbacks on the network thread.
         nativeProxySettingsChanged(mNativePtr);

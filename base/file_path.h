@@ -53,6 +53,8 @@
 // between char[]-based pathnames on POSIX systems and wchar_t[]-based
 // pathnames on Windows.
 //
+// Paths can't contain NULs as a precaution agaist premature truncation.
+//
 // Because a FilePath object should not be instantiated at the global scope,
 // instead, use a FilePath::CharType[] and initialize it with
 // FILE_PATH_LITERAL.  At runtime, a FilePath object can be created from the
@@ -343,7 +345,7 @@ class BASE_EXPORT FilePath {
   // AsUTF8Unsafe() for details.
   static FilePath FromUTF8Unsafe(const std::string& utf8);
 
-  void WriteToPickle(Pickle* pickle);
+  void WriteToPickle(Pickle* pickle) const;
   bool ReadFromPickle(PickleIterator* iter);
 
   // Normalize all path separators to backslash on Windows
@@ -395,6 +397,9 @@ class BASE_EXPORT FilePath {
 
   StringType path_;
 };
+
+// This is required by googletest to print a readable output on test failures.
+BASE_EXPORT extern void PrintTo(const FilePath& path, std::ostream* out);
 
 // Macros for string literal initialization of FilePath::CharType[], and for
 // using a FilePath::CharType[] in a printf-style format string.

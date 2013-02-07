@@ -11,57 +11,12 @@
 
 namespace net {
 
-namespace {
-
-// Check if particular nameserver address is rogue. See:
-// http://www.fbi.gov/news/stories/2011/november/malware_110911/DNS-changer-malware.pdf
-bool CheckRogueDnsAddress(const IPAddressNumber& address) {
-  const struct Bounds {
-    const unsigned char lower[4];  // inclusive
-    const unsigned char upper[4];  // exclusive
-  } cases[] = {
-    { { '\x55', '\xFF', '\x70', '\x00' },    // 85.255.112.0
-      { '\x55', '\xFF', '\x80', '\x00' } },  // 85.255.128.0
-    { { '\x43', '\xD2', '\x00', '\x00' },    // 67.210.0.0
-      { '\x43', '\xD2', '\x10', '\x00' } },  // 67.210.16.0
-    { { '\x5D', '\xBC', '\xA0', '\x00' },    // 93.188.160.0
-      { '\x5D', '\xBC', '\xA8', '\x00' } },  // 93.188.168.0
-    { { '\x4D', '\x43', '\x53', '\x00' },    // 77.67.83.0
-      { '\x4D', '\x43', '\x54', '\x00' } },  // 77.67.84.0
-    { { '\x40', '\x1C', '\xB2', '\x00' },    // 64.28.178.0
-      { '\x40', '\x1C', '\xC0', '\x00' } },  // 64.28.192.0
-  };
-  for (unsigned i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    const Bounds& bounds = cases[i];
-    IPAddressNumber lower(bounds.lower, bounds.lower + 4);
-    IPAddressNumber upper(bounds.upper, bounds.upper + 4);
-    if (address.size() == kIPv6AddressSize) {
-      lower = ConvertIPv4NumberToIPv6Number(lower);
-      upper = ConvertIPv4NumberToIPv6Number(upper);
-    }
-    if ((lower <= address) && (address < upper))
-      return true;
-  }
-  return false;
-}
-
-void CheckRogueDnsConfig(const DnsConfig& config) {
-  for (size_t i = 0; i < config.nameservers.size(); ++i) {
-    if (CheckRogueDnsAddress(config.nameservers[i].address())) {
-      UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", true);
-      return;
-    }
-  }
-  UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", false);
-}
-
-}  // namespace
-
-// Default values are taken from glibc resolv.h.
+// Default values are taken from glibc resolv.h except timeout which is set to
+// |kDnsTimeoutSeconds|.
 DnsConfig::DnsConfig()
     : append_to_multi_label_name(true),
       ndots(1),
-      timeout(base::TimeDelta::FromSeconds(5)),
+      timeout(base::TimeDelta::FromSeconds(kDnsTimeoutSeconds)),
       attempts(2),
       rotate(false),
       edns0(false) {}
@@ -120,34 +75,30 @@ base::Value* DnsConfig::ToValue() const {
 
 
 DnsConfigService::DnsConfigService()
-    : checked_rogue_dns_(false),
+    : watch_failed_(false),
       have_config_(false),
       have_hosts_(false),
       need_update_(false),
       last_sent_empty_(true) {}
 
 DnsConfigService::~DnsConfigService() {
-  // Must always clean up.
-  NetworkChangeNotifier::RemoveDNSObserver(this);
 }
 
-void DnsConfigService::Read(const CallbackType& callback) {
+void DnsConfigService::ReadConfig(const CallbackType& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(!callback.is_null());
   DCHECK(callback_.is_null());
   callback_ = callback;
-  OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
+  ReadNow();
 }
 
-void DnsConfigService::Watch(const CallbackType& callback) {
+void DnsConfigService::WatchConfig(const CallbackType& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(!callback.is_null());
   DCHECK(callback_.is_null());
-  NetworkChangeNotifier::AddDNSObserver(this);
   callback_ = callback;
-  if (NetworkChangeNotifier::IsWatchingDNS())
-    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
-  // else: Wait until signal before reading.
+  watch_failed_ = !StartWatching();
+  ReadNow();
 }
 
 void DnsConfigService::InvalidateConfig() {
@@ -195,7 +146,7 @@ void DnsConfigService::OnConfigRead(const DnsConfig& config) {
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.ConfigChange", changed);
 
   have_config_ = true;
-  if (have_hosts_)
+  if (have_hosts_ || watch_failed_)
     OnCompleteConfig();
 }
 
@@ -215,7 +166,7 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.HostsChange", changed);
 
   have_hosts_ = true;
-  if (have_config_)
+  if (have_config_ || watch_failed_)
     OnCompleteConfig();
 }
 
@@ -260,13 +211,14 @@ void DnsConfigService::OnCompleteConfig() {
   timer_.Stop();
   if (!need_update_)
     return;
-  if (!checked_rogue_dns_ && dns_config_.IsValid()) {
-    CheckRogueDnsConfig(dns_config_);
-    checked_rogue_dns_ = true;
-  }
   need_update_ = false;
   last_sent_empty_ = false;
-  callback_.Run(dns_config_);
+  if (watch_failed_) {
+    // If a watch failed, the config may not be accurate, so report empty.
+    callback_.Run(DnsConfig());
+  } else {
+    callback_.Run(dns_config_);
+  }
 }
 
 }  // namespace net

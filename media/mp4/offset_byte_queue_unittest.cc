@@ -48,10 +48,6 @@ TEST_F(OffsetByteQueueTest, TestPeekAt) {
   const uint8* buf;
   int size;
 
-  queue_->PeekAt(128, &buf, &size);
-  EXPECT_EQ(NULL, buf);
-  EXPECT_EQ(0, size);
-
   queue_->PeekAt(400, &buf, &size);
   EXPECT_EQ(queue_->tail() - 400, size);
   EXPECT_EQ(400 - 256, buf[0]);

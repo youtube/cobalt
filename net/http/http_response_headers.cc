@@ -99,34 +99,6 @@ bool ShouldUpdateHeader(const std::string::const_iterator& name_begin,
   return true;
 }
 
-// Functions for histogram initialization.  The code 0 is put in the
-// response map to track response codes that are invalid.
-// TODO(gavinp): Greatly prune the collected codes once we learn which
-// ones are not sent in practice, to reduce upload size & memory use.
-
-enum {
-  HISTOGRAM_MIN_HTTP_RESPONSE_CODE = 100,
-  HISTOGRAM_MAX_HTTP_RESPONSE_CODE = 599,
-};
-
-std::vector<int> GetAllHttpResponseCodes() {
-  std::vector<int> codes;
-  codes.reserve(
-      HISTOGRAM_MAX_HTTP_RESPONSE_CODE - HISTOGRAM_MIN_HTTP_RESPONSE_CODE + 2);
-  codes.push_back(0);
-  for (int i = HISTOGRAM_MIN_HTTP_RESPONSE_CODE;
-       i <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE; ++i)
-    codes.push_back(i);
-  return codes;
-}
-
-int MapHttpResponseCode(int code) {
-  if (HISTOGRAM_MIN_HTTP_RESPONSE_CODE <= code &&
-      code <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE)
-    return code;
-  return 0;
-}
-
 void CheckDoesNotHaveEmbededNulls(const std::string& str) {
   // Care needs to be taken when adding values to the raw headers string to
   // make sure it does not contain embeded NULLs. Any embeded '\0' may be
@@ -154,7 +126,7 @@ HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
   Parse(raw_input);
 
   // The most important thing to do with this histogram is find out
-  // the existence of unusual HTTP response codes.  As it happens
+  // the existence of unusual HTTP status codes.  As it happens
   // right now, there aren't double-constructions of response headers
   // using this constructor, so our counts should also be accurate,
   // without instantiating the histogram in two places.  It is also
@@ -164,11 +136,12 @@ HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
   // HttpResponseHeader that was serialized, and initialization of the
   // new object from that pickle.
   UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.HttpResponseCode",
-                                   MapHttpResponseCode(response_code_),
+                                   HttpUtil::MapStatusCodeForHistogram(
+                                       response_code_),
                                    // Note the third argument is only
                                    // evaluated once, see macro
                                    // definition for details.
-                                   GetAllHttpResponseCodes());
+                                   HttpUtil::GetStatusCodesForHistogram());
 }
 
 HttpResponseHeaders::HttpResponseHeaders(const Pickle& pickle,
@@ -311,42 +284,6 @@ void HttpResponseHeaders::MergeWithHeaders(const std::string& raw_headers,
   Parse(new_raw_headers);
 }
 
-void HttpResponseHeaders::MergeWithHeadersWithValue(
-    const std::string& raw_headers,
-    const std::string& header_to_remove_name,
-    const std::string& header_to_remove_value) {
-  std::string header_to_remove_name_lowercase(header_to_remove_name);
-  StringToLowerASCII(&header_to_remove_name_lowercase);
-
-  std::string new_raw_headers(raw_headers);
-  for (size_t i = 0; i < parsed_.size(); ++i) {
-    DCHECK(!parsed_[i].is_continuation());
-
-    // Locate the start of the next header.
-    size_t k = i;
-    while (++k < parsed_.size() && parsed_[k].is_continuation()) {}
-    --k;
-
-    std::string name(parsed_[i].name_begin, parsed_[i].name_end);
-    StringToLowerASCII(&name);
-    std::string value(parsed_[i].value_begin, parsed_[i].value_end);
-    if (name != header_to_remove_name_lowercase ||
-        value != header_to_remove_value) {
-      // It's ok to preserve this header in the final result.
-      new_raw_headers.append(parsed_[i].name_begin, parsed_[k].value_end);
-      new_raw_headers.push_back('\0');
-    }
-
-    i = k;
-  }
-  new_raw_headers.push_back('\0');
-
-  // Make this object hold the new data.
-  raw_headers_.clear();
-  parsed_.clear();
-  Parse(new_raw_headers);
-}
-
 void HttpResponseHeaders::RemoveHeader(const std::string& name) {
   // Copy up to the null byte.  This just copies the status line.
   std::string new_raw_headers(raw_headers_.c_str());
@@ -359,13 +296,39 @@ void HttpResponseHeaders::RemoveHeader(const std::string& name) {
   MergeWithHeaders(new_raw_headers, to_remove);
 }
 
-void HttpResponseHeaders::RemoveHeaderWithValue(const std::string& name,
-                                                const std::string& value) {
-  // Copy up to the null byte.  This just copies the status line.
-  std::string new_raw_headers(raw_headers_.c_str());
+void HttpResponseHeaders::RemoveHeaderLine(const std::string& name,
+                                           const std::string& value) {
+  std::string name_lowercase(name);
+  StringToLowerASCII(&name_lowercase);
+
+  std::string new_raw_headers(GetStatusLine());
   new_raw_headers.push_back('\0');
 
-  MergeWithHeadersWithValue(new_raw_headers, name, value);
+  new_raw_headers.reserve(raw_headers_.size());
+
+  void* iter = NULL;
+  std::string old_header_name;
+  std::string old_header_value;
+  while (EnumerateHeaderLines(&iter, &old_header_name, &old_header_value)) {
+    std::string old_header_name_lowercase(name);
+    StringToLowerASCII(&old_header_name_lowercase);
+
+    if (name_lowercase == old_header_name_lowercase &&
+        value == old_header_value)
+      continue;
+
+    new_raw_headers.append(old_header_name);
+    new_raw_headers.push_back(':');
+    new_raw_headers.push_back(' ');
+    new_raw_headers.append(old_header_value);
+    new_raw_headers.push_back('\0');
+  }
+  new_raw_headers.push_back('\0');
+
+  // Make this object hold the new data.
+  raw_headers_.clear();
+  parsed_.clear();
+  Parse(new_raw_headers);
 }
 
 void HttpResponseHeaders::AddHeader(const std::string& header) {
@@ -1134,7 +1097,18 @@ bool HttpResponseHeaders::GetTimeValuedHeader(const std::string& name,
   if (!EnumerateHeader(NULL, name, &value))
     return false;
 
-  return Time::FromString(value.c_str(), result);
+  // When parsing HTTP dates it's beneficial to default to GMT because:
+  // 1. RFC2616 3.3.1 says times should always be specified in GMT
+  // 2. Only counter-example incorrectly appended "UTC" (crbug.com/153759)
+  // 3. When adjusting cookie expiration times for clock skew
+  //    (crbug.com/135131) this better matches our cookie expiration
+  //    time parser which ignores timezone specifiers and assumes GMT.
+  // 4. This is exactly what Firefox does.
+  // TODO(pauljensen): The ideal solution would be to return false if the
+  // timezone could not be understood so as to avoid makeing other calculations
+  // based on an incorrect time.  This would require modifying the time
+  // library or duplicating the code. (http://crbug.com/158327)
+  return Time::FromUTCString(value.c_str(), result);
 }
 
 bool HttpResponseHeaders::IsKeepAlive() const {
@@ -1177,9 +1151,14 @@ bool HttpResponseHeaders::HasStrongValidators() const {
 // From RFC 2616:
 // Content-Length = "Content-Length" ":" 1*DIGIT
 int64 HttpResponseHeaders::GetContentLength() const {
+  return GetInt64HeaderValue("content-length");
+}
+
+int64 HttpResponseHeaders::GetInt64HeaderValue(
+    const std::string& header) const {
   void* iter = NULL;
   std::string content_length_val;
-  if (!EnumerateHeader(&iter, "content-length", &content_length_val))
+  if (!EnumerateHeader(&iter, header, &content_length_val))
     return -1;
 
   if (content_length_val.empty())
@@ -1334,10 +1313,10 @@ Value* HttpResponseHeaders::NetLogCallback(
 bool HttpResponseHeaders::FromNetLogParam(
     const base::Value* event_param,
     scoped_refptr<HttpResponseHeaders>* http_response_headers) {
-  http_response_headers->release();
+  *http_response_headers = NULL;
 
-  const base::DictionaryValue* dict;
-  base::ListValue* header_list;
+  const base::DictionaryValue* dict = NULL;
+  const base::ListValue* header_list = NULL;
 
   if (!event_param ||
       !event_param->GetAsDictionary(&dict) ||

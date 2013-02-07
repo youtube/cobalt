@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Implementation of AudioOutputStream for Windows using Windows Core Audio
 // WASAPI for low latency rendering.
 //
@@ -32,29 +32,6 @@
 //    o Endpoint buffer (~20 ms to ensure glitch-free rendering).
 // - Note that, if the user selects a packet size of e.g. 100 ms, the total
 //   delay will be approximately 115 ms (10 + 5 + 100).
-// - Supports device events using the IMMNotificationClient Interface. If
-//   streaming has started, a so-called stream switch will take place in the
-//   following situations:
-//    o The user enables or disables an audio endpoint device from Device
-//      Manager or from the Windows multimedia control panel, Mmsys.cpl.
-//    o The user adds an audio adapter to the system or removes an audio
-//      adapter from the system.
-//    o The user plugs an audio endpoint device into an audio jack with
-//      jack-presence detection, or removes an audio endpoint device from
-//      such a jack.
-//    o The user changes the device role that is assigned to a device.
-//    o The value of a property of a device changes.
-//   Practical/typical example: A user has two audio devices A and B where
-//   A is a built-in device configured as Default Communication and B is a
-//   USB device set as Default device. Audio rendering starts and audio is
-//   played through the device B since the eConsole role is used by the audio
-//   manager in Chrome today. If the user now removes the USB device (B), it
-//   will be detected and device A will instead be defined as the new default
-//   device. Rendering will automatically stop, all resources will be released
-//   and a new session will be initialized and started using device A instead.
-//   The net effect for the user is that audio will automatically switch from
-//   device B to device A. Same thing will happen if the user now re-inserts
-//   the USB device again.
 //
 // Implementation notes:
 //
@@ -72,13 +49,12 @@
 //   supported format (X) and the new default device - to which we would like
 //   to switch - uses another format (Y), which is not supported given the
 //   configured audio parameters.
+// - The audio device must be opened with the same number of channels as it
+//   supports natively (see HardwareChannelCount()) otherwise Open() will fail.
+// - Support for 8-bit audio has not yet been verified and tested.
 //
 // Core Audio API details:
 //
-// - CoInitializeEx() is called on the creating thread and on the internal
-//   capture thread. Each thread's concurrency model and apartment is set
-//   to multi-threaded (MTA). CHECK() is called to ensure that we crash if
-//   CoInitializeEx(MTA) fails.
 // - The public API methods (Open(), Start(), Stop() and Close()) must be
 //   called on constructing thread. The reason is that we want to ensure that
 //   the COM environment is the same for all API implementations.
@@ -95,9 +71,6 @@
 // - Audio-rendering endpoint devices can have three roles:
 //   Console (eConsole), Communications (eCommunications), and Multimedia
 //   (eMultimedia). Search for "Device Roles" on MSDN for more details.
-// - The actual stream-switch is executed on the audio-render thread but it
-//   is triggered by an internal MMDevice thread using callback methods
-//   in the IMMNotificationClient interface.
 //
 // Threading details:
 //
@@ -109,19 +82,38 @@
 //   class, and the AudioSourceCallback::OnMoreData() method will be called
 //   from this thread. Stream switching also takes place on the audio-render
 //   thread.
-// - All callback methods from the IMMNotificationClient interface will be
-//   called on a Windows-internal MMDevice thread.
 //
+// Experimental exclusive mode:
+//
+// - It is possible to open up a stream in exclusive mode by using the
+//   --enable-exclusive-audio command line flag.
+// - The internal buffering scheme is less flexible for exclusive streams.
+//   Hence, some manual tuning will be required before deciding what frame
+//   size to use. See the WinAudioOutputTest unit test for more details.
+// - If an application opens a stream in exclusive mode, the application has
+//   exclusive use of the audio endpoint device that plays the stream.
+// - Exclusive-mode should only be utilized when the lowest possible latency
+//   is important.
+// - In exclusive mode, the client can choose to open the stream in any audio
+//   format that the endpoint device supports, i.e. not limited to the device's
+//   current (default) configuration.
+// - Initial measurements on Windows 7 (HP Z600 workstation) have shown that
+//   the lowest possible latencies we can achieve on this machine are:
+//     o ~3.3333ms @ 48kHz <=> 160 audio frames per buffer.
+//     o ~3.6281ms @ 44.1kHz <=> 160 audio frames per buffer.
+// - See http://msdn.microsoft.com/en-us/library/windows/desktop/dd370844(v=vs.85).aspx
+//   for more details.
+
 #ifndef MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_
 
 #include <Audioclient.h>
-#include <audiopolicy.h>
 #include <MMDeviceAPI.h>
 
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -137,10 +129,7 @@ namespace media {
 class AudioManagerWin;
 
 // AudioOutputStream implementation using Windows Core Audio APIs.
-// The IMMNotificationClient interface enables device event notifications
-// related to changes in the status of an audio endpoint device.
-class MEDIA_EXPORT WASAPIAudioOutputStream
-    : public IMMNotificationClient,
+class MEDIA_EXPORT WASAPIAudioOutputStream :
       public AudioOutputStream,
       public base::DelegateSimpleThread::Delegate {
  public:
@@ -149,6 +138,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   WASAPIAudioOutputStream(AudioManagerWin* manager,
                           const AudioParameters& params,
                           ERole device_role);
+
   // The dtor is typically called by the AudioManager only and it is usually
   // triggered by calling AudioOutputStream::Close().
   virtual ~WASAPIAudioOutputStream();
@@ -161,44 +151,32 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   virtual void SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
 
-  // Retrieves the stream format that the audio engine uses for its internal
-  // processing/mixing of shared-mode streams.
+  // Retrieves the number of channels the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  static int HardwareChannelCount();
+
+  // Retrieves the channel layout the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  // Note that we convert an internal channel layout mask (see ChannelMask())
+  // into a Chrome-specific channel layout enumerator in this method, hence
+  // the match might not be perfect.
+  static ChannelLayout HardwareChannelLayout();
+
+  // Retrieves the sample rate the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
   static int HardwareSampleRate(ERole device_role);
 
-  bool started() const { return started_; }
+  // Returns AUDCLNT_SHAREMODE_EXCLUSIVE if --enable-exclusive-mode is used
+  // as command-line flag and AUDCLNT_SHAREMODE_SHARED otherwise (default).
+  static AUDCLNT_SHAREMODE GetShareMode();
+
+  bool started() const { return render_thread_.get() != NULL; }
+
+  // Returns the number of channels the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  int GetEndpointChannelCountForTesting() { return format_.Format.nChannels; }
 
  private:
-  // Implementation of IUnknown (trivial in this case). See
-  // msdn.microsoft.com/en-us/library/windows/desktop/dd371403(v=vs.85).aspx
-  // for details regarding why proper implementations of AddRef(), Release()
-  // and QueryInterface() are not needed here.
-  STDMETHOD_(ULONG, AddRef)();
-  STDMETHOD_(ULONG, Release)();
-  STDMETHOD(QueryInterface)(REFIID iid, void** object);
-
-  // Implementation of the abstract interface IMMNotificationClient.
-  // Provides notifications when an audio endpoint device is added or removed,
-  // when the state or properties of a device change, or when there is a
-  // change in the default role assigned to a device. See
-  // msdn.microsoft.com/en-us/library/windows/desktop/dd371417(v=vs.85).aspx
-  // for more details about the IMMNotificationClient interface.
-
-  // The default audio endpoint device for a particular role has changed.
-  // This method is only used for diagnostic purposes.
-  STDMETHOD(OnDeviceStateChanged)(LPCWSTR device_id, DWORD new_state);
-
-  // Indicates that the state of an audio endpoint device has changed.
-  STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role,
-                                    LPCWSTR new_default_device_id);
-
-  // These IMMNotificationClient methods are currently not utilized.
-  STDMETHOD(OnDeviceAdded)(LPCWSTR device_id) { return S_OK; }
-  STDMETHOD(OnDeviceRemoved)(LPCWSTR device_id) { return S_OK; }
-  STDMETHOD(OnPropertyValueChanged)(LPCWSTR device_id,
-                                    const PROPERTYKEY key) {
-    return S_OK;
-  }
-
   // DelegateSimpleThread::Delegate implementation.
   virtual void Run() OVERRIDE;
 
@@ -206,25 +184,21 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   void HandleError(HRESULT err);
 
   // The Open() method is divided into these sub methods.
-  HRESULT SetRenderDevice(ERole device_role);
+  HRESULT SetRenderDevice();
   HRESULT ActivateRenderDevice();
-  HRESULT GetAudioEngineStreamFormat();
   bool DesiredFormatIsSupported();
   HRESULT InitializeAudioEngine();
 
+  // Called when the device will be opened in shared mode and use the
+  // internal audio engine's mix format.
+  HRESULT SharedModeInitialization();
+
+  // Called when the device will be opened in exclusive mode and use the
+  // application specified format.
+  HRESULT ExclusiveModeInitialization();
+
   // Converts unique endpoint ID to user-friendly device name.
   std::string GetDeviceName(LPCWSTR device_id) const;
-
-  // Called on the audio render thread when the current audio stream must
-  // be re-initialized because the default audio device has changed. This
-  // method: stops the current renderer, releases and re-creates all WASAPI
-  // interfaces, creates a new IMMDevice and re-starts rendering using the
-  // new default audio device.
-  bool RestartRenderingUsingNewDefaultDevice();
-
-  // Initializes the COM library for use by the calling thread and sets the
-  // thread's concurrency model to multi-threaded.
-  base::win::ScopedCOMInitializer com_init_;
 
   // Contains the thread ID of the creating thread.
   base::PlatformThreadId creating_thread_id_;
@@ -234,18 +208,19 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Rendering is driven by this thread (which has no message loop).
   // All OnMoreData() callbacks will be called from this thread.
-  base::DelegateSimpleThread* render_thread_;
+  scoped_ptr<base::DelegateSimpleThread> render_thread_;
 
   // Contains the desired audio format which is set up at construction.
-  WAVEFORMATEX format_;
+  // Extended PCM waveform format structure based on WAVEFORMATEXTENSIBLE.
+  // Use this for multiple channel and hi-resolution PCM data.
+  WAVEFORMATPCMEX format_;
 
   // Copy of the audio format which we know the audio engine supports.
   // It is recommended to ensure that the sample rate in |format_| is identical
   // to the sample rate in |audio_engine_mix_format_|.
-  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format_;
+  base::win::ScopedCoMem<WAVEFORMATPCMEX> audio_engine_mix_format_;
 
   bool opened_;
-  bool started_;
 
   // Set to true as soon as a new default device is detected, and cleared when
   // the streaming has switched from using the old device to the new device.
@@ -276,6 +251,16 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // Defines the role that the system has assigned to an audio endpoint device.
   ERole device_role_;
 
+  // The sharing mode for the connection.
+  // Valid values are AUDCLNT_SHAREMODE_SHARED and AUDCLNT_SHAREMODE_EXCLUSIVE
+  // where AUDCLNT_SHAREMODE_SHARED is the default.
+  AUDCLNT_SHAREMODE share_mode_;
+
+  // The channel count set by the client in |params| which is provided to the
+  // constructor. The client must feed the AudioSourceCallback::OnMoreData()
+  // callback with PCM-data that contains this number of channels.
+  int client_channel_count_;
+
   // Counts the number of audio frames written to the endpoint buffer.
   UINT64 num_written_frames_;
 
@@ -303,8 +288,8 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // This event will be signaled when rendering shall stop.
   base::win::ScopedHandle stop_render_event_;
 
-  // This event will be signaled when stream switching shall take place.
-  base::win::ScopedHandle stream_switch_event_;
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(WASAPIAudioOutputStream);
 };

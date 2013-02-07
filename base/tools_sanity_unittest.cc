@@ -20,8 +20,13 @@ const base::subtle::Atomic32 kMagicValue = 42;
 
 // Helper for memory accesses that can potentially corrupt memory or cause a
 // crash during a native run.
-#ifdef ADDRESS_SANITIZER
+#if defined(ADDRESS_SANITIZER)
+#if defined(OS_IOS)
+// EXPECT_DEATH is not supported on IOS.
+#define HARMFUL_ACCESS(action,error_regexp) do { action; } while (0)
+#else
 #define HARMFUL_ACCESS(action,error_regexp) EXPECT_DEATH(action,error_regexp)
+#endif  // !OS_IOS
 #else
 #define HARMFUL_ACCESS(action,error_regexp) \
 do { if (RunningOnValgrind()) { action; } } while (0)
@@ -79,7 +84,21 @@ TEST(ToolsSanityTest, MemoryLeak) {
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
-TEST(ToolsSanityTest, AccessesToNewMemory) {
+#if defined(ADDRESS_SANITIZER) && defined(OS_IOS)
+// Because iOS doesn't support death tests, each of the following tests will
+// crash the whole program under ASan.
+#define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
+#define MAYBE_AccessesToMallocMemory DISABLED_AccessesToMallocMemory
+#define MAYBE_ArrayDeletedWithoutBraces DISABLED_ArrayDeletedWithoutBraces
+#define MAYBE_SingleElementDeletedWithBraces \
+    DISABLED_SingleElementDeletedWithBraces
+#else
+#define MAYBE_AccessesToNewMemory AccessesToNewMemory
+#define MAYBE_AccessesToMallocMemory AccessesToMallocMemory
+#define MAYBE_ArrayDeletedWithoutBraces ArrayDeletedWithoutBraces
+#define MAYBE_SingleElementDeletedWithBraces SingleElementDeletedWithBraces
+#endif
+TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
   char *foo = new char[10];
   MakeSomeErrors(foo, 10);
   delete [] foo;
@@ -87,7 +106,7 @@ TEST(ToolsSanityTest, AccessesToNewMemory) {
   HARMFUL_ACCESS(foo[5] = 0, "heap-use-after-free");
 }
 
-TEST(ToolsSanityTest, AccessesToMallocMemory) {
+TEST(ToolsSanityTest, MAYBE_AccessesToMallocMemory) {
   char *foo = reinterpret_cast<char*>(malloc(10));
   MakeSomeErrors(foo, 10);
   free(foo);
@@ -95,8 +114,8 @@ TEST(ToolsSanityTest, AccessesToMallocMemory) {
   HARMFUL_ACCESS(foo[5] = 0, "heap-use-after-free");
 }
 
-TEST(ToolsSanityTest, ArrayDeletedWithoutBraces) {
-#ifndef ADDRESS_SANITIZER
+TEST(ToolsSanityTest, MAYBE_ArrayDeletedWithoutBraces) {
+#if !defined(ADDRESS_SANITIZER)
   // This test may corrupt memory if not run under Valgrind or compiled with
   // AddressSanitizer.
   if (!RunningOnValgrind())
@@ -108,8 +127,8 @@ TEST(ToolsSanityTest, ArrayDeletedWithoutBraces) {
   delete foo;
 }
 
-TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
-#ifndef ADDRESS_SANITIZER
+TEST(ToolsSanityTest, MAYBE_SingleElementDeletedWithBraces) {
+#if !defined(ADDRESS_SANITIZER)
   // This test may corrupt memory if not run under Valgrind or compiled with
   // AddressSanitizer.
   if (!RunningOnValgrind())
@@ -122,7 +141,7 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
   delete [] foo;
 }
 
-#ifdef ADDRESS_SANITIZER
+#if defined(ADDRESS_SANITIZER)
 TEST(ToolsSanityTest, DISABLED_AddressSanitizerNullDerefCrashTest) {
   // Intentionally crash to make sure AddressSanitizer is running.
   // This test should not be ran on bots.

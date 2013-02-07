@@ -32,7 +32,7 @@ Value* BytesTransferredCallback(int byte_count,
 
 Value* SourceEventParametersCallback(const NetLog::Source source,
                                      NetLog::LogLevel /* log_level */) {
-  if (!source.is_valid())
+  if (!source.IsValid())
     return NULL;
   DictionaryValue* event_params = new DictionaryValue();
   source.AddToEventParameters(event_params);
@@ -73,6 +73,18 @@ Value* NetLogString16Callback(const char* name,
 
 }  // namespace
 
+const uint32 NetLog::Source::kInvalidId = 0;
+
+NetLog::Source::Source() : type(SOURCE_NONE), id(kInvalidId) {
+}
+
+NetLog::Source::Source(SourceType type, uint32 id) : type(type), id(id) {
+}
+
+bool NetLog::Source::IsValid() const {
+  return id != kInvalidId;
+}
+
 void NetLog::Source::AddToEventParameters(DictionaryValue* event_params) const {
   DictionaryValue* dict = new DictionaryValue();
   dict->SetInteger("type", static_cast<int>(type));
@@ -108,7 +120,7 @@ bool NetLog::Source::FromEventParameters(Value* event_params, Source* source) {
 Value* NetLog::Entry::ToValue() const {
   DictionaryValue* entry_dict(new DictionaryValue());
 
-  entry_dict->SetString("time", TickCountToString(base::TimeTicks::Now()));
+  entry_dict->SetString("time", TickCountToString(time_));
 
   // Set the entry source.
   DictionaryValue* source_dict = new DictionaryValue();
@@ -140,11 +152,13 @@ NetLog::Entry::Entry(
     EventType type,
     Source source,
     EventPhase phase,
+    base::TimeTicks time,
     const ParametersCallback* parameters_callback,
     LogLevel log_level)
     : type_(type),
       source_(source),
       phase_(phase),
+      time_(time),
       parameters_callback_(parameters_callback),
       log_level_(log_level) {
 };
@@ -307,7 +321,8 @@ void NetLog::AddEntry(EventType type,
                       const Source& source,
                       EventPhase phase,
                       const NetLog::ParametersCallback* parameters_callback) {
-  Entry entry(type, source, phase, parameters_callback, GetLogLevel());
+  Entry entry(type, source, phase, base::TimeTicks::Now(),
+              parameters_callback, GetLogLevel());
   OnAddEntry(entry);
 }
 

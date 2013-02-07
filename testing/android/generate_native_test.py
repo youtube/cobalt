@@ -18,7 +18,6 @@ import logging
 import optparse
 import os
 import re
-import shutil
 import subprocess
 import sys
 
@@ -52,9 +51,10 @@ class NativeTestApkGenerator(object):
                       'native_test_apk.xml',
                       'res/values/strings.xml']
 
-  def __init__(self, native_library, jars, output_directory, target_abi):
+  def __init__(self, native_library, strip_binary, output_directory,
+               target_abi):
     self._native_library = native_library
-    self._jars = jars
+    self._strip_binary = strip_binary
     self._output_directory = os.path.abspath(output_directory)
     self._target_abi = target_abi
     self._root_name = None
@@ -108,34 +108,23 @@ class NativeTestApkGenerator(object):
       dest = dest.replace('replaceme', self._root_name)  # update the filename!
       open(dest, 'w').write(contents)
 
-  def _CopyLibraryAndJars(self):
-    """Copy the shlib and jars into the apk source tree (if relevant)."""
+  def _CopyLibrary(self):
+    """Copy the shlib into the apk source tree (if relevant)."""
     if self._native_library:
       destdir = os.path.join(self._output_directory, 'libs/' + self._target_abi)
       if not os.path.exists(destdir):
         os.makedirs(destdir)
       dest = os.path.join(destdir, os.path.basename(self._native_library))
       logging.warn('strip %s --> %s', self._native_library, dest)
-      strip = os.environ['STRIP']
       cmd_helper.RunCmd(
-          [strip, '--strip-unneeded', self._native_library, '-o', dest])
-    if self._jars:
-      destdir = os.path.join(self._output_directory, 'java/libs')
-      if not os.path.exists(destdir):
-        os.makedirs(destdir)
-      for jar in self._jars:
-        dest = os.path.join(destdir, os.path.basename(jar))
-        logging.warn('%s --> %s', jar, dest)
-        shutil.copyfile(jar, dest)
+          [self._strip_binary, '--strip-unneeded', self._native_library, '-o',
+           dest])
 
-  def CreateBundle(self, ant_compile):
+  def CreateBundle(self):
     """Create the apk bundle source and assemble components."""
-    if not ant_compile:
-      self._SOURCE_FILES.append('Android.mk')
-      self._REPLACEME_FILES.append('Android.mk')
     self._CopyTemplateFilesAndClearDir()
     self._ReplaceStrings()
-    self._CopyLibraryAndJars()
+    self._CopyLibrary()
 
   def Compile(self, ant_args):
     """Build the generated apk with ant.
@@ -145,7 +134,7 @@ class NativeTestApkGenerator(object):
     """
     cmd = ['ant']
     if ant_args:
-      cmd.append(ant_args)
+      cmd.extend(ant_args)
     cmd.append("-DAPP_ABI=" + self._target_abi)
     cmd.extend(['-buildfile',
                 os.path.join(self._output_directory, 'native_test_apk.xml')])
@@ -156,17 +145,6 @@ class NativeTestApkGenerator(object):
     if p.returncode != 0:
       logging.error('Ant return code %d', p.returncode)
       sys.exit(p.returncode)
-
-  def CompileAndroidMk(self):
-    """Build the generated apk within Android source tree using Android.mk."""
-    try:
-      import compile_android_mk  # pylint: disable=F0401
-    except:
-      raise AssertionError('Not in Android source tree. '
-                           'Please use --ant-compile.')
-    compile_android_mk.CompileAndroidMk(self._native_library,
-                                        self._output_directory)
-
 
 def main(argv):
   parser = optparse.OptionParser()
@@ -180,11 +158,9 @@ def main(argv):
                     help='Output directory for generated files.')
   parser.add_option('--app_abi', default='armeabi',
                     help='ABI for native shared library')
-  parser.add_option('--ant-compile', action='store_true',
-                    help=('If specified, build the generated apk with ant. '
-                          'Otherwise assume compiling within the Android '
-                          'source tree using Android.mk.'))
-  parser.add_option('--ant-args',
+  parser.add_option('--strip-binary',
+                    help='Binary to use for stripping the native libraries.')
+  parser.add_option('--ant-args', action='append',
                     help='extra args for ant')
 
   options, _ = parser.parse_args(argv)
@@ -198,22 +174,27 @@ def main(argv):
   if options.verbose:
     logging.basicConfig(level=logging.DEBUG, format=' %(message)s')
 
-  # Remove all quotes from the jars string
+  if not options.strip_binary:
+    options.strip_binary = os.getenv('STRIP')
+    if not options.strip_binary:
+      raise Exception('No tool for stripping the libraries has been supplied')
+
+  # Remove all quotes from the jars string and pass the list to ant as
+  # INPUT_JARS_PATHS.
+  # TODO(cjhopman): Remove this when all targets pass the list of jars as an
+  # ant-arg directly.
   jar_list = []
   if options.jars:
     jar_list = options.jars.replace('"', '').split()
+    options.ant_args.append('-DINPUT_JARS_PATHS=' + " ".join(jar_list))
+
 
   ntag = NativeTestApkGenerator(native_library=options.native_library,
-                                jars=jar_list,
+                                strip_binary=options.strip_binary,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
-  ntag.CreateBundle(options.ant_compile)
-
-  if options.ant_compile:
-    ntag.Compile(options.ant_args)
-  else:
-    ntag.CompileAndroidMk()
-
+  ntag.CreateBundle()
+  ntag.Compile(options.ant_args)
   logging.warn('COMPLETE.')
 
 if __name__ == '__main__':

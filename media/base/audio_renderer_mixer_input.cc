@@ -16,12 +16,15 @@ AudioRendererMixerInput::AudioRendererMixerInput(
       volume_(1.0f),
       get_mixer_cb_(get_mixer_cb),
       remove_mixer_cb_(remove_mixer_cb),
-      callback_(NULL) {
+      mixer_(NULL),
+      callback_(NULL),
+      current_audio_delay_milliseconds_(0) {
 }
 
 AudioRendererMixerInput::~AudioRendererMixerInput() {
   // Mixer is no longer safe to use after |remove_mixer_cb_| has been called.
-  remove_mixer_cb_.Run(params_);
+  if (initialized_)
+    remove_mixer_cb_.Run(params_);
 }
 
 void AudioRendererMixerInput::Initialize(
@@ -36,22 +39,36 @@ void AudioRendererMixerInput::Initialize(
 
 void AudioRendererMixerInput::Start() {
   DCHECK(initialized_);
-  mixer_->AddMixerInput(this);
+  DCHECK(!playing_);
 }
 
 void AudioRendererMixerInput::Stop() {
-  DCHECK(initialized_);
-  playing_ = false;
+  // Stop() may be called at any time, if Pause() hasn't been called we need to
+  // remove our mixer input before shutdown.
+  if (!playing_)
+    return;
+
   mixer_->RemoveMixerInput(this);
+  playing_ = false;
 }
 
 void AudioRendererMixerInput::Play() {
+  DCHECK(initialized_);
+
+  if (playing_)
+    return;
+
+  mixer_->AddMixerInput(this);
   playing_ = true;
 }
 
 void AudioRendererMixerInput::Pause(bool /* flush */) {
-  // We don't care about flush since Pause() simply indicates we should send
-  // silence to AudioRendererMixer.
+  DCHECK(initialized_);
+
+  if (!playing_)
+    return;
+
+  mixer_->RemoveMixerInput(this);
   playing_ = false;
 }
 
@@ -60,8 +77,23 @@ bool AudioRendererMixerInput::SetVolume(double volume) {
   return true;
 }
 
-void AudioRendererMixerInput::GetVolume(double* volume) {
-  *volume = volume_;
+double AudioRendererMixerInput::ProvideInput(AudioBus* audio_bus,
+                                             base::TimeDelta buffer_delay) {
+  int frames_filled = callback_->Render(
+      audio_bus,
+      current_audio_delay_milliseconds_ + buffer_delay.InMilliseconds());
+
+  // AudioConverter expects unfilled frames to be zeroed.
+  if (frames_filled < audio_bus->frames()) {
+    audio_bus->ZeroFramesPartial(
+        frames_filled, audio_bus->frames() - frames_filled);
+  }
+
+  return frames_filled > 0 ? volume_ : 0;
+}
+
+void AudioRendererMixerInput::OnRenderError() {
+  callback_->OnRenderError();
 }
 
 }  // namespace media

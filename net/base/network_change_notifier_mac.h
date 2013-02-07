@@ -26,8 +26,6 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   // NetworkChangeNotifier implementation:
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
-  class DnsWatcherThread;
-
   // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
   // NetworkChangeNotifierMac's public API.
   class Forwarder : public NetworkConfigWatcherMac::Delegate {
@@ -36,24 +34,19 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
         : net_config_watcher_(net_config_watcher) {}
 
     // NetworkConfigWatcherMac::Delegate implementation:
-    virtual void Init() OVERRIDE {
-      net_config_watcher_->SetInitialConnectionType();
-    }
-    virtual void StartReachabilityNotifications() OVERRIDE {
-      net_config_watcher_->StartReachabilityNotifications();
-    }
+    virtual void Init() OVERRIDE;
+    virtual void StartReachabilityNotifications() OVERRIDE;
     virtual void SetDynamicStoreNotificationKeys(
-        SCDynamicStoreRef store) OVERRIDE {
-      net_config_watcher_->SetDynamicStoreNotificationKeys(store);
-    }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE {
-      net_config_watcher_->OnNetworkConfigChange(changed_keys);
-    }
+        SCDynamicStoreRef store) OVERRIDE;
+    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE;
 
    private:
     NetworkChangeNotifierMac* const net_config_watcher_;
     DISALLOW_COPY_AND_ASSIGN(Forwarder);
   };
+
+ private:
+  class DnsConfigServiceThread;
 
   // Methods directly called by the NetworkConfigWatcherMac::Delegate:
   void StartReachabilityNotifications();
@@ -65,6 +58,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   static void ReachabilityCallback(SCNetworkReachabilityRef target,
                                    SCNetworkConnectionFlags flags,
                                    void* notifier);
+
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsMac();
 
   // These must be constructed before config_watcher_ to ensure
   // the lock is in a valid state when Forwarder::Init is called.
@@ -78,8 +73,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   Forwarder forwarder_;
   scoped_ptr<const NetworkConfigWatcherMac> config_watcher_;
 
-  // Thread on which we can run DnsConfigWatcher, which requires TYPE_IO.
-  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
+  scoped_ptr<DnsConfigServiceThread> dns_config_service_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };

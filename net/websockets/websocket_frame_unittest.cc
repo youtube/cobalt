@@ -4,11 +4,26 @@
 
 #include "net/websockets/websocket_frame.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/command_line.h"
+#include "base/logging.h"
+#include "base/memory/aligned_memory.h"
+#include "base/string_number_conversions.h"
+#include "base/stringprintf.h"
+#include "base/time.h"
 #include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Run
+//   out/Release/net_unittests --websocket-mask-iterations=100000
+//      --gtest_filter='WebSocketFrameTestMaskBenchmark.*'
+// to benchmark the MaskWebSocketFramePayload() function.
+static const char kBenchmarkIterations[] = "websocket-mask-iterations";
+static const int kDefaultIterations = 10;
+static const int kLongPayloadSize = 1 << 16;
 
 namespace net {
 
@@ -265,6 +280,147 @@ TEST(WebSocketFrameTest, MaskPayload) {
                               frame_data.size());
     EXPECT_EQ(expected_output, frame_data);
   }
+}
+
+// Check that all combinations of alignment, frame offset and chunk size work
+// correctly for MaskWebSocketFramePayload(). This is mainly used to ensure that
+// vectorisation optimisations don't break anything. We could take a "white box"
+// approach and only test the edge cases, but since the exhaustive "black box"
+// approach runs in acceptable time, we don't have to take the risk of being
+// clever.
+//
+// This brute-force approach runs in O(N^3) time where N is the size of the
+// maximum vector size we want to test again. This might need reconsidering if
+// MaskWebSocketFramePayload() is ever optimised for a dedicated vector
+// architecture.
+TEST(WebSocketFrameTest, MaskPayloadAlignment) {
+  // This reflects what might be implemented in the future, rather than
+  // the current implementation. FMA3 and FMA4 support 256-bit vector ops.
+  static const size_t kMaxVectorSizeInBits = 256;
+  static const size_t kMaxVectorSize = kMaxVectorSizeInBits / 8;
+  static const size_t kMaxVectorAlignment = kMaxVectorSize;
+  static const size_t kMaskingKeyLength =
+      WebSocketFrameHeader::kMaskingKeyLength;
+  static const size_t kScratchBufferSize =
+      kMaxVectorAlignment + kMaxVectorSize * 2;
+  static const char kTestMask[] = "\xd2\xba\x5a\xbe";
+  // We use 786 bits of random input to reduce the risk of correlated errors.
+  static const char kTestInput[] =
+      { "\x3d\x77\x1d\x1b\x19\x8c\x48\xa3\x19\x6d\xf7\xcc\x39\xe7\x57\x0b"
+        "\x69\x8c\xda\x4b\xfc\xac\x2c\xd3\x49\x96\x6e\x8a\x7b\x5a\x32\x76"
+        "\xd0\x11\x43\xa0\x89\xfc\x76\x2b\x10\x2f\x4c\x7b\x4f\xa6\xdd\xe4"
+        "\xfc\x8e\xd8\x72\xcf\x7e\x37\xcd\x31\xcd\xc1\xc0\x89\x0c\xa7\x4c"
+        "\xda\xa8\x4b\x75\xa1\xcb\xa9\x77\x19\x4d\x6e\xdf\xc8\x08\x1c\xb6"
+        "\x6d\xfb\x38\x04\x44\xd5\xba\x57\x9f\x76\xb0\x2e\x07\x91\xe6\xa8"
+      };
+  static const size_t kTestInputSize = arraysize(kTestInput) - 1;
+  static const char kTestOutput[] =
+      { "\xef\xcd\x47\xa5\xcb\x36\x12\x1d\xcb\xd7\xad\x72\xeb\x5d\x0d\xb5"
+        "\xbb\x36\x80\xf5\x2e\x16\x76\x6d\x9b\x2c\x34\x34\xa9\xe0\x68\xc8"
+        "\x02\xab\x19\x1e\x5b\x46\x2c\x95\xc2\x95\x16\xc5\x9d\x1c\x87\x5a"
+        "\x2e\x34\x82\xcc\x1d\xc4\x6d\x73\xe3\x77\x9b\x7e\x5b\xb6\xfd\xf2"
+        "\x08\x12\x11\xcb\x73\x71\xf3\xc9\xcb\xf7\x34\x61\x1a\xb2\x46\x08"
+        "\xbf\x41\x62\xba\x96\x6f\xe0\xe9\x4d\xcc\xea\x90\xd5\x2b\xbc\x16"
+      };
+  COMPILE_ASSERT(arraysize(kTestInput) == arraysize(kTestOutput),
+                 output_and_input_arrays_have_the_same_length);
+  scoped_ptr_malloc<char, base::ScopedPtrAlignedFree> scratch(
+      static_cast<char*>(base::AlignedAlloc(kScratchBufferSize,
+                                            kMaxVectorAlignment)));
+  WebSocketMaskingKey masking_key;
+  std::copy(kTestMask, kTestMask + kMaskingKeyLength, masking_key.key);
+  for (size_t frame_offset = 0;
+       frame_offset < kMaskingKeyLength;
+       ++frame_offset) {
+    for (size_t alignment = 0; alignment < kMaxVectorAlignment; ++alignment) {
+      char* const aligned_scratch = scratch.get() + alignment;
+      const size_t aligned_len =
+          std::min(kScratchBufferSize - alignment,
+                   kTestInputSize - frame_offset);
+      for (size_t chunk_size = 1; chunk_size < kMaxVectorSize; ++chunk_size) {
+        memcpy(aligned_scratch, kTestInput + frame_offset, aligned_len);
+        for (size_t chunk_start = 0;
+             chunk_start < aligned_len;
+             chunk_start += chunk_size) {
+          const size_t this_chunk_size = std::min(chunk_size,
+                                                  aligned_len - chunk_start);
+          MaskWebSocketFramePayload(masking_key,
+                                    frame_offset + chunk_start,
+                                    aligned_scratch + chunk_start,
+                                    this_chunk_size);
+        }
+        // Stop the test if it fails, since we don't want to spew thousands of
+        // failures.
+        ASSERT_TRUE(std::equal(aligned_scratch, aligned_scratch + aligned_len,
+                               kTestOutput + frame_offset))
+            << "Output failed to match for frame_offset="
+            << frame_offset
+            << ", alignment="
+            << alignment
+            << ", chunk_size="
+            << chunk_size;
+      }
+    }
+  }
+}
+
+class WebSocketFrameTestMaskBenchmark : public testing::Test {
+ public:
+  WebSocketFrameTestMaskBenchmark()
+      : iterations_(kDefaultIterations) {}
+
+  void SetUp() {
+    std::string iterations(
+        CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            kBenchmarkIterations));
+    int benchmark_iterations = 0;
+    if (!iterations.empty() && base::StringToInt(iterations,
+                                                 &benchmark_iterations)) {
+      iterations_ = benchmark_iterations;
+    }
+  }
+
+  void Benchmark(const char* const payload, size_t size) {
+    std::vector<char> scratch(payload, payload + size);
+    static const char kMaskingKey[] = "\xFE\xED\xBE\xEF";
+    COMPILE_ASSERT(arraysize(kMaskingKey) ==
+                   WebSocketFrameHeader::kMaskingKeyLength + 1,
+                   incorrect_masking_key_size);
+    WebSocketMaskingKey masking_key;
+    std::copy(kMaskingKey, kMaskingKey +
+              WebSocketFrameHeader::kMaskingKeyLength,
+              masking_key.key);
+    LOG(INFO) << "Benchmarking MaskWebSocketFramePayload() for "
+              << iterations_ << " iterations";
+    using base::TimeTicks;
+    TimeTicks start = TimeTicks::HighResNow();
+    for (int x = 0; x < iterations_; ++x) {
+      MaskWebSocketFramePayload(masking_key, x % size, &scratch.front(),
+                                scratch.size());
+    }
+    double total_time_ms =
+        1000 * (TimeTicks::HighResNow() - start).InMillisecondsF() /
+        iterations_;
+    LOG(INFO) << "Payload size " << size
+              << StringPrintf(" took %.03f microseconds per iteration",
+                              total_time_ms);
+  }
+
+ private:
+  int iterations_;
+
+  DISALLOW_COPY_AND_ASSIGN(WebSocketFrameTestMaskBenchmark);
+};
+
+TEST_F(WebSocketFrameTestMaskBenchmark, BenchmarkMaskShortPayload) {
+  static const char kShortPayload[] = "Short Payload";
+  Benchmark(kShortPayload, arraysize(kShortPayload));
+}
+
+TEST_F(WebSocketFrameTestMaskBenchmark, BenchmarkMaskLongPayload) {
+  scoped_array<char> payload(new char[kLongPayloadSize]);
+  std::fill(payload.get(), payload.get() + kLongPayloadSize, 'a');
+  Benchmark(payload.get(), kLongPayloadSize);
 }
 
 }  // namespace net

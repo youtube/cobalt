@@ -1,17 +1,7 @@
-From 577e6655d4edc789eb4c572b303daf888676a454 Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:27:21 -0400
-Subject: [PATCH] negotiatedextension.patch
-
----
- mozilla/security/nss/lib/ssl/sslreveal.c |    9 +--------
- 1 files changed, 1 insertions(+), 8 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/sslreveal.c b/mozilla/security/nss/lib/ssl/sslreveal.c
-index 94b2c2f..0b9bb82 100644
---- a/mozilla/security/nss/lib/ssl/sslreveal.c
-+++ b/mozilla/security/nss/lib/ssl/sslreveal.c
-@@ -111,7 +111,6 @@ SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+diff -pu -r a/net/third_party/nss/ssl/sslreveal.c b/net/third_party/nss/ssl/sslreveal.c
+--- a/net/third_party/nss/ssl/sslreveal.c	2012-04-25 07:50:12.000000000 -0700
++++ b/net/third_party/nss/ssl/sslreveal.c	2012-11-09 15:45:44.118267683 -0800
+@@ -79,7 +79,6 @@ SSL_HandshakeNegotiatedExtension(PRFileD
    /* some decisions derived from SSL_GetChannelInfo */
    sslSocket * sslsocket = NULL;
    SECStatus rv = SECFailure;
@@ -19,7 +9,7 @@ index 94b2c2f..0b9bb82 100644
  
    if (!pYes)
      return rv;
-@@ -123,14 +122,8 @@ SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+@@ -91,14 +90,8 @@ SSL_HandshakeNegotiatedExtension(PRFileD
      return rv;
    }
  

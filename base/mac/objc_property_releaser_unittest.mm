@@ -299,10 +299,10 @@ TEST(ObjCPropertyReleaserTest, SesameStreet) {
   test_object.protoCvcAssign = nil;
   test_object.protoCvcCustom = nil;
 
-  // The CountVonCounts marked retain and copy should have been deallocated.
-  // Those marked assign should not have been. The only ones that should exist
-  // now are the ones marked "assign" and the ones held in non-property
-  // instance variables.
+  // The CountVonCounts marked "retain" and "copy" should have been
+  // deallocated. Those marked assign should not have been. The only ones that
+  // should exist now are the ones marked "assign" and the ones held in
+  // non-property instance variables.
   EXPECT_EQ(5, ah_ah_ah);
 
   {

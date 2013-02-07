@@ -8,6 +8,7 @@
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
@@ -18,6 +19,7 @@
 namespace media {
 
 class AudioManagerMac;
+class ChannelMixer;
 
 // Implementation of AudioOuputStream for Mac OS X using the audio queue service
 // present in OS 10.5 and later. Audioqueue is the successor to the SoundManager
@@ -103,6 +105,13 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // When stopping we keep track of number of buffers in flight and
   // signal "stop completed" from the last buffer's callback.
   int num_buffers_left_;
+
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
+  // Channel mixer and temporary bus for the final mixed channel data.
+  scoped_ptr<ChannelMixer> channel_mixer_;
+  scoped_ptr<AudioBus> mixed_audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };

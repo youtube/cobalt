@@ -22,6 +22,12 @@ class NSBundle;
 class NSString;
 #endif  // __OBJC__
 
+#if defined(OS_IOS)
+#include <CoreText/CoreText.h>
+#else
+#include <ApplicationServices/ApplicationServices.h>
+#endif
+
 class FilePath;
 
 // Adapted from NSPathUtilities.h and NSObjCRuntime.h.
@@ -102,6 +108,13 @@ TYPE_NAME_FOR_CF_TYPE_DECL(CFNull);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFNumber);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFSet);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFString);
+TYPE_NAME_FOR_CF_TYPE_DECL(CFURL);
+TYPE_NAME_FOR_CF_TYPE_DECL(CFUUID);
+
+TYPE_NAME_FOR_CF_TYPE_DECL(CGColor);
+
+TYPE_NAME_FOR_CF_TYPE_DECL(CTFont);
+TYPE_NAME_FOR_CF_TYPE_DECL(CTRun);
 
 #undef TYPE_NAME_FOR_CF_TYPE_DECL
 
@@ -247,6 +260,13 @@ CF_CAST_DECL(CFNull);
 CF_CAST_DECL(CFNumber);
 CF_CAST_DECL(CFSet);
 CF_CAST_DECL(CFString);
+CF_CAST_DECL(CFURL);
+CF_CAST_DECL(CFUUID);
+
+CF_CAST_DECL(CGColor);
+
+CF_CAST_DECL(CTFont);
+CF_CAST_DECL(CTRun);
 
 CF_CAST_DECL(SecACL);
 CF_CAST_DECL(SecTrustedApplication);

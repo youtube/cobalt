@@ -54,7 +54,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/debug/alias.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_piece.h"
 #include "base/synchronization/lock_impl.h"
 #include "base/threading/platform_thread.h"
@@ -405,6 +405,7 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
 
   return InitializeLogFileHandle();
 #else
+  (void) g_vlog_info_prev;
   return true;
 #endif  // !defined(OS_NACL)
 }

@@ -22,7 +22,7 @@
 #include "net/base/x509_certificate.h"
 #include "net/base/x509_certificate_net_log_param.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #include <private/pprthred.h>  // PR_DetachThread
 #endif
 
@@ -224,7 +224,7 @@ class CertVerifierWorker {
     // Runs on a worker thread.
     error_ = verify_proc_->Verify(cert_, hostname_, flags_, crl_set_,
                                   &verify_result_);
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
     // Detach the thread from NSPR.
     // Calling NSS functions attaches the thread to NSPR, which stores
     // the NSPR thread ID in thread-specific data.
@@ -376,19 +376,19 @@ class CertVerifierJob {
   const BoundNetLog net_log_;
 };
 
-MultiThreadedCertVerifier::MultiThreadedCertVerifier()
+MultiThreadedCertVerifier::MultiThreadedCertVerifier(
+    CertVerifyProc* verify_proc)
     : cache_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0),
-      verify_proc_(CertVerifyProc::CreateDefault()) {
-  CertDatabase::AddObserver(this);
+      verify_proc_(verify_proc) {
+  CertDatabase::GetInstance()->AddObserver(this);
 }
 
 MultiThreadedCertVerifier::~MultiThreadedCertVerifier() {
   STLDeleteValues(&inflight_);
-
-  CertDatabase::RemoveObserver(this);
+  CertDatabase::GetInstance()->RemoveObserver(this);
 }
 
 int MultiThreadedCertVerifier::Verify(X509Certificate* cert,
@@ -460,6 +460,16 @@ void MultiThreadedCertVerifier::CancelRequest(RequestHandle req) {
   request->Cancel();
 }
 
+MultiThreadedCertVerifier::RequestParams::RequestParams(
+    const SHA1HashValue& cert_fingerprint_arg,
+    const SHA1HashValue& ca_fingerprint_arg,
+    const std::string& hostname_arg,
+    int flags_arg)
+    : cert_fingerprint(cert_fingerprint_arg),
+      ca_fingerprint(ca_fingerprint_arg),
+      hostname(hostname_arg),
+      flags(flags_arg) {}
+
 // HandleResult is called by CertVerifierWorker on the origin message loop.
 // It deletes CertVerifierJob.
 void MultiThreadedCertVerifier::HandleResult(
@@ -499,10 +509,6 @@ void MultiThreadedCertVerifier::OnCertTrustChanged(
   DCHECK(CalledOnValidThread());
 
   ClearCache();
-}
-
-void MultiThreadedCertVerifier::SetCertVerifyProc(CertVerifyProc* verify_proc) {
-  verify_proc_ = verify_proc;
 }
 
 }  // namespace net

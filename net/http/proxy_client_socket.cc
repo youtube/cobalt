@@ -4,6 +4,7 @@
 
 #include "net/http/proxy_client_socket.h"
 
+#include "base/metrics/histogram.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/host_port_pair.h"
@@ -51,6 +52,48 @@ int ProxyClientSocket::HandleProxyAuthChallenge(HttpAuthController* auth,
   if (rv == OK)
     return ERR_PROXY_AUTH_REQUESTED;
   return rv;
+}
+
+// static
+void ProxyClientSocket::LogBlockedTunnelResponse(int http_status_code,
+                                                 const GURL& url,
+                                                 bool is_https_proxy) {
+  if (is_https_proxy) {
+    UMA_HISTOGRAM_CUSTOM_ENUMERATION(
+        "Net.BlockedTunnelResponse.HttpsProxy",
+        HttpUtil::MapStatusCodeForHistogram(http_status_code),
+        HttpUtil::GetStatusCodesForHistogram());
+  } else {
+    UMA_HISTOGRAM_CUSTOM_ENUMERATION(
+        "Net.BlockedTunnelResponse.HttpProxy",
+        HttpUtil::MapStatusCodeForHistogram(http_status_code),
+        HttpUtil::GetStatusCodesForHistogram());
+  }
+}
+
+// static
+bool ProxyClientSocket::SanitizeProxyRedirect(HttpResponseInfo* response,
+                                              const GURL& url) {
+  DCHECK(response && response->headers);
+
+  std::string location;
+  if (!response->headers->IsRedirect(&location))
+    return false;
+
+  // Return minimal headers; set "Content-length: 0" to ignore response body.
+  std::string fake_response_headers =
+      base::StringPrintf("HTTP/1.0 302 Found\n"
+                         "Location: %s\n"
+                         "Content-length: 0\n"
+                         "Connection: close\n"
+                         "\n",
+                         location.c_str());
+  std::string raw_headers =
+      HttpUtil::AssembleRawHeaders(fake_response_headers.data(),
+                                   fake_response_headers.length());
+  response->headers = new HttpResponseHeaders(raw_headers);
+
+  return true;
 }
 
 }  // namespace net

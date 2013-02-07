@@ -117,6 +117,8 @@ class NET_EXPORT ProxyInfo {
   // Deletes any entry which doesn't have one of the specified proxy schemes.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
 
+  ProxyConfig::ID config_id() const { return config_id_; }
+
  private:
   friend class ProxyService;
 

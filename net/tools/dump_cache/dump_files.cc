@@ -6,6 +6,8 @@
 // to the actual files (they still may change if an error is detected on the
 // files).
 
+#include "net/tools/dump_cache/dump_files.h"
+
 #include <stdio.h>
 
 #include <set>
@@ -22,20 +24,20 @@
 
 namespace {
 
-const wchar_t kIndexName[] = L"index";
+const FilePath::CharType kIndexName[] = FILE_PATH_LITERAL("index");
 
 // Reads the |header_size| bytes from the beginning of file |name|.
 bool ReadHeader(const FilePath& name, char* header, int header_size) {
   net::FileStream file(NULL);
   file.OpenSync(name, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (!file.IsOpen()) {
-    printf("Unable to open file %ls\n", name.value().c_str());
+    printf("Unable to open file %s\n", name.MaybeAsASCII().c_str());
     return false;
   }
 
   int read = file.ReadSync(header, header_size);
   if (read != header_size) {
-    printf("Unable to read file %ls\n", name.value().c_str());
+    printf("Unable to read file %s\n", name.MaybeAsASCII().c_str());
     return false;
   }
   return true;
@@ -82,7 +84,7 @@ void DumpBlockHeader(const FilePath& name) {
   if (!ReadHeader(name, reinterpret_cast<char*>(&header), sizeof(header)))
     return;
 
-  printf("Block file: %ls\n", name.BaseName().value().c_str());
+  printf("Block file: %s\n", name.BaseName().MaybeAsASCII().c_str());
   printf("magic: %x\n", header.magic);
   printf("version: %d.%d\n", header.version >> 16, header.version & 0xffff);
   printf("file id: %d\n", header.this_file);
@@ -268,11 +270,19 @@ int GetMajorVersion(const FilePath& input_path) {
   if (!version)
     return 0;
 
-  FilePath data_name(input_path.Append(L"data_0"));
+  FilePath data_name(input_path.Append(FILE_PATH_LITERAL("data_0")));
   if (version != GetMajorVersionFromFile(data_name))
     return 0;
 
-  data_name = input_path.Append(L"data_1");
+  data_name = input_path.Append(FILE_PATH_LITERAL("data_1"));
+  if (version != GetMajorVersionFromFile(data_name))
+    return 0;
+
+  data_name = input_path.Append(FILE_PATH_LITERAL("data_2"));
+  if (version != GetMajorVersionFromFile(data_name))
+    return 0;
+
+  data_name = input_path.Append(FILE_PATH_LITERAL("data_3"));
   if (version != GetMajorVersionFromFile(data_name))
     return 0;
 
@@ -285,7 +295,8 @@ int DumpHeaders(const FilePath& input_path) {
   DumpIndexHeader(index_name);
 
   file_util::FileEnumerator iter(input_path, false,
-                                 file_util::FileEnumerator::FILES, L"data_*");
+                                 file_util::FileEnumerator::FILES,
+                                 FILE_PATH_LITERAL("data_*"));
   for (FilePath file = iter.Next(); !file.empty(); file = iter.Next())
     DumpBlockHeader(file);
   return 0;

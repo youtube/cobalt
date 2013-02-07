@@ -20,6 +20,7 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpServerProperties;
 class HttpTransactionFactory;
+class HttpUserAgentSettings;
 class NetLog;
 class NetworkDelegate;
 class ServerBoundCertService;
@@ -41,10 +42,10 @@ class NET_EXPORT URLRequestContextStorage {
   ~URLRequestContextStorage();
 
   // These setters will set both the member variables and call the setter on the
-  // URLRequestContext object.
+  // URLRequestContext object. In all cases, ownership is passed to |this|.
 
   void set_net_log(NetLog* net_log);
-  void set_host_resolver(HostResolver* host_resolver);
+  void set_host_resolver(scoped_ptr<HostResolver> host_resolver);
   void set_cert_verifier(CertVerifier* cert_verifier);
   void set_server_bound_cert_service(
       ServerBoundCertService* server_bound_cert_service);
@@ -65,6 +66,8 @@ class NET_EXPORT URLRequestContextStorage {
       FtpTransactionFactory* ftp_transaction_factory);
   void set_job_factory(URLRequestJobFactory* job_factory);
   void set_throttler_manager(URLRequestThrottlerManager* throttler_manager);
+  void set_http_user_agent_settings(
+      HttpUserAgentSettings* http_user_agent_settings);
 
  private:
   // We use a raw pointer to prevent reference cycles, since
@@ -84,6 +87,7 @@ class NET_EXPORT URLRequestContextStorage {
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_ptr<HttpServerProperties> http_server_properties_;
+  scoped_ptr<HttpUserAgentSettings> http_user_agent_settings_;
   scoped_refptr<CookieStore> cookie_store_;
   scoped_ptr<TransportSecurityState> transport_security_state_;
 

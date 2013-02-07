@@ -13,7 +13,6 @@ namespace media {
 
 NullAudioSink::NullAudioSink()
     : initialized_(false),
-      playback_rate_(0.0),
       playing_(false),
       callback_(NULL),
       thread_("NullAudioThread"),
@@ -25,15 +24,11 @@ void NullAudioSink::Initialize(const AudioParameters& params,
   DCHECK(!initialized_);
   params_ = params;
 
-  audio_data_.reserve(params.channels());
-  for (int i = 0; i < params.channels(); ++i) {
-    float* channel_data = new float[params.frames_per_buffer()];
-    audio_data_.push_back(channel_data);
-  }
+  audio_bus_ = AudioBus::Create(params_);
 
   if (hash_audio_for_testing_) {
-    md5_channel_contexts_.reset(new base::MD5Context[params.channels()]);
-    for (int i = 0; i < params.channels(); i++)
+    md5_channel_contexts_.reset(new base::MD5Context[params_.channels()]);
+    for (int i = 0; i < params_.channels(); i++)
       base::MD5Init(&md5_channel_contexts_[i]);
   }
 
@@ -62,11 +57,6 @@ void NullAudioSink::Pause(bool /* flush */) {
   SetPlaying(false);
 }
 
-void NullAudioSink::SetPlaybackRate(float rate) {
-  base::AutoLock auto_lock(lock_);
-  playback_rate_ = rate;
-}
-
 bool NullAudioSink::SetVolume(double volume) {
   // Audio is always muted.
   return volume == 0.0;
@@ -79,8 +69,6 @@ void NullAudioSink::SetPlaying(bool is_playing) {
 
 NullAudioSink::~NullAudioSink() {
   DCHECK(!thread_.IsRunning());
-  for (size_t i = 0; i < audio_data_.size(); ++i)
-    delete [] audio_data_[i];
 }
 
 void NullAudioSink::FillBufferTask() {
@@ -89,17 +77,15 @@ void NullAudioSink::FillBufferTask() {
   base::TimeDelta delay;
   // Only consume buffers when actually playing.
   if (playing_)  {
-    DCHECK_GT(playback_rate_, 0.0f);
-    int requested_frames = params_.frames_per_buffer();
-    int frames_received = callback_->Render(audio_data_, requested_frames, 0);
+    int frames_received = callback_->Render(audio_bus_.get(), 0);
     int frames_per_millisecond =
         params_.sample_rate() / base::Time::kMillisecondsPerSecond;
 
     if (hash_audio_for_testing_ && frames_received > 0) {
       DCHECK_EQ(sizeof(float), sizeof(uint32));
-      int channels = audio_data_.size();
+      int channels = audio_bus_->channels();
       for (int channel_idx = 0; channel_idx < channels; ++channel_idx) {
-        float* channel = audio_data_[channel_idx];
+        float* channel = audio_bus_->channel(channel_idx);
         for (int frame_idx = 0; frame_idx < frames_received; frame_idx++) {
           // Convert float to uint32 w/o conversion loss.
           uint32 frame = base::ByteSwapToLE32(
@@ -111,9 +97,9 @@ void NullAudioSink::FillBufferTask() {
       }
     }
 
-    // Calculate our sleep duration, taking playback rate into consideration.
+    // Calculate our sleep duration.
     delay = base::TimeDelta::FromMilliseconds(
-        frames_received / (frames_per_millisecond * playback_rate_));
+        frames_received / frames_per_millisecond);
   } else {
     // If paused, sleep for 10 milliseconds before polling again.
     delay = base::TimeDelta::FromMilliseconds(10);
@@ -135,14 +121,17 @@ std::string NullAudioSink::GetAudioHashForTesting() {
   DCHECK(hash_audio_for_testing_);
 
   // If initialize failed or was never called, ensure we return an empty hash.
+  int channels = 1;
   if (!initialized_) {
     md5_channel_contexts_.reset(new base::MD5Context[1]);
     base::MD5Init(&md5_channel_contexts_[0]);
+  } else {
+    channels = audio_bus_->channels();
   }
 
   // Hash all channels into the first channel.
   base::MD5Digest digest;
-  for (size_t i = 1; i < audio_data_.size(); i++) {
+  for (int i = 1; i < channels; i++) {
     base::MD5Final(&digest, &md5_channel_contexts_[i]);
     base::MD5Update(&md5_channel_contexts_[0], base::StringPiece(
         reinterpret_cast<char*>(&digest), sizeof(base::MD5Digest)));

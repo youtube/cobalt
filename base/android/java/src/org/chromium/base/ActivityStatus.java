@@ -4,6 +4,7 @@
 
 package org.chromium.base;
 
+import android.app.Activity;
 import android.os.Looper;
 
 import java.util.ArrayList;
@@ -12,72 +13,87 @@ import java.util.ArrayList;
  * Provides information about the parent activity's status.
  */
 public class ActivityStatus {
-    public interface Listener {
+
+    // Constants matching activity states reported to StateListener.onStateChange
+    public static final int CREATED = 1;
+    public static final int STARTED = 2;
+    public static final int RESUMED = 3;
+    public static final int PAUSED = 4;
+    public static final int STOPPED = 5;
+    public static final int DESTROYED = 6;
+
+    // Current main activity, or null if none.
+    private static Activity sActivity;
+
+    // Current main activity's state. This can be set even if sActivity is null, to simplify unit
+    // testing.
+    private static int sActivityState;
+
+    private static final ArrayList<StateListener> sStateListeners = new ArrayList<StateListener>();
+
+    // Use this interface to listen to all state changes.
+    public interface StateListener {
         /**
-         * Called when the activity's status changes.
-         * @param isPaused true if the activity is paused, false if not.
+         * Called when the activity's state changes.
+         * @param newState New activity state.
          */
-        public void onActivityStatusChanged(boolean isPaused);
+        public void onActivityStateChange(int newState);
     }
 
-    private boolean mIsPaused = false;
-    private ArrayList<Listener> mListeners = new ArrayList<Listener>();
-    private static ActivityStatus sActivityStatus;
+    private ActivityStatus() {}
 
-    private ActivityStatus() {
-    }
-
-    public static ActivityStatus getInstance() {
-        // Can only be called on the UI thread.
-        assert Looper.myLooper() == Looper.getMainLooper();
-        if (sActivityStatus == null) {
-            sActivityStatus = new ActivityStatus();
+    /**
+     * Must be called by the main activity when it changes state.
+     * @param activity Current activity.
+     * @param newState New state value.
+     */
+    public static void onStateChange(Activity activity, int newState) {
+        if (newState == CREATED) {
+            sActivity = activity;
         }
-        return sActivityStatus;
-    }
-
-    /**
-     * Indicates that the parent activity was paused.
-     */
-    public void onPause() {
-        mIsPaused = true;
-        informAllListeners();
-    }
-
-    /**
-     * Indicates that the parent activity was resumed.
-     */
-    public void onResume() {
-        mIsPaused = false;
-        informAllListeners();
+        sActivityState = newState;
+        for (StateListener listener : sStateListeners) {
+            listener.onActivityStateChange(newState);
+        }
+        if (newState == DESTROYED) {
+            sActivity = null;
+        }
     }
 
     /**
      * Indicates that the parent activity is currently paused.
      */
-    public boolean isPaused() {
-        return mIsPaused;
+    public static boolean isPaused() {
+        return sActivityState == PAUSED;
     }
 
     /**
-     * Registers the given listener to receive activity status updates.
-     * @param listener Listener to receive status updates.
+     * Returns the current main application activity.
      */
-    public void registerListener(Listener listener) {
-        mListeners.add(listener);
+    public static Activity getActivity() {
+        return sActivity;
     }
 
     /**
-     * Unregisters the given listener from receiving activity status updates.
-     * @param listener Listener that doesn't want to receive status updates.
+     * Returns the current main application activity's state.
      */
-    public void unregisterListener(Listener listener) {
-        mListeners.remove(listener);
+    public static int getState() {
+        return sActivityState;
     }
 
-    private void informAllListeners() {
-        for (Listener listener : mListeners) {
-            listener.onActivityStatusChanged(mIsPaused);
-        }
+    /**
+     * Registers the given listener to receive activity state changes.
+     * @param listener Listener to receive state changes.
+     */
+    public static void registerStateListener(StateListener listener) {
+        sStateListeners.add(listener);
+    }
+
+    /**
+     * Unregisters the given listener from receiving activity state changes.
+     * @param listener Listener that doesn't want to receive state changes.
+     */
+    public static void unregisterStateListener(StateListener listener) {
+        sStateListeners.remove(listener);
     }
 }

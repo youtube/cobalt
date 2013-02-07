@@ -118,15 +118,15 @@ static int icuOpen(
   nChar = nInput+1;
   pCsr = (IcuCursor *)sqlite3_malloc(
       sizeof(IcuCursor) +                /* IcuCursor */
-      nChar * sizeof(UChar) +            /* IcuCursor.aChar[] */
-      (nChar+1) * sizeof(int)            /* IcuCursor.aOffset[] */
+      (nChar+1) * sizeof(int) +          /* IcuCursor.aOffset[] */
+      nChar * sizeof(UChar)              /* IcuCursor.aChar[] */
   );
   if( !pCsr ){
     return SQLITE_NOMEM;
   }
   memset(pCsr, 0, sizeof(IcuCursor));
-  pCsr->aChar = (UChar *)&pCsr[1];
-  pCsr->aOffset = (int *)&pCsr->aChar[nChar];
+  pCsr->aOffset = (int *)&pCsr[1];
+  pCsr->aChar = (UChar *)&pCsr->aOffset[nChar+1];
 
   pCsr->aOffset[iOut] = iInput;
   U8_NEXT(zInput, iInput, nInput, c); 

@@ -56,52 +56,6 @@ const DWORD kProcessKilledExitCode = 1;
 // HeapSetInformation function pointer.
 typedef BOOL (WINAPI* HeapSetFn)(HANDLE, HEAP_INFORMATION_CLASS, PVOID, SIZE_T);
 
-// Previous unhandled filter. Will be called if not NULL when we intercept an
-// exception. Only used in unit tests.
-LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
-
-// Prints the exception call stack.
-// This is the unit tests exception filter.
-long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
-  debug::StackTrace(info).PrintBacktrace();
-  if (g_previous_filter)
-    return g_previous_filter(info);
-  return EXCEPTION_CONTINUE_SEARCH;
-}
-
-// Connects back to a console if available.
-void AttachToConsole() {
-  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
-    unsigned int result = GetLastError();
-    // Was probably already attached.
-    if (result == ERROR_ACCESS_DENIED)
-      return;
-
-    if (result == ERROR_INVALID_HANDLE || result == ERROR_INVALID_HANDLE) {
-      // TODO(maruel): Walk up the process chain if deemed necessary.
-    }
-    // Continue even if the function call fails.
-    AllocConsole();
-  }
-  // http://support.microsoft.com/kb/105305
-  int raw_out = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_OUTPUT_HANDLE)), _O_TEXT);
-  *stdout = *_fdopen(raw_out, "w");
-  setvbuf(stdout, NULL, _IONBF, 0);
-
-  int raw_err = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_ERROR_HANDLE)), _O_TEXT);
-  *stderr = *_fdopen(raw_err, "w");
-  setvbuf(stderr, NULL, _IONBF, 0);
-
-  int raw_in = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_INPUT_HANDLE)), _O_TEXT);
-  *stdin = *_fdopen(raw_in, "r");
-  setvbuf(stdin, NULL, _IONBF, 0);
-  // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
-  std::ios::sync_with_stdio();
-}
-
 void OnNoMemory() {
   // Kill the process. This is important for security, since WebKit doesn't
   // NULL-check many memory allocations. If a malloc fails, returns NULL, and
@@ -166,6 +120,36 @@ void TimerExpiredTask::KillProcess() {
 }
 
 }  // namespace
+
+void RouteStdioToConsole() {
+  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+    unsigned int result = GetLastError();
+    // Was probably already attached.
+    if (result == ERROR_ACCESS_DENIED)
+      return;
+    // Don't bother creating a new console for each child process if the
+    // parent process is invalid (eg: crashed).
+    if (result == ERROR_GEN_FAILURE)
+      return;
+    // Make a new console if attaching to parent fails with any other error.
+    // It should be ERROR_INVALID_HANDLE at this point, which means the browser
+    // was likely not started from a console.
+    AllocConsole();
+  }
+
+  // Arbitrary byte count to use when buffering output lines.  More
+  // means potential waste, less means more risk of interleaved
+  // log-lines in output.
+  enum { kOutputBufferSize = 64 * 1024 };
+
+  if (freopen("CONOUT$", "w", stdout))
+    setvbuf(stdout, NULL, _IOLBF, kOutputBufferSize);
+  if (freopen("CONOUT$", "w", stderr))
+    setvbuf(stderr, NULL, _IOLBF, kOutputBufferSize);
+
+  // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
+  std::ios::sync_with_stdio();
+}
 
 ProcessId GetCurrentProcId() {
   return ::GetCurrentProcessId();
@@ -319,6 +303,9 @@ bool LaunchProcess(const string16& cmdline,
     // The CREATE_BREAKAWAY_FROM_JOB flag is used to prevent this.
     flags |= CREATE_BREAKAWAY_FROM_JOB;
   }
+
+  if (options.force_breakaway_from_job_)
+    flags |= CREATE_BREAKAWAY_FROM_JOB;
 
   base::win::ScopedProcessInformation process_info;
 
@@ -546,8 +533,8 @@ bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
 }
 
 bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                int64 timeout_milliseconds) {
-  if (::WaitForSingleObject(handle, timeout_milliseconds) != WAIT_OBJECT_0)
+                                base::TimeDelta timeout) {
+  if (::WaitForSingleObject(handle, timeout.InMilliseconds()) != WAIT_OBJECT_0)
     return false;
   DWORD temp_code;  // Don't clobber out-parameters in case of failure.
   if (!::GetExitCodeProcess(handle, &temp_code))
@@ -555,12 +542,6 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 
   *exit_code = temp_code;
   return true;
-}
-
-bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                base::TimeDelta timeout) {
-  return WaitForExitCodeWithTimeout(
-      handle, exit_code, timeout.InMilliseconds());
 }
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
@@ -596,7 +577,7 @@ bool NamedProcessIterator::IncludeEntry() {
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            int64 wait_milliseconds,
+                            base::TimeDelta wait,
                             const ProcessFilter* filter) {
   const ProcessEntry* entry;
   bool result = true;
@@ -604,8 +585,8 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
 
   NamedProcessIterator iter(executable_name, filter);
   while ((entry = iter.NextProcessEntry())) {
-    DWORD remaining_wait =
-        std::max<int64>(0, wait_milliseconds - (GetTickCount() - start_time));
+    DWORD remaining_wait = std::max<int64>(
+        0, wait.InMilliseconds() - (GetTickCount() - start_time));
     HANDLE process = OpenProcess(SYNCHRONIZE,
                                  FALSE,
                                  entry->th32ProcessID);
@@ -617,17 +598,6 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
   return result;
 }
 
-bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            base::TimeDelta wait,
-                            const ProcessFilter* filter) {
-  return WaitForProcessesToExit(executable_name, wait.InMilliseconds(), filter);
-}
-
-bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
-  return WaitForSingleProcess(
-      handle, base::TimeDelta::FromMilliseconds(wait_milliseconds));
-}
-
 bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
   int exit_code;
   if (!WaitForExitCodeWithTimeout(handle, &exit_code, wait))
@@ -636,12 +606,10 @@ bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
 }
 
 bool CleanupProcesses(const FilePath::StringType& executable_name,
-                      int64 wait_milliseconds,
+                      base::TimeDelta wait,
                       int exit_code,
                       const ProcessFilter* filter) {
-  bool exited_cleanly = WaitForProcessesToExit(executable_name,
-                                               wait_milliseconds,
-                                               filter);
+  bool exited_cleanly = WaitForProcessesToExit(executable_name, wait, filter);
   if (!exited_cleanly)
     KillProcesses(executable_name, exit_code, filter);
   return exited_cleanly;
@@ -913,7 +881,6 @@ bool ProcessMetrics::CalculateFreeMemory(FreeMBytes* free) const {
       return false;
     if (info.State == MEM_FREE) {
       accumulated += info.RegionSize;
-      UINT_PTR end = scan + info.RegionSize;
       if (info.RegionSize > largest.RegionSize)
         largest = info;
     }
@@ -967,14 +934,6 @@ void EnableTerminationOnHeapCorruption() {
 
 void EnableTerminationOnOutOfMemory() {
   std::set_new_handler(&OnNoMemory);
-}
-
-bool EnableInProcessStackDumping() {
-  // Add stack dumping support on exception on windows. Similar to OS_POSIX
-  // signal() handling in process_util_posix.cc.
-  g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
-  AttachToConsole();
-  return true;
 }
 
 void RaiseProcessToHighPriority() {

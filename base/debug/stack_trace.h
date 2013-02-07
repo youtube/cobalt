@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,21 @@
 #include "base/base_export.h"
 #include "build/build_config.h"
 
+#if defined(OS_POSIX)
+#include <unistd.h>
+#endif
+
 #if defined(OS_WIN)
 struct _EXCEPTION_POINTERS;
 #endif
 
 namespace base {
 namespace debug {
+
+// Enables stack dump to console output on exception and signals.
+// When enabled, the process will quit immediately. This is meant to be used in
+// unit_tests only! This is not thread-safe: only call from main thread.
+BASE_EXPORT bool EnableInProcessStackDumping();
 
 // A stacktrace can be helpful in debugging. For example, you can include a
 // stacktrace member in a object (probably around #ifndef NDEBUG) so that you
@@ -63,8 +72,24 @@ class BASE_EXPORT StackTrace {
   static const int kMaxTraces = 62;
 
   void* trace_[kMaxTraces];
-  int count_;
+
+  // The number of valid frames in |trace_|.
+  size_t count_;
 };
+
+namespace internal {
+
+#if defined(OS_POSIX) && !defined(OS_ANDROID)
+// POSIX doesn't define any async-signal safe function for converting
+// an integer to ASCII. We'll have to define our own version.
+// itoa_r() converts a (signed) integer to ASCII. It returns "buf", if the
+// conversion was successful or NULL otherwise. It never writes more than "sz"
+// bytes. Output will be truncated as needed, and a NUL character is always
+// appended.
+BASE_EXPORT char *itoa_r(intptr_t i, char *buf, size_t sz, int base);
+#endif  // defined(OS_POSIX) && !defined(OS_ANDROID)
+
+}  // namespace internal
 
 }  // namespace debug
 }  // namespace base

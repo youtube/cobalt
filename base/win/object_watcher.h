@@ -42,6 +42,8 @@ namespace win {
 // signaled.  ObjectWatcher makes this task easy.  When MyClass goes out of
 // scope, the watcher_ will be destroyed, and there is no need to worry about
 // OnObjectSignaled being called on a deleted MyClass pointer.  Easy!
+// If the object is already signaled before being watched, OnObjectSignaled is
+// still called after (but not necessarily immediately after) watch is started.
 //
 class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
  public:

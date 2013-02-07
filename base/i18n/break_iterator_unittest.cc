@@ -310,5 +310,29 @@ TEST(BreakIteratorTest, BreakLineWide32) {
   EXPECT_FALSE(iter.IsWord());
 }
 
+TEST(BreakIteratorTest, BreakCharacter) {
+  static const wchar_t* kCharacters[] = {
+    // An English word consisting of four ASCII characters.
+    L"w", L"o", L"r", L"d", L" ",
+    // A Hindi word (which means "Hindi") consisting of three Devanagari
+    // characters.
+    L"\x0939\x093F", L"\x0928\x094D", L"\x0926\x0940", L" ",
+    // A Thai word (which means "feel") consisting of three Thai characters.
+    L"\x0E23\x0E39\x0E49", L"\x0E2A\x0E36", L"\x0E01", L" ",
+  };
+  std::vector<string16> characters;
+  string16 text;
+  for (size_t i = 0; i < arraysize(kCharacters); ++i) {
+    characters.push_back(WideToUTF16(kCharacters[i]));
+    text.append(characters.back());
+  }
+  BreakIterator iter(text, BreakIterator::BREAK_CHARACTER);
+  ASSERT_TRUE(iter.Init());
+  for (size_t i = 0; i < arraysize(kCharacters); ++i) {
+    EXPECT_TRUE(iter.Advance());
+    EXPECT_EQ(characters[i], iter.GetString());
+  }
+}
+
 }  // namespace i18n
 }  // namespace base

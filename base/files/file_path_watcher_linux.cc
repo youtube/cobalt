@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/hash_tables.h"
@@ -27,6 +26,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 
@@ -100,6 +100,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // Start watching |path| for changes and notify |delegate| on each change.
   // Returns true if watch for |path| has been added successfully.
   virtual bool Watch(const FilePath& path,
+                     bool recursive,
                      FilePathWatcher::Delegate* delegate) OVERRIDE;
 
   // Cancel the watch. This unregisters the instance with InotifyReader.
@@ -115,7 +116,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
  private:
   // Cleans up and stops observing the |message_loop_| thread.
-  void CancelOnMessageLoopThread() OVERRIDE;
+  virtual void CancelOnMessageLoopThread() OVERRIDE;
 
   // Inotify watches are installed for all directory components of |target_|. A
   // WatchEntry instance holds the watch descriptor for a component and the
@@ -207,7 +208,7 @@ void InotifyReaderCallback(InotifyReader* reader, int inotify_fd,
   }
 }
 
-static base::LazyInstance<InotifyReader> g_inotify_reader =
+static base::LazyInstance<InotifyReader>::Leaky g_inotify_reader =
     LAZY_INSTANCE_INITIALIZER;
 
 InotifyReader::InotifyReader()
@@ -361,9 +362,15 @@ void FilePathWatcherImpl::OnFilePathChanged(InotifyReader::Watch fired_watch,
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
+                                bool recursive,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(target_.empty());
   DCHECK(MessageLoopForIO::current());
+  if (recursive) {
+    // Recursive watch is not supported on this platform.
+    NOTIMPLEMENTED();
+    return false;
+  }
 
   set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
@@ -373,10 +380,10 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
   std::vector<FilePath::StringType> comps;
   target_.GetComponents(&comps);
   DCHECK(!comps.empty());
-  for (std::vector<FilePath::StringType>::const_iterator comp(++comps.begin());
-       comp != comps.end(); ++comp) {
+  std::vector<FilePath::StringType>::const_iterator comp = comps.begin();
+  for (++comp; comp != comps.end(); ++comp)
     watches_.push_back(WatchEntry(InotifyReader::kInvalidWatch, *comp));
-  }
+
   watches_.push_back(WatchEntry(InotifyReader::kInvalidWatch,
                                 FilePath::StringType()));
   return UpdateWatches();
@@ -422,7 +429,7 @@ void FilePathWatcherImpl::WillDestroyCurrentMessageLoop() {
 }
 
 bool FilePathWatcherImpl::UpdateWatches() {
-  // Ensure this runs on the message_loop_ exclusively in order to avoid
+  // Ensure this runs on the |message_loop_| exclusively in order to avoid
   // concurrency issues.
   DCHECK(message_loop()->BelongsToCurrentThread());
 

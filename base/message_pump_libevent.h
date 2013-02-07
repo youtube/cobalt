@@ -38,8 +38,6 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
     virtual ~IOObserver() {}
   };
 
-  class FileDescriptorWatcher;
-
   // Used with WatchFileDescriptor to asynchronously monitor the I/O readiness
   // of a file descriptor.
   class Watcher {
@@ -78,7 +76,7 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
     event* ReleaseEvent();
 
     void set_pump(MessagePumpLibevent* pump) { pump_ = pump; }
-    MessagePumpLibevent* pump() { return pump_; }
+    MessagePumpLibevent* pump() const { return pump_; }
 
     void set_watcher(Watcher* watcher) { watcher_ = watcher; }
 
@@ -115,7 +113,7 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
   // TODO(dkegel): switch to edge-triggered readiness notification
   bool WatchFileDescriptor(int fd,
                            bool persistent,
-                           Mode mode,
+                           int mode,
                            FileDescriptorWatcher *controller,
                            Watcher *delegate);
 

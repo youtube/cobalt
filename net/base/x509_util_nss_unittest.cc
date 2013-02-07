@@ -31,6 +31,7 @@ CERTCertificate* CreateNSSCertHandleFromBytes(const char* data, size_t length) {
                                  PR_FALSE, PR_TRUE);
 }
 
+#if !defined(OS_WIN) && !defined(OS_MACOSX)
 void VerifyCertificateSignature(const std::string& der_cert,
                                 const std::vector<uint8>& der_spki) {
   crypto::ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
@@ -73,6 +74,7 @@ void VerifyCertificateSignature(const std::string& der_cert,
   ok = verifier.VerifyFinal();
   EXPECT_TRUE(ok);
 }
+#endif  // !defined(OS_WIN) && !defined(OS_MACOSX)
 
 void VerifyDomainBoundCert(const std::string& domain,
                            const std::string& der_cert) {

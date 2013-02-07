@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "media/base/media_export.h"
+#include "media/mp4/aac.h"
 #include "media/mp4/avc.h"
 #include "media/mp4/box_reader.h"
 #include "media/mp4/fourccs.h"
@@ -42,7 +43,7 @@ struct MEDIA_EXPORT ProtectionSystemSpecificHeader : Box {
   DECLARE_BOX_METHODS(ProtectionSystemSpecificHeader);
 
   std::vector<uint8> system_id;
-  std::vector<uint8> data;
+  std::vector<uint8> raw_box;
 };
 
 struct MEDIA_EXPORT SampleAuxiliaryInformationOffset : Box {
@@ -184,6 +185,13 @@ struct MEDIA_EXPORT VideoSampleEntry : Box {
   AVCDecoderConfigurationRecord avcc;
 };
 
+struct MEDIA_EXPORT ElementaryStreamDescriptor : Box {
+  DECLARE_BOX_METHODS(ElementaryStreamDescriptor);
+
+  uint8 object_type;
+  AAC aac;
+};
+
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -194,6 +202,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   uint32 samplerate;
 
   ProtectionSchemeInfo sinf;
+  ElementaryStreamDescriptor esds;
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {
@@ -208,7 +217,9 @@ struct MEDIA_EXPORT SampleTable : Box {
   DECLARE_BOX_METHODS(SampleTable);
 
   // Media Source specific: we ignore many of the sub-boxes in this box,
-  // including some that are required to be present in the BMFF spec.
+  // including some that are required to be present in the BMFF spec. This
+  // includes the 'stts', 'stsc', and 'stco' boxes, which must contain no
+  // samples in order to be compliant files.
   SampleDescription description;
 };
 

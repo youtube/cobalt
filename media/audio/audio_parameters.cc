@@ -40,14 +40,18 @@ void AudioParameters::Reset(Format format, ChannelLayout channel_layout,
 }
 
 bool AudioParameters::IsValid() const {
-  return (format_ >= 0) && (format_ < AUDIO_LAST_FORMAT) &&
-      (channels_ > 0) && (channels_ <= media::limits::kMaxChannels) &&
-      (sample_rate_ > 0) &&
-      (sample_rate_ <= media::limits::kMaxSampleRate) &&
-      (bits_per_sample_ > 0) &&
-      (bits_per_sample_ <= media::limits::kMaxBitsPerSample) &&
-      (frames_per_buffer_ > 0) &&
-      (frames_per_buffer_ <= media::limits::kMaxSamplesPerPacket);
+  return (format_ >= AUDIO_PCM_LINEAR) &&
+         (format_ < AUDIO_LAST_FORMAT) &&
+         (channels_ > 0) &&
+         (channels_ <= media::limits::kMaxChannels) &&
+         (channel_layout_ > CHANNEL_LAYOUT_UNSUPPORTED) &&
+         (channel_layout_ < CHANNEL_LAYOUT_MAX) &&
+         (sample_rate_ >= media::limits::kMinSampleRate) &&
+         (sample_rate_ <= media::limits::kMaxSampleRate) &&
+         (bits_per_sample_ > 0) &&
+         (bits_per_sample_ <= media::limits::kMaxBitsPerSample) &&
+         (frames_per_buffer_ > 0) &&
+         (frames_per_buffer_ <= media::limits::kMaxSamplesPerPacket);
 }
 
 int AudioParameters::GetBytesPerBuffer() const {
@@ -60,28 +64,6 @@ int AudioParameters::GetBytesPerSecond() const {
 
 int AudioParameters::GetBytesPerFrame() const {
   return channels_ * bits_per_sample_ / 8;
-}
-
-bool AudioParameters::Compare::operator()(
-    const AudioParameters& a,
-    const AudioParameters& b) const {
-  if (a.format_ < b.format_)
-    return true;
-  if (a.format_ > b.format_)
-    return false;
-  if (a.channels_ < b.channels_)
-    return true;
-  if (a.channels_ > b.channels_)
-    return false;
-  if (a.sample_rate_ < b.sample_rate_)
-    return true;
-  if (a.sample_rate_ > b.sample_rate_)
-    return false;
-  if (a.bits_per_sample_ < b.bits_per_sample_)
-    return true;
-  if (a.bits_per_sample_ > b.bits_per_sample_)
-    return false;
-  return a.frames_per_buffer_ < b.frames_per_buffer_;
 }
 
 }  // namespace media

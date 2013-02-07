@@ -9,6 +9,8 @@
 #include <float.h>
 #endif
 
+#include <limits>
+
 #include "base/sys_string_conversions.h"
 #include "base/third_party/nspr/prtime.h"
 
@@ -64,15 +66,31 @@ int64 TimeDelta::InMicroseconds() const {
 // Time -----------------------------------------------------------------------
 
 // static
+Time Time::Max() {
+  return Time(std::numeric_limits<int64>::max());
+}
+
+// static
 Time Time::FromTimeT(time_t tt) {
   if (tt == 0)
     return Time();  // Preserve 0 so we can tell it doesn't exist.
+  if (tt == std::numeric_limits<time_t>::max())
+    return Max();
   return Time((tt * kMicrosecondsPerSecond) + kTimeTToMicrosecondsOffset);
 }
 
 time_t Time::ToTimeT() const {
-  if (us_ == 0)
+  if (is_null())
     return 0;  // Preserve 0 so we can tell it doesn't exist.
+  if (is_max()) {
+    // Preserve max without offset to prevent overflow.
+    return std::numeric_limits<time_t>::max();
+  }
+  if (std::numeric_limits<int64>::max() - kTimeTToMicrosecondsOffset <= us_) {
+    DLOG(WARNING) << "Overflow when converting base::Time with internal " <<
+                     "value " << us_ << " to time_t.";
+    return std::numeric_limits<time_t>::max();
+  }
   return (us_ - kTimeTToMicrosecondsOffset) / kMicrosecondsPerSecond;
 }
 
@@ -80,14 +98,20 @@ time_t Time::ToTimeT() const {
 Time Time::FromDoubleT(double dt) {
   if (dt == 0 || isnan(dt))
     return Time();  // Preserve 0 so we can tell it doesn't exist.
+  if (dt == std::numeric_limits<double>::max())
+    return Max();
   return Time(static_cast<int64>((dt *
                                   static_cast<double>(kMicrosecondsPerSecond)) +
                                  kTimeTToMicrosecondsOffset));
 }
 
 double Time::ToDoubleT() const {
-  if (us_ == 0)
+  if (is_null())
     return 0;  // Preserve 0 so we can tell it doesn't exist.
+  if (is_max()) {
+    // Preserve max without offset to prevent overflow.
+    return std::numeric_limits<double>::max();
+  }
   return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
           static_cast<double>(kMicrosecondsPerSecond));
 }
@@ -96,14 +120,20 @@ double Time::ToDoubleT() const {
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
   // 0 as the null time.
+  if (ms_since_epoch == std::numeric_limits<double>::max())
+    return Max();
   return Time(static_cast<int64>(ms_since_epoch * kMicrosecondsPerMillisecond) +
               kTimeTToMicrosecondsOffset);
 }
 
 double Time::ToJsTime() const {
-  if (us_ == 0) {
+  if (is_null()) {
     // Preserve 0 so the invalid result doesn't depend on the platform.
     return 0;
+  }
+  if (is_max()) {
+    // Preserve max without offset to prevent overflow.
+    return std::numeric_limits<double>::max();
   }
   return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
           kMicrosecondsPerMillisecond);
@@ -127,14 +157,17 @@ Time Time::LocalMidnight() const {
 }
 
 // static
-bool Time::FromString(const char* time_string, Time* parsed_time) {
+bool Time::FromStringInternal(const char* time_string,
+                              bool is_local,
+                              Time* parsed_time) {
   DCHECK((time_string != NULL) && (parsed_time != NULL));
 
   if (time_string[0] == '\0')
     return false;
 
   PRTime result_time = 0;
-  PRStatus result = PR_ParseTimeString(time_string, PR_FALSE,
+  PRStatus result = PR_ParseTimeString(time_string,
+                                       is_local ? PR_FALSE : PR_TRUE,
                                        &result_time);
   if (PR_SUCCESS != result)
     return false;

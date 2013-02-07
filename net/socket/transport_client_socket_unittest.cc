@@ -103,7 +103,7 @@ void TransportClientSocketTest::SetUp() {
   ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
-  scoped_refptr<TCPListenSocket> sock = NULL;
+  scoped_refptr<TCPListenSocket> sock;
   int port;
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
@@ -257,9 +257,15 @@ TEST_P(TransportClientSocketTest, IsConnected) {
                                  &callback);
   ASSERT_EQ(bytes_read, arraysize(kServerReply) - 2);
 
-  // Once the data is drained, the socket should now be seen as
-  // closed.
-  EXPECT_FALSE(sock_->IsConnected());
+  // Once the data is drained, the socket should now be seen as not
+  // connected.
+  if (sock_->IsConnected()) {
+    // In the unlikely event that the server's connection closure is not
+    // processed in time, wait for the connection to be closed.
+    rv = sock_->Read(buf, 4096, callback.callback());
+    EXPECT_EQ(0, callback.GetResult(rv));
+    EXPECT_FALSE(sock_->IsConnected());
+  }
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 }
 

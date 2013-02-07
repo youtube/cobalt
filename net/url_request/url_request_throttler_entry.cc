@@ -153,7 +153,7 @@ bool URLRequestThrottlerEntry::ShouldRejectRequest(
     const URLRequest& request) const {
   bool reject_request = false;
   if (!is_backoff_disabled_ && !ExplicitUserRequest(request.load_flags()) &&
-      (!request.context() || !request.context()->network_delegate() ||
+      (!request.context()->network_delegate() ||
        request.context()->network_delegate()->CanThrottleRequest(request)) &&
       GetBackoffEntry()->ShouldRejectRequest()) {
     int num_failures = GetBackoffEntry()->failure_count();

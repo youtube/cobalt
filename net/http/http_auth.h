@@ -92,6 +92,7 @@ class NET_EXPORT_PRIVATE HttpAuth {
     AUTH_SCHEME_DIGEST,
     AUTH_SCHEME_NTLM,
     AUTH_SCHEME_NEGOTIATE,
+    AUTH_SCHEME_SPDYPROXY,
     AUTH_SCHEME_MOCK,
     AUTH_SCHEME_MAX,
   };
@@ -178,15 +179,7 @@ class NET_EXPORT_PRIVATE HttpAuth {
   class NET_EXPORT_PRIVATE ChallengeTokenizer {
    public:
     ChallengeTokenizer(std::string::const_iterator begin,
-                       std::string::const_iterator end)
-        : begin_(begin),
-          end_(end),
-          scheme_begin_(begin),
-          scheme_end_(begin),
-          params_begin_(end),
-          params_end_(end) {
-      Init(begin, end);
-    }
+                       std::string::const_iterator end);
 
     // Get the original text.
     std::string challenge_text() const {

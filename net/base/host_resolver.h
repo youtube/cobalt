@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
@@ -37,6 +38,21 @@ class NetLog;
 // goes out of scope).
 class NET_EXPORT HostResolver {
  public:
+  // |max_concurrent_resolves| is how many resolve requests will be allowed to
+  // run in parallel. Pass HostResolver::kDefaultParallelism to choose a
+  // default value.
+  // |max_retry_attempts| is the maximum number of times we will retry for host
+  // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
+  // value.
+  // |enable_caching| controls whether a HostCache is used.
+  struct NET_EXPORT Options {
+    Options();
+
+    size_t max_concurrent_resolves;
+    size_t max_retry_attempts;
+    bool enable_caching;
+  };
+
   // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
   class NET_EXPORT RequestInfo {
@@ -95,15 +111,14 @@ class NET_EXPORT HostResolver {
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
 
-  // This value can be passed into CreateSystemHostResolver as the
+  // This value can be passed into CreateSystemResolver as the
   // |max_concurrent_resolves| parameter. It will select a default level of
   // concurrency.
   static const size_t kDefaultParallelism = 0;
 
-  // This value can be passed into CreateSystemHostResolver as the
-  // |max_retry_attempts| parameter. This is the maximum number of times we
-  // will retry for host resolution.
-  static const size_t kDefaultRetryAttempts = (size_t) -1;
+  // This value can be passed into CreateSystemResolver as the
+  // |max_retry_attempts| parameter.
+  static const size_t kDefaultRetryAttempts = (size_t)-1;
 
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
@@ -159,6 +174,9 @@ class NET_EXPORT HostResolver {
   // address family to IPv4 iff IPv6 is not supported.
   virtual void ProbeIPv6Support();
 
+  // Enable or disable the built-in asynchronous DnsClient.
+  virtual void SetDnsClientEnabled(bool enabled);
+
   // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
   // Used primarily to clear the cache and for getting debug information.
   virtual HostCache* GetHostCache();
@@ -168,6 +186,16 @@ class NET_EXPORT HostResolver {
   // ownership of the returned Value.
   virtual base::Value* GetDnsConfigAsValue() const;
 
+  // Creates a HostResolver implementation that queries the underlying system.
+  // (Except if a unit-test has changed the global HostResolverProc using
+  // ScopedHostResolverProc to intercept requests to the system).
+  static scoped_ptr<HostResolver> CreateSystemResolver(
+      const Options& options,
+      NetLog* net_log);
+
+  // As above, but uses default parameters.
+  static scoped_ptr<HostResolver> CreateDefaultResolver(NetLog* net_log);
+
  protected:
   HostResolver();
 
@@ -175,37 +203,6 @@ class NET_EXPORT HostResolver {
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
 };
 
-// Creates a HostResolver implementation that queries the underlying system.
-// (Except if a unit-test has changed the global HostResolverProc using
-// ScopedHostResolverProc to intercept requests to the system).
-// |max_concurrent_resolves| is how many resolve requests will be allowed to
-// run in parallel. Pass HostResolver::kDefaultParallelism to choose a
-// default value.
-// |max_retry_attempts| is the maximum number of times we will retry for host
-// resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
-// value.
-// The created HostResolver uses an instance of DnsConfigService to retrieve
-// system DNS configuration.
-// This resolver should not be used in test context. Instead, use
-// MockHostResolver from net/base/mock_host_resolver.h.
-NET_EXPORT HostResolver* CreateSystemHostResolver(
-    size_t max_concurrent_resolves,
-    size_t max_retry_attempts,
-    NetLog* net_log);
-
-// As above, but the created HostResolver does not use a cache.
-NET_EXPORT HostResolver* CreateNonCachingSystemHostResolver(
-    size_t max_concurrent_resolves,
-    size_t max_retry_attempts,
-    NetLog* net_log);
-
-// As above, but the HostResolver will use the asynchronous DNS client in
-// DnsTransaction, which will be configured using DnsConfigService to match
-// the system DNS settings. If the client fails, the resolver falls back to
-// the global HostResolverProc.
-NET_EXPORT HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                                 size_t max_retry_attempts,
-                                                 NetLog* net_log);
 }  // namespace net
 
 #endif  // NET_BASE_HOST_RESOLVER_H_

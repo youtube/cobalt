@@ -16,7 +16,9 @@ namespace net {
 
 class NET_EXPORT URLRequestErrorJob : public URLRequestJob {
  public:
-  URLRequestErrorJob(URLRequest* request, int error);
+  URLRequestErrorJob(URLRequest* request,
+                     NetworkDelegate* network_delegate,
+                     int error);
 
   virtual void Start() OVERRIDE;
 
