@@ -11,20 +11,20 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 
 namespace net {
 
-URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestAboutJob::URLRequestAboutJob(URLRequest* request,
+                                       NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 // static
 URLRequestJob* URLRequestAboutJob::Factory(URLRequest* request,
+                                           NetworkDelegate* network_delegate,
                                            const std::string& scheme) {
-  return new URLRequestAboutJob(request);
+  return new URLRequestAboutJob(request, network_delegate);
 }
 
 void URLRequestAboutJob::Start() {

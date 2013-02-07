@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "net/base/address_family.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"
 
@@ -29,8 +30,11 @@ class NET_EXPORT IPEndPoint {
   const IPAddressNumber& address() const { return address_; }
   int port() const { return port_; }
 
-  // Returns AF_INET or AF_INET6 depending on the type of the address.
-  int GetFamily() const;
+  // Returns AddressFamily of the address.
+  AddressFamily GetFamily() const;
+
+  // Returns the sockaddr family of the address, AF_INET or AF_INET6.
+  int GetSockAddrFamily() const;
 
   // Convert to a provided sockaddr struct.
   // |address| is the sockaddr to copy into.  Should be at least

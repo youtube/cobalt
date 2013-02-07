@@ -36,9 +36,11 @@ struct SchemeToFactory {
 static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
+#if !defined(DISABLE_FTP_SUPPORT)
+  { "ftp", URLRequestFtpJob::Factory },
+#endif
 #if !defined(__LB_SHELL__)
   { "file", URLRequestFileJob::Factory },
-  { "ftp", URLRequestFtpJob::Factory },
 #else
   { "local", URLRequestFileJob::Factory },  // local, jailed file content
 #endif
@@ -52,25 +54,26 @@ URLRequestJobManager* URLRequestJobManager::GetInstance() {
 }
 
 URLRequestJob* URLRequestJobManager::CreateJob(
-    URLRequest* request) const {
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   DCHECK(IsAllowedThread());
 
   // If we are given an invalid URL, then don't even try to inspect the scheme.
   if (!request->url().is_valid())
-    return new URLRequestErrorJob(request, ERR_INVALID_URL);
+    return new URLRequestErrorJob(request, network_delegate, ERR_INVALID_URL);
 
   // We do this here to avoid asking interceptors about unsupported schemes.
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
     if (!job_factory->IsHandledProtocol(scheme)) {
-      return new URLRequestErrorJob(request, ERR_UNKNOWN_URL_SCHEME);
+      return new URLRequestErrorJob(
+          request, network_delegate, ERR_UNKNOWN_URL_SCHEME);
     }
   } else if (!SupportsScheme(scheme)) {
-    return new URLRequestErrorJob(request, ERR_UNKNOWN_URL_SCHEME);
+    return new URLRequestErrorJob(
+        request, network_delegate, ERR_UNKNOWN_URL_SCHEME);
   }
 
   // THREAD-SAFETY NOTICE:
@@ -81,7 +84,8 @@ URLRequestJob* URLRequestJobManager::CreateJob(
   //
 
   if (job_factory) {
-    URLRequestJob* job = job_factory->MaybeCreateJobWithInterceptor(request);
+    URLRequestJob* job = job_factory->MaybeCreateJobWithInterceptor(
+        request, network_delegate);
     if (job)
       return job;
   }
@@ -90,15 +94,15 @@ URLRequestJob* URLRequestJobManager::CreateJob(
   if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      URLRequestJob* job = (*i)->MaybeIntercept(request);
+      URLRequestJob* job = (*i)->MaybeIntercept(request, network_delegate);
       if (job)
         return job;
     }
   }
 
   if (job_factory) {
-    URLRequestJob* job =
-        job_factory->MaybeCreateJobWithProtocolHandler(scheme, request);
+    URLRequestJob* job = job_factory->MaybeCreateJobWithProtocolHandler(
+        scheme, request, network_delegate);
     if (job)
       return job;
   }
@@ -110,7 +114,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(
   // built-in protocol factory.
   FactoryMap::const_iterator i = factories_.find(scheme);
   if (i != factories_.end()) {
-    URLRequestJob* job = i->second(request, scheme);
+    URLRequestJob* job = i->second(request, network_delegate, scheme);
     if (job)
       return job;
   }
@@ -118,7 +122,8 @@ URLRequestJob* URLRequestJobManager::CreateJob(
   // See if the request should be handled by a built-in protocol factory.
   for (size_t i = 0; i < arraysize(kBuiltinFactories); ++i) {
     if (scheme == kBuiltinFactories[i].scheme) {
-      URLRequestJob* job = (kBuiltinFactories[i].factory)(request, scheme);
+      URLRequestJob* job = (kBuiltinFactories[i].factory)(
+          request, network_delegate, scheme);
       DCHECK(job);  // The built-in factories are not expected to fail!
       return job;
     }
@@ -128,11 +133,12 @@ URLRequestJob* URLRequestJobManager::CreateJob(
   // wasn't interested in handling the URL.  That is fairly unexpected, and we
   // don't have a specific error to report here :-(
   LOG(WARNING) << "Failed to map: " << request->url().spec();
-  return new URLRequestErrorJob(request, ERR_FAILED);
+  return new URLRequestErrorJob(request, network_delegate, ERR_FAILED);
 }
 
 URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
     URLRequest* request,
+    NetworkDelegate* network_delegate,
     const GURL& location) const {
   DCHECK(IsAllowedThread());
   if (!request->url().is_valid() ||
@@ -142,8 +148,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
   }
 
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
@@ -156,13 +161,14 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
 
   URLRequestJob* job = NULL;
   if (job_factory)
-    job = job_factory->MaybeInterceptRedirect(location, request);
+    job = job_factory->MaybeInterceptRedirect(
+        location, request, network_delegate);
   if (job)
     return job;
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    job = (*i)->MaybeInterceptRedirect(request, location);
+    job = (*i)->MaybeInterceptRedirect(request, network_delegate, location);
     if (job)
       return job;
   }
@@ -170,7 +176,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
 }
 
 URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
-    URLRequest* request) const {
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   DCHECK(IsAllowedThread());
   if (!request->url().is_valid() ||
       request->load_flags() & LOAD_DISABLE_INTERCEPT ||
@@ -179,8 +185,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
   }
 
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
@@ -193,13 +198,13 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
 
   URLRequestJob* job = NULL;
   if (job_factory)
-    job = job_factory->MaybeInterceptResponse(request);
+    job = job_factory->MaybeInterceptResponse(request, network_delegate);
   if (job)
     return job;
 
   InterceptorList::const_iterator i;
   for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-    job = (*i)->MaybeInterceptResponse(request);
+    job = (*i)->MaybeInterceptResponse(request, network_delegate);
     if (job)
       return job;
   }

@@ -162,12 +162,12 @@ class MessagePumpGLibTest : public testing::Test {
  public:
   MessagePumpGLibTest() : loop_(NULL), injector_(NULL) { }
 
-  virtual void SetUp() {
+  // Overridden from testing::Test:
+  virtual void SetUp() OVERRIDE {
     loop_ = new MessageLoop(MessageLoop::TYPE_UI);
     injector_ = new EventInjector();
   }
-
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     delete injector_;
     injector_ = NULL;
     delete loop_;

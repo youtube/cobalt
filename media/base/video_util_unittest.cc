@@ -37,9 +37,10 @@ class VideoUtilTest : public testing::Test {
   }
 
   void CreateDestinationFrame(int width, int height) {
+    gfx::Size size(width, height);
     destination_frame_ =
-        VideoFrame::CreateFrame(VideoFrame::YV12, width, height,
-                                base::TimeDelta(), base::TimeDelta());
+        VideoFrame::CreateFrame(VideoFrame::YV12, size, gfx::Rect(size), size,
+                                base::TimeDelta());
   }
 
   void CopyPlanes() {

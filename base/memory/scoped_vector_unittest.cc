@@ -23,16 +23,18 @@ class LifeCycleObject {
     virtual ~Observer() {}
   };
 
-  explicit LifeCycleObject(Observer* observer)
-      : observer_(observer) {
-    observer_->OnLifeCycleConstruct(this);
-  }
-
   ~LifeCycleObject() {
     observer_->OnLifeCycleDestroy(this);
   }
 
  private:
+  friend class LifeCycleWatcher;
+
+  explicit LifeCycleObject(Observer* observer)
+      : observer_(observer) {
+    observer_->OnLifeCycleConstruct(this);
+  }
+
   Observer* observer_;
 
   DISALLOW_COPY_AND_ASSIGN(LifeCycleObject);
@@ -91,6 +93,11 @@ class LifeCycleWatcher : public LifeCycleObject::Observer {
     return new LifeCycleObject(this);
   }
 
+  // Returns true iff |object| is the same object that this watcher is tracking.
+  bool IsWatching(LifeCycleObject* object) const {
+    return object == constructed_life_cycle_object_.get();
+  }
+
  private:
   LifeCycleState life_cycle_state_;
   scoped_ptr<LifeCycleObject> constructed_life_cycle_object_;
@@ -113,21 +120,67 @@ TEST(ScopedVectorTest, Clear) {
   ScopedVector<LifeCycleObject> scoped_vector;
   scoped_vector.push_back(watcher.NewLifeCycleObject());
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
   scoped_vector.clear();
   EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
-  EXPECT_EQ(static_cast<size_t>(0), scoped_vector.size());
+  EXPECT_TRUE(scoped_vector.empty());
 }
 
 TEST(ScopedVectorTest, WeakClear) {
   LifeCycleWatcher watcher;
   EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
   ScopedVector<LifeCycleObject> scoped_vector;
-  scoped_ptr<LifeCycleObject> object(watcher.NewLifeCycleObject());
-  scoped_vector.push_back(object.get());
+  scoped_vector.push_back(watcher.NewLifeCycleObject());
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
   scoped_vector.weak_clear();
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
-  EXPECT_EQ(static_cast<size_t>(0), scoped_vector.size());
+  EXPECT_TRUE(scoped_vector.empty());
+}
+
+TEST(ScopedVectorTest, ResizeShrink) {
+  LifeCycleWatcher first_watcher;
+  EXPECT_EQ(LC_INITIAL, first_watcher.life_cycle_state());
+  LifeCycleWatcher second_watcher;
+  EXPECT_EQ(LC_INITIAL, second_watcher.life_cycle_state());
+  ScopedVector<LifeCycleObject> scoped_vector;
+
+  scoped_vector.push_back(first_watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_INITIAL, second_watcher.life_cycle_state());
+  EXPECT_TRUE(first_watcher.IsWatching(scoped_vector[0]));
+  EXPECT_FALSE(second_watcher.IsWatching(scoped_vector[0]));
+
+  scoped_vector.push_back(second_watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_CONSTRUCTED, second_watcher.life_cycle_state());
+  EXPECT_FALSE(first_watcher.IsWatching(scoped_vector[1]));
+  EXPECT_TRUE(second_watcher.IsWatching(scoped_vector[1]));
+
+  // Test that shrinking a vector deletes elements in the disappearing range.
+  scoped_vector.resize(1);
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_DESTROYED, second_watcher.life_cycle_state());
+  EXPECT_EQ(1u, scoped_vector.size());
+  EXPECT_TRUE(first_watcher.IsWatching(scoped_vector[0]));
+}
+
+TEST(ScopedVectorTest, ResizeGrow) {
+  LifeCycleWatcher watcher;
+  EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
+  ScopedVector<LifeCycleObject> scoped_vector;
+  scoped_vector.push_back(watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
+
+  scoped_vector.resize(5);
+  EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  ASSERT_EQ(5u, scoped_vector.size());
+  EXPECT_TRUE(watcher.IsWatching(scoped_vector[0]));
+  EXPECT_FALSE(watcher.IsWatching(scoped_vector[1]));
+  EXPECT_FALSE(watcher.IsWatching(scoped_vector[2]));
+  EXPECT_FALSE(watcher.IsWatching(scoped_vector[3]));
+  EXPECT_FALSE(watcher.IsWatching(scoped_vector[4]));
 }
 
 TEST(ScopedVectorTest, Scope) {
@@ -137,6 +190,7 @@ TEST(ScopedVectorTest, Scope) {
     ScopedVector<LifeCycleObject> scoped_vector;
     scoped_vector.push_back(watcher.NewLifeCycleObject());
     EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+    EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
   }
   EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
 }
@@ -148,10 +202,12 @@ TEST(ScopedVectorTest, MoveConstruct) {
     ScopedVector<LifeCycleObject> scoped_vector;
     scoped_vector.push_back(watcher.NewLifeCycleObject());
     EXPECT_FALSE(scoped_vector.empty());
+    EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
 
     ScopedVector<LifeCycleObject> scoped_vector_copy(scoped_vector.Pass());
     EXPECT_TRUE(scoped_vector.empty());
     EXPECT_FALSE(scoped_vector_copy.empty());
+    EXPECT_TRUE(watcher.IsWatching(scoped_vector_copy.back()));
 
     EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
   }
@@ -166,10 +222,12 @@ TEST(ScopedVectorTest, MoveAssign) {
     scoped_vector.push_back(watcher.NewLifeCycleObject());
     ScopedVector<LifeCycleObject> scoped_vector_assign;
     EXPECT_FALSE(scoped_vector.empty());
+    EXPECT_TRUE(watcher.IsWatching(scoped_vector.back()));
 
     scoped_vector_assign = scoped_vector.Pass();
     EXPECT_TRUE(scoped_vector.empty());
     EXPECT_FALSE(scoped_vector_assign.empty());
+    EXPECT_TRUE(watcher.IsWatching(scoped_vector_assign.back()));
 
     EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
   }

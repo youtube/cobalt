@@ -37,7 +37,7 @@ void NetworkDelegate::NotifySendHeaders(URLRequest* request,
 int NetworkDelegate::NotifyHeadersReceived(
     URLRequest* request,
     const CompletionCallback& callback,
-    HttpResponseHeaders* original_response_headers,
+    const HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(original_response_headers);
@@ -125,6 +125,12 @@ int NetworkDelegate::NotifyBeforeSocketStreamConnect(
   DCHECK(socket);
   DCHECK(!callback.is_null());
   return OnBeforeSocketStreamConnect(socket, callback);
+}
+
+void NetworkDelegate::NotifyRequestWaitStateChange(const URLRequest& request,
+                                                   RequestWaitState state) {
+  DCHECK(CalledOnValidThread());
+  OnRequestWaitStateChange(request, state);
 }
 
 }  // namespace net

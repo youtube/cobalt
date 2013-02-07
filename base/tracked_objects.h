@@ -18,7 +18,6 @@
 #include "base/location.h"
 #include "base/profiler/alternate_timer.h"
 #include "base/profiler/tracked_time.h"
-#include "base/time.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/tracking_info.h"
@@ -422,7 +421,7 @@ class BASE_EXPORT ThreadData {
       const TrackedTime& start_of_run,
       const TrackedTime& end_of_run);
 
-  const std::string thread_name() const;
+  const std::string& thread_name() const { return thread_name_; }
 
   // Hack: asynchronously clear all birth counts and death tallies data values
   // in all ThreadData instances.  The numerical (zeroing) part is done without

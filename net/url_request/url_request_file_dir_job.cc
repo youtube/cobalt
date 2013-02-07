@@ -6,7 +6,6 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
-#include "base/file_util.h"
 #include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
@@ -15,8 +14,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_status.h"
 
 #if defined(OS_POSIX)
 #include <sys/stat.h>
@@ -25,8 +23,9 @@
 namespace net {
 
 URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
+                                           NetworkDelegate* network_delegate,
                                            const FilePath& dir_path)
-    : URLRequestJob(request, request->context()->network_delegate()),
+    : URLRequestJob(request, network_delegate),
       ALLOW_THIS_IN_INITIALIZER_LIST(lister_(dir_path, this)),
       dir_path_(dir_path),
       canceled_(false),
@@ -67,7 +66,7 @@ void URLRequestFileDirJob::Kill() {
 }
 
 bool URLRequestFileDirJob::ReadRawData(IOBuffer* buf, int buf_size,
-                                       int *bytes_read) {
+                                       int* bytes_read) {
   DCHECK(bytes_read);
   *bytes_read = 0;
 
@@ -124,11 +123,11 @@ void URLRequestFileDirJob::OnListFile(
   // ICU's datetime formatting APIs expect time in UTC and take into account
   // the timezone before formatting.
   data_.append(GetDirectoryListingEntry(
-      data.info.cFileName, std::string(),
-      (data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
+      data.info.cFileName,
+      std::string(),
+      ((data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0),
       size,
       base::Time::FromFileTime(data.info.ftLastWriteTime)));
-
 #elif defined(OS_POSIX)
   // TOOD(jungshik): The same issue as for the directory name.
   data_.append(GetDirectoryListingEntry(
@@ -176,8 +175,8 @@ void URLRequestFileDirJob::CompleteRead() {
   }
 }
 
-bool URLRequestFileDirJob::FillReadBuffer(char *buf, int buf_size,
-                                          int *bytes_read) {
+bool URLRequestFileDirJob::FillReadBuffer(char* buf, int buf_size,
+                                          int* bytes_read) {
   DCHECK(bytes_read);
 
   *bytes_read = 0;

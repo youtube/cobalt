@@ -14,6 +14,19 @@
 
 namespace net {
 
+template <typename KeyType,
+          typename ValueType,
+          typename ExpirationType>
+class NoopEvictionHandler {
+ public:
+  void Handle(const KeyType& key,
+              const ValueType& value,
+              const ExpirationType& expiration,
+              const ExpirationType& now,
+              bool onGet) const {
+  }
+};
+
 // Cache implementation where all entries have an explicit expiration policy. As
 // new items are added, expired items will be removed first.
 // The template types have the following requirements:
@@ -54,7 +67,10 @@ namespace net {
 template <typename KeyType,
           typename ValueType,
           typename ExpirationType,
-          typename ExpirationCompare>
+          typename ExpirationCompare,
+          typename EvictionHandler = NoopEvictionHandler<KeyType,
+                                                         ValueType,
+                                                         ExpirationType> >
 class ExpiringCache {
  private:
   // Intentionally violate the C++ Style Guide so that EntryMap is known to be
@@ -113,7 +129,7 @@ class ExpiringCache {
 
     // Immediately remove expired entries.
     if (!expiration_comp_(now, it->second.second)) {
-      entries_.erase(it);
+      Evict(it, now, true);
       return NULL;
     }
 
@@ -163,7 +179,7 @@ class ExpiringCache {
     typename EntryMap::iterator it;
     for (it = entries_.begin(); it != entries_.end(); ) {
       if (!expiration_comp_(now, it->second.second)) {
-        entries_.erase(it++);
+        Evict(it++, now, false);
       } else {
         ++it;
       }
@@ -175,8 +191,16 @@ class ExpiringCache {
     // If the cache is still too full, start deleting items 'randomly'.
     for (it = entries_.begin();
          it != entries_.end() && entries_.size() >= max_entries_;) {
-      entries_.erase(it++);
+      Evict(it++, now, false);
     }
+  }
+
+  void Evict(typename EntryMap::iterator it,
+             const ExpirationType& now,
+             bool on_get) {
+    eviction_handler_.Handle(it->first, it->second.first, it->second.second,
+                             now, on_get);
+    entries_.erase(it);
   }
 
   // Bound on total size of the cache.
@@ -184,6 +208,7 @@ class ExpiringCache {
 
   EntryMap entries_;
   ExpirationCompare expiration_comp_;
+  EvictionHandler eviction_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpiringCache);
 };

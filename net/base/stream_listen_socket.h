@@ -16,8 +16,6 @@
 #ifndef NET_BASE_STREAM_LISTEN_SOCKET_H_
 #define NET_BASE_STREAM_LISTEN_SOCKET_H_
 
-#include <list>
-
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -34,10 +32,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/ref_counted.h"
-#include "base/timer.h"
-#include "net/base/backoff_entry.h"
-#include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 #include "net/base/stream_listen_socket.h"
 
@@ -48,6 +42,8 @@ typedef SOCKET SocketDescriptor;
 #endif
 
 namespace net {
+
+class IPEndPoint;
 
 class NET_EXPORT StreamListenSocket
     : public base::RefCountedThreadSafe<StreamListenSocket>,
@@ -83,6 +79,9 @@ class NET_EXPORT StreamListenSocket
   void Send(const char* bytes, int len, bool append_linefeed = false);
   void Send(const std::string& str, bool append_linefeed = false);
 
+  // Copies the local address to |address|. Returns a network error code.
+  int GetLocalAddress(IPEndPoint* address);
+
   static const SocketDescriptor kInvalidSocket;
   static const int kSocketError;
 
@@ -115,7 +114,6 @@ class NET_EXPORT StreamListenSocket
   friend class base::RefCountedThreadSafe<StreamListenSocket>;
   friend class TransportClientSocketTest;
 
-  void SendData();
   void SendInternal(const char* bytes, int len);
 
 #if defined(OS_WIN)
@@ -145,14 +143,6 @@ class NET_EXPORT StreamListenSocket
   const SocketDescriptor socket_;
   bool reads_paused_;
   bool has_pending_reads_;
-
-  std::list<scoped_refptr<DrainableIOBuffer> > send_buffers_;
-  int send_pending_size_;
-  bool send_error_;
-  net::BackoffEntry send_backoff_;
-
-  // Used to continue sending data asynchronously.
-  base::OneShotTimer<StreamListenSocket> send_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(StreamListenSocket);
 };

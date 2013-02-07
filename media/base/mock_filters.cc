@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/filter_host.h"
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -41,24 +40,32 @@ MockAudioRenderer::MockAudioRenderer() {}
 
 MockAudioRenderer::~MockAudioRenderer() {}
 
+MockDecryptor::MockDecryptor() {}
+
+MockDecryptor::~MockDecryptor() {}
+
+void MockDecryptor::InitializeAudioDecoder(
+    scoped_ptr<AudioDecoderConfig> config,
+    const DecoderInitCB& init_cb) {
+  InitializeAudioDecoderMock(*config, init_cb);
+}
+
+void MockDecryptor::InitializeVideoDecoder(
+    scoped_ptr<VideoDecoderConfig> config,
+    const DecoderInitCB& init_cb) {
+  InitializeVideoDecoderMock(*config, init_cb);
+}
+
 MockDecryptorClient::MockDecryptorClient() {}
 
 MockDecryptorClient::~MockDecryptorClient() {}
 
-void MockDecryptorClient::KeyMessage(const std::string& key_system,
-                                     const std::string& session_id,
-                                     scoped_array<uint8> message,
-                                     int message_length,
-                                     const std::string& default_url) {
-  KeyMessageMock(key_system, session_id, message.get(), message_length,
-                 default_url);
-}
-
 void MockDecryptorClient::NeedKey(const std::string& key_system,
                                   const std::string& session_id,
+                                  const std::string& type,
                                   scoped_array<uint8> init_data,
                                   int init_data_length) {
-  NeedKeyMock(key_system, session_id, init_data.get(), init_data_length);
+  NeedKeyMock(key_system, session_id, type, init_data.get(), init_data_length);
 }
 
 MockFilterCollection::MockFilterCollection()
@@ -74,42 +81,11 @@ MockFilterCollection::~MockFilterCollection() {}
 scoped_ptr<FilterCollection> MockFilterCollection::Create() {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxer(demuxer_);
-  collection->AddVideoDecoder(video_decoder_);
-  collection->AddAudioDecoder(audio_decoder_);
+  collection->GetVideoDecoders()->push_back(video_decoder_);
+  collection->GetAudioDecoders()->push_back(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
   collection->AddAudioRenderer(audio_renderer_);
   return collection.Pass();
-}
-
-void RunPipelineStatusCB(const PipelineStatusCB& status_cb) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB2(::testing::Unused,
-                          const PipelineStatusCB& status_cb) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
-                          ::testing::Unused) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
-                          ::testing::Unused, ::testing::Unused) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunClosure(const base::Closure& closure) {
-  closure.Run();
-}
-
-MockFilter::MockFilter() : host_(NULL) {}
-
-MockFilter::~MockFilter() {}
-
-void MockFilter::SetHost(FilterHost* host) {
-  host_ = host;
 }
 
 MockStatisticsCB::MockStatisticsCB() {}

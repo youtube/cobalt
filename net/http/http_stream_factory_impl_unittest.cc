@@ -69,7 +69,7 @@ class StreamRequestWaiter : public HttpStreamRequest::Delegate {
   virtual void OnStreamReady(
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
-      HttpStream* stream) OVERRIDE {
+      HttpStreamBase* stream) OVERRIDE {
     stream_done_ = true;
     if (waiting_for_stream_)
       MessageLoop::current()->Quit();
@@ -96,7 +96,7 @@ class StreamRequestWaiter : public HttpStreamRequest::Delegate {
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
                                           const SSLConfig& used_ssl_config,
                                           const ProxyInfo& used_proxy_info,
-                                          HttpStream* stream) OVERRIDE {}
+                                          HttpStreamBase* stream) OVERRIDE {}
 
   void WaitForStream() {
     while (!stream_done_) {
@@ -109,7 +109,7 @@ class StreamRequestWaiter : public HttpStreamRequest::Delegate {
  private:
   bool waiting_for_stream_;
   bool stream_done_;
-  scoped_ptr<HttpStream> stream_;
+  scoped_ptr<HttpStreamBase> stream_;
 
   DISALLOW_COPY_AND_ASSIGN(StreamRequestWaiter);
 };

@@ -23,7 +23,7 @@ SymmetricKey* SymmetricKey::GenerateRandomKey(Algorithm algorithm,
   if (key_size_in_bits == 0)
     return NULL;
 
-  ScopedPK11Slot slot(PK11_GetBestSlot(CKM_AES_KEY_GEN, NULL));
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot.get())
     return NULL;
 
@@ -68,7 +68,7 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
   if (!alg_id.get())
     return NULL;
 
-  ScopedPK11Slot slot(PK11_GetBestSlot(SEC_OID_PKCS5_PBKDF2, NULL));
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot.get())
     return NULL;
 
@@ -93,7 +93,7 @@ SymmetricKey* SymmetricKey::Import(Algorithm algorithm,
       const_cast<char *>(raw_key.data()));
   key_item.len = raw_key.size();
 
-  ScopedPK11Slot slot(PK11_GetBestSlot(cipher, NULL));
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot.get())
     return NULL;
 

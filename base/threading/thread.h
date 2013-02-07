@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_THREAD_H_
-#define BASE_THREAD_H_
+#ifndef BASE_THREADING_THREAD_H_
+#define BASE_THREADING_THREAD_H_
 
 #include <string>
 
@@ -20,7 +20,7 @@ namespace base {
 // pending tasks queued on the thread's message loop will run to completion
 // before the thread is terminated.
 //
-// NOTE: Subclasses must call Stop() in their destructor. See ~Thread below.
+// WARNING! SUBCLASSES MUST CALL Stop() IN THEIR DESTRUCTORS!  See ~Thread().
 //
 // After the thread is stopped, the destruction sequence is:
 //
@@ -49,14 +49,25 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // Destroys the thread, stopping it if necessary.
   //
-  // NOTE: All subclasses of Thread must call Stop() in their
-  // destructor, or otherwise ensure Stop() is called before the
-  // subclass is destructed.  This is required to avoid a data race
-  // between the destructor modifying the vtable, and the thread's
-  // ThreadMain calling the virtual method Run.  It also ensures that
-  // the CleanUp() virtual method is called on the subclass before it
-  // is destructed.
+  // NOTE: ALL SUBCLASSES OF Thread MUST CALL Stop() IN THEIR DESTRUCTORS (or
+  // guarantee Stop() is explicitly called before the subclass is destroyed).
+  // This is required to avoid a data race between the destructor modifying the
+  // vtable, and the thread's ThreadMain calling the virtual method Run().  It
+  // also ensures that the CleanUp() virtual method is called on the subclass
+  // before it is destructed.
   virtual ~Thread();
+
+#if defined(OS_WIN)
+  // Causes the thread to initialize COM.  This must be called before calling
+  // Start() or StartWithOptions().  If |use_mta| is false, the thread is also
+  // started with a TYPE_UI message loop.  It is an error to call
+  // init_com_with_mta(false) and then StartWithOptions() with any message loop
+  // type other than TYPE_UI.
+  void init_com_with_mta(bool use_mta) {
+    DCHECK(!started_);
+    com_status_ = use_mta ? MTA : STA;
+  }
+#endif
 
   // Starts the thread.  Returns true if the thread was successfully started;
   // otherwise, returns false.  Upon successful return, the message_loop()
@@ -82,10 +93,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Stop may be called multiple times and is simply ignored if the thread is
   // already stopped.
   //
-  // NOTE: This method is optional.  It is not strictly necessary to call this
-  // method as the Thread's destructor will take care of stopping the thread if
-  // necessary.
-  //
+  // NOTE: If you are a consumer of Thread, it is not necessary to call this
+  // before deleting your Thread objects, as the destructor will do it.
+  // IF YOU ARE A SUBCLASS OF Thread, YOU MUST CALL THIS IN YOUR DESTRUCTOR.
   void Stop();
 
   // Signals the thread to exit in the near future.
@@ -121,7 +131,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   }
 
   // Returns the name of this thread (for display in debugger too).
-  const std::string &thread_name() { return name_; }
+  const std::string& thread_name() const { return name_; }
 
   // The native thread handle.
   PlatformThreadHandle thread_handle() { return thread_; }
@@ -150,10 +160,21 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   }
 
  private:
-  bool thread_was_started() const { return started_; }
+#if defined(OS_WIN)
+  enum ComStatus {
+    NONE,
+    STA,
+    MTA,
+  };
+#endif
 
   // PlatformThread::Delegate methods:
   virtual void ThreadMain() OVERRIDE;
+
+#if defined(OS_WIN)
+  // Whether this thread needs to initialize COM, and if so, in what mode.
+  ComStatus com_status_;
+#endif
 
   // Whether we successfully started the thread.
   bool started_;
@@ -189,4 +210,4 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
 }  // namespace base
 
-#endif  // BASE_THREAD_H_
+#endif  // BASE_THREADING_THREAD_H_

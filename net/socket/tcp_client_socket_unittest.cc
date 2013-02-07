@@ -34,6 +34,10 @@ TEST(TCPClientSocketTest, BindLoopbackToLoopback) {
 
   EXPECT_EQ(OK, socket.Bind(IPEndPoint(lo_address, 0)));
 
+  IPEndPoint local_address_result;
+  EXPECT_EQ(OK, socket.GetLocalAddress(&local_address_result));
+  EXPECT_EQ(lo_address, local_address_result.address());
+
   TestCompletionCallback connect_callback;
   EXPECT_EQ(ERR_IO_PENDING, socket.Connect(connect_callback.callback()));
 
@@ -45,6 +49,12 @@ TEST(TCPClientSocketTest, BindLoopbackToLoopback) {
   ASSERT_EQ(OK, result);
 
   EXPECT_EQ(OK, connect_callback.WaitForResult());
+
+  EXPECT_TRUE(socket.IsConnected());
+  socket.Disconnect();
+  EXPECT_FALSE(socket.IsConnected());
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            socket.GetLocalAddress(&local_address_result));
 }
 
 // Try to bind socket to the loopback interface and connect to an

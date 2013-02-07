@@ -36,7 +36,7 @@ class SeekableBufferTest : public testing::Test {
     return rand() % maximum + 1;
   }
 
-  media::SeekableBuffer buffer_;
+  SeekableBuffer buffer_;
   uint8 data_[kDataSize];
   uint8 write_buffer_[kDataSize];
 };
@@ -225,9 +225,7 @@ TEST_F(SeekableBufferTest, SeekBackward) {
 TEST_F(SeekableBufferTest, GetCurrentChunk) {
   const int kSeekSize = kWriteSize / 3;
 
-  scoped_refptr<media::DataBuffer> buffer(new media::DataBuffer(kWriteSize));
-  memcpy(buffer->GetWritableData(), data_, kWriteSize);
-  buffer->SetDataSize(kWriteSize);
+  scoped_refptr<DataBuffer> buffer(new DataBuffer(data_, kWriteSize));
 
   const uint8* data;
   int size;
@@ -289,7 +287,6 @@ TEST_F(SeekableBufferTest, AllMethods) {
   EXPECT_EQ(0, buffer_.backward_bytes());
 }
 
-
 TEST_F(SeekableBufferTest, GetTime) {
   const int64 kNoTS = kNoTimestamp().ToInternalValue();
   const struct {
@@ -331,9 +328,7 @@ TEST_F(SeekableBufferTest, GetTime) {
   EXPECT_EQ(kNoTimestamp().ToInternalValue(),
             buffer_.current_time().ToInternalValue());
 
-  scoped_refptr<media::DataBuffer> buffer(new media::DataBuffer(kWriteSize));
-  memcpy(buffer->GetWritableData(), data_, kWriteSize);
-  buffer->SetDataSize(kWriteSize);
+  scoped_refptr<DataBuffer> buffer(new DataBuffer(data_, kWriteSize));
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     buffer->SetTimestamp(base::TimeDelta::FromMicroseconds(

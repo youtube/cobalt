@@ -5,6 +5,8 @@
 #ifndef BASE_ALLOCATOR_ALLOCATOR_THUNKS_EXTENSION_H
 #define BASE_ALLOCATOR_ALLOCATOR_THUNKS_EXTENSION_H
 
+#include <stddef.h> // for size_t
+
 namespace base {
 namespace allocator {
 namespace thunks {
@@ -13,14 +15,19 @@ namespace thunks {
 // new allocator extension from a specific allocator implementation to base.
 // See allocator_extension.h to see the interface that base exports.
 
-typedef void GetStatsFunction(char*, int);
-void SetGetStatsFunction(GetStatsFunction* get_stats_function);
-GetStatsFunction* GetGetStatsFunction();
+typedef bool (*GetAllocatorWasteSizeFunction)(size_t* size);
+void SetGetAllocatorWasteSizeFunction(
+    GetAllocatorWasteSizeFunction get_allocator_waste_size_function);
+GetAllocatorWasteSizeFunction GetGetAllocatorWasteSizeFunction();
 
-typedef void ReleaseFreeMemoryFunction();
+typedef void (*GetStatsFunction)(char* buffer, int buffer_length);
+void SetGetStatsFunction(GetStatsFunction get_stats_function);
+GetStatsFunction GetGetStatsFunction();
+
+typedef void (*ReleaseFreeMemoryFunction)();
 void SetReleaseFreeMemoryFunction(
-    ReleaseFreeMemoryFunction* release_free_memory_function);
-ReleaseFreeMemoryFunction* GetReleaseFreeMemoryFunction();
+    ReleaseFreeMemoryFunction release_free_memory_function);
+ReleaseFreeMemoryFunction GetReleaseFreeMemoryFunction();
 
 }  // namespace thunks
 }  // namespace allocator

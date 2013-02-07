@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -11,11 +11,10 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <math.h>
 
-#include "vp8enci.h"
-#include "cost.h"
+#include "./vp8enci.h"
+#include "./cost.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -63,6 +62,8 @@ static void ResetStats(VP8Encoder* const enc, int precalc_cost) {
 //------------------------------------------------------------------------------
 // Skip decision probability
 
+#define SKIP_PROBA_THRESHOLD 250  // value below which using skip_proba is OK.
+
 static int CalcSkipProba(uint64_t nb, uint64_t total) {
   return (int)(total ? (total - nb) * 255 / total : 255);
 }
@@ -74,7 +75,7 @@ static int FinalizeSkipProba(VP8Encoder* const enc) {
   const int nb_events = proba->nb_skip_;
   int size;
   proba->skip_proba_ = CalcSkipProba(nb_events, nb_mbs);
-  proba->use_skip_proba_ = (proba->skip_proba_ < 250);
+  proba->use_skip_proba_ = (proba->skip_proba_ < SKIP_PROBA_THRESHOLD);
   size = 256;   // 'use_skip_proba' bit
   if (proba->use_skip_proba_) {
     size +=  nb_events * VP8BitCost(1, proba->skip_proba_)
@@ -104,7 +105,7 @@ static int Record(int bit, uint64_t* const stats) {
 
 // Simulate block coding, but only record statistics.
 // Note: no need to record the fixed probas.
-static int RecordCoeffs(int ctx, VP8Residual* res) {
+static int RecordCoeffs(int ctx, const VP8Residual* const res) {
   int n = res->first;
   uint64_t (*s)[2] = res->stats[VP8EncBands[n]][ctx];
   if (!Record(res->last >= 0, s[0])) {
@@ -223,42 +224,47 @@ static int GetResidualCost(int ctx, const VP8Residual* const res) {
   int n = res->first;
   const uint8_t* p = res->prob[VP8EncBands[n]][ctx];
   const uint16_t *t = res->cost[VP8EncBands[n]][ctx];
+  int last_p0 = p[0];
   int cost;
 
-  cost = VP8BitCost(res->last >= 0, p[0]);
   if (res->last < 0) {
-    return cost;
+    return VP8BitCost(0, last_p0);
   }
+  cost = 0;
   while (n <= res->last) {
-    const int v = res->coeffs[n++];
+    const int v = res->coeffs[n];
+    const int b = VP8EncBands[n + 1];
+    ++n;
     if (v == 0) {
       cost += VP8LevelCost(t, 0);
-      p = res->prob[VP8EncBands[n]][0];
-      t = res->cost[VP8EncBands[n]][0];
+      p = res->prob[b][0];
+      t = res->cost[b][0];
       continue;
-    } else if (2u >= (unsigned int)(v + 1)) {   // v = -1 or 1
+    }
+    cost += VP8BitCost(1, last_p0);
+    if (2u >= (unsigned int)(v + 1)) {   // v = -1 or 1
       cost += VP8LevelCost(t, 1);
-      p = res->prob[VP8EncBands[n]][1];
-      t = res->cost[VP8EncBands[n]][1];
+      p = res->prob[b][1];
+      t = res->cost[b][1];
     } else {
       cost += VP8LevelCost(t, abs(v));
-      p = res->prob[VP8EncBands[n]][2];
-      t = res->cost[VP8EncBands[n]][2];
+      p = res->prob[b][2];
+      t = res->cost[b][2];
     }
-    if (n < 16) {
-      cost += VP8BitCost(n <= res->last, p[0]);
-    }
+    last_p0 = p[0];
   }
+  if (n < 16) cost += VP8BitCost(0, last_p0);
   return cost;
 }
 
 int VP8GetCostLuma4(VP8EncIterator* const it, const int16_t levels[16]) {
   const int x = (it->i4_ & 3), y = (it->i4_ >> 2);
   VP8Residual res;
+  VP8Encoder* const enc = it->enc_;
   int R = 0;
   int ctx;
 
-  InitResidual(0, 3, it->enc_, &res);
+  InitResidual(0, 3, enc, &res);
   ctx = it->top_nz_[x] + it->left_nz_[y];
   SetResidualCoeffs(levels, &res);
   R += GetResidualCost(ctx, &res);
@@ -267,18 +273,19 @@ int VP8GetCostLuma4(VP8EncIterator* const it, const int16_t levels[16]) {
 
 int VP8GetCostLuma16(VP8EncIterator* const it, const VP8ModeScore* const rd) {
   VP8Residual res;
+  VP8Encoder* const enc = it->enc_;
   int x, y;
   int R = 0;
 
   VP8IteratorNzToBytes(it);   // re-import the non-zero context
 
   // DC
-  InitResidual(0, 1, it->enc_, &res);
+  InitResidual(0, 1, enc, &res);
   SetResidualCoeffs(rd->y_dc_levels, &res);
   R += GetResidualCost(it->top_nz_[8] + it->left_nz_[8], &res);
 
   // AC
-  InitResidual(1, 0, it->enc_, &res);
+  InitResidual(1, 0, enc, &res);
   for (y = 0; y < 4; ++y) {
     for (x = 0; x < 4; ++x) {
       const int ctx = it->top_nz_[x] + it->left_nz_[y];
@@ -292,12 +299,13 @@ int VP8GetCostLuma16(VP8EncIterator* const it, const VP8ModeScore* const rd) {
 
 int VP8GetCostUV(VP8EncIterator* const it, const VP8ModeScore* const rd) {
   VP8Residual res;
+  VP8Encoder* const enc = it->enc_;
   int ch, x, y;
   int R = 0;
 
   VP8IteratorNzToBytes(it);  // re-import the non-zero context
 
-  InitResidual(0, 2, it->enc_, &res);
+  InitResidual(0, 2, enc, &res);
   for (ch = 0; ch <= 2; ch += 2) {
     for (y = 0; y < 2; ++y) {
       for (x = 0; x < 2; ++x) {
@@ -393,18 +401,19 @@ static void CodeResiduals(VP8BitWriter* const bw,
   uint64_t pos1, pos2, pos3;
   const int i16 = (it->mb_->type_ == 1);
   const int segment = it->mb_->segment_;
+  VP8Encoder* const enc = it->enc_;
 
   VP8IteratorNzToBytes(it);
 
   pos1 = VP8BitWriterPos(bw);
   if (i16) {
-    InitResidual(0, 1, it->enc_, &res);
+    InitResidual(0, 1, enc, &res);
     SetResidualCoeffs(rd->y_dc_levels, &res);
     it->top_nz_[8] = it->left_nz_[8] =
       PutCoeffs(bw, it->top_nz_[8] + it->left_nz_[8], &res);
-    InitResidual(1, 0, it->enc_, &res);
+    InitResidual(1, 0, enc, &res);
   } else {
-    InitResidual(0, 3, it->enc_, &res);
+    InitResidual(0, 3, enc, &res);
   }
 
   // luma-AC
@@ -418,7 +427,7 @@ static void CodeResiduals(VP8BitWriter* const bw,
   pos2 = VP8BitWriterPos(bw);
 
   // U/V
-  InitResidual(0, 2, it->enc_, &res);
+  InitResidual(0, 2, enc, &res);
   for (ch = 0; ch <= 2; ch += 2) {
     for (y = 0; y < 2; ++y) {
       for (x = 0; x < 2; ++x) {
@@ -443,17 +452,18 @@ static void RecordResiduals(VP8EncIterator* const it,
                             const VP8ModeScore* const rd) {
   int x, y, ch;
   VP8Residual res;
+  VP8Encoder* const enc = it->enc_;
 
   VP8IteratorNzToBytes(it);
 
   if (it->mb_->type_ == 1) {   // i16x16
-    InitResidual(0, 1, it->enc_, &res);
+    InitResidual(0, 1, enc, &res);
     SetResidualCoeffs(rd->y_dc_levels, &res);
     it->top_nz_[8] = it->left_nz_[8] =
       RecordCoeffs(it->top_nz_[8] + it->left_nz_[8], &res);
-    InitResidual(1, 0, it->enc_, &res);
+    InitResidual(1, 0, enc, &res);
   } else {
-    InitResidual(0, 3, it->enc_, &res);
+    InitResidual(0, 3, enc, &res);
   }
 
   // luma-AC
@@ -466,7 +476,7 @@ static void RecordResiduals(VP8EncIterator* const it,
   }
 
   // U/V
-  InitResidual(0, 2, it->enc_, &res);
+  InitResidual(0, 2, enc, &res);
   for (ch = 0; ch <= 2; ch += 2) {
     for (y = 0; y < 2; ++y) {
       for (x = 0; x < 2; ++x) {
@@ -480,6 +490,180 @@ static void RecordResiduals(VP8EncIterator* const it,
 
   VP8IteratorBytesToNz(it);
 }
+
+//------------------------------------------------------------------------------
+// Token buffer
+
+#ifdef USE_TOKEN_BUFFER
+
+void VP8TBufferInit(VP8TBuffer* const b) {
+  b->rows_ = NULL;
+  b->tokens_ = NULL;
+  b->last_ = &b->rows_;
+  b->left_ = 0;
+  b->error_ = 0;
+}
+
+int VP8TBufferNewPage(VP8TBuffer* const b) {
+  VP8Tokens* const page = b->error_ ? NULL : (VP8Tokens*)malloc(sizeof(*page));
+  if (page == NULL) {
+    b->error_ = 1;
+    return 0;
+  }
+  *b->last_ = page;
+  b->last_ = &page->next_;
+  b->left_ = MAX_NUM_TOKEN;
+  b->tokens_ = page->tokens_;
+  return 1;
+}
+
+void VP8TBufferClear(VP8TBuffer* const b) {
+  if (b != NULL) {
+    const VP8Tokens* p = b->rows_;
+    while (p != NULL) {
+      const VP8Tokens* const next = p->next_;
+      free((void*)p);
+      p = next;
+    }
+    VP8TBufferInit(b);
+  }
+}
+
+int VP8EmitTokens(const VP8TBuffer* const b, VP8BitWriter* const bw,
+                  const uint8_t* const probas) {
+  VP8Tokens* p = b->rows_;
+  if (b->error_) return 0;
+  while (p != NULL) {
+    const int N = (p->next_ == NULL) ? b->left_ : 0;
+    int n = MAX_NUM_TOKEN;
+    while (n-- > N) {
+      VP8PutBit(bw, (p->tokens_[n] >> 15) & 1, probas[p->tokens_[n] & 0x7fff]);
+    }
+    p = p->next_;
+  }
+  return 1;
+}
+
+#define TOKEN_ID(b, ctx, p) ((p) + NUM_PROBAS * ((ctx) + (b) * NUM_CTX))
+
+static int RecordCoeffTokens(int ctx, const VP8Residual* const res,
+                             VP8TBuffer* tokens) {
+  int n = res->first;
+  int b = VP8EncBands[n];
+  if (!VP8AddToken(tokens, res->last >= 0, TOKEN_ID(b, ctx, 0))) {
+    return 0;
+  }
+
+  while (n < 16) {
+    const int c = res->coeffs[n++];
+    const int sign = c < 0;
+    int v = sign ? -c : c;
+    const int base_id = TOKEN_ID(b, ctx, 0);
+    if (!VP8AddToken(tokens, v != 0, base_id + 1)) {
+      b = VP8EncBands[n];
+      ctx = 0;
+      continue;
+    }
+    if (!VP8AddToken(tokens, v > 1, base_id + 2)) {
+      b = VP8EncBands[n];
+      ctx = 1;
+    } else {
+      if (!VP8AddToken(tokens, v > 4, base_id + 3)) {
+        if (VP8AddToken(tokens, v != 2, base_id + 4))
+          VP8AddToken(tokens, v == 4, base_id + 5);
+      } else if (!VP8AddToken(tokens, v > 10, base_id + 6)) {
+        if (!VP8AddToken(tokens, v > 6, base_id + 7)) {
+//          VP8AddToken(tokens, v == 6, 159);
+        } else {
+//          VP8AddToken(tokens, v >= 9, 165);
+//          VP8AddToken(tokens, !(v & 1), 145);
+        }
+      } else {
+        int mask;
+        const uint8_t* tab;
+        if (v < 3 + (8 << 1)) {          // kCat3  (3b)
+          VP8AddToken(tokens, 0, base_id + 8);
+          VP8AddToken(tokens, 0, base_id + 9);
+          v -= 3 + (8 << 0);
+          mask = 1 << 2;
+          tab = kCat3;
+        } else if (v < 3 + (8 << 2)) {   // kCat4  (4b)
+          VP8AddToken(tokens, 0, base_id + 8);
+          VP8AddToken(tokens, 1, base_id + 9);
+          v -= 3 + (8 << 1);
+          mask = 1 << 3;
+          tab = kCat4;
+        } else if (v < 3 + (8 << 3)) {   // kCat5  (5b)
+          VP8AddToken(tokens, 1, base_id + 8);
+          VP8AddToken(tokens, 0, base_id + 10);
+          v -= 3 + (8 << 2);
+          mask = 1 << 4;
+          tab = kCat5;
+        } else {                         // kCat6 (11b)
+          VP8AddToken(tokens, 1, base_id + 8);
+          VP8AddToken(tokens, 1, base_id + 10);
+          v -= 3 + (8 << 3);
+          mask = 1 << 10;
+          tab = kCat6;
+        }
+        while (mask) {
+          // VP8AddToken(tokens, !!(v & mask), *tab++);
+          mask >>= 1;
+        }
+      }
+      ctx = 2;
+    }
+    b = VP8EncBands[n];
+    // VP8PutBitUniform(bw, sign);
+    if (n == 16 || !VP8AddToken(tokens, n <= res->last, TOKEN_ID(b, ctx, 0))) {
+      return 1;   // EOB
+    }
+  }
+  return 1;
+}
+
+static void RecordTokens(VP8EncIterator* const it,
+                         const VP8ModeScore* const rd, VP8TBuffer tokens[2]) {
+  int x, y, ch;
+  VP8Residual res;
+  VP8Encoder* const enc = it->enc_;
+
+  VP8IteratorNzToBytes(it);
+  if (it->mb_->type_ == 1) {   // i16x16
+    InitResidual(0, 1, enc, &res);
+    SetResidualCoeffs(rd->y_dc_levels, &res);
+// TODO(skal): FIX ->    it->top_nz_[8] = it->left_nz_[8] =
+      RecordCoeffTokens(it->top_nz_[8] + it->left_nz_[8], &res, &tokens[0]);
+    InitResidual(1, 0, enc, &res);
+  } else {
+    InitResidual(0, 3, enc, &res);
+  }
+
+  // luma-AC
+  for (y = 0; y < 4; ++y) {
+    for (x = 0; x < 4; ++x) {
+      const int ctx = it->top_nz_[x] + it->left_nz_[y];
+      SetResidualCoeffs(rd->y_ac_levels[x + y * 4], &res);
+      it->top_nz_[x] = it->left_nz_[y] =
+          RecordCoeffTokens(ctx, &res, &tokens[0]);
+    }
+  }
+
+  // U/V
+  InitResidual(0, 2, enc, &res);
+  for (ch = 0; ch <= 2; ch += 2) {
+    for (y = 0; y < 2; ++y) {
+      for (x = 0; x < 2; ++x) {
+        const int ctx = it->top_nz_[4 + ch + x] + it->left_nz_[4 + ch + y];
+        SetResidualCoeffs(rd->uv_levels[ch * 2 + x + y * 2], &res);
+        it->top_nz_[4 + ch + x] = it->left_nz_[4 + ch + y] =
+            RecordCoeffTokens(ctx, &res, &tokens[1]);
+      }
+    }
+  }
+}
+
+#endif    // USE_TOKEN_BUFFER
 
 //------------------------------------------------------------------------------
 // ExtraInfo map / Debug function
@@ -515,16 +699,16 @@ static void StoreSideInfo(const VP8EncIterator* const it) {
   const VP8MBInfo* const mb = it->mb_;
   WebPPicture* const pic = enc->pic_;
 
-  if (pic->stats) {
+  if (pic->stats != NULL) {
     StoreSSE(it);
     enc->block_count_[0] += (mb->type_ == 0);
     enc->block_count_[1] += (mb->type_ == 1);
     enc->block_count_[2] += (mb->skip_ != 0);
   }
 
-  if (pic->extra_info) {
+  if (pic->extra_info != NULL) {
     uint8_t* const info = &pic->extra_info[it->x_ + it->y_ * enc->mb_w_];
-    switch(pic->extra_info_type) {
+    switch (pic->extra_info_type) {
       case 1: *info = mb->type_; break;
       case 2: *info = mb->segment_; break;
       case 3: *info = enc->dqm_[mb->segment_].quant_; break;
@@ -560,6 +744,7 @@ static void ResetAfterSkip(VP8EncIterator* const it) {
 
 int VP8EncLoop(VP8Encoder* const enc) {
   int i, s, p;
+  int ok = 1;
   VP8EncIterator it;
   VP8ModeScore info;
   const int dont_use_skip = !enc->proba_.use_skip_proba_;
@@ -588,9 +773,6 @@ int VP8EncLoop(VP8Encoder* const enc) {
       ResetAfterSkip(&it);
     }
 #ifdef WEBP_EXPERIMENTAL_FEATURES
-    if (enc->has_alpha_) {
-      VP8EncCodeAlphaBlock(&it);
-    }
     if (enc->use_layer_) {
       VP8EncCodeLayerBlock(&it);
     }
@@ -598,22 +780,31 @@ int VP8EncLoop(VP8Encoder* const enc) {
     StoreSideInfo(&it);
     VP8StoreFilterStats(&it);
     VP8IteratorExport(&it);
-  } while (VP8IteratorNext(&it, it.yuv_out_));
-  VP8AdjustFilterStrength(&it);
+    ok = VP8IteratorProgress(&it, 20);
+  } while (ok && VP8IteratorNext(&it, it.yuv_out_));
 
-  // Finalize the partitions
-  for (p = 0; p < enc->num_parts_; ++p) {
-    VP8BitWriterFinish(enc->parts_ + p);
-  }
-  // and byte counters
-  if (enc->pic_->stats) {
-    for (i = 0; i <= 2; ++i) {
-      for (s = 0; s < NUM_MB_SEGMENTS; ++s) {
-        enc->residual_bytes_[i][s] = (int)((it.bit_count_[s][i] + 7) >> 3);
-      }
+  if (ok) {      // Finalize the partitions, check for extra errors.
+    for (p = 0; p < enc->num_parts_; ++p) {
+      VP8BitWriterFinish(enc->parts_ + p);
+      ok &= !enc->parts_[p].error_;
     }
   }
-  return 1;
+
+  if (ok) {      // All good. Finish up.
+    if (enc->pic_->stats) {           // finalize byte counters...
+      for (i = 0; i <= 2; ++i) {
+        for (s = 0; s < NUM_MB_SEGMENTS; ++s) {
+          enc->residual_bytes_[i][s] = (int)((it.bit_count_[s][i] + 7) >> 3);
+        }
+      }
+    }
+    VP8AdjustFilterStrength(&it);     // ...and store filter stats.
+  } else {
+    // Something bad happened -> need to do some memory cleanup.
+    VP8EncFreeBitWriters(enc);
+  }
+
+  return ok;
 }
 
 //------------------------------------------------------------------------------
@@ -625,7 +816,7 @@ int VP8EncLoop(VP8Encoder* const enc) {
 #define kHeaderSizeEstimate (15 + 20 + 10)      // TODO: fix better
 
 static int OneStatPass(VP8Encoder* const enc, float q, int rd_opt, int nb_mbs,
-                       float* const PSNR) {
+                       float* const PSNR, int percent_delta) {
   VP8EncIterator it;
   uint64_t size = 0;
   uint64_t distortion = 0;
@@ -654,6 +845,8 @@ static int OneStatPass(VP8Encoder* const enc, float q, int rd_opt, int nb_mbs,
     RecordResiduals(&it, &info);
     size += info.R;
     distortion += info.D;
+    if (percent_delta && !VP8IteratorProgress(&it, percent_delta))
+      return 0;
   } while (VP8IteratorNext(&it, it.yuv_out_) && --nb_mbs > 0);
   size += FinalizeSkipProba(enc);
   size += FinalizeTokenProbas(enc);
@@ -674,6 +867,10 @@ int VP8StatLoop(VP8Encoder* const enc) {
     (enc->config_->target_size > 0 || enc->config_->target_PSNR > 0);
   const int fast_probe = (enc->method_ < 2 && !do_search);
   float q = enc->config_->quality;
+  const int max_passes = enc->config_->pass;
+  const int task_percent = 20;
+  const int percent_per_pass = (task_percent + max_passes / 2) / max_passes;
+  const int final_percent = enc->percent_ + task_percent;
   int pass;
   int nb_mbs;
 
@@ -683,36 +880,38 @@ int VP8StatLoop(VP8Encoder* const enc) {
 
   // No target size: just do several pass without changing 'q'
   if (!do_search) {
-    for (pass = 0; pass < enc->config_->pass; ++pass) {
+    for (pass = 0; pass < max_passes; ++pass) {
       const int rd_opt = (enc->method_ > 2);
-      OneStatPass(enc, q, rd_opt, nb_mbs, NULL);
+      if (!OneStatPass(enc, q, rd_opt, nb_mbs, NULL, percent_per_pass)) {
+        return 0;
+      }
     }
-    return 1;
-  }
-
-  // binary search for a size close to target
-  for (pass = 0; pass < enc->config_->pass && (dqs[pass] > 0); ++pass) {
-    const int rd_opt = 1;
-    float PSNR;
-    int criterion;
-    const int size = OneStatPass(enc, q, rd_opt, nb_mbs, &PSNR);
+  } else {
+    // binary search for a size close to target
+    for (pass = 0; pass < max_passes && (dqs[pass] > 0); ++pass) {
+      const int rd_opt = 1;
+      float PSNR;
+      int criterion;
+      const int size = OneStatPass(enc, q, rd_opt, nb_mbs, &PSNR,
+                                   percent_per_pass);
 #if DEBUG_SEARCH
-    printf("#%d size=%d PSNR=%.2f q=%.2f\n", pass, size, PSNR, q);
+      printf("#%d size=%d PSNR=%.2f q=%.2f\n", pass, size, PSNR, q);
 #endif
-
-    if (enc->config_->target_PSNR > 0) {
-      criterion = (PSNR < enc->config_->target_PSNR);
-    } else {
-      criterion = (size < enc->config_->target_size);
-    }
-    // dichotomize
-    if (criterion) {
-      q += dqs[pass];
-    } else {
-      q -= dqs[pass];
+      if (!size) return 0;
+      if (enc->config_->target_PSNR > 0) {
+        criterion = (PSNR < enc->config_->target_PSNR);
+      } else {
+        criterion = (size < enc->config_->target_size);
+      }
+      // dichotomize
+      if (criterion) {
+        q += dqs[pass];
+      } else {
+        q -= dqs[pass];
+      }
     }
   }
-  return 1;
+  return WebPReportProgress(enc->pic_, final_percent, &enc->percent_);
 }
 
 //------------------------------------------------------------------------------

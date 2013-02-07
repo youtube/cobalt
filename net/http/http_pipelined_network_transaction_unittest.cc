@@ -72,16 +72,6 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
         pool_(1, 1, &histograms_, &factory_) {
   }
 
-  virtual void SetUp() OVERRIDE {
-    default_pipelining_enabled_ = HttpStreamFactory::http_pipelining_enabled();
-    HttpStreamFactory::set_http_pipelining_enabled(true);
-  }
-
-  virtual void TearDown() OVERRIDE {
-    MessageLoop::current()->RunAllPending();
-    HttpStreamFactory::set_http_pipelining_enabled(default_pipelining_enabled_);
-  }
-
   void Initialize(bool force_http_pipelining) {
     // Normally, this code could just go in SetUp(). For a few of these tests,
     // we change the default number of sockets per group. That needs to be done
@@ -99,6 +89,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     session_params.http_auth_handler_factory = auth_handler_factory_.get();
     session_params.http_server_properties = &http_server_properties_;
     session_params.force_http_pipelining = force_http_pipelining;
+    session_params.http_pipelining_enabled = true;
     session_ = new HttpNetworkSession(session_params);
   }
 
@@ -231,7 +222,6 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
   ScopedVector<DeterministicSocketData> data_vector_;
   TestCompletionCallback callback_;
   ScopedVector<HttpRequestInfo> request_info_vector_;
-  bool default_pipelining_enabled_;
 
   SimpleProxyConfigService* proxy_config_service_;
   scoped_ptr<ProxyService> proxy_service_;
@@ -730,7 +720,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
             second_one_transaction.Start(
                 GetRequestInfo("second-pipeline-one.html"),
                 second_one_callback.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   HttpNetworkTransaction second_two_transaction(session_.get());
   TestCompletionCallback second_two_callback;
@@ -836,7 +826,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   DataRunnerObserver observer(data_vector_[0], 3);
   MessageLoop::current()->AddTaskObserver(&observer);
   data_vector_[0]->SetStop(4);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   data_vector_[0]->SetStop(10);
 
   EXPECT_EQ(OK, one_callback.WaitForResult());
@@ -848,15 +838,13 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
 TEST_F(HttpPipelinedNetworkTransactionTest, ProxyChangesWhileConnecting) {
   Initialize(false);
 
-  scoped_ptr<DeterministicSocketData> data(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(NULL, 0, NULL, 0);
+  data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
+  factory_.AddSocketDataProvider(&data);
 
-  scoped_ptr<DeterministicSocketData> data2(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data2->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data2.get());
+  DeterministicSocketData data2(NULL, 0, NULL, 0);
+  data2.set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(&data2);
 
   HttpNetworkTransaction transaction(session_.get());
   EXPECT_EQ(ERR_IO_PENDING,
@@ -916,10 +904,9 @@ TEST_F(HttpPipelinedNetworkTransactionTest,
        ForcedPipelineConnectionErrorFailsBoth) {
   Initialize(true);
 
-  scoped_ptr<DeterministicSocketData> data(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(NULL, 0, NULL, 0);
+  data.set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(&data);
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));
@@ -934,7 +921,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest,
             two_transaction.Start(GetRequestInfo("two.html"),
                                   two_callback.callback(), BoundNetLog()));
 
-  data->Run();
+  data.Run();
   EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
   EXPECT_EQ(ERR_FAILED, two_callback.WaitForResult());
 }
@@ -996,10 +983,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
   MockRead reads[] = {
     MockRead(ASYNC, ERR_FAILED, 1),
   };
-  scoped_ptr<DeterministicSocketData> data(new DeterministicSocketData(
-      reads, arraysize(reads), writes, arraysize(writes)));
-  data->set_connect_data(MockConnect(ASYNC, OK));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(MockConnect(ASYNC, OK));
+  factory_.AddSocketDataProvider(&data);
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));
@@ -1029,7 +1016,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
             four_transaction->Start(GetRequestInfo("four.html"),
                                     four_callback.callback(), BoundNetLog()));
 
-  data->RunFor(3);
+  data.RunFor(3);
   EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
   one_transaction.reset();
   EXPECT_EQ(ERR_PIPELINE_EVICTION, two_callback.WaitForResult());

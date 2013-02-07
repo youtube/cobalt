@@ -12,6 +12,7 @@
 #ifndef MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_DEVICE_DUMMY_H_
 #define MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_DEVICE_DUMMY_H_
 
+#include "base/compiler_specific.h"
 #include "media/video/capture/video_capture_device.h"
 
 namespace media {
@@ -19,10 +20,10 @@ namespace media {
 class VideoCaptureDeviceDummy : public VideoCaptureDevice {
  public:
   virtual void Allocate(int width, int height, int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer);
-  virtual void Start();
-  virtual void Stop();
-  virtual void DeAllocate();
+                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void DeAllocate() OVERRIDE;
 
  private:
   VideoCaptureDeviceDummy();

@@ -13,18 +13,19 @@
 namespace base {
 namespace debug {
 
+bool EnableInProcessStackDumping() {
+  // When running in an application, our code typically expects SIGPIPE
+  // to be ignored.  Therefore, when testing that same code, it should run
+  // with SIGPIPE ignored as well.
+  // TODO(phajdan.jr): De-duplicate this SIGPIPE code.
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = SIG_IGN;
+  sigemptyset(&action.sa_mask);
+  return (sigaction(SIGPIPE, &action, NULL) == 0);
+}
+
 StackTrace::StackTrace() {
-}
-
-StackTrace::StackTrace(const void* const* trace, size_t count) {
-}
-
-StackTrace::~StackTrace() {
-}
-
-const void* const* StackTrace::Addresses(size_t* count) const {
-  NOTIMPLEMENTED();
-  return NULL;
 }
 
 // Sends fake SIGSTKFLT signals to let the Android linker and debuggerd dump
@@ -53,11 +54,6 @@ void StackTrace::PrintBacktrace() const {
 
 void StackTrace::OutputToStream(std::ostream* os) const {
   NOTIMPLEMENTED();
-}
-
-std::string StackTrace::ToString() const {
-  NOTIMPLEMENTED();
-  return "";
 }
 
 }  // namespace debug

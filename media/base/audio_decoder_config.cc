@@ -16,7 +16,9 @@ AudioDecoderConfig::AudioDecoderConfig()
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED),
       samples_per_second_(0),
-      extra_data_size_(0) {
+      bytes_per_frame_(0),
+      extra_data_size_(0),
+      is_encrypted_(false) {
 }
 
 AudioDecoderConfig::AudioDecoderConfig(AudioCodec codec,
@@ -24,9 +26,10 @@ AudioDecoderConfig::AudioDecoderConfig(AudioCodec codec,
                                        ChannelLayout channel_layout,
                                        int samples_per_second,
                                        const uint8* extra_data,
-                                       size_t extra_data_size) {
+                                       size_t extra_data_size,
+                                       bool is_encrypted) {
   Initialize(codec, bits_per_channel, channel_layout, samples_per_second,
-             extra_data, extra_data_size, true);
+             extra_data, extra_data_size, is_encrypted, true);
 }
 
 void AudioDecoderConfig::Initialize(AudioCodec codec,
@@ -35,6 +38,7 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
                                     int samples_per_second,
                                     const uint8* extra_data,
                                     size_t extra_data_size,
+                                    bool is_encrypted,
                                     bool record_stats) {
   CHECK((extra_data_size != 0) == (extra_data != NULL));
 
@@ -68,6 +72,11 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
   } else {
     extra_data_.reset();
   }
+
+  is_encrypted_ = is_encrypted;
+
+  int channels = ChannelLayoutToChannelCount(channel_layout_);
+  bytes_per_frame_ = channels * bits_per_channel_ / 8;
 }
 
 AudioDecoderConfig::~AudioDecoderConfig() {}
@@ -81,6 +90,17 @@ bool AudioDecoderConfig::IsValidConfig() const {
       samples_per_second_ <= limits::kMaxSampleRate;
 }
 
+bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
+  return ((codec() == config.codec()) &&
+          (bits_per_channel() == config.bits_per_channel()) &&
+          (channel_layout() == config.channel_layout()) &&
+          (samples_per_second() == config.samples_per_second()) &&
+          (extra_data_size() == config.extra_data_size()) &&
+          (!extra_data() || !memcmp(extra_data(), config.extra_data(),
+                                    extra_data_size())) &&
+          (is_encrypted() == config.is_encrypted()));
+}
+
 void AudioDecoderConfig::CopyFrom(const AudioDecoderConfig& audio_config) {
   Initialize(audio_config.codec(),
              audio_config.bits_per_channel(),
@@ -88,6 +108,7 @@ void AudioDecoderConfig::CopyFrom(const AudioDecoderConfig& audio_config) {
              audio_config.samples_per_second(),
              audio_config.extra_data(),
              audio_config.extra_data_size(),
+             audio_config.is_encrypted(),
              false);
 }
 
@@ -107,12 +128,20 @@ int AudioDecoderConfig::samples_per_second() const {
   return samples_per_second_;
 }
 
+int AudioDecoderConfig::bytes_per_frame() const {
+  return bytes_per_frame_;
+}
+
 uint8* AudioDecoderConfig::extra_data() const {
   return extra_data_.get();
 }
 
 size_t AudioDecoderConfig::extra_data_size() const {
   return extra_data_size_;
+}
+
+bool AudioDecoderConfig::is_encrypted() const {
+  return is_encrypted_;
 }
 
 }  // namespace media

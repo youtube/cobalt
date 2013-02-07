@@ -24,7 +24,6 @@ struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpStreamParser;
 class IOBuffer;
-class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
  public:
@@ -43,11 +42,10 @@ class HttpBasicStream : public HttpStream {
                                const CompletionCallback& callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          scoped_ptr<UploadDataStream> request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
 
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
 
   virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
 

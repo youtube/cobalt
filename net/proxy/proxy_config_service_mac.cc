@@ -188,6 +188,16 @@ class ProxyConfigServiceMac::Helper
   ProxyConfigServiceMac* parent_;
 };
 
+void ProxyConfigServiceMac::Forwarder::SetDynamicStoreNotificationKeys(
+    SCDynamicStoreRef store) {
+  proxy_config_service_->SetDynamicStoreNotificationKeys(store);
+}
+
+void ProxyConfigServiceMac::Forwarder::OnNetworkConfigChange(
+    CFArrayRef changed_keys) {
+  proxy_config_service_->OnNetworkConfigChange(changed_keys);
+}
+
 ProxyConfigServiceMac::ProxyConfigServiceMac(
     base::SingleThreadTaskRunner* io_thread_task_runner)
     : forwarder_(this),

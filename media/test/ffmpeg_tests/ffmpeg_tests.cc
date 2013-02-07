@@ -15,15 +15,18 @@
 #include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/md5.h"
+#include "base/path_service.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "media/base/djb2.h"
 #include "media/base/media.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/ffmpeg/file_protocol.h"
+#include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_video_decoder.h"
+#include "media/filters/in_memory_url_protocol.h"
 
 #ifdef DEBUG
 #define SHOW_VERBOSE 1
@@ -80,9 +83,9 @@ int main(int argc, const char** argv) {
   }
 
   // Initialize our media library (try loading DLLs, etc.) before continuing.
-  // We use an empty file path as the parameter to force searching of the
-  // default locations for necessary DLLs and DSOs.
-  if (media::InitializeMediaLibrary(FilePath()) == false) {
+  FilePath media_path;
+  PathService::Get(base::DIR_MODULE, &media_path);
+  if (!media::InitializeMediaLibrary(media_path)) {
     std::cerr << "Unable to initialize the media library.";
     return 1;
   }
@@ -95,7 +98,6 @@ int main(int argc, const char** argv) {
 
   // Default flags that match Chrome defaults.
   int video_threads = 2;
-  int verbose_level = AV_LOG_FATAL;
   int max_frames = 0;
   int max_loops = 0;
   bool flush = false;
@@ -113,34 +115,20 @@ int main(int argc, const char** argv) {
   __try {
 #endif
 
+  file_util::MemoryMappedFile file_data;
+  file_data.Initialize(in_path);
+  media::InMemoryUrlProtocol protocol(
+      file_data.data(), file_data.length(), false);
+
   // Register FFmpeg and attempt to open file.
-  av_log_set_level(verbose_level);
-  av_register_all();
-  av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));
-  AVFormatContext* format_context = NULL;
-  // avformat_open_input() wants a char*, which can't work with wide paths.
-  // So we assume ASCII on Windows.  On other platforms we can pass the
-  // path bytes through verbatim.
-#if defined(OS_WIN)
-  std::string string_path = WideToASCII(in_path.value());
-#else
-  const std::string& string_path = in_path.value();
-#endif
-  int result = avformat_open_input(&format_context, string_path.c_str(),
-                                   NULL, NULL);
-  if (result < 0) {
-    switch (result) {
-      case AVERROR(EINVAL):
-        std::cerr << "Error: File format not supported "
-                  << in_path.value() << std::endl;
-        break;
-      default:
-        std::cerr << "Error: Could not open input for "
-                  << in_path.value() << std::endl;
-        break;
-    }
+  media::FFmpegGlue glue(&protocol);
+  if (!glue.OpenContext()) {
+    std::cerr << "Error: Could not open input for "
+              << in_path.value() << std::endl;
     return 1;
   }
+
+  AVFormatContext* format_context = glue.format_context();
 
   // Open output file.
   FILE *output = NULL;
@@ -222,7 +210,6 @@ int main(int argc, const char** argv) {
   }
 
   codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-  codec_context->err_recognition = AV_EF_CAREFUL;
 
   // Initialize threaded decode.
   if (target_codec == AVMEDIA_TYPE_VIDEO && video_threads > 0) {
@@ -426,10 +413,6 @@ int main(int argc, const char** argv) {
   // Clean up.
   if (output)
     file_util::CloseFile(output);
-  if (codec_context)
-    avcodec_close(codec_context);
-  if (format_context)
-    avformat_close_input(&format_context);
 
   // Calculate the sum of times.  Note that some of these may be zero.
   double sum = 0;

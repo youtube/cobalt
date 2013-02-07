@@ -20,13 +20,12 @@ class URLRequestJob;
 class NET_EXPORT FtpProtocolHandler :
     public URLRequestJobFactory::ProtocolHandler {
  public:
-  FtpProtocolHandler(NetworkDelegate* network_delegate,
-                     FtpTransactionFactory* ftp_transaction_factory,
+  FtpProtocolHandler(FtpTransactionFactory* ftp_transaction_factory,
                      FtpAuthCache* ftp_auth_cache);
-  virtual URLRequestJob* MaybeCreateJob(URLRequest* request) const OVERRIDE;
+  virtual URLRequestJob* MaybeCreateJob(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE;
 
  private:
-  NetworkDelegate* network_delegate_;
   FtpTransactionFactory* ftp_transaction_factory_;
   FtpAuthCache* ftp_auth_cache_;
 

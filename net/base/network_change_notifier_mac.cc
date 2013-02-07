@@ -9,11 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/threading/thread.h"
-#include "net/dns/dns_config_watcher.h"
-
-#ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
-#define _PATH_RESCONF "/etc/resolv.conf"
-#endif
+#include "net/dns/dns_config_service.h"
 
 namespace net {
 
@@ -23,39 +19,61 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
   return reachable && !connection_required;
 }
 
-class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
- public:
-  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+NetworkChangeNotifier::ConnectionType CalculateConnectionType(
+    SCNetworkConnectionFlags flags) {
+  bool reachable = CalculateReachability(flags);
+  if (reachable) {
+#if defined(OS_IOS)
+    return (flags & kSCNetworkReachabilityFlagsIsWWAN) ?
+        NetworkChangeNotifier::CONNECTION_3G :
+        NetworkChangeNotifier::CONNECTION_WIFI;
+#else
+    // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
+    // http://crbug.com/112937
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+#endif  // defined(OS_IOS)
+  } else {
+    return NetworkChangeNotifier::CONNECTION_NONE;
+  }
+}
 
-  virtual ~DnsWatcherThread() {
+// Thread on which we can run DnsConfigService, which requires a TYPE_IO
+// message loop.
+class NetworkChangeNotifierMac::DnsConfigServiceThread : public base::Thread {
+ public:
+  DnsConfigServiceThread() : base::Thread("DnsConfigService") {}
+
+  virtual ~DnsConfigServiceThread() {
     Stop();
   }
 
   virtual void Init() OVERRIDE {
-    watcher_.Init();
+    service_ = DnsConfigService::CreateSystemService();
+    service_->WatchConfig(base::Bind(&NetworkChangeNotifier::SetDnsConfig));
   }
 
   virtual void CleanUp() OVERRIDE {
-    watcher_.CleanUp();
+    service_.reset();
   }
 
  private:
-  internal::DnsConfigWatcher watcher_;
+  scoped_ptr<DnsConfigService> service_;
 
-  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceThread);
 };
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-    : connection_type_(CONNECTION_UNKNOWN),
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsMac()),
+      connection_type_(CONNECTION_UNKNOWN),
       connection_type_initialized_(false),
       initial_connection_type_cv_(&connection_type_lock_),
       forwarder_(this),
-      dns_watcher_thread_(new DnsWatcherThread()) {
+      dns_config_service_thread_(new DnsConfigServiceThread()) {
   // Must be initialized after the rest of this object, as it may call back into
   // SetInitialConnectionType().
   config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
-  dns_watcher_thread_->StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  dns_config_service_thread_->StartWithOptions(
+        base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
@@ -72,6 +90,20 @@ NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
   }
 }
 
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierMac::NetworkChangeCalculatorParamsMac() {
+  NetworkChangeCalculatorParams params;
+  // Delay values arrived at by simple experimentation and adjusted so as to
+  // produce a single signal when switching between network connections.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(500);
+  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  params.connection_type_offline_delay_ =
+      base::TimeDelta::FromMilliseconds(1000);
+  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  return params;
+}
+
 NetworkChangeNotifier::ConnectionType
 NetworkChangeNotifierMac::GetCurrentConnectionType() const {
   base::AutoLock lock(connection_type_lock_);
@@ -80,6 +112,24 @@ NetworkChangeNotifierMac::GetCurrentConnectionType() const {
     initial_connection_type_cv_.Wait();
   }
   return connection_type_;
+}
+
+void NetworkChangeNotifierMac::Forwarder::Init()  {
+  net_config_watcher_->SetInitialConnectionType();
+}
+
+void NetworkChangeNotifierMac::Forwarder::StartReachabilityNotifications() {
+  net_config_watcher_->StartReachabilityNotifications();
+}
+
+void NetworkChangeNotifierMac::Forwarder::SetDynamicStoreNotificationKeys(
+    SCDynamicStoreRef store)  {
+  net_config_watcher_->SetDynamicStoreNotificationKeys(store);
+}
+
+void NetworkChangeNotifierMac::Forwarder::OnNetworkConfigChange(
+    CFArrayRef changed_keys)  {
+  net_config_watcher_->OnNetworkConfigChange(changed_keys);
 }
 
 void NetworkChangeNotifierMac::SetInitialConnectionType() {
@@ -98,16 +148,16 @@ void NetworkChangeNotifierMac::SetInitialConnectionType() {
       kCFAllocatorDefault, reinterpret_cast<struct sockaddr*>(&addr)));
 
   SCNetworkConnectionFlags flags;
-  bool reachable = true;
-  if (SCNetworkReachabilityGetFlags(reachability_, &flags))
-    reachable = CalculateReachability(flags);
-  else
+  ConnectionType connection_type = CONNECTION_UNKNOWN;
+  if (SCNetworkReachabilityGetFlags(reachability_, &flags)) {
+    connection_type = CalculateConnectionType(flags);
+  } else {
     LOG(ERROR) << "Could not get initial network connection type,"
                << "assuming online.";
+  }
   {
     base::AutoLock lock(connection_type_lock_);
-    // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
-    connection_type_ = reachable ? CONNECTION_UNKNOWN : CONNECTION_NONE;
+    connection_type_ = connection_type;
     connection_type_initialized_ = true;
     initial_connection_type_cv_.Signal();
   }
@@ -142,6 +192,10 @@ void NetworkChangeNotifierMac::StartReachabilityNotifications() {
 
 void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
+#if defined(OS_IOS)
+  // SCDynamicStore API does not exist on iOS.
+  NOTREACHED();
+#else
   base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
   base::mac::ScopedCFTypeRef<CFStringRef> key(
@@ -160,9 +214,14 @@ void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
       store, notification_keys.get(), NULL);
   // TODO(willchan): Figure out a proper way to handle this rather than crash.
   CHECK(ret);
+#endif  // defined(OS_IOS)
 }
 
 void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
+#if defined(OS_IOS)
+  // SCDynamicStore API does not exist on iOS.
+  NOTREACHED();
+#else
   DCHECK_EQ(run_loop_.get(), CFRunLoopGetCurrent());
 
   for (CFIndex i = 0; i < CFArrayGetCount(changed_keys); ++i) {
@@ -180,6 +239,7 @@ void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
       NOTREACHED();
     }
   }
+#endif  // defined(OS_IOS)
 }
 
 // static
@@ -192,9 +252,7 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
 
   DCHECK_EQ(notifier_mac->run_loop_.get(), CFRunLoopGetCurrent());
 
-  // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
-  ConnectionType new_type = CalculateReachability(flags) ? CONNECTION_UNKNOWN
-                                                         : CONNECTION_NONE;
+  ConnectionType new_type = CalculateConnectionType(flags);
   ConnectionType old_type;
   {
     base::AutoLock lock(notifier_mac->connection_type_lock_);
@@ -203,6 +261,13 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
   }
   if (old_type != new_type)
     NotifyObserversOfConnectionTypeChange();
+
+#if defined(OS_IOS)
+  // On iOS, the SCDynamicStore API does not exist, and we use the reachability
+  // API to detect IP address changes instead.
+  if (new_type != CONNECTION_NONE)
+    NotifyObserversOfIPAddressChange();
+#endif  // defined(OS_IOS)
 }
 
 }  // namespace net

@@ -18,33 +18,6 @@ class TestTimeouts {
   static void Initialize();
 
   // Timeout for actions that are expected to finish "almost instantly".
-  static int tiny_timeout_ms() {
-    DCHECK(initialized_);
-    return tiny_timeout_ms_;
-  }
-
-  // Timeout to wait for something to happen. If you are not sure
-  // which timeout to use, this is the one you want.
-  static int action_timeout_ms() {
-    DCHECK(initialized_);
-    return action_timeout_ms_;
-  }
-
-  // Timeout longer than the above, but still suitable to use
-  // multiple times in a single test. Use if the timeout above
-  // is not sufficient.
-  static int action_max_timeout_ms() {
-    DCHECK(initialized_);
-    return action_max_timeout_ms_;
-  }
-
-  // Timeout for a large test that may take a few minutes to run.
-  static int large_test_timeout_ms() {
-    DCHECK(initialized_);
-    return large_test_timeout_ms_;
-  }
-
-  // Timeout for actions that are expected to finish "almost instantly".
   static base::TimeDelta tiny_timeout() {
     DCHECK(initialized_);
     return base::TimeDelta::FromMilliseconds(tiny_timeout_ms_);

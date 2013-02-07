@@ -22,4 +22,10 @@ bool ECSignatureCreatorImpl::Sign(const uint8* data,
   return false;
 }
 
+bool ECSignatureCreatorImpl::DecodeSignature(const std::vector<uint8>& der_sig,
+                                             std::vector<uint8>* out_raw_sig) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 }  // namespace crypto

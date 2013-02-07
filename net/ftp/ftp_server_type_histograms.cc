@@ -22,11 +22,11 @@ void UpdateFtpServerTypeHistograms(FtpServerType type) {
   if (type >= 0 && type < NUM_OF_SERVER_TYPES) {
     if (!had_server_type[type]) {
       had_server_type[type] = true;
-      UMA_HISTOGRAM_ENUMERATION("Net.HadFtpServerType",
+      UMA_HISTOGRAM_ENUMERATION("Net.HadFtpServerType2",
                                 type, NUM_OF_SERVER_TYPES);
     }
   }
-  UMA_HISTOGRAM_ENUMERATION("Net.FtpServerTypeCount",
+  UMA_HISTOGRAM_ENUMERATION("Net.FtpServerTypeCount2",
                             type, NUM_OF_SERVER_TYPES);
 }
 

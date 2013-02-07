@@ -46,7 +46,7 @@ class DnsReloader : public net::NetworkChangeNotifier::DNSObserver {
   };
 
   // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE {
+  virtual void OnDNSChanged() OVERRIDE {
     DCHECK_EQ(MessageLoop::current()->type(), MessageLoop::TYPE_IO);
     base::AutoLock l(lock_);
     resolver_generation_++;
@@ -84,7 +84,7 @@ class DnsReloader : public net::NetworkChangeNotifier::DNSObserver {
     net::NetworkChangeNotifier::AddDNSObserver(this);
   }
 
-  ~DnsReloader() {
+  virtual ~DnsReloader() {
     NOTREACHED();  // LeakyLazyInstance is not destructed.
   }
 

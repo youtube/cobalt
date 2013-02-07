@@ -19,6 +19,8 @@
         'connection.cc',
         'connection.h',
         'diagnostic_error_delegate.h',
+        'error_delegate_util.cc',
+        'error_delegate_util.h',
         'init_status.h',
         'meta_table.cc',
         'meta_table.h',
@@ -47,7 +49,7 @@
         '..',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -73,13 +75,11 @@
           'target_name': 'sql_unittests_apk',
           'type': 'none',
           'dependencies': [
-            '../base/base.gyp:base_java',
             'sql_unittests',
           ],
           'variables': {
             'test_suite_name': 'sql_unittests',
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)sql_unittests<(SHARED_LIB_SUFFIX)',
-            'input_jars_paths': [ '<(PRODUCT_DIR)/lib.java/chromium_base.jar', ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },

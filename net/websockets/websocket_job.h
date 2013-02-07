@@ -13,6 +13,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_websocket_stream.h"
 
 class GURL;
@@ -138,6 +139,7 @@ class NET_EXPORT WebSocketJob
   scoped_refptr<DrainableIOBuffer> current_send_buffer_;
   std::vector<char> received_data_after_handshake_;
 
+  int spdy_protocol_version_;
   scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 

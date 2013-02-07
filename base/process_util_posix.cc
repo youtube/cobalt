@@ -17,15 +17,16 @@
 #include <limits>
 #include <set>
 
+#include "base/allocator/type_profiler_control.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
-#include "base/eintr_wrapper.h"
 #include "base/file_util.h"
 #include "base/files/dir_reader_posix.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
@@ -134,66 +135,11 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
   return status;
 }
 
-// Android has built-in crash handling.
-#if !defined(OS_ANDROID)
-void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
-  if (debug::BeingDebugged())
-    debug::BreakDebugger();
-
-  DLOG(ERROR) << "Received signal " << signal;
-  debug::StackTrace().PrintBacktrace();
-
-  // TODO(shess): Port to Linux.
-#if defined(OS_MACOSX)
-  // TODO(shess): Port to 64-bit.
-#if ARCH_CPU_32_BITS
-  char buf[1024];
-  size_t len;
-
-  // NOTE: Even |snprintf()| is not on the approved list for signal
-  // handlers, but buffered I/O is definitely not on the list due to
-  // potential for |malloc()|.
-  len = static_cast<size_t>(
-      snprintf(buf, sizeof(buf),
-               "ax: %x, bx: %x, cx: %x, dx: %x\n",
-               context->uc_mcontext->__ss.__eax,
-               context->uc_mcontext->__ss.__ebx,
-               context->uc_mcontext->__ss.__ecx,
-               context->uc_mcontext->__ss.__edx));
-  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
-
-  len = static_cast<size_t>(
-      snprintf(buf, sizeof(buf),
-               "di: %x, si: %x, bp: %x, sp: %x, ss: %x, flags: %x\n",
-               context->uc_mcontext->__ss.__edi,
-               context->uc_mcontext->__ss.__esi,
-               context->uc_mcontext->__ss.__ebp,
-               context->uc_mcontext->__ss.__esp,
-               context->uc_mcontext->__ss.__ss,
-               context->uc_mcontext->__ss.__eflags));
-  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
-
-  len = static_cast<size_t>(
-      snprintf(buf, sizeof(buf),
-               "ip: %x, cs: %x, ds: %x, es: %x, fs: %x, gs: %x\n",
-               context->uc_mcontext->__ss.__eip,
-               context->uc_mcontext->__ss.__cs,
-               context->uc_mcontext->__ss.__ds,
-               context->uc_mcontext->__ss.__es,
-               context->uc_mcontext->__ss.__fs,
-               context->uc_mcontext->__ss.__gs));
-  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
-#endif  // ARCH_CPU_32_BITS
-#endif  // defined(OS_MACOSX)
-  _exit(1);
-}
-#endif  // !defined(OS_ANDROID)
-
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
   // context so we reset them to the defaults for now. http://crbug.com/44953
   // These signal handlers are set up at least in browser_main_posix.cc:
-  // BrowserMainPartsPosix::PreEarlyInitialization and process_util_posix.cc:
+  // BrowserMainPartsPosix::PreEarlyInitialization and stack_trace_posix.cc:
   // EnableInProcessStackDumping.
   signal(SIGHUP, SIG_DFL);
   signal(SIGINT, SIG_DFL);
@@ -204,6 +150,50 @@ void ResetChildSignalHandlersToDefaults() {
   signal(SIGSEGV, SIG_DFL);
   signal(SIGSYS, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
+}
+
+TerminationStatus GetTerminationStatusImpl(ProcessHandle handle,
+                                           bool can_block,
+                                           int* exit_code) {
+  int status = 0;
+  const pid_t result = HANDLE_EINTR(waitpid(handle, &status,
+                                            can_block ? 0 : WNOHANG));
+  if (result == -1) {
+    DPLOG(ERROR) << "waitpid(" << handle << ")";
+    if (exit_code)
+      *exit_code = 0;
+    return TERMINATION_STATUS_NORMAL_TERMINATION;
+  } else if (result == 0) {
+    // the child hasn't exited yet.
+    if (exit_code)
+      *exit_code = 0;
+    return TERMINATION_STATUS_STILL_RUNNING;
+  }
+
+  if (exit_code)
+    *exit_code = status;
+
+  if (WIFSIGNALED(status)) {
+    switch (WTERMSIG(status)) {
+      case SIGABRT:
+      case SIGBUS:
+      case SIGFPE:
+      case SIGILL:
+      case SIGSEGV:
+        return TERMINATION_STATUS_PROCESS_CRASHED;
+      case SIGINT:
+      case SIGKILL:
+      case SIGTERM:
+        return TERMINATION_STATUS_PROCESS_WAS_KILLED;
+      default:
+        break;
+    }
+  }
+
+  if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
+
+  return TERMINATION_STATUS_NORMAL_TERMINATION;
 }
 
 }  // anonymous namespace
@@ -253,11 +243,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
   DCHECK_GT(process_id, 1) << " tried to kill invalid process_id";
   if (process_id <= 1)
     return false;
-  static unsigned kMaxSleepMs = 1000;
-  unsigned sleep_ms = 4;
-
   bool result = kill(process_id, SIGTERM) == 0;
-
   if (result && wait) {
     int tries = 60;
 
@@ -266,6 +252,8 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       // processes may take some time doing leak checking.
       tries *= 2;
     }
+
+    unsigned sleep_ms = 4;
 
     // The process may not end immediately due to pending I/O
     bool exited = false;
@@ -286,6 +274,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       }
 
       usleep(sleep_ms * 1000);
+      const unsigned kMaxSleepMs = 1000;
       if (sleep_ms < kMaxSleepMs)
         sleep_ms *= 2;
     }
@@ -640,6 +629,11 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       }
     }
 
+    // Stop type-profiler.
+    // The profiler should be stopped between fork and exec since it inserts
+    // locks at new/delete expressions.  See http://crbug.com/36678.
+    base::type_profiler::Controller::Stop();
+
     if (options.maximize_rlimits) {
       // Some resource limits need to be maximal in this child.
       std::set<int>::const_iterator resource;
@@ -798,74 +792,18 @@ void LaunchSynchronize(LaunchSynchronizationHandle handle) {
 
 ProcessMetrics::~ProcessMetrics() { }
 
-bool EnableInProcessStackDumping() {
-  // When running in an application, our code typically expects SIGPIPE
-  // to be ignored.  Therefore, when testing that same code, it should run
-  // with SIGPIPE ignored as well.
-  struct sigaction action;
-  memset(&action, 0, sizeof(action));
-  action.sa_handler = SIG_IGN;
-  sigemptyset(&action.sa_mask);
-  bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
-
-  // Android has built-in crash handling, so no need to hook the signals.
-#if !defined(OS_ANDROID)
-  sig_t handler = reinterpret_cast<sig_t>(&StackDumpSignalHandler);
-  success &= (signal(SIGILL, handler) != SIG_ERR);
-  success &= (signal(SIGABRT, handler) != SIG_ERR);
-  success &= (signal(SIGFPE, handler) != SIG_ERR);
-  success &= (signal(SIGBUS, handler) != SIG_ERR);
-  success &= (signal(SIGSEGV, handler) != SIG_ERR);
-  success &= (signal(SIGSYS, handler) != SIG_ERR);
-#endif
-
-  return success;
-}
-
 void RaiseProcessToHighPriority() {
   // On POSIX, we don't actually do anything here.  We could try to nice() or
   // setpriority() or sched_getscheduler, but these all require extra rights.
 }
 
 TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
-  int status = 0;
-  const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
-  if (result == -1) {
-    DPLOG(ERROR) << "waitpid(" << handle << ")";
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_NORMAL_TERMINATION;
-  } else if (result == 0) {
-    // the child hasn't exited yet.
-    if (exit_code)
-      *exit_code = 0;
-    return TERMINATION_STATUS_STILL_RUNNING;
-  }
+  return GetTerminationStatusImpl(handle, false /* can_block */, exit_code);
+}
 
-  if (exit_code)
-    *exit_code = status;
-
-  if (WIFSIGNALED(status)) {
-    switch (WTERMSIG(status)) {
-      case SIGABRT:
-      case SIGBUS:
-      case SIGFPE:
-      case SIGILL:
-      case SIGSEGV:
-        return TERMINATION_STATUS_PROCESS_CRASHED;
-      case SIGINT:
-      case SIGKILL:
-      case SIGTERM:
-        return TERMINATION_STATUS_PROCESS_WAS_KILLED;
-      default:
-        break;
-    }
-  }
-
-  if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
-    return TERMINATION_STATUS_ABNORMAL_TERMINATION;
-
-  return TERMINATION_STATUS_NORMAL_TERMINATION;
+TerminationStatus WaitForTerminationStatus(ProcessHandle handle,
+                                           int* exit_code) {
+  return GetTerminationStatusImpl(handle, true /* can_block */, exit_code);
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
@@ -886,9 +824,9 @@ bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
 }
 
 bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                int64 timeout_milliseconds) {
+                                base::TimeDelta timeout) {
   bool waitpid_success = false;
-  int status = WaitpidWithTimeout(handle, timeout_milliseconds,
+  int status = WaitpidWithTimeout(handle, timeout.InMilliseconds(),
                                   &waitpid_success);
   if (status == -1)
     return false;
@@ -903,12 +841,6 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
     return true;
   }
   return false;
-}
-
-bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                base::TimeDelta timeout) {
-  return WaitForExitCodeWithTimeout(
-      handle, exit_code, timeout.InMilliseconds());
 }
 
 #if defined(OS_MACOSX)
@@ -1002,11 +934,6 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
   return true;
 }
 #endif  // OS_MACOSX
-
-bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
-  return WaitForSingleProcess(
-      handle, base::TimeDelta::FromMilliseconds(wait_milliseconds));
-}
 
 bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
   ProcessHandle parent_pid = GetParentProcessId(handle);
@@ -1119,6 +1046,11 @@ static GetAppOutputInternalResult GetAppOutputInternal(
         if (dev_null < 0)
           _exit(127);
 
+        // Stop type-profiler.
+        // The profiler should be stopped between fork and exec since it inserts
+        // locks at new/delete expressions.  See http://crbug.com/36678.
+        base::type_profiler::Controller::Stop();
+
         fd_shuffle1.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
         fd_shuffle1.push_back(InjectionArc(dev_null, STDERR_FILENO, true));
         fd_shuffle1.push_back(InjectionArc(dev_null, STDIN_FILENO, true));
@@ -1217,15 +1149,14 @@ bool GetAppOutputWithExitCode(const CommandLine& cl,
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            int64 wait_milliseconds,
+                            base::TimeDelta wait,
                             const ProcessFilter* filter) {
   bool result = false;
 
   // TODO(port): This is inefficient, but works if there are multiple procs.
   // TODO(port): use waitpid to avoid leaving zombies around
 
-  base::Time end_time = base::Time::Now() +
-      base::TimeDelta::FromMilliseconds(wait_milliseconds);
+  base::Time end_time = base::Time::Now() + wait;
   do {
     NamedProcessIterator iter(executable_name, filter);
     if (!iter.NextProcessEntry()) {
@@ -1238,21 +1169,11 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
   return result;
 }
 
-bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            base::TimeDelta wait,
-                            const ProcessFilter* filter) {
-  return WaitForProcessesToExit(executable_name, wait.InMilliseconds(), filter);
-}
-
 bool CleanupProcesses(const FilePath::StringType& executable_name,
-                      int64 wait_milliseconds,
+                      base::TimeDelta wait,
                       int exit_code,
                       const ProcessFilter* filter) {
-  bool exited_cleanly =
-      WaitForProcessesToExit(
-          executable_name,
-          base::TimeDelta::FromMilliseconds(wait_milliseconds),
-          filter);
+  bool exited_cleanly = WaitForProcessesToExit(executable_name, wait, filter);
   if (!exited_cleanly)
     KillProcesses(executable_name, exit_code, filter);
   return exited_cleanly;
@@ -1286,7 +1207,8 @@ class BackgroundReaper : public PlatformThread::Delegate {
         timeout_(timeout) {
   }
 
-  void ThreadMain() {
+  // Overridden from PlatformThread::Delegate:
+  virtual void ThreadMain() OVERRIDE {
     WaitForChildToDie();
     delete this;
   }

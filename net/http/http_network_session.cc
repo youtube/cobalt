@@ -7,7 +7,9 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/debug/stack_trace.h"
 #include "base/logging.h"
+#include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/values.h"
@@ -16,8 +18,11 @@
 #include "net/http/http_stream_factory_impl.h"
 #include "net/http/url_security_manager.h"
 #include "net/proxy/proxy_service.h"
+#include "net/quic/quic_clock.h"
+#include "net/quic/quic_stream_factory.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_pool_manager_impl.h"
+#include "net/socket/next_proto.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace {
@@ -46,6 +51,38 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
 
 namespace net {
 
+HttpNetworkSession::Params::Params()
+    : client_socket_factory(NULL),
+      host_resolver(NULL),
+      cert_verifier(NULL),
+      server_bound_cert_service(NULL),
+      transport_security_state(NULL),
+      proxy_service(NULL),
+      ssl_config_service(NULL),
+      http_auth_handler_factory(NULL),
+      network_delegate(NULL),
+      http_server_properties(NULL),
+      net_log(NULL),
+      host_mapping_rules(NULL),
+      force_http_pipelining(false),
+      ignore_certificate_errors(false),
+      http_pipelining_enabled(false),
+      testing_fixed_http_port(0),
+      testing_fixed_https_port(0),
+      max_spdy_sessions_per_domain(0),
+      force_spdy_single_domain(false),
+      enable_spdy_ip_pooling(true),
+      enable_spdy_credential_frames(false),
+      enable_spdy_compression(true),
+      enable_spdy_ping_based_connection_checking(true),
+      spdy_default_protocol(kProtoUnknown),
+      spdy_initial_recv_window_size(0),
+      spdy_initial_max_concurrent_streams(0),
+      spdy_max_concurrent_streams_limit(0),
+      time_func(&base::TimeTicks::Now),
+      origin_port_to_force_quic_on(0) {
+}
+
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
     : net_log_(params.net_log),
@@ -60,9 +97,24 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
           CreateSocketPoolManager(NORMAL_SOCKET_POOL, params)),
       websocket_socket_pool_manager_(
           CreateSocketPoolManager(WEBSOCKET_SOCKET_POOL, params)),
+      quic_stream_factory_(params.host_resolver,
+                           net::ClientSocketFactory::GetDefaultFactory(),
+                           base::Bind(&base::RandUint64),
+                           new QuicClock()),
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties,
+                         params.max_spdy_sessions_per_domain,
+                         params.force_spdy_single_domain,
+                         params.enable_spdy_ip_pooling,
+                         params.enable_spdy_credential_frames,
+                         params.enable_spdy_compression,
+                         params.enable_spdy_ping_based_connection_checking,
+                         params.spdy_default_protocol,
+                         params.spdy_initial_recv_window_size,
+                         params.spdy_initial_max_concurrent_streams,
+                         params.spdy_max_concurrent_streams_limit,
+                         params.time_func,
                          params.trusted_spdy_proxy),
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
           new HttpStreamFactoryImpl(this))),
@@ -128,9 +180,9 @@ Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
 }
 
 void HttpNetworkSession::CloseAllConnections() {
-  normal_socket_pool_manager_->FlushSocketPools();
-  websocket_socket_pool_manager_->FlushSocketPools();
-  spdy_session_pool_.CloseCurrentSessions();
+  normal_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
+  websocket_socket_pool_manager_->FlushSocketPoolsWithError(ERR_ABORTED);
+  spdy_session_pool_.CloseCurrentSessions(ERR_ABORTED);
 }
 
 void HttpNetworkSession::CloseIdleConnections() {

@@ -1,8 +1,7 @@
-diff --git a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
-index e8a7f01..b6f4313 100644
---- a/net/third_party/nss/ssl/ssl3con.c
-+++ b/net/third_party/nss/ssl/ssl3con.c
-@@ -6087,10 +6087,17 @@ ssl3_CanFalseStart(sslSocket *ss) {
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:53:13.884846338 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:54:18.975797410 -0800
+@@ -6244,10 +6244,17 @@ ssl3_CanFalseStart(sslSocket *ss) {
  	 !ss->sec.isServer &&
  	 !ss->ssl3.hs.isResuming &&
  	 ss->ssl3.cwSpec &&
@@ -23,11 +22,10 @@ index e8a7f01..b6f4313 100644
      ssl_ReleaseSpecReadLock(ss);
      return rv;
  }
-diff --git a/net/third_party/nss/ssl/ssl3ext.c b/net/third_party/nss/ssl/ssl3ext.c
-index 80c1f7f..6d5866b 100644
---- a/net/third_party/nss/ssl/ssl3ext.c
-+++ b/net/third_party/nss/ssl/ssl3ext.c
-@@ -567,6 +567,12 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
+diff -pu -r a/net/third_party/nss/ssl/ssl3ext.c b/net/third_party/nss/ssl/ssl3ext.c
+--- a/net/third_party/nss/ssl/ssl3ext.c	2012-11-09 15:39:36.842891686 -0800
++++ b/net/third_party/nss/ssl/ssl3ext.c	2012-11-09 15:56:10.157421377 -0800
+@@ -537,6 +537,12 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSoc
  	return SECFailure;
      }
  
@@ -40,7 +38,7 @@ index 80c1f7f..6d5866b 100644
      return SECSuccess;
  }
  
-@@ -635,6 +641,8 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
+@@ -605,6 +611,8 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSoc
  	return SECFailure;
      }
  

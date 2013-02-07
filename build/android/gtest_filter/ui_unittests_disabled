@@ -24,18 +24,7 @@ FontTest.Height
 FontTest.LoadArial
 FontTest.LoadArialBold
 FontTest.Widths
-ImageTest.Copy
-ImageTest.PlatformToPlatform
-ImageTest.PlatformToSkia
-ImageTest.SkiaRefToSkia
-ImageTest.SkiaToPlatform
-ImageTest.SkiaToSkia
-ImageTest.SkiaToSkiaRef
-ImageTest.SwapRepresentations
-L10nUtilTest.GetAppLocale
-L10nUtilTest.GetDisplayNameForCountry
-L10nUtilTest.GetDisplayNameForLocale
-ResourceBundle.DelegateGetFont
+ResourceBundleTest.DelegateGetFont
 TextEliderTest.ElideEmail
 TextEliderTest.ElideEmailMoreSpace
 TextEliderTest.ElideRectangleText
@@ -49,4 +38,3 @@ TextEliderTest.TestFilenameEliding
 TextEliderTest.TestGeneralEliding
 TextEliderTest.TestMoreEliding
 TextEliderTest.TestTrailingEllipsisSlashEllipsisHack
-TreeNodeIteratorPruneTest.Test

@@ -57,10 +57,10 @@ TEST(FtpProtocolHandlerTest, CreateTransactionFails) {
   URLRequest url_request(url, &delegate, &context);
 
   FtpProtocolHandler ftp_protocol_handler(
-      NULL, &ftp_transaction_factory, &ftp_auth_cache);
+      &ftp_transaction_factory, &ftp_auth_cache);
 
   scoped_refptr<URLRequestJob> ftp_job(
-      ftp_protocol_handler.MaybeCreateJob(&url_request));
+      ftp_protocol_handler.MaybeCreateJob(&url_request, NULL));
   ASSERT_TRUE(ftp_job.get());
 
   EXPECT_CALL(ftp_transaction_factory, CreateTransaction())
@@ -68,7 +68,7 @@ TEST(FtpProtocolHandlerTest, CreateTransactionFails) {
   ftp_job->Start();
   EXPECT_CALL(delegate, OnResponseStarted(_))
       .WillOnce(HandleOnResponseStarted(URLRequestStatus::FAILED));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_FALSE(url_request.is_pending());
 }
 

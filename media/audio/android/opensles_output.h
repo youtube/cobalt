@@ -80,6 +80,9 @@ class OpenSLESOutputStream : public AudioOutputStream {
   // Volume level from 0 to 1.
   float volume_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(OpenSLESOutputStream);
 };
 

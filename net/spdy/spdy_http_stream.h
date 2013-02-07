@@ -6,33 +6,27 @@
 #define NET_SPDY_SPDY_HTTP_STREAM_H_
 
 #include <list>
-#include <string>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
-#include "net/base/upload_data.h"
-#include "net/http/http_request_info.h"
 #include "net/http/http_stream.h"
-#include "net/spdy/spdy_protocol.h"
-#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
 
 class DrainableIOBuffer;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class SpdySession;
-class UploadData;
 class UploadDataStream;
 
 // The SpdyHttpStream is a HTTP-specific type of stream known to a SpdySession.
 class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
-                                          public HttpStream,
-                                          public ChunkCallback {
+                                          public HttpStream {
  public:
   SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();
@@ -50,10 +44,9 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
                                const BoundNetLog& net_log,
                                const CompletionCallback& callback) OVERRIDE;
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          scoped_ptr<UploadDataStream> request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
   virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual int ReadResponseBody(IOBuffer* buf,
@@ -81,29 +74,20 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
-  virtual void OnDataReceived(const char* buffer, int bytes) OVERRIDE;
+  virtual void OnHeadersSent() OVERRIDE;
+  virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
 
-  // ChunkCallback implementation.
-  virtual void OnChunkAvailable() OVERRIDE;
-
  private:
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
-                           FlowControlStallResume);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlStallResume);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlStallResumeAfterSettings);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlNegativeSendWindowSize);
-
   // Reads the data (whether chunked or not) from the request body stream and
   // sends the data by calling WriteStreamData on the underlying SpdyStream.
   int SendData();
 
   // Call the user callback.
   void DoCallback(int rv);
+
+  int OnRequestBodyReadCompleted(int status);
 
   void ScheduleBufferedReadCallback();
 
@@ -118,7 +102,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // The request to send.
   const HttpRequestInfo* request_info_;
 
-  scoped_ptr<UploadDataStream> request_body_stream_;
+  bool has_upload_data_;
 
   // |response_info_| is the HTTP response data object which is filled in
   // when a SYN_REPLY comes in for the stream.
@@ -153,11 +137,6 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
 
   // Is this spdy stream direct to the origin server (or to a proxy).
   bool direct_;
-
-  // Is the connection stalled waiting for an upload data chunk.
-  bool waiting_for_chunk_;
-
-  bool send_last_chunk_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyHttpStream);
 };

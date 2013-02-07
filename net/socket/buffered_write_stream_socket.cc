@@ -119,8 +119,16 @@ base::TimeDelta BufferedWriteStreamSocket::GetConnectTimeMicros() const {
   return wrapped_socket_->GetConnectTimeMicros();
 }
 
+bool BufferedWriteStreamSocket::WasNpnNegotiated() const {
+  return wrapped_socket_->WasNpnNegotiated();
+}
+
 NextProto BufferedWriteStreamSocket::GetNegotiatedProtocol() const {
   return wrapped_socket_->GetNegotiatedProtocol();
+}
+
+bool BufferedWriteStreamSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  return wrapped_socket_->GetSSLInfo(ssl_info);
 }
 
 void BufferedWriteStreamSocket::DoDelayedWrite() {

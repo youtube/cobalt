@@ -24,8 +24,9 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   // set to a NULL ptr.
   explicit DataBuffer(int buffer_size);
 
-  // Create a DataBuffer whose |data_| is copied from |data|.
-  static scoped_refptr<DataBuffer> CopyFrom(const uint8* data, int size);
+  // Allocates buffer of size |data_size|, copies [data,data+data_size) to
+  // the allocated buffer and sets data size to |data_size|.
+  DataBuffer(const uint8* data, int data_size);
 
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE;
@@ -42,8 +43,6 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   virtual int GetBufferSize() const;
 
  protected:
-  // Copies from [data,data+size) to owned array.
-  DataBuffer(const uint8* data, int size);
   virtual ~DataBuffer();
 
  private:

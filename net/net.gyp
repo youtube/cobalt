@@ -8,8 +8,8 @@
 
     'linux_link_kerberos%': 0,
     'conditions': [
-      ['chromeos==1 or OS=="android" or OS=="lb_shell"', {
-        # Disable Kerberos on ChromeOS and Android, at least for now.
+      ['chromeos==1 or OS=="android" or OS=="ios" or OS=="lb_shell"', {
+        # Disable Kerberos on ChromeOS, Android and iOS, at least for now.
         # It needs configuration (krb5.conf and so on).
         'use_kerberos%': 0,
       }, {  # chromeos == 0
@@ -21,6 +21,17 @@
         'posix_avoid_mmap%': 1,
       }, {
         'posix_avoid_mmap%': 0,
+      }],
+      ['OS=="ios"', {
+        # Websockets and socket stream are not used on iOS.
+        'enable_websockets%': 0,
+        # iOS does not use V8.
+        'use_v8_in_net%': 0,
+        'enable_built_in_dns%': 0,
+      }, {
+        'enable_websockets%': 1,
+        'use_v8_in_net%': 1,
+        'enable_built_in_dns%': 1,
       }],
     ],
   },
@@ -44,12 +55,16 @@
         'net_resources',
       ],
       'sources': [
+        'android/gurl_utils.cc',
+        'android/gurl_utils.h',
         'android/net_jni_registrar.cc',
         'android/net_jni_registrar.h',
         'android/network_change_notifier_android.cc',
         'android/network_change_notifier_android.h',
-        'android/network_change_notifier_factory.cc',
-        'android/network_change_notifier_factory.h',
+        'android/network_change_notifier_delegate_android.cc',
+        'android/network_change_notifier_delegate_android.h',
+        'android/network_change_notifier_factory_android.cc',
+        'android/network_change_notifier_factory_android.h',
         'android/network_library.cc',
         'android/network_library.h',
         'base/address_family.h',
@@ -70,6 +85,8 @@
         'base/cache_type.h',
         'base/cert_database.cc',
         'base/cert_database.h',
+        'base/cert_database_android.cc',
+        'base/cert_database_ios.cc',
         'base/cert_database_mac.cc',
         'base/cert_database_nss.cc',
         'base/cert_database_openssl.cc',
@@ -80,6 +97,8 @@
         'base/cert_verifier.h',
         'base/cert_verify_proc.cc',
         'base/cert_verify_proc.h',
+        'base/cert_verify_proc_android.cc',
+        'base/cert_verify_proc_android.h',
         'base/cert_verify_proc_mac.cc',
         'base/cert_verify_proc_mac.h',
         'base/cert_verify_proc_nss.cc',
@@ -110,10 +129,6 @@
         'base/dns_util.h',
         'base/dnsrr_resolver.cc',
         'base/dnsrr_resolver.h',
-        'base/dnssec_chain_verifier.cc',
-        'base/dnssec_chain_verifier.h',
-        'base/dnssec_keyset.cc',
-        'base/dnssec_keyset.h',
         'base/escape.cc',
         'base/escape.h',
         'base/ev_root_ca_metadata.cc',
@@ -121,19 +136,21 @@
         'base/expiring_cache.h',
         'base/file_stream.cc',
         'base/file_stream.h',
+        'base/file_stream_context.cc',
+        'base/file_stream_context.h',
+        'base/file_stream_context_posix.cc',
+        'base/file_stream_context_win.cc',
         'base/file_stream_metrics.cc',
         'base/file_stream_metrics.h',
         'base/file_stream_metrics_posix.cc',
         'base/file_stream_metrics_win.cc',
         'base/file_stream_net_log_parameters.cc',
         'base/file_stream_net_log_parameters.h',
-        'base/file_stream_posix.cc',
-        'base/file_stream_posix.h',
         'base/file_stream_whence.h',
-        'base/file_stream_win.cc',
-        'base/file_stream_win.h',
         'base/filter.cc',
         'base/filter.h',
+        'base/int128.cc',
+        'base/int128.h',
         'base/gzip_filter.cc',
         'base/gzip_filter.h',
         'base/gzip_header.cc',
@@ -163,6 +180,7 @@
         'base/load_flags.h',
         'base/load_flags_list.h',
         'base/load_states.h',
+        'base/load_states_list.h',
         'base/mapped_host_resolver.cc',
         'base/mapped_host_resolver.h',
         'base/mime_sniffer.cc',
@@ -200,6 +218,8 @@
         'base/network_config_watcher_mac.h',
         'base/network_delegate.cc',
         'base/network_delegate.h',
+        'base/nss_cert_database.cc',
+        'base/nss_cert_database.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
         'base/openssl_memory_private_key_store.cc',
@@ -216,8 +236,8 @@
         'base/prioritized_dispatcher.h',
         'base/priority_queue.h',
         'base/rand_callback.h',
-        'base/registry_controlled_domain.cc',
-        'base/registry_controlled_domain.h',
+        'base/registry_controlled_domains/registry_controlled_domain.cc',
+        'base/registry_controlled_domains/registry_controlled_domain.h',
         'base/request_priority.h',
         'base/sdch_filter.cc',
         'base/sdch_filter.h',
@@ -258,16 +278,26 @@
         'base/test_root_certs_mac.cc',
         'base/test_root_certs_nss.cc',
         'base/test_root_certs_openssl.cc',
+        'base/test_root_certs_android.cc',
         'base/test_root_certs_win.cc',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
         'base/transport_security_state_static.h',
         'base/unix_domain_socket_posix.cc',
         'base/unix_domain_socket_posix.h',
+        'base/upload_bytes_element_reader.cc',
+        'base/upload_bytes_element_reader.h',
         'base/upload_data.cc',
         'base/upload_data.h',
         'base/upload_data_stream.cc',
         'base/upload_data_stream.h',
+        'base/upload_element.cc',
+        'base/upload_element.h',
+        'base/upload_element_reader.cc',
+        'base/upload_element_reader.h',
+        'base/upload_file_element_reader.cc',
+        'base/upload_file_element_reader.h',
+        'base/upload_progress.h',
         'base/winsock_init.cc',
         'base/winsock_init.h',
         'base/winsock_util.cc',
@@ -278,6 +308,7 @@
         'base/x509_cert_types_win.cc',
         'base/x509_certificate.cc',
         'base/x509_certificate.h',
+        'base/x509_certificate_ios.cc',
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_net_log_param.cc',
         'base/x509_certificate_net_log_param.h',
@@ -285,6 +316,9 @@
         'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
         'base/x509_util.h',
+        'base/x509_util.cc',
+        'base/x509_util_ios.cc',
+        'base/x509_util_ios.h',
         'base/x509_util_mac.cc',
         'base/x509_util_mac.h',
         'base/x509_util_nss.cc',
@@ -331,8 +365,6 @@
         'disk_cache/file_lock.h',
         'disk_cache/file_posix.cc',
         'disk_cache/file_win.cc',
-        'disk_cache/hash.cc',
-        'disk_cache/hash.h',
         'disk_cache/histogram_macros.h',
         'disk_cache/in_flight_backend_io.cc',
         'disk_cache/in_flight_backend_io.h',
@@ -363,6 +395,19 @@
         'disk_cache/stress_support.h',
         'disk_cache/trace.cc',
         'disk_cache/trace.h',
+        'disk_cache/flash/format.h',
+        'disk_cache/flash/log_store.cc',
+        'disk_cache/flash/log_store.h',
+        'disk_cache/flash/log_store_entry.cc',
+        'disk_cache/flash/log_store_entry.h',
+        'disk_cache/flash/segment.cc',
+        'disk_cache/flash/segment.h',
+        'disk_cache/flash/storage.cc',
+        'disk_cache/flash/storage.h',
+        'dns/address_sorter.h',
+        'dns/address_sorter_posix.cc',
+        'dns/address_sorter_posix.h',
+        'dns/address_sorter_win.cc',
         'dns/dns_client.cc',
         'dns/dns_client.h',
         'dns/dns_config_service.cc',
@@ -371,9 +416,6 @@
         'dns/dns_config_service_posix.h',
         'dns/dns_config_service_win.cc',
         'dns/dns_config_service_win.h',
-        'dns/dns_config_watcher.h',
-        'dns/dns_config_watcher_posix.cc',
-        'dns/dns_config_watcher_win.cc',
         'dns/dns_hosts.cc',
         'dns/dns_hosts.h',
         'dns/dns_protocol.h',
@@ -383,6 +425,8 @@
         'dns/dns_response.h',
         'dns/dns_session.cc',
         'dns/dns_session.h',
+        'dns/dns_socket_pool.cc',
+        'dns/dns_socket_pool.h',
         'dns/dns_transaction.cc',
         'dns/dns_transaction.h',
         'dns/notify_watcher_mac.cc',
@@ -504,6 +548,7 @@
         'http/http_server_properties_impl.h',
         'http/http_status_code.h',
         'http/http_stream.h',
+        'http/http_stream_base.h',
         'http/http_stream_factory.cc',
         'http/http_stream_factory.h',
         'http/http_stream_factory_impl.cc',
@@ -515,6 +560,7 @@
         'http/http_stream_parser.cc',
         'http/http_stream_parser.h',
         'http/http_transaction.h',
+        'http/http_transaction_delegate.h',
         'http/http_transaction_factory.h',
         'http/http_util.cc',
         'http/http_util.h',
@@ -522,6 +568,8 @@
         'http/http_vary_data.cc',
         'http/http_vary_data.h',
         'http/http_version.h',
+        'http/infinite_cache.cc',
+        'http/infinite_cache.h',
         'http/md4.cc',
         'http/md4.h',
         'http/partial_data.cc',
@@ -559,6 +607,8 @@
         'proxy/proxy_config_service_android.h',
         'proxy/proxy_config_service_fixed.cc',
         'proxy/proxy_config_service_fixed.h',
+        'proxy/proxy_config_service_ios.cc',
+        'proxy/proxy_config_service_ios.h',
         'proxy/proxy_config_service_linux.cc',
         'proxy/proxy_config_service_linux.h',
         'proxy/proxy_config_service_mac.cc',
@@ -581,8 +631,6 @@
         'proxy/proxy_resolver_script.h',
         'proxy/proxy_resolver_script_data.cc',
         'proxy/proxy_resolver_script_data.h',
-        'proxy/proxy_resolver_v8.cc',
-        'proxy/proxy_resolver_v8.h',
         'proxy/proxy_resolver_winhttp.cc',
         'proxy/proxy_resolver_winhttp.h',
         'proxy/proxy_retry_info.h',
@@ -599,6 +647,84 @@
         'proxy/sync_host_resolver.h',
         'proxy/sync_host_resolver_bridge.cc',
         'proxy/sync_host_resolver_bridge.h',
+        'quic/congestion_control/cubic.cc',
+        'quic/congestion_control/cubic.h',
+        'quic/congestion_control/fix_rate_receiver.cc',
+        'quic/congestion_control/fix_rate_receiver.h',
+        'quic/congestion_control/fix_rate_sender.cc',
+        'quic/congestion_control/fix_rate_sender.h',
+        'quic/congestion_control/hybrid_slow_start.cc',
+        'quic/congestion_control/hybrid_slow_start.h',
+        'quic/congestion_control/leaky_bucket.cc',
+        'quic/congestion_control/leaky_bucket.h',
+        'quic/congestion_control/paced_sender.cc',
+        'quic/congestion_control/paced_sender.h',
+        'quic/congestion_control/quic_receipt_metrics_collector.cc',
+        'quic/congestion_control/quic_receipt_metrics_collector.h',
+        'quic/congestion_control/quic_send_scheduler.cc',
+        'quic/congestion_control/quic_send_scheduler.h',
+        'quic/congestion_control/receive_algorithm_interface.cc',
+        'quic/congestion_control/receive_algorithm_interface.h',
+        'quic/congestion_control/send_algorithm_interface.cc',
+        'quic/congestion_control/send_algorithm_interface.h',
+        'quic/congestion_control/tcp_cubic_sender.cc',
+        'quic/congestion_control/tcp_cubic_sender.h',
+        'quic/congestion_control/tcp_receiver.cc',
+        'quic/congestion_control/tcp_receiver.h',
+        'quic/crypto/crypto_framer.cc',
+        'quic/crypto/crypto_framer.h',
+        'quic/crypto/crypto_protocol.cc',
+        'quic/crypto/crypto_protocol.h',
+        'quic/crypto/null_decrypter.cc',
+        'quic/crypto/null_decrypter.h',
+        'quic/crypto/null_encrypter.cc',
+        'quic/crypto/null_encrypter.h',
+        'quic/crypto/quic_decrypter.cc',
+        'quic/crypto/quic_decrypter.h',
+        'quic/crypto/quic_encrypter.cc',
+        'quic/crypto/quic_encrypter.h',
+        'quic/crypto/quic_random.cc',
+        'quic/crypto/quic_random.h',
+        'quic/quic_client_session.cc',
+        'quic/quic_client_session.h',
+        'quic/quic_crypto_client_stream.cc',
+        'quic/quic_crypto_client_stream.h',
+        'quic/quic_crypto_stream.cc',
+        'quic/quic_crypto_stream.h',
+        'quic/quic_clock.cc',
+        'quic/quic_clock.h',
+        'quic/quic_connection.cc',
+        'quic/quic_connection.h',
+        'quic/quic_connection_helper.cc',
+        'quic/quic_connection_helper.h',
+        'quic/quic_data_reader.cc',
+        'quic/quic_data_reader.h',
+        'quic/quic_data_writer.cc',
+        'quic/quic_data_writer.h',
+        'quic/quic_fec_group.cc',
+        'quic/quic_fec_group.h',
+        'quic/quic_framer.cc',
+        'quic/quic_framer.h',
+        'quic/quic_http_stream.cc',
+        'quic/quic_http_stream.h',
+        'quic/quic_packet_creator.cc',
+        'quic/quic_packet_creator.h',
+        'quic/quic_protocol.cc',
+        'quic/quic_protocol.h',
+        'quic/quic_reliable_client_stream.cc',
+        'quic/quic_reliable_client_stream.h',
+        'quic/quic_session.cc',
+        'quic/quic_session.h',
+        'quic/quic_stream_factory.cc',
+        'quic/quic_stream_factory.h',
+        'quic/quic_stream_sequencer.cc',
+        'quic/quic_stream_sequencer.h',
+        'quic/quic_time.cc',
+        'quic/quic_time.h',
+        'quic/quic_utils.cc',
+        'quic/quic_utils.h',
+        'quic/reliable_quic_stream.cc',
+        'quic/reliable_quic_stream.h',
         'socket/buffered_write_stream_socket.cc',
         'socket/buffered_write_stream_socket.h',
         'socket/client_socket_factory.cc',
@@ -662,8 +788,6 @@
         'socket/tcp_server_socket_win.h',
         'socket/transport_client_socket_pool.cc',
         'socket/transport_client_socket_pool.h',
-        'socket/web_socket_server_socket.cc',
-        'socket/web_socket_server_socket.h',
         'socket_stream/socket_stream.cc',
         'socket_stream/socket_stream.h',
         'socket_stream/socket_stream_job.cc',
@@ -675,6 +799,8 @@
         'spdy/buffered_spdy_framer.cc',
         'spdy/buffered_spdy_framer.h',
         'spdy/spdy_bitmasks.h',
+        'spdy/spdy_credential_builder.cc',
+        'spdy/spdy_credential_builder.h',
         'spdy/spdy_credential_state.cc',
         'spdy/spdy_credential_state.h',
         'spdy/spdy_frame_builder.cc',
@@ -683,6 +809,8 @@
         'spdy/spdy_frame_reader.h',
         'spdy/spdy_framer.cc',
         'spdy/spdy_framer.h',
+        'spdy/spdy_header_block.cc',
+        'spdy/spdy_header_block.h',
         'spdy/spdy_http_stream.cc',
         'spdy/spdy_http_stream.h',
         'spdy/spdy_http_utils.cc',
@@ -720,9 +848,16 @@
         'udp/udp_socket_libevent.h',
         'udp/udp_socket_win.cc',
         'udp/udp_socket_win.h',
+        'url_request/data_protocol_handler.cc',
+        'url_request/data_protocol_handler.h',
+        'url_request/file_protocol_handler.cc',
+        'url_request/file_protocol_handler.h',
         'url_request/fraudulent_certificate_reporter.h',
         'url_request/ftp_protocol_handler.cc',
         'url_request/ftp_protocol_handler.h',
+        'url_request/http_user_agent_settings.h',
+        'url_request/static_http_user_agent_settings.cc',
+        'url_request/static_http_user_agent_settings.h',
         'url_request/url_fetcher.cc',
         'url_request/url_fetcher.h',
         'url_request/url_fetcher_core.cc',
@@ -762,6 +897,8 @@
         'url_request/url_request_job.h',
         'url_request/url_request_job_factory.cc',
         'url_request/url_request_job_factory.h',
+        'url_request/url_request_job_factory_impl.cc',
+        'url_request/url_request_job_factory_impl.h',
         'url_request/url_request_job_manager.cc',
         'url_request/url_request_job_manager.h',
         'url_request/url_request_netlog_params.cc',
@@ -793,6 +930,7 @@
         'websockets/websocket_job.h',
         'websockets/websocket_net_log_params.cc',
         'websockets/websocket_net_log_params.h',
+        'websockets/websocket_stream.h',
         'websockets/websocket_throttle.cc',
         'websockets/websocket_throttle.h',
       ],
@@ -926,15 +1064,37 @@
             'disk_cache/mapped_file_avoid_mmap_posix.cc',
           ],
         }],
+        ['disable_ftp_support==1', {
+          'sources/': [
+            ['exclude', '^ftp/'],
+          ],
+          'sources!': [
+            'url_request/ftp_protocol_handler.cc',
+            'url_request/ftp_protocol_handler.h',
+            'url_request/url_request_ftp_job.cc',
+            'url_request/url_request_ftp_job.h',
+          ],
+        }],
+        ['enable_built_in_dns==1', {
+          'defines': [
+            'ENABLE_BUILT_IN_DNS',
+          ]
+        }, { # else
+          'sources!': [
+            'dns/address_sorter_posix.cc',
+            'dns/address_sorter_posix.h',
+            'dns/dns_client.cc',
+          ],
+        }],
         ['use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
               'base/cert_verify_proc_nss.cc',
               'base/cert_verify_proc_nss.h',
               'base/crypto_module_nss.cc',
-              'base/dnssec_keyset.cc',
-              'base/dnssec_keyset.h',
               'base/keygen_handler_nss.cc',
+              'base/nss_cert_database.cc',
+              'base/nss_cert_database.h',
               'base/nss_memio.c',
               'base/nss_memio.h',
               'base/test_root_certs_nss.cc',
@@ -966,6 +1126,7 @@
               'base/keygen_handler_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
               'base/openssl_private_key_store.h',
+              'base/openssl_private_key_store_android.cc',
               'base/test_root_certs_openssl.cc',
               'base/x509_certificate_openssl.cc',
               'base/x509_util_openssl.cc',
@@ -1017,6 +1178,8 @@
               'base/cert_database_nss.cc',
               'base/crypto_module_nss.cc',
               'base/keygen_handler_nss.cc',
+              'base/nss_cert_database.cc',
+              'base/nss_cert_database.h',
               'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
               'ocsp/nss_ocsp.cc',
@@ -1039,6 +1202,16 @@
             'sources!': [
               'base/cert_verify_proc_nss.cc',
               'base/cert_verify_proc_nss.h',
+            ],
+        }],
+        [ 'enable_websockets != 1', {
+            'sources/': [
+              ['exclude', '^socket_stream/'],
+              ['exclude', '^websockets/'],
+            ],
+            'sources!': [
+              'spdy/spdy_websocket_stream.cc',
+              'spdy/spdy_websocket_stream.h',
             ],
         }],
         [ 'OS == "win"', {
@@ -1084,16 +1257,39 @@
             },
           },
         ],
-        [ 'OS == "android"', {
-            'defines': [
-              # Android can shut down our app at any time, so we persist session cookies.
-              'ENABLE_PERSISTENT_SESSION_COOKIES'
+        [ 'OS == "ios"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:libssl',
             ],
+            'link_settings': {
+              'libraries': [
+                '$(SDKROOT)/System/Library/Frameworks/CFNetwork.framework',
+                '$(SDKROOT)/System/Library/Frameworks/MobileCoreServices.framework',
+                '$(SDKROOT)/System/Library/Frameworks/Security.framework',
+                '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+                '$(SDKROOT)/usr/lib/libresolv.dylib',
+              ],
+            },
+          },
+        ],
+        ['OS=="android" and _toolset=="target" and android_build_type == 0', {
+          'dependencies': [
+             'net_java',
+          ],
+        }],
+        [ 'OS == "android"', {
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
               'net_jni_headers',
             ],
-          }, {  # else OS! = "android"
+            'sources!': [
+              'base/cert_database_openssl.cc',
+              'base/cert_verify_proc_openssl.cc',
+              'base/openssl_memory_private_key_store.cc',
+              'base/test_root_certs_openssl.cc',
+            ],
+          }, {  # else OS != "android"
             'defines': [
               # These are the features Android doesn't support.
               'ENABLE_MEDIA_CODEC_THEORA',
@@ -1109,9 +1305,33 @@
         ],
       ],
       'target_conditions': [
+        # These source files are excluded by default platform rules, but they
+        # are needed in specific cases on other platforms. Re-including them can
+        # only be done in target_conditions as it is evaluated after the
+        # platform rules.
         ['OS == "android"', {
           'sources/': [
             ['include', '^base/platform_mime_util_linux\\.cc$'],
+          ],
+        }],
+        ['OS == "ios"', {
+          'sources/': [
+            ['include', '^base/network_change_notifier_mac\\.cc$'],
+            ['include', '^base/network_config_watcher_mac\\.cc$'],
+            ['include', '^base/platform_mime_util_mac\\.mm$'],
+            ['include', '^dns/notify_watcher_mac\\.cc$'],
+            ['include', '^proxy/proxy_resolver_mac\\.cc$'],
+            ['include', '^proxy/proxy_server_mac\\.cc$'],
+            # The iOS implementation only partially uses NSS and thus does not
+            # defines |use_nss|. In particular the |USE_NSS| preprocessor
+            # definition is not used. The following files are needed though:
+            ['include', '^base/cert_verify_proc_nss\\.cc$'],
+            ['include', '^base/cert_verify_proc_nss\\.h$'],
+            ['include', '^base/test_root_certs_nss\\.cc$'],
+            ['include', '^base/x509_util_nss\\.cc$'],
+            ['include', '^base/x509_util_nss\\.h$'],
+            ['include', '^ocsp/nss_ocsp\\.cc$'],
+            ['include', '^ocsp/nss_ocsp\\.h$'],
           ],
         }],
       ],
@@ -1120,8 +1340,6 @@
       'target_name': 'net_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
-        'net',
-        'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -1130,19 +1348,20 @@
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
+        'net',
+        'net_test_support',
       ],
       'sources': [
+        'android/network_change_notifier_android_unittest.cc',
         'base/address_list_unittest.cc',
         'base/address_tracker_linux_unittest.cc',
         'base/backoff_entry_unittest.cc',
         'base/big_endian_unittest.cc',
-        'base/cert_database_nss_unittest.cc',
         'base/cert_verify_proc_unittest.cc',
         'base/crl_set_unittest.cc',
         'base/data_url_unittest.cc',
         'base/default_server_bound_cert_store_unittest.cc',
         'base/directory_lister_unittest.cc',
-        'base/dnssec_unittest.cc',
         'base/dns_util_unittest.cc',
         'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',
@@ -1150,6 +1369,7 @@
         'base/expiring_cache_unittest.cc',
         'base/file_stream_unittest.cc',
         'base/filter_unittest.cc',
+        'base/int128_unittest.cc',
         'base/gzip_filter_unittest.cc',
         'base/host_cache_unittest.cc',
         'base/host_mapping_rules_unittest.cc',
@@ -1165,12 +1385,12 @@
         'base/multi_threaded_cert_verifier_unittest.cc',
         'base/net_log_unittest.h',
         'base/net_util_unittest.cc',
-        'base/network_change_notifier_linux_unittest.cc',
         'base/network_change_notifier_win_unittest.cc',
+        'base/nss_cert_database_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
         'base/prioritized_dispatcher_unittest.cc',
         'base/priority_queue_unittest.cc',
-        'base/registry_controlled_domain_unittest.cc',
+        'base/registry_controlled_domains/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',
         'base/sdch_filter_unittest.cc',
         'base/server_bound_cert_service_unittest.cc',
@@ -1185,10 +1405,12 @@
         'base/test_completion_callback_unittest.cc',
         'base/transport_security_state_unittest.cc',
         'base/unix_domain_socket_posix_unittest.cc',
+        'base/upload_bytes_element_reader_unittest.cc',
         'base/upload_data_stream_unittest.cc',
-        'base/upload_data_unittest.cc',
+        'base/upload_file_element_reader_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'base/x509_cert_types_unittest.cc',
+        'base/x509_util_unittest.cc',
         'base/x509_util_nss_unittest.cc',
         'base/x509_util_openssl_unittest.cc',
         'cookies/canonical_cookie_unittest.cc',
@@ -1204,12 +1426,19 @@
         'disk_cache/entry_unittest.cc',
         'disk_cache/mapped_file_unittest.cc',
         'disk_cache/storage_block_unittest.cc',
+        'disk_cache/flash/log_store_entry_unittest.cc',
+        'disk_cache/flash/log_store_unittest.cc',
+        'disk_cache/flash/segment_unittest.cc',
+        'disk_cache/flash/storage_unittest.cc',
+        'dns/address_sorter_posix_unittest.cc',
+        'dns/address_sorter_unittest.cc',
         'dns/dns_config_service_posix_unittest.cc',
         'dns/dns_config_service_unittest.cc',
         'dns/dns_config_service_win_unittest.cc',
         'dns/dns_hosts_unittest.cc',
         'dns/dns_query_unittest.cc',
         'dns/dns_response_unittest.cc',
+        'dns/dns_session_unittest.cc',
         'dns/dns_transaction_unittest.cc',
         'dns/serial_worker_unittest.cc',
         'ftp/ftp_auth_cache_unittest.cc',
@@ -1263,6 +1492,7 @@
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
         'http/http_vary_data_unittest.cc',
+        'http/infinite_cache_unittest.cc',
         'http/mock_allow_url_security_manager.cc',
         'http/mock_allow_url_security_manager.h',
         'http/mock_gssapi_library_posix.cc',
@@ -1291,6 +1521,40 @@
         'proxy/proxy_server_unittest.cc',
         'proxy/proxy_service_unittest.cc',
         'proxy/sync_host_resolver_bridge_unittest.cc',
+        'quic/congestion_control/cubic_test.cc',
+        'quic/congestion_control/fix_rate_test.cc',
+        'quic/congestion_control/hybrid_slow_start_test.cc',
+        'quic/congestion_control/leaky_bucket_test.cc',
+        'quic/congestion_control/paced_sender_test.cc',
+        'quic/congestion_control/quic_receipt_metrics_collector_test.cc',
+        'quic/congestion_control/quic_send_scheduler_test.cc',
+        'quic/congestion_control/tcp_cubic_sender_test.cc',
+        'quic/congestion_control/tcp_receiver_test.cc',
+        'quic/crypto/crypto_framer_test.cc',
+        'quic/crypto/null_decrypter_test.cc',
+        'quic/crypto/null_encrypter_test.cc',
+        'quic/crypto/quic_random_test.cc',
+        'quic/test_tools/mock_clock.cc',
+        'quic/test_tools/mock_clock.h',
+        'quic/test_tools/quic_test_utils.cc',
+        'quic/test_tools/quic_test_utils.h',
+        'quic/test_tools/test_task_runner.cc',
+        'quic/test_tools/test_task_runner.h',
+        'quic/quic_client_session_test.cc',
+        'quic/quic_clock_test.cc',
+        'quic/quic_connection_helper_test.cc',
+        'quic/quic_connection_test.cc',
+        'quic/quic_crypto_client_stream_test.cc',
+        'quic/quic_crypto_stream_test.cc',
+        'quic/quic_fec_group_test.cc',
+        'quic/quic_framer_test.cc',
+        'quic/quic_http_stream_test.cc',
+        'quic/quic_packet_creator_test.cc',
+        'quic/quic_reliable_client_stream_test.cc',
+        'quic/quic_session_test.cc',
+        'quic/quic_stream_factory_test.cc',
+        'quic/quic_stream_sequencer_test.cc',
+        'quic/quic_time_test.cc',
         'socket/buffered_write_stream_socket_unittest.cc',
         'socket/client_socket_pool_base_unittest.cc',
         'socket/deterministic_socket_data_unittest.cc',
@@ -1306,14 +1570,15 @@
         'socket/tcp_server_socket_unittest.cc',
         'socket/transport_client_socket_pool_unittest.cc',
         'socket/transport_client_socket_unittest.cc',
-        'socket/web_socket_server_socket_unittest.cc',
         'socket_stream/socket_stream_metrics_unittest.cc',
         'socket_stream/socket_stream_unittest.cc',
         'spdy/buffered_spdy_framer_spdy3_unittest.cc',
         'spdy/buffered_spdy_framer_spdy2_unittest.cc',
+        'spdy/spdy_credential_builder_unittest.cc',
         'spdy/spdy_credential_state_unittest.cc',
         'spdy/spdy_frame_reader_test.cc',
         'spdy/spdy_framer_test.cc',
+        'spdy/spdy_header_block_unittest.cc',
         'spdy/spdy_http_stream_spdy3_unittest.cc',
         'spdy/spdy_http_stream_spdy2_unittest.cc',
         'spdy/spdy_http_utils_unittest.cc',
@@ -1326,6 +1591,8 @@
         'spdy/spdy_session_spdy2_unittest.cc',
         'spdy/spdy_stream_spdy3_unittest.cc',
         'spdy/spdy_stream_spdy2_unittest.cc',
+        'spdy/spdy_stream_test_util.cc',
+        'spdy/spdy_stream_test_util.h',
         'spdy/spdy_test_util_spdy3.cc',
         'spdy/spdy_test_util_spdy3.h',
         'spdy/spdy_test_util_spdy2.cc',
@@ -1348,7 +1615,7 @@
         'url_request/url_request_context_builder_unittest.cc',
         'url_request/url_request_filter_unittest.cc',
         'url_request/url_request_ftp_job_unittest.cc',
-        'url_request/url_request_job_factory_unittest.cc',
+        'url_request/url_request_job_factory_impl_unittest.cc',
         'url_request/url_request_job_unittest.cc',
         'url_request/url_request_throttler_simulation_unittest.cc',
         'url_request/url_request_throttler_test_support.cc',
@@ -1359,6 +1626,8 @@
         'websockets/websocket_frame_parser_unittest.cc',
         'websockets/websocket_frame_unittest.cc',
         'websockets/websocket_handshake_handler_unittest.cc',
+        'websockets/websocket_handshake_handler_spdy2_unittest.cc',
+        'websockets/websocket_handshake_handler_spdy3_unittest.cc',
         'websockets/websocket_job_spdy2_unittest.cc',
         'websockets/websocket_job_spdy3_unittest.cc',
         'websockets/websocket_net_log_params_unittest.cc',
@@ -1371,13 +1640,20 @@
             'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
+        [ 'OS == "android"', {
+          'sources!': [
+            # No res_ninit() et al on Android, so this doesn't make a lot of
+            # sense.
+            'dns/dns_config_service_posix_unittest.cc',
+          ],
+        }],
         [ 'use_glib == 1', {
             'dependencies': [
               '../build/linux/system.gyp:ssl',
             ],
-          }, {  # else: OS is not in the above list
+          }, {  # else use_glib == 0: !posix || mac
             'sources!': [
-              'base/cert_database_nss_unittest.cc',
+              'base/nss_cert_database_unittest.cc',
             ],
           },
         ],
@@ -1387,7 +1663,7 @@
             ],
           },
         ],
-        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1414,12 +1690,44 @@
             #               functionality is ported to OpenSSL.
             'sources!': [
               'base/x509_util_nss_unittest.cc',
-              'base/cert_database_nss_unittest.cc',
-              'base/dnssec_unittest.cc',
+              'base/nss_cert_database_unittest.cc',
             ],
           }, {  # else !use_openssl: remove the unneeded files
             'sources!': [
               'base/x509_util_openssl_unittest.cc',
+            ],
+          },
+        ],
+        [ 'enable_websockets != 1', {
+            'sources/': [
+              ['exclude', '^socket_stream/'],
+              ['exclude', '^websockets/'],
+              ['exclude', '^spdy/spdy_websocket_stream_spdy._unittest\\.cc$'],
+            ],
+        }],
+        [ 'disable_ftp_support==1', {
+            'sources/': [
+              ['exclude', '^ftp/'],
+            ],
+            'sources!': [
+              'url_request/url_request_ftp_job_unittest.cc',
+            ],
+          },
+        ],
+        [ 'enable_built_in_dns!=1', {
+            'sources!': [
+              'dns/address_sorter_posix_unittest.cc',
+              'dns/address_sorter_unittest.cc',
+            ],
+          },
+        ],
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          }, {  # else: !use_v8_in_net
+            'sources!': [
+              'proxy/proxy_resolver_v8_unittest.cc',
             ],
           },
         ],
@@ -1446,6 +1754,66 @@
             ],
           },
         ],
+        [ 'OS == "ios"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+            ],
+            'actions': [
+              {
+                'action_name': 'copy_test_data',
+                'variables': {
+                  'test_data_files': [
+                    'data/ssl/certificates/',
+                    'data/url_request_unittest/',
+                  ],
+                  'test_data_prefix': 'net',
+                },
+                'includes': [ '../build/copy_test_data_ios.gypi' ],
+              },
+            ],
+            'sources!': [
+              # TODO(droger): The following tests are disabled because the
+              # implementation is missing or incomplete.
+              # KeygenHandler::GenKeyAndSignChallenge() is not ported to iOS.
+              'base/keygen_handler_unittest.cc',
+              # Need to read input data files.
+              'base/gzip_filter_unittest.cc',
+              'disk_cache/backend_unittest.cc',
+              'disk_cache/block_files_unittest.cc',
+              'socket/ssl_server_socket_unittest.cc',
+              # Need TestServer.
+              'proxy/proxy_script_fetcher_impl_unittest.cc',
+              'socket/ssl_client_socket_unittest.cc',
+              'url_request/url_fetcher_impl_unittest.cc',
+              'url_request/url_request_context_builder_unittest.cc',
+              # Needs GetAppOutput().
+              'test/python_utils_unittest.cc',
+
+              # The following tests are disabled because they don't apply to
+              # iOS.
+              # OS is not "linux" or "freebsd" or "openbsd".
+              'base/unix_domain_socket_posix_unittest.cc',
+            ],
+            'conditions': [
+              ['coverage != 0', {
+                'sources!': [
+                  # These sources can't be built with coverage due to a
+                  # toolchain bug: http://openradar.appspot.com/radar?id=1499403
+                  'base/transport_security_state_unittest.cc',
+
+                  # These tests crash when run with coverage turned on due to an
+                  # issue with llvm_gcda_increment_indirect_counter:
+                  # http://crbug.com/156058
+                  'cookies/cookie_monster_unittest.cc',
+                  'cookies/cookie_store_unittest.h',
+                  'http/http_auth_controller_unittest.cc',
+                  'http/http_network_layer_unittest.cc',
+                  'http/http_network_transaction_spdy2_unittest.cc',
+                  'http/http_network_transaction_spdy3_unittest.cc',
+                ],
+              }],
+            ],
+        }],
         [ 'OS == "linux"', {
             'dependencies': [
               '../build/linux/system.gyp:dbus',
@@ -1454,10 +1822,6 @@
           },
         ],
         [ 'OS == "android"', {
-            'defines': [
-              # Android can shut down our app at any time, so we persist session cookies.
-              'ENABLE_PERSISTENT_SESSION_COOKIES'
-            ],
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
             ],
@@ -1475,20 +1839,20 @@
           'sources!': [
             'base/x509_cert_types_unittest.cc',
           ],
-        }]
+        }],
       ],
     },
     {
       'target_name': 'net_perftests',
       'type': 'executable',
       'dependencies': [
-        'net',
-        'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_perf',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
+        'net',
+        'net_test_support',
       ],
       'sources': [
         'cookies/cookie_monster_perftest.cc',
@@ -1496,6 +1860,16 @@
         'proxy/proxy_resolver_perftest.cc',
       ],
       'conditions': [
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          }, {  # else: !use_v8_in_net
+            'sources!': [
+              'proxy/proxy_resolver_perftest.cc',
+            ],
+          },
+        ],
         # This is needed to trigger the dll copy step on windows.
         # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
@@ -1507,63 +1881,13 @@
       ],
     },
     {
-      'target_name': 'stress_cache',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'disk_cache/stress_cache.cc',
-      ],
-    },
-    {
-      'target_name': 'tld_cleanup',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-      ],
-      'sources': [
-        'tools/tld_cleanup/tld_cleanup.cc',
-      ],
-    },
-    {
-      'target_name': 'crash_cache',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/crash_cache/crash_cache.cc',
-      ],
-    },
-    {
-      'target_name': 'run_testserver',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'tools/testserver/run_testserver.cc',
-      ],
-    },
-    {
       'target_name': 'net_test_support',
       'type': 'static_library',
       'dependencies': [
-        'net',
         '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
+        'net',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -1585,6 +1909,8 @@
         'base/net_test_suite.h',
         'base/test_completion_callback.cc',
         'base/test_completion_callback.h',
+        'base/test_data_directory.cc',
+        'base/test_data_directory.h',
         'cookies/cookie_monster_store_test.cc',
         'cookies/cookie_monster_store_test.h',
         'cookies/cookie_store_test_callbacks.cc',
@@ -1595,6 +1921,8 @@
         'disk_cache/disk_cache_test_base.h',
         'disk_cache/disk_cache_test_util.cc',
         'disk_cache/disk_cache_test_util.h',
+        'disk_cache/flash/flash_cache_test_base.h',
+        'disk_cache/flash/flash_cache_test_base.cc',
         'dns/dns_test_util.cc',
         'dns/dns_test_util.h',
         'proxy/mock_proxy_resolver.cc',
@@ -1626,15 +1954,18 @@
         'url_request/url_request_test_util.h',
       ],
       'conditions': [
-        ['inside_chromium_build==1 and OS != "lb_shell"', {
+        ['inside_chromium_build==1 and OS != "ios" and OS != "lb_shell"', {
           'dependencies': [
+            # The test server uses Python modules generated by cloud print.
+            # TODO(sync): Remove this hack (http://crbug.com/119403).
             '../chrome/app/policy/cloud_policy_codegen.gyp:cloud_policy_proto_compile',
             # The test server uses Python modules generated by the sync protos.
+            # TODO(sync): Remove this hack (http://crbug.com/117559).
             '../sync/protocol/sync_proto.gyp:sync_proto',
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios" and OS != "lb_shell"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1647,7 +1978,7 @@
             }],
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios" and OS != "lb_shell"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1672,6 +2003,17 @@
             'test/python_utils.h',
           ],
         }],
+        ['OS == "ios"', {
+          'dependencies': [
+            '../third_party/nss/nss.gyp:nss',
+          ],
+        }],
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          },
+        ],
       ],
     },
     {
@@ -1692,62 +2034,12 @@
       'includes': [ '../build/grit_target.gypi' ],
     },
     {
-      'target_name': 'gdig',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        'net',
-      ],
-      'sources': [
-        'tools/gdig/file_net_log.cc',
-        'tools/gdig/gdig.cc',
-      ],
-    },
-    {
-      'target_name': 'fetch_client',
-      'type': 'executable',
-      'variables': { 'enable_wexit_time_destructors': 1, },
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'tools/fetch/fetch_client.cc',
-      ],
-    },
-    {
-      'target_name': 'fetch_server',
-      'type': 'executable',
-      'variables': { 'enable_wexit_time_destructors': 1, },
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-      ],
-      'sources': [
-        'tools/fetch/fetch_server.cc',
-        'tools/fetch/http_listen_socket.cc',
-        'tools/fetch/http_listen_socket.h',
-        'tools/fetch/http_server.cc',
-        'tools/fetch/http_server.h',
-        'tools/fetch/http_server_request_info.cc',
-        'tools/fetch/http_server_request_info.h',
-        'tools/fetch/http_server_response_info.cc',
-        'tools/fetch/http_server_response_info.h',
-        'tools/fetch/http_session.cc',
-        'tools/fetch/http_session.h',
-      ],
-    },
-    {
       'target_name': 'http_server',
       'type': 'static_library',
       'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
-        'net',
         '../base/base.gyp:base',
+        'net',
       ],
       'sources': [
         'server/http_connection.cc',
@@ -1761,91 +2053,219 @@
       ],
     },
     {
-      'target_name': 'dnssec_chain_verify',
+      'target_name': 'dump_cache',
       'type': 'executable',
       'dependencies': [
-        'net',
         '../base/base.gyp:base',
+        'net',
+        'net_test_support',
       ],
       'sources': [
-        'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
-      ],
-    },
-    {
-      'target_name': 'crl_set_dump',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/crl_set_dump/crl_set_dump.cc',
-      ],
-    },
-    {
-      'target_name': 'dns_fuzz_stub',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
-      ],
-    },
-    {
-      'target_name': 'net_watcher',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/net_watcher/net_watcher.cc',
+        'tools/dump_cache/cache_dumper.cc',
+        'tools/dump_cache/cache_dumper.h',
+        'tools/dump_cache/dump_cache.cc',
+        'tools/dump_cache/dump_files.cc',
+        'tools/dump_cache/dump_files.h',
+        'tools/dump_cache/simple_cache_dumper.cc',
+        'tools/dump_cache/simple_cache_dumper.h',
+        'tools/dump_cache/upgrade_win.cc',
+        'tools/dump_cache/upgrade_win.h',
+        'tools/dump_cache/url_to_filename_encoder.cc',
+        'tools/dump_cache/url_to_filename_encoder.h',
+        'tools/dump_cache/url_utilities.h',
+        'tools/dump_cache/url_utilities.cc',
       ],
     },
   ],
   'conditions': [
-    ['inside_chromium_build==1', {
+    ['use_v8_in_net == 1', {
       'targets': [
-        # This target depends on dependencies not fetched by WebKit's DEPS.
-        # In particular, ..\chrome\test\data and ..\third_party\python_26 on
-        # Windows.
         {
-          'target_name': 'net_unittests_run',
-          'type': 'none',
+          'target_name': 'net_with_v8',
+          'type': '<(component)',
+          'variables': { 'enable_wexit_time_destructors': 1, },
           'dependencies': [
-            'net_unittests',
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../v8/tools/gyp/v8.gyp:v8',
+            'net'
           ],
-          'includes': [
-            'net_unittests.isolate',
+          'defines': [
+            'NET_IMPLEMENTATION',
           ],
-          'actions': [
-            {
-              'action_name': 'isolate',
-              'inputs': [
-                'net_unittests.isolate',
-                '<@(isolate_dependency_tracked)',
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/net_unittests.results',
-              ],
-              'action': [
-                'python',
-                '../tools/isolate/isolate.py',
-                '<(test_isolation_mode)',
-                '--outdir', '<(test_isolation_outdir)',
-                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
-                '--variable', 'OS', '<(OS)',
-                '--result', '<@(_outputs)',
-                '--isolate', 'net_unittests.isolate',
-              ],
-            },
+          'sources': [
+            'proxy/proxy_resolver_v8.cc',
+            'proxy/proxy_resolver_v8.h',
+            'proxy/proxy_service_v8.cc',
+            'proxy/proxy_service_v8.h',
           ],
         },
       ],
     }],
-    ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
+    ['OS != "ios"', {
+      'targets': [
+        # iOS doesn't have the concept of simple executables, these targets
+        # can't be compiled on the platform.
+        {
+          'target_name': 'crash_cache',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'tools/crash_cache/crash_cache.cc',
+          ],
+        },
+        {
+          'target_name': 'crl_set_dump',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/crl_set_dump/crl_set_dump.cc',
+          ],
+        },
+        {
+          'target_name': 'dns_fuzz_stub',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
+          ],
+        },
+        {
+          'target_name': 'fetch_client',
+          'type': 'executable',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+            'net',
+            'net_with_v8',
+          ],
+          'sources': [
+            'tools/fetch/fetch_client.cc',
+          ],
+        },
+        {
+          'target_name': 'fetch_server',
+          'type': 'executable',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            'net',
+          ],
+          'sources': [
+            'tools/fetch/fetch_server.cc',
+            'tools/fetch/http_listen_socket.cc',
+            'tools/fetch/http_listen_socket.h',
+            'tools/fetch/http_server.cc',
+            'tools/fetch/http_server.h',
+            'tools/fetch/http_server_request_info.cc',
+            'tools/fetch/http_server_request_info.h',
+            'tools/fetch/http_server_response_info.cc',
+            'tools/fetch/http_server_response_info.h',
+            'tools/fetch/http_session.cc',
+            'tools/fetch/http_session.h',
+          ],
+        },
+        {
+          'target_name': 'gdig',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/gdig/file_net_log.cc',
+            'tools/gdig/gdig.cc',
+          ],
+        },
+        {
+          'target_name': 'get_server_time',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            'net',
+          ],
+          'sources': [
+            'tools/get_server_time/get_server_time.cc',
+          ],
+        },
+        {
+          'target_name': 'net_watcher',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_with_v8',
+          ],
+          'conditions': [
+            [ 'use_glib == 1', {
+                'dependencies': [
+                  '../build/linux/system.gyp:gconf',
+                  '../build/linux/system.gyp:gio',
+                ],
+              },
+            ],
+          ],
+          'sources': [
+            'tools/net_watcher/net_watcher.cc',
+          ],
+        },
+        {
+          'target_name': 'run_testserver',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'tools/testserver/run_testserver.cc',
+          ],
+        },
+        {
+          'target_name': 'stress_cache',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'disk_cache/stress_cache.cc',
+          ],
+        },
+        {
+          'target_name': 'tld_cleanup',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+          ],
+          'sources': [
+            'tools/tld_cleanup/tld_cleanup.cc',
+          ],
+        },
+      ],
+    }],
+    ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android" and OS != "lb_shell"', {
       'targets': [
         {
           'target_name': 'flip_in_mem_edsm_server',
@@ -1855,8 +2275,8 @@
           ],
           'dependencies': [
             '../base/base.gyp:base',
-            'net',
             '../third_party/openssl/openssl.gyp:openssl',
+            'net',
           ],
           'sources': [
             'tools/dump_cache/url_to_filename_encoder.cc',
@@ -1911,60 +2331,6 @@
             'tools/flip_server/string_piece_utils.h',
           ],
         },
-        {
-          'target_name': 'curvecp',
-          'type': 'static_library',
-          'variables': { 'enable_wexit_time_destructors': 1, },
-          'dependencies': [
-            '../base/base.gyp:base',
-            'net',
-          ],
-          'sources': [
-            'curvecp/circular_buffer.cc',
-            'curvecp/circular_buffer.h',
-            'curvecp/client_packetizer.cc',
-            'curvecp/client_packetizer.h',
-            'curvecp/connection_key.cc',
-            'curvecp/connection_key.h',
-            'curvecp/curvecp_client_socket.cc',
-            'curvecp/curvecp_client_socket.h',
-            'curvecp/curvecp_server_socket.cc',
-            'curvecp/curvecp_server_socket.h',
-            'curvecp/messenger.h',
-            'curvecp/messenger.cc',
-            'curvecp/packetizer.h',
-            'curvecp/protocol.cc',
-            'curvecp/protocol.h',
-            'curvecp/received_block_list.cc',
-            'curvecp/received_block_list.h',
-            'curvecp/rtt_and_send_rate_calculator.cc',
-            'curvecp/rtt_and_send_rate_calculator.h',
-            'curvecp/sent_block_list.cc',
-            'curvecp/sent_block_list.h',
-            'curvecp/server_messenger.cc',
-            'curvecp/server_messenger.h',
-            'curvecp/server_packetizer.cc',
-            'curvecp/server_packetizer.h',
-          ],
-        },
-        {
-          'target_name': 'curvecp_unittests',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            'curvecp',
-            'net',
-            'net_test_support',
-            '../testing/gmock.gyp:gmock',
-            '../testing/gtest.gyp:gtest',
-            '../third_party/zlib/zlib.gyp:zlib',
-          ],
-          'sources': [
-            'curvecp/curvecp_transfer_unittest.cc',
-            'curvecp/test_client.cc',
-            'curvecp/test_server.cc',
-          ],
-        },
       ]
     }],
     ['OS=="android"', {
@@ -1972,17 +2338,14 @@
         {
           'target_name': 'net_jni_headers',
           'type': 'none',
+          'sources': [
+            'android/java/src/org/chromium/net/AndroidNetworkLibrary.java',
+            'android/java/src/org/chromium/net/GURLUtils.java',
+            'android/java/src/org/chromium/net/NetworkChangeNotifier.java',
+            'android/java/src/org/chromium/net/ProxyChangeListener.java',
+          ],
           'variables': {
-            'java_sources': [
-              'android/java/src/org/chromium/net/AndroidNetworkLibrary.java',
-              'android/java/src/org/chromium/net/NetworkChangeNotifier.java',
-              'android/java/src/org/chromium/net/ProxyChangeListener.java',
-            ],
-            'jni_headers': [
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/android_network_library_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/network_change_notifier_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/proxy_change_listener_jni.h',
-            ],
+            'jni_gen_dir': 'net',
           },
           'includes': [ '../build/jni_generator.gypi' ],
         },
@@ -1994,9 +2357,58 @@
             'java_in_dir': '../net/android/java',
           },
           'dependencies': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
+            'net_errors_java',
+            'certificate_mime_types_java',
           ],
           'includes': [ '../build/java.gypi' ],
+        },
+        {
+          'target_name': 'net_java_test_support',
+          'type': 'none',
+          'variables': {
+            'package_name': 'net_java_test_support',
+            'java_in_dir': '../net/test/android/javatests',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+        {
+          'target_name': 'net_javatests',
+          'type': 'none',
+          'variables': {
+            'package_name': 'net_javatests',
+            'java_in_dir': '../net/android/javatests',
+          },
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_java_test_support',
+            'net_java',
+          ],
+          'includes': [ '../build/java.gypi' ],
+        },
+        {
+          'target_name': 'net_errors_java',
+          'type': 'none',
+          'sources': [
+            'android/java/NetError.template',
+          ],
+          'variables': {
+            'package_name': 'org.chromium.net',
+            'template_deps': ['base/net_error_list.h'],
+          },
+          'includes': [ '../build/android/java_cpp_template.gypi' ],
+        },
+        {
+          'target_name': 'certificate_mime_types_java',
+          'type': 'none',
+          'sources': [
+            'android/java/CertificateMimeType.template',
+          ],
+          'variables': {
+            'package_name': 'org.chromium.net',
+            'template_deps': ['base/mime_util_certificate_type_list.h'],
+          },
+          'includes': [ '../build/android/java_cpp_template.gypi' ],
         },
       ],
     }],
@@ -2009,43 +2421,49 @@
           'target_name': 'net_unittests_apk',
           'type': 'none',
           'dependencies': [
-            '../base/base.gyp:base_java',
             'net_java',
             'net_unittests',
           ],
           'variables': {
             'test_suite_name': 'net_unittests',
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)net_unittests<(SHARED_LIB_SUFFIX)',
-            'input_jars_paths': [
-              '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
-              '<(PRODUCT_DIR)/lib.java/chromium_net.jar',
-             ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },
       ],
     }],
-    ['OS=="win"', {
+    ['test_isolation_mode != "noop"', {
       'targets': [
         {
-          # TODO(port): dump_cache is still Windows-specific.
-          'target_name': 'dump_cache',
-          'type': 'executable',
+          'target_name': 'net_unittests_run',
+          'type': 'none',
           'dependencies': [
-            'net',
-            'net_test_support',
-            '../base/base.gyp:base',
+            'net_unittests',
           ],
-          'sources': [
-            'tools/dump_cache/cache_dumper.cc',
-            'tools/dump_cache/cache_dumper.h',
-            'tools/dump_cache/dump_cache.cc',
-            'tools/dump_cache/dump_files.cc',
-            'tools/dump_cache/upgrade.cc',
-            'tools/dump_cache/url_to_filename_encoder.cc',
-            'tools/dump_cache/url_to_filename_encoder.h',
-            'tools/dump_cache/url_utilities.h',
-            'tools/dump_cache/url_utilities.cc',
+          'includes': [
+            'net_unittests.isolate',
+          ],
+          'actions': [
+            {
+              'action_name': 'isolate',
+              'inputs': [
+                'net_unittests.isolate',
+                '<@(isolate_dependency_tracked)',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/net_unittests.isolated',
+              ],
+              'action': [
+                'python',
+                '../tools/swarm_client/isolate.py',
+                '<(test_isolation_mode)',
+                '--outdir', '<(test_isolation_outdir)',
+                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
+                '--variable', 'OS', '<(OS)',
+                '--result', '<@(_outputs)',
+                '--isolate', 'net_unittests.isolate',
+              ],
+            },
           ],
         },
       ],

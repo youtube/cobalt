@@ -154,15 +154,14 @@ TEST(AudioParameters, Compare) {
                     CHANNEL_LAYOUT_STEREO, 2000, 16, 200),
   };
 
-  AudioParameters::Compare target;
   for (size_t i = 0; i < arraysize(values); ++i) {
     for (size_t j = 0; j < arraysize(values); ++j) {
       SCOPED_TRACE("i=" + base::IntToString(i) + " j=" + base::IntToString(j));
-      EXPECT_EQ(i < j, target(values[i], values[j]));
+      EXPECT_EQ(i < j, values[i] < values[j]);
     }
 
     // Verify that a value is never less than itself.
-    EXPECT_FALSE(target(values[i], values[i]));
+    EXPECT_FALSE(values[i] < values[i]);
   }
 }
 

@@ -8,16 +8,11 @@
 #include "base/compiler_specific.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/mock_cert_verifier.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
-#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
-#include "net/http/http_server_properties_impl.h"
-#include "net/proxy/proxy_service.h"
+#include "net/http/http_response_headers.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
@@ -63,26 +58,21 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
         transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
             &tcp_histograms_,
-            &socket_factory_),
+            session_deps_.deterministic_socket_factory.get()),
         ssl_histograms_("MockSSL"),
-        cert_verifier_(new MockCertVerifier),
-        proxy_service_(ProxyService::CreateDirect()),
-        ssl_config_service_(new SSLConfigServiceDefaults),
         ssl_socket_pool_(kMaxSockets, kMaxSocketsPerGroup,
                          &ssl_histograms_,
-                         &host_resolver_,
-                         cert_verifier_.get(),
+                         session_deps_.host_resolver.get(),
+                         session_deps_.cert_verifier.get(),
                          NULL /* server_bound_cert_store */,
                          NULL /* transport_security_state */,
                          ""   /* ssl_session_cache_shard */,
-                         &socket_factory_,
+                         session_deps_.deterministic_socket_factory.get(),
                          &transport_socket_pool_,
                          NULL,
                          NULL,
-                         ssl_config_service_.get(),
+                         session_deps_.ssl_config_service.get(),
                          BoundNetLog().net_log()),
-        http_auth_handler_factory_(
-            HttpAuthHandlerFactory::CreateDefault(&host_resolver_)),
         session_(CreateNetworkSession()),
         http_proxy_histograms_("HttpProxyUnitTest"),
         ssl_data_(NULL),
@@ -147,7 +137,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   }
 
   DeterministicMockClientSocketFactory& socket_factory() {
-    return socket_factory_;
+    return *session_deps_.deterministic_socket_factory.get();
   }
 
   void Initialize(MockRead* reads, size_t reads_count,
@@ -165,14 +155,14 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
     data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     data_->StopAfter(2);  // Request / Response
 
-    socket_factory_.AddSocketDataProvider(data_.get());
+    socket_factory().AddSocketDataProvider(data_.get());
 
     if (GetParam() != HTTP) {
       ssl_data_.reset(new SSLSocketDataProvider(SYNCHRONOUS, OK));
       if (GetParam() == SPDY) {
         InitializeSpdySsl();
       }
-      socket_factory_.AddSSLSocketDataProvider(ssl_data_.get());
+      socket_factory().AddSSLSocketDataProvider(ssl_data_.get());
     }
   }
 
@@ -181,40 +171,25 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   }
 
   HttpNetworkSession* CreateNetworkSession() {
-    HttpNetworkSession::Params params;
-    params.host_resolver = &host_resolver_;
-    params.cert_verifier = cert_verifier_.get();
-    params.proxy_service = proxy_service_.get();
-    params.client_socket_factory = &socket_factory_;
-    params.ssl_config_service = ssl_config_service_;
-    params.http_auth_handler_factory = http_auth_handler_factory_.get();
-    params.http_server_properties = &http_server_properties_;
-    HttpNetworkSession* session = new HttpNetworkSession(params);
-    SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
-    pool_peer.EnableSendingInitialSettings(false);
-    return session;
+    return SpdySessionDependencies::SpdyCreateSessionDeterministic(
+        &session_deps_);
   }
 
  private:
+  SpdySessionDependencies session_deps_;
   SSLConfig ssl_config_;
 
   scoped_refptr<TransportSocketParams> ignored_transport_socket_params_;
   scoped_refptr<SSLSocketParams> ignored_ssl_socket_params_;
   ClientSocketPoolHistograms tcp_histograms_;
-  DeterministicMockClientSocketFactory socket_factory_;
   MockTransportClientSocketPool transport_socket_pool_;
   ClientSocketPoolHistograms ssl_histograms_;
   MockHostResolver host_resolver_;
   scoped_ptr<CertVerifier> cert_verifier_;
-  const scoped_ptr<ProxyService> proxy_service_;
-  const scoped_refptr<SSLConfigService> ssl_config_service_;
   SSLClientSocketPool ssl_socket_pool_;
 
-  const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
-  HttpServerPropertiesImpl http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   ClientSocketPoolHistograms http_proxy_histograms_;
-  SpdyTestStateHelper spdy_state_;
 
  protected:
   scoped_ptr<SSLSocketDataProvider> ssl_data_;
@@ -280,7 +255,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, NeedAuth) {
                                 kAuthChallenge,
                                 arraysize(kAuthChallenge)));
   MockRead spdy_reads[] = {
-    CreateMockWrite(*resp, 1, ASYNC),
+    CreateMockRead(*resp, 1, ASYNC),
     MockRead(ASYNC, 0, 3)
   };
 
@@ -344,13 +319,13 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, HaveAuth) {
 
 TEST_P(HttpProxyClientSocketPoolSpdy2Test, AsyncHaveAuth) {
   MockWrite writes[] = {
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+    MockWrite(ASYNC, 0, "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(SYNCHRONOUS, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+    MockRead(ASYNC, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
@@ -529,16 +504,92 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, TunnelSetupError) {
   data_->RunFor(2);
 
   rv = callback_.WaitForResult();
+  // All Proxy CONNECT responses are not trustworthy
+  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
+  EXPECT_FALSE(handle_.is_initialized());
+  EXPECT_FALSE(handle_.socket());
+}
+
+TEST_P(HttpProxyClientSocketPoolSpdy2Test, TunnelSetupRedirect) {
+  const std::string redirectTarget = "https://foo.google.com/";
+
+  const std::string responseText = "HTTP/1.1 302 Found\r\n"
+                                   "Location: " + redirectTarget + "\r\n"
+                                   "Set-Cookie: foo=bar\r\n"
+                                   "\r\n";
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0,
+              "CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, 1, responseText.c_str()),
+  };
+  scoped_ptr<SpdyFrame> req(
+      ConstructSpdyConnect(kAuthHeaders, kAuthHeadersSize, 1));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(1, CANCEL));
+
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*req, 0, ASYNC),
+  };
+
+  const char* const responseHeaders[] = {
+    "location", redirectTarget.c_str(),
+    "set-cookie", "foo=bar",
+  };
+  const int responseHeadersSize = arraysize(responseHeaders) / 2;
+  scoped_ptr<SpdyFrame> resp(
+      ConstructSpdySynReplyError("302 Found",
+                                 responseHeaders, responseHeadersSize,
+                                 1));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 2),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
+             spdy_reads, arraysize(spdy_reads), spdy_writes,
+             arraysize(spdy_writes));
+  AddAuthToCache();
+
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_FALSE(handle_.is_initialized());
+  EXPECT_FALSE(handle_.socket());
+
+  data_->RunFor(2);
+
+  rv = callback_.WaitForResult();
+
   if (GetParam() == HTTP) {
-    // HTTP Proxy CONNECT responses are not trustworthy
+    // We don't trust 302 responses to CONNECT from HTTP proxies.
     EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
     EXPECT_FALSE(handle_.is_initialized());
     EXPECT_FALSE(handle_.socket());
   } else {
-    // HTTPS or SPDY Proxy CONNECT responses are trustworthy
+    // Expect ProxyClientSocket to return the proxy's response, sanitized.
     EXPECT_EQ(ERR_HTTPS_PROXY_TUNNEL_RESPONSE, rv);
     EXPECT_TRUE(handle_.is_initialized());
-    EXPECT_TRUE(handle_.socket());
+    ASSERT_TRUE(handle_.socket());
+
+    const ProxyClientSocket* tunnel_socket =
+        static_cast<ProxyClientSocket*>(handle_.socket());
+    const HttpResponseInfo* response = tunnel_socket->GetConnectResponseInfo();
+    const HttpResponseHeaders* headers = response->headers;
+
+    // Make sure Set-Cookie header was stripped.
+    EXPECT_FALSE(headers->HasHeader("set-cookie"));
+
+    // Make sure Content-Length: 0 header was added.
+    EXPECT_TRUE(headers->HasHeaderValue("content-length", "0"));
+
+    // Make sure Location header was included and correct.
+    std::string location;
+    EXPECT_TRUE(headers->IsRedirect(&location));
+    EXPECT_EQ(location, redirectTarget);
   }
 }
 

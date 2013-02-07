@@ -512,4 +512,79 @@ TEST(HttpContentDispositionTest, tc2231) {
   }
 }
 
+TEST(HttpContentDispositionTest, ParseResult) {
+  const struct ParseResultTestCase {
+    const char* header;
+    int expected_flags;
+  } kTestCases[] = {
+    // Basic feature tests
+    { "", HttpContentDisposition::INVALID },
+    { "example=x", HttpContentDisposition::INVALID },
+    { "attachment; filename=", HttpContentDisposition::HAS_DISPOSITION_TYPE },
+    { "attachment; name=", HttpContentDisposition::HAS_DISPOSITION_TYPE },
+    { "attachment; filename*=", HttpContentDisposition::HAS_DISPOSITION_TYPE },
+    { "attachment; filename==?utf-8?Q?\?=",
+      HttpContentDisposition::HAS_DISPOSITION_TYPE },
+    { "filename=x", HttpContentDisposition::HAS_FILENAME },
+    { "example; filename=x",
+      HttpContentDisposition::HAS_DISPOSITION_TYPE |
+      HttpContentDisposition::HAS_UNKNOWN_DISPOSITION_TYPE |
+      HttpContentDisposition::HAS_FILENAME},
+    { "attachment; filename=x",
+      HttpContentDisposition::HAS_DISPOSITION_TYPE |
+      HttpContentDisposition::HAS_FILENAME },
+    { "attachment; filename=x; name=y",
+      HttpContentDisposition::HAS_DISPOSITION_TYPE |
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_NAME },
+    { "attachment; name=y; filename*=utf-8''foo; name=x",
+      HttpContentDisposition::HAS_DISPOSITION_TYPE |
+      HttpContentDisposition::HAS_EXT_FILENAME |
+      HttpContentDisposition::HAS_NAME },
+
+    // Feature tests for 'filename' attribute.
+    { "filename=foo\xcc\x88",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_NON_ASCII_STRINGS },
+    { "filename=foo%cc%88",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_PERCENT_ENCODED_STRINGS },
+    { "filename==?utf-8?Q?foo?=",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_RFC2047_ENCODED_STRINGS },
+    { "filename=\"=?utf-8?Q?foo?=\"",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_RFC2047_ENCODED_STRINGS },
+    { "filename==?utf-8?Q?foo?", HttpContentDisposition::INVALID },
+    { "name=foo\xcc\x88",
+      HttpContentDisposition::HAS_NAME },
+
+    // Shouldn't set |has_non_ascii_strings| based on 'name' attribute.
+    { "filename=x; name=foo\xcc\x88",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_NAME },
+    { "filename=foo\xcc\x88 foo%cc%88 =?utf-8?Q?foo?=",
+      HttpContentDisposition::HAS_FILENAME |
+      HttpContentDisposition::HAS_NON_ASCII_STRINGS |
+      HttpContentDisposition::HAS_PERCENT_ENCODED_STRINGS |
+      HttpContentDisposition::HAS_RFC2047_ENCODED_STRINGS },
+
+    // If 'filename' attribute is invalid, should set any flags based on it.
+    { "filename=foo\xcc\x88 foo%cc%88 =?utf-8?Q?foo?",
+      HttpContentDisposition::INVALID },
+    { "filename=foo\xcc\x88 foo%cc%88 =?utf-8?Q?foo?; name=x",
+      HttpContentDisposition::HAS_NAME },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); ++i) {
+    const ParseResultTestCase& test_case = kTestCases[i];
+    HttpContentDisposition content_disposition(test_case.header, "utf-8");
+    int result = content_disposition.parse_result_flags();
+
+    SCOPED_TRACE(testing::Message() << "Test case " << i
+                                    << " with header " << test_case.header);
+    EXPECT_EQ(test_case.expected_flags, result);
+  }
+}
+
 }  // namespace net
