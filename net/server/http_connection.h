@@ -6,6 +6,7 @@
 #define NET_SERVER_HTTP_CONNECTION_H_
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -27,6 +28,10 @@ class HttpConnection {
   void Send(HttpStatusCode status_code,
             const std::string& data,
             const std::string& content_type);
+  void Send(HttpStatusCode status_code,
+            const std::string& data,
+            const std::string& content_type,
+            const std::vector<std::string>& headers);
 
   void Shift(int num_bytes);
 
