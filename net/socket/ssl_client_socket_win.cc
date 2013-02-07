@@ -27,6 +27,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate_net_log_param.h"
+#include "net/base/x509_util.h"
 #include "net/socket/client_socket_handle.h"
 
 #pragma comment(lib, "secur32.lib")
@@ -404,10 +405,10 @@ SSLClientSocketWin::~SSLClientSocketWin() {
   Disconnect();
 }
 
-void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
+bool SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   if (!server_cert_)
-    return;
+    return false;
 
   ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -448,6 +449,8 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
 
   if (ssl_config_.version_fallback)
     ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
+
+  return true;
 }
 
 void SSLClientSocketWin::GetSSLCertRequestInfo(
@@ -538,6 +541,10 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
       CertFreeCertificateContext(intermediates[i]);
   }
 
+  std::sort(cert_request_info->client_certs.begin(),
+            cert_request_info->client_certs.end(),
+            x509_util::ClientCertSorter());
+
   FreeContextBuffer(issuer_list.aIssuers);
 
   BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
@@ -549,6 +556,10 @@ int SSLClientSocketWin::ExportKeyingMaterial(const base::StringPiece& label,
                                              const base::StringPiece& context,
                                              unsigned char* out,
                                              unsigned int outlen) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
+int SSLClientSocketWin::GetTLSUniqueChannelBinding(std::string* out) {
   return ERR_NOT_IMPLEMENTED;
 }
 
@@ -1188,11 +1199,11 @@ int SSLClientSocketWin::DoVerifyCert() {
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+    flags |= CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
-    flags |= X509Certificate::VERIFY_EV_CERT;
+    flags |= CertVerifier::VERIFY_EV_CERT;
   if (ssl_config_.cert_io_enabled)
-    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
+    flags |= CertVerifier::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,

@@ -7,9 +7,10 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
-#include "base/time.h"
 
 namespace base {
+
+class Time;
 
 // Vends information about the current process.
 class BASE_EXPORT CurrentProcessInfo {

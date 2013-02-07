@@ -4,12 +4,13 @@
 
 #include "net/base/cert_verifier.h"
 
+#include "net/base/cert_verify_proc.h"
 #include "net/base/multi_threaded_cert_verifier.h"
 
 namespace net {
 
 CertVerifier* CertVerifier::CreateDefault() {
-  return new MultiThreadedCertVerifier();
+  return new MultiThreadedCertVerifier(CertVerifyProc::CreateDefault());
 }
 
 }  // namespace net

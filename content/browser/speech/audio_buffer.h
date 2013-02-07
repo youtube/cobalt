@@ -12,7 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "content/common/content_export.h"
 
-namespace speech {
+namespace content {
 
 // Models a chunk derived from an AudioBuffer.
 class CONTENT_EXPORT AudioChunk :
@@ -71,6 +71,6 @@ class AudioBuffer {
   DISALLOW_COPY_AND_ASSIGN(AudioBuffer);
 };
 
-}  // namespace speech
+}  // namespace content
 
 #endif  // CONTENT_BROWSER_SPEECH_AUDIO_BUFFER_H_

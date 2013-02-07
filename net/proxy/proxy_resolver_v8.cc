@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/proxy/proxy_resolver_v8.h"
+
 #include <algorithm>
 #include <cstdio>
-
-#include "net/proxy/proxy_resolver_v8.h"
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

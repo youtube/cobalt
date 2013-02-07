@@ -29,16 +29,16 @@ static const CertStatus CERT_STATUS_UNABLE_TO_CHECK_REVOCATION = 1 << 5;
 static const CertStatus CERT_STATUS_REVOKED                    = 1 << 6;
 static const CertStatus CERT_STATUS_INVALID                    = 1 << 7;
 static const CertStatus CERT_STATUS_WEAK_SIGNATURE_ALGORITHM   = 1 << 8;
-static const CertStatus CERT_STATUS_NOT_IN_DNS                 = 1 << 9;
+// 1 << 9 was used for CERT_STATUS_NOT_IN_DNS
 static const CertStatus CERT_STATUS_NON_UNIQUE_NAME            = 1 << 10;
 static const CertStatus CERT_STATUS_WEAK_KEY                   = 1 << 11;
 
 // Bits 16 to 31 are for non-error statuses.
 static const CertStatus CERT_STATUS_IS_EV                      = 1 << 16;
 static const CertStatus CERT_STATUS_REV_CHECKING_ENABLED       = 1 << 17;
-static const CertStatus CERT_STATUS_IS_DNSSEC                  = 1 << 18;
+// bit 18 was CERT_STATUS_IS_DNSSEC.
 #if defined(__LB_SHELL__)
-static const CertStatus CERT_STATUS_CONFIRM_SAFE               = 1 << 19;
+static const CertStatus CERT_STATUS_CONFIRM_SAFE               = 1 << 31;
 #endif
 
 // Returns true if the specified cert status has an error set.

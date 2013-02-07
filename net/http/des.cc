@@ -114,7 +114,7 @@ void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
 
   crypto::EnsureNSSInit();
 
-  slot = PK11_GetBestSlot(cipher_mech, NULL);
+  slot = PK11_GetInternalSlot();
   if (!slot)
     goto done;
 

@@ -13,7 +13,7 @@
 #include <dirent.h>
 
 #include "base/logging.h"
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 
 // See the comments in dir_reader_posix.h about this.
 

@@ -4,7 +4,29 @@
 
 #include "net/base/host_resolver.h"
 
+#include "net/base/host_cache.h"
+#include "net/base/host_resolver_impl.h"
+#include "net/dns/dns_client.h"
+#include "net/dns/dns_config_service.h"
+
 namespace net {
+
+namespace {
+
+// Maximum of 6 concurrent resolver threads (excluding retries).
+// Some routers (or resolvers) appear to start to provide host-not-found if
+// too many simultaneous resolutions are pending.  This number needs to be
+// further optimized, but 8 is what FF currently does. We found some routers
+// that limit this to 6, so we're temporarily holding it at that level.
+const size_t kDefaultMaxProcTasks = 6u;
+
+}  // namespace
+
+HostResolver::Options::Options()
+    : max_concurrent_resolves(kDefaultParallelism),
+      max_retry_attempts(kDefaultRetryAttempts),
+      enable_caching(true) {
+}
 
 HostResolver::RequestInfo::RequestInfo(const HostPortPair& host_port_pair)
     : host_port_pair_(host_port_pair),
@@ -25,12 +47,39 @@ AddressFamily HostResolver::GetDefaultAddressFamily() const {
 void HostResolver::ProbeIPv6Support() {
 }
 
+void HostResolver::SetDnsClientEnabled(bool enabled) {
+}
+
 HostCache* HostResolver::GetHostCache() {
   return NULL;
 }
 
 base::Value* HostResolver::GetDnsConfigAsValue() const {
   return NULL;
+}
+
+// static
+scoped_ptr<HostResolver>
+HostResolver::CreateSystemResolver(const Options& options, NetLog* net_log) {
+  size_t max_concurrent_resolves = options.max_concurrent_resolves;
+  if (max_concurrent_resolves == kDefaultParallelism)
+    max_concurrent_resolves = kDefaultMaxProcTasks;
+
+  scoped_ptr<HostCache> cache;
+  if (options.enable_caching)
+    cache = HostCache::CreateDefaultCache();
+  return scoped_ptr<HostResolver>(new HostResolverImpl(
+      cache.Pass(),
+      PrioritizedDispatcher::Limits(NUM_PRIORITIES,
+                                    max_concurrent_resolves),
+      HostResolverImpl::ProcTaskParams(NULL, options.max_retry_attempts),
+      net_log));
+}
+
+// static
+scoped_ptr<HostResolver>
+HostResolver::CreateDefaultResolver(NetLog* net_log) {
+  return CreateSystemResolver(Options(), net_log);
 }
 
 HostResolver::HostResolver() {

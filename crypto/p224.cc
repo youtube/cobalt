@@ -32,6 +32,46 @@ using base::NetToHost32;
 
 using crypto::p224::FieldElement;
 
+// kP is the P224 prime.
+const FieldElement kP = {
+  1, 0, 0, 268431360,
+  268435455, 268435455, 268435455, 268435455,
+};
+
+void Contract(FieldElement* inout);
+
+// IsZero returns 0xffffffff if a == 0 mod p and 0 otherwise.
+uint32 IsZero(const FieldElement& a) {
+  FieldElement minimal;
+  memcpy(&minimal, &a, sizeof(minimal));
+  Contract(&minimal);
+
+  uint32 is_zero = 0, is_p = 0;
+  for (unsigned i = 0; i < 8; i++) {
+    is_zero |= minimal[i];
+    is_p |= minimal[i] - kP[i];
+  }
+
+  // If either is_zero or is_p is 0, then we should return 1.
+  is_zero |= is_zero >> 16;
+  is_zero |= is_zero >> 8;
+  is_zero |= is_zero >> 4;
+  is_zero |= is_zero >> 2;
+  is_zero |= is_zero >> 1;
+
+  is_p |= is_p >> 16;
+  is_p |= is_p >> 8;
+  is_p |= is_p >> 4;
+  is_p |= is_p >> 2;
+  is_p |= is_p >> 1;
+
+  // For is_zero and is_p, the LSB is 0 iff all the bits are zero.
+  is_zero &= is_p & 1;
+  is_zero = (~is_zero) << 31;
+  is_zero = static_cast<int32>(is_zero) >> 31;
+  return is_zero;
+}
+
 // Add computes *out = a+b
 //
 // a[i] + b[i] < 2**32
@@ -313,52 +353,52 @@ void Contract(FieldElement* inout) {
   // unique, minimal value we see if the value is >= p and, if so, subtract p.
 
   // First we build a mask from the top four limbs, which must all be
-  // equal to bottom28Bits if the whole value is >= p. If top4AllOnes
+  // equal to bottom28Bits if the whole value is >= p. If top_4_all_ones
   // ends up with any zero bits in the bottom 28 bits, then this wasn't
   // true.
-  uint32 top4AllOnes = 0xffffffffu;
+  uint32 top_4_all_ones = 0xffffffffu;
   for (int i = 4; i < 8; i++) {
-    top4AllOnes &= (out[i] & kBottom28Bits) - 1;
+    top_4_all_ones &= out[i];
   }
-  top4AllOnes |= 0xf0000000;
-  // Now we replicate any zero bits to all the bits in top4AllOnes.
-  top4AllOnes &= top4AllOnes >> 16;
-  top4AllOnes &= top4AllOnes >> 8;
-  top4AllOnes &= top4AllOnes >> 4;
-  top4AllOnes &= top4AllOnes >> 2;
-  top4AllOnes &= top4AllOnes >> 1;
-  top4AllOnes =
-      static_cast<uint32>(static_cast<int32>(top4AllOnes << 31) >> 31);
+  top_4_all_ones |= 0xf0000000;
+  // Now we replicate any zero bits to all the bits in top_4_all_ones.
+  top_4_all_ones &= top_4_all_ones >> 16;
+  top_4_all_ones &= top_4_all_ones >> 8;
+  top_4_all_ones &= top_4_all_ones >> 4;
+  top_4_all_ones &= top_4_all_ones >> 2;
+  top_4_all_ones &= top_4_all_ones >> 1;
+  top_4_all_ones =
+      static_cast<uint32>(static_cast<int32>(top_4_all_ones << 31) >> 31);
 
   // Now we test whether the bottom three limbs are non-zero.
-  uint32 bottom3NonZero = out[0] | out[1] | out[2];
-  bottom3NonZero |= bottom3NonZero >> 16;
-  bottom3NonZero |= bottom3NonZero >> 8;
-  bottom3NonZero |= bottom3NonZero >> 4;
-  bottom3NonZero |= bottom3NonZero >> 2;
-  bottom3NonZero |= bottom3NonZero >> 1;
-  bottom3NonZero =
-      static_cast<uint32>(static_cast<int32>(bottom3NonZero << 31) >> 31);
+  uint32 bottom_3_non_zero = out[0] | out[1] | out[2];
+  bottom_3_non_zero |= bottom_3_non_zero >> 16;
+  bottom_3_non_zero |= bottom_3_non_zero >> 8;
+  bottom_3_non_zero |= bottom_3_non_zero >> 4;
+  bottom_3_non_zero |= bottom_3_non_zero >> 2;
+  bottom_3_non_zero |= bottom_3_non_zero >> 1;
+  bottom_3_non_zero =
+      static_cast<uint32>(static_cast<int32>(bottom_3_non_zero) >> 31);
 
   // Everything depends on the value of out[3].
-  //    If it's > 0xffff000 and top4AllOnes != 0 then the whole value is >= p
-  //    If it's = 0xffff000 and top4AllOnes != 0 and bottom3NonZero != 0,
+  //    If it's > 0xffff000 and top_4_all_ones != 0 then the whole value is >= p
+  //    If it's = 0xffff000 and top_4_all_ones != 0 and bottom_3_non_zero != 0,
   //      then the whole value is >= p
   //    If it's < 0xffff000, then the whole value is < p
   uint32 n = out[3] - 0xffff000;
-  uint32 out3Equal = n;
-  out3Equal |= out3Equal >> 16;
-  out3Equal |= out3Equal >> 8;
-  out3Equal |= out3Equal >> 4;
-  out3Equal |= out3Equal >> 2;
-  out3Equal |= out3Equal >> 1;
-  out3Equal =
-      ~static_cast<uint32>(static_cast<int32>(out3Equal << 31) >> 31);
+  uint32 out_3_equal = n;
+  out_3_equal |= out_3_equal >> 16;
+  out_3_equal |= out_3_equal >> 8;
+  out_3_equal |= out_3_equal >> 4;
+  out_3_equal |= out_3_equal >> 2;
+  out_3_equal |= out_3_equal >> 1;
+  out_3_equal =
+      ~static_cast<uint32>(static_cast<int32>(out_3_equal << 31) >> 31);
 
   // If out[3] > 0xffff000 then n's MSB will be zero.
-  uint32 out3GT = ~static_cast<uint32>(static_cast<int32>(n << 31) >> 31);
+  uint32 out_3_gt = ~static_cast<uint32>(static_cast<int32>(n << 31) >> 31);
 
-  uint32 mask = top4AllOnes & ((out3Equal & bottom3NonZero) | out3GT);
+  uint32 mask = top_4_all_ones & ((out_3_equal & bottom_3_non_zero) | out_3_gt);
   out[0] -= 1 & mask;
   out[3] -= 0xffff000 & mask;
   out[4] -= 0xfffffff & mask;
@@ -375,17 +415,14 @@ void Contract(FieldElement* inout) {
 
 using crypto::p224::Point;
 
-// kP is the P224 prime.
-const FieldElement kP = {
-  1, 0, 0, 268431360,
-  268435455, 268435455, 268435455, 268435455,
-};
-
 // kB is parameter of the elliptic curve.
 const FieldElement kB = {
   55967668, 11768882, 265861671, 185302395,
   39211076, 180311059, 84673715, 188764328,
 };
+
+void CopyConditional(Point* out, const Point& a, uint32 mask);
+void DoubleJacobian(Point* out, const Point& a);
 
 // AddJacobian computes *out = a+b where a != b.
 void AddJacobian(Point *out,
@@ -393,6 +430,9 @@ void AddJacobian(Point *out,
                  const Point& b) {
   // See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
   FieldElement z1z1, z2z2, u1, u2, s1, s2, h, i, j, r, v;
+
+  uint32 z1_is_zero = IsZero(a.z);
+  uint32 z2_is_zero = IsZero(b.z);
 
   // Z1Z1 = Z1²
   Square(&z1z1, a.z);
@@ -417,6 +457,7 @@ void AddJacobian(Point *out,
   // H = U2-U1
   Subtract(&h, u2, u1);
   Reduce(&h);
+  uint32 x_equal = IsZero(h);
 
   // I = (2*H)²
   for (int j = 0; j < 8; j++) {
@@ -430,6 +471,15 @@ void AddJacobian(Point *out,
   // r = 2*(S2-S1)
   Subtract(&r, s2, s1);
   Reduce(&r);
+  uint32 y_equal = IsZero(r);
+
+  if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+    // The two input points are the same therefore we must use the dedicated
+    // doubling function as the slope of the line is undefined.
+    DoubleJacobian(out, a);
+    return;
+  }
+
   for (int i = 0; i < 8; i++) {
     r[i] <<= 1;
   }
@@ -467,6 +517,9 @@ void AddJacobian(Point *out,
   Mul(&z1z1, z1z1, r);
   Subtract(&out->y, z1z1, s1);
   Reduce(&out->y);
+
+  CopyConditional(out, a, z2_is_zero);
+  CopyConditional(out, b, z1_is_zero);
 }
 
 // DoubleJacobian computes *out = a+a.
@@ -542,16 +595,13 @@ void ScalarMult(Point* out, const Point& a,
   memset(out, 0, sizeof(*out));
   Point tmp;
 
-  uint32 first_bit = 0xffffffff;
   for (size_t i = 0; i < scalar_len; i++) {
     for (unsigned int bit_num = 0; bit_num < 8; bit_num++) {
       DoubleJacobian(out, *out);
       uint32 bit = static_cast<uint32>(static_cast<int32>(
           (((scalar[i] >> (7 - bit_num)) & 1) << 31) >> 31));
       AddJacobian(&tmp, a, *out);
-      CopyConditional(out, a, first_bit & bit);
-      CopyConditional(out, tmp, ~first_bit & bit);
-      first_bit = first_bit & ~bit;
+      CopyConditional(out, tmp, bit);
     }
   }
 }
@@ -627,6 +677,12 @@ bool Point::SetFromString(const base::StringPiece& in) {
 
 std::string Point::ToString() const {
   FieldElement zinv, zinv_sq, x, y;
+
+  // If this is the point at infinity we return a string of all zeros.
+  if (IsZero(this->z)) {
+    static const char zeros[56] = {0};
+    return std::string(zeros, sizeof(zeros));
+  }
 
   Invert(&zinv, this->z);
   Square(&zinv_sq, zinv);

@@ -9,6 +9,7 @@
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/threading/thread_collision_warner.h"
 
 namespace base {
@@ -17,8 +18,6 @@ namespace subtle {
 
 class BASE_EXPORT RefCountedBase {
  public:
-  static bool ImplementsThreadSafeReferenceCounting() { return false; }
-
   bool HasOneRef() const { return ref_count_ == 1; }
 
  protected:
@@ -43,8 +42,6 @@ class BASE_EXPORT RefCountedBase {
 
 class BASE_EXPORT RefCountedThreadSafeBase {
  public:
-  static bool ImplementsThreadSafeReferenceCounting() { return true; }
-
   bool HasOneRef() const;
 
  protected:
@@ -157,11 +154,12 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
 };
 
 //
-// A wrapper for some piece of data so we can place other things in
-// scoped_refptrs<>.
+// A thread-safe wrapper for some piece of data so we can place other
+// things in scoped_refptrs<>.
 //
 template<typename T>
-class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
+class RefCountedData
+    : public base::RefCountedThreadSafe< base::RefCountedData<T> > {
  public:
   RefCountedData() : data() {}
   RefCountedData(const T& in_value) : data(in_value) {}
@@ -169,7 +167,7 @@ class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
   T data;
 
  private:
-  friend class base::RefCounted<base::RefCountedData<T> >;
+  friend class base::RefCountedThreadSafe<base::RefCountedData<T> >;
   ~RefCountedData() {}
 };
 
@@ -265,17 +263,6 @@ class scoped_refptr {
     return *ptr_;
   }
 #endif
-
-  // Release a pointer.
-  // The return value is the current pointer held by this object.
-  // If this object holds a NULL pointer, the return value is NULL.
-  // After this operation, this object will hold a NULL pointer,
-  // and will not own the object any more.
-  T* release() {
-    T* retVal = ptr_;
-    ptr_ = NULL;
-    return retVal;
-  }
 
   scoped_refptr<T>& operator=(T* p) {
     // AddRef first so that self assignment should work

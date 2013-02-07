@@ -189,6 +189,15 @@ void UpdateTimes(disk_cache::CacheRankingsBlock* node, bool modified) {
 
 namespace disk_cache {
 
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock() : rankings_(NULL) {}
+
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock(Rankings* rankings)
+    : rankings_(rankings) {}
+
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock(
+    Rankings* rankings, CacheRankingsBlock* node)
+    : scoped_ptr<CacheRankingsBlock>(node), rankings_(rankings) {}
+
 Rankings::Iterator::Iterator(Rankings* rankings) {
   memset(this, 0, sizeof(Iterator));
   my_rankings = rankings;
@@ -487,7 +496,6 @@ void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
 int Rankings::SelfCheck() {
   int total = 0;
   int error = 0;
-  base::TimeTicks start = base::TimeTicks::Now();
   for (int i = 0; i < LAST_ELEMENT; i++) {
     int partial = CheckList(static_cast<List>(i));
     if (partial < 0 && !error)
@@ -495,9 +503,7 @@ int Rankings::SelfCheck() {
     else if (partial > 0)
       total += partial;
   }
-  CACHE_UMA(AGE_MS, "ListSelfCheckTime", 0, start);
 
-  QuickListCheck();
   return error ? error : total;
 }
 
@@ -584,16 +590,15 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   backend_->OnEvent(Stats::OPEN_RANKINGS);
 
   // Note that if the cache is in read_only mode, open entries are not marked
-  // as dirty, so we can have multiple in-memory obects for the same address.
-  // However, by definition entries should not be mutating the state so the
-  // data at this point should be as good as the one from an entry tracked by
-  // the backend, and that other entry won't overwrite anything done by this
-  // one because it should not have the dirty flag set.
-  if (!rankings->Data()->dirty)
+  // as dirty, except when an entry is doomed. We have to look for open entries.
+  if (!backend_->read_only() && !rankings->Data()->dirty)
     return true;
 
   EntryImpl* entry = backend_->GetOpenEntry(rankings);
   if (!entry) {
+    if (backend_->read_only())
+      return true;
+
     // We cannot trust this entry, but we cannot initiate a cleanup from this
     // point (we may be in the middle of a cleanup already). The entry will be
     // deleted when detected from a regular open/create path.
@@ -795,63 +800,6 @@ int Rankings::CheckList(List list) {
   if (rv == ERR_NO_ERROR)
     return head_items;
 
-  Addr last3, last4;
-  int tail_items;
-  int rv2 = CheckListSection(list, last1, last2, false,  // Tail to head.
-                             &last3, &last4, &tail_items);
-
-  if (!head_items && rv != ERR_INVALID_NEXT)
-    rv = ERR_INVALID_HEAD;
-
-  if (!tail_items && rv2 != ERR_INVALID_NEXT)
-    rv2 = ERR_INVALID_HEAD;
-
-  int expected = control_data_->sizes[list];
-  int total_items = head_items + tail_items;
-
-  if (!count_lists_) {
-    // There's no expected value, so we'll use something else. If it looks like
-    // we can rebuild the list, we lost at least one entry.
-    if (last3 == last1 || last3 == last2 || last4 == last1 || last4 == last2)
-      expected = total_items + 1;
-  }
-
-  if (expected) {
-    // This histogram has an offset so that we can see small negative values. In
-    // practice, it is linear from -9 to +8.
-    UMA_HISTOGRAM_CUSTOM_COUNTS("DiskCache.LostItems(Plus10)",
-                                expected - total_items + 10, 0, 2000, 75);
-  }
-
-  const int kInvalidHead = 1;
-  const int kInvalidTail = 2;
-  const int kInvalidHeadAndTail = 3;
-  const int kOneInvalidEntry = 4;
-  const int kTwoInvalidEntries = 5;
-  const int kOneInvalidLink = 6;
-  const int kTwoInvalidLinks = 7;
-  const int kOneInvalidEntryOneInvalidLink = 8;
-
-  int error = list * 10;
-  if (rv == ERR_INVALID_HEAD && rv2 != ERR_INVALID_HEAD) {
-    error += kInvalidHead;
-  } else if (rv == ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
-    error += kInvalidHeadAndTail;
-  } else if (rv != ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
-    error += kInvalidTail;
-  } else if (rv == ERR_INVALID_ENTRY && rv2 == ERR_INVALID_ENTRY) {
-    error += kTwoInvalidEntries;
-  } else if (rv == ERR_INVALID_ENTRY && rv2 == 0) {
-    error += kOneInvalidEntry;
-  } else if (rv == ERR_INVALID_ENTRY || rv2 == ERR_INVALID_ENTRY) {
-    error += kOneInvalidEntryOneInvalidLink;
-  } else if (rv2 != 0) {
-    error += kTwoInvalidLinks;
-  } else {
-    error += kOneInvalidLink;
-  }
-  CACHE_UMA(CACHE_ERROR, "ListErrorWithListId", 0, error);
-
   return rv;
 }
 
@@ -900,48 +848,6 @@ int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
       return ERR_INVALID_TAIL;
     }
   } while (current != end1 && current != end2);
-  return ERR_NO_ERROR;
-}
-
-// TODO(rvargas): remove when we figure why we have corrupt heads.
-void Rankings::QuickListCheck() {
-  for (int i = 0; i < LAST_ELEMENT; i++) {
-    int rv = CheckHeadAndTail(static_cast<List>(i));
-    CACHE_UMA(CACHE_ERROR, "QuickListCheck", 0, rv);
-  }
-}
-
-int Rankings::CheckHeadAndTail(List list) {
-  Addr head_addr = heads_[list];
-  Addr tail_addr = tails_[list];
-
-  if (!head_addr.is_initialized() && !tail_addr.is_initialized())
-    return ERR_NO_ERROR;
-
-  if (!head_addr.SanityCheckForRankings())
-    return ERR_INVALID_HEAD;
-
-  if (!tail_addr.SanityCheckForRankings())
-    return ERR_INVALID_TAIL;
-
-  scoped_ptr<CacheRankingsBlock> head;
-  head.reset(new CacheRankingsBlock(backend_->File(head_addr), head_addr));
-  head->Load();
-  if (!SanityCheck(head.get(), true))  // From list.
-      return ERR_INVALID_ENTRY;
-
-  scoped_ptr<CacheRankingsBlock> tail;
-  tail.reset(new CacheRankingsBlock(backend_->File(tail_addr), tail_addr));
-  tail->Load();
-  if (!SanityCheck(tail.get(), true))  // From list.
-    return ERR_INVALID_ENTRY;
-
-  if (head->Data()->prev != head_addr.value())
-    return ERR_INVALID_PREV;
-
-  if (tail->Data()->next != tail_addr.value())
-    return ERR_INVALID_NEXT;
-
   return ERR_NO_ERROR;
 }
 

@@ -1,19 +1,7 @@
-From 4c2b4b3992f81f062248f03296f7eb59b5fc0868 Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:20:29 -0400
-Subject: [PATCH] cachecerts.patch
-
----
- mozilla/security/nss/lib/ssl/ssl3con.c  |   54 +++++++++++++++++++++++++++++-
- mozilla/security/nss/lib/ssl/sslimpl.h  |    3 ++
- mozilla/security/nss/lib/ssl/sslnonce.c |    4 ++
- 3 files changed, 59 insertions(+), 2 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
-index 455a532..9830e65 100644
---- a/mozilla/security/nss/lib/ssl/ssl3con.c
-+++ b/mozilla/security/nss/lib/ssl/ssl3con.c
-@@ -72,6 +72,7 @@
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:19:29.665155332 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:20:08.835732728 -0800
+@@ -42,6 +42,7 @@
  #endif
  
  static void      ssl3_CleanupPeerCerts(sslSocket *ss);
@@ -21,7 +9,7 @@ index 455a532..9830e65 100644
  static PK11SymKey *ssl3_GenerateRSAPMS(sslSocket *ss, ssl3CipherSpec *spec,
                                         PK11SlotInfo * serverKeySlot);
  static SECStatus ssl3_DeriveMasterSecret(sslSocket *ss, PK11SymKey *pms);
-@@ -5141,6 +5142,7 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5575,6 +5576,7 @@ ssl3_HandleServerHello(sslSocket *ss, SS
  	/* copy the peer cert from the SID */
  	if (sid->peerCert != NULL) {
  	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
@@ -29,7 +17,7 @@ index 455a532..9830e65 100644
  	}
  
  
-@@ -6393,6 +6395,7 @@ compression_found:
+@@ -6916,6 +6918,7 @@ compression_found:
  	ss->sec.ci.sid = sid;
  	if (sid->peerCert != NULL) {
  	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
@@ -37,7 +25,7 @@ index 455a532..9830e65 100644
  	}
  
  	/*
-@@ -7761,6 +7764,44 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
+@@ -8323,6 +8326,44 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
      ss->ssl3.peerCertChain = NULL;
  }
  
@@ -82,19 +70,18 @@ index 455a532..9830e65 100644
  /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
   * ssl3 Certificate message.
   * Caller must hold Handshake and RecvBuf locks.
-@@ -7947,6 +7994,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -8510,6 +8551,7 @@ ssl3_HandleCertificate(sslSocket *ss, SS
      }
  
      ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
 +    ssl3_CopyPeerCertsToSID(ss->ssl3.peerCertChain, ss->sec.ci.sid);
  
      if (!ss->sec.isServer) {
- 	/* set the server authentication and key exchange types and sizes
-diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
-index d1c1181..48d6d83 100644
---- a/mozilla/security/nss/lib/ssl/sslimpl.h
-+++ b/mozilla/security/nss/lib/ssl/sslimpl.h
-@@ -569,10 +569,13 @@ typedef enum {	never_cached,
+         CERTCertificate *cert = ss->sec.peerCert;
+diff -pu -r a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
+--- a/net/third_party/nss/ssl/sslimpl.h	2012-09-27 18:46:45.000000000 -0700
++++ b/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:20:08.835732728 -0800
+@@ -571,10 +571,13 @@ typedef enum {	never_cached, 
  		invalid_cache		/* no longer in any cache. */
  } Cached;
  
@@ -108,11 +95,10 @@ index d1c1181..48d6d83 100644
      const char *          peerID;     /* client only */
      const char *          urlSvrName; /* client only */
      CERTCertificate *     localCert;
-diff --git a/mozilla/security/nss/lib/ssl/sslnonce.c b/mozilla/security/nss/lib/ssl/sslnonce.c
-index 63dc5a2..64adc1f 100644
---- a/mozilla/security/nss/lib/ssl/sslnonce.c
-+++ b/mozilla/security/nss/lib/ssl/sslnonce.c
-@@ -197,6 +197,7 @@ lock_cache(void)
+diff -pu -r a/net/third_party/nss/ssl/sslnonce.c b/net/third_party/nss/ssl/sslnonce.c
+--- a/net/third_party/nss/ssl/sslnonce.c	2012-04-25 07:50:12.000000000 -0700
++++ b/net/third_party/nss/ssl/sslnonce.c	2012-11-09 15:20:08.835732728 -0800
+@@ -165,6 +165,7 @@ lock_cache(void)
  static void
  ssl_DestroySID(sslSessionID *sid)
  {
@@ -120,7 +106,7 @@ index 63dc5a2..64adc1f 100644
      SSL_TRC(8, ("SSL: destroy sid: sid=0x%x cached=%d", sid, sid->cached));
      PORT_Assert((sid->references == 0));
  
-@@ -216,6 +217,9 @@ ssl_DestroySID(sslSessionID *sid)
+@@ -184,6 +185,9 @@ ssl_DestroySID(sslSessionID *sid)
      if ( sid->peerCert ) {
  	CERT_DestroyCertificate(sid->peerCert);
      }

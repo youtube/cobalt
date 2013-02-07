@@ -37,9 +37,12 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/file_descriptor_shuffle.h"
 #include "base/file_path.h"
 #include "base/process.h"
+
+#if defined(OS_POSIX)
+#include "base/posix/file_descriptor_shuffle.h"
+#endif
 
 class CommandLine;
 
@@ -138,6 +141,12 @@ enum TerminationStatus {
 BASE_EXPORT extern size_t g_oom_size;
 #endif
 
+#if defined(OS_WIN)
+// Output multi-process printf, cout, cerr, etc to the cmd.exe console that ran
+// chrome. This is not thread-safe: only call from main thread.
+BASE_EXPORT void RouteStdioToConsole();
+#endif
+
 // Returns the id of the current process.
 BASE_EXPORT ProcessId GetCurrentProcId();
 
@@ -199,6 +208,9 @@ const int kMaxOomScore = 1000;
 // translate the given value into [0, 15].  Some aliasing of values
 // may occur in that case, of course.
 BASE_EXPORT bool AdjustOOMScore(ProcessId process, int score);
+
+// /proc/self/exe refers to the current executable.
+BASE_EXPORT extern const char kProcSelfExe[];
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 #if defined(OS_POSIX)
@@ -227,7 +239,8 @@ struct LaunchOptions {
   LaunchOptions() : wait(false),
 #if defined(OS_WIN)
                     start_hidden(false), inherit_handles(false), as_user(NULL),
-                    empty_desktop_name(false), job_handle(NULL)
+                    empty_desktop_name(false), job_handle(NULL),
+                    force_breakaway_from_job_(false)
 #else
                     environ(NULL), fds_to_remap(NULL), maximize_rlimits(NULL),
                     new_process_group(false)
@@ -268,6 +281,11 @@ struct LaunchOptions {
   // be terminated immediately and LaunchProcess() will fail if assignment to
   // the job object fails.
   HANDLE job_handle;
+
+  // If set to true, ensures that the child process is launched with the
+  // CREATE_BREAKAWAY_FROM_JOB flag which allows it to breakout of the parent
+  // job if any.
+  bool force_breakaway_from_job_;
 #else
   // If non-NULL, set/unset environment variables.
   // See documentation of AlterEnvironment().
@@ -494,6 +512,15 @@ BASE_EXPORT bool KillProcessById(ProcessId process_id, int exit_code,
 BASE_EXPORT TerminationStatus GetTerminationStatus(ProcessHandle handle,
                                                    int* exit_code);
 
+#if defined(OS_POSIX)
+// Wait for the process to exit and get the termination status. See
+// GetTerminationStatus for more information. On POSIX systems, we can't call
+// WaitForExitCode and then GetTerminationStatus as the child will be reaped
+// when WaitForExitCode return and this information will be lost.
+BASE_EXPORT TerminationStatus WaitForTerminationStatus(ProcessHandle handle,
+                                                       int* exit_code);
+#endif  // defined(OS_POSIX)
+
 // Waits for process to exit. On POSIX systems, if the process hasn't been
 // signaled then puts the exit code in |exit_code|; otherwise it's considered
 // a failure. On Windows |exit_code| is always filled. Returns true on success,
@@ -508,9 +535,6 @@ BASE_EXPORT bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 // The caller is always responsible for closing the |handle|.
 BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
                                             int* exit_code,
-                                            int64 timeout_milliseconds);
-BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
-                                            int* exit_code,
                                             base::TimeDelta timeout);
 
 // Wait for all the processes based on the named executable to exit.  If filter
@@ -519,18 +543,12 @@ BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
 // Returns true if all the processes exited, false otherwise.
 BASE_EXPORT bool WaitForProcessesToExit(
     const FilePath::StringType& executable_name,
-    int64 wait_milliseconds,
-    const ProcessFilter* filter);
-BASE_EXPORT bool WaitForProcessesToExit(
-    const FilePath::StringType& executable_name,
     base::TimeDelta wait,
     const ProcessFilter* filter);
 
 // Wait for a single process to exit. Return true if it exited cleanly within
 // the given time limit. On Linux |handle| must be a child process, however
 // on Mac and Windows it can be any process.
-BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
-                                      int64 wait_milliseconds);
 BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
                                       base::TimeDelta wait);
 
@@ -541,7 +559,7 @@ BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
 // any processes needed to be killed, true if they all exited cleanly within
 // the wait_milliseconds delay.
 BASE_EXPORT bool CleanupProcesses(const FilePath::StringType& executable_name,
-                                  int64 wait_milliseconds,
+                                  base::TimeDelta wait,
                                   int exit_code,
                                   const ProcessFilter* filter);
 
@@ -703,6 +721,8 @@ class BASE_EXPORT ProcessMetrics {
 #else
   class PortProvider {
    public:
+    virtual ~PortProvider() {}
+
     // Should return the mach task for |process| if possible, or else
     // |MACH_PORT_NULL|. Only processes that this returns tasks for will have
     // metrics on OS X (except for the current process, which always gets
@@ -808,6 +828,10 @@ struct BASE_EXPORT SystemMemoryInfoKB {
   int active_file;
   int inactive_file;
   int shmem;
+
+  // Gem data will be -1 if not supported.
+  int gem_objects;
+  long long gem_size;
 };
 // Retrieves data from /proc/meminfo about system-wide memory consumption.
 // Fills in the provided |meminfo| structure. Returns true on success.
@@ -834,16 +858,6 @@ BASE_EXPORT void EnableTerminationOnHeapCorruption();
 // Turns on process termination if memory runs out.
 BASE_EXPORT void EnableTerminationOnOutOfMemory();
 
-#if defined(OS_MACOSX)
-// Exposed for testing.
-BASE_EXPORT malloc_zone_t* GetPurgeableZone();
-#endif  // defined(OS_MACOSX)
-
-// Enables stack dump to console output on exception and signals.
-// When enabled, the process will quit immediately. This is meant to be used in
-// unit_tests only!
-BASE_EXPORT bool EnableInProcessStackDumping();
-
 // If supported on the platform, and the user has sufficent rights, increase
 // the current process's scheduling priority to a high priority.
 BASE_EXPORT void RaiseProcessToHighPriority();
@@ -857,6 +871,20 @@ BASE_EXPORT void RaiseProcessToHighPriority();
 // in the child after forking will restore the standard exception handler.
 // See http://crbug.com/20371/ for more details.
 void RestoreDefaultExceptionHandler();
+#endif  // defined(OS_MACOSX)
+
+#if defined(OS_MACOSX)
+// Very large images or svg canvases can cause huge mallocs.  Skia
+// does tricks on tcmalloc-based systems to allow malloc to fail with
+// a NULL rather than hit the oom crasher.  This replicates that for
+// OSX.
+//
+// IF YOU USE THIS WITHOUT CONSULTING YOUR FRIENDLY OSX DEVELOPER,
+// YOUR CODE IS LIKELY TO BE REVERTED.  THANK YOU.
+//
+// TODO(shess): Weird place to put it, but this is where the OOM
+// killer currently lives.
+BASE_EXPORT void* UncheckedMalloc(size_t size);
 #endif  // defined(OS_MACOSX)
 
 }  // namespace base

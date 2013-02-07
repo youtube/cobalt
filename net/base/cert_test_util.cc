@@ -13,16 +13,6 @@
 
 namespace net {
 
-FilePath GetTestCertsDirectory() {
-  FilePath certs_dir;
-  PathService::Get(base::DIR_SOURCE_ROOT, &certs_dir);
-  certs_dir = certs_dir.AppendASCII("net");
-  certs_dir = certs_dir.AppendASCII("data");
-  certs_dir = certs_dir.AppendASCII("ssl");
-  certs_dir = certs_dir.AppendASCII("certificates");
-  return certs_dir;
-}
-
 CertificateList CreateCertificateListFromFile(
     const FilePath& certs_dir,
     const std::string& cert_file,
@@ -53,7 +43,7 @@ scoped_refptr<X509Certificate> ImportCertFromFile(
 }
 
 ScopedTestEVPolicy::ScopedTestEVPolicy(EVRootCAMetadata* ev_root_ca_metadata,
-                                       const SHA1Fingerprint& fingerprint,
+                                       const SHA1HashValue& fingerprint,
                                        const char* policy)
     : fingerprint_(fingerprint),
       ev_root_ca_metadata_(ev_root_ca_metadata) {

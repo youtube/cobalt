@@ -54,6 +54,8 @@ static const int kLen33 = kLen3 + kLen3;
 static const char kMsg333[] = "bye!bye!bye!";
 static const int kLen333 = kLen3 + kLen3 + kLen3;
 
+static const char kRedirectUrl[] = "https://example.com/";
+
 }  // anonymous namespace
 
 namespace net {
@@ -65,16 +67,13 @@ class SpdyProxyClientSocketSpdy2Test : public PlatformTest {
   virtual void TearDown();
 
  protected:
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY2);
-  }
-
   void Initialize(MockRead* reads, size_t reads_count, MockWrite* writes,
                   size_t writes_count);
   SpdyFrame* ConstructConnectRequestFrame();
   SpdyFrame* ConstructConnectAuthRequestFrame();
   SpdyFrame* ConstructConnectReplyFrame();
   SpdyFrame* ConstructConnectAuthReplyFrame();
+  SpdyFrame* ConstructConnectRedirectReplyFrame();
   SpdyFrame* ConstructConnectErrorReplyFrame();
   SpdyFrame* ConstructBodyFrame(const char* data, int length);
   scoped_refptr<IOBufferWithSize> CreateBuffer(const char* data, int size);
@@ -128,7 +127,6 @@ class SpdyProxyClientSocketSpdy2Test : public PlatformTest {
   ProxyServer proxy_;
   HostPortProxyPair endpoint_host_port_proxy_pair_;
   scoped_refptr<TransportSocketParams> transport_params_;
-  SpdyTestStateHelper spdy_state_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyProxyClientSocketSpdy2Test);
 };
@@ -142,7 +140,7 @@ SpdyProxyClientSocketSpdy2Test::SpdyProxyClientSocketSpdy2Test()
       connect_data_(SYNCHRONOUS, OK),
       spdy_session_(NULL),
       spdy_stream_(NULL),
-      framer_(2),
+      framer_(2, false),
       user_agent_(kUserAgent),
       url_(kRequestUrl),
       proxy_host_port_(kProxyHost, kProxyPort),
@@ -162,7 +160,7 @@ void SpdyProxyClientSocketSpdy2Test::TearDown() {
     session_->spdy_session_pool()->CloseAllSessions();
 
   // Empty the current queue.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   PlatformTest::TearDown();
 }
 
@@ -404,6 +402,27 @@ SpdyProxyClientSocketSpdy2Test::ConstructConnectAuthReplyFrame() {
                                    arraysize(kStandardReplyHeaders));
 }
 
+// Constructs a SPDY SYN_REPLY frame with an HTTP 302 redirect.
+SpdyFrame*
+SpdyProxyClientSocketSpdy2Test::ConstructConnectRedirectReplyFrame() {
+  const char* const kStandardReplyHeaders[] = {
+      "status", "302 Found",
+      "version", "HTTP/1.1",
+      "location", kRedirectUrl,
+      "set-cookie", "foo=bar"
+  };
+
+  return ConstructSpdyControlFrame(NULL,
+                                   0,
+                                   false,
+                                   kStreamId,
+                                   LOWEST,
+                                   SYN_REPLY,
+                                   CONTROL_FLAG_NONE,
+                                   kStandardReplyHeaders,
+                                   arraysize(kStandardReplyHeaders));
+}
+
 // Constructs a SPDY SYN_REPLY frame with an HTTP 500 error.
 SpdyFrame*
 SpdyProxyClientSocketSpdy2Test::ConstructConnectErrorReplyFrame() {
@@ -439,7 +458,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectSendsCorrectRequest) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -460,7 +479,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectWithAuthRequested) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectAuthReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -483,7 +502,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectWithAuthCredentials) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -492,6 +511,35 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectWithAuthCredentials) {
   AssertConnectSucceeds();
 
   AssertConnectionEstablished();
+}
+
+TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectRedirects) {
+  scoped_ptr<SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, SYNCHRONOUS),
+  };
+
+  scoped_ptr<SpdyFrame> resp(ConstructConnectRedirectReplyFrame());
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 2),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectFails(ERR_HTTPS_PROXY_TUNNEL_RESPONSE);
+
+  const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
+  ASSERT_TRUE(response != NULL);
+
+  const HttpResponseHeaders* headers = response->headers;
+  ASSERT_EQ(302, headers->response_code());
+  ASSERT_FALSE(headers->HasHeader("set-cookie"));
+  ASSERT_TRUE(headers->HasHeaderValue("content-length", "0"));
+
+  std::string location;
+  ASSERT_TRUE(headers->IsRedirect(&location));
+  ASSERT_EQ(location, kRedirectUrl);
 }
 
 TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectFails) {
@@ -873,15 +921,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ReadErrorResponseBody) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_HTTPS_PROXY_TUNNEL_RESPONSE);
-
-  Run(2);  // SpdySession consumes the next two reads and sends then to
-           // sock_ to be buffered.
-  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED,
-            sock_->Read(NULL, 1, CompletionCallback()));
-  scoped_refptr<IOBuffer> buf(new IOBuffer(kLen1 + kLen2));
-  scoped_ptr<HttpStream> stream(sock_->CreateConnectResponseStream());
-  stream->ReadResponseBody(buf, kLen1 + kLen2, read_callback_.callback());
+  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
 }
 
 // ----------- Reads and Writes

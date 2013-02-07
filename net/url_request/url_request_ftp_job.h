@@ -31,6 +31,7 @@ class URLRequestFtpJob : public URLRequestJob {
 
   // TODO(shalev): get rid of this function in favor of FtpProtocolHandler.
   static URLRequestJob* Factory(URLRequest* request,
+                                NetworkDelegate* network_delegate,
                                 const std::string& scheme);
 
   // Overridden from URLRequestJob:
@@ -60,7 +61,7 @@ class URLRequestFtpJob : public URLRequestJob {
   virtual void CancelAuth() OVERRIDE;
 
   // TODO(ibrar):  Yet to give another look at this function.
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
   virtual bool ReadRawData(IOBuffer* buf,
                            int buf_size,
                            int *bytes_read) OVERRIDE;

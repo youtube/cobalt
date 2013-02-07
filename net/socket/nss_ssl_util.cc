@@ -17,9 +17,14 @@
 #include "base/memory/singleton.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#endif
 
 namespace net {
 
@@ -47,6 +52,15 @@ class NSSSSLInitSingleton {
 #define pSSL_ImplementedCiphers SSL_ImplementedCiphers
 #endif
 
+    // Disable ECDSA cipher suites on platforms that do not support ECDSA
+    // signed certificates, as servers may use the presence of such
+    // ciphersuites as a hint to send an ECDSA certificate.
+    bool disableECDSA = false;
+#if defined(OS_WIN)
+    if (base::win::GetVersion() < base::win::VERSION_VISTA)
+      disableECDSA = true;
+#endif
+
     // Explicitly enable exactly those ciphers with keys of at least 80 bits
     for (int i = 0; i < SSL_NumImplementedCiphers; i++) {
       SSLCipherSuiteInfo info;
@@ -54,6 +68,8 @@ class NSSSSLInitSingleton {
                                  sizeof(info)) == SECSuccess) {
         SSL_CipherPrefSetDefault(pSSL_ImplementedCiphers[i],
                                  (info.effectiveKeyBits >= 80));
+        if (info.authAlgorithm == ssl_auth_ecdsa && disableECDSA)
+          SSL_CipherPrefSetDefault(pSSL_ImplementedCiphers[i], PR_FALSE);
       }
     }
 

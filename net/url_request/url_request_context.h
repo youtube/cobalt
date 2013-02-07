@@ -11,6 +11,7 @@
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 
 #include <set>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -20,8 +21,10 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
 #include "net/ftp/ftp_auth_cache.h"
+#include "net/url_request/url_request.h"
 
 namespace net {
 class CertVerifier;
@@ -31,6 +34,7 @@ class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
+class HttpUserAgentSettings;
 class NetworkDelegate;
 class ServerBoundCertService;
 class ProxyService;
@@ -50,6 +54,12 @@ class NET_EXPORT URLRequestContext
 
   // Copies the state from |other| into this context.
   void CopyFrom(const URLRequestContext* other);
+
+  // May return NULL if this context doesn't have an associated network session.
+  const HttpNetworkSession::Params* GetNetworkSessionParams() const;
+
+  URLRequest* CreateRequest(
+      const GURL& url, URLRequest::Delegate* delegate) const;
 
   NetLog* net_log() const {
     return net_log_;
@@ -156,31 +166,26 @@ class NET_EXPORT URLRequestContext
   }
 
   // Gets the FTP authentication cache for this context.
-  FtpAuthCache* ftp_auth_cache() const { return ftp_auth_cache_.get(); }
+  FtpAuthCache* ftp_auth_cache() const {
+#if !defined(DISABLE_FTP_SUPPORT)
+    return ftp_auth_cache_.get();
+#else
+    return NULL;
+#endif
+  }
 
+  // ---------------------------------------------------------------------------
+  // Legacy accessors that delegate to http_user_agent_settings_.
+  // TODO(pauljensen): Remove after all clients are updated to directly access
+  // http_user_agent_settings_.
   // Gets the value of 'Accept-Charset' header field.
-  const std::string& accept_charset() const { return accept_charset_; }
-  void set_accept_charset(const std::string& accept_charset) {
-    accept_charset_ = accept_charset;
-  }
-
+  std::string GetAcceptCharset() const;
   // Gets the value of 'Accept-Language' header field.
-  const std::string& accept_language() const { return accept_language_; }
-  void set_accept_language(const std::string& accept_language) {
-    accept_language_ = accept_language;
-  }
-
+  std::string GetAcceptLanguage() const;
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
-  // GURL()) to get the default UA string.  Subclasses should override this
-  // method to provide a UA string.
-  virtual const std::string& GetUserAgent(const GURL& url) const;
-
-  // In general, referrer_charset is not known when URLRequestContext is
-  // constructed. So, we need a setter.
-  const std::string& referrer_charset() const { return referrer_charset_; }
-  void set_referrer_charset(const std::string& charset) {
-    referrer_charset_ = charset;
-  }
+  // GURL()) to get the default UA string.
+  std::string GetUserAgent(const GURL& url) const;
+  // ---------------------------------------------------------------------------
 
   const URLRequestJobFactory* job_factory() const { return job_factory_; }
   void set_job_factory(const URLRequestJobFactory* job_factory) {
@@ -203,6 +208,16 @@ class NET_EXPORT URLRequestContext
 
   void AssertNoURLRequests() const;
 
+  // Get the underlying |HttpUserAgentSettings| implementation that provides
+  // the HTTP Accept-Language, Accept-Charset and User-Agent header values.
+  const HttpUserAgentSettings* http_user_agent_settings() const {
+    return http_user_agent_settings_;
+  }
+  void set_http_user_agent_settings(
+      HttpUserAgentSettings* http_user_agent_settings) {
+    http_user_agent_settings_ = http_user_agent_settings;
+  }
+
  private:
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
@@ -221,15 +236,15 @@ class NET_EXPORT URLRequestContext
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   HttpServerProperties* http_server_properties_;
+  HttpUserAgentSettings* http_user_agent_settings_;
   scoped_refptr<CookieStore> cookie_store_;
   TransportSecurityState* transport_security_state_;
+#if !defined(DISABLE_FTP_SUPPORT)
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;
-  std::string accept_language_;
-  std::string accept_charset_;
+#endif
   // The charset of the referrer where this request comes from. It's not
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
-  std::string referrer_charset_;
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
   const URLRequestJobFactory* job_factory_;

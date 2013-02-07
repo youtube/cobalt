@@ -95,7 +95,7 @@ void RunTest_CancelAfterSet(MessageLoop::Type message_loop_type) {
 
   watcher.StopWatching();
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Our delegate should not have fired.
   EXPECT_EQ(1, counter);

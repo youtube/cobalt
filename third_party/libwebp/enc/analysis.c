@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -13,8 +13,9 @@
 #include <string.h>
 #include <assert.h>
 
-#include "vp8enci.h"
-#include "cost.h"
+#include "./vp8enci.h"
+#include "./cost.h"
+#include "../utils/utils.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -35,7 +36,8 @@ static void SmoothSegmentMap(VP8Encoder* const enc) {
   const int w = enc->mb_w_;
   const int h = enc->mb_h_;
   const int majority_cnt_3_x_3_grid = 5;
-  uint8_t* tmp = (uint8_t*)malloc(w * h * sizeof(uint8_t));
+  uint8_t* const tmp = (uint8_t*)WebPSafeMalloc((uint64_t)w * h, sizeof(*tmp));
+  assert((uint64_t)(w * h) == (uint64_t)w * h);   // no overflow, as per spec
 
   if (tmp == NULL) return;
   for (y = 1; y < h - 1; ++y) {
@@ -112,7 +114,7 @@ static void SetSegmentProbas(VP8Encoder* const enc) {
   }
 }
 
-static inline int clip(int v, int m, int M) {
+static WEBP_INLINE int clip(int v, int m, int M) {
   return v < m ? m : v > M ? M : v;
 }
 
@@ -145,7 +147,7 @@ static void SetSegmentAlphas(VP8Encoder* const enc,
 static void AssignSegments(VP8Encoder* const enc, const int alphas[256]) {
   const int nb = enc->segment_hdr_.num_segments_;
   int centers[NUM_MB_SEGMENTS];
-  int weighted_average;
+  int weighted_average = 0;
   int map[256];
   int a, n, k;
   int min_a = 0, max_a = 255, range_a;
@@ -206,9 +208,9 @@ static void AssignSegments(VP8Encoder* const enc, const int alphas[256]) {
   // Map each original value to the closest centroid
   for (n = 0; n < enc->mb_w_ * enc->mb_h_; ++n) {
     VP8MBInfo* const mb = &enc->mb_info_[n];
-    const int a = mb->alpha_;
-    mb->segment_ = map[a];
-    mb->alpha_ = centers[map[a]];     // just for the record.
+    const int alpha = mb->alpha_;
+    mb->segment_ = map[alpha];
+    mb->alpha_ = centers[map[alpha]];     // just for the record.
   }
 
   if (nb > 1) {
@@ -253,7 +255,7 @@ static int MBAnalyzeBestIntra16Mode(VP8EncIterator* const it) {
 
 static int MBAnalyzeBestIntra4Mode(VP8EncIterator* const it,
                                    int best_alpha) {
-  int modes[16];
+  uint8_t modes[16];
   const int max_mode = (it->enc_->method_ >= 3) ? MAX_INTRA4_MODE : NUM_BMODES;
   int i4_alpha = 0;
   VP8IteratorStartI4(it);
@@ -339,6 +341,7 @@ static void MBAnalyze(VP8EncIterator* const it,
 // this stage.
 
 int VP8EncAnalyze(VP8Encoder* const enc) {
+  int ok = 1;
   int alphas[256] = { 0 };
   VP8EncIterator it;
 
@@ -347,12 +350,13 @@ int VP8EncAnalyze(VP8Encoder* const enc) {
   do {
     VP8IteratorImport(&it);
     MBAnalyze(&it, alphas, &enc->uv_alpha_);
+    ok = VP8IteratorProgress(&it, 20);
     // Let's pretend we have perfect lossless reconstruction.
-  } while (VP8IteratorNext(&it, it.yuv_in_));
+  } while (ok && VP8IteratorNext(&it, it.yuv_in_));
   enc->uv_alpha_ /= enc->mb_w_ * enc->mb_h_;
-  AssignSegments(enc, alphas);
+  if (ok) AssignSegments(enc, alphas);
 
-  return 1;
+  return ok;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

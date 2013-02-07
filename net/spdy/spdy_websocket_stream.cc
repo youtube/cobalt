@@ -107,9 +107,15 @@ int SpdyWebSocketStream::OnResponseReceived(
   return delegate_->OnReceivedSpdyResponseHeader(response, status);
 }
 
-void SpdyWebSocketStream::OnDataReceived(const char* data, int length) {
+void SpdyWebSocketStream::OnHeadersSent() {
+  // This will be called when WebSocket over SPDY supports new framing.
+  NOTREACHED();
+}
+
+int SpdyWebSocketStream::OnDataReceived(const char* data, int length) {
   DCHECK(delegate_);
   delegate_->OnReceivedSpdyData(data, length);
+  return OK;
 }
 
 void SpdyWebSocketStream::OnDataSent(int length) {

@@ -11,6 +11,8 @@
         'pkg-config': 'pkg-config'
       }]
     ],
+
+    'linux_link_libpci%': 0,
   },
   'conditions': [
     [ 'os_posix==1 and OS!="mac"', {
@@ -112,7 +114,7 @@
           ],
         },
       ],  # targets
-    }]  # chromeos==0
+    }],
   ],  # conditions
   'targets': [
     {
@@ -240,9 +242,15 @@
     },
     {
       'target_name': 'gio',
-      'type': 'none',
+      'type': 'static_library',
       'conditions': [
         ['use_gio==1 and _toolset=="target"', {
+          'dependencies': [
+            '../../base/base.gyp:base',
+          ],
+          'cflags': [
+            '<!@(<(pkg-config) --cflags gio-2.0)',
+          ],
           'direct_dependent_settings': {
             'cflags': [
               '<!@(<(pkg-config) --cflags gio-2.0)',
@@ -250,10 +258,8 @@
             'defines': [
               'USE_GIO',
             ],
-            'conditions': [
-              ['linux_link_gsettings==0', {
-                'defines': ['DLOPEN_GSETTINGS'],
-              }],
+            'include_dirs': [
+              '<(SHARED_INTERMEDIATE_DIR)',
             ],
           },
           'link_settings': {
@@ -271,7 +277,109 @@
               }],
             ],
           },
+          'hard_dependency': 1,
+          'actions': [
+            {
+              'variables': {
+                'output_h': '<(SHARED_INTERMEDIATE_DIR)/library_loaders/libgio.h',
+                'output_cc': '<(INTERMEDIATE_DIR)/libgio_loader.cc',
+                'generator': '../../tools/generate_library_loader/generate_library_loader.py',
+              },
+              'action_name': 'generate_libgio_loader',
+              'inputs': [
+                '<(generator)',
+              ],
+              'outputs': [
+                '<(output_h)',
+                '<(output_cc)',
+              ],
+              'action': ['python',
+                         '<(generator)',
+                         '--name', 'LibGioLoader',
+                         '--output-h', '<(output_h)',
+                         '--output-cc', '<(output_cc)',
+                         '--header', '<gio/gio.h>',
+                         # TODO(phajdan.jr): This will no longer be needed
+                         # after switch to Precise, http://crbug.com/158577 .
+                         '--bundled-header', '"build/linux/gsettings.h"',
+                         '--link-directly=<(linux_link_gsettings)',
+                         'g_settings_new',
+                         'g_settings_get_child',
+                         'g_settings_get_string',
+                         'g_settings_get_boolean',
+                         'g_settings_get_int',
+                         'g_settings_get_strv',
+                         'g_settings_list_schemas',
+              ],
+              'message': 'Generating libgio library loader.',
+              'process_outputs_as_sources': 1,
+            },
+          ],
         }],
+      ],
+    },
+    {
+      'target_name': 'libpci',
+      'type': 'static_library',
+      'cflags': [
+        '<!@(<(pkg-config) --cflags libpci)',
+      ],
+      'dependencies': [
+        '../../base/base.gyp:base',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+        'conditions': [
+          ['linux_link_libpci==1', {
+            'link_settings': {
+              'ldflags': [
+                '<!@(<(pkg-config) --libs-only-L --libs-only-other libpci)',
+              ],
+              'libraries': [
+                '<!@(<(pkg-config) --libs-only-l libpci)',
+              ],
+            }
+          }],
+        ],
+      },
+      'hard_dependency': 1,
+      'actions': [
+        {
+          'variables': {
+            'output_h': '<(SHARED_INTERMEDIATE_DIR)/library_loaders/libpci.h',
+            'output_cc': '<(INTERMEDIATE_DIR)/libpci_loader.cc',
+            'generator': '../../tools/generate_library_loader/generate_library_loader.py',
+          },
+          'action_name': 'generate_libpci_loader',
+          'inputs': [
+            '<(generator)',
+          ],
+          'outputs': [
+            '<(output_h)',
+            '<(output_cc)',
+          ],
+          'action': ['python',
+                     '<(generator)',
+                     '--name', 'LibPciLoader',
+                     '--output-h', '<(output_h)',
+                     '--output-cc', '<(output_cc)',
+                     '--header', '<pci/pci.h>',
+                     # TODO(phajdan.jr): Report problem to pciutils project
+                     # and get it fixed so that we don't need --use-extern-c.
+                     '--use-extern-c',
+                     '--link-directly=<(linux_link_libpci)',
+                     'pci_alloc',
+                     'pci_init',
+                     'pci_cleanup',
+                     'pci_scan_bus',
+                     'pci_fill_info',
+                     'pci_lookup_name',
+          ],
+          'message': 'Generating libpci library loader.',
+          'process_outputs_as_sources': 1,
+        },
       ],
     },
     {
@@ -473,24 +581,6 @@
         ],
         'libraries': [
           '<!@(<(pkg-config) --libs-only-l dbus-1)',
-        ],
-      },
-    },
-    {
-      # TODO(satorux): Remove this once dbus-glib clients are gone.
-      'target_name': 'dbus-glib',
-      'type': 'none',
-      'direct_dependent_settings': {
-        'cflags': [
-          '<!@(<(pkg-config) --cflags dbus-glib-1)',
-        ],
-      },
-      'link_settings': {
-        'ldflags': [
-          '<!@(<(pkg-config) --libs-only-L --libs-only-other dbus-glib-1)',
-        ],
-        'libraries': [
-          '<!@(<(pkg-config) --libs-only-l dbus-glib-1)',
         ],
       },
     },

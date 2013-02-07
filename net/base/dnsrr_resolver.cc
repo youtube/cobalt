@@ -509,11 +509,7 @@ class RRResolverJob {
   }
 
   ~RRResolverJob() {
-    if (worker_) {
-      worker_->Cancel();
-      worker_ = NULL;
-      PostAll(ERR_ABORTED, NULL);
-    }
+    Cancel(ERR_ABORTED);
   }
 
   void AddHandle(RRResolverHandle* handle) {
@@ -523,6 +519,14 @@ class RRResolverJob {
   void HandleResult(int result, const RRResponse& response) {
     worker_ = NULL;
     PostAll(result, &response);
+  }
+
+  void Cancel(int result) {
+    if (worker_) {
+      worker_->Cancel();
+      worker_ = NULL;
+      PostAll(result, NULL);
+    }
   }
 
  private:
@@ -643,6 +647,9 @@ void DnsRRResolver::OnIPAddressChanged() {
   inflight.swap(inflight_);
   cache_.clear();
 
+  std::map<std::pair<std::string, uint16>, RRResolverJob*>::iterator it;
+  for (it = inflight.begin(); it != inflight.end(); ++it)
+    it->second->Cancel(ERR_NETWORK_CHANGED);
   STLDeleteValues(&inflight);
 }
 

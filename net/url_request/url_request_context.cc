@@ -12,6 +12,7 @@
 #include "net/cookies/cookie_store.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_transaction_factory.h"
+#include "net/url_request/http_user_agent_settings.h"
 #include "net/url_request/url_request.h"
 
 namespace net {
@@ -26,8 +27,11 @@ URLRequestContext::URLRequestContext()
       proxy_service_(NULL),
       network_delegate_(NULL),
       http_server_properties_(NULL),
+      http_user_agent_settings_(NULL),
       transport_security_state_(NULL),
+#if !defined(DISABLE_FTP_SUPPORT)
       ftp_auth_cache_(new FtpAuthCache),
+#endif
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL),
       job_factory_(NULL),
@@ -54,21 +58,46 @@ void URLRequestContext::CopyFrom(const URLRequestContext* other) {
   set_cookie_store(other->cookie_store_);
   set_transport_security_state(other->transport_security_state_);
   // FTPAuthCache is unique per context.
-  set_accept_language(other->accept_language_);
-  set_accept_charset(other->accept_charset_);
-  set_referrer_charset(other->referrer_charset_);
   set_http_transaction_factory(other->http_transaction_factory_);
   set_ftp_transaction_factory(other->ftp_transaction_factory_);
   set_job_factory(other->job_factory_);
   set_throttler_manager(other->throttler_manager_);
+  set_http_user_agent_settings(other->http_user_agent_settings_);
+}
+
+const HttpNetworkSession::Params* URLRequestContext::GetNetworkSessionParams(
+    ) const {
+  HttpTransactionFactory* transaction_factory = http_transaction_factory();
+  if (!transaction_factory)
+    return NULL;
+  HttpNetworkSession* network_session = transaction_factory->GetSession();
+  if (!network_session)
+    return NULL;
+  return &network_session->params();
+}
+
+URLRequest* URLRequestContext::CreateRequest(
+    const GURL& url, URLRequest::Delegate* delegate) const {
+  return new URLRequest(url, delegate, this, network_delegate_);
 }
 
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
   cookie_store_ = cookie_store;
 }
 
-const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
-  return EmptyString();
+std::string URLRequestContext::GetAcceptCharset() const {
+  return http_user_agent_settings_ ?
+      http_user_agent_settings_->GetAcceptCharset() : EmptyString();
+}
+
+std::string URLRequestContext::GetAcceptLanguage() const {
+  return http_user_agent_settings_ ?
+      http_user_agent_settings_->GetAcceptLanguage() : EmptyString();
+}
+
+std::string URLRequestContext::GetUserAgent(const GURL& url) const {
+  return http_user_agent_settings_ ?
+      http_user_agent_settings_->GetUserAgent(url) : EmptyString();
 }
 
 void URLRequestContext::AssertNoURLRequests() const {
@@ -89,7 +118,8 @@ void URLRequestContext::AssertNoURLRequests() const {
     base::debug::Alias(&has_delegate);
     base::debug::Alias(&load_flags);
     base::debug::Alias(&stack_trace);
-    CHECK(false);
+    CHECK(false) << "Leaked " << num_requests << " URLRequest(s). First URL: "
+                 << request->url().spec().c_str() << ".";
   }
 }
 

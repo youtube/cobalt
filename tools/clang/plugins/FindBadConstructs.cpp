@@ -13,13 +13,14 @@
 // - Classes that derive from base::RefCounted / base::RefCountedThreadSafe
 //   should have protected or private destructors.
 
-#include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/AST.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "ChromeClassTester.h"
@@ -29,7 +30,7 @@ using namespace clang;
 namespace {
 
 bool TypeHasNonTrivialDtor(const Type* type) {
-  if (const CXXRecordDecl* cxx_r = type->getCXXRecordDeclForPointerType())
+  if (const CXXRecordDecl* cxx_r = type->getPointeeCXXRecordDecl())
     return cxx_r->hasTrivialDestructor();
 
   return false;
@@ -417,7 +418,7 @@ class FindBadConstructsAction : public PluginASTAction {
         check_virtuals_in_implementations_ = false;
       } else {
         parsed = false;
-        llvm::errs() << "Unknown argument: " << args[i] << "\n";
+        llvm::errs() << "Unknown clang plugin argument: " << args[i] << "\n";
       }
     }
 

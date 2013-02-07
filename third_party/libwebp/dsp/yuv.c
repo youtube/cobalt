@@ -1,4 +1,4 @@
-// Copyright 2010 Google Inc.
+// Copyright 2010 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -24,7 +24,7 @@ uint8_t VP8kClip4Bits[YUV_RANGE_MAX - YUV_RANGE_MIN];
 
 static int done = 0;
 
-static inline uint8_t clip(int v, int max_value) {
+static WEBP_INLINE uint8_t clip(int v, int max_value) {
   return v < 0 ? 0 : v > max_value ? max_value : v;
 }
 

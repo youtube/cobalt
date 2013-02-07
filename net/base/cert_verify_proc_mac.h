@@ -7,8 +7,6 @@
 
 #include "net/base/cert_verify_proc.h"
 
-#include "base/synchronization/lock.h"
-
 namespace net {
 
 // Performs certificate path construction and validation using OS X's
@@ -26,10 +24,6 @@ class CertVerifyProcMac : public CertVerifyProc {
                              int flags,
                              CRLSet* crl_set,
                              CertVerifyResult* verify_result) OVERRIDE;
-
-  // Blocks multiple threads from verifying the cert simultaneously.
-  // (Marked mutable because it's used in a const method.)
-  mutable base::Lock verification_lock_;
 };
 
 }  // namespace net

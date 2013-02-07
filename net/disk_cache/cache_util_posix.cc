@@ -22,12 +22,9 @@ bool MoveCache(const FilePath& from_path, const FilePath& to_path) {
     LOG(ERROR) << "Unable to create destination cache directory.";
     return false;
   }
-  file_util::FileEnumerator iter(
-      from_path,
-      /* recursive */ false,
-      static_cast<file_util::FileEnumerator::FileType>(
-          file_util::FileEnumerator::DIRECTORIES |
-          file_util::FileEnumerator::FILES));
+  file_util::FileEnumerator iter(from_path, false /* not recursive */,
+      file_util::FileEnumerator::DIRECTORIES |
+      file_util::FileEnumerator::FILES);
   for (FilePath name = iter.Next(); !name.value().empty(); name = iter.Next()) {
     FilePath destination = to_path.Append(name.BaseName());
     if (!file_util::Move(name, destination)) {

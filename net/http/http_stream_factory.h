@@ -33,7 +33,7 @@ class HostPortPair;
 class HttpAuthController;
 class HttpResponseInfo;
 class HttpServerProperties;
-class HttpStream;
+class HttpStreamBase;
 class ProxyInfo;
 class SSLCertRequestInfo;
 class SSLInfo;
@@ -64,7 +64,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
     virtual void OnStreamReady(
         const SSLConfig& used_ssl_config,
         const ProxyInfo& used_proxy_info,
-        HttpStream* stream) = 0;
+        HttpStreamBase* stream) = 0;
 
     // This is the failure to create a stream case.
     // |used_ssl_config| indicates the actual SSL configuration used for this
@@ -127,7 +127,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
         const HttpResponseInfo& response_info,
         const SSLConfig& used_ssl_config,
         const ProxyInfo& used_proxy_info,
-        HttpStream* stream) = 0;
+        HttpStreamBase* stream) = 0;
   };
 
   virtual ~HttpStreamRequest() {}
@@ -163,6 +163,8 @@ class NET_EXPORT HttpStreamFactory {
       const std::string& alternate_protocol_str,
       const HostPortPair& http_host_port_pair);
 
+  GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
+
   // Virtual interface methods.
 
   // Request a stream.
@@ -185,12 +187,12 @@ class NET_EXPORT HttpStreamFactory {
   // returns an empty Value.
   virtual base::Value* PipelineInfoToValue() const = 0;
 
+  virtual const HostMappingRules* GetHostMappingRules() const = 0;
+
   // Static settings
 
   // Reset all static settings to initialized values. Used to init test suite.
   static void ResetStaticSettingsToInit();
-
-  static GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
 
   // Turns spdy on or off.
   static void set_spdy_enabled(bool value) {
@@ -245,39 +247,10 @@ class NET_EXPORT HttpStreamFactory {
     return *next_protos_;
   }
 
-  // Sets the HttpStreamFactoryImpl into a mode where it can ignore certificate
-  // errors.  This is for testing.
-  static void set_ignore_certificate_errors(bool value) {
-    ignore_certificate_errors_ = value;
-  }
-  static bool ignore_certificate_errors() {
-    return ignore_certificate_errors_;
-  }
-
-  static void SetHostMappingRules(const std::string& rules);
-
-  static void set_http_pipelining_enabled(bool value) {
-    http_pipelining_enabled_ = value;
-  }
-  static bool http_pipelining_enabled() { return http_pipelining_enabled_; }
-
-  static void set_testing_fixed_http_port(int port) {
-    testing_fixed_http_port_ = port;
-  }
-  static uint16 testing_fixed_http_port() { return testing_fixed_http_port_; }
-
-  static void set_testing_fixed_https_port(int port) {
-    testing_fixed_https_port_ = port;
-  }
-  static uint16 testing_fixed_https_port() { return testing_fixed_https_port_; }
-
  protected:
   HttpStreamFactory();
 
  private:
-  static const HostMappingRules& host_mapping_rules();
-
-  static const HostMappingRules* host_mapping_rules_;
   static std::vector<std::string>* next_protos_;
   static bool enabled_protocols_[NUM_ALTERNATE_PROTOCOLS];
   static bool spdy_enabled_;
@@ -285,10 +258,6 @@ class NET_EXPORT HttpStreamFactory {
   static bool force_spdy_over_ssl_;
   static bool force_spdy_always_;
   static std::list<HostPortPair>* forced_spdy_exclusions_;
-  static bool ignore_certificate_errors_;
-  static bool http_pipelining_enabled_;
-  static uint16 testing_fixed_http_port_;
-  static uint16 testing_fixed_https_port_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };

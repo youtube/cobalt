@@ -39,7 +39,7 @@ HMAC::HMAC(HashAlgorithm hash_alg)
 HMAC::~HMAC() {
 }
 
-bool HMAC::Init(const unsigned char *key, int key_length) {
+bool HMAC::Init(const unsigned char *key, size_t key_length) {
   EnsureNSSInit();
 
   if (plat_->slot_.get()) {
@@ -75,7 +75,7 @@ bool HMAC::Init(const unsigned char *key, int key_length) {
 
 bool HMAC::Sign(const base::StringPiece& data,
                 unsigned char* digest,
-                int digest_length) const {
+                size_t digest_length) const {
   if (!plat_->sym_key_.get()) {
     // Init has not been called before Sign.
     NOTREACHED();

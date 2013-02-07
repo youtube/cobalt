@@ -2,44 +2,10 @@
  * This file is PRIVATE to SSL and should be the first thing included by
  * any SSL implementation file.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Stephen Henson <stephen.henson@gemplus.com>
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslimpl.h,v 1.100 2012/03/18 00:31:20 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* $Id: sslimpl.h,v 1.108 2012/09/28 01:46:45 wtc%google.com Exp $ */
 
 #ifndef __sslimpl_h_
 #define __sslimpl_h_
@@ -526,7 +492,6 @@ typedef enum {
 
 typedef enum { type_stream, type_block } CipherType;
 
-/* This value matches the size of IVs in ssl3SidKeys. */
 #define MAX_IV_LENGTH 24
 
 /*
@@ -548,13 +513,11 @@ typedef void (*DTLSTimerCb)(sslSocket *);
 #define MAX_CIPHER_CONTEXT_LLONGS (MAX_CIPHER_CONTEXT_BYTES / 8)
 
 typedef struct {
-    SSL3Opaque        client_write_iv         [24];
-    SSL3Opaque        server_write_iv         [24];
-    SSL3Opaque        wrapped_master_secret   [48];
+    SSL3Opaque        wrapped_master_secret[48];
     PRUint16          wrapped_master_secret_len;
     PRUint8           msIsWrapped;
     PRUint8           resumable;
-} ssl3SidKeys; /* 100 bytes */
+} ssl3SidKeys; /* 52 bytes */
 
 typedef struct {
     PK11SymKey  *write_key;
@@ -882,11 +845,8 @@ const ssl3CipherSuiteDef *suite_def;
     /* This group of values is used for DTLS */
     PRUint16              sendMessageSeq;  /* The sending message sequence
 					    * number */
-    PRCList *             lastMessageFlight; /* The last message flight we sent.
-					      * This is a pointer because
-					      *	ssl_FreeSocket relocates the
-					      *	structure in DEBUG mode, which
-					      * messes up the list macros */
+    PRCList               lastMessageFlight; /* The last message flight we
+					      * sent */
     PRUint16              maxMessageSent;    /* The largest message we sent */
     PRUint16              recvMessageSeq;  /* The receiving message sequence
 					    * number */
@@ -984,7 +944,6 @@ struct ssl3KeyPairStr {
 
 typedef struct SSLWrappedSymWrappingKeyStr {
     SSL3Opaque        wrappedSymmetricWrappingkey[512];
-    SSL3Opaque        wrapIV[24];
     CK_MECHANISM_TYPE symWrapMechanism;  
 		    /* unwrapped symmetric wrapping key uses this mechanism */
     CK_MECHANISM_TYPE asymWrapMechanism; 
@@ -993,7 +952,6 @@ typedef struct SSLWrappedSymWrappingKeyStr {
     SSL3KEAType       exchKeyType;   /* type of keys used to wrap SymWrapKey*/
     PRInt32           symWrapMechIndex;
     PRUint16          wrappedSymKeyLen;
-    PRUint16          wrapIVLen;
 } SSLWrappedSymWrappingKey;
 
 typedef struct SessionTicketStr {
@@ -1376,8 +1334,6 @@ extern SECStatus   ssl_CopySecurityInfo(sslSocket *ss, sslSocket *os);
 extern void        ssl_ResetSecurityInfo(sslSecurityInfo *sec, PRBool doMemset);
 extern void        ssl_DestroySecurityInfo(sslSecurityInfo *sec);
 
-extern sslSocket * ssl_DupSocket(sslSocket *old);
-
 extern void        ssl_PrintBuf(sslSocket *ss, const char *msg, const void *cp, int len);
 extern void        ssl_DumpMsg(sslSocket *ss, unsigned char *bp, unsigned len);
 
@@ -1745,8 +1701,6 @@ extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
 extern SECStatus ssl_ConfigSecureServer(sslSocket *ss, CERTCertificate *cert,
                                         const CERTCertificateList *certChain,
                                         ssl3KeyPair *keyPair, SSLKEAType kea);
-/* Return key type for the cert */
-extern SSLKEAType ssl_FindCertKEAType(CERTCertificate * cert);
 
 #ifdef NSS_ENABLE_ECC
 extern PRInt32 ssl3_SendSupportedCurvesXtn(sslSocket *ss,
@@ -1790,7 +1744,6 @@ extern void ssl_FreePRSocket(PRFileDesc *fd);
 /* Internal config function so SSL2 can initialize the present state of 
  * various ciphers */
 extern int ssl3_config_match_init(sslSocket *);
-
 
 /* Create a new ref counted key pair object from two keys. */
 extern ssl3KeyPair * ssl3_NewKeyPair( SECKEYPrivateKey * privKey, 

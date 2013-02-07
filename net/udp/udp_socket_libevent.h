@@ -104,13 +104,13 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
   const BoundNetLog& NetLog() const { return net_log_; }
 
   // Sets corresponding flags in |socket_options_| to allow the socket
-  // to share the local address to which socket will be bound with
+  // to share the local address to which the socket will be bound with
   // other processes. Should be called before Bind().
   void AllowAddressReuse();
 
   // Sets corresponding flags in |socket_options_| to allow sending
-  // and receiving packets sent to and from broadcast
-  // addresses. Should be called before Bind().
+  // and receiving packets to and from broadcast addresses. Should be
+  // called before Bind().
   void AllowBroadcast();
 
  private:
@@ -127,10 +127,7 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
 
     // MessageLoopForIO::Watcher methods
 
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
-      if (!socket_->read_callback_.is_null())
-        socket_->DidCompleteRead();
-    }
+    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE;
 
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {}
 
@@ -148,10 +145,7 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
 
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
 
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
-      if (!socket_->write_callback_.is_null())
-        socket_->DidCompleteWrite();
-    }
+    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
    private:
     UDPSocketLibevent* const socket_;
@@ -195,8 +189,8 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
 
   int socket_;
 
-  // Bitwise-or'd combination of SocketOptions. Specifies set of
-  // options that should be applied to |socket_| before bind.
+  // Bitwise-or'd combination of SocketOptions. Specifies the set of
+  // options that should be applied to |socket_| before Bind().
   int socket_options_;
 
   // How to do source port binding, used only when UDPSocket is part of

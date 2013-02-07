@@ -8,6 +8,7 @@
 #include <jni.h>
 #include <stddef.h>
 
+#include "base/base_export.h"
 #include "base/basictypes.h"
 
 namespace base {
@@ -20,7 +21,7 @@ template<typename T> class JavaRef;
 // other JavaRef<> template types. This allows you to e.g. pass
 // ScopedJavaLocalRef<jstring> into a function taking const JavaRef<jobject>&
 template<>
-class JavaRef<jobject> {
+class BASE_EXPORT JavaRef<jobject> {
  public:
   jobject obj() const { return obj_; }
 

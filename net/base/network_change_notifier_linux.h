@@ -11,10 +11,6 @@
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 
-namespace dbus {
-class Bus;
-}
-
 namespace net {
 
 class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
@@ -22,14 +18,12 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
  public:
   static NetworkChangeNotifierLinux* Create();
 
-  // Unittests inject a mock bus.
-  static NetworkChangeNotifierLinux* CreateForTest(dbus::Bus* bus);
-
  private:
   class Thread;
 
-  explicit NetworkChangeNotifierLinux(dbus::Bus* bus);
+  NetworkChangeNotifierLinux();
   virtual ~NetworkChangeNotifierLinux();
+  static NetworkChangeCalculatorParams NetworkChangeCalculatorParamsLinux();
 
   // NetworkChangeNotifier:
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
@@ -40,7 +34,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
   // The thread used to listen for notifications.  This relays the notification
   // to the registered observers without posting back to the thread the object
   // was created on.
-  // Also used for DnsConfigWatcher which requires TYPE_IO message loop.
+  // Also used for DnsConfigService which requires TYPE_IO message loop.
   scoped_ptr<Thread> notifier_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierLinux);

@@ -3800,7 +3800,7 @@ xmlParseAttValueComplex(xmlParserCtxtPtr ctxt, int *attlen, int normalize) {
 	c = CUR_CHAR(l);
     }
     if ((in_space) && (normalize)) {
-        while (buf[len - 1] == 0x20) len--;
+        while ((len > 0) && (buf[len - 1] == 0x20)) len--;
     }
     buf[len] = 0;
     if (RAW == '<') {

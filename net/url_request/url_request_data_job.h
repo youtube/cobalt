@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,14 +16,15 @@ class URLRequest;
 
 class URLRequestDataJob : public URLRequestSimpleJob {
  public:
-  explicit URLRequestDataJob(URLRequest* request);
+  URLRequestDataJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   static URLRequest::ProtocolFactory Factory;
 
   // URLRequestSimpleJob
-  virtual bool GetData(std::string* mime_type,
-                       std::string* charset,
-                       std::string* data) const OVERRIDE;
+  virtual int GetData(std::string* mime_type,
+                      std::string* charset,
+                      std::string* data,
+                      const CompletionCallback& callback) const OVERRIDE;
 
  private:
   virtual ~URLRequestDataJob();

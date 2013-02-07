@@ -7,6 +7,8 @@
 #include <windows.h>
 
 #include "base/logging.h"
+#include "base/utf_string_conversions.h"
+#include "base/win/registry.h"
 
 namespace base {
 namespace win {
@@ -74,6 +76,18 @@ OSInfo::OSInfo()
 }
 
 OSInfo::~OSInfo() {
+}
+
+std::string OSInfo::processor_model_name() {
+  if (processor_model_name_.empty()) {
+    const wchar_t kProcessorNameString[] =
+        L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
+    base::win::RegKey key(HKEY_LOCAL_MACHINE, kProcessorNameString, KEY_READ);
+    string16 value;
+    key.ReadValue(L"ProcessorNameString", &value);
+    processor_model_name_ = UTF16ToUTF8(value);
+  }
+  return processor_model_name_;
 }
 
 // static

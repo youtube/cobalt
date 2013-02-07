@@ -5,13 +5,11 @@
 #ifndef BASE_WIN_SCOPED_COM_INITIALIZER_H_
 #define BASE_WIN_SCOPED_COM_INITIALIZER_H_
 
+#include <objbase.h>
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "build/build_config.h"
-
-#if defined(OS_WIN)
-
-#include <objbase.h>
 
 namespace base {
 namespace win {
@@ -38,7 +36,7 @@ class ScopedCOMInitializer {
     // Using the windows API directly to avoid dependency on platform_thread.
     DCHECK_EQ(GetCurrentThreadId(), thread_id_);
 #endif
-    if (SUCCEEDED(hr_))
+    if (succeeded())
       CoUninitialize();
   }
 
@@ -50,6 +48,12 @@ class ScopedCOMInitializer {
     thread_id_ = GetCurrentThreadId();
 #endif
     hr_ = CoInitializeEx(NULL, init);
+#ifndef NDEBUG
+    if (hr_ == S_FALSE)
+      LOG(ERROR) << "Multiple CoInitialize() calls for thread " << thread_id_;
+    else
+      DCHECK_NE(RPC_E_CHANGED_MODE, hr_) << "Invalid COM thread model change";
+#endif
   }
 
   HRESULT hr_;
@@ -66,29 +70,5 @@ class ScopedCOMInitializer {
 
 }  // namespace win
 }  // namespace base
-
-#else
-
-namespace base {
-namespace win {
-
-// Do-nothing class for other platforms.
-class ScopedCOMInitializer {
- public:
-  enum SelectMTA { kMTA };
-  ScopedCOMInitializer() {}
-  explicit ScopedCOMInitializer(SelectMTA mta) {}
-  ~ScopedCOMInitializer() {}
-
-  bool succeeded() const { return true; }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedCOMInitializer);
-};
-
-}  // namespace win
-}  // namespace base
-
-#endif
 
 #endif  // BASE_WIN_SCOPED_COM_INITIALIZER_H_

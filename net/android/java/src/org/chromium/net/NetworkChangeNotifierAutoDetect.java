@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import org.chromium.base.ActivityStatus;
@@ -20,48 +21,80 @@ import org.chromium.base.ActivityStatus;
  * ACCESS_NETWORK_STATE permission.
  */
 public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
-        implements ActivityStatus.Listener {
+        implements ActivityStatus.StateListener {
+
+    /** Queries the ConnectivityManager for information about the current connection. */
+    static class ConnectivityManagerDelegate {
+        private final ConnectivityManager mConnectivityManager;
+
+        ConnectivityManagerDelegate(Context context) {
+            mConnectivityManager =
+                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        }
+
+        // For testing.
+        ConnectivityManagerDelegate() {
+            // All the methods below should be overridden.
+            mConnectivityManager = null;
+        }
+
+        boolean activeNetworkExists() {
+            return mConnectivityManager.getActiveNetworkInfo() != null;
+        }
+
+        boolean isConnected() {
+            return mConnectivityManager.getActiveNetworkInfo().isConnected();
+        }
+
+        int getNetworkType() {
+            return mConnectivityManager.getActiveNetworkInfo().getType();
+        }
+
+        int getNetworkSubtype() {
+            return mConnectivityManager.getActiveNetworkInfo().getSubtype();
+        }
+    }
 
     private static final String TAG = "NetworkChangeNotifierAutoDetect";
 
     private final NetworkConnectivityIntentFilter mIntentFilter =
             new NetworkConnectivityIntentFilter();
 
-    private final NetworkChangeNotifier mOwner;
+    private final Observer mObserver;
 
     private final Context mContext;
+    private ConnectivityManagerDelegate mConnectivityManagerDelegate;
     private boolean mRegistered;
-    private boolean mIsConnected;
+    private int mConnectionType;
 
-    public NetworkChangeNotifierAutoDetect(NetworkChangeNotifier owner, Context context) {
-        mOwner = owner;
-        mContext = context;
-        mIsConnected = checkIfConnected(mContext);
-
-        ActivityStatus status = ActivityStatus.getInstance();
-        if (!status.isPaused()) {
-          registerReceiver();
-        }
-        status.registerListener(this);
+    /**
+     * Observer notified on the UI thread whenever a new connection type was detected.
+     */
+    public static interface Observer {
+        public void onConnectionTypeChanged(int newConnectionType);
     }
 
-    public boolean isConnected() {
-        return mIsConnected;
+    public NetworkChangeNotifierAutoDetect(Observer observer, Context context) {
+        mObserver = observer;
+        mContext = context;
+        mConnectivityManagerDelegate = new ConnectivityManagerDelegate(context);
+        mConnectionType = getCurrentConnectionType();
+
+        if (ActivityStatus.getState() != ActivityStatus.PAUSED) {
+            registerReceiver();
+        }
+        ActivityStatus.registerStateListener(this);
+    }
+
+    /**
+     * Allows overriding the ConnectivityManagerDelegate for tests.
+     */
+    void setConnectivityManagerDelegateForTests(ConnectivityManagerDelegate delegate) {
+        mConnectivityManagerDelegate = delegate;
     }
 
     public void destroy() {
         unregisterReceiver();
-    }
-
-    private boolean checkIfConnected(Context context) {
-        ConnectivityManager manager = (ConnectivityManager)
-                context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        for (NetworkInfo info: manager.getAllNetworkInfo()) {
-            if (info.isConnected()) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -84,33 +117,73 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         }
     }
 
-    // BroadcastReceiver
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        if (intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false)) {
-            if (mIsConnected) {
-                mIsConnected = false;
-                Log.d(TAG, "Network connectivity changed, no connectivity.");
-                mOwner.notifyNativeObservers();
-            }
-        } else {
-            boolean isConnected = checkIfConnected(context);
-            if (isConnected != mIsConnected) {
-                mIsConnected = isConnected;
-                Log.d(TAG, "Network connectivity changed, status is: " + isConnected);
-                mOwner.notifyNativeObservers();
-            }
+    public int getCurrentConnectionType() {
+        // Track exactly what type of connection we have.
+        if (!mConnectivityManagerDelegate.activeNetworkExists() ||
+                !mConnectivityManagerDelegate.isConnected()) {
+            return NetworkChangeNotifier.CONNECTION_NONE;
+        }
+
+        switch (mConnectivityManagerDelegate.getNetworkType()) {
+            case ConnectivityManager.TYPE_ETHERNET:
+                return NetworkChangeNotifier.CONNECTION_ETHERNET;
+            case ConnectivityManager.TYPE_WIFI:
+                return NetworkChangeNotifier.CONNECTION_WIFI;
+            case ConnectivityManager.TYPE_WIMAX:
+                return NetworkChangeNotifier.CONNECTION_4G;
+            case ConnectivityManager.TYPE_MOBILE:
+                // Use information from TelephonyManager to classify the connection.
+                switch (mConnectivityManagerDelegate.getNetworkSubtype()) {
+                    case TelephonyManager.NETWORK_TYPE_GPRS:
+                    case TelephonyManager.NETWORK_TYPE_EDGE:
+                    case TelephonyManager.NETWORK_TYPE_CDMA:
+                    case TelephonyManager.NETWORK_TYPE_1xRTT:
+                    case TelephonyManager.NETWORK_TYPE_IDEN:
+                        return NetworkChangeNotifier.CONNECTION_2G;
+                    case TelephonyManager.NETWORK_TYPE_UMTS:
+                    case TelephonyManager.NETWORK_TYPE_EVDO_0:
+                    case TelephonyManager.NETWORK_TYPE_EVDO_A:
+                    case TelephonyManager.NETWORK_TYPE_HSDPA:
+                    case TelephonyManager.NETWORK_TYPE_HSUPA:
+                    case TelephonyManager.NETWORK_TYPE_HSPA:
+                    case TelephonyManager.NETWORK_TYPE_EVDO_B:
+                    case TelephonyManager.NETWORK_TYPE_EHRPD:
+                    case TelephonyManager.NETWORK_TYPE_HSPAP:
+                        return NetworkChangeNotifier.CONNECTION_3G;
+                    case TelephonyManager.NETWORK_TYPE_LTE:
+                        return NetworkChangeNotifier.CONNECTION_4G;
+                    default:
+                        return NetworkChangeNotifier.CONNECTION_UNKNOWN;
+                }
+            default:
+                return NetworkChangeNotifier.CONNECTION_UNKNOWN;
         }
     }
 
-    // AcitivityStatus.Listener
+    // BroadcastReceiver
     @Override
-    public void onActivityStatusChanged(boolean isPaused) {
-        if (isPaused) {
+    public void onReceive(Context context, Intent intent) {
+        connectionTypeChanged();
+    }
+
+    // ActivityStatus.StateListener
+    @Override
+    public void onActivityStateChange(int state) {
+        if (state == ActivityStatus.PAUSED) {
             unregisterReceiver();
-        } else {
+        } else if (state == ActivityStatus.RESUMED) {
+            connectionTypeChanged();
             registerReceiver();
         }
+    }
+
+    private void connectionTypeChanged() {
+        int newConnectionType = getCurrentConnectionType();
+        if (newConnectionType == mConnectionType) return;
+
+        mConnectionType = newConnectionType;
+        Log.d(TAG, "Network connectivity changed, type is: " + mConnectionType);
+        mObserver.onConnectionTypeChanged(newConnectionType);
     }
 
     private static class NetworkConnectivityIntentFilter extends IntentFilter {

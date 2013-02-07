@@ -85,7 +85,8 @@ void CRYPTO_EXPORT EnsureOpenSSLInit();
 // Drains the OpenSSL ERR_get_error stack. On a debug build the error codes
 // are send to VLOG(1), on a release build they are disregarded. In most
 // cases you should pass FROM_HERE as the |location|.
-void ClearOpenSSLERRStack(const tracked_objects::Location& location);
+void CRYPTO_EXPORT ClearOpenSSLERRStack(
+    const tracked_objects::Location& location);
 
 // Place an instance of this class on the call stack to automatically clear
 // the OpenSSL error stack on function exit.

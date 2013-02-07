@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"
 #include "base/supports_user_data.h"
+#include "base/task_runner.h"
 #include "net/base/net_export.h"
 
 class FilePath;
@@ -35,6 +36,10 @@ typedef std::vector<std::string> ResponseCookies;
 // the object to be notified when the URL has been loaded:
 //   URLFetcher* fetcher = URLFetcher::Create("http://www.google.com",
 //                                            URLFetcher::GET, this);
+//
+// You must also set a request context getter:
+//
+//   fetcher->SetRequestContext(&my_request_context_getter);
 //
 // Then, optionally set properties on this object, like the request context or
 // extra headers:
@@ -110,6 +115,13 @@ class NET_EXPORT URLFetcher {
   // of testing code that uses an URLFetcher.
   static void SetEnableInterceptionForTests(bool enabled);
 
+  // Normally, URLFetcher will abort loads that request SSL client certificate
+  // authentication, but this method may be used to cause URLFetchers to ignore
+  // requests for client certificates and continue anonymously. Because such
+  // behaviour affects the URLRequestContext's shared network state and socket
+  // pools, it should only be used for testing.
+  static void SetIgnoreCertificateRequests(bool ignored);
+
   // Sets data only needed by POSTs.  All callers making POST requests should
   // call this before the request is started.  |upload_content_type| is the MIME
   // type of the content, while |upload_content| is the data to be sent (the
@@ -181,30 +193,35 @@ class NET_EXPORT URLFetcher {
   // after backoff_delay() elapses. URLFetcher has it set to true by default.
   virtual void SetAutomaticallyRetryOn5xx(bool retry) = 0;
 
-  virtual void SetMaxRetries(int max_retries) = 0;
-  virtual int GetMaxRetries() const = 0;
+  virtual void SetMaxRetriesOn5xx(int max_retries) = 0;
+  virtual int GetMaxRetriesOn5xx() const = 0;
 
   // Returns the back-off delay before the request will be retried,
   // when a 5xx response was received.
   virtual base::TimeDelta GetBackoffDelay() const = 0;
 
+  // Retries up to |max_retries| times when requests fail with
+  // ERR_NETWORK_CHANGED. If ERR_NETWORK_CHANGED is received after having
+  // retried |max_retries| times then it is propagated to the observer.
+  virtual void SetAutomaticallyRetryOnNetworkChanges(int max_retries) = 0;
+
   // By default, the response is saved in a string. Call this method to save the
   // response to a file instead. Must be called before Start().
-  // |file_message_loop_proxy| will be used for all file operations.
+  // |file_task_runner| will be used for all file operations.
   // To save to a temporary file, use SaveResponseToTemporaryFile().
   // The created file is removed when the URLFetcher is deleted unless you
   // take ownership by calling GetResponseAsFilePath().
   virtual void SaveResponseToFileAtPath(
       const FilePath& file_path,
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) = 0;
+      scoped_refptr<base::TaskRunner> file_task_runner) = 0;
 
   // By default, the response is saved in a string. Call this method to save the
   // response to a temporary file instead. Must be called before Start().
-  // |file_message_loop_proxy| will be used for all file operations.
+  // |file_task_runner| will be used for all file operations.
   // The created file is removed when the URLFetcher is deleted unless you
   // take ownership by calling GetResponseAsFilePath().
   virtual void SaveResponseToTemporaryFile(
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) = 0;
+      scoped_refptr<base::TaskRunner> file_task_runner) = 0;
 
   // Retrieve the response headers from the request.  Must only be called after
   // the OnURLFetchComplete callback has run.

@@ -12,17 +12,19 @@
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_certificate_data.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) && !defined(OS_IOS)
 #include "base/mac/mac_util.h"
 #endif
 
@@ -105,7 +107,7 @@ TEST_F(CertVerifyProcTest, MAYBE_EVVerification) {
 
   scoped_refptr<CRLSet> crl_set(CRLSet::EmptyCRLSetForTesting());
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_EV_CERT;
+  int flags = CertVerifier::VERIFY_EV_CERT;
   int error = Verify(comodo_chain, "comodo.com", flags, crl_set.get(),
                      &verify_result);
   EXPECT_EQ(OK, error);
@@ -120,7 +122,7 @@ TEST_F(CertVerifyProcTest, PaypalNullCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), paypal_null_cert);
 
-  const SHA1Fingerprint& fingerprint =
+  const SHA1HashValue& fingerprint =
       paypal_null_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(paypal_null_fingerprint[i], fingerprint.data[i]);
@@ -129,7 +131,7 @@ TEST_F(CertVerifyProcTest, PaypalNullCertParsing) {
   CertVerifyResult verify_result;
   int error = Verify(paypal_null_cert, "www.paypal.com", flags, NULL,
                      &verify_result);
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   EXPECT_EQ(ERR_CERT_COMMON_NAME_INVALID, error);
 #else
   // TOOD(bulach): investigate why macosx and win aren't returning
@@ -139,7 +141,7 @@ TEST_F(CertVerifyProcTest, PaypalNullCertParsing) {
   // Either the system crypto library should correctly report a certificate
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
-#if defined(USE_NSS) || defined(OS_WIN)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_IOS)
   EXPECT_TRUE(verify_result.cert_status &
               (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
 #endif
@@ -212,14 +214,31 @@ TEST_F(CertVerifyProcTest, DISABLED_GlobalSignR3EVTest) {
                                         intermediates);
 
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
-              X509Certificate::VERIFY_EV_CERT;
+  int flags = CertVerifier::VERIFY_REV_CHECKING_ENABLED |
+              CertVerifier::VERIFY_EV_CERT;
   int error = Verify(cert_chain, "2029.globalsign.com", flags, NULL,
                      &verify_result);
   if (error == OK)
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
   else
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
+}
+
+// Test that verifying an ECDSA certificate doesn't crash on XP. (See
+// crbug.com/144466).
+TEST_F(CertVerifyProcTest, ECDSA_RSA) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir,
+                         "prime256v1-ecdsa-ee-by-1024-rsa-intermediate.pem");
+
+  CertVerifyResult verify_result;
+  Verify(cert, "127.0.0.1", 0, NULL, &verify_result);
+
+  // We don't check verify_result because the certificate is signed by an
+  // unknown CA and will be considered invalid on XP because of the ECDSA
+  // public key.
 }
 
 // Currently, only RSA and DSA keys are checked for weakness, and our example
@@ -254,8 +273,6 @@ TEST_F(CertVerifyProcTest, RejectWeakKeys) {
   bool use_ecdsa = true;
 #if defined(OS_WIN)
   use_ecdsa = base::win::GetVersion() > base::win::VERSION_XP;
-#elif defined(OS_MACOSX)
-  use_ecdsa = base::mac::IsOSSnowLeopardOrLater();
 #endif
 
   if (use_ecdsa)
@@ -363,7 +380,7 @@ TEST_F(CertVerifyProcTest, GoogleDigiNotarTest) {
                                         intermediates);
 
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+  int flags = CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   int error = Verify(cert_chain, "mail.google.com", flags, NULL,
                      &verify_result);
   EXPECT_NE(OK, error);
@@ -399,80 +416,76 @@ TEST_F(CertVerifyProcTest, DigiNotarCerts) {
 
     std::string spki_sha1 = base::SHA1HashString(spki.as_string());
 
-    std::vector<SHA1Fingerprint> public_keys;
-    SHA1Fingerprint fingerprint;
-    ASSERT_EQ(sizeof(fingerprint.data), spki_sha1.size());
-    memcpy(fingerprint.data, spki_sha1.data(), spki_sha1.size());
-    public_keys.push_back(fingerprint);
+    HashValueVector public_keys;
+    HashValue hash(HASH_VALUE_SHA1);
+    ASSERT_EQ(hash.size(), spki_sha1.size());
+    memcpy(hash.data(), spki_sha1.data(), spki_sha1.size());
+    public_keys.push_back(hash);
 
     EXPECT_TRUE(CertVerifyProc::IsPublicKeyBlacklisted(public_keys)) <<
         "Public key not blocked for " << kDigiNotarFilenames[i];
   }
 }
 
-// Bug 111893: This test needs a new certificate.
-TEST_F(CertVerifyProcTest, DISABLED_TestKnownRoot) {
+TEST_F(CertVerifyProcTest, TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
-  scoped_refptr<X509Certificate> cert =
-      ImportCertFromFile(certs_dir, "nist.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
-
-  // This intermediate is only needed for old Linux machines. Modern NSS
-  // includes it as a root already.
-  scoped_refptr<X509Certificate> intermediate_cert =
-      ImportCertFromFile(certs_dir, "nist_intermediate.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "certse.pem", X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
 
   X509Certificate::OSCertHandles intermediates;
-  intermediates.push_back(intermediate_cert->os_cert_handle());
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
   scoped_refptr<X509Certificate> cert_chain =
-      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
                                         intermediates);
 
   int flags = 0;
   CertVerifyResult verify_result;
-  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
-  // against agl. Also see PublicKeyHashes in this file.
-  int error = Verify(cert_chain, "www.nist.gov", flags, NULL, &verify_result);
+  // This will blow up, June 8th, 2014. Sorry! Please disable and file a bug
+  // against agl. See also PublicKeyHashes.
+  int error = Verify(cert_chain, "cert.se", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
 }
 
-// Bug 111893: This test needs a new certificate.
-TEST_F(CertVerifyProcTest, DISABLED_PublicKeyHashes) {
+TEST_F(CertVerifyProcTest, PublicKeyHashes) {
   FilePath certs_dir = GetTestCertsDirectory();
-  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
-  // against agl. Also see TestKnownRoot in this file.
-  scoped_refptr<X509Certificate> cert =
-      ImportCertFromFile(certs_dir, "nist.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
-
-  // This intermediate is only needed for old Linux machines. Modern NSS
-  // includes it as a root already.
-  scoped_refptr<X509Certificate> intermediate_cert =
-      ImportCertFromFile(certs_dir, "nist_intermediate.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
-
-  ScopedTestRoot scoped_intermediate(intermediate_cert);
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "certse.pem", X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
 
   X509Certificate::OSCertHandles intermediates;
-  intermediates.push_back(intermediate_cert->os_cert_handle());
-  scoped_refptr<X509Certificate> cert_chain =
-      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        intermediates);
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
 
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
   int flags = 0;
   CertVerifyResult verify_result;
 
-  int error = Verify(cert_chain, "www.nist.gov", flags, NULL, &verify_result);
+  // This will blow up, June 8th, 2014. Sorry! Please disable and file a bug
+  // against agl. See also TestKnownRoot.
+  int error = Verify(cert_chain, "cert.se", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
-  ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_EQ(HexEncode(kNistSPKIHash, base::kSHA1Length),
-      HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
-  EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
-      HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
+  ASSERT_LE(3u, verify_result.public_key_hashes.size());
+
+  HashValueVector sha1_hashes;
+  for (unsigned i = 0; i < verify_result.public_key_hashes.size(); ++i) {
+    if (verify_result.public_key_hashes[i].tag != HASH_VALUE_SHA1)
+      continue;
+    sha1_hashes.push_back(verify_result.public_key_hashes[i]);
+  }
+  ASSERT_LE(3u, sha1_hashes.size());
+
+  for (unsigned i = 0; i < 3; ++i) {
+    EXPECT_EQ(HexEncode(kCertSESPKIs[i], base::kSHA1Length),
+              HexEncode(sha1_hashes[i].data(), base::kSHA1Length));
+  }
 }
 
 // A regression test for http://crbug.com/70293.
@@ -500,7 +513,7 @@ TEST_F(CertVerifyProcTest, InvalidKeyUsage) {
 #endif
   // TODO(wtc): fix http://crbug.com/75520 to get all the certificate errors
   // from NSS.
-#if !defined(USE_NSS)
+#if !defined(USE_NSS) && !defined(OS_IOS)
   // The certificate is issued by an unknown CA.
   EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 #endif
@@ -643,7 +656,7 @@ TEST_F(CertVerifyProcTest, VerifyReturnChainFiltersUnrelatedCerts) {
                                             certs[2]->os_cert_handle()));
 }
 
-#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+#if defined(USE_NSS) || defined(OS_IOS) || defined(OS_WIN) || defined(OS_MACOSX)
 static const uint8 kCRLSetThawteSPKIBlocked[] = {
   0x8e, 0x00, 0x7b, 0x22, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x3a,
   0x30, 0x2c, 0x22, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70,
@@ -877,13 +890,19 @@ const WeakDigestTestData kVerifyIntermediateCATestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, true, false, false, false },
 #endif
-#if !defined(USE_NSS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, true, false, true },
-#endif
 };
-INSTANTIATE_TEST_CASE_P(VerifyIntermediate, CertVerifyProcWeakDigestTest,
-                        testing::ValuesIn(kVerifyIntermediateCATestData));
+// Disabled on NSS - MD4 is not supported, and MD2 and MD5 are disabled.
+#if defined(USE_NSS) || defined(OS_IOS)
+#define MAYBE_VerifyIntermediate DISABLED_VerifyIntermediate
+#else
+#define MAYBE_VerifyIntermediate VerifyIntermediate
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_VerifyIntermediate,
+    CertVerifyProcWeakDigestTest,
+    testing::ValuesIn(kVerifyIntermediateCATestData));
 
 // The signature algorithm of end-entity should be properly detected.
 const WeakDigestTestData kVerifyEndEntityTestData[] = {
@@ -894,15 +913,13 @@ const WeakDigestTestData kVerifyEndEntityTestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md4_ee.pem", false, true, false, false, false },
 #endif
-#if !defined(USE_NSS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md2_ee.pem", false, false, true, false, false },
-#endif
 };
 // Disabled on NSS - NSS caches chains/signatures in such a way that cannot
 // be cleared until NSS is cleanly shutdown, which is not presently supported
 // in Chromium.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #define MAYBE_VerifyEndEntity DISABLED_VerifyEndEntity
 #else
 #define MAYBE_VerifyEndEntity VerifyEndEntity
@@ -925,7 +942,7 @@ const WeakDigestTestData kVerifyIncompleteIntermediateTestData[] = {
 };
 // Disabled on NSS - libpkix does not return constructed chains on error,
 // preventing us from detecting/inspecting the verified chain.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #define MAYBE_VerifyIncompleteIntermediate \
     DISABLED_VerifyIncompleteIntermediate
 #else
@@ -950,7 +967,7 @@ const WeakDigestTestData kVerifyIncompleteEETestData[] = {
 };
 // Disabled on NSS - libpkix does not return constructed chains on error,
 // preventing us from detecting/inspecting the verified chain.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #define MAYBE_VerifyIncompleteEndEntity DISABLED_VerifyIncompleteEndEntity
 #else
 #define MAYBE_VerifyIncompleteEndEntity VerifyIncompleteEndEntity
@@ -975,7 +992,7 @@ const WeakDigestTestData kVerifyMixedTestData[] = {
 };
 // NSS does not support MD4 and does not enable MD2 by default, making all
 // permutations invalid.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #define MAYBE_VerifyMixed DISABLED_VerifyMixed
 #else
 #define MAYBE_VerifyMixed VerifyMixed

@@ -71,7 +71,7 @@ class MockClientSocket : public StreamSocket {
   virtual int GetLocalAddress(IPEndPoint* address) const {
     if (!connected_)
       return ERR_SOCKET_NOT_CONNECTED;
-    if (addrlist_.front().GetFamily() == AF_INET)
+    if (addrlist_.front().GetFamily() == ADDRESS_FAMILY_IPV4)
       SetIPv4Address(address);
     else
       SetIPv6Address(address);
@@ -89,8 +89,14 @@ class MockClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.
@@ -146,8 +152,14 @@ class MockFailingClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.
@@ -210,7 +222,7 @@ class MockPendingClientSocket : public StreamSocket {
   virtual int GetLocalAddress(IPEndPoint* address) const {
     if (!is_connected_)
       return ERR_SOCKET_NOT_CONNECTED;
-    if (addrlist_.front().GetFamily() == AF_INET)
+    if (addrlist_.front().GetFamily() == ADDRESS_FAMILY_IPV4)
       SetIPv4Address(address);
     else
       SetIPv6Address(address);
@@ -228,8 +240,14 @@ class MockPendingClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.
@@ -450,8 +468,8 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
   addrlist.push_back(addrlist_v4_2);
   TransportConnectJob::MakeAddressListStartWithIPv4(&addrlist);
   ASSERT_EQ(2u, addrlist.size());
-  EXPECT_EQ(AF_INET, addrlist[0].GetFamily());
-  EXPECT_EQ(AF_INET, addrlist[1].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[0].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[1].GetFamily());
 
   // Test 2: IPv6 only.  Expect no change.
   addrlist.clear();
@@ -459,8 +477,8 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
   addrlist.push_back(addrlist_v6_2);
   TransportConnectJob::MakeAddressListStartWithIPv4(&addrlist);
   ASSERT_EQ(2u, addrlist.size());
-  EXPECT_EQ(AF_INET6, addrlist[0].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[1].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[0].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[1].GetFamily());
 
   // Test 3: IPv4 then IPv6.  Expect no change.
   addrlist.clear();
@@ -470,10 +488,10 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
   addrlist.push_back(addrlist_v6_2);
   TransportConnectJob::MakeAddressListStartWithIPv4(&addrlist);
   ASSERT_EQ(4u, addrlist.size());
-  EXPECT_EQ(AF_INET, addrlist[0].GetFamily());
-  EXPECT_EQ(AF_INET, addrlist[1].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[2].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[3].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[0].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[1].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[2].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[3].GetFamily());
 
   // Test 4: IPv6, IPv4, IPv6, IPv4.  Expect first IPv6 moved to the end.
   addrlist.clear();
@@ -483,10 +501,10 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
   addrlist.push_back(addrlist_v4_2);
   TransportConnectJob::MakeAddressListStartWithIPv4(&addrlist);
   ASSERT_EQ(4u, addrlist.size());
-  EXPECT_EQ(AF_INET, addrlist[0].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[1].GetFamily());
-  EXPECT_EQ(AF_INET, addrlist[2].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[3].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[0].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[1].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[2].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[3].GetFamily());
 
   // Test 5: IPv6, IPv6, IPv4, IPv4.  Expect first two IPv6's moved to the end.
   addrlist.clear();
@@ -496,10 +514,10 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
   addrlist.push_back(addrlist_v4_2);
   TransportConnectJob::MakeAddressListStartWithIPv4(&addrlist);
   ASSERT_EQ(4u, addrlist.size());
-  EXPECT_EQ(AF_INET, addrlist[0].GetFamily());
-  EXPECT_EQ(AF_INET, addrlist[1].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[2].GetFamily());
-  EXPECT_EQ(AF_INET6, addrlist[3].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[0].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV4, addrlist[1].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[2].GetFamily());
+  EXPECT_EQ(ADDRESS_FAMILY_IPV6, addrlist[3].GetFamily());
 }
 
 TEST_F(TransportClientSocketPoolTest, Basic) {
@@ -795,7 +813,7 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
       handle_->Reset();
       {
         MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
-        MessageLoop::current()->RunAllPending();
+        MessageLoop::current()->RunUntilIdle();
       }
       within_callback_ = true;
       scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
@@ -897,14 +915,14 @@ TEST_F(TransportClientSocketPoolTest, ResetIdleSocketsOnIPAddressChange) {
   handle.Reset();
 
   // Need to run all pending to release the socket back to the pool.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Now we should have 1 idle socket.
   EXPECT_EQ(1, pool_.IdleSocketCount());
 
   // After an IP address change, we should have 0 idle sockets.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 }
@@ -947,14 +965,14 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
     EXPECT_FALSE(handle.socket());
 
     // Create the first socket, set the timer.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     // Wait for the backup socket timer to fire.
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
         ClientSocketPool::kMaxConnectRetryIntervalMs + 50));
 
     // Let the appropriate socket connect.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_TRUE(handle.is_initialized());
@@ -965,7 +983,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
     handle.Reset();
 
     // Close all pending connect jobs and existing sockets.
-    pool_.Flush();
+    pool_.FlushWithError(ERR_NETWORK_CHANGED);
   }
 }
 
@@ -989,7 +1007,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
     EXPECT_FALSE(handle.socket());
 
     // Create the first socket, set the timer.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     if (index == CANCEL_AFTER_WAIT) {
       // Wait for the backup socket timer to fire.
@@ -998,7 +1016,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
     }
 
     // Let the appropriate socket connect.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     handle.Reset();
 
@@ -1035,7 +1053,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   EXPECT_FALSE(handle.socket());
 
   // Create the first socket, set the timer.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Wait for the backup socket timer to fire.
   base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
@@ -1046,7 +1064,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   host_resolver_->set_synchronous_mode(true);
 
   // Let the appropriate socket connect.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());
@@ -1083,7 +1101,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   EXPECT_FALSE(handle.socket());
 
   // Create the first socket, set the timer.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Wait for the backup socket timer to fire.
   base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
@@ -1094,7 +1112,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   host_resolver_->set_synchronous_mode(true);
 
   // Let the appropriate socket connect.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
   EXPECT_FALSE(handle.is_initialized());

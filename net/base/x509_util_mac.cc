@@ -74,51 +74,29 @@ OSStatus CreateBasicX509Policy(SecPolicyRef* policy) {
 }
 
 OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
+                                  bool enable_ev_checking,
                                   CFMutableArrayRef policies) {
-  // In order to actually disable revocation checking, the SecTrustRef must
-  // have at least one revocation policy associated with it. If none are
-  // present, the Apple TP will add policies according to the system
-  // preferences, which will enable revocation checking even if the caller
-  // explicitly disabled it. An OCSP policy is used, rather than a CRL policy,
-  // because the Apple TP will force an OCSP policy to be present and enabled
-  // if it believes the certificate may chain to an EV root. By explicitly
-  // disabling network and OCSP cache access, then even if the Apple TP
-  // enables OCSP checking, no revocation checking will actually succeed.
-  CSSM_APPLE_TP_OCSP_OPTIONS tp_ocsp_options;
-  memset(&tp_ocsp_options, 0, sizeof(tp_ocsp_options));
-  tp_ocsp_options.Version = CSSM_APPLE_TP_OCSP_OPTS_VERSION;
+  OSStatus status = noErr;
 
-  if (enable_revocation_checking) {
-    // The default for the OCSP policy is to fetch responses via the network,
-    // unlike the CRL policy default. The policy is further modified to
-    // prefer OCSP over CRLs, if both are specified on the certificate. This
-    // is because an OCSP response is both sufficient and typically
-    // significantly smaller than the CRL counterpart.
-    tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_SUFFICIENT;
-  } else {
-    // Effectively disable OCSP checking by making it impossible to get an
-    // OCSP response. Even if the Apple TP forces OCSP, no checking will
-    // be able to succeed. If this happens, the Apple TP will report an error
-    // that OCSP was unavailable, but this will be handled and suppressed in
-    // X509Certificate::Verify().
-    tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_DISABLE_NET |
-                            CSSM_TP_ACTION_OCSP_CACHE_READ_DISABLE;
-  }
-
-  SecPolicyRef ocsp_policy;
-  OSStatus status = CreatePolicy(&CSSMOID_APPLE_TP_REVOCATION_OCSP,
-                                 &tp_ocsp_options, sizeof(tp_ocsp_options),
-                                 &ocsp_policy);
-  if (status)
-    return status;
-  CFArrayAppendValue(policies, ocsp_policy);
-  CFRelease(ocsp_policy);
-
-  if (enable_revocation_checking) {
+  // In order to bypass the system revocation checking settings, the
+  // SecTrustRef must have at least one revocation policy associated with it.
+  // Since it is not known prior to verification whether the Apple TP will
+  // consider a certificate as an EV candidate, the default policy used is a
+  // CRL policy, since it does not communicate over the network.
+  // If the TP believes the leaf is an EV cert, it will explicitly add an
+  // OCSP policy to perform the online checking, and if it doesn't believe
+  // that the leaf is EV, then the default CRL policy will effectively no-op.
+  // This behaviour is used to implement EV-only revocation checking.
+  if (enable_ev_checking || enable_revocation_checking) {
     CSSM_APPLE_TP_CRL_OPTIONS tp_crl_options;
     memset(&tp_crl_options, 0, sizeof(tp_crl_options));
     tp_crl_options.Version = CSSM_APPLE_TP_CRL_OPTS_VERSION;
-    tp_crl_options.CrlFlags = CSSM_TP_ACTION_FETCH_CRL_FROM_NET;
+    // Only allow network CRL fetches if the caller explicitly requests
+    // online revocation checking. Note that, as of OS X 10.7.2, the system
+    // will set force this flag on according to system policies, so
+    // online revocation checks cannot be completely disabled.
+    if (enable_revocation_checking)
+      tp_crl_options.CrlFlags = CSSM_TP_ACTION_FETCH_CRL_FROM_NET;
 
     SecPolicyRef crl_policy;
     status = CreatePolicy(&CSSMOID_APPLE_TP_REVOCATION_CRL, &tp_crl_options,
@@ -127,6 +105,44 @@ OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
       return status;
     CFArrayAppendValue(policies, crl_policy);
     CFRelease(crl_policy);
+  }
+
+  // If revocation checking is explicitly enabled, then add an OCSP policy
+  // and allow network access. If both revocation checking and EV checking
+  // are disabled, then the added OCSP policy will be prevented from
+  // accessing the network. This is done because the TP will force an OCSP
+  // policy to be present when it believes the certificate is EV. If network
+  // fetching was not explicitly disabled, then it would be as if
+  // enable_ev_checking was always set to true.
+  if (enable_revocation_checking || !enable_ev_checking) {
+    CSSM_APPLE_TP_OCSP_OPTIONS tp_ocsp_options;
+    memset(&tp_ocsp_options, 0, sizeof(tp_ocsp_options));
+    tp_ocsp_options.Version = CSSM_APPLE_TP_OCSP_OPTS_VERSION;
+
+    if (enable_revocation_checking) {
+      // The default for the OCSP policy is to fetch responses via the network,
+      // unlike the CRL policy default. The policy is further modified to
+      // prefer OCSP over CRLs, if both are specified on the certificate. This
+      // is because an OCSP response is both sufficient and typically
+      // significantly smaller than the CRL counterpart.
+      tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_SUFFICIENT;
+    } else {
+      // Effectively disable OCSP checking by making it impossible to get an
+      // OCSP response. Even if the Apple TP forces OCSP, no checking will
+      // be able to succeed. If this happens, the Apple TP will report an error
+      // that OCSP was unavailable, but this will be handled and suppressed in
+      // X509Certificate::Verify().
+      tp_ocsp_options.Flags = CSSM_TP_ACTION_OCSP_DISABLE_NET |
+                              CSSM_TP_ACTION_OCSP_CACHE_READ_DISABLE;
+    }
+
+    SecPolicyRef ocsp_policy;
+    status = CreatePolicy(&CSSMOID_APPLE_TP_REVOCATION_OCSP, &tp_ocsp_options,
+                          sizeof(tp_ocsp_options), &ocsp_policy);
+    if (status)
+      return status;
+    CFArrayAppendValue(policies, ocsp_policy);
+    CFRelease(ocsp_policy);
   }
 
   return status;

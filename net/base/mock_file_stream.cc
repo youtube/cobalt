@@ -54,8 +54,12 @@ int64 MockFileStream::Truncate(int64 bytes) {
   return ReturnError64(FileStream::Truncate(bytes));
 }
 
-int MockFileStream::Flush() {
-  return ReturnError(FileStream::Flush());
+int MockFileStream::Flush(const CompletionCallback& callback) {
+  return ReturnError(FileStream::Flush(callback));
+}
+
+int MockFileStream::FlushSync() {
+  return ReturnError(FileStream::FlushSync());
 }
 
 }  // namespace testing
