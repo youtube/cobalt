@@ -14,57 +14,71 @@
 #include "testing/platform_test.h"
 #include "unicode/usearch.h"
 
+#if defined(TOOLKIT_GTK)
+#include <gtk/gtk.h>
+#endif
+
+namespace base {
+namespace i18n {
+
 namespace {
-base::i18n::TextDirection GetTextDirection(const char* locale_name) {
-  return base::i18n::GetTextDirectionForLocale(locale_name);
+
+// A test utility function to set the application default text direction.
+void SetRTL(bool rtl) {
+  // Override the current locale/direction.
+  SetICUDefaultLocale(rtl ? "he" : "en");
+#if defined(TOOLKIT_GTK)
+  // Do the same for GTK, which does not rely on the ICU default locale.
+  gtk_widget_set_default_direction(rtl ? GTK_TEXT_DIR_RTL : GTK_TEXT_DIR_LTR);
+#endif
+  EXPECT_EQ(rtl, IsRTL());
 }
-}
+
+}  // namespace
 
 class RTLTest : public PlatformTest {
 };
 
-typedef struct {
-  const wchar_t* text;
-  base::i18n::TextDirection direction;
-} TextAndDirection;
-
 TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
-  const TextAndDirection test_data[] = {
+  struct {
+    const wchar_t* text;
+    TextDirection direction;
+  } cases[] = {
     // Test pure LTR string.
-    { L"foo bar", base::i18n::LEFT_TO_RIGHT },
+    { L"foo bar", LEFT_TO_RIGHT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type L.
-    { L"foo \x05d0 bar", base::i18n::LEFT_TO_RIGHT },
+    { L"foo \x05d0 bar", LEFT_TO_RIGHT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type R.
-    { L"\x05d0 foo bar", base::i18n::RIGHT_TO_LEFT },
+    { L"\x05d0 foo bar", RIGHT_TO_LEFT },
     // Test bidi string which starts with a character with weak directionality
     // and in which the first character with strong directionality is a
     // character with type L.
-    { L"!foo \x05d0 bar", base::i18n::LEFT_TO_RIGHT },
+    { L"!foo \x05d0 bar", LEFT_TO_RIGHT },
     // Test bidi string which starts with a character with weak directionality
     // and in which the first character with strong directionality is a
     // character with type R.
-    { L",\x05d0 foo bar", base::i18n::RIGHT_TO_LEFT },
+    { L",\x05d0 foo bar", RIGHT_TO_LEFT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type LRE.
-    { L"\x202a \x05d0 foo  bar", base::i18n::LEFT_TO_RIGHT },
+    { L"\x202a \x05d0 foo  bar", LEFT_TO_RIGHT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type LRO.
-    { L"\x202d \x05d0 foo  bar", base::i18n::LEFT_TO_RIGHT },
+    { L"\x202d \x05d0 foo  bar", LEFT_TO_RIGHT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type RLE.
-    { L"\x202b foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    { L"\x202b foo \x05d0 bar", RIGHT_TO_LEFT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type RLO.
-    { L"\x202e foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    { L"\x202e foo \x05d0 bar", RIGHT_TO_LEFT },
     // Test bidi string in which the first character with strong directionality
     // is a character with type AL.
-    { L"\x0622 foo \x05d0 bar", base::i18n::RIGHT_TO_LEFT },
+    { L"\x0622 foo \x05d0 bar", RIGHT_TO_LEFT },
     // Test a string without strong directionality characters.
-    { L",!.{}", base::i18n::LEFT_TO_RIGHT },
+    { L",!.{}", LEFT_TO_RIGHT },
     // Test empty string.
-    { L"", base::i18n::LEFT_TO_RIGHT },
+    { L"", LEFT_TO_RIGHT },
     // Test characters in non-BMP (e.g. Phoenician letters. Please refer to
     // http://demo.icu-project.org/icu-bin/ubrowse?scr=151&b=10910 for more
     // information).
@@ -76,7 +90,7 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
-      base::i18n::RIGHT_TO_LEFT },
+      RIGHT_TO_LEFT },
     {
 #if defined(WCHAR_T_IS_UTF32)
       L" ! \x10401" L"abc 123",
@@ -85,18 +99,16 @@ TEST_F(RTLTest, GetFirstStrongCharacterDirection) {
 #else
 #error wchar_t should be either UTF-16 or UTF-32
 #endif
-      base::i18n::LEFT_TO_RIGHT },
+      LEFT_TO_RIGHT },
    };
 
-  for (size_t i = 0; i < arraysize(test_data); ++i) {
-    EXPECT_EQ(test_data[i].direction,
-              base::i18n::GetFirstStrongCharacterDirection(
-                  WideToUTF16(test_data[i].text)));
-  }
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i)
+    EXPECT_EQ(cases[i].direction,
+              GetFirstStrongCharacterDirection(WideToUTF16(cases[i].text)));
 }
 
 TEST_F(RTLTest, WrapPathWithLTRFormatting) {
-  const wchar_t* test_data[] = {
+  const wchar_t* cases[] = {
     // Test common path, such as "c:\foo\bar".
     L"c:/foo/bar",
     // Test path with file name, such as "c:\foo\bar\test.jpg".
@@ -124,86 +136,138 @@ TEST_F(RTLTest, WrapPathWithLTRFormatting) {
     // Test empty path.
     L""
   };
-  for (size_t i = 0; i < arraysize(test_data); ++i) {
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
     FilePath path;
 #if defined(OS_WIN)
-    std::wstring win_path(test_data[i]);
+    std::wstring win_path(cases[i]);
     std::replace(win_path.begin(), win_path.end(), '/', '\\');
     path = FilePath(win_path);
     std::wstring wrapped_expected =
         std::wstring(L"\x202a") + win_path + L"\x202c";
 #else
-    path = FilePath(base::SysWideToNativeMB(test_data[i]));
+    path = FilePath(base::SysWideToNativeMB(cases[i]));
     std::wstring wrapped_expected =
-        std::wstring(L"\x202a") + test_data[i] + L"\x202c";
+        std::wstring(L"\x202a") + cases[i] + L"\x202c";
 #endif
     string16 localized_file_path_string;
-    base::i18n::WrapPathWithLTRFormatting(path, &localized_file_path_string);
+    WrapPathWithLTRFormatting(path, &localized_file_path_string);
 
     std::wstring wrapped_actual = UTF16ToWide(localized_file_path_string);
     EXPECT_EQ(wrapped_expected, wrapped_actual);
   }
 }
 
-typedef struct {
-  const wchar_t* raw_filename;
-  const wchar_t* display_string;
-} StringAndLTRString;
+TEST_F(RTLTest, WrapString) {
+  const wchar_t* cases[] = {
+    L" . ",
+    L"abc",
+    L"a"L"\x5d0\x5d1",
+    L"a"L"\x5d1"L"b",
+    L"\x5d0\x5d1\x5d2",
+    L"\x5d0\x5d1"L"a",
+    L"\x5d0"L"a"L"\x5d1",
+  };
+
+  const bool was_rtl = IsRTL();
+
+  for (size_t i = 0; i < 2; ++i) {
+    // Toggle the application default text direction (to try each direction).
+    SetRTL(!IsRTL());
+
+    string16 empty;
+    WrapStringWithLTRFormatting(&empty);
+    EXPECT_TRUE(empty.empty());
+    WrapStringWithRTLFormatting(&empty);
+    EXPECT_TRUE(empty.empty());
+
+    for (size_t i = 0; i < arraysize(cases); ++i) {
+      string16 input = WideToUTF16(cases[i]);
+      string16 ltr_wrap = input;
+      WrapStringWithLTRFormatting(&ltr_wrap);
+      EXPECT_EQ(ltr_wrap[0], kLeftToRightEmbeddingMark);
+      EXPECT_EQ(ltr_wrap.substr(1, ltr_wrap.length() - 2), input);
+      EXPECT_EQ(ltr_wrap[ltr_wrap.length() -1], kPopDirectionalFormatting);
+
+      string16 rtl_wrap = input;
+      WrapStringWithRTLFormatting(&rtl_wrap);
+      EXPECT_EQ(rtl_wrap[0], kRightToLeftEmbeddingMark);
+      EXPECT_EQ(rtl_wrap.substr(1, rtl_wrap.length() - 2), input);
+      EXPECT_EQ(rtl_wrap[rtl_wrap.length() -1], kPopDirectionalFormatting);
+    }
+  }
+
+  EXPECT_EQ(was_rtl, IsRTL());
+}
 
 TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
-  const StringAndLTRString test_data[] = {
-    { L"test", L"\x202atest\x202c" },
-    { L"test.html", L"\x202atest.html\x202c" },
-    { L"\x05d0\x05d1\x05d2", L"\x202a\x05d0\x05d1\x05d2\x202c" },
-    { L"\x05d0\x05d1\x05d2.txt", L"\x202a\x05d0\x05d1\x05d2.txt\x202c" },
-    { L"\x05d0"L"abc", L"\x202a\x05d0"L"abc\x202c" },
-    { L"\x05d0"L"abc.txt", L"\x202a\x05d0"L"abc.txt\x202c" },
-    { L"abc\x05d0\x05d1", L"\x202a"L"abc\x05d0\x05d1\x202c" },
-    { L"abc\x05d0\x05d1.jpg", L"\x202a"L"abc\x05d0\x05d1.jpg\x202c" },
+  struct {
+    const wchar_t* path;
+    bool wrap_ltr;
+    bool wrap_rtl;
+  } cases[] = {
+    { L"test",                   false, true },
+    { L"test.html",              false, true },
+    { L"\x05d0\x05d1\x05d2",     true,  true },
+    { L"\x05d0\x05d1\x05d2.txt", true,  true },
+    { L"\x05d0"L"abc",           true,  true },
+    { L"\x05d0"L"abc.txt",       true,  true },
+    { L"abc\x05d0\x05d1",        false, true },
+    { L"abc\x05d0\x05d1.jpg",    false, true },
   };
-  for (size_t i = 0; i < arraysize(test_data); ++i) {
-    string16 input = WideToUTF16(test_data[i].raw_filename);
-    string16 expected = base::i18n::GetDisplayStringInLTRDirectionality(input);
-    if (base::i18n::IsRTL())
-      EXPECT_EQ(expected, WideToUTF16(test_data[i].display_string));
-    else
-      EXPECT_EQ(expected, input);
+
+  const bool was_rtl = IsRTL();
+
+  for (size_t i = 0; i < 2; ++i) {
+    // Toggle the application default text direction (to try each direction).
+    SetRTL(!IsRTL());
+    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+      string16 input = WideToUTF16(cases[i].path);
+      string16 output = GetDisplayStringInLTRDirectionality(input);
+      // Test the expected wrapping behavior for the current UI directionality.
+      if (IsRTL() ? cases[i].wrap_rtl : cases[i].wrap_ltr)
+        EXPECT_NE(output, input);
+      else
+        EXPECT_EQ(output, input);
+    }
   }
+
+  EXPECT_EQ(was_rtl, IsRTL());
 }
 
 TEST_F(RTLTest, GetTextDirection) {
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("ar"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("ar_EG"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("he"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("he_IL"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("ar"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("ar_EG"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("he"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("he_IL"));
   // iw is an obsolete code for Hebrew.
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("iw"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("iw"));
   // Although we're not yet localized to Farsi and Urdu, we
   // do have the text layout direction information for them.
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("fa"));
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("ur"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("fa"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("ur"));
 #if 0
   // Enable these when we include the minimal locale data for Azerbaijani
   // written in Arabic and Dhivehi. At the moment, our copy of
   // ICU data does not have entries for them.
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("az_Arab"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("az_Arab"));
   // Dhivehi that uses Thaana script.
-  EXPECT_EQ(base::i18n::RIGHT_TO_LEFT, GetTextDirection("dv"));
+  EXPECT_EQ(RIGHT_TO_LEFT, GetTextDirectionForLocale("dv"));
 #endif
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("en"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("en"));
   // Chinese in China with '-'.
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("zh-CN"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("zh-CN"));
   // Filipino : 3-letter code
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("fil"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("fil"));
   // Russian
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("ru"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("ru"));
   // Japanese that uses multiple scripts
-  EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("ja"));
+  EXPECT_EQ(LEFT_TO_RIGHT, GetTextDirectionForLocale("ja"));
 }
 
 TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
   // These test strings are borrowed from WrapPathWithLTRFormatting
-  const wchar_t* test_data[] = {
+  const wchar_t* cases[] = {
     L"foo bar",
     L"foo \x05d0 bar",
     L"\x05d0 foo bar",
@@ -216,27 +280,28 @@ TEST_F(RTLTest, UnadjustStringForLocaleDirection) {
     L"\x0622 foo \x05d0 bar",
   };
 
-  const char* default_locale = uloc_getDefault();
+  const bool was_rtl = IsRTL();
 
-  for (size_t i = 0; i < 2; i++) {
-    // Try in LTR and RTL.
-    std::string locale(i == 0 ? "en_US" : "he_IL");
-    base::i18n::SetICUDefaultLocale(locale);
+  for (size_t i = 0; i < 2; ++i) {
+    // Toggle the application default text direction (to try each direction).
+    SetRTL(!IsRTL());
 
-    for (size_t i = 0; i < arraysize(test_data); ++i) {
-      string16 test_case = WideToUTF16(test_data[i]);
+    for (size_t i = 0; i < arraysize(cases); ++i) {
+      string16 test_case = WideToUTF16(cases[i]);
       string16 adjusted_string = test_case;
 
-      if (!base::i18n::AdjustStringForLocaleDirection(&adjusted_string))
+      if (!AdjustStringForLocaleDirection(&adjusted_string))
         continue;
 
       EXPECT_NE(test_case, adjusted_string);
-      EXPECT_TRUE(base::i18n::UnadjustStringForLocaleDirection(
-                      &adjusted_string));
-      EXPECT_EQ(test_case, adjusted_string) << " for test case " << test_case
-                                            << " and locale " << locale;
+      EXPECT_TRUE(UnadjustStringForLocaleDirection(&adjusted_string));
+      EXPECT_EQ(test_case, adjusted_string) << " for test case [" << test_case
+                                            << "] with IsRTL() == " << IsRTL();
     }
   }
 
-  base::i18n::SetICUDefaultLocale(default_locale);
+  EXPECT_EQ(was_rtl, IsRTL());
 }
+
+}  // namespace i18n
+}  // namespace base

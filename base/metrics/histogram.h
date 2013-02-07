@@ -9,14 +9,36 @@
 // It supports calls to accumulate either time intervals (which are processed
 // as integral number of milliseconds), or arbitrary integral units.
 
-// The default layout of buckets is exponential.  For example, buckets might
-// contain (sequentially) the count of values in the following intervals:
+// For Histogram(exponential histogram), LinearHistogram and CustomHistogram,
+// the minimum for a declared range is 1 (instead of 0), while the maximum is
+// (HistogramBase::kSampleType_MAX - 1). Currently you can declare histograms
+// with ranges exceeding those limits (e.g. 0 as minimal or
+// HistogramBase::kSampleType_MAX as maximal), but those excesses will be
+// silently clamped to those limits (for backwards compatibility with existing
+// code). Best practice is to not exceed the limits.
+
+// Each use of a histogram with the same name will reference the same underlying
+// data, so it is safe to record to the same histogram from multiple locations
+// in the code. It is a runtime error if all uses of the same histogram do not
+// agree exactly in type, bucket size and range.
+
+// For Histogram and LinearHistogram, the maximum for a declared range should
+// always be larger (not equal) than minmal range. Zero and
+// HistogramBase::kSampleType_MAX are implicitly added as first and last ranges,
+// so the smallest legal bucket_count is 3. However CustomHistogram can have
+// bucket count as 2 (when you give a custom ranges vector containing only 1
+// range).
+// For these 3 kinds of histograms, the max bucket count is always
+// (Histogram::kBucketCount_MAX - 1).
+
+// The buckets layout of class Histogram is exponential. For example, buckets
+// might contain (sequentially) the count of values in the following intervals:
 // [0,1), [1,2), [2,4), [4,8), [8,16), [16,32), [32,64), [64,infinity)
 // That bucket allocation would actually result from construction of a histogram
 // for values between 1 and 64, with 8 buckets, such as:
-// Histogram count(L"some name", 1, 64, 8);
+// Histogram count("some name", 1, 64, 8);
 // Note that the underflow bucket [0,1) and the overflow bucket [64,infinity)
-// are not counted by the constructor in the user supplied "bucket_count"
+// are also counted by the constructor in the user supplied "bucket_count"
 // argument.
 // The above example has an exponential ratio of 2 (doubling the bucket width
 // in each consecutive bucket.  The Histogram class automatically calculates
@@ -28,8 +50,9 @@
 // at the low end of the histogram scale, but allows the histogram to cover a
 // gigantic range with the addition of very few buckets.
 
-// Histograms use a pattern involving a function static variable, that is a
-// pointer to a histogram.  This static is explicitly initialized on any thread
+// Usually we use macros to define and use a histogram. These macros use a
+// pattern involving a function static variable, that is a pointer to a
+// histogram.  This static is explicitly initialized on any thread
 // that detects a uninitialized (NULL) pointer.  The potentially racy
 // initialization is not a problem as it is always set to point to the same
 // value (i.e., the FactoryGet always returns the same value).  FactoryGet
@@ -46,10 +69,14 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/time.h"
 
 class Pickle;
@@ -89,7 +116,7 @@ class Lock;
       // histogram.  FactoryGet includes locks on a global histogram name map
       // and is completely thread safe.
       histogram_pointer = base::Histogram::FactoryGet(
-          name, min, max, bucket_count, base::Histogram::kNoFlags);
+          name, min, max, bucket_count, base::HistogramBase::kNoFlags);
 
       // Use Release_Store to ensure that the histogram data is made available
       // globally before we make the pointer visible.
@@ -127,7 +154,8 @@ class Lock;
       base::subtle::Release_Store(&atomic_histogram_pointer, \
           reinterpret_cast<base::subtle::AtomicWord>(histogram_pointer)); \
     } \
-    DCHECK(histogram_pointer->histogram_name() == constant_histogram_name); \
+    DCHECK_EQ(histogram_pointer->histogram_name(), \
+              std::string(constant_histogram_name)); \
     histogram_pointer->histogram_add_method_invocation; \
   } while (0)
 
@@ -152,7 +180,7 @@ class Lock;
 #define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::Histogram::FactoryGet(name, min, max, bucket_count, \
-                                    base::Histogram::kNoFlags))
+                                    base::HistogramBase::kNoFlags))
 
 #define HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
@@ -162,7 +190,7 @@ class Lock;
 #define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, AddTime(sample), \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                        base::Histogram::kNoFlags))
+                                        base::HistogramBase::kNoFlags))
 
 // Support histograming of an enumerated value.  The samples should always be
 // strictly less than |boundary_value| -- this prevents you from running into
@@ -173,16 +201,17 @@ class Lock;
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-            boundary_value + 1, base::Histogram::kNoFlags))
+            boundary_value + 1, base::HistogramBase::kNoFlags))
 
 // Support histograming of an enumerated value. Samples should be one of the
-// std::vector<int> list provided via |custom_ranges|. You can use the helper
-// function |base::CustomHistogram::ArrayToCustomRanges(samples, num_samples)|
-// to transform a C-style array of valid sample values to a std::vector<int>.
+// std::vector<int> list provided via |custom_ranges|. See comments above
+// CustomRanges::FactoryGet about the requirement of |custom_ranges|.
+// You can use the helper function CustomHistogram::ArrayToCustomRanges to
+// transform a C-style array of valid sample values to a std::vector<int>.
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
-                                          base::Histogram::kNoFlags))
+                                          base::HistogramBase::kNoFlags))
 
 //------------------------------------------------------------------------------
 // Define Debug vs non-debug flavors of macros.
@@ -317,8 +346,10 @@ class Lock;
 
 //------------------------------------------------------------------------------
 
+class BucketRanges;
+class SampleVector;
+
 class BooleanHistogram;
-class CachedRanges;
 class CustomHistogram;
 class Histogram;
 class LinearHistogram;
@@ -329,36 +360,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   static const size_t kBucketCount_MAX;
 
   typedef std::vector<Count> Counts;
-
-  // These enums are used to facilitate deserialization of renderer histograms
-  // into the browser.
-  enum ClassType {
-    HISTOGRAM,
-    LINEAR_HISTOGRAM,
-    BOOLEAN_HISTOGRAM,
-    CUSTOM_HISTOGRAM,
-    NOT_VALID_IN_RENDERER
-  };
-
-  enum BucketLayout {
-    EXPONENTIAL,
-    LINEAR,
-    CUSTOM
-  };
-
-  enum Flags {
-    kNoFlags = 0,
-    kUmaTargetedHistogramFlag = 0x1,  // Histogram should be UMA uploaded.
-
-    // Indicate that the histogram was pickled to be sent across an IPC Channel.
-    // If we observe this flag on a histogram being aggregated into after IPC,
-    // then we are running in a single process mode, and the aggregation should
-    // not take place (as we would be aggregating back into the source
-    // histogram!).
-    kIPCSerializationSourceFlag = 0x10,
-
-    kHexRangePrintingFlag = 0x8000,  // Fancy bucket-naming supported.
-  };
 
   enum Inconsistencies {
     NO_INCONSISTENCIES = 0x0,
@@ -376,57 +377,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   };
 
   //----------------------------------------------------------------------------
-  // Statistic values, developed over the life of the histogram.
-
-  class BASE_EXPORT SampleSet {
-   public:
-    explicit SampleSet();
-    ~SampleSet();
-
-    // Adjust size of counts_ for use with given histogram.
-    void Resize(const Histogram& histogram);
-    void CheckSize(const Histogram& histogram) const;
-
-    // Accessor for histogram to make routine additions.
-    void Accumulate(Sample value, Count count, size_t index);
-
-    // Accessor methods.
-    Count counts(size_t i) const { return counts_[i]; }
-    Count TotalCount() const;
-    int64 sum() const { return sum_; }
-    int64 redundant_count() const { return redundant_count_; }
-
-    // Arithmetic manipulation of corresponding elements of the set.
-    void Add(const SampleSet& other);
-    void Subtract(const SampleSet& other);
-
-    bool Serialize(Pickle* pickle) const;
-    bool Deserialize(PickleIterator* iter);
-
-   protected:
-    // Actual histogram data is stored in buckets, showing the count of values
-    // that fit into each bucket.
-    Counts counts_;
-
-    // Save simple stats locally.  Note that this MIGHT get done in base class
-    // without shared memory at some point.
-    int64 sum_;         // sum of samples.
-
-   private:
-    // Allow tests to corrupt our innards for testing purposes.
-    FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
-
-    // To help identify memory corruption, we reduntantly save the number of
-    // samples we've accumulated into all of our buckets.  We can compare this
-    // count to the sum of the counts in all buckets, and detect problems.  Note
-    // that due to races in histogram accumulation (if a histogram is indeed
-    // updated on several threads simultaneously), the tallies might mismatch,
-    // and also the snapshotting code may asynchronously get a mismatch (though
-    // generally either race based mismatch cause is VERY rare).
-    int64 redundant_count_;
-  };
-
-  //----------------------------------------------------------------------------
   // For a valid histogram, input should follow these restrictions:
   // minimum > 0 (if a minimum below 1 is specified, it will implicitly be
   //              normalized up to 1)
@@ -440,17 +390,21 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                Sample minimum,
                                Sample maximum,
                                size_t bucket_count,
-                               Flags flags);
+                               int32 flags);
   static Histogram* FactoryTimeGet(const std::string& name,
                                    base::TimeDelta minimum,
                                    base::TimeDelta maximum,
                                    size_t bucket_count,
-                                   Flags flags);
+                                   int32 flags);
+
   // Time call for use with DHISTOGRAM*.
   // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
   static TimeTicks DebugNow();
 
-  virtual void Add(Sample value) OVERRIDE;
+  static void InitializeBucketRanges(Sample minimum,
+                                     Sample maximum,
+                                     size_t bucket_count,
+                                     BucketRanges* ranges);
 
   // This method is an interface, used only by BooleanHistogram.
   virtual void AddBoolean(bool value);
@@ -460,24 +414,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
     Add(static_cast<int>(time.InMilliseconds()));
   }
 
-  void AddSampleSet(const SampleSet& sample);
-
-  // This method is an interface, used only by LinearHistogram.
-  virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
-
-  // The following methods provide graphical histogram displays.
-  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
-  virtual void WriteAscii(std::string* output) const OVERRIDE;
-  void WriteAsciiImpl(bool graph_it,
-                      const std::string& newline,
-                      std::string* output) const;
-
-  // Support generic flagging of Histograms.
-  // 0x1 Currently used to mark this histogram to be recorded by UMA..
-  // 0x8000 means print ranges in hex.
-  void SetFlags(Flags flags) { flags_ = static_cast<Flags> (flags_ | flags); }
-  void ClearFlags(Flags flags) { flags_ = static_cast<Flags>(flags_ & ~flags); }
-  int flags() const { return flags_; }
+  void AddSamples(const HistogramSamples& samples);
+  bool AddSamplesFromPickle(PickleIterator* iter);
 
   // Convenience methods for serializing/deserializing the histograms.
   // Histograms from Renderer process are serialized and sent to the browser.
@@ -488,52 +426,67 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Serialize the given snapshot of a Histogram into a String. Uses
   // Pickle class to flatten the object.
   static std::string SerializeHistogramInfo(const Histogram& histogram,
-                                            const SampleSet& snapshot);
+                                            const HistogramSamples& snapshot);
 
   // The following method accepts a list of pickled histograms and
   // builds a histogram and updates shadow copy of histogram data in the
   // browser process.
   static bool DeserializeHistogramInfo(const std::string& histogram_info);
 
+  // This constant if for FindCorruption. Since snapshots of histograms are
+  // taken asynchronously relative to sampling, and our counting code currently
+  // does not prevent race conditions, it is pretty likely that we'll catch a
+  // redundant count that doesn't match the sample count.  We allow for a
+  // certain amount of slop before flagging this as an inconsistency. Even with
+  // an inconsistency, we'll snapshot it again (for UMA in about a half hour),
+  // so we'll eventually get the data, if it was not the result of a corruption.
+  static const int kCommonRaceBasedCountMismatch;
+
   // Check to see if bucket ranges, counts and tallies in the snapshot are
   // consistent with the bucket ranges and checksums in our histogram.  This can
   // produce a false-alarm if a race occurred in the reading of the data during
   // a SnapShot process, but should otherwise be false at all times (unless we
   // have memory over-writes, or DRAM failures).
-  virtual Inconsistencies FindCorruption(const SampleSet& snapshot) const;
+  virtual Inconsistencies FindCorruption(const HistogramSamples& samples) const;
 
   //----------------------------------------------------------------------------
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
-  virtual ClassType histogram_type() const;
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const;
-  uint32 range_checksum() const { return range_checksum_; }
   virtual size_t bucket_count() const;
-  CachedRanges* cached_ranges() const { return cached_ranges_; }
-  void set_cached_ranges(CachedRanges* cached_ranges) {
-    cached_ranges_ = cached_ranges;
-  }
-  // Snapshot the current complete set of sample data.
-  // Override with atomic/locked snapshot if needed.
-  virtual void SnapshotSample(SampleSet* sample) const;
+  const BucketRanges* bucket_ranges() const { return bucket_ranges_; }
 
-  virtual bool HasConstructorArguments(Sample minimum, Sample maximum,
-                                       size_t bucket_count);
+  // This function validates histogram construction arguments. It returns false
+  // if some of the arguments are totally bad.
+  // Note. Currently it allow some bad input, e.g. 0 as minimum, but silently
+  // converts it to good input: 1.
+  // TODO(kaiwang): Be more restrict and return false for any bad input, and
+  // make this a readonly validating function.
+  static bool InspectConstructionArguments(const std::string& name,
+                                           Sample* minimum,
+                                           Sample* maximum,
+                                           size_t* bucket_count);
 
-  virtual bool HasConstructorTimeDeltaArguments(TimeDelta minimum,
-                                                TimeDelta maximum,
-                                                size_t bucket_count);
-  // Return true iff the range_checksum_ matches current |ranges_| vector in
-  // |cached_ranges_|.
-  bool HasValidRangeChecksum() const;
+  // HistogramBase implementation:
+  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual bool HasConstructionArguments(Sample minimum,
+                                        Sample maximum,
+                                        size_t bucket_count) const OVERRIDE;
+  virtual void Add(Sample value) OVERRIDE;
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
+  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
+  virtual void WriteAscii(std::string* output) const OVERRIDE;
 
  protected:
-  Histogram(const std::string& name, Sample minimum,
-            Sample maximum, size_t bucket_count);
-  Histogram(const std::string& name, TimeDelta minimum,
-            TimeDelta maximum, size_t bucket_count);
+  // |bucket_count| and |ranges| should contain the underflow and overflow
+  // buckets. See top comments for example.
+  Histogram(const std::string& name,
+            Sample minimum,
+            Sample maximum,
+            size_t bucket_count,
+            const BucketRanges* ranges);
 
   virtual ~Histogram();
 
@@ -543,70 +496,45 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // serialized parameters.
   virtual bool SerializeRanges(Pickle* pickle) const;
 
-  // Initialize ranges_ mapping in cached_ranges_.
-  void InitializeBucketRange();
-
   // Method to override to skip the display of the i'th bucket if it's empty.
   virtual bool PrintEmptyBucket(size_t index) const;
 
-  //----------------------------------------------------------------------------
-  // Methods to override to create histogram with different bucket widths.
-  //----------------------------------------------------------------------------
-  // Find bucket to increment for sample value.
-  virtual size_t BucketIndex(Sample value) const;
   // Get normalized size, relative to the ranges(i).
   virtual double GetBucketSize(Count current, size_t i) const;
-
-  // Recalculate range_checksum_.
-  void ResetRangeChecksum();
 
   // Return a string description of what goes in a given bucket.
   // Most commonly this is the numeric value, but in derived classes it may
   // be a name (or string description) given to the bucket.
   virtual const std::string GetAsciiBucketRange(size_t it) const;
 
-  //----------------------------------------------------------------------------
-  // Methods to override to create thread safe histogram.
-  //----------------------------------------------------------------------------
-  // Update all our internal data, including histogram
-  virtual void Accumulate(Sample value, Count count, size_t index);
-
-  //----------------------------------------------------------------------------
-  // Accessors for derived classes.
-  //----------------------------------------------------------------------------
-  void SetBucketRange(size_t i, Sample value);
-
-  // Validate that ranges_ in cached_ranges_ was created sensibly (top and
-  // bottom range values relate properly to the declared_min_ and
-  // declared_max_).
-  bool ValidateBucketRanges() const;
-
-  virtual uint32 CalculateRangeChecksum() const;
-
  private:
   // Allow tests to corrupt our innards for testing purposes.
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BoundsTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketPlacementTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32SampleHash);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32TableTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, NameMatchTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
+  friend class StatisticsRecorderTest;
 
-  // Post constructor initialization.
-  void Initialize();
-
-  // Checksum function for accumulating range values into a checksum.
-  static uint32 Crc32(uint32 sum, Sample range);
+  // Implementation of SnapshotSamples function.
+  scoped_ptr<SampleVector> SnapshotSampleVector() const;
 
   //----------------------------------------------------------------------------
   // Helpers for emitting Ascii graphic.  Each method appends data to output.
 
-  // Find out how large the (graphically) the largest bucket will appear to be.
-  double GetPeakBucketSize(const SampleSet& snapshot) const;
+  void WriteAsciiImpl(bool graph_it,
+                      const std::string& newline,
+                      std::string* output) const;
+
+  // Find out how large (graphically) the largest bucket will appear to be.
+  double GetPeakBucketSize(const SampleVector& samples) const;
 
   // Write a common header message describing this histogram.
-  void WriteAsciiHeader(const SampleSet& snapshot,
-                        Count sample_count, std::string* output) const;
+  void WriteAsciiHeader(const SampleVector& samples,
+                        Count sample_count,
+                        std::string* output) const;
 
   // Write information about previous, current, and next buckets.
   // Information such as cumulative percentage, etc.
@@ -623,33 +551,22 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void WriteAsciiBucketGraph(double current_size, double max_size,
                              std::string* output) const;
 
-  //----------------------------------------------------------------------------
-  // Table for generating Crc32 values.
-  static const uint32 kCrcTable[256];
-  //----------------------------------------------------------------------------
-  // Invariant values set at/near construction time
+  // WriteJSON calls these.
+  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
+
+  virtual void GetCountAndBucketData(Count* count,
+                                     ListValue* buckets) const OVERRIDE;
+
+  // Does not own this object. Should get from StatisticsRecorder.
+  const BucketRanges* bucket_ranges_;
 
   Sample declared_min_;  // Less than this goes into counts_[0]
   Sample declared_max_;  // Over this goes into counts_[bucket_count_ - 1].
   size_t bucket_count_;  // Dimension of counts_[].
 
-  // Flag the histogram for recording by UMA via metric_services.h.
-  Flags flags_;
-
-  // For each index, show the least value that can be stored in the
-  // corresponding bucket. We also append one extra element in this array,
-  // containing kSampleType_MAX, to make calculations easy.
-  // The dimension of ranges_ in cached_ranges_ is bucket_count + 1.
-  CachedRanges* cached_ranges_;
-
-  // For redundancy, we store a checksum of all the sample ranges when ranges
-  // are generated.  If ever there is ever a difference, then the histogram must
-  // have been corrupted.
-  uint32 range_checksum_;
-
   // Finally, provide the state that changes with the addition of each new
   // sample.
-  SampleSet sample_;
+  scoped_ptr<SampleVector> samples_;
 
   DISALLOW_COPY_AND_ASSIGN(Histogram);
 };
@@ -668,30 +585,41 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                Sample minimum,
                                Sample maximum,
                                size_t bucket_count,
-                               Flags flags);
+                               int32 flags);
   static Histogram* FactoryTimeGet(const std::string& name,
                                    TimeDelta minimum,
                                    TimeDelta maximum,
                                    size_t bucket_count,
-                                   Flags flags);
+                                   int32 flags);
+
+  // Create a LinearHistogram and store a list of number/text values for use in
+  // writing the histogram graph.
+  // |descriptions| can be NULL, which means no special descriptions to set. If
+  // it's not NULL, the last element in the array must has a NULL in its
+  // "description" field.
+  static Histogram* FactoryGetWithRangeDescription(
+      const std::string& name,
+      Sample minimum,
+      Sample maximum,
+      size_t bucket_count,
+      int32 flags,
+      const DescriptionPair descriptions[]);
+
+  static void InitializeBucketRanges(Sample minimum,
+                                     Sample maximum,
+                                     size_t bucket_count,
+                                     BucketRanges* ranges);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const OVERRIDE;
-
-  // Store a list of number/text values for use in rendering the histogram.
-  // The last element in the array has a null in its "description" slot.
-  virtual void SetRangeDescriptions(
-      const DescriptionPair descriptions[]) OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
  protected:
-  LinearHistogram(const std::string& name, Sample minimum,
-                  Sample maximum, size_t bucket_count);
+  LinearHistogram(const std::string& name,
+                  Sample minimum,
+                  Sample maximum,
+                  size_t bucket_count,
+                  const BucketRanges* ranges);
 
-  LinearHistogram(const std::string& name, TimeDelta minimum,
-                  TimeDelta maximum, size_t bucket_count);
-
-  // Initialize ranges_ mapping in cached_ranges_.
-  void InitializeBucketRange();
   virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
 
   // If we have a description for a bucket, then return that.  Otherwise
@@ -717,14 +645,14 @@ class BASE_EXPORT LinearHistogram : public Histogram {
 // BooleanHistogram is a histogram for booleans.
 class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
-  static Histogram* FactoryGet(const std::string& name, Flags flags);
+  static Histogram* FactoryGet(const std::string& name, int32 flags);
 
-  virtual ClassType histogram_type() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
   virtual void AddBoolean(bool value) OVERRIDE;
 
  private:
-  explicit BooleanHistogram(const std::string& name);
+  BooleanHistogram(const std::string& name, const BucketRanges* ranges);
 
   DISALLOW_COPY_AND_ASSIGN(BooleanHistogram);
 };
@@ -734,77 +662,44 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
 // CustomHistogram is a histogram for a set of custom integers.
 class BASE_EXPORT CustomHistogram : public Histogram {
  public:
-
+  // |custom_ranges| contains a vector of limits on ranges. Each limit should be
+  // > 0 and < kSampleType_MAX. (Currently 0 is still accepted for backward
+  // compatibility). The limits can be unordered or contain duplication, but
+  // client should not depend on this.
   static Histogram* FactoryGet(const std::string& name,
                                const std::vector<Sample>& custom_ranges,
-                               Flags flags);
+                               int32 flags);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
   // Helper method for transforming an array of valid enumeration values
   // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
   // This function ensures that a guard bucket exists right after any
   // valid sample value (unless the next higher sample is also a valid value),
   // so that invalid samples never fall into the same bucket as valid samples.
+  // TODO(kaiwang): Change name to ArrayToCustomEnumRanges.
   static std::vector<Sample> ArrayToCustomRanges(const Sample* values,
                                                  size_t num_values);
 
   // Helper for deserializing CustomHistograms.  |*ranges| should already be
   // correctly sized before this call.  Return true on success.
   static bool DeserializeRanges(PickleIterator* iter,
-                                std::vector<Histogram::Sample>* ranges);
-
-
+                                std::vector<Sample>* ranges);
  protected:
   CustomHistogram(const std::string& name,
-                  const std::vector<Sample>& custom_ranges);
+                  const BucketRanges* ranges);
 
   virtual bool SerializeRanges(Pickle* pickle) const OVERRIDE;
 
-  // Initialize ranges_ mapping in cached_ranges_.
-  void InitializedCustomBucketRange(const std::vector<Sample>& custom_ranges);
   virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
 
-  DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
-};
-
-// CachedRanges stores the Ranges vector. Histograms that have same Ranges
-// vector will use the same CachedRanges object.
-class BASE_EXPORT CachedRanges {
- public:
-  typedef std::vector<Histogram::Sample> Ranges;
-
-  CachedRanges(size_t bucket_count, int initial_value);
-  ~CachedRanges();
-
-  //----------------------------------------------------------------------------
-  // Accessors methods for ranges_ and range_checksum_.
-  //----------------------------------------------------------------------------
-  size_t size() const { return ranges_.size(); }
-  Histogram::Sample ranges(size_t i) const { return ranges_[i]; }
-  void SetBucketRange(size_t i, Histogram::Sample value);
-  uint32 range_checksum(uint32 checksum) const { return range_checksum_; }
-  void SetRangeChecksum(uint32 checksum) { range_checksum_ = checksum; }
-
-  // Return true iff |other| object has same ranges_ as |this| object's ranges_.
-  bool Equals(CachedRanges* other) const;
-
  private:
-  // Allow tests to corrupt our innards for testing purposes.
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
+  static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);
+  static BucketRanges* CreateBucketRangesFromCustomRanges(
+      const std::vector<Sample>& custom_ranges);
 
-  // A monotonically increasing list of values which determine which bucket to
-  // put a sample into.  For each index, show the smallest sample that can be
-  // added to the corresponding bucket.
-  Ranges ranges_;
-
-  // Checksum for the conntents of ranges_.  Used to detect random over-writes
-  // of our data, and to quickly see if some other CachedRanges instance is
-  // possibly Equal() to this instance.
-  uint32 range_checksum_;
-
-  DISALLOW_COPY_AND_ASSIGN(CachedRanges);
+  DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };
 
 }  // namespace base

@@ -67,7 +67,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   void OnStreamReady(Job* job,
                      const SSLConfig& used_ssl_config,
                      const ProxyInfo& used_proxy_info,
-                     HttpStream* stream);
+                     HttpStreamBase* stream);
   void OnStreamFailed(Job* job, int status, const SSLConfig& used_ssl_config);
   void OnCertificateError(Job* job,
                           int status,
@@ -86,7 +86,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
       const HttpResponseInfo& response_info,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
-      HttpStream* stream);
+      HttpStreamBase* stream);
 
   // HttpStreamRequest methods.
 

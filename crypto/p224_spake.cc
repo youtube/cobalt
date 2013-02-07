@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <crypto/p224_spake.h>
 
 #include <base/logging.h>
-#include <base/rand_util.h>
 #include <crypto/p224.h>
+#include <crypto/random.h>
 #include <crypto/secure_util.h>
 
 namespace {
@@ -103,7 +103,7 @@ P224EncryptedKeyExchange::P224EncryptedKeyExchange(
   memset(&expected_authenticator_, 0, sizeof(expected_authenticator_));
 
   // x_ is a random scalar.
-  base::RandBytes(x_, sizeof(x_));
+  RandBytes(x_, sizeof(x_));
 
   // X = g**x_
   p224::Point X;

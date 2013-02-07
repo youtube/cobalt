@@ -109,9 +109,6 @@
             'cflags': [
               '<!@(<(pkg-config) --cflags libpng)',
             ],
-            'defines': [
-              'USE_SYSTEM_LIBPNG',
-            ],
           },
           'link_settings': {
             'ldflags': [
@@ -121,6 +118,16 @@
               '<!@(<(pkg-config) --libs-only-l libpng)',
             ],
           },
+          'variables': {
+            'headers_root_path': '.',
+            'header_filenames': [
+              'png.h',
+              'pngconf.h',
+            ],
+          },
+          'includes': [
+            '../../build/shim_headers.gypi',
+          ],
         },
       ],
     }],

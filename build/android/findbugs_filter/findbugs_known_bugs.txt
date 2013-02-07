@@ -1,0 +1,142 @@
+H B Nm: The class name org.chromium.content.browser.test.util.TouchUtils shadows the simple name of the superclass android.test.TouchUtils  At TouchUtils.java
+H C EC: Using pointer equality to compare a JavaBridgeCoercionTest$CustomType with a JavaBridgeCoercionTest$CustomType2 in org.chromium.content.browser.JavaBridgeCoercionTest.testPassJavaObject()  At JavaBridgeCoercionTest.java
+H D RCN: Redundant nullcheck of org.chromium.content.browser.SandboxedProcessConnection.mConnectionParams, which is known to be non-null in org.chromium.content.browser.SandboxedProcessConnection.doConnectionSetup()  Redundant null check at SandboxedProcessConnection.java
+M D ST: Write to static field org.chromium.content.app.SandboxedProcessService.sContext from instance method org.chromium.content.app.SandboxedProcessService.onCreate()  At SandboxedProcessService.java
+H D ST: Write to static field org.chromium.net.test.util.TestWebServer.sInstance from instance method org.chromium.net.test.util.TestWebServer.shutdown()  At TestWebServer.java
+H V MS: org.chromium.android_webview.test.AndroidWebViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At AndroidWebViewTestBase.java
+H V MS: org.chromium.android_webview.test.LoadDataWithBaseUrlTest.WAIT_TIMEOUT_SECONDS isn't final but should be  At LoadDataWithBaseUrlTest.java
+H V MS: org.chromium.content.browser.ContentViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At ContentViewTestBase.java
+H V MS: org.chromium.content.browser.test.util.CallbackHelper.WAIT_TIMEOUT_SECONDS isn't final but should be  At CallbackHelper.java
+H V MS: org.chromium.content.browser.test.util.HistoryUtils.WAIT_TIMEOUT_SECONDS isn't final but should be  At HistoryUtils.java
+M B DE: org.chromium.net.X509Util.clearTestRootCertificates() might ignore java.io.IOException  At X509Util.java
+M B Nm: The method name org.chromium.base.test.util.ScalableTimeout.ScaleTimeout(long) doesn't start with a lower case letter  At ScalableTimeout.java
+M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.doArchiveTest(AwContents, String, boolean, String)  At ArchiveTest.java
+M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
+M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testExplicitBadPath()  At ArchiveTest.java
+M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testExplicitGoodPath()  At ArchiveTest.java
+M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.base.test.util.TestFileUtil.deleteFile(String)  At TestFileUtil.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At HttpAuthDatabase.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeArrayCoercionTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeArrayTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeBasicsTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeChildFrameTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeCoercionTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeFieldsTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeReturnValuesTest.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At JavaBridgeTestBase.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At PerfTraceEvent.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SandboxedProcessConnection.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SandboxedProcessLauncher.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SimpleSynchronizedMethod.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At SimpleSynchronizedStaticMethod.java
+M C CSM: Shouldn't use synchronized method, please narrow down the synchronization scope.  At TraceEvent.java
+M C CST: Shouldn't use synchronized(this), please narrow down the synchronization scope.  At HttpAuthDatabase.java
+M C CST: Shouldn't use synchronized(this), please narrow down the synchronization scope.  At SimpleSynchronizedThis.java
+M C IJU: TestCase org.chromium.android_webview.test.AndroidWebViewTestBase defines setUp that doesn't call super.setUp()  At AndroidWebViewTestBase.java
+M C IJU: TestCase org.chromium.android_webview.test.ArchiveTest defines setUp that doesn't call super.setUp()  At ArchiveTest.java
+M C IJU: TestCase org.chromium.android_webview.test.HttpAuthDatabaseTest defines setUp that doesn't call super.setUp()  At HttpAuthDatabaseTest.java
+M C IJU: TestCase org.chromium.android_webview.test.HttpAuthDatabaseTest defines tearDown that doesn't call super.tearDown()  At HttpAuthDatabaseTest.java
+M C IJU: TestCase org.chromium.chrome.testshell.ProviderBookmarkNodeTest defines setUp that doesn't call super.setUp()  At ProviderBookmarkNodeTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$10.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$11.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$11.method(int) defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$11.method(int, int) defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$14$1.method(int) defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$14.getInnerObject() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$15.getInnerObject() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$17.captureThreadId() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$19.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1Base.method(int) defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1InnerObject.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1Test.safe() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1Test.unsafe() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1TestObject.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$1TestReturner.getTest() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$20.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$24.allowed() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$25.allowed() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$25.disallowed() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$2Test.checkJavascriptInterfaceFoo() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$2Test.checkTestAnnotationFoo() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$3Base.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$3Test.allowed() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$3Test.blocked() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$4Base.base() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$7.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$8.method2() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C UMAC: Uncallable method org.chromium.content.browser.JavaBridgeBasicsTest$9.method() defined in anonymous class  At JavaBridgeBasicsTest.java
+M C USELESS_STRING: Invocation of toString on certChain in org.chromium.net.X509Util.verifyServerCertificates(byte[][], String)  At X509Util.java
+M D DLS: Dead store to context in org.chromium.android_webview.test.AndroidWebViewTestBase.createAwTestContainerViewOnMainSync(boolean, AwContentsClient)  At AndroidWebViewTestBase.java
+M D DLS: Dead store to eventTime in org.chromium.content.browser.LongPressDetectorTest$1.run()  At LongPressDetectorTest.java
+M D DLS: Dead store to prevEditableLength in org.chromium.content.browser.ImeAdapter$AdapterInputConnection.setEditableText(String, int, int, int, int)  At ImeAdapter.java
+M D DLS: Dead store to testUrl in org.chromium.android_webview.test.ClientOnPageFinishedTest.testOnPageFinishedNotCalledForValidSubresources()  At ClientOnPageFinishedTest.java
+M D DLS: Dead store to time in org.chromium.net.test.util.TestWebServer.setDateHeaders(HttpResponse)  At TestWebServer.java
+M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
+M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testExplicitBadPath()  At ArchiveTest.java
+M D ICAST: integral division result cast to double or float in org.chromium.content.browser.HandleView.setOrientation(int)  At HandleView.java
+M D REC: Exception is caught when Exception is not thrown in org.chromium.content.browser.test.util.UiUtils.findParentViewForIdAcrossActivities(int)  At UiUtils.java
+M D SF: Switch statement found in org.chromium.chrome.browser.ChromeBrowserProvider.insert(Uri, ContentValues) where one case falls through to the next case  At ChromeBrowserProvider.java
+M D SF: Switch statement found in org.chromium.chrome.browser.database.SQLiteCursor.fillWindow(int, CursorWindow) where default case is missing  At SQLiteCursor.java
+M D SF: Switch statement found in org.chromium.content.browser.ContentSettings$EventHandler$1.handleMessage(Message) where default case is missing  At ContentSettings.java
+M D SF: Switch statement found in org.chromium.content.browser.HandleView.onTouchEvent(MotionEvent) where default case is missing  At HandleView.java
+M D SF: Switch statement found in org.chromium.content.browser.ImeAdapter$AdapterInputConnection.performEditorAction(int) where default case is missing  At ImeAdapter.java
+M D ST: Write to static field org.chromium.net.test.util.TestWebServer.sInstance from instance method new org.chromium.net.test.util.TestWebServer(boolean)  At TestWebServer.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeBasicsTest$21.field  At JavaBridgeBasicsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.booleanField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.byteField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.charField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.customTypeField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.doubleField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.floatField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.intField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.longField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.objectField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.shortField  At JavaBridgeFieldsTest.java
+M D UrF: Unread public/protected field: org.chromium.content.browser.JavaBridgeFieldsTest$TestObject.stringField  At JavaBridgeFieldsTest.java
+M D UuF: Unused public or protected field: org.chromium.content.browser.JavaBridgeBasicsTest$19.field  In JavaBridgeBasicsTest.java
+M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mPID; locked 66% of time  Unsynchronized access at SandboxedProcessConnection.java
+M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mService; locked 55% of time  Unsynchronized access at SandboxedProcessConnection.java
+M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedProcessConnection.mServiceConnectComplete; locked 60% of time  Unsynchronized access at SandboxedProcessConnection.java
+M M LI: Incorrect lazy initialization and update of static field org.chromium.base.SystemMonitor.sInstance in org.chromium.base.SystemMonitor.create(Context)  At SystemMonitor.java
+M M LI: Incorrect lazy initialization and update of static field org.chromium.content.browser.ContentVideoView.sContentVideoView in org.chromium.content.browser.ContentVideoView.createContentVideoView(int)  At ContentVideoView.java
+M M LI: Incorrect lazy initialization and update of static field org.chromium.net.test.util.TestWebServer.sReasons in org.chromium.net.test.util.TestWebServer.createResponse(int)  At TestWebServer.java
+M M LI: Incorrect lazy initialization of static field org.chromium.net.NetworkChangeNotifier.sInstance in org.chromium.net.NetworkChangeNotifier.init(Context)  At NetworkChangeNotifier.java
+M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getBooleanValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setBooleanValue(boolean) is synchronized  At JavaBridgeReturnValuesTest.java
+M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getStringValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setStringValue(String) is synchronized  At JavaBridgeReturnValuesTest.java
+M P SIC: Should org.chromium.android_webview.test.TestAwContentsClient$AddMessageToConsoleHelper be a _static_ inner class?  At TestAwContentsClient.java
+M P SIC: Should org.chromium.android_webview.test.TestContentProvider$ProviderStateCursor be a _static_ inner class?  At TestContentProvider.java
+M P SIC: Should org.chromium.content.browser.ContentViewGestureHandlerTest$GestureRecordingMotionEventDelegate$GestureEvent be a _static_ inner class?  At ContentViewGestureHandlerTest.java
+M P SIC: Should org.chromium.content.browser.JavaBridgeArrayCoercionTest$CustomType be a _static_ inner class?  At JavaBridgeArrayCoercionTest.java
+M P SIC: Should org.chromium.content.browser.JavaBridgeFieldsTest$CustomType be a _static_ inner class?  At JavaBridgeFieldsTest.java
+M P SIC: Should org.chromium.content.browser.JavaBridgeReturnValuesTest$CustomType be a _static_ inner class?  At JavaBridgeReturnValuesTest.java
+M P SIC: Should org.chromium.content.browser.PopupZoomerTest$CustomCanvasPopupZoomer be a _static_ inner class?  At PopupZoomerTest.java
+M P SS: Unread field: org.chromium.android_webview.test.util.ImagePageGenerator.IMAGE_PREFIX; should this field be static?  At ImagePageGenerator.java
+M P SS: Unread field: org.chromium.android_webview.test.util.ImagePageGenerator.IMAGE_SUFFIX; should this field be static?  At ImagePageGenerator.java
+M P SS: Unread field: org.chromium.native_test.ChromeNativeTestActivity.EXTRA_RUN_IN_SUB_THREAD; should this field be static?  At ChromeNativeTestActivity.java
+M P SS: Unread field: org.chromium.native_test.ChromeNativeTestActivity.TAG; should this field be static?  At ChromeNativeTestActivity.java
+M P UrF: Unread field: org.chromium.content.browser.ContentViewGestureHandlerTest$MockListener.mLastFling2  At ContentViewGestureHandlerTest.java
+M P UrF: Unread field: org.chromium.content.browser.ContentViewGestureHandlerTest$MockListener.mLastScroll1  At ContentViewGestureHandlerTest.java
+M P UrF: Unread field: org.chromium.content.browser.ContentViewGestureHandlerTest$MockListener.mLastScroll2  At ContentViewGestureHandlerTest.java
+M P UrF: Unread field: org.chromium.content.browser.ContentViewGestureHandlerTest$MockListener.mLastScrollDistanceX  At ContentViewGestureHandlerTest.java
+M P UrF: Unread field: org.chromium.content.browser.ContentViewGestureHandlerTest$MockListener.mLastScrollDistanceY  At ContentViewGestureHandlerTest.java
+M P UrF: Unread field: org.chromium.content.browser.HandleView.mHeight  At HandleView.java
+M P UuF: Unused field: org.chromium.content.browser.HandleView.mLongPressCallback  In HandleView.java
+M P UuF: Unused field: org.chromium.content.browser.JavaBridgeBasicsTest$19.privateField  In JavaBridgeBasicsTest.java
+M P UuF: Unused field: org.chromium.content.browser.JavaBridgeBasicsTest$23.field  In JavaBridgeBasicsTest.java
+M V EI2: new org.chromium.chrome.browser.FindMatchRectsDetails(int, RectF[], RectF) may expose internal representation by storing an externally mutable object into FindMatchRectsDetails.rects  At FindMatchRectsDetails.java
+M V EI2: org.chromium.chrome.browser.ChromeBrowserProvider$BookmarkNode.setFavicon(byte[]) may expose internal representation by storing an externally mutable object into ChromeBrowserProvider$BookmarkNode.mFavicon  At ChromeBrowserProvider.java
+M V EI2: org.chromium.chrome.browser.ChromeBrowserProvider$BookmarkNode.setThumbnail(byte[]) may expose internal representation by storing an externally mutable object into ChromeBrowserProvider$BookmarkNode.mThumbnail  At ChromeBrowserProvider.java
+M V EI2: org.chromium.content.browser.LoadUrlParams.setPostData(byte[]) may expose internal representation by storing an externally mutable object into LoadUrlParams.mPostData  At LoadUrlParams.java
+M V EI: org.chromium.chrome.browser.ChromeBrowserProvider$BookmarkNode.favicon() may expose internal representation by returning ChromeBrowserProvider$BookmarkNode.mFavicon  At ChromeBrowserProvider.java
+M V EI: org.chromium.chrome.browser.ChromeBrowserProvider$BookmarkNode.thumbnail() may expose internal representation by returning ChromeBrowserProvider$BookmarkNode.mThumbnail  At ChromeBrowserProvider.java
+M V MS: org.chromium.android_webview.AwResource.RAW_LOAD_ERROR isn't final and can't be protected from malicious code   In AwResource.java
+M V MS: org.chromium.android_webview.AwResource.RAW_NO_DOMAIN isn't final and can't be protected from malicious code   In AwResource.java
+M V MS: org.chromium.android_webview.AwResource.STRING_DEFAULT_TEXT_ENCODING isn't final and can't be protected from malicious code   In AwResource.java
+M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_BROWSER_INITIATED_HTTP_POST should be package protected  In LoadUrlParams.java
+M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_DATA isn't final and can't be protected from malicious code   In LoadUrlParams.java
+M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_DEFAULT should be package protected  In LoadUrlParams.java
+M V MS: org.chromium.content.browser.LoadUrlParams.UA_OVERRIDE_INHERIT should be package protected  In LoadUrlParams.java
+M V MS: org.chromium.content.browser.LoadUrlParams.UA_OVERRIDE_TRUE should be package protected  In LoadUrlParams.java
+M C RCN: Nullcheck of GestureDetector.mVelocityTracker at line 630 of value previously dereferenced in org.chromium.content.browser.third_party.GestureDetector.onTouchEvent(MotionEvent)  At GestureDetector.java
+M D SF: Switch statement found in org.chromium.content.browser.third_party.GestureDetector.onTouchEvent(MotionEvent) where default case is missing  At GestureDetector.java
+M D ST: Write to static field org.chromium.content.browser.ContentSettings.sAppCachePathIsSet from instance method org.chromium.content.browser.ContentSettings.setAppCachePath(String)  At ContentSettings.java

@@ -24,6 +24,8 @@ namespace net {
 class HttpResponseHeaders;
 class HttpResponseInfo;
 class HttpTransaction;
+class HttpUserAgentSettings;
+class UploadDataStream;
 class URLRequestContext;
 
 // A URLRequestJob subclass that is built on top of HttpTransaction.  It
@@ -31,10 +33,13 @@ class URLRequestContext;
 class URLRequestHttpJob : public URLRequestJob {
  public:
   static URLRequestJob* Factory(URLRequest* request,
+                                NetworkDelegate* network_delegate,
                                 const std::string& scheme);
 
  protected:
-  explicit URLRequestHttpJob(URLRequest* request);
+  URLRequestHttpJob(URLRequest* request,
+                    NetworkDelegate* network_delegate,
+                    const HttpUserAgentSettings* http_user_agent_settings);
 
   // Shadows URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();
@@ -65,13 +70,13 @@ class URLRequestHttpJob : public URLRequestJob {
   void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
   // Overridden from URLRequestJob:
-  virtual void SetUpload(UploadData* upload) OVERRIDE;
+  virtual void SetUpload(UploadDataStream* upload) OVERRIDE;
   virtual void SetExtraRequestHeaders(
       const HttpRequestHeaders& headers) OVERRIDE;
   virtual void Start() OVERRIDE;
   virtual void Kill() OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
   virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
   virtual bool GetCharset(std::string* charset) OVERRIDE;
   virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;
@@ -142,6 +147,7 @@ class URLRequestHttpJob : public URLRequestJob {
   typedef base::RefCountedData<bool> SharedBoolean;
 
   class HttpFilterContext;
+  class HttpTransactionDelegateImpl;
 
   virtual ~URLRequestHttpJob();
 
@@ -157,6 +163,9 @@ class URLRequestHttpJob : public URLRequestJob {
   // Starts the transaction if extensions using the webrequest API do not
   // object.
   void StartTransaction();
+  // If |result| is net::OK, calls StartTransactionInternal. Otherwise notifies
+  // cancellation.
+  void MaybeStartTransactionInternal(int result);
   void StartTransactionInternal();
 
   void RecordPerfHistograms(CompletionCause reason);
@@ -186,6 +195,9 @@ class URLRequestHttpJob : public URLRequestJob {
   // Returns the effective response headers, considering that they may be
   // overridden by |override_response_headers_|.
   HttpResponseHeaders* GetResponseHeaders() const;
+
+  // Override of the private interface of URLRequestJob.
+  virtual void OnDetachRequest() OVERRIDE;
 
   base::Time request_creation_time_;
 
@@ -233,6 +245,10 @@ class URLRequestHttpJob : public URLRequestJob {
   // NetworkDelegate::NotifyURLRequestDestroyed has not been called, yet,
   // to inform the NetworkDelegate that it may not call back.
   bool awaiting_callback_;
+
+  scoped_ptr<HttpTransactionDelegateImpl> http_transaction_delegate_;
+
+  const HttpUserAgentSettings* http_user_agent_settings_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

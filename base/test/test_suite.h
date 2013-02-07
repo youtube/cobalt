@@ -52,8 +52,6 @@ class TestSuite {
 
   void ResetCommandLine();
 
-  void WatchAtExitManager();
-
   int Run();
 
   // A command-line flag that makes a test failure always result in a non-zero

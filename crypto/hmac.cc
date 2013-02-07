@@ -47,7 +47,7 @@ bool HMAC::VerifyTruncated(const base::StringPiece& data,
   size_t digest_length = DigestLength();
   scoped_array<unsigned char> computed_digest(
       new unsigned char[digest_length]);
-  if (!Sign(data, computed_digest.get(), static_cast<int>(digest_length)))
+  if (!Sign(data, computed_digest.get(), digest_length))
     return false;
 
   return SecureMemEqual(digest.data(), computed_digest.get(),

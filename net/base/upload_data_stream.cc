@@ -4,12 +4,11 @@
 
 #include "net/base/upload_data_stream.h"
 
-#include "base/file_util.h"
 #include "base/logging.h"
-#include "base/threading/thread_restrictions.h"
-#include "net/base/file_stream.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_element_reader.h"
 
 namespace net {
 
@@ -21,97 +20,261 @@ void UploadDataStream::ResetMergeChunks() {
   merge_chunks_ = true;
 }
 
-UploadDataStream::UploadDataStream(UploadData* upload_data)
-    : upload_data_(upload_data),
-      element_index_(0),
+UploadDataStream::UploadDataStream(
+    ScopedVector<UploadElementReader>* element_readers,
+    int64 identifier)
+    : element_index_(0),
       total_size_(0),
       current_position_(0),
-      initialized_successfully_(false) {
+      identifier_(identifier),
+      is_chunked_(false),
+      last_chunk_appended_(false),
+      initialized_successfully_(false),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+  element_readers_.swap(*element_readers);
+}
+
+UploadDataStream::UploadDataStream(Chunked /*chunked*/, int64 identifier)
+    : element_index_(0),
+      total_size_(0),
+      current_position_(0),
+      identifier_(identifier),
+      is_chunked_(true),
+      last_chunk_appended_(false),
+      initialized_successfully_(false),
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
 }
 
 UploadDataStream::~UploadDataStream() {
 }
 
-int UploadDataStream::Init() {
-  DCHECK(!initialized_successfully_);
+UploadDataStream* UploadDataStream::CreateWithReader(
+    scoped_ptr<UploadElementReader> reader,
+    int64 identifier) {
+  ScopedVector<UploadElementReader> readers;
+  readers.push_back(reader.release());
+  return new UploadDataStream(&readers, identifier);
+}
 
-  {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    total_size_ = upload_data_->GetContentLengthSync();
+int UploadDataStream::Init(const CompletionCallback& callback) {
+  Reset();
+  // Use fast path when initialization can be done synchronously.
+  if (IsInMemory())
+    return InitSync();
+
+  return InitInternal(0, callback);
+}
+
+int UploadDataStream::InitSync() {
+  Reset();
+  // Initialize all readers synchronously.
+  for (size_t i = 0; i < element_readers_.size(); ++i) {
+    UploadElementReader* reader = element_readers_[i];
+    const int result = reader->InitSync();
+    if (result != OK)
+      return result;
   }
 
-  // If the underlying file has been changed and the expected file
-  // modification time is set, treat it as error. Note that the expected
-  // modification time from WebKit is based on time_t precision. So we
-  // have to convert both to time_t to compare. This check is used for
-  // sliced files.
-  const std::vector<UploadData::Element>& elements = *upload_data_->elements();
-  for (size_t i = 0; i < elements.size(); ++i) {
-    const UploadData::Element& element = elements[i];
-    if (element.type() == UploadData::TYPE_FILE &&
-        !element.expected_file_modification_time().is_null()) {
-      // Temporarily allow until fix: http://crbug.com/72001.
-      base::ThreadRestrictions::ScopedAllowIO allow_io;
-      base::PlatformFileInfo info;
-      if (file_util::GetFileInfo(element.file_path(), &info) &&
-          element.expected_file_modification_time().ToTimeT() !=
-          info.last_modified.ToTimeT()) {
-        return ERR_UPLOAD_FILE_CHANGED;
-      }
-    }
-  }
-
-  // Reset the offset, as upload_data_ may already be read (i.e. UploadData
-  // can be reused for a new UploadDataStream).
-  upload_data_->ResetOffset();
-
-  initialized_successfully_ = true;
+  FinalizeInitialization();
   return OK;
 }
 
-int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
-  std::vector<UploadData::Element>& elements = *upload_data_->elements();
+int UploadDataStream::Read(IOBuffer* buf,
+                           int buf_len,
+                           const CompletionCallback& callback) {
+  DCHECK(initialized_successfully_);
+  DCHECK(!callback.is_null());
+  DCHECK_GT(buf_len, 0);
+  return ReadInternal(new DrainableIOBuffer(buf, buf_len), callback);
+}
 
-  int bytes_copied = 0;
-  while (bytes_copied < buf_len && element_index_ < elements.size()) {
-    UploadData::Element& element = elements[element_index_];
-
-    bytes_copied += element.ReadSync(buf->data() + bytes_copied,
-                                     buf_len - bytes_copied);
-
-    if (element.BytesRemaining() == 0)
-        ++element_index_;
-
-    if (is_chunked() && !merge_chunks_)
-      break;
-  }
-
-  current_position_ += bytes_copied;
-  if (is_chunked() && !IsEOF() && bytes_copied == 0)
-    return ERR_IO_PENDING;
-
-  return bytes_copied;
+int UploadDataStream::ReadSync(IOBuffer* buf, int buf_len) {
+  DCHECK(initialized_successfully_);
+  DCHECK_GT(buf_len, 0);
+  return ReadInternal(new DrainableIOBuffer(buf, buf_len),
+                      CompletionCallback());
 }
 
 bool UploadDataStream::IsEOF() const {
-  const std::vector<UploadData::Element>& elements = *upload_data_->elements();
-
+  DCHECK(initialized_successfully_);
   // Check if all elements are consumed.
-  if (element_index_ == elements.size()) {
-    // If the upload data is chunked, check if the last element is the
-    // last chunk.
-    if (!upload_data_->is_chunked() ||
-        (!elements.empty() && elements.back().is_last_chunk())) {
+  if (element_index_ == element_readers_.size()) {
+    // If the upload data is chunked, check if the last chunk is appended.
+    if (!is_chunked_ || last_chunk_appended_)
       return true;
-    }
   }
   return false;
 }
 
 bool UploadDataStream::IsInMemory() const {
+  // Chunks are in memory, but UploadData does not have all the chunks at
+  // once. Chunks are provided progressively with AppendChunk() as chunks
+  // are ready. Check is_chunked_ here, rather than relying on the loop
+  // below, as there is a case that is_chunked_ is set to true, but the
+  // first chunk is not yet delivered.
+  if (is_chunked_)
+    return false;
+
+  for (size_t i = 0; i < element_readers_.size(); ++i) {
+    if (!element_readers_[i]->IsInMemory())
+      return false;
+  }
+  return true;
+}
+
+void UploadDataStream::AppendChunk(const char* bytes,
+                                   int bytes_len,
+                                   bool is_last_chunk) {
+  DCHECK(is_chunked_);
+  DCHECK(!last_chunk_appended_);
+  last_chunk_appended_ = is_last_chunk;
+
+  // Initialize a reader for the newly appended chunk. We leave |total_size_| at
+  // zero, since for chunked uploads, we may not know the total size.
+  std::vector<char> data(bytes, bytes + bytes_len);
+  UploadElementReader* reader = new UploadOwnedBytesElementReader(&data);
+  const int rv = reader->InitSync();
+  DCHECK_EQ(OK, rv);
+  element_readers_.push_back(reader);
+
+  // Resume pending read.
+  if (!pending_chunked_read_callback_.is_null()) {
+    base::Closure callback = pending_chunked_read_callback_;
+    pending_chunked_read_callback_.Reset();
+    callback.Run();
+  }
+}
+
+void UploadDataStream::Reset() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  pending_chunked_read_callback_.Reset();
+  initialized_successfully_ = false;
+  current_position_ = 0;
+  total_size_ = 0;
+  element_index_ = 0;
+}
+
+int UploadDataStream::InitInternal(int start_index,
+                                   const CompletionCallback& callback) {
+  DCHECK(!initialized_successfully_);
+
+  // Call Init() for all elements.
+  for (size_t i = start_index; i < element_readers_.size(); ++i) {
+    UploadElementReader* reader = element_readers_[i];
+    // When new_result is ERR_IO_PENDING, InitInternal() will be called
+    // with start_index == i + 1 when reader->Init() finishes.
+    const int result = reader->Init(
+        base::Bind(&UploadDataStream::ResumePendingInit,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   i + 1,
+                   callback));
+    if (result != OK)
+      return result;
+  }
+
+  // Finalize initialization.
+  FinalizeInitialization();
+  return OK;
+}
+
+void UploadDataStream::ResumePendingInit(int start_index,
+                                         const CompletionCallback& callback,
+                                         int previous_result) {
+  DCHECK(!initialized_successfully_);
+  DCHECK(!callback.is_null());
+  DCHECK_NE(ERR_IO_PENDING, previous_result);
+
+  // Check the last result.
+  if (previous_result != OK) {
+    callback.Run(previous_result);
+    return;
+  }
+
+  const int result = InitInternal(start_index, callback);
+  if (result != ERR_IO_PENDING)
+    callback.Run(result);
+}
+
+void UploadDataStream::FinalizeInitialization() {
+  DCHECK(!initialized_successfully_);
+  if (!is_chunked_) {
+    uint64 total_size = 0;
+    for (size_t i = 0; i < element_readers_.size(); ++i) {
+      UploadElementReader* reader = element_readers_[i];
+      total_size += reader->GetContentLength();
+    }
+    total_size_ = total_size;
+  }
+  initialized_successfully_ = true;
+}
+
+int UploadDataStream::ReadInternal(scoped_refptr<DrainableIOBuffer> buf,
+                                   const CompletionCallback& callback) {
   DCHECK(initialized_successfully_);
 
-  return upload_data_->IsInMemory();
+  while (element_index_ < element_readers_.size()) {
+    UploadElementReader* reader = element_readers_[element_index_];
+
+    if (reader->BytesRemaining() == 0) {
+      ++element_index_;
+      continue;
+    }
+
+    if (buf->BytesRemaining() == 0)
+      break;
+
+    // Some tests need chunks to be kept unmerged.
+    if (!merge_chunks_ && is_chunked_ && buf->BytesConsumed())
+      break;
+
+    int result = OK;
+    if (!callback.is_null()) {
+      result = reader->Read(
+          buf,
+          buf->BytesRemaining(),
+          base::Bind(base::IgnoreResult(&UploadDataStream::ResumePendingRead),
+                     weak_ptr_factory_.GetWeakPtr(),
+                     buf,
+                     callback));
+    } else {
+      result = reader->ReadSync(buf, buf->BytesRemaining());
+      DCHECK_NE(ERR_IO_PENDING, result);
+    }
+    if (result == ERR_IO_PENDING)
+      return ERR_IO_PENDING;
+    DCHECK_GE(result, 0);
+    buf->DidConsume(result);
+  }
+
+  const int bytes_copied = buf->BytesConsumed();
+  current_position_ += bytes_copied;
+
+  if (is_chunked_ && !IsEOF() && bytes_copied == 0) {
+    DCHECK(!callback.is_null());
+    DCHECK(pending_chunked_read_callback_.is_null());
+    pending_chunked_read_callback_ =
+        base::Bind(&UploadDataStream::ResumePendingRead,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   buf,
+                   callback,
+                   OK);
+    return ERR_IO_PENDING;
+  }
+  return bytes_copied;
+}
+
+void UploadDataStream::ResumePendingRead(scoped_refptr<DrainableIOBuffer> buf,
+                                         const CompletionCallback& callback,
+                                         int previous_result) {
+  DCHECK_GE(previous_result, 0);
+
+  // Add the last result.
+  buf->DidConsume(previous_result);
+
+  DCHECK(!callback.is_null());
+  const int result = ReadInternal(buf, callback);
+  if (result != ERR_IO_PENDING)
+    callback.Run(result);
 }
 
 }  // namespace net

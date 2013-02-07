@@ -8,19 +8,21 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
-#include "net/base/upload_data_stream.h"
-#include "net/http/http_chunked_decoder.h"
+#include "net/base/upload_progress.h"
 
 namespace net {
 
 class ClientSocketHandle;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
+class HttpChunkedDecoder;
 struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
@@ -28,8 +30,9 @@ class IOBuffer;
 class IOBufferWithSize;
 class SSLCertRequestInfo;
 class SSLInfo;
+class UploadDataStream;
 
-class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
+class NET_EXPORT_PRIVATE HttpStreamParser {
  public:
   // Any data in |read_buffer| will be used before reading from the socket
   // and any data left over after parsing the stream will be put into
@@ -46,7 +49,6 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   // some additional functionality
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
-                  scoped_ptr<UploadDataStream> request_body,
                   HttpResponseInfo* response,
                   const CompletionCallback& callback);
 
@@ -57,7 +59,9 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   void Close(bool not_reusable);
 
-  uint64 GetUploadProgress() const;
+  // Returns the progress of uploading. When data is chunked, size is set to
+  // zero, but position will not be.
+  UploadProgress GetUploadProgress() const;
 
   HttpResponseInfo* GetResponseInfo();
 
@@ -76,9 +80,6 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   void GetSSLInfo(SSLInfo* ssl_info);
 
   void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
-
-  // ChunkCallback methods.
-  virtual void OnChunkAvailable() OVERRIDE;
 
   // Encodes the given |payload| in the chunked format to |output|.
   // Returns the number of bytes written to |output|. |output_size| should
@@ -112,9 +113,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
     // If the request comes with a body, either of the following two
     // states will be executed, depending on whether the body is chunked
     // or not.
-    STATE_SENDING_CHUNKED_BODY,
-    STATE_SENDING_NON_CHUNKED_BODY,
-    STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE,
+    STATE_SENDING_BODY,
+    STATE_SEND_REQUEST_READING_BODY,
     STATE_REQUEST_SENT,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
@@ -145,9 +145,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // The implementations of each state of the state machine.
   int DoSendHeaders(int result);
-  int DoSendChunkedBody(int result);
-  int DoSendNonChunkedBody(int result);
-  int DoSendRequestWaitForBodyChunkComplete(int result);
+  int DoSendBody(int result);
+  int DoSendRequestReadingBody(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
@@ -174,9 +173,6 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // The request header data.
   scoped_refptr<DrainableIOBuffer> request_headers_;
-
-  // The request body data.
-  scoped_ptr<UploadDataStream> request_body_;
 
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;
@@ -225,13 +221,14 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   // Callback to be used when doing IO.
   CompletionCallback io_callback_;
 
-  // Stores an encoded chunk for chunked uploads.
-  // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<IOBufferWithSize> chunk_buf_;
-  // Temporary buffer to read the request body from UploadDataStream.
-  scoped_refptr<SeekableIOBuffer> request_body_buf_;
-  size_t chunk_length_without_encoding_;
+  // Buffer used to read the request body from UploadDataStream.
+  scoped_refptr<SeekableIOBuffer> request_body_read_buf_;
+  // Buffer used to send the request body. This points the same buffer as
+  // |request_body_read_buf_| unless the data is chunked.
+  scoped_refptr<SeekableIOBuffer> request_body_send_buf_;
   bool sent_last_chunk_;
+
+  base::WeakPtrFactory<HttpStreamParser> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamParser);
 };

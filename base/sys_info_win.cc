@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/win/windows_version.h"
 
 namespace base {
@@ -35,7 +36,24 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 }
 
 // static
+int64 SysInfo::AmountOfAvailablePhysicalMemory() {
+  MEMORYSTATUSEX memory_info;
+  memory_info.dwLength = sizeof(memory_info);
+  if (!GlobalMemoryStatusEx(&memory_info)) {
+    NOTREACHED();
+    return 0;
+  }
+
+  int64 rv = static_cast<int64>(memory_info.ullAvailPhys);
+  if (rv < 0)
+    rv = kint64max;
+  return rv;
+}
+
+// static
 int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   ULARGE_INTEGER available, total, free;
   if (!GetDiskFreeSpaceExW(path.value().c_str(), &available, &total, &free)) {
     return -1;
@@ -71,9 +89,24 @@ std::string SysInfo::OperatingSystemVersion() {
 // See chrome/browser/feedback/feedback_util.h, FeedbackUtil::SetOSVersion.
 
 // static
-std::string SysInfo::CPUArchitecture() {
-  // TODO: Make this vary when we support any other architectures.
-  return "x86";
+std::string SysInfo::OperatingSystemArchitecture() {
+  win::OSInfo::WindowsArchitecture arch =
+      win::OSInfo::GetInstance()->architecture();
+  switch (arch) {
+    case win::OSInfo::X86_ARCHITECTURE:
+      return "x86";
+    case win::OSInfo::X64_ARCHITECTURE:
+      return "x86_64";
+    case win::OSInfo::IA64_ARCHITECTURE:
+      return "ia64";
+    default:
+      return "";
+  }
+}
+
+// static
+std::string SysInfo::CPUModelName() {
+  return win::OSInfo::GetInstance()->processor_model_name();
 }
 
 // static

@@ -1,10 +1,11 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/openssl_private_key_store.h"
 
 #include <openssl/evp.h>
+#include <openssl/x509.h>
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -19,19 +20,30 @@ class OpenSSLKeyStoreAndroid : public OpenSSLPrivateKeyStore {
  public:
   ~OpenSSLKeyStoreAndroid() {}
 
-  // TODO(joth): Use the |url| to help identify this key to the user.
-  // Currently Android has no UI to list these stored private keys (and no
-  // API to associate a name with them), so this is a non-issue.
   virtual bool StorePrivateKey(const GURL& url, EVP_PKEY* pkey) {
-    uint8* public_key = NULL;
-    int public_len = i2d_PublicKey(pkey, &public_key);
-    uint8* private_key = NULL;
-    int private_len = i2d_PrivateKey(pkey, &private_key);
+    // Always clear openssl errors on exit.
+    crypto::OpenSSLErrStackTracer err_trace(FROM_HERE);
 
+    // Important: Do not use i2d_PublicKey() here, which returns data in
+    // PKCS#1 format, use i2d_PUBKEY() which returns it as DER-encoded
+    // SubjectPublicKeyInfo (X.509), as expected by the platform.
+    unsigned char* public_key = NULL;
+    int public_len = i2d_PUBKEY(pkey, &public_key);
+
+    // Important: Do not use i2d_PrivateKey() here, it returns data
+    // in a format that is incompatible with what the platform expects.
+    unsigned char* private_key = NULL;
+    int private_len = 0;
+    crypto::ScopedOpenSSL<PKCS8_PRIV_KEY_INFO,
+        PKCS8_PRIV_KEY_INFO_free> pkcs8(EVP_PKEY2PKCS8(pkey));
+    if (pkcs8.get() != NULL) {
+      private_len = i2d_PKCS8_PRIV_KEY_INFO(pkcs8.get(), &private_key);
+    }
     bool ret = false;
-    if (public_len && private_len) {
-      ret = net::android::StoreKeyPair(public_key, public_len, private_key,
-                                       private_len);
+    if (public_len > 0 && private_len > 0) {
+      ret = net::android::StoreKeyPair(
+            static_cast<const uint8*>(public_key), public_len,
+            static_cast<const uint8*>(private_key), private_len);
     }
     LOG_IF(ERROR, !ret) << "StorePrivateKey failed. pub len = " << public_len
                         << " priv len = " << private_len;
@@ -46,26 +58,28 @@ class OpenSSLKeyStoreAndroid : public OpenSSLPrivateKeyStore {
     return NULL;
   }
 
-  static OpenSSLKeyStoreAndroid* GetInstance();
+  static OpenSSLKeyStoreAndroid* GetInstance() {
+    // Leak the OpenSSL key store as it is used from a non-joinable worker
+    // thread that may still be running at shutdown.
+    return Singleton<
+        OpenSSLKeyStoreAndroid,
+        OpenSSLKeyStoreAndroidLeakyTraits>::get();
+  }
 
  private:
-  OpenSSLKeyStoreAndroid() {}
   friend struct DefaultSingletonTraits<OpenSSLKeyStoreAndroid>;
+  typedef LeakySingletonTraits<OpenSSLKeyStoreAndroid>
+      OpenSSLKeyStoreAndroidLeakyTraits;
+
+  OpenSSLKeyStoreAndroid() {}
 
   DISALLOW_COPY_AND_ASSIGN(OpenSSLKeyStoreAndroid);
 };
 
 }  // namespace
 
-// static
-OpenSSLKeyStoreAndroid* OpenSSLKeyStoreAndroid::GetInstance() {
-  return Singleton<OpenSSLKeyStoreAndroid>::get();
-}
-
-#if 0
-// TODO(MERGE): Conflict with openssl_memory_private_key_store.cc
 OpenSSLPrivateKeyStore* OpenSSLPrivateKeyStore::GetInstance() {
   return OpenSSLKeyStoreAndroid::GetInstance();
 }
-#endif
+
 }  // namespace net

@@ -68,7 +68,7 @@
     }],
     ['<(toolkit_uses_gtk)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [
-        ['exclude', '_gtk(_unittest)?\\.(h|cc)$'],
+        ['exclude', '_gtk(_browsertest|_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)gtk/'],
         ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
       ],
@@ -78,6 +78,7 @@
     }],
     ['<(use_aura)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
+                    ['exclude', '_aura(_browsertest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)aura/'],
       ]
     }],
@@ -88,7 +89,7 @@
       'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
     }],
     ['<(use_ash)==0 or >(nacl_untrusted_build)==1', {
-      'sources/': [ ['exclude', '_ash(_unittest)?\\.(h|cc)$'],
+      'sources/': [ ['exclude', '_ash(_browsertest|_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)ash/'],
       ]
     }],

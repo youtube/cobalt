@@ -8,6 +8,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/base/upload_progress.h"
 
 namespace net {
 
@@ -108,7 +109,7 @@ class NET_EXPORT_PRIVATE HttpTransaction {
 
   // Returns the upload progress in bytes.  If there is no upload data,
   // zero will be returned.  This does not include the request headers.
-  virtual uint64 GetUploadProgress() const = 0;
+  virtual UploadProgress GetUploadProgress() const = 0;
 };
 
 }  // namespace net

@@ -46,6 +46,7 @@
 #include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
+#include "media/base/channel_mixer.h"
 #include "media/base/data_buffer.h"
 #include "media/base/seekable_buffer.h"
 
@@ -72,10 +73,6 @@ static const int kPcmRecoverIsSilent = 1;
 static const int kPcmRecoverIsSilent = 0;
 #endif
 
-// ALSA is currently limited to 48kHz.
-// TODO(fbarchard): Resample audio from higher frequency to 48000.
-static const int kAlsaMaxSampleRate = 48000;
-
 // While the "default" device may support multi-channel audio, in Alsa, only
 // the device names surround40, surround41, surround50, etc, have a defined
 // channel mapping according to Lennart:
@@ -91,7 +88,7 @@ static const int kAlsaMaxSampleRate = 48000;
 // (which is also 5 channels).
 //
 // TODO(ajwong): The source data should have enough info to tell us if we want
-// surround41 versus surround51, etc., instead of needing us to guess base don
+// surround41 versus surround51, etc., instead of needing us to guess based on
 // channel number.  Fix API to pass that data down.
 static const char* GuessSpecificDeviceName(uint32 channels) {
   switch (channels) {
@@ -155,10 +152,10 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
     : requested_device_name_(device_name),
       pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample())),
       channels_(params.channels()),
+      channel_layout_(params.channel_layout()),
       sample_rate_(params.sample_rate()),
       bytes_per_sample_(params.bits_per_sample() / 8),
       bytes_per_frame_(channels_ * params.bits_per_sample() / 8),
-      should_downmix_(false),
       packet_size_(params.GetBytesPerBuffer()),
       micros_per_packet_(FramesToMicros(
           params.frames_per_buffer(), sample_rate_)),
@@ -175,19 +172,14 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       state_(kCreated),
       volume_(1.0f),
-      source_callback_(NULL) {
+      source_callback_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   DCHECK(manager_->GetMessageLoop()->BelongsToCurrentThread());
+  DCHECK_EQ(audio_bus_->frames() * bytes_per_frame_, packet_size_);
 
   // Sanity check input values.
-  if (params.sample_rate() > kAlsaMaxSampleRate ||
-      params.sample_rate() <= 0) {
-    LOG(WARNING) << "Unsupported audio frequency.";
-    TransitionTo(kInError);
-  }
-
-  if (AudioParameters::AUDIO_PCM_LINEAR != params.format() &&
-      AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format()) {
-    LOG(WARNING) << "Unsupported audio format";
+  if (!params.IsValid()) {
+    LOG(WARNING) << "Unsupported audio parameters.";
     TransitionTo(kInError);
   }
 
@@ -240,8 +232,8 @@ bool AlsaPcmOutputStream::Open() {
     TransitionTo(kInError);
     return false;
   } else {
-    bytes_per_output_frame_ = should_downmix_ ? 2 * bytes_per_sample_ :
-        bytes_per_frame_;
+    bytes_per_output_frame_ = channel_mixer_ ?
+        mixed_audio_bus_->channels() * bytes_per_sample_ : bytes_per_frame_;
     uint32 output_packet_size = frames_per_packet_ * bytes_per_output_frame_;
     buffer_.reset(new media::SeekableBuffer(0, output_packet_size));
 
@@ -376,40 +368,34 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
-    int packet_size = RunDataCallback(packet->GetWritableData(),
-                                      packet->GetBufferSize(),
-                                      AudioBuffersState(buffer_delay,
-                                                        hardware_delay));
-    CHECK_LE(packet_size, packet->GetBufferSize());
+    int frames_filled = RunDataCallback(
+        audio_bus_.get(), AudioBuffersState(buffer_delay, hardware_delay));
+    size_t packet_size = frames_filled * bytes_per_frame_;
+    DCHECK_LE(packet_size, packet_size_);
 
     // Reset the |last_fill_time| to avoid back to back RunDataCallback().
     last_fill_time_ = base::Time::Now();
 
-    // This should not happen, but in case it does, drop any trailing bytes
-    // that aren't large enough to make a frame.  Without this, packet writing
-    // may stall because the last few bytes in the packet may never get used by
-    // WritePacket.
-    DCHECK_EQ(0u, packet_size % bytes_per_frame_);
-    packet_size = (packet_size / bytes_per_frame_) * bytes_per_frame_;
-
-    if (should_downmix_) {
-      if (media::FoldChannels(packet->GetWritableData(),
-                              packet_size,
-                              channels_,
-                              bytes_per_sample_,
-                              volume_)) {
-        // Adjust packet size for downmix.
-        packet_size = packet_size / bytes_per_frame_ * bytes_per_output_frame_;
-      } else {
-        LOG(ERROR) << "Folding failed";
-      }
-    } else {
-      media::AdjustVolume(packet->GetWritableData(),
-                          packet_size,
-                          channels_,
-                          bytes_per_sample_,
-                          volume_);
+    // TODO(dalecurtis): Channel downmixing, upmixing, should be done in mixer;
+    // volume adjust should use SSE optimized vector_fmul() prior to interleave.
+    AudioBus* output_bus = audio_bus_.get();
+    if (channel_mixer_) {
+      output_bus = mixed_audio_bus_.get();
+      channel_mixer_->Transform(audio_bus_.get(), output_bus);
+      // Adjust packet size for downmix.
+      packet_size = packet_size / bytes_per_frame_ * bytes_per_output_frame_;
     }
+
+    // Note: If this ever changes to output raw float the data must be clipped
+    // and sanitized since it may come from an untrusted source such as NaCl.
+    output_bus->ToInterleaved(
+        frames_filled, bytes_per_sample_, packet->GetWritableData());
+
+    media::AdjustVolume(packet->GetWritableData(),
+                        packet_size,
+                        output_bus->channels(),
+                        bytes_per_sample_,
+                        volume_);
 
     if (packet_size > 0) {
       packet->SetDataSize(packet_size);
@@ -637,9 +623,9 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
     }
   }
 
-  // snd_pcm_delay() may not work in the beginning of the stream. In this case
-  // return delay of data we know currently is in the ALSA's buffer.
-  if (delay < 0)
+  // snd_pcm_delay() sometimes returns crazy values. In this case return delay
+  // of data we know currently is in ALSA's buffer.
+  if (delay < 0 || static_cast<snd_pcm_uframes_t>(delay) > alsa_buffer_frames_)
     delay = alsa_buffer_frames_ - GetAvailableFrames();
 
   return delay;
@@ -708,12 +694,13 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
   // output to have the correct ordering according to Lennart.  For the channel
   // formats that we know how to downmix from (3 channel to 8 channel), setup
   // downmixing.
-  //
-  // TODO(ajwong): We need a SupportsFolding() function.
   uint32 default_channels = channels_;
-  if (default_channels > 2 && default_channels <= 8) {
-    should_downmix_ = true;
+  if (default_channels > 2) {
+    channel_mixer_.reset(new ChannelMixer(
+        channel_layout_, CHANNEL_LAYOUT_STEREO));
     default_channels = 2;
+    mixed_audio_bus_ = AudioBus::Create(
+        default_channels, audio_bus_->frames());
   }
 
   // Step 3.
@@ -784,13 +771,12 @@ bool AlsaPcmOutputStream::IsOnAudioThread() const {
   return message_loop_ && message_loop_ == MessageLoop::current();
 }
 
-uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
-                                            uint32 max_size,
-                                            AudioBuffersState buffers_state) {
+int AlsaPcmOutputStream::RunDataCallback(AudioBus* audio_bus,
+                                         AudioBuffersState buffers_state) {
   TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
 
   if (source_callback_)
-    return source_callback_->OnMoreData(dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(audio_bus, buffers_state);
 
   return 0;
 }

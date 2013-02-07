@@ -9,7 +9,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
-#include "jni/android_network_library_jni.h"
+#include "jni/AndroidNetworkLibrary_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ClearException;
@@ -26,11 +26,6 @@ namespace android {
 VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
                                  const std::string& auth_type) {
   JNIEnv* env = AttachCurrentThread();
-  if (!env || !g_AndroidNetworkLibrary_verifyServerCertificates) {
-    // TODO(bulach): Remove when we initialize the JVM in unit tests.
-    LOG(WARNING) << "JNI initialization failed";
-    return VERIFY_INVOCATION_ERROR;
-  }
 
   ScopedJavaLocalRef<jobjectArray> chain_byte_array =
       ToJavaArrayOfByteArray(env, cert_chain);
@@ -46,6 +41,18 @@ VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
     return VERIFY_INVOCATION_ERROR;
 
   return trusted ? VERIFY_OK : VERIFY_NO_TRUSTED_ROOT;
+}
+
+void AddTestRootCertificate(const uint8* cert, size_t len) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> cert_array = ToJavaByteArray(env, cert, len);
+  DCHECK(!cert_array.is_null());
+  Java_AndroidNetworkLibrary_addTestRootCertificate(env, cert_array.obj());
+}
+
+void ClearTestRootCertificates() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_AndroidNetworkLibrary_clearTestRootCertificates(env);
 }
 
 bool StoreKeyPair(const uint8* public_key,
@@ -64,9 +71,32 @@ bool StoreKeyPair(const uint8* public_key,
   return ret;
 }
 
+void StoreCertificate(net::CertificateMimeType cert_type,
+                      const void* data,
+                      size_t data_len) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> data_array =
+      ToJavaByteArray(env, reinterpret_cast<const uint8*>(data), data_len);
+  jboolean ret = Java_AndroidNetworkLibrary_storeCertificate(env,
+      GetApplicationContext(), cert_type, data_array.obj());
+  LOG_IF(WARNING, !ret) <<
+      "Call to Java_AndroidNetworkLibrary_storeCertificate"
+      " failed";
+  // Intentionally do not return 'ret', there is little the caller can
+  // do in case of failure (the CertInstaller itself will deal with
+  // incorrect data and display the appropriate toast).
+}
+
 bool HaveOnlyLoopbackAddresses() {
   JNIEnv* env = AttachCurrentThread();
   return Java_AndroidNetworkLibrary_haveOnlyLoopbackAddresses(env);
+}
+
+std::string GetNetworkList() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jstring> ret =
+      Java_AndroidNetworkLibrary_getNetworkList(env);
+  return ConvertJavaStringToUTF8(ret);
 }
 
 bool GetMimeTypeFromExtension(const std::string& extension,
@@ -79,10 +109,8 @@ bool GetMimeTypeFromExtension(const std::string& extension,
       Java_AndroidNetworkLibrary_getMimeTypeFromExtension(
           env, extension_string.obj());
 
-  if (!ret.obj()) {
-    LOG(WARNING) << "Call to getMimeTypeFromExtension failed";
+  if (!ret.obj())
     return false;
-  }
   *result = ConvertJavaStringToUTF8(ret);
   return true;
 }

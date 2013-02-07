@@ -19,6 +19,10 @@ class NET_EXPORT ServerSocket {
   ServerSocket() { }
   virtual ~ServerSocket() { }
 
+  // Allows the socket to share the local address to which the socket will be
+  // bound with other processes. Should be called before Listen().
+  virtual void AllowAddressReuse() = 0;
+
   // Bind the socket and start listening. Destroy the socket to stop
   // listening.
   virtual int Listen(const net::IPEndPoint& address, int backlog) = 0;

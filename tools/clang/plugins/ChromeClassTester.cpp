@@ -9,7 +9,9 @@
 
 #include <sys/param.h>
 
+#include "clang/AST/AST.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 
 using namespace clang;
 
@@ -43,6 +45,18 @@ ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
 ChromeClassTester::~ChromeClassTester() {}
 
 void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
+  pending_class_decls_.push_back(tag);
+}
+
+bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef group_ref) {
+  for (size_t i = 0; i < pending_class_decls_.size(); ++i)
+    CheckTag(pending_class_decls_[i]);
+  pending_class_decls_.clear();
+
+  return true;  // true means continue parsing.
+}
+
+void ChromeClassTester::CheckTag(TagDecl* tag) {
   // We handle class types here where we have semantic information. We can only
   // check structs/classes/enums here, but we get a bunch of nice semantic
   // information instead of just parsing information.
@@ -125,6 +139,7 @@ void ChromeClassTester::BuildBannedLists() {
   banned_namespaces_.push_back("std");
   banned_namespaces_.push_back("__gnu_cxx");
   banned_namespaces_.push_back("WebKit");
+  banned_namespaces_.push_back("WebTestRunner");
 
   banned_directories_.push_back("third_party/");
   banned_directories_.push_back("native_client/");
@@ -185,6 +200,10 @@ void ChromeClassTester::BuildBannedLists() {
   // Part of our public interface that nacl and friends use. (Arguably, this
   // should mean that this is a higher priority but fixing this looks hard.)
   ignored_record_names_.insert("PluginVersionInfo");
+
+  // Measured performance improvement on cc_perftests. See
+  // https://codereview.chromium.org/11299290/
+  ignored_record_names_.insert("QuadF");
 }
 
 std::string ChromeClassTester::GetNamespaceImpl(const DeclContext* context,

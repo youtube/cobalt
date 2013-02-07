@@ -46,49 +46,16 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "TOTAL_BYTES_SET";
     case MediaLogEvent::NETWORK_ACTIVITY_SET:
       return "NETWORK_ACTIVITY_SET";
-    case MediaLogEvent::ENDED:
-      return "ENDED";
+    case MediaLogEvent::AUDIO_ENDED:
+      return "AUDIO_ENDED";
+    case MediaLogEvent::VIDEO_ENDED:
+      return "VIDEO_ENDED";
     case MediaLogEvent::AUDIO_RENDERER_DISABLED:
       return "AUDIO_RENDERER_DISABLED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
-  }
-  NOTREACHED();
-  return NULL;
-}
-
-const char* MediaLog::PipelineStateToString(Pipeline::State state) {
-  switch (state) {
-    case Pipeline::kCreated:
-      return "created";
-    case Pipeline::kInitDemuxer:
-      return "initDemuxer";
-    case Pipeline::kInitAudioDecoder:
-      return "initAudioDecoder";
-    case Pipeline::kInitAudioRenderer:
-      return "initAudioRenderer";
-    case Pipeline::kInitVideoDecoder:
-      return "initVideoDecoder";
-    case Pipeline::kInitVideoRenderer:
-      return "initVideoRenderer";
-    case Pipeline::kPausing:
-      return "pausing";
-    case Pipeline::kSeeking:
-      return "seeking";
-    case Pipeline::kFlushing:
-      return "flushing";
-    case Pipeline::kStarting:
-      return "starting";
-    case Pipeline::kStarted:
-      return "started";
-    case Pipeline::kEnded:
-      return "ended";
-    case Pipeline::kStopping:
-      return "stopping";
-    case Pipeline::kStopped:
-      return "stopped";
-    case Pipeline::kError:
-      return "error";
+    case MediaLogEvent::MEDIA_SOURCE_ERROR:
+      return "MEDIA_SOURCE_ERROR";
   }
   NOTREACHED();
   return NULL;
@@ -110,8 +77,6 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "pipeline: abort";
     case PIPELINE_ERROR_INITIALIZATION_FAILED:
       return "pipeline: initialization failed";
-    case PIPELINE_ERROR_REQUIRED_FILTER_MISSING:
-      return "pipeline: required filter missing";
     case PIPELINE_ERROR_COULD_NOT_RENDER:
       return "pipeline: could not render";
     case PIPELINE_ERROR_READ:
@@ -135,6 +100,14 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
   return NULL;
 }
 
+LogHelper::LogHelper(const LogCB& log_cb) : log_cb_(log_cb) {}
+
+LogHelper::~LogHelper() {
+  if (log_cb_.is_null())
+    return;
+  log_cb_.Run(stream_.str());
+}
+
 MediaLog::MediaLog() : id_(g_media_log_count.GetNext()) {}
 
 MediaLog::~MediaLog() {}
@@ -156,10 +129,10 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateBooleanEvent(
   return event.Pass();
 }
 
-scoped_ptr<MediaLogEvent> MediaLog::CreateIntegerEvent(
-    MediaLogEvent::Type type, const char* property, int64 value) {
+scoped_ptr<MediaLogEvent> MediaLog::CreateStringEvent(
+    MediaLogEvent::Type type, const char* property, const std::string& value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(type));
-  event->params.SetInteger(property, value);
+  event->params.SetString(property, value);
   return event.Pass();
 }
 
@@ -186,7 +159,7 @@ scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
     Pipeline::State state) {
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
-  event->params.SetString("pipeline_state", PipelineStateToString(state));
+  event->params.SetString("pipeline_state", Pipeline::GetStateString(state));
   return event.Pass();
 }
 
@@ -212,6 +185,14 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateBufferedExtentsChangedEvent(
   event->params.SetInteger("buffer_start", start);
   event->params.SetInteger("buffer_current", current);
   event->params.SetInteger("buffer_end", end);
+  return event.Pass();
+}
+
+scoped_ptr<MediaLogEvent> MediaLog::CreateMediaSourceErrorEvent(
+    const std::string& error) {
+  scoped_ptr<MediaLogEvent> event(
+      CreateEvent(MediaLogEvent::MEDIA_SOURCE_ERROR));
+  event->params.SetString("error", error);
   return event.Pass();
 }
 

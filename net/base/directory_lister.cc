@@ -164,8 +164,7 @@ void DirectoryLister::Core::StartInternal() {
   if (!recursive_)
     types |= file_util::FileEnumerator::INCLUDE_DOT_DOT;
 
-  file_util::FileEnumerator file_enum(dir_, recursive_,
-      static_cast<file_util::FileEnumerator::FileType>(types));
+  file_util::FileEnumerator file_enum(dir_, recursive_, types);
 
   FilePath path;
   std::vector<DirectoryListerData> file_data;

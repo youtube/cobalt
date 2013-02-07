@@ -66,7 +66,6 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/build_time.h"
 #include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -81,6 +80,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "crypto/ec_private_key.h"
+#include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
@@ -90,7 +90,6 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
-#include "net/base/dnssec_chain_verifier.h"
 #include "net/base/transport_security_state.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -100,6 +99,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate_net_log_param.h"
+#include "net/base/x509_util.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/nss_ssl_util.h"
@@ -117,7 +117,12 @@
 #include <dlfcn.h>
 #endif
 
-static const int kRecvBufferSize = 4096;
+// SSL plaintext fragments are shorter than 16KB. Although the record layer
+// overhead is allowed to be 2K + 5 bytes, in practice the overhead is much
+// smaller than 1KB. So a 17KB buffer should be large enough to hold an
+// entire SSL record.
+static const int kRecvBufferSize = 17 * 1024;
+static const int kSendBufferSize = 17 * 1024;
 
 #if defined(OS_WIN)
 // CERT_OCSP_RESPONSE_PROP_ID is only implemented on Vista+, but it can be
@@ -258,127 +263,6 @@ BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 }
 
 #endif
-
-// DNSValidationResult enumerates the possible outcomes from processing a
-// set of DNS records.
-enum DNSValidationResult {
-  DNSVR_SUCCESS,   // the cert is immediately acceptable.
-  DNSVR_FAILURE,   // the cert is unconditionally rejected.
-  DNSVR_CONTINUE,  // perform CA validation as usual.
-};
-
-// VerifyCAARecords processes DNSSEC validated RRDATA for a number of DNS CAA
-// records and checks them against the given chain.
-//    server_cert_nss: the server's leaf certificate.
-//    rrdatas: the CAA records for the current domain.
-//    port: the TCP port number that we connected to.
-DNSValidationResult VerifyCAARecords(
-    CERTCertificate* server_cert_nss,
-    const std::vector<base::StringPiece>& rrdatas,
-    uint16 port) {
-  DnsCAARecord::Policy policy;
-  const DnsCAARecord::ParseResult r = DnsCAARecord::Parse(rrdatas, &policy);
-  if (r == DnsCAARecord::SYNTAX_ERROR || r == DnsCAARecord::UNKNOWN_CRITICAL)
-    return DNSVR_FAILURE;
-  if (r == DnsCAARecord::DISCARD)
-    return DNSVR_CONTINUE;
-  DCHECK(r == DnsCAARecord::SUCCESS);
-
-  for (std::vector<DnsCAARecord::Policy::Hash>::const_iterator
-       hash = policy.authorized_hashes.begin();
-       hash != policy.authorized_hashes.end();
-       ++hash) {
-    if (hash->target == DnsCAARecord::Policy::SUBJECT_PUBLIC_KEY_INFO &&
-        (hash->port == 0 || hash->port == port)) {
-      CHECK_LE(hash->data.size(), static_cast<unsigned>(SHA512_LENGTH));
-      uint8 calculated_hash[SHA512_LENGTH];  // SHA512 is the largest.
-      SECStatus rv = HASH_HashBuf(
-          static_cast<HASH_HashType>(hash->algorithm),
-          calculated_hash,
-          server_cert_nss->derPublicKey.data,
-          server_cert_nss->derPublicKey.len);
-      DCHECK(rv == SECSuccess);
-      const std::string actual_digest(reinterpret_cast<char*>(calculated_hash),
-                                      hash->data.size());
-
-      // Note that the parser ensures that hash->data.size() is correct for the
-      // given algorithm. An attacker cannot give a zero length hash that
-      // always matches.
-      if (actual_digest == hash->data) {
-        // A DNSSEC secure hash over the public key of the leaf-certificate
-        // is sufficient.
-        return DNSVR_SUCCESS;
-      }
-    }
-  }
-
-  // If a CAA record was found, but nothing matched, then we reject the
-  // certificate.
-  return DNSVR_FAILURE;
-}
-
-// CheckDNSSECChain tries to validate a DNSSEC chain embedded in
-// |server_cert_nss|. It returns true iff a chain is found that proves the
-// value of a CAA record that contains a valid public key fingerprint.
-// |port| contains the TCP port number that we connected to as CAA records can
-// be specific to a given port.
-DNSValidationResult CheckDNSSECChain(
-    const std::string& hostname,
-    CERTCertificate* server_cert_nss,
-    uint16 port) {
-  if (!server_cert_nss)
-    return DNSVR_CONTINUE;
-
-  // CERT_FindCertExtensionByOID isn't exported so we have to install an OID,
-  // get a tag for it and find the extension by using that tag.
-  static SECOidTag dnssec_chain_tag;
-  static bool dnssec_chain_tag_valid;
-  if (!dnssec_chain_tag_valid) {
-    // It's harmless if multiple threads enter this block concurrently.
-    static const uint8 kDNSSECChainOID[] =
-        // 1.3.6.1.4.1.11129.2.1.4
-        // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
-        //  certificateExtensions.dnssecEmbeddedChain)
-        {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0x04};
-    SECOidData oid_data;
-    memset(&oid_data, 0, sizeof(oid_data));
-    oid_data.oid.data = const_cast<uint8*>(kDNSSECChainOID);
-    oid_data.oid.len = sizeof(kDNSSECChainOID);
-    oid_data.desc = "DNSSEC chain";
-    oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
-    dnssec_chain_tag = SECOID_AddEntry(&oid_data);
-    DCHECK_NE(SEC_OID_UNKNOWN, dnssec_chain_tag);
-    dnssec_chain_tag_valid = true;
-  }
-
-  SECItem dnssec_embedded_chain;
-  SECStatus rv = CERT_FindCertExtension(server_cert_nss,
-      dnssec_chain_tag, &dnssec_embedded_chain);
-  if (rv != SECSuccess)
-    return DNSVR_CONTINUE;
-
-  base::StringPiece chain(
-      reinterpret_cast<char*>(dnssec_embedded_chain.data),
-      dnssec_embedded_chain.len);
-  std::string dns_hostname;
-  if (!DNSDomainFromDot(hostname, &dns_hostname))
-    return DNSVR_CONTINUE;
-  DNSSECChainVerifier verifier(dns_hostname, chain);
-  DNSSECChainVerifier::Error err = verifier.Verify();
-  if (err != DNSSECChainVerifier::OK) {
-    LOG(ERROR) << "DNSSEC chain verification failed: " << err;
-    return DNSVR_CONTINUE;
-  }
-
-  if (verifier.rrtype() != kDNS_CAA)
-    return DNSVR_CONTINUE;
-
-  DNSValidationResult r = VerifyCAARecords(
-      server_cert_nss, verifier.rrdatas(), port);
-  SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
-
-  return r;
-}
 
 void DestroyCertificates(CERTCertificate** certs, size_t len) {
   for (size_t i = 0; i < len; i++)
@@ -924,6 +808,7 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
   // The current handshake state. Mirrors |nss_handshake_state_|.
   HandshakeState network_handshake_state_;
 
+  // The service for retrieving Channel ID keys.  May be NULL.
   ServerBoundCertService* server_bound_cert_service_;
   ServerBoundCertService::RequestHandle domain_bound_cert_request_handle_;
 
@@ -1074,14 +959,18 @@ bool SSLClientSocketNSS::Core::Init(PRFileDesc* socket,
   }
 
   if (ssl_config_.channel_id_enabled) {
-    if (crypto::ECPrivateKey::IsSupported()) {
+    if (!server_bound_cert_service_) {
+      DVLOG(1) << "NULL server_bound_cert_service_, not enabling channel ID.";
+    } else if (!crypto::ECPrivateKey::IsSupported()) {
+      DVLOG(1) << "Elliptic Curve not supported, not enabling channel ID.";
+    } else if (!server_bound_cert_service_->IsSystemTimeValid()) {
+      DVLOG(1) << "System time is weird, not enabling channel ID.";
+    } else {
       rv = SSL_SetClientChannelIDCallback(
           nss_fd_, SSLClientSocketNSS::Core::ClientChannelIDHandler, this);
       if (rv != SECSuccess)
         LogFailedNSSFunction(*weak_net_log_, "SSL_SetClientChannelIDCallback",
                              "");
-    } else {
-      DVLOG(1) << "Elliptic Curve not supported, not enabling channel ID.";
     }
   }
 
@@ -1498,6 +1387,10 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
     }
   }
 
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
+
   BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
   DCHECK(ok);
 
@@ -1605,6 +1498,10 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
       core->host_and_port_.host(), valid_issuers,
       &core->nss_handshake_state_.client_certs);
 
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
+
   // Update the network task runner's view of the handshake state now that
   // client certs have been detected.
   core->PostOrRunCallback(
@@ -1617,6 +1514,30 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
 #else
   return SECFailure;
 #endif
+}
+
+#elif defined(OS_IOS)
+
+SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  Core* core = reinterpret_cast<Core*>(arg);
+  DCHECK(core->OnNSSTaskRunner());
+
+  core->PostOrRunCallback(
+      FROM_HERE,
+      base::Bind(&AddLogEvent, core->weak_net_log_,
+                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED));
+
+  // TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
+  LOG(WARNING) << "Client auth is not supported";
+
+  // Never send a certificate.
+  core->AddCertProvidedEvent(0);
+  return SECFailure;
 }
 
 #else  // NSS_PLATFORM_CLIENT_AUTH
@@ -1697,6 +1618,10 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
     }
     CERT_DestroyCertList(client_certs);
   }
+
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
 
   // Update the network task runner's view of the handshake state now that
   // client certs have been detected.
@@ -2023,6 +1948,23 @@ int SSLClientSocketNSS::Core::DoHandshake() {
   } else {
     PRErrorCode prerr = PR_GetError();
     net_error = HandleNSSError(prerr, true);
+
+    // Some network devices that inspect application-layer packets seem to
+    // inject TCP reset packets to break the connections when they see
+    // TLS 1.1 in ClientHello or ServerHello. See http://crbug.com/130293.
+    //
+    // Only allow ERR_CONNECTION_RESET to trigger a TLS 1.1 -> TLS 1.0
+    // fallback. We don't lose much in this fallback because the explicit
+    // IV for CBC mode in TLS 1.1 is approximated by record splitting in
+    // TLS 1.0.
+    //
+    // ERR_CONNECTION_RESET is a common network error, so we don't want it
+    // to trigger a version fallback in general, especially the TLS 1.0 ->
+    // SSL 3.0 fallback, which would drop TLS extensions.
+    if (prerr == PR_CONNECT_RESET_ERROR &&
+        ssl_config_.version_max == SSL_PROTOCOL_VERSION_TLS1_1) {
+      net_error = ERR_SSL_PROTOCOL_ERROR;
+    }
 
     // If not done, stay in this state
     if (net_error == ERR_IO_PENDING) {
@@ -2495,6 +2437,24 @@ void SSLClientSocketNSS::Core::UpdateConnectionStatus() {
     }
     UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
                               peer_supports_renego_ext, 2);
+
+    // We would like to eliminate fallback to SSLv3 for non-buggy servers
+    // because of security concerns. For example, Google offers forward
+    // secrecy with ECDHE but that requires TLS 1.0. An attacker can block
+    // TLSv1 connections and force us to downgrade to SSLv3 and remove forward
+    // secrecy.
+    //
+    // Yngve from Opera has suggested using the renegotiation extension as an
+    // indicator that SSLv3 fallback was mistaken:
+    // tools.ietf.org/html/draft-pettersen-tls-version-rollback-removal-00 .
+    //
+    // As a first step, measure how often clients perform version fallback
+    // while the server advertises support secure renegotiation.
+    if (ssl_config_.version_fallback &&
+        channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
+      UMA_HISTOGRAM_BOOLEAN("Net.SSLv3FallbackToRenegoPatchedServer",
+                            peer_supports_renego_ext == PR_TRUE);
+    }
   }
 #endif
 
@@ -2513,13 +2473,23 @@ void SSLClientSocketNSS::Core::RecordChannelIDSupport() const {
     DISABLED = 0,
     CLIENT_ONLY = 1,
     CLIENT_AND_SERVER = 2,
+    CLIENT_NO_ECC = 3,
+    CLIENT_BAD_SYSTEM_TIME = 4,
+    CLIENT_NO_SERVER_BOUND_CERT_SERVICE = 5,
     DOMAIN_BOUND_CERT_USAGE_MAX
   } supported = DISABLED;
-  if (channel_id_xtn_negotiated_)
+  if (channel_id_xtn_negotiated_) {
     supported = CLIENT_AND_SERVER;
-  else if (ssl_config_.channel_id_enabled &&
-           crypto::ECPrivateKey::IsSupported())
-    supported = CLIENT_ONLY;
+  } else if (ssl_config_.channel_id_enabled) {
+    if (!server_bound_cert_service_)
+      supported = CLIENT_NO_SERVER_BOUND_CERT_SERVICE;
+    else if (!crypto::ECPrivateKey::IsSupported())
+      supported = CLIENT_NO_ECC;
+    else if (!server_bound_cert_service_->IsSystemTimeValid())
+      supported = CLIENT_BAD_SYSTEM_TIME;
+    else
+      supported = CLIENT_ONLY;
+  }
   UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
                             DOMAIN_BOUND_CERT_USAGE_MAX);
 }
@@ -2750,12 +2720,12 @@ void SSLClientSocket::ClearSessionCache() {
   SSL_ClearSessionCache();
 }
 
-void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
+bool SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
   if (core_->state().server_cert_chain.empty() ||
       !core_->state().server_cert_chain[0]) {
-    return;
+    return false;
   }
 
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -2763,9 +2733,8 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->connection_status =
       core_->state().ssl_connection_status;
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
-  for (std::vector<SHA1Fingerprint>::const_iterator
-       i = side_pinned_public_keys_.begin();
-       i != side_pinned_public_keys_.end(); i++) {
+  for (HashValueVector::const_iterator i = side_pinned_public_keys_.begin();
+       i != side_pinned_public_keys_.end(); ++i) {
     ssl_info->public_key_hashes.push_back(*i);
   }
   ssl_info->is_issued_by_known_root =
@@ -2791,6 +2760,7 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
       SSLInfo::HANDSHAKE_RESUME : SSLInfo::HANDSHAKE_FULL;
 
   LeaveFunction("");
+  return true;
 }
 
 void SSLClientSocketNSS::GetSSLCertRequestInfo(
@@ -2820,6 +2790,22 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
     LogFailedNSSFunction(net_log_, "SSL_ExportKeyingMaterial", "");
     return MapNSSError(PORT_GetError());
   }
+  return OK;
+}
+
+int SSLClientSocketNSS::GetTLSUniqueChannelBinding(std::string* out) {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  unsigned char buf[64];
+  unsigned int len;
+  SECStatus result = SSL_GetChannelBinding(nss_fd_,
+                                           SSL_CHANNEL_BINDING_TLS_UNIQUE,
+                                           buf, &len, arraysize(buf));
+  if (result != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_GetChannelBinding", "");
+    return MapNSSError(PORT_GetError());
+  }
+  out->assign(reinterpret_cast<char*>(buf), len);
   return OK;
 }
 
@@ -3020,7 +3006,7 @@ int SSLClientSocketNSS::Init() {
   EnsureNSSSSLInit();
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
-#if !defined(OS_MACOSX) && !defined(OS_WIN)
+#if defined(USE_NSS) || defined(OS_IOS)
   if (ssl_config_.cert_io_enabled) {
     // We must call EnsureNSSHttpIOInit() here, on the IO thread, to get the IO
     // loop by MessageLoopForIO::current().
@@ -3041,8 +3027,7 @@ void SSLClientSocketNSS::InitCore() {
 
 int SSLClientSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
-  // TODO(port): specify rx and tx buffer sizes separately
-  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
+  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize, kSendBufferSize);
   if (nss_fd_ == NULL) {
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }
@@ -3106,17 +3091,6 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 #else
   #error "You need to install NSS-3.12 or later to build chromium"
-#endif
-
-#ifdef SSL_ENABLE_DEFLATE
-  // Some web servers have been found to break if TLS is used *or* if DEFLATE
-  // is advertised. Thus, if TLS is disabled (probably because we are doing
-  // SSLv3 fallback), we disable DEFLATE also.
-  // See http://crbug.com/31628
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE,
-                     ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1);
-  if (rv != SECSuccess)
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
 #endif
 
 #ifdef SSL_ENABLE_FALSE_START
@@ -3263,9 +3237,6 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_HANDSHAKE_COMPLETE:
         rv = DoHandshakeComplete(rv);
         break;
-      case STATE_VERIFY_DNSSEC:
-        rv = DoVerifyDNSSEC(rv);
-        break;
       case STATE_VERIFY_CERT:
         DCHECK(rv == OK);
         rv = DoVerifyCert(rv);
@@ -3300,7 +3271,7 @@ int SSLClientSocketNSS::DoHandshakeComplete(int result) {
 
   if (result == OK) {
     // SSL handshake is completed. Let's verify the certificate.
-    GotoState(STATE_VERIFY_DNSSEC);
+    GotoState(STATE_VERIFY_CERT);
     // Done!
   }
   set_channel_id_sent(core_->state().channel_id_sent);
@@ -3309,25 +3280,6 @@ int SSLClientSocketNSS::DoHandshakeComplete(int result) {
   return result;
 }
 
-
-int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
-  DCHECK(!core_->state().server_cert_chain.empty());
-  DCHECK(core_->state().server_cert_chain[0]);
-
-  DNSValidationResult r = CheckDNSSECChain(
-      host_and_port_.host(), core_->state().server_cert_chain[0],
-      host_and_port_.port());
-  if (r == DNSVR_SUCCESS) {
-    server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-    server_cert_verify_result_.verified_cert = core_->state().server_cert;
-    GotoState(STATE_VERIFY_CERT_COMPLETE);
-    return OK;
-  }
-
-  GotoState(STATE_VERIFY_CERT);
-
-  return OK;
-}
 
 int SSLClientSocketNSS::DoVerifyCert(int result) {
   DCHECK(!core_->state().server_cert_chain.empty());
@@ -3363,11 +3315,11 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+    flags |= CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
-    flags |= X509Certificate::VERIFY_EV_CERT;
+    flags |= CertVerifier::VERIFY_EV_CERT;
   if (ssl_config_.cert_io_enabled)
-    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
+    flags |= CertVerifier::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       core_->state().server_cert, host_and_port_.host(), flags,
@@ -3435,13 +3387,8 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         domain_state.HasPins()) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
                server_cert_verify_result_.public_key_hashes)) {
-        const base::Time build_time = base::GetBuildTime();
-        // Pins are not enforced if the build is sufficiently old. Chrome
-        // users should get updates every six weeks or so, but it's possible
-        // that some users will stop getting updates for some reason. We
-        // don't want those users building up as a pool of people with bad
-        // pins.
-        if ((base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */) {
+        // Pins are not enforced if the build is too old.
+        if (TransportSecurityState::IsBuildTimely()) {
           result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
           UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
           TransportSecurityState::ReportUMAOnPinFailure(host);

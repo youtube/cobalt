@@ -30,14 +30,16 @@ class DecryptorClient {
   // Signals that a key message has been generated.
   virtual void KeyMessage(const std::string& key_system,
                           const std::string& session_id,
-                          scoped_array<uint8> message,
-                          int message_length,
+                          const std::string& message,
                           const std::string& default_url) = 0;
 
   // Signals that a key is needed for decryption. |key_system| and |session_id|
   // can be empty if the key system has not been selected.
+  // TODO(xhwang): Figure out if "type" is optional for NeedKey fired from the
+  // decoder.
   virtual void NeedKey(const std::string& key_system,
                        const std::string& session_id,
+                       const std::string& type,
                        scoped_array<uint8> init_data,
                        int init_data_length) = 0;
 

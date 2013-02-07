@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#if !defined (__GLIBC__)
+
 extern "C" {
 // Native Client has no timegm().
 time_t timegm(struct tm* tm) {
@@ -25,3 +27,4 @@ time_t timegm(struct tm* tm) {
 }
 }  // extern "C"
 
+#endif  // !defined (__GLIBC__)

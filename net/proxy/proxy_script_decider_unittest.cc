@@ -590,7 +590,7 @@ TEST(ProxyScriptDeciderTest, DhcpCancelledByDestructor) {
   // back. Before the fix linked to above, this would try to invoke on
   // the callback object provided by ProxyScriptDecider after it was
   // no longer valid.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 }  // namespace

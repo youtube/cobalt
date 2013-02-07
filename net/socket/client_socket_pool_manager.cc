@@ -93,10 +93,10 @@ int InitSocketPoolHelper(const GURL& request_url,
       HostPortPair(request_url.HostNoBrackets(),
                    request_url.EffectiveIntPort());
 
-  if (!using_ssl && HttpStreamFactory::testing_fixed_http_port() != 0) {
-    origin_host_port.set_port(HttpStreamFactory::testing_fixed_http_port());
-  } else if (using_ssl && HttpStreamFactory::testing_fixed_https_port() != 0) {
-    origin_host_port.set_port(HttpStreamFactory::testing_fixed_https_port());
+  if (!using_ssl && session->params().testing_fixed_http_port != 0) {
+    origin_host_port.set_port(session->params().testing_fixed_http_port);
+  } else if (using_ssl && session->params().testing_fixed_https_port != 0) {
+    origin_host_port.set_port(session->params().testing_fixed_https_port);
   }
 
   bool disable_resolver_cache =
@@ -105,7 +105,7 @@ int InitSocketPoolHelper(const GURL& request_url,
       request_load_flags & LOAD_DISABLE_CACHE;
 
   int load_flags = request_load_flags;
-  if (HttpStreamFactory::ignore_certificate_errors())
+  if (session->params().ignore_certificate_errors)
     load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
 
   // Build the string used to uniquely identify connections of this type.

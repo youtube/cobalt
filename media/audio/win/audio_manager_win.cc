@@ -10,28 +10,35 @@
 #include <mmsystem.h>
 #include <setupapi.h>
 
-#include "base/basictypes.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/win/audio_device_listener_win.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/audio_unified_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 
 // Libraries required for the SetupAPI and Wbem APIs used here.
 #pragma comment(lib, "setupapi.lib")
 
-// The following are defined in various DDK headers, and we (re)define them
-// here to avoid adding the DDK as a chrome dependency.
+// The following are defined in various DDK headers, and we (re)define them here
+// to avoid adding the DDK as a chrome dependency.
 #define DRV_QUERYDEVICEINTERFACE 0x80c
 #define DRVM_MAPPER_PREFERRED_GET 0x2015
 #define DRV_QUERYDEVICEINTERFACESIZE 0x80d
@@ -43,9 +50,8 @@ namespace media {
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
 
-// Up to 8 channels can be passed to the driver.
-// This should work, given the right drivers, but graceful error handling is
-// needed.
+// Up to 8 channels can be passed to the driver.  This should work, given the
+// right drivers, but graceful error handling is needed.
 static const int kWinMaxChannels = 8;
 
 // We use 3 buffers for recording audio so that if a recording callback takes
@@ -98,7 +104,7 @@ static string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 }
 
 AudioManagerWin::AudioManagerWin() {
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Use the Wave API for device enumeration if XP or lower.
     enumeration_type_ = kWaveEnumeration;
   } else {
@@ -107,9 +113,18 @@ AudioManagerWin::AudioManagerWin() {
   }
 
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
+
+  // Task must be posted last to avoid races from handing out "this" to the
+  // audio thread.
+  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerWin::CreateDeviceListener, base::Unretained(this)));
 }
 
 AudioManagerWin::~AudioManagerWin() {
+  // It's safe to post a task here since Shutdown() will wait for all tasks to
+  // complete before returning.
+  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerWin::DestroyDeviceListener, base::Unretained(this)));
   Shutdown();
 }
 
@@ -121,10 +136,19 @@ bool AudioManagerWin::HasAudioInputDevices() {
   return (::waveInGetNumDevs() != 0);
 }
 
-void AudioManagerWin::MuteAll() {
+void AudioManagerWin::CreateDeviceListener() {
+  // AudioDeviceListenerWin must be initialized on a COM thread and should only
+  // be used if WASAPI / Core Audio is supported.
+  if (CoreAudioUtil::IsSupported()) {
+    output_device_listener_.reset(new AudioDeviceListenerWin(BindToLoop(
+        GetMessageLoop(), base::Bind(
+            &AudioManagerWin::NotifyAllOutputDeviceChangeListeners,
+            base::Unretained(this)))));
+  }
 }
 
-void AudioManagerWin::UnMuteAll() {
+void AudioManagerWin::DestroyDeviceListener() {
+  output_device_listener_.reset();
 }
 
 string16 AudioManagerWin::GetAudioInputDeviceModel() {
@@ -198,7 +222,7 @@ bool AudioManagerWin::CanShowAudioInputSettings() {
 void AudioManagerWin::ShowAudioInputSettings() {
   std::wstring program;
   std::string argument;
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     program = L"sndvol32.exe";
     argument = "-R";
   } else {
@@ -239,7 +263,7 @@ void AudioManagerWin::GetAudioInputDeviceNames(
 // mode.
 // - PCMWaveOutAudioOutputStream: Based on the waveOut API.
 AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
-      const AudioParameters& params) {
+    const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   if (params.channels() > kWinMaxChannels)
     return NULL;
@@ -256,23 +280,28 @@ AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
 // - PCMWaveOutAudioOutputStream: Based on the waveOut API.
 // - WASAPIAudioOutputStream: Based on Core Audio (WASAPI) API.
 AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
-      const AudioParameters& params) {
+    const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   if (params.channels() > kWinMaxChannels)
     return NULL;
 
-  AudioOutputStream* stream = NULL;
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveOut since WASAPI requires at least Vista.";
-    stream = new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
-  } else {
-    // TODO(henrika): improve possibility to specify audio endpoint.
-    // Use the default device (same as for Wave) for now to be compatible.
-    stream = new WASAPIAudioOutputStream(this, params, eConsole);
+    return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
   }
 
-  return stream;
+  // TODO(henrika): remove once we properly handle input device selection.
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableWebAudioInput)) {
+    if (WASAPIUnifiedStream::HasUnifiedDefaultIO()) {
+      DVLOG(1) << "WASAPIUnifiedStream is created.";
+      return new WASAPIUnifiedStream(this, params);
+    }
+    LOG(WARNING) << "Unified audio I/O is not supported.";
+  }
+
+  return new WASAPIAudioOutputStream(this, params, eConsole);
 }
 
 // Factory for the implementations of AudioInputStream for AUDIO_PCM_LINEAR
@@ -289,7 +318,7 @@ AudioInputStream* AudioManagerWin::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   AudioInputStream* stream = NULL;
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveIn since WASAPI requires at least Vista.";
     stream = CreatePCMWaveInAudioInputStream(params, device_id);
@@ -321,6 +350,27 @@ AudioInputStream* AudioManagerWin::CreatePCMWaveInAudioInputStream(
 /// static
 AudioManager* CreateAudioManager() {
   return new AudioManagerWin();
+}
+
+AudioParameters AudioManagerWin::GetPreferredLowLatencyOutputStreamParameters(
+    const AudioParameters& input_params) {
+  // If WASAPI isn't supported we'll fallback to WaveOut, which will take care
+  // of resampling and bits per sample changes.  By setting these equal to the
+  // input values, AudioOutputResampler will skip resampling and bit per sample
+  // differences (since the input parameters will match the output parameters).
+  int sample_rate = input_params.sample_rate();
+  int bits_per_sample = input_params.bits_per_sample();
+  ChannelLayout channel_layout = input_params.channel_layout();
+  if (CoreAudioUtil::IsSupported()) {
+    sample_rate = GetAudioHardwareSampleRate();
+    bits_per_sample = 16;
+    channel_layout = WASAPIAudioOutputStream::HardwareChannelLayout();
+  }
+
+  // TODO(dalecurtis): This should include hardware bits per channel eventually.
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
+      sample_rate, bits_per_sample, GetAudioHardwareBufferSize());
 }
 
 }  // namespace media

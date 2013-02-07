@@ -54,9 +54,9 @@ class TestGenerator(unittest.TestCase):
       print '=' * 80
       self.fail('Golden text mismatch')
 
-  # TODO(bulach): Detangle these tests from knowing about classes from Content.
   def testNatives(self):
     test_data = """"
+    interface OnFrameAvailableListener {}
     private native int nativeInit();
     private native void nativeDestroy(int nativeChromeBrowserProvider);
     private native long nativeAddBookmark(
@@ -65,7 +65,7 @@ class TestGenerator(unittest.TestCase):
     private static native String nativeGetDomainAndRegistry(String url);
     private static native void nativeCreateHistoricalTabFromState(
             byte[] state, int tab_index);
-    private native byte[] nativeGetStateAsByteArray(ContentViewCore view);
+    private native byte[] nativeGetStateAsByteArray(View view);
     private static native String[] nativeGetAutofillProfileGUIDs();
     private native void nativeSetRecognitionResults(
             int sessionId, String[] results);
@@ -74,8 +74,8 @@ class TestGenerator(unittest.TestCase):
             String url, Long created, Boolean isBookmark,
             Long date, byte[] favicon, String title, Integer visits);
     native int nativeFindAll(String find);
-    private static native BookmarkNode nativeGetDefaultBookmarkFolder();
-    private native SQLiteCursor nativeQueryBookmarkFromAPI(
+    private static native OnFrameAvailableListener nativeGetInnerClass();
+    private native Bitmap nativeQueryBitmap(
             int nativeChromeBrowserProvider,
             String[] projection, String selection,
             String[] selectionArgs, String sortOrder);
@@ -83,6 +83,7 @@ class TestGenerator(unittest.TestCase):
             int nativeDataFetcherImplAndroid,
             double alpha, double beta, double gamma);
     """
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(test_data)
     natives = jni_generator.ExtractNatives(test_data)
     golden_natives = [
         NativeMethod(return_type='int', static=False,
@@ -126,7 +127,7 @@ class TestGenerator(unittest.TestCase):
                      type='function'),
         NativeMethod(return_type='byte[]', static=False,
                      name='GetStateAsByteArray',
-                     params=[Param(datatype='ContentViewCore', name='view')],
+                     params=[Param(datatype='View', name='view')],
                      java_class_name=None,
                      type='function'),
         NativeMethod(return_type='String[]', static=True,
@@ -166,14 +167,14 @@ class TestGenerator(unittest.TestCase):
                                    name='find')],
                      java_class_name=None,
                      type='function'),
-        NativeMethod(return_type='BookmarkNode', static=True,
-                     name='GetDefaultBookmarkFolder',
+        NativeMethod(return_type='OnFrameAvailableListener', static=True,
+                     name='GetInnerClass',
                      params=[],
                      java_class_name=None,
                      type='function'),
-        NativeMethod(return_type='SQLiteCursor',
+        NativeMethod(return_type='Bitmap',
                      static=False,
-                     name='QueryBookmarkFromAPI',
+                     name='QueryBitmap',
                      params=[Param(datatype='int',
                                    name='nativeChromeBrowserProvider'),
                              Param(datatype='String[]',
@@ -201,7 +202,7 @@ class TestGenerator(unittest.TestCase):
                             ],
                      java_class_name=None,
                      type='method',
-                     p0_type='device_orientation::DataFetcherImplAndroid'),
+                     p0_type='content::DataFetcherImplAndroid'),
     ]
     self.assertListEquals(golden_natives, natives)
     h = jni_generator.InlHeaderFileGenerator('', 'org/chromium/TestJni',
@@ -256,7 +257,7 @@ static void SetRecognitionResults(JNIEnv* env, jobject obj,
 static jint FindAll(JNIEnv* env, jobject obj,
     jstring find);
 
-static jobject GetDefaultBookmarkFolder(JNIEnv* env, jclass clazz);
+static jobject GetInnerClass(JNIEnv* env, jclass clazz);
 
 // Step 2: method stubs.
 static void Destroy(JNIEnv* env, jobject obj,
@@ -295,17 +296,17 @@ static jlong AddBookmarkFromAPI(JNIEnv* env, jobject obj,
       favicon, title, visits);
 }
 
-static jobject QueryBookmarkFromAPI(JNIEnv* env, jobject obj,
+static jobject QueryBitmap(JNIEnv* env, jobject obj,
     jint nativeChromeBrowserProvider,
     jobjectArray projection,
     jstring selection,
     jobjectArray selectionArgs,
     jstring sortOrder) {
-  DCHECK(nativeChromeBrowserProvider) << "QueryBookmarkFromAPI";
+  DCHECK(nativeChromeBrowserProvider) << "QueryBitmap";
   ChromeBrowserProvider* native =
       reinterpret_cast<ChromeBrowserProvider*>(nativeChromeBrowserProvider);
-  return native->QueryBookmarkFromAPI(env, obj, projection, selection,
-      selectionArgs, sortOrder).Release();
+  return native->QueryBitmap(env, obj, projection, selection, selectionArgs,
+      sortOrder).Release();
 }
 
 static void GotOrientation(JNIEnv* env, jobject obj,
@@ -315,19 +316,16 @@ static void GotOrientation(JNIEnv* env, jobject obj,
     jdouble gamma) {
   DCHECK(nativeDataFetcherImplAndroid) << "GotOrientation";
   DataFetcherImplAndroid* native =
-    reinterpret_cast<DataFetcherImplAndroid*>(nativeDataFetcherImplAndroid);
+      reinterpret_cast<DataFetcherImplAndroid*>(nativeDataFetcherImplAndroid);
   return native->GotOrientation(env, obj, alpha, beta, gamma);
 }
 
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kTestJniClassPath)));
-}
+// Step 3: RegisterNatives.
 
 static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
 
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
   static const JNINativeMethod kMethodsTestJni[] = {
     { "nativeInit",
 "("
@@ -360,7 +358,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "V", reinterpret_cast<void*>(CreateHistoricalTabFromState) },
     { "nativeGetStateAsByteArray",
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Landroid/view/View;"
 ")"
 "[B", reinterpret_cast<void*>(GetStateAsByteArray) },
     { "nativeGetAutofillProfileGUIDs",
@@ -390,12 +388,12 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 ")"
 "I", reinterpret_cast<void*>(FindAll) },
-    { "nativeGetDefaultBookmarkFolder",
+    { "nativeGetInnerClass",
 "("
 ")"
-"Lcom/google/android/apps/chrome/ChromeBrowserProvider$BookmarkNode;",
-    reinterpret_cast<void*>(GetDefaultBookmarkFolder) },
-    { "nativeQueryBookmarkFromAPI",
+"Lorg/chromium/example/jni_generator/SampleForTests$OnFrameAvailableListener;",
+    reinterpret_cast<void*>(GetInnerClass) },
+    { "nativeQueryBitmap",
 "("
 "I"
 "[Ljava/lang/String;"
@@ -403,8 +401,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "[Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/google/android/apps/chrome/database/SQLiteCursor;",
-    reinterpret_cast<void*>(QueryBookmarkFromAPI) },
+"Landroid/graphics/Bitmap;", reinterpret_cast<void*>(QueryBitmap) },
     { "nativeGotOrientation",
 "("
 "I"
@@ -481,15 +478,12 @@ static jint Init(JNIEnv* env, jobject obj);
 
 // Step 2: method stubs.
 
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kTestJniClassPath)));
-}
+// Step 3: RegisterNatives.
 
 static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
 
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
   static const JNINativeMethod kMethodsMyInnerClass[] = {
     { "nativeInit",
 "("
@@ -575,15 +569,12 @@ static jint Init(JNIEnv* env, jobject obj);
 
 // Step 2: method stubs.
 
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kTestJniClassPath)));
-}
+// Step 3: RegisterNatives.
 
 static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
 
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
   static const JNINativeMethod kMethodsMyOtherInnerClass[] = {
     { "nativeInit",
 "("
@@ -683,15 +674,12 @@ static jint Init(JNIEnv* env, jobject obj);
 
 // Step 2: method stubs.
 
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kTestJniClassPath)));
-}
+// Step 3: RegisterNatives.
 
 static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
 
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
   static const JNINativeMethod kMethodsMyOtherInnerClass[] = {
     { "nativeInit",
 "("
@@ -732,19 +720,23 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 
   def testCalledByNatives(self):
     test_data = """"
+    import android.graphics.Bitmap;
+    import android.view.View;
+    import java.io.InputStream;
+
+    class InnerClass {}
+
     @CalledByNative
-    NativeInfoBar showConfirmInfoBar(int nativeInfoBar, String buttonOk,
-                                     String buttonCancel, String title,
-                                     Bitmap icon) {
+    InnerClass showConfirmInfoBar(int nativeInfoBar,
+            String buttonOk, String buttonCancel, String title, Bitmap icon) {
         InfoBar infobar = new ConfirmInfoBar(nativeInfoBar, mContext,
                                              buttonOk, buttonCancel,
                                              title, icon);
         return infobar;
     }
     @CalledByNative
-    NativeInfoBar showAutoLoginInfoBar(int nativeInfoBar,
-                                       String realm, String account,
-                                       String args) {
+    InnerClass showAutoLoginInfoBar(int nativeInfoBar,
+            String realm, String account, String args) {
         AutoLoginInfoBar infobar = new AutoLoginInfoBar(nativeInfoBar, mContext,
                 realm, account, args);
         if (infobar.displayedAccountCount() == 0)
@@ -755,7 +747,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     void dismiss();
     @SuppressWarnings("unused")
     @CalledByNative
-    private static boolean shouldShowAutoLogin(ContentViewCore contentView,
+    private static boolean shouldShowAutoLogin(View view,
             String realm, String account, String args) {
         AccountManagerContainer accountManagerContainer =
             new AccountManagerContainer((Activity)contentView.getContext(),
@@ -778,10 +770,12 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     @CalledByNativeUnchecked
     private void uncheckedCall(int iParam);
     """
+    jni_generator.JniParams.SetFullyQualifiedClass('org/chromium/Foo')
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(test_data)
     called_by_natives = jni_generator.ExtractCalledByNatives(test_data)
     golden_called_by_natives = [
         CalledByNative(
-            return_type='NativeInfoBar',
+            return_type='InnerClass',
             system_class=False,
             static=False,
             name='showConfirmInfoBar',
@@ -796,7 +790,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             unchecked=False,
         ),
         CalledByNative(
-            return_type='NativeInfoBar',
+            return_type='InnerClass',
             system_class=False,
             static=False,
             name='showAutoLoginInfoBar',
@@ -827,7 +821,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             name='shouldShowAutoLogin',
             method_id_var_name='shouldShowAutoLogin',
             java_class_name='',
-            params=[Param(datatype='ContentViewCore', name='contentView'),
+            params=[Param(datatype='View', name='view'),
                     Param(datatype='String', name='realm'),
                     Param(datatype='String', name='account'),
                     Param(datatype='String', name='args')],
@@ -910,7 +904,7 @@ jclass g_InfoBar_clazz = NULL;
 
 // Step 2: method stubs.
 
-static jmethodID g_TestJni_showConfirmInfoBar = 0;
+static base::subtle::AtomicWord g_TestJni_showConfirmInfoBar = 0;
 static ScopedJavaLocalRef<jobject> Java_TestJni_showConfirmInfoBar(JNIEnv* env,
     jobject obj, jint nativeInfoBar,
     jstring buttonOk,
@@ -919,111 +913,11 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showConfirmInfoBar(JNIEnv* env,
     jobject icon) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_showConfirmInfoBar);
-  jobject ret =
-    env->CallObjectMethod(obj,
-      g_TestJni_showConfirmInfoBar, nativeInfoBar, buttonOk, buttonCancel,
-          title, icon);
-  base::android::CheckException(env);
-  return ScopedJavaLocalRef<jobject>(env, ret);
-}
-
-static jmethodID g_TestJni_showAutoLoginInfoBar = 0;
-static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
-    env, jobject obj, jint nativeInfoBar,
-    jstring realm,
-    jstring account,
-    jstring args) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_showAutoLoginInfoBar);
-  jobject ret =
-    env->CallObjectMethod(obj,
-      g_TestJni_showAutoLoginInfoBar, nativeInfoBar, realm, account, args);
-  base::android::CheckException(env);
-  return ScopedJavaLocalRef<jobject>(env, ret);
-}
-
-static jmethodID g_InfoBar_dismiss = 0;
-static void Java_InfoBar_dismiss(JNIEnv* env, jobject obj) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_InfoBar_clazz);
-  DCHECK(g_InfoBar_dismiss);
-
-  env->CallVoidMethod(obj,
-      g_InfoBar_dismiss);
-  base::android::CheckException(env);
-
-}
-
-static jmethodID g_TestJni_shouldShowAutoLogin = 0;
-static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
-    contentView,
-    jstring realm,
-    jstring account,
-    jstring args) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_shouldShowAutoLogin);
-  jboolean ret =
-    env->CallStaticBooleanMethod(g_TestJni_clazz,
-      g_TestJni_shouldShowAutoLogin, contentView, realm, account, args);
-  base::android::CheckException(env);
-  return ret;
-}
-
-static jmethodID g_TestJni_openUrl = 0;
-static ScopedJavaLocalRef<jobject> Java_TestJni_openUrl(JNIEnv* env, jstring
-    url) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_openUrl);
-  jobject ret =
-    env->CallStaticObjectMethod(g_TestJni_clazz,
-      g_TestJni_openUrl, url);
-  base::android::CheckException(env);
-  return ScopedJavaLocalRef<jobject>(env, ret);
-}
-
-static jmethodID g_TestJni_activateHardwareAcceleration = 0;
-static void Java_TestJni_activateHardwareAcceleration(JNIEnv* env, jobject obj,
-    jboolean activated,
-    jint iPid,
-    jint iType,
-    jint iPrimaryID,
-    jint iSecondaryID) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_activateHardwareAcceleration);
-
-  env->CallVoidMethod(obj,
-      g_TestJni_activateHardwareAcceleration, activated, iPid, iType,
-          iPrimaryID, iSecondaryID);
-  base::android::CheckException(env);
-
-}
-
-static jmethodID g_TestJni_uncheckedCall = 0;
-static void Java_TestJni_uncheckedCall(JNIEnv* env, jobject obj, jint iParam) {
-  /* Must call RegisterNativesImpl()  */
-  DCHECK(g_TestJni_clazz);
-  DCHECK(g_TestJni_uncheckedCall);
-
-  env->CallVoidMethod(obj,
-      g_TestJni_uncheckedCall, iParam);
-
-}
-
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kTestJniClassPath)));
-  g_InfoBar_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kInfoBarClassPath)));
-  g_TestJni_showConfirmInfoBar =
-      base::android::GetMethodID(
-          env, g_TestJni_clazz,
-          "showConfirmInfoBar",
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_TestJni_clazz,
+      "showConfirmInfoBar",
 
 "("
 "I"
@@ -1032,12 +926,29 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 "Landroid/graphics/Bitmap;"
 ")"
-"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;");
+"Lorg/chromium/Foo$InnerClass;",
+      &g_TestJni_showConfirmInfoBar);
 
-  g_TestJni_showAutoLoginInfoBar =
-      base::android::GetMethodID(
-          env, g_TestJni_clazz,
-          "showAutoLoginInfoBar",
+  jobject ret =
+    env->CallObjectMethod(obj,
+      method_id, nativeInfoBar, buttonOk, buttonCancel, title, icon);
+  base::android::CheckException(env);
+  return ScopedJavaLocalRef<jobject>(env, ret);
+}
+
+static base::subtle::AtomicWord g_TestJni_showAutoLoginInfoBar = 0;
+static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
+    env, jobject obj, jint nativeInfoBar,
+    jstring realm,
+    jstring account,
+    jstring args) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_TestJni_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_TestJni_clazz,
+      "showAutoLoginInfoBar",
 
 "("
 "I"
@@ -1045,44 +956,104 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;");
+"Lorg/chromium/Foo$InnerClass;",
+      &g_TestJni_showAutoLoginInfoBar);
 
-  g_InfoBar_dismiss =
-      base::android::GetMethodID(
-          env, g_InfoBar_clazz,
-          "dismiss",
+  jobject ret =
+    env->CallObjectMethod(obj,
+      method_id, nativeInfoBar, realm, account, args);
+  base::android::CheckException(env);
+  return ScopedJavaLocalRef<jobject>(env, ret);
+}
+
+static base::subtle::AtomicWord g_InfoBar_dismiss = 0;
+static void Java_InfoBar_dismiss(JNIEnv* env, jobject obj) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_InfoBar_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InfoBar_clazz,
+      "dismiss",
 
 "("
 ")"
-"V");
+"V",
+      &g_InfoBar_dismiss);
 
-  g_TestJni_shouldShowAutoLogin =
-      base::android::GetStaticMethodID(
-          env, g_TestJni_clazz,
-          "shouldShowAutoLogin",
+  env->CallVoidMethod(obj,
+      method_id);
+  base::android::CheckException(env);
+
+}
+
+static base::subtle::AtomicWord g_TestJni_shouldShowAutoLogin = 0;
+static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject view,
+    jstring realm,
+    jstring account,
+    jstring args) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_TestJni_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_STATIC>(
+      env, g_TestJni_clazz,
+      "shouldShowAutoLogin",
 
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Landroid/view/View;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Z");
+"Z",
+      &g_TestJni_shouldShowAutoLogin);
 
-  g_TestJni_openUrl =
-      base::android::GetStaticMethodID(
-          env, g_TestJni_clazz,
-          "openUrl",
+  jboolean ret =
+    env->CallStaticBooleanMethod(g_TestJni_clazz,
+      method_id, view, realm, account, args);
+  base::android::CheckException(env);
+  return ret;
+}
+
+static base::subtle::AtomicWord g_TestJni_openUrl = 0;
+static ScopedJavaLocalRef<jobject> Java_TestJni_openUrl(JNIEnv* env, jstring
+    url) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_TestJni_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_STATIC>(
+      env, g_TestJni_clazz,
+      "openUrl",
 
 "("
 "Ljava/lang/String;"
 ")"
-"Ljava/io/InputStream;");
+"Ljava/io/InputStream;",
+      &g_TestJni_openUrl);
 
-  g_TestJni_activateHardwareAcceleration =
-      base::android::GetMethodID(
-          env, g_TestJni_clazz,
-          "activateHardwareAcceleration",
+  jobject ret =
+    env->CallStaticObjectMethod(g_TestJni_clazz,
+      method_id, url);
+  base::android::CheckException(env);
+  return ScopedJavaLocalRef<jobject>(env, ret);
+}
+
+static base::subtle::AtomicWord g_TestJni_activateHardwareAcceleration = 0;
+static void Java_TestJni_activateHardwareAcceleration(JNIEnv* env, jobject obj,
+    jboolean activated,
+    jint iPid,
+    jint iType,
+    jint iPrimaryID,
+    jint iSecondaryID) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_TestJni_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_TestJni_clazz,
+      "activateHardwareAcceleration",
 
 "("
 "Z"
@@ -1091,23 +1062,44 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "I"
 "I"
 ")"
-"V");
+"V",
+      &g_TestJni_activateHardwareAcceleration);
 
-  g_TestJni_uncheckedCall =
-      base::android::GetMethodID(
-          env, g_TestJni_clazz,
-          "uncheckedCall",
+  env->CallVoidMethod(obj,
+      method_id, activated, iPid, iType, iPrimaryID, iSecondaryID);
+  base::android::CheckException(env);
+
+}
+
+static base::subtle::AtomicWord g_TestJni_uncheckedCall = 0;
+static void Java_TestJni_uncheckedCall(JNIEnv* env, jobject obj, jint iParam) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_TestJni_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_TestJni_clazz,
+      "uncheckedCall",
 
 "("
 "I"
 ")"
-"V");
+"V",
+      &g_TestJni_uncheckedCall);
+
+  env->CallVoidMethod(obj,
+      method_id, iParam);
 
 }
 
-static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
+// Step 3: RegisterNatives.
 
+static bool RegisterNativesImpl(JNIEnv* env) {
+
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
+  g_InfoBar_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kInfoBarClassPath)));
   return true;
 }
 
@@ -1149,14 +1141,22 @@ import org.chromium.base.BuildInfo;
                       'com/foo/Bar', 'no PACKAGE line')
 
   def testMethodNameMangling(self):
-    self.assertEquals('close_pqV',
-                      jni_generator.GetMangledMethodName('close', '()V'))
-    self.assertEquals('read_paBIIqI',
-                      jni_generator.GetMangledMethodName('read', '([BII)I'))
-    self.assertEquals('open_pLjava_lang_StringxqLjava_io_InputStreamx',
-                      jni_generator.GetMangledMethodName(
-                          'open',
-                          '(Ljava/lang/String;)Ljava/io/InputStream;'))
+    self.assertEquals('closeV',
+        jni_generator.GetMangledMethodName('close', [], 'void'))
+    self.assertEquals('readI_AB_I_I',
+        jni_generator.GetMangledMethodName('read',
+            [Param(name='p1',
+                   datatype='byte[]'),
+             Param(name='p2',
+                   datatype='int'),
+             Param(name='p3',
+                   datatype='int'),],
+             'int'))
+    self.assertEquals('openJIIS_JLS',
+        jni_generator.GetMangledMethodName('open',
+            [Param(name='p1',
+                   datatype='java/lang/String'),],
+             'java/io/InputStream'))
 
   def testFromJavaP(self):
     contents = """
@@ -1175,7 +1175,7 @@ public abstract class java.io.InputStream extends java.lang.Object
 }
 """
     jni_from_javap = jni_generator.JNIFromJavaP(contents.split('\n'), None)
-    self.assertEquals(9, len(jni_from_javap.called_by_natives))
+    self.assertEquals(10, len(jni_from_javap.called_by_natives))
     golden_content = """\
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -1209,231 +1209,260 @@ namespace JNI_InputStream {
 
 // Step 2: method stubs.
 
-static jmethodID g_InputStream_available = 0;
+static base::subtle::AtomicWord g_InputStream_available = 0;
 static jint Java_InputStream_available(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static jint Java_InputStream_available(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_available);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "available",
+
+"("
+")"
+"I",
+      &g_InputStream_available);
+
   jint ret =
     env->CallIntMethod(obj,
-      g_InputStream_available);
+      method_id);
   base::android::CheckException(env);
   return ret;
 }
 
-static jmethodID g_InputStream_close = 0;
+static base::subtle::AtomicWord g_InputStream_close = 0;
 static void Java_InputStream_close(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static void Java_InputStream_close(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_close);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "close",
+
+"("
+")"
+"V",
+      &g_InputStream_close);
 
   env->CallVoidMethod(obj,
-      g_InputStream_close);
+      method_id);
   base::android::CheckException(env);
 
 }
 
-static jmethodID g_InputStream_mark = 0;
+static base::subtle::AtomicWord g_InputStream_mark = 0;
 static void Java_InputStream_mark(JNIEnv* env, jobject obj, jint p0)
     __attribute__ ((unused));
 static void Java_InputStream_mark(JNIEnv* env, jobject obj, jint p0) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_mark);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "mark",
+
+"("
+"I"
+")"
+"V",
+      &g_InputStream_mark);
 
   env->CallVoidMethod(obj,
-      g_InputStream_mark, p0);
+      method_id, p0);
   base::android::CheckException(env);
 
 }
 
-static jmethodID g_InputStream_markSupported = 0;
+static base::subtle::AtomicWord g_InputStream_markSupported = 0;
 static jboolean Java_InputStream_markSupported(JNIEnv* env, jobject obj)
     __attribute__ ((unused));
 static jboolean Java_InputStream_markSupported(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_markSupported);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "markSupported",
+
+"("
+")"
+"Z",
+      &g_InputStream_markSupported);
+
   jboolean ret =
     env->CallBooleanMethod(obj,
-      g_InputStream_markSupported);
+      method_id);
   base::android::CheckException(env);
   return ret;
 }
 
-static jmethodID g_InputStream_read_pqI = 0;
-static jint Java_InputStream_read(JNIEnv* env, jobject obj) __attribute__
+static base::subtle::AtomicWord g_InputStream_readI = 0;
+static jint Java_InputStream_readI(JNIEnv* env, jobject obj) __attribute__
     ((unused));
-static jint Java_InputStream_read(JNIEnv* env, jobject obj) {
+static jint Java_InputStream_readI(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_read_pqI);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "read",
+
+"("
+")"
+"I",
+      &g_InputStream_readI);
+
   jint ret =
     env->CallIntMethod(obj,
-      g_InputStream_read_pqI);
+      method_id);
   base::android::CheckException(env);
   return ret;
 }
 
-static jmethodID g_InputStream_read_paBqI = 0;
-static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0)
+static base::subtle::AtomicWord g_InputStream_readI_AB = 0;
+static jint Java_InputStream_readI_AB(JNIEnv* env, jobject obj, jbyteArray p0)
     __attribute__ ((unused));
-static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0) {
+static jint Java_InputStream_readI_AB(JNIEnv* env, jobject obj, jbyteArray p0) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_read_paBqI);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "read",
+
+"("
+"[B"
+")"
+"I",
+      &g_InputStream_readI_AB);
+
   jint ret =
     env->CallIntMethod(obj,
-      g_InputStream_read_paBqI, p0);
+      method_id, p0);
   base::android::CheckException(env);
   return ret;
 }
 
-static jmethodID g_InputStream_read_paBIIqI = 0;
-static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0,
+static base::subtle::AtomicWord g_InputStream_readI_AB_I_I = 0;
+static jint Java_InputStream_readI_AB_I_I(JNIEnv* env, jobject obj, jbyteArray
+    p0,
     jint p1,
     jint p2) __attribute__ ((unused));
-static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0,
+static jint Java_InputStream_readI_AB_I_I(JNIEnv* env, jobject obj, jbyteArray
+    p0,
     jint p1,
     jint p2) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_read_paBIIqI);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "read",
+
+"("
+"[B"
+"I"
+"I"
+")"
+"I",
+      &g_InputStream_readI_AB_I_I);
+
   jint ret =
     env->CallIntMethod(obj,
-      g_InputStream_read_paBIIqI, p0, p1, p2);
+      method_id, p0, p1, p2);
   base::android::CheckException(env);
   return ret;
 }
 
-static jmethodID g_InputStream_reset = 0;
+static base::subtle::AtomicWord g_InputStream_reset = 0;
 static void Java_InputStream_reset(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static void Java_InputStream_reset(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_reset);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "reset",
+
+"("
+")"
+"V",
+      &g_InputStream_reset);
 
   env->CallVoidMethod(obj,
-      g_InputStream_reset);
+      method_id);
   base::android::CheckException(env);
 
 }
 
-static jmethodID g_InputStream_skip = 0;
+static base::subtle::AtomicWord g_InputStream_skip = 0;
 static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0)
     __attribute__ ((unused));
 static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
-  DCHECK(g_InputStream_skip);
-  jlong ret =
-    env->CallLongMethod(obj,
-      g_InputStream_skip, p0);
-  base::android::CheckException(env);
-  return ret;
-}
-
-// Step 3: GetMethodIDs and RegisterNatives.
-static void GetMethodIDsImpl(JNIEnv* env) {
-  g_InputStream_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
-      base::android::GetUnscopedClass(env, kInputStreamClassPath)));
-  g_InputStream_available =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "available",
-
-"("
-")"
-"I");
-
-  g_InputStream_close =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "close",
-
-"("
-")"
-"V");
-
-  g_InputStream_mark =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "mark",
-
-"("
-"I"
-")"
-"V");
-
-  g_InputStream_markSupported =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "markSupported",
-
-"("
-")"
-"Z");
-
-  g_InputStream_read_pqI =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "read",
-
-"("
-")"
-"I");
-
-  g_InputStream_read_paBqI =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "read",
-
-"("
-"[B"
-")"
-"I");
-
-  g_InputStream_read_paBIIqI =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "read",
-
-"("
-"[B"
-"I"
-"I"
-")"
-"I");
-
-  g_InputStream_reset =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "reset",
-
-"("
-")"
-"V");
-
-  g_InputStream_skip =
-      base::android::GetMethodID(
-          env, g_InputStream_clazz,
-          "skip",
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "skip",
 
 "("
 "J"
 ")"
-"J");
+"J",
+      &g_InputStream_skip);
 
+  jlong ret =
+    env->CallLongMethod(obj,
+      method_id, p0);
+  base::android::CheckException(env);
+  return ret;
 }
 
-static bool RegisterNativesImpl(JNIEnv* env) {
-  GetMethodIDsImpl(env);
+static base::subtle::AtomicWord g_InputStream_Constructor = 0;
+static ScopedJavaLocalRef<jobject> Java_InputStream_Constructor(JNIEnv* env)
+    __attribute__ ((unused));
+static ScopedJavaLocalRef<jobject> Java_InputStream_Constructor(JNIEnv* env) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_InputStream_clazz);
+  jmethodID method_id =
+  base::android::MethodID::LazyGet<
+      base::android::MethodID::TYPE_INSTANCE>(
+      env, g_InputStream_clazz,
+      "<init>",
 
+"("
+")"
+"V",
+      &g_InputStream_Constructor);
+
+  jobject ret =
+    env->NewObject(g_InputStream_clazz,
+      method_id);
+  base::android::CheckException(env);
+  return ScopedJavaLocalRef<jobject>(env, ret);
+}
+
+// Step 3: RegisterNatives.
+
+static bool RegisterNativesImpl(JNIEnv* env) {
+
+  g_InputStream_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kInputStreamClassPath)));
   return true;
 }
 }  // namespace JNI_InputStream
@@ -1461,16 +1490,6 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     """
     jni_from_java = jni_generator.JNIFromJavaSource(test_data, 'foo/bar')
 
-  def testRaisesOnUnknownDatatype(self):
-    test_data = """
-    class MyInnerClass {
-      private native int nativeInit(AnUnknownDatatype p0);
-    }
-    """
-    self.assertRaises(SyntaxError,
-                      jni_generator.JNIFromJavaSource,
-                      test_data, 'foo/bar')
-
   def testRaisesOnNonJNIMethod(self):
     test_data = """
     class MyInnerClass {
@@ -1491,17 +1510,80 @@ static bool RegisterNativesImpl(JNIEnv* env) {
         content, 'org/chromium/example/jni_generator/SampleForTests')
     self.assertTextEquals(golden_content, jni_from_java.GetContent())
 
-  def testCheckFilenames(self):
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['more', 'input', 'than'], ['output'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['more'], ['output', 'than', 'input'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['NotTheSame.java'], ['not_good.h'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['MissingJniSuffix.java'], ['missing_jni_suffix.h'])
-    jni_generator.CheckFilenames(['ThisIsFine.java'], ['this_is_fine_jni.h'])
-    jni_generator.CheckFilenames([], [])
+  def testNoWrappingPreprocessorLines(self):
+    test_data = """
+    package com.google.lookhowextremelylongiam.snarf.icankeepthisupallday;
+
+    class ReallyLongClassNamesAreAllTheRage {
+        private static native int nativeTest();
+    }
+    """
+    jni_from_java = jni_generator.JNIFromJavaSource(
+        test_data, ('com/google/lookhowextremelylongiam/snarf/'
+                    'icankeepthisupallday/ReallyLongClassNamesAreAllTheRage'))
+    jni_lines = jni_from_java.GetContent().split('\n')
+    line = filter(lambda line: line.lstrip().startswith('#ifndef'),
+                  jni_lines)[0]
+    self.assertTrue(len(line) > 80,
+                    ('Expected #ifndef line to be > 80 chars: ', line))
+
+  def testImports(self):
+    import_header = """
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.content.app;
+
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.SurfaceTexture;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
+import android.os.Process;
+import android.os.RemoteException;
+import android.util.Log;
+import android.view.Surface;
+
+import java.util.ArrayList;
+
+import org.chromium.base.CalledByNative;
+import org.chromium.base.JNINamespace;
+import org.chromium.content.app.ContentMain;
+import org.chromium.content.browser.SandboxedProcessConnection;
+import org.chromium.content.common.ISandboxedProcessCallback;
+import org.chromium.content.common.ISandboxedProcessService;
+import org.chromium.content.common.SurfaceCallback;
+import org.chromium.content.common.WillNotRaise.AnException;
+import org.chromium.content.common.WillRaise.AnException;
+
+import static org.chromium.Bar.Zoo;
+
+class Foo {
+  public static class BookmarkNode implements Parcelable {
+  }
+  public interface PasswordListObserver {
+  }
+}
+    """
+    jni_generator.JniParams.SetFullyQualifiedClass(
+        'org/chromium/content/app/Foo')
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(import_header)
+    self.assertTrue('Lorg/chromium/content/common/ISandboxedProcessService' in
+                    jni_generator.JniParams._imports)
+    self.assertTrue('Lorg/chromium/Bar/Zoo' in
+                    jni_generator.JniParams._imports)
+    self.assertTrue('Lorg/chromium/content/app/Foo$BookmarkNode' in
+                    jni_generator.JniParams._inner_classes)
+    self.assertTrue('Lorg/chromium/content/app/Foo$PasswordListObserver' in
+                    jni_generator.JniParams._inner_classes)
+    self.assertEquals('Lorg/chromium/content/app/ContentMain$Inner',
+                      jni_generator.JniParams.JavaToJni('ContentMain.Inner'))
+    self.assertRaises(SyntaxError,
+                      jni_generator.JniParams.JavaToJni,
+                      'AnException')
 
 
 if __name__ == '__main__':

@@ -10,13 +10,18 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 #include "media/mp4/box_definitions.h"
+#include "media/mp4/cenc.h"
 
 namespace media {
+
+class DecryptConfig;
+
 namespace mp4 {
 
 using base::TimeDelta;
-base::TimeDelta MEDIA_EXPORT TimeDeltaFromFrac(int64 numer, int64 denom);
+base::TimeDelta MEDIA_EXPORT TimeDeltaFromRational(int64 numer, int64 denom);
 
 struct SampleInfo;
 struct TrackRunInfo;
@@ -25,7 +30,7 @@ class MEDIA_EXPORT TrackRunIterator {
  public:
   // Create a new TrackRunIterator. A reference to |moov| will be retained for
   // the lifetime of this object.
-  explicit TrackRunIterator(const Movie* moov);
+  TrackRunIterator(const Movie* moov, const LogCB& log_cb);
   ~TrackRunIterator();
 
   void Reset();
@@ -34,13 +39,22 @@ class MEDIA_EXPORT TrackRunIterator {
   bool Init(const MovieFragment& moof);
 
   // Returns true if the properties of the current run or sample are valid.
-  bool RunIsValid() const;
-  bool SampleIsValid() const;
+  bool IsRunValid() const;
+  bool IsSampleValid() const;
 
   // Advance the properties to refer to the next run or sample. Requires that
   // the current sample be valid.
   void AdvanceRun();
   void AdvanceSample();
+
+  // Returns true if this track run has auxiliary information and has not yet
+  // been cached. Only valid if IsRunValid().
+  bool AuxInfoNeedsToBeCached();
+
+  // Caches the CENC data from the given buffer. |buf| must be a buffer starting
+  // at the offset given by cenc_offset(), with a |size| of at least
+  // cenc_size(). Returns true on success, false on error.
+  bool CacheAuxInfo(const uint8* buf, int size);
 
   // Returns the maximum buffer location at which no data earlier in the stream
   // will be required in order to read the current or any subsequent sample. You
@@ -52,15 +66,17 @@ class MEDIA_EXPORT TrackRunIterator {
   // Returns the minimum timestamp (or kInfiniteDuration if no runs present).
   TimeDelta GetMinDecodeTimestamp();
 
-  // Property of the current run. Only valid if RunIsValid().
+  // Property of the current run. Only valid if IsRunValid().
   uint32 track_id() const;
+  int64 aux_info_offset() const;
+  int aux_info_size() const;
   bool is_encrypted() const;
   bool is_audio() const;
   // Only one is valid, based on the value of is_audio().
   const AudioSampleEntry& audio_description() const;
   const VideoSampleEntry& video_description() const;
 
-  // Properties of the current sample. Only valid if SampleIsValid().
+  // Properties of the current sample. Only valid if IsSampleValid().
   int64 sample_offset() const;
   int sample_size() const;
   TimeDelta dts() const;
@@ -68,17 +84,27 @@ class MEDIA_EXPORT TrackRunIterator {
   TimeDelta duration() const;
   bool is_keyframe() const;
 
+  // Only call when is_encrypted() is true and AuxInfoNeedsToBeCached() is
+  // false. Result is owned by caller.
+  scoped_ptr<DecryptConfig> GetDecryptConfig();
+
  private:
   void ResetRun();
+  const TrackEncryption& track_encryption() const;
 
   const Movie* moov_;
+  LogCB log_cb_;
 
   std::vector<TrackRunInfo> runs_;
   std::vector<TrackRunInfo>::const_iterator run_itr_;
   std::vector<SampleInfo>::const_iterator sample_itr_;
 
+  std::vector<FrameCENCInfo> cenc_info_;
+
   int64 sample_dts_;
   int64 sample_offset_;
+
+  DISALLOW_COPY_AND_ASSIGN(TrackRunIterator);
 };
 
 }  // namespace mp4

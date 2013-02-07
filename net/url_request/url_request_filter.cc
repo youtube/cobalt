@@ -16,9 +16,10 @@ URLRequestFilter::~URLRequestFilter() {}
 
 // static
 URLRequestJob* URLRequestFilter::Factory(URLRequest* request,
+                                         NetworkDelegate* network_delegate,
                                          const std::string& scheme) {
   // Returning null here just means that the built-in handler will be used.
-  return GetInstance()->FindRequestHandler(request, scheme);
+  return GetInstance()->FindRequestHandler(request, network_delegate, scheme);
 }
 
 // static
@@ -119,6 +120,7 @@ URLRequestFilter::URLRequestFilter() : hit_count_(0) { }
 
 URLRequestJob* URLRequestFilter::FindRequestHandler(
     URLRequest* request,
+    NetworkDelegate* network_delegate,
     const std::string& scheme) {
   URLRequestJob* job = NULL;
   if (request->url().is_valid()) {
@@ -128,14 +130,14 @@ URLRequestJob* URLRequestFilter::FindRequestHandler(
     HostnameHandlerMap::iterator i =
         hostname_handler_map_.find(make_pair(scheme, hostname));
     if (i != hostname_handler_map_.end())
-      job = i->second(request, scheme);
+      job = i->second(request, network_delegate, scheme);
 
     if (!job) {
       // Not in the hostname map, check the url map.
       const std::string& url = request->url().spec();
       UrlHandlerMap::iterator i = url_handler_map_.find(url);
       if (i != url_handler_map_.end())
-        job = i->second(request, scheme);
+        job = i->second(request, network_delegate, scheme);
     }
   }
   if (job) {

@@ -33,6 +33,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
       FILE_PATH_LITERAL("--other-switches=--dog=canine --cat=feline"),
       FILE_PATH_LITERAL("-spaetzle=Crepe"),
       FILE_PATH_LITERAL("-=loosevalue"),
+      FILE_PATH_LITERAL("-"),
       FILE_PATH_LITERAL("FLAN"),
       FILE_PATH_LITERAL("a"),
       FILE_PATH_LITERAL("--input-translation=45--output-rotation"),
@@ -75,10 +76,12 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
 
   const CommandLine::StringVector& args = cl.GetArgs();
-  ASSERT_EQ(7U, args.size());
+  ASSERT_EQ(8U, args.size());
 
   std::vector<CommandLine::StringType>::const_iterator iter = args.begin();
   EXPECT_EQ(FILE_PATH_LITERAL("flim"), *iter);
+  ++iter;
+  EXPECT_EQ(FILE_PATH_LITERAL("-"), *iter);
   ++iter;
   EXPECT_EQ(FILE_PATH_LITERAL("FLAN"), *iter);
   ++iter;
@@ -173,6 +176,64 @@ TEST(CommandLineTest, EmptyString) {
   EXPECT_TRUE(cl_from_argv.GetProgram().empty());
   EXPECT_EQ(1U, cl_from_argv.argv().size());
   EXPECT_TRUE(cl_from_argv.GetArgs().empty());
+}
+
+TEST(CommandLineTest, GetArgumentsString) {
+  static const FilePath::CharType kPath1[] =
+      FILE_PATH_LITERAL("C:\\Some File\\With Spaces.ggg");
+  static const FilePath::CharType kPath2[] =
+      FILE_PATH_LITERAL("C:\\no\\spaces.ggg");
+
+  static const char kFirstArgName[] = "first-arg";
+  static const char kSecondArgName[] = "arg2";
+  static const char kThirdArgName[] = "arg with space";
+  static const char kFourthArgName[] = "nospace";
+
+  CommandLine cl(CommandLine::NO_PROGRAM);
+  cl.AppendSwitchPath(kFirstArgName, FilePath(kPath1));
+  cl.AppendSwitchPath(kSecondArgName, FilePath(kPath2));
+  cl.AppendArg(kThirdArgName);
+  cl.AppendArg(kFourthArgName);
+
+#if defined(OS_WIN)
+  CommandLine::StringType expected_first_arg(UTF8ToUTF16(kFirstArgName));
+  CommandLine::StringType expected_second_arg(UTF8ToUTF16(kSecondArgName));
+  CommandLine::StringType expected_third_arg(UTF8ToUTF16(kThirdArgName));
+  CommandLine::StringType expected_fourth_arg(UTF8ToUTF16(kFourthArgName));
+#elif defined(OS_POSIX)
+  CommandLine::StringType expected_first_arg(kFirstArgName);
+  CommandLine::StringType expected_second_arg(kSecondArgName);
+  CommandLine::StringType expected_third_arg(kThirdArgName);
+  CommandLine::StringType expected_fourth_arg(kFourthArgName);
+#endif
+
+#if defined(OS_WIN)
+#define QUOTE_ON_WIN FILE_PATH_LITERAL("\"")
+#else
+#define QUOTE_ON_WIN FILE_PATH_LITERAL("")
+#endif  // OS_WIN
+
+  CommandLine::StringType expected_str;
+  expected_str.append(FILE_PATH_LITERAL("--"))
+              .append(expected_first_arg)
+              .append(FILE_PATH_LITERAL("="))
+              .append(QUOTE_ON_WIN)
+              .append(kPath1)
+              .append(QUOTE_ON_WIN)
+              .append(FILE_PATH_LITERAL(" "))
+              .append(FILE_PATH_LITERAL("--"))
+              .append(expected_second_arg)
+              .append(FILE_PATH_LITERAL("="))
+              .append(QUOTE_ON_WIN)
+              .append(kPath2)
+              .append(QUOTE_ON_WIN)
+              .append(FILE_PATH_LITERAL(" "))
+              .append(QUOTE_ON_WIN)
+              .append(expected_third_arg)
+              .append(QUOTE_ON_WIN)
+              .append(FILE_PATH_LITERAL(" "))
+              .append(expected_fourth_arg);
+  EXPECT_EQ(expected_str, cl.GetArgumentsString());
 }
 
 // Test methods for appending switches to a command line.

@@ -95,6 +95,12 @@ std::string FtpUtil::VMSPathToUnix(const std::string& vms_path) {
   if (vms_path.empty())
     return ".";
 
+  if (vms_path[0] == '/') {
+    // This is not really a VMS path. Most likely the server is emulating UNIX.
+    // Return path as-is.
+    return vms_path;
+  }
+
   if (vms_path == "[]")
     return "/";
 
@@ -203,8 +209,15 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
                                   base::Time* result) {
   base::Time::Exploded time_exploded = { 0 };
 
-  if (!AbbreviatedMonthToNumber(month, &time_exploded.month))
-    return false;
+  if (!AbbreviatedMonthToNumber(month, &time_exploded.month)) {
+    // Work around garbage sent by some servers in the same column
+    // as the month. Take just last 3 characters of the string.
+    if (month.length() < 3 ||
+        !AbbreviatedMonthToNumber(month.substr(month.length() - 3),
+                                  &time_exploded.month)) {
+      return false;
+    }
+  }
 
   if (!base::StringToInt(day, &time_exploded.day_of_month))
     return false;

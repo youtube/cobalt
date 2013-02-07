@@ -14,6 +14,7 @@
 #define MEDIA_BASE_DECODER_BUFFER_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "build/build_config.h"
 #include "media/base/buffers.h"
 #include "media/base/decrypt_config.h"
 
@@ -21,6 +22,15 @@ namespace media {
 
 class MEDIA_EXPORT DecoderBuffer : public Buffer {
  public:
+  enum {
+    kPaddingSize = 16,
+#if defined(ARCH_CPU_ARM_FAMILY)
+    kAlignmentSize = 16
+#else
+    kAlignmentSize = 32
+#endif
+  };
+
   // Allocates buffer of size |buffer_size| >= 0.  Buffer will be padded and
   // aligned as necessary.
   explicit DecoderBuffer(int buffer_size);

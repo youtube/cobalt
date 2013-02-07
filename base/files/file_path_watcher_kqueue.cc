@@ -12,6 +12,7 @@
 
 #include "base/bind.h"
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/stringprintf.h"
@@ -64,6 +65,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
   // FilePathWatcher::PlatformDelegate overrides.
   virtual bool Watch(const FilePath& path,
+                     bool recursive,
                      FilePathWatcher::Delegate* delegate) OVERRIDE;
   virtual void Cancel() OVERRIDE;
 
@@ -428,11 +430,18 @@ void FilePathWatcherImpl::WillDestroyCurrentMessageLoop() {
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
+                                bool recursive,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(MessageLoopForIO::current());
   DCHECK(target_.value().empty());  // Can only watch one path.
   DCHECK(delegate);
   DCHECK_EQ(kqueue_, -1);
+
+  if (recursive) {
+    // Recursive watch is not supported on this platform.
+    NOTIMPLEMENTED();
+    return false;
+  }
 
   delegate_ = delegate;
   target_ = path;

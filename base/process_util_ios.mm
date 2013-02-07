@@ -17,15 +17,6 @@ namespace base {
 
 namespace {
 
-void StackDumpSignalHandler(int signal) {
-  LOG(ERROR) << "Received signal " << signal;
-  NSArray *stack_symbols = [NSThread callStackSymbols];
-  for (NSString* stack_symbol in stack_symbols) {
-    fprintf(stderr, "\t%s\n", [stack_symbol UTF8String]);
-  }
-  _exit(1);
-}
-
 bool GetTaskInfo(task_basic_info_64* task_info_data) {
   mach_msg_type_number_t count = TASK_BASIC_INFO_64_COUNT;
   kern_return_t kr = task_info(mach_task_self(),
@@ -51,26 +42,6 @@ void EnableTerminationOnHeapCorruption() {
 
 void EnableTerminationOnOutOfMemory() {
   // iOS provides this for free!
-}
-
-bool EnableInProcessStackDumping() {
-  // When running in an application, our code typically expects SIGPIPE
-  // to be ignored.  Therefore, when testing that same code, it should run
-  // with SIGPIPE ignored as well.
-  struct sigaction action;
-  action.sa_handler = SIG_IGN;
-  action.sa_flags = 0;
-  sigemptyset(&action.sa_mask);
-  bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
-
-  success &= (signal(SIGILL, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGABRT, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGFPE, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGBUS, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGSEGV, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGSYS, &StackDumpSignalHandler) != SIG_ERR);
-
-  return success;
 }
 
 void RaiseProcessToHighPriority() {

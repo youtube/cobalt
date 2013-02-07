@@ -44,7 +44,7 @@
 #include "content/browser/speech/endpointer/energy_endpointer_params.h"
 #include "content/common/content_export.h"
 
-namespace speech {
+namespace content {
 
 // Endpointer status codes
 enum EpStatus {
@@ -150,6 +150,6 @@ class CONTENT_EXPORT EnergyEndpointer {
   DISALLOW_COPY_AND_ASSIGN(EnergyEndpointer);
 };
 
-}  // namespace speech
+}  // namespace content
 
 #endif  // CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_H_

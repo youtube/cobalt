@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <math.h>
 
-#include "vp8enci.h"
-#include "cost.h"
+#include "./vp8enci.h"
+#include "./cost.h"
 
 #define DO_TRELLIS_I4  1
 #define DO_TRELLIS_I16 1   // not a huge gain, but ok at low bitrate.
@@ -35,7 +35,7 @@ extern "C" {
 
 //------------------------------------------------------------------------------
 
-static inline int clip(int v, int m, int M) {
+static WEBP_INLINE int clip(int v, int m, int M) {
   return v < m ? m : v > M ? M : v;
 }
 
@@ -299,16 +299,16 @@ const int VP8I4ModeOffsets[NUM_BMODES] = {
 };
 
 void VP8MakeLuma16Preds(const VP8EncIterator* const it) {
-  VP8Encoder* const enc = it->enc_;
-  const uint8_t* left = it->x_ ? enc->y_left_ : NULL;
-  const uint8_t* top = it->y_ ? enc->y_top_ + it->x_ * 16 : NULL;
+  const VP8Encoder* const enc = it->enc_;
+  const uint8_t* const left = it->x_ ? enc->y_left_ : NULL;
+  const uint8_t* const top = it->y_ ? enc->y_top_ + it->x_ * 16 : NULL;
   VP8EncPredLuma16(it->yuv_p_, left, top);
 }
 
 void VP8MakeChroma8Preds(const VP8EncIterator* const it) {
-  VP8Encoder* const enc = it->enc_;
-  const uint8_t* left = it->x_ ? enc->u_left_ : NULL;
-  const uint8_t* top = it->y_ ? enc->uv_top_ + it->x_ * 16 : NULL;
+  const VP8Encoder* const enc = it->enc_;
+  const uint8_t* const left = it->x_ ? enc->u_left_ : NULL;
+  const uint8_t* const top = it->y_ ? enc->uv_top_ + it->x_ * 16 : NULL;
   VP8EncPredChroma8(it->yuv_p_, left, top);
 }
 
@@ -406,13 +406,13 @@ typedef struct {
 #define NUM_NODES (MIN_DELTA + 1 + MAX_DELTA)
 #define NODE(n, l) (nodes[(n) + 1][(l) + MIN_DELTA])
 
-static inline void SetRDScore(int lambda, VP8ModeScore* const rd) {
+static WEBP_INLINE void SetRDScore(int lambda, VP8ModeScore* const rd) {
   // TODO: incorporate the "* 256" in the tables?
   rd->score = rd->R * lambda + 256 * (rd->D + rd->SD);
 }
 
-static inline score_t RDScoreTrellis(int lambda, score_t rate,
-                                     score_t distortion) {
+static WEBP_INLINE score_t RDScoreTrellis(int lambda, score_t rate,
+                                          score_t distortion) {
   return rate * lambda + 256 * distortion;
 }
 
@@ -700,7 +700,7 @@ static void SwapOut(VP8EncIterator* const it) {
 }
 
 static void PickBestIntra16(VP8EncIterator* const it, VP8ModeScore* const rd) {
-  VP8Encoder* const enc = it->enc_;
+  const VP8Encoder* const enc = it->enc_;
   const VP8SegmentInfo* const dqm = &enc->dqm_[it->mb_->segment_];
   const int lambda = dqm->lambda_i16_;
   const int tlambda = dqm->tlambda_;
@@ -742,7 +742,7 @@ static void PickBestIntra16(VP8EncIterator* const it, VP8ModeScore* const rd) {
 
 // return the cost array corresponding to the surrounding prediction modes.
 static const uint16_t* GetCostModeI4(VP8EncIterator* const it,
-                                     const int modes[16]) {
+                                     const uint8_t modes[16]) {
   const int preds_w = it->enc_->preds_w_;
   const int x = (it->i4_ & 3), y = it->i4_ >> 2;
   const int left = (x == 0) ? it->preds_[y * preds_w - 1] : modes[it->i4_ - 1];
@@ -751,7 +751,7 @@ static const uint16_t* GetCostModeI4(VP8EncIterator* const it,
 }
 
 static int PickBestIntra4(VP8EncIterator* const it, VP8ModeScore* const rd) {
-  VP8Encoder* const enc = it->enc_;
+  const VP8Encoder* const enc = it->enc_;
   const VP8SegmentInfo* const dqm = &enc->dqm_[it->mb_->segment_];
   const int lambda = dqm->lambda_i4_;
   const int tlambda = dqm->tlambda_;
@@ -827,7 +827,7 @@ static int PickBestIntra4(VP8EncIterator* const it, VP8ModeScore* const rd) {
 //------------------------------------------------------------------------------
 
 static void PickBestUV(VP8EncIterator* const it, VP8ModeScore* const rd) {
-  VP8Encoder* const enc = it->enc_;
+  const VP8Encoder* const enc = it->enc_;
   const VP8SegmentInfo* const dqm = &enc->dqm_[it->mb_->segment_];
   const int lambda = dqm->lambda_uv_;
   const uint8_t* const src = it->yuv_in_ + U_OFF;

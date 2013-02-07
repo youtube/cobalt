@@ -60,9 +60,7 @@ namespace net {
 
 namespace {
 
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-const int kPersistentSessionCookieExpiryInDays = 14;
-#endif
+const int kVlogSetCookies = 7;
 
 // Determine the cookie domain to use for setting the specified cookie.
 bool GetCookieDomain(const GURL& url,
@@ -109,7 +107,6 @@ std::string CanonPathWithString(const GURL& url,
 CanonicalCookie::CanonicalCookie()
     : secure_(false),
       httponly_(false) {
-  SetSessionCookieExpiryTime();
 }
 
 CanonicalCookie::CanonicalCookie(
@@ -130,8 +127,6 @@ CanonicalCookie::CanonicalCookie(
       last_access_date_(last_access),
       secure_(secure),
       httponly_(httponly) {
-  if (expiration.is_null())
-    SetSessionCookieExpiryTime();
 }
 
 CanonicalCookie::CanonicalCookie(const GURL& url, const ParsedCookie& pc)
@@ -147,8 +142,6 @@ CanonicalCookie::CanonicalCookie(const GURL& url, const ParsedCookie& pc)
       httponly_(pc.IsHttpOnly()) {
   if (pc.HasExpires())
     expiry_date_ = CanonExpiration(pc, creation_date_, creation_date_);
-  else
-    SetSessionCookieExpiryTime();
 
   // Do the best we can with the domain.
   std::string cookie_domain;
@@ -214,37 +207,48 @@ Time CanonicalCookie::CanonExpiration(const ParsedCookie& pc,
   return Time();
 }
 
-void CanonicalCookie::SetSessionCookieExpiryTime() {
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-  // Mobile apps can sometimes be shut down without any warning, so the session
-  // cookie has to be persistent and given a default expiration time.
-  expiry_date_ = base::Time::Now() +
-      base::TimeDelta::FromDays(kPersistentSessionCookieExpiryInDays);
-#endif
-}
-
+// static
 CanonicalCookie* CanonicalCookie::Create(const GURL& url,
-                                         const ParsedCookie& pc) {
-  if (!pc.IsValid()) {
+                                         const std::string& cookie_line,
+                                         const base::Time& creation_time,
+                                         const CookieOptions& options) {
+  ParsedCookie parsed_cookie(cookie_line);
+
+  if (!parsed_cookie.IsValid()) {
+    VLOG(kVlogSetCookies) << "WARNING: Couldn't parse cookie";
     return NULL;
   }
 
-  std::string domain_string;
-  if (!GetCookieDomain(url, pc, &domain_string)) {
+  if (options.exclude_httponly() && parsed_cookie.IsHttpOnly()) {
+    VLOG(kVlogSetCookies) << "Create() is not creating a httponly cookie";
     return NULL;
   }
-  std::string path_string = CanonPath(url, pc);
-  std::string mac_key = pc.HasMACKey() ? pc.MACKey() : std::string();
-  std::string mac_algorithm = pc.HasMACAlgorithm() ?
-      pc.MACAlgorithm() : std::string();
-  Time creation_time = Time::Now();
-  Time expiration_time;
-  if (pc.HasExpires())
-    expiration_time =  cookie_util::ParseCookieTime(pc.Expires());
 
-  return (Create(url, pc.Name(), pc.Value(), domain_string, path_string,
-                 mac_key, mac_algorithm, creation_time, expiration_time,
-                 pc.IsSecure(), pc.IsHttpOnly()));
+  std::string cookie_domain;
+  if (!GetCookieDomain(url, parsed_cookie, &cookie_domain)) {
+    return NULL;
+  }
+
+  std::string cookie_path = CanonicalCookie::CanonPath(url, parsed_cookie);
+  std::string mac_key;
+  if (parsed_cookie.HasMACKey())
+    mac_key = parsed_cookie.MACKey();
+  std::string mac_algorithm;
+  if (parsed_cookie.HasMACAlgorithm())
+    mac_algorithm = parsed_cookie.MACAlgorithm();
+  Time server_time(creation_time);
+  if (options.has_server_time())
+    server_time = options.server_time();
+
+  Time cookie_expires = CanonicalCookie::CanonExpiration(parsed_cookie,
+                                                         creation_time,
+                                                         server_time);
+
+  return new CanonicalCookie(url, parsed_cookie.Name(), parsed_cookie.Value(),
+                             cookie_domain, cookie_path, mac_key, mac_algorithm,
+                             creation_time, cookie_expires, creation_time,
+                             parsed_cookie.IsSecure(),
+                             parsed_cookie.IsHttpOnly());
 }
 
 CanonicalCookie* CanonicalCookie::Create(const GURL& url,
@@ -334,8 +338,7 @@ bool CanonicalCookie::IsOnPath(const std::string& url_path) const {
   return true;
 }
 
-bool CanonicalCookie::IsDomainMatch(const std::string& scheme,
-                                    const std::string& host) const {
+bool CanonicalCookie::IsDomainMatch(const std::string& host) const {
   // Can domain match in two ways; as a domain cookie (where the cookie
   // domain begins with ".") or as a host cookie (where it doesn't).
 
@@ -366,6 +369,26 @@ bool CanonicalCookie::IsDomainMatch(const std::string& scheme,
   return (host.length() > domain_.length() &&
           host.compare(host.length() - domain_.length(),
                        domain_.length(), domain_) == 0);
+}
+
+bool CanonicalCookie::IncludeForRequestURL(const GURL& url,
+                                           const CookieOptions& options) const {
+  // Filter out HttpOnly cookies, per options.
+  if (options.exclude_httponly() && IsHttpOnly())
+    return false;
+  // Secure cookies should not be included in requests for URLs with an
+  // insecure scheme.
+  if (IsSecure() && !url.SchemeIsSecure())
+    return false;
+  // Don't include cookies for requests that don't apply to the cookie domain.
+  if (!IsDomainMatch(url.host()))
+    return false;
+  // Don't include cookies for requests with a url path that does not path
+  // match the cookie-path.
+  if (!IsOnPath(url.path()))
+    return false;
+
+  return true;
 }
 
 std::string CanonicalCookie::DebugString() const {

@@ -7,10 +7,16 @@
 
 #include "base/basictypes.h"
 #include "media/base/media_export.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
 class VideoFrame;
+
+// Computes the size of |visible_size| for a given aspect ratio.
+MEDIA_EXPORT gfx::Size GetNaturalSize(const gfx::Size& visible_size,
+                                      int aspect_ratio_numerator,
+                                      int aspect_ratio_denominator);
 
 // Copies a plane of YUV source into a VideoFrame object, taking into account
 // source and destinations dimensions.

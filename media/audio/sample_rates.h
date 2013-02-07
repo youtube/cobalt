@@ -10,8 +10,8 @@
 namespace media {
 
 // Enumeration used for histogramming sample rates into distinct buckets.
+// Logged to UMA, so never reuse a value, always add new/greater ones!
 enum AudioSampleRate {
-  // Do not change the order of these values.
   k8000Hz = 0,
   k16000Hz = 1,
   k32000Hz = 2,
@@ -20,6 +20,9 @@ enum AudioSampleRate {
   k11025Hz = 5,
   k22050Hz = 6,
   k44100Hz = 7,
+  k88200Hz = 8,
+  k176400Hz = 9,
+  k192000Hz = 10,
   kUnexpectedAudioSampleRate  // Must always be last!
 };
 

@@ -508,6 +508,14 @@ BASE_EXPORT string16 JoinString(const std::vector<string16>& parts, char16 s);
 BASE_EXPORT std::string JoinString(
     const std::vector<std::string>& parts, char s);
 
+// Join |parts| using |separator|.
+BASE_EXPORT std::string JoinString(
+    const std::vector<std::string>& parts,
+    const std::string& separator);
+BASE_EXPORT string16 JoinString(
+    const std::vector<string16>& parts,
+    const string16& separator);
+
 // Replace $1-$2-$3..$9 in the format string with |a|-|b|-|c|..|i| respectively.
 // Additionally, any number of consecutive '$' characters is replaced by that
 // number less one. Eg $$->$, $$$->$$, etc. The offsets parameter here can be

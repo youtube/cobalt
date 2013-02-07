@@ -64,6 +64,9 @@
           },
         }],
         ['OS == "ios"', {
+          'dependencies' : [
+            '<(DEPTH)/testing/iossim/iossim.gyp:iossim',
+          ],
           'direct_dependent_settings': {
             'target_conditions': [
               # Turn all tests into bundles on iOS because that's the only
@@ -108,17 +111,42 @@
             ],
           },
         }],
-        ['clang==1 or OS=="android"', {
+        ['OS=="android" and android_app_abi=="x86"', {
+          'defines': [
+            'GTEST_HAS_CLONE=0',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'GTEST_HAS_CLONE=0',
+            ],
+          },
+        }],
+        ['OS=="android"', {
           # We want gtest features that use tr1::tuple, but we currently
           # don't support the variadic templates used by libstdc++'s
           # implementation. gtest supports this scenario by providing its
           # own implementation but we must opt in to it.
           'defines': [
             'GTEST_USE_OWN_TR1_TUPLE=1',
+            # GTEST_USE_OWN_TR1_TUPLE only works if GTEST_HAS_TR1_TUPLE is set.
+            # gtest r625 made it so that GTEST_HAS_TR1_TUPLE is set to 0
+            # automatically on android, so it has to be set explicitly here.
+            'GTEST_HAS_TR1_TUPLE=1',
           ],
           'direct_dependent_settings': {
             'defines': [
               'GTEST_USE_OWN_TR1_TUPLE=1',
+              'GTEST_HAS_TR1_TUPLE=1',
+            ],
+          },
+        }],
+        ['OS=="win" and MSVS_VERSION=="2012"', {
+          'defines': [
+            '_VARIADIC_MAX=10',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              '_VARIADIC_MAX=10',
             ],
           },
         }],
@@ -161,7 +189,7 @@
                   # Use a variable so the path gets fixed up so it is always
                   # correct when the action finally gets used.
                   'ios_run_unittest_script_path':
-                    '<(DEPTH)/testing/gtest_ios/RunUnittest.sh',
+                    '<(DEPTH)/testing/gtest_ios/run-unittest.sh',
                 },
                 'run_as': {
                   'action????': ['>(ios_run_unittest_script_path)'],

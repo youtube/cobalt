@@ -890,7 +890,7 @@ bool CommandLineInterface::InterpretArgument(const string& name,
       string virtual_path;
       string disk_path;
 
-      int equals_pos = parts[i].find_first_of('=');
+      string::size_type equals_pos = parts[i].find_first_of('=');
       if (equals_pos == string::npos) {
         virtual_path = "";
         disk_path = parts[i];
@@ -910,7 +910,7 @@ bool CommandLineInterface::InterpretArgument(const string& name,
         cerr << disk_path << ": warning: directory does not exist." << endl;
       }
 
-      proto_path_.push_back(make_pair<string, string>(virtual_path, disk_path));
+      proto_path_.push_back(make_pair(virtual_path, disk_path));
     }
 
   } else if (name == "-o" || name == "--descriptor_set_out") {

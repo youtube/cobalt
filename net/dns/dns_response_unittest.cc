@@ -299,7 +299,7 @@ TEST(DnsResponseTest, ParseToAddressList) {
     DnsResponse response(t.response_data, t.response_size, t.query_size);
     AddressList addr_list;
     base::TimeDelta ttl;
-    EXPECT_EQ(DnsResponse::DNS_SUCCESS,
+    EXPECT_EQ(DnsResponse::DNS_PARSE_OK,
               response.ParseToAddressList(&addr_list, &ttl));
     std::vector<const char*> expected_addresses(
         t.expected_addresses,
@@ -379,22 +379,6 @@ const uint8 kResponseCNAMEAfterAddress[] = {
   0x00, 0x03, 0x01,  'b', 0x00,
 };
 
-const uint8 kResponseTTLMismatch[] = {
-  // Header: 1 question, 3 answer RR
-  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
-  // Question: name = 'a', type = A (0x1)
-  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
-  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = 'b'
-  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
-  0x00, 0x03, 0x01,  'b', 0x00,
-  // Answer: name = 'b', type = A, TTL = 0xFF, RDATA = 10.10.10.10
-  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
-  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
-  // Answer: name = 'b', type = A, TTL = 0xBB, RDATA = 10.10.10.11
-  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xBB,
-  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0B,
-};
-
 const uint8 kResponseNoAddresses[] = {
   // Header: 1 question, 1 answer RR, 1 authority RR
   0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -427,10 +411,9 @@ TEST(DnsResponseTest, ParseToAddressListFail) {
       DnsResponse::DNS_SIZE_MISMATCH },
     { kResponseCNAMEAfterAddress, arraysize(kResponseCNAMEAfterAddress),
       DnsResponse::DNS_CNAME_AFTER_ADDRESS },
-    { kResponseTTLMismatch, arraysize(kResponseTTLMismatch),
-      DnsResponse::DNS_ADDRESS_TTL_MISMATCH },
+    // Not actually a failure, just an empty result.
     { kResponseNoAddresses, arraysize(kResponseNoAddresses),
-      DnsResponse::DNS_NO_ADDRESSES },
+      DnsResponse::DNS_PARSE_OK },
   };
 
   const size_t kQuerySize = 12 + 7;

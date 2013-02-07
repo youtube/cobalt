@@ -6,6 +6,8 @@
 
 #include <vector>
 
+#include "base/base_paths.h"
+#include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -29,17 +31,27 @@ namespace {
 // to a single testing device.
 // The mapping between the test server spawner and the individual Python test
 // servers is written to a file on the device prior to executing any tests.
-const char kTestServerPortInfoFile[] = "/data/local/tmp/net-test-server-ports";
+FilePath GetTestServerPortInfoFile() {
+#if !defined(OS_ANDROID)
+  return FilePath("/tmp/net-test-server-ports");
+#else
+  FilePath test_data_dir;
+  PathService::Get(base::DIR_ANDROID_EXTERNAL_STORAGE, &test_data_dir);
+  return test_data_dir.Append("net-test-server-ports");
+#endif
+}
 
 // Please keep it sync with dictionary SERVER_TYPES in testserver.py
 std::string GetServerTypeString(BaseTestServer::Type type) {
   switch (type) {
     case BaseTestServer::TYPE_FTP:
       return "ftp";
-    case BaseTestServer::TYPE_GDATA:
     case BaseTestServer::TYPE_HTTP:
     case BaseTestServer::TYPE_HTTPS:
       return "http";
+    case BaseTestServer::TYPE_WS:
+    case BaseTestServer::TYPE_WSS:
+      return "ws";
     case BaseTestServer::TYPE_SYNC:
       return "sync";
     case BaseTestServer::TYPE_TCP_ECHO:
@@ -63,10 +75,10 @@ RemoteTestServer::RemoteTestServer(Type type,
     NOTREACHED();
 }
 
-RemoteTestServer::RemoteTestServer(
-    const HTTPSOptions& https_options,
-    const FilePath& document_root)
-    : BaseTestServer(https_options),
+RemoteTestServer::RemoteTestServer(Type type,
+                                   const SSLOptions& ssl_options,
+                                   const FilePath& document_root)
+    : BaseTestServer(type, ssl_options),
       spawner_server_port_(0) {
   if (!Init(document_root))
     NOTREACHED();
@@ -130,6 +142,16 @@ bool RemoteTestServer::Stop() {
   return stopped;
 }
 
+// On Android, the document root in the device is not the same as the document
+// root in the host machine where the test server is launched. So prepend
+// DIR_SOURCE_ROOT here to get the actual path of document root on the Android
+// device.
+FilePath RemoteTestServer::GetDocumentRoot() const {
+  FilePath src_dir;
+  PathService::Get(base::DIR_SOURCE_ROOT, &src_dir);
+  return src_dir.Append(document_root());
+}
+
 bool RemoteTestServer::Init(const FilePath& document_root) {
   if (document_root.IsAbsolute())
     return false;
@@ -139,7 +161,7 @@ bool RemoteTestServer::Init(const FilePath& document_root) {
 
   // Parse file to extract the ports information.
   std::string port_info;
-  if (!file_util::ReadFileToString(FilePath(kTestServerPortInfoFile),
+  if (!file_util::ReadFileToString(GetTestServerPortInfoFile(),
                                    &port_info) ||
       port_info.empty()) {
     return false;

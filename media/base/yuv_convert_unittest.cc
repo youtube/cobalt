@@ -170,6 +170,37 @@ class YUVScaleTest : public ::testing::TestWithParam<YUVScaleTestData> {
   scoped_array<uint8> rgb_bytes_;
 };
 
+TEST_P(YUVScaleTest, NoScale) {
+  media::ScaleYUVToRGB32(y_plane(),                    // Y
+                         u_plane(),                    // U
+                         v_plane(),                    // V
+                         rgb_bytes_.get(),             // RGB output
+                         kSourceWidth, kSourceHeight,  // Dimensions
+                         kSourceWidth, kSourceHeight,  // Dimensions
+                         kSourceWidth,                 // YStride
+                         kSourceWidth / 2,             // UvStride
+                         kSourceWidth * kBpp,          // RgbStride
+                         GetParam().yuv_type,
+                         media::ROTATE_0,
+                         GetParam().scale_filter);
+
+  uint32 yuv_hash = DJB2Hash(rgb_bytes_.get(), kRGBSize, kDJB2HashSeed);
+
+  media::ConvertYUVToRGB32(y_plane(),                    // Y
+                           u_plane(),                    // U
+                           v_plane(),                    // V
+                           rgb_bytes_.get(),             // RGB output
+                           kSourceWidth, kSourceHeight,  // Dimensions
+                           kSourceWidth,                 // YStride
+                           kSourceWidth / 2,             // UVStride
+                           kSourceWidth * kBpp,          // RGBStride
+                           GetParam().yuv_type);
+
+  uint32 rgb_hash = DJB2Hash(rgb_bytes_.get(), kRGBSize, kDJB2HashSeed);
+
+  EXPECT_EQ(yuv_hash, rgb_hash);
+}
+
 TEST_P(YUVScaleTest, Normal) {
   media::ScaleYUVToRGB32(y_plane(),                    // Y
                          u_plane(),                    // U
@@ -240,10 +271,10 @@ TEST_P(YUVScaleTest, OddWidthAndHeightNotCrash) {
 INSTANTIATE_TEST_CASE_P(
     YUVScaleFormats, YUVScaleTest,
     ::testing::Values(
-        YUVScaleTestData(media::YV12, media::FILTER_NONE, 4259656254u),
-        YUVScaleTestData(media::YV16, media::FILTER_NONE, 974965419u),
-        YUVScaleTestData(media::YV12, media::FILTER_BILINEAR, 2086305576u),
-        YUVScaleTestData(media::YV16, media::FILTER_BILINEAR, 3857179240u)));
+        YUVScaleTestData(media::YV12, media::FILTER_NONE, 4136904952u),
+        YUVScaleTestData(media::YV16, media::FILTER_NONE, 1501777547u),
+        YUVScaleTestData(media::YV12, media::FILTER_BILINEAR, 3164274689u),
+        YUVScaleTestData(media::YV16, media::FILTER_BILINEAR, 3095878046u)));
 
 // This tests a known worst case YUV value, and for overflow.
 TEST(YUVConvertTest, Clamp) {

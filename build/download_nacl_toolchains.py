@@ -50,7 +50,13 @@ def Main(args):
     else:
       args.append('--no-pnacl')
 
-  download_toolchains.Main(args)
+  # Append the name of the file to use as a version and hash source.
+  # NOTE:  While not recommended, it is possible to redirect this file to
+  # a chrome location to avoid branching NaCl if just a toolchain needs
+  # to be bumped.
+  args.append(os.path.join(nacl_dir,'TOOL_REVISIONS'))
+
+  download_toolchains.main(args)
   return 0
 
 

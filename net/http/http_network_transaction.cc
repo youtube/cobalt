@@ -45,6 +45,7 @@
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties.h"
 #include "net/http/http_status_code.h"
+#include "net/http/http_stream_base.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
@@ -152,7 +153,7 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
         stream_->Close(true /* not reusable */);
       } else {
         // Otherwise, we try to drain the response body.
-        HttpStream* stream = stream_.release();
+        HttpStreamBase* stream = stream_.release();
         stream->Drain(session_);
       }
     }
@@ -287,7 +288,8 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
       // We should call connection_->set_idle_time(), but this doesn't occur
       // often enough to be worth the trouble.
       stream_->SetConnectionReused();
-      new_stream = stream_->RenewStreamForAuth();
+      new_stream =
+          static_cast<HttpStream*>(stream_.get())->RenewStreamForAuth();
     }
 
     if (!new_stream) {
@@ -374,16 +376,17 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
   }
 }
 
-uint64 HttpNetworkTransaction::GetUploadProgress() const {
+UploadProgress HttpNetworkTransaction::GetUploadProgress() const {
   if (!stream_.get())
-    return 0;
+    return UploadProgress();
 
-  return stream_->GetUploadProgress();
+  // TODO(bashi): This cast is temporary. Remove later.
+  return static_cast<HttpStream*>(stream_.get())->GetUploadProgress();
 }
 
 void HttpNetworkTransaction::OnStreamReady(const SSLConfig& used_ssl_config,
                                            const ProxyInfo& used_proxy_info,
-                                           HttpStream* stream) {
+                                           HttpStreamBase* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
   DCHECK(stream_request_.get());
 
@@ -466,7 +469,7 @@ void HttpNetworkTransaction::OnHttpsProxyTunnelResponse(
     const HttpResponseInfo& response_info,
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
-    HttpStream* stream) {
+    HttpStreamBase* stream) {
   DCHECK_EQ(STATE_CREATE_STREAM_COMPLETE, next_state_);
 
   headers_valid_ = true;
@@ -533,6 +536,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
         rv = DoGenerateServerAuthTokenComplete(rv);
+        break;
+      case STATE_INIT_REQUEST_BODY:
+        DCHECK_EQ(OK, rv);
+        rv = DoInitRequestBody();
+        break;
+      case STATE_INIT_REQUEST_BODY_COMPLETE:
+        rv = DoInitRequestBodyComplete(rv);
         break;
       case STATE_BUILD_REQUEST:
         DCHECK_EQ(OK, rv);
@@ -689,7 +699,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
   DCHECK_NE(ERR_IO_PENDING, rv);
   if (rv == OK)
-    next_state_ = STATE_BUILD_REQUEST;
+    next_state_ = STATE_INIT_REQUEST_BODY;
   return rv;
 }
 
@@ -706,14 +716,14 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
   }
 
   // Add a content length header?
-  if (request_body_.get()) {
-    if (request_body_->is_chunked()) {
+  if (request_->upload_data_stream) {
+    if (request_->upload_data_stream->is_chunked()) {
       request_headers_.SetHeader(
           HttpRequestHeaders::kTransferEncoding, "chunked");
     } else {
       request_headers_.SetHeader(
           HttpRequestHeaders::kContentLength,
-          base::Uint64ToString(request_body_->size()));
+          base::Uint64ToString(request_->upload_data_stream->size()));
     }
   } else if (request_->method == "POST" || request_->method == "PUT" ||
              request_->method == "HEAD") {
@@ -742,18 +752,22 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
   request_headers_.MergeFrom(request_->extra_headers);
 }
 
+int HttpNetworkTransaction::DoInitRequestBody() {
+  next_state_ = STATE_INIT_REQUEST_BODY_COMPLETE;
+  int rv = OK;
+  if (request_->upload_data_stream)
+    rv = request_->upload_data_stream->Init(io_callback_);
+  return rv;
+}
+
+int HttpNetworkTransaction::DoInitRequestBodyComplete(int result) {
+  if (result == OK)
+    next_state_ = STATE_BUILD_REQUEST;
+  return result;
+}
+
 int HttpNetworkTransaction::DoBuildRequest() {
   next_state_ = STATE_BUILD_REQUEST_COMPLETE;
-  request_body_.reset(NULL);
-  if (request_->upload_data) {
-    request_body_.reset(new UploadDataStream(request_->upload_data));
-    const int error_code = request_body_->Init();
-    if (error_code != OK) {
-      request_body_.reset(NULL);
-      return error_code;
-    }
-  }
-
   headers_valid_ = false;
 
   // This is constructed lazily (instead of within our Start method), so that
@@ -776,8 +790,7 @@ int HttpNetworkTransaction::DoBuildRequestComplete(int result) {
 int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
-  return stream_->SendRequest(
-      request_headers_, request_body_.Pass(), &response_, io_callback_);
+  return stream_->SendRequest(request_headers_, &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -845,6 +858,23 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       return rv;
   }
   DCHECK(response_.headers);
+
+  // Server-induced fallback is supported only if this is a PAC configured
+  // proxy. See: http://crbug.com/143712
+  if (response_.was_fetched_via_proxy && proxy_info_.did_use_pac_script()) {
+    if (response_.headers != NULL &&
+        response_.headers->HasHeaderValue("connection", "proxy-bypass")) {
+      ProxyService* proxy_service = session_->proxy_service();
+      if (proxy_service->MarkProxyAsBad(proxy_info_, net_log_)) {
+        // Only retry in the case of GETs. We don't want to resubmit a POST
+        // if the proxy took some action.
+        if (request_->method == "GET") {
+          ResetConnectionAndRequestForResend();
+          return OK;
+        }
+      }
+    }
+  }
 
   // Like Net.HttpResponseCode, but only for MAIN_FRAME loads.
   if (request_->load_flags & LOAD_MAIN_FRAME) {
@@ -920,14 +950,20 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
     // TODO(mbelshe): The keepalive property is really a property of
     //    the stream.  No need to compute it here just to pass back
     //    to the stream's Close function.
-    if (stream_->CanFindEndOfResponse())
-      keep_alive = GetResponseHeaders()->IsKeepAlive();
+    // TODO(rtenneti): CanFindEndOfResponse should return false if there are no
+    // ResponseHeaders.
+    if (stream_->CanFindEndOfResponse()) {
+      HttpResponseHeaders* headers = GetResponseHeaders();
+      if (headers)
+        keep_alive = headers->IsKeepAlive();
+    }
   }
 
   // Clean up connection if we are done.
   if (done) {
     LogTransactionMetrics();
-    stream_->LogNumRttVsBytesMetrics();
+    // TODO(bashi): This cast is temporary. Remove later.
+    static_cast<HttpStream*>(stream_.get())->LogNumRttVsBytesMetrics();
     stream_->Close(!keep_alive);
     // Note: we don't reset the stream here.  We've closed it, but we still
     // need it around so that callers can call methods such as
@@ -1000,17 +1036,6 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
-
-  static const bool use_conn_impact_histogram =
-      base::FieldTrialList::TrialExists("ConnCountImpact");
-  if (use_conn_impact_histogram) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
-            "ConnCountImpact"),
-        total_duration,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-    }
   }
 
   static const bool use_spdy_histogram =
@@ -1394,6 +1419,8 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
   switch (state) {
     STATE_CASE(STATE_CREATE_STREAM);
     STATE_CASE(STATE_CREATE_STREAM_COMPLETE);
+    STATE_CASE(STATE_INIT_REQUEST_BODY);
+    STATE_CASE(STATE_INIT_REQUEST_BODY_COMPLETE);
     STATE_CASE(STATE_BUILD_REQUEST);
     STATE_CASE(STATE_BUILD_REQUEST_COMPLETE);
     STATE_CASE(STATE_SEND_REQUEST);

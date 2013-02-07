@@ -189,13 +189,23 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   // Clean up any idle sockets and pending connect jobs.  Assert that we have no
   // remaining active sockets or pending requests.  They should have all been
   // cleaned up prior to |this| being destroyed.
-  Flush();
+  FlushWithError(ERR_ABORTED);
   DCHECK(group_map_.empty());
   DCHECK(pending_callback_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
   CHECK(higher_layer_pools_.empty());
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
+}
+
+ClientSocketPoolBaseHelper::CallbackResultPair::CallbackResultPair()
+    : result(OK) {
+}
+
+ClientSocketPoolBaseHelper::CallbackResultPair::CallbackResultPair(
+    const CompletionCallback& callback_in, int result_in)
+    : callback(callback_in),
+      result(result_in) {
 }
 
 ClientSocketPoolBaseHelper::CallbackResultPair::~CallbackResultPair() {}
@@ -564,7 +574,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
         return max_state;
       } else {
         // TODO(wtc): Add a state for being on the wait list.
-        // See http://www.crbug.com/5077.
+        // See http://crbug.com/5077.
         return LOAD_STATE_IDLE;
       }
     }
@@ -893,14 +903,14 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
 }
 
 void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
-  Flush();
+  FlushWithError(ERR_NETWORK_CHANGED);
 }
 
-void ClientSocketPoolBaseHelper::Flush() {
+void ClientSocketPoolBaseHelper::FlushWithError(int error) {
   pool_generation_number_++;
   CancelAllConnectJobs();
   CloseIdleSockets();
-  AbortAllRequests();
+  CancelAllRequestsWithError(error);
 }
 
 bool ClientSocketPoolBaseHelper::IsStalled() const {
@@ -1021,7 +1031,7 @@ void ClientSocketPoolBaseHelper::CancelAllConnectJobs() {
   DCHECK_EQ(0, connecting_socket_count_);
 }
 
-void ClientSocketPoolBaseHelper::AbortAllRequests() {
+void ClientSocketPoolBaseHelper::CancelAllRequestsWithError(int error) {
   for (GroupMap::iterator i = group_map_.begin(); i != group_map_.end();) {
     Group* group = i->second;
 
@@ -1031,7 +1041,7 @@ void ClientSocketPoolBaseHelper::AbortAllRequests() {
          it2 != pending_requests.end(); ++it2) {
       scoped_ptr<const Request> request(*it2);
       InvokeUserCallbackLater(
-          request->handle(), request->callback(), ERR_ABORTED);
+          request->handle(), request->callback(), error);
     }
 
     // Delete group if no longer needed.

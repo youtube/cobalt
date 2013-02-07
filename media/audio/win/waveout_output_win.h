@@ -130,6 +130,9 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Lock used to avoid the conflict when callbacks are called simultaneously.
   base::Lock lock_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(PCMWaveOutAudioOutputStream);
 };
 

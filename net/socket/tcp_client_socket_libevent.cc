@@ -13,10 +13,10 @@
 #include <netinet/in.h>
 #endif
 
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
@@ -52,7 +52,7 @@ bool  SetTCPKeepAlive(int fd, bool enable, int delay) {
     PLOG(ERROR) << "Failed to set SO_KEEPALIVE on fd: " << fd;
     return false;
   }
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
   // Set seconds until first TCP keep alive.
   if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPIDLE on fd: " << fd;
@@ -180,8 +180,8 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  // Create |bound_socket_| and try to bound it to |address|.
-  int error = CreateSocket(address.GetFamily(), &bound_socket_);
+  // Create |bound_socket_| and try to bind it to |address|.
+  int error = CreateSocket(address.GetSockAddrFamily(), &bound_socket_);
   if (error)
     return MapSystemError(error);
 
@@ -278,7 +278,7 @@ int TCPClientSocketLibevent::DoConnect() {
     bound_socket_ = kInvalidSocket;
   } else {
     // Create a non-blocking socket.
-    connect_os_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
+    connect_os_error_ = CreateSocket(endpoint.GetSockAddrFamily(), &socket_);
     if (connect_os_error_)
       return MapSystemError(connect_os_error_);
 
@@ -363,6 +363,7 @@ void TCPClientSocketLibevent::Disconnect() {
 
   DoDisconnect();
   current_address_index_ = -1;
+  bind_address_.reset();
 }
 
 void TCPClientSocketLibevent::DoDisconnect() {
@@ -578,6 +579,19 @@ bool TCPClientSocketLibevent::SetNoDelay(bool no_delay) {
   return SetTCPNoDelay(socket, no_delay);
 }
 
+void TCPClientSocketLibevent::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
+  if (!socket_->read_callback_.is_null())
+    socket_->DidCompleteRead();
+}
+
+void TCPClientSocketLibevent::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
+  if (socket_->waiting_connect()) {
+    socket_->DidCompleteConnect();
+  } else if (!socket_->write_callback_.is_null()) {
+    socket_->DidCompleteWrite();
+  }
+}
+
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
@@ -718,8 +732,13 @@ int TCPClientSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
 int TCPClientSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
-  if (!IsConnected())
+  if (socket_ == kInvalidSocket) {
+    if (bind_address_.get()) {
+      *address = *bind_address_;
+      return OK;
+    }
     return ERR_SOCKET_NOT_CONNECTED;
+  }
 
   SockaddrStorage storage;
   if (getsockname(socket_, storage.addr, &storage.addr_len))
@@ -758,8 +777,16 @@ base::TimeDelta TCPClientSocketLibevent::GetConnectTimeMicros() const {
   return connect_time_micros_;
 }
 
+bool TCPClientSocketLibevent::WasNpnNegotiated() const {
+  return false;
+}
+
 NextProto TCPClientSocketLibevent::GetNegotiatedProtocol() const {
   return kProtoUnknown;
+}
+
+bool TCPClientSocketLibevent::GetSSLInfo(SSLInfo* ssl_info) {
+  return false;
 }
 
 }  // namespace net

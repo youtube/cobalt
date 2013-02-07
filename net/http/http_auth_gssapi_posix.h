@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,9 +16,8 @@
 
 namespace net {
 
-NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
-NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
-NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
+// Mechanism OID for GSSAPI. We always use SPNEGO.
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_SPNEGO_MECH_OID_DESC;
 
 // GSSAPILibrary is introduced so unit tests can mock the calls to the GSSAPI
 // library. The default implementation attempts to load one of the standard

@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace net {
@@ -91,7 +92,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
 class NET_EXPORT_PRIVATE BufferedSpdyFramer
     : public SpdyFramerVisitorInterface {
  public:
-  explicit BufferedSpdyFramer(int version);
+  BufferedSpdyFramer(int version,
+                     bool enable_compression);
   virtual ~BufferedSpdyFramer();
 
   // Sets callbacks to be called from the buffered spdy framer.  A visitor must
@@ -177,9 +179,6 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                  SpdyDataFlags flags);
   SpdyPriority GetHighestPriority() const;
   bool IsCompressible(const SpdyFrame& frame) const;
-  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
-  // Specify if newly created SpdySessions should have compression enabled.
-  static void set_enable_compression_default(bool value);
 
   int frames_received() const { return frames_received_; }
 

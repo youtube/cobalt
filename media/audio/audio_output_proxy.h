@@ -45,7 +45,8 @@ class MEDIA_EXPORT AudioOutputProxy
     kOpened,
     kPlaying,
     kClosed,
-    kError,
+    kOpenError,
+    kStartError,
   };
 
   virtual ~AudioOutputProxy();

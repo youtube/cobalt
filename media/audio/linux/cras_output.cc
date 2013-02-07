@@ -72,7 +72,8 @@ CrasOutputStream::CrasOutputStream(const AudioParameters& params,
       state_(kCreated),
       volume_(1.0),
       manager_(manager),
-      source_callback_(NULL) {
+      source_callback_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   // We must have a manager.
   DCHECK(manager_);
 
@@ -273,14 +274,26 @@ uint32 CrasOutputStream::Render(size_t frames,
 
   // Determine latency and pass that on to the source.
   cras_client_calc_playback_latency(sample_ts, &latency_ts);
-  uint32 latency_usec = (latency_ts.tv_sec * 1000000) +
-      latency_ts.tv_nsec / 1000;
+
+  // Treat negative latency (if we are too slow to render) as 0.
+  uint32 latency_usec;
+  if (latency_ts.tv_sec < 0 || latency_ts.tv_nsec < 0) {
+    latency_usec = 0;
+  } else {
+    latency_usec = (latency_ts.tv_sec * 1000000) +
+        latency_ts.tv_nsec / 1000;
+  }
 
   uint32 frames_latency = latency_usec * frame_rate_ / 1000000;
   uint32 bytes_latency = frames_latency * bytes_per_frame_;
-  uint32 rendered = source_callback_->OnMoreData(
-      buffer, frames * bytes_per_frame_, AudioBuffersState(0, bytes_latency));
-  return rendered / bytes_per_frame_;
+  DCHECK_EQ(frames, static_cast<size_t>(audio_bus_->frames()));
+  int frames_filled = source_callback_->OnMoreData(
+      audio_bus_.get(), AudioBuffersState(0, bytes_latency));
+  // Note: If this ever changes to output raw float the data must be clipped and
+  // sanitized since it may come from an untrusted source such as NaCl.
+  audio_bus_->ToInterleaved(
+      frames_filled, bytes_per_frame_ / num_channels_, buffer);
+  return frames_filled;
 }
 
 void CrasOutputStream::NotifyStreamError(int err) {

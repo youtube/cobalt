@@ -32,12 +32,12 @@
 #include <fstream>
 
 #include "base/basictypes.h"
-#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/path_service.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -54,12 +54,15 @@
 #include <grp.h>
 #endif
 
+#if defined(OS_CHROMEOS)
+#include "base/chromeos/chromeos_version.h"
+#endif
+
 namespace file_util {
 
 namespace {
 
-#if defined(OS_BSD) || defined(OS_IOS) || (defined(OS_MACOSX) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
+#if defined(OS_BSD) || defined(OS_MACOSX)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -224,9 +227,9 @@ bool Delete(const FilePath& path, bool recursive) {
   bool success = true;
   std::stack<std::string> directories;
   directories.push(path.value());
-  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FileType>(
-        FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
-        FileEnumerator::SHOW_SYM_LINKS));
+  FileEnumerator traversal(path, true,
+      FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
+      FileEnumerator::SHOW_SYM_LINKS);
   for (FilePath current = traversal.Next(); success && !current.empty();
        current = traversal.Next()) {
     FileEnumerator::FindInfo info;
@@ -312,12 +315,9 @@ bool CopyDirectory(const FilePath& from_path,
     return false;
 
   bool success = true;
-  FileEnumerator::FileType traverse_type =
-      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
-      FileEnumerator::SHOW_SYM_LINKS);
+  int traverse_type = FileEnumerator::FILES | FileEnumerator::SHOW_SYM_LINKS;
   if (recursive)
-    traverse_type = static_cast<FileEnumerator::FileType>(
-        traverse_type | FileEnumerator::DIRECTORIES);
+    traverse_type |= FileEnumerator::DIRECTORIES;
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
   // We have to mimic windows behavior here. |to_path| may not exist yet,
@@ -343,15 +343,15 @@ bool CopyDirectory(const FilePath& from_path,
   DCHECK(recursive || S_ISDIR(info.stat.st_mode));
 
   while (success && !current.empty()) {
-    // current is the source path, including from_path, so paste
-    // the suffix after from_path onto to_path to create the target_path.
-    std::string suffix(&current.value().c_str()[from_path_base.value().size()]);
-    // Strip the leading '/' (if any).
-    if (!suffix.empty()) {
-      DCHECK_EQ('/', suffix[0]);
-      suffix.erase(0, 1);
+    // current is the source path, including from_path, so append
+    // the suffix after from_path to to_path to create the target_path.
+    FilePath target_path(to_path);
+    if (from_path_base != current) {
+      if (!from_path_base.AppendRelativePath(current, &target_path)) {
+        success = false;
+        break;
+      }
     }
-    const FilePath target_path = to_path.Append(suffix);
 
     if (S_ISDIR(info.stat.st_mode)) {
       if (mkdir(target_path.value().c_str(), info.stat.st_mode & 01777) != 0 &&
@@ -740,7 +740,7 @@ bool SetCurrentDirectory(const FilePath& path) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type)
+                               int file_type)
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
@@ -752,7 +752,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type,
+                               int file_type,
                                const FilePath::StringType& pattern)
     : current_directory_entry_(0),
       root_path_(root_path),
@@ -827,11 +827,6 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
 // static
 bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return S_ISDIR(info.stat.st_mode);
-}
-
-// static
-bool FileEnumerator::IsLink(const FindInfo& info) {
-  return S_ISLNK(info.stat.st_mode);
 }
 
 // static
@@ -1017,6 +1012,11 @@ bool GetShmemTempDir(FilePath* path, bool executable) {
 #endif  // !defined(OS_ANDROID)
 
 FilePath GetHomeDir() {
+#if defined(OS_CHROMEOS)
+  if (base::chromeos::IsRunningOnChromeOS())
+    return FilePath("/home/chronos/user");
+#endif
+
   const char* home_dir = getenv("HOME");
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
@@ -1086,7 +1086,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
   return result;
 }
-#endif  // defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX)
 
 bool VerifyPathControlledByUser(const FilePath& base,
                                 const FilePath& path,
@@ -1156,6 +1156,6 @@ bool VerifyPathControlledByAdmin(const FilePath& path) {
   return VerifyPathControlledByUser(
       kFileSystemRoot, path, kRootUid, allowed_group_ids);
 }
-#endif  // defined(OS_MACOSX)
+#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
 
 }  // namespace file_util
