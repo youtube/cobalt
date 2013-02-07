@@ -16,8 +16,8 @@ InMemoryUrlProtocol::InMemoryUrlProtocol(const uint8* data, int64 size,
 
 InMemoryUrlProtocol::~InMemoryUrlProtocol() {}
 
-size_t InMemoryUrlProtocol::Read(size_t size, uint8* data) {
-  size_t available_bytes = size_ - position_;
+int InMemoryUrlProtocol::Read(int size, uint8* data) {
+  int available_bytes = size_ - position_;
   if (size > available_bytes)
     size = available_bytes;
 

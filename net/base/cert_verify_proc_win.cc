@@ -4,6 +4,9 @@
 
 #include "net/base/cert_verify_proc_win.h"
 
+#include <string>
+#include <vector>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/sha1.h"
 #include "base/string_util.h"
@@ -13,6 +16,7 @@
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -282,7 +286,7 @@ bool IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context) {
   PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
   PCCERT_CONTEXT cert = element[num_elements - 1]->pCertContext;
 
-  SHA1Fingerprint hash = X509Certificate::CalculateFingerprint(cert);
+  SHA1HashValue hash = X509Certificate::CalculateFingerprint(cert);
   return IsSHA1HashInSortedArray(
       hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
 }
@@ -441,7 +445,7 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
 }
 
 void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           HashValueVector* hashes) {
   if (chain->cChain == 0)
     return;
 
@@ -459,10 +463,14 @@ void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
       continue;
 
-    SHA1Fingerprint hash;
+    HashValue sha1(HASH_VALUE_SHA1);
     base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
-                        spki_bytes.size(), hash.data);
-    hashes->push_back(hash);
+                        spki_bytes.size(), sha1.data());
+    hashes->push_back(sha1);
+
+    HashValue sha256(HASH_VALUE_SHA256);
+    crypto::SHA256HashString(spki_bytes, sha1.data(), crypto::kSHA256Length);
+    hashes->push_back(sha256);
   }
 }
 
@@ -503,7 +511,7 @@ bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
 
   // Look up the EV policy OID of the root CA.
   PCCERT_CONTEXT root_cert = element[num_elements - 1]->pCertContext;
-  SHA1Fingerprint fingerprint =
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(root_cert);
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
   return metadata->HasEVPolicyOID(fingerprint, policy_oid);
@@ -541,22 +549,11 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
   chain_para.RequestedUsage.Usage.cUsageIdentifier = arraysize(usage);
   chain_para.RequestedUsage.Usage.rgpszUsageIdentifier =
       const_cast<LPSTR*>(usage);
-  // We can set CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS to get more chains.
-  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
-                      CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
-  const bool rev_checking_enabled =
-      flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED;
-
-  if (rev_checking_enabled) {
-    verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-  } else {
-    chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
-  }
 
   // Get the certificatePolicies extension of the certificate.
   scoped_ptr_malloc<CERT_POLICIES_INFO> policies_info;
   LPSTR ev_policy_oid = NULL;
-  if (flags & X509Certificate::VERIFY_EV_CERT) {
+  if (flags & CertVerifier::VERIFY_EV_CERT) {
     GetCertPoliciesInfo(cert_handle, &policies_info);
     if (policies_info.get()) {
       EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
@@ -572,6 +569,20 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
         }
       }
     }
+  }
+
+  // We can set CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS to get more chains.
+  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
+                      CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
+  const bool rev_checking_enabled =
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
+      (ev_policy_oid != NULL &&
+       (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY));
+
+  if (rev_checking_enabled) {
+    verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
+  } else {
+    chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
   }
 
   // For non-test scenarios, use the default HCERTCHAINENGINE, NULL, which
@@ -726,11 +737,11 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
     verify_result->cert_status &= ~CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
   }
 
-  if (IsCertStatusError(verify_result->cert_status))
-    return MapCertStatusToNetError(verify_result->cert_status);
-
   AppendPublicKeyHashes(chain_context, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
+
+  if (IsCertStatusError(verify_result->cert_status))
+    return MapCertStatusToNetError(verify_result->cert_status);
 
   if (ev_policy_oid &&
       CheckEV(chain_context, rev_checking_enabled, ev_policy_oid)) {

@@ -9,11 +9,10 @@
 #include "base/threading/thread_restrictions.h"
 
 namespace base {
-
-PlatformFile CreatePlatformFile(const FilePath& name,
-                                int flags,
-                                bool* created,
-                                PlatformFileError* error_code) {
+PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
+                                      int flags,
+                                      bool* created,
+                                      PlatformFileError* error) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   DWORD disposition = 0;
@@ -70,6 +69,8 @@ PlatformFile CreatePlatformFile(const FilePath& name,
     create_flags |= FILE_ATTRIBUTE_HIDDEN;
   if (flags & PLATFORM_FILE_DELETE_ON_CLOSE)
     create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
+  if (flags & PLATFORM_FILE_BACKUP_SEMANTICS)
+    create_flags |= FILE_FLAG_BACKUP_SEMANTICS;
 
   HANDLE file = CreateFile(name.value().c_str(), access, sharing, NULL,
                            disposition, create_flags, NULL);
@@ -81,26 +82,26 @@ PlatformFile CreatePlatformFile(const FilePath& name,
       *created = true;
   }
 
-  if (error_code) {
+  if (error) {
     if (file != kInvalidPlatformFileValue)
-      *error_code = PLATFORM_FILE_OK;
+      *error = PLATFORM_FILE_OK;
     else {
       DWORD last_error = GetLastError();
       switch (last_error) {
         case ERROR_SHARING_VIOLATION:
-          *error_code = PLATFORM_FILE_ERROR_IN_USE;
+          *error = PLATFORM_FILE_ERROR_IN_USE;
           break;
         case ERROR_FILE_EXISTS:
-          *error_code = PLATFORM_FILE_ERROR_EXISTS;
+          *error = PLATFORM_FILE_ERROR_EXISTS;
           break;
         case ERROR_FILE_NOT_FOUND:
-          *error_code = PLATFORM_FILE_ERROR_NOT_FOUND;
+          *error = PLATFORM_FILE_ERROR_NOT_FOUND;
           break;
         case ERROR_ACCESS_DENIED:
-          *error_code = PLATFORM_FILE_ERROR_ACCESS_DENIED;
+          *error = PLATFORM_FILE_ERROR_ACCESS_DENIED;
           break;
         default:
-          *error_code = PLATFORM_FILE_ERROR_FAILED;
+          *error = PLATFORM_FILE_ERROR_FAILED;
       }
     }
   }
@@ -111,6 +112,21 @@ PlatformFile CreatePlatformFile(const FilePath& name,
 bool ClosePlatformFile(PlatformFile file) {
   base::ThreadRestrictions::AssertIOAllowed();
   return (CloseHandle(file) != 0);
+}
+
+int64 SeekPlatformFile(PlatformFile file,
+                       PlatformFileWhence whence,
+                       int64 offset) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || offset < 0)
+    return -1;
+
+  LARGE_INTEGER distance, res;
+  distance.QuadPart = offset;
+  DWORD move_method = static_cast<DWORD>(whence);
+  if (!SetFilePointerEx(file, distance, &res, move_method))
+    return -1;
+  return res.QuadPart;
 }
 
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
@@ -143,6 +159,11 @@ int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset, char* data,
   return ReadPlatformFile(file, offset, data, size);
 }
 
+int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
+                                       char* data, int size) {
+  return ReadPlatformFile(file, 0, data, size);
+}
+
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -165,6 +186,11 @@ int WritePlatformFile(PlatformFile file, int64 offset,
 
 int WritePlatformFileAtCurrentPos(PlatformFile file, const char* data,
                                   int size) {
+  return WritePlatformFile(file, 0, data, size);
+}
+
+int WritePlatformFileCurPosNoBestEffort(PlatformFile file,
+                                        const char* data, int size) {
   return WritePlatformFile(file, 0, data, size);
 }
 

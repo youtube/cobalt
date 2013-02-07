@@ -73,4 +73,13 @@ public abstract class PathUtils {
 
         return "/system/lib/";
     }
+
+    /**
+     * @return the external storage directory.
+     */
+    @SuppressWarnings("unused")
+    @CalledByNative
+    public static String getExternalStorageDirectory() {
+        return Environment.getExternalStorageDirectory().getAbsolutePath();
+    }
 }

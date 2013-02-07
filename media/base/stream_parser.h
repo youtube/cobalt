@@ -6,12 +6,14 @@
 #define MEDIA_BASE_STREAM_PARSER_H_
 
 #include <deque>
+#include <string>
 
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "media/base/media_export.h"
+#include "media/base/media_log.h"
 
 namespace media {
 
@@ -58,12 +60,15 @@ class MEDIA_EXPORT StreamParser {
   typedef base::Callback<void(base::TimeDelta)> NewMediaSegmentCB;
 
   // A new potentially encrypted stream has been parsed.
-  // First parameter - The initialization data associated with the stream.
-  // Second parameter - Number of bytes of the initialization data.
+  // First parameter - The type of the initialization data associated with the
+  //                   stream.
+  // Second parameter - The initialization data associated with the stream.
+  // Third parameter - Number of bytes of the initialization data.
   // Return value - True indicates that the initialization data is accepted.
   //                False if something was wrong with the initialization data
   //                and a parsing error should be signalled.
-  typedef base::Callback<bool(scoped_array<uint8>, int)> NeedKeyCB;
+  typedef base::Callback<bool(const std::string&,
+                              scoped_array<uint8>, int)> NeedKeyCB;
 
   // Initialize the parser with necessary callbacks. Must be called before any
   // data is passed to Parse(). |init_cb| will be called once enough data has
@@ -74,7 +79,9 @@ class MEDIA_EXPORT StreamParser {
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
                     const NeedKeyCB& need_key_cb,
-                    const NewMediaSegmentCB& new_segment_cb) = 0;
+                    const NewMediaSegmentCB& new_segment_cb,
+                    const base::Closure& end_of_segment_cb,
+                    const LogCB& log_cb) = 0;
 
   // Called when a seek occurs. This flushes the current parser state
   // and puts the parser in a state where it can receive data for the new seek

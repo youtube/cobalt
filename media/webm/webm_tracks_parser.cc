@@ -16,33 +16,15 @@ namespace media {
 static const int kWebMTrackTypeVideo = 1;
 static const int kWebMTrackTypeAudio = 2;
 
-WebMTracksParser::WebMTracksParser(int64 timecode_scale)
-    : timecode_scale_(timecode_scale),
-      track_type_(-1),
+WebMTracksParser::WebMTracksParser(const LogCB& log_cb)
+    : track_type_(-1),
       track_num_(-1),
       audio_track_num_(-1),
-      video_track_num_(-1) {
+      video_track_num_(-1),
+      log_cb_(log_cb) {
 }
 
 WebMTracksParser::~WebMTracksParser() {}
-
-const uint8* WebMTracksParser::video_encryption_key_id() const {
-  if (!video_content_encodings_client_.get())
-    return NULL;
-
-  DCHECK(!video_content_encodings_client_->content_encodings().empty());
-  return video_content_encodings_client_->content_encodings()[0]->
-      encryption_key_id();
-}
-
-int WebMTracksParser::video_encryption_key_id_size() const {
-  if (!video_content_encodings_client_.get())
-    return 0;
-
-  DCHECK(!video_content_encodings_client_->content_encodings().empty());
-  return video_content_encodings_client_->content_encodings()[0]->
-      encryption_key_id_size();
-}
 
 int WebMTracksParser::Parse(const uint8* buf, int size) {
   track_type_ =-1;
@@ -60,11 +42,11 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
   return parser.IsParsingComplete() ? result : 0;
 }
 
-
 WebMParserClient* WebMTracksParser::OnListStart(int id) {
   if (id == kWebMIdContentEncodings) {
     DCHECK(!track_content_encodings_client_.get());
-    track_content_encodings_client_.reset(new WebMContentEncodingsClient);
+    track_content_encodings_client_.reset(
+        new WebMContentEncodingsClient(log_cb_));
     return track_content_encodings_client_->OnListStart(id);
   }
 
@@ -85,27 +67,33 @@ bool WebMTracksParser::OnListEnd(int id) {
 
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
-      DVLOG(1) << "Missing TrackEntry data"
-               << " TrackType " << track_type_
-               << " TrackNum " << track_num_;
+      MEDIA_LOG(log_cb_) << "Missing TrackEntry data for "
+                         << " TrackType " << track_type_
+                         << " TrackNum " << track_num_;
       return false;
     }
 
-    if (track_type_ == kWebMTrackTypeVideo) {
-      video_track_num_ = track_num_;
-      if (track_content_encodings_client_.get()) {
-        video_content_encodings_client_ =
-            track_content_encodings_client_.Pass();
-      }
-    } else if (track_type_ == kWebMTrackTypeAudio) {
-      audio_track_num_ = track_num_;
-      if (track_content_encodings_client_.get()) {
-        audio_content_encodings_client_ =
-            track_content_encodings_client_.Pass();
-      }
-    } else {
-      DVLOG(1) << "Unexpected TrackType " << track_type_;
+    if (track_type_ != kWebMTrackTypeAudio &&
+        track_type_ != kWebMTrackTypeVideo) {
+      MEDIA_LOG(log_cb_) << "Unexpected TrackType " << track_type_;
       return false;
+    }
+
+    std::string encryption_key_id;
+    if (track_content_encodings_client_.get()) {
+      DCHECK(!track_content_encodings_client_->content_encodings().empty());
+      // If we have multiple ContentEncoding in one track. Always choose the
+      // key id in the first ContentEncoding as the key id of the track.
+      encryption_key_id = track_content_encodings_client_->
+          content_encodings()[0]->encryption_key_id();
+    }
+
+    if (track_type_ == kWebMTrackTypeAudio) {
+      audio_track_num_ = track_num_;
+      audio_encryption_key_id_ = encryption_key_id;
+    } else if (track_type_ == kWebMTrackTypeVideo) {
+      video_track_num_ = track_num_;
+      video_encryption_key_id_ = encryption_key_id;
     }
 
     track_type_ = -1;
@@ -132,7 +120,8 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
   }
 
   if (*dst != -1) {
-    DVLOG(1) << "Multiple values for id " << std::hex << id << " specified";
+    MEDIA_LOG(log_cb_) << "Multiple values for id " << std::hex << id
+                       << " specified";
     return false;
   }
 
@@ -150,7 +139,7 @@ bool WebMTracksParser::OnBinary(int id, const uint8* data, int size) {
 
 bool WebMTracksParser::OnString(int id, const std::string& str) {
   if (id == kWebMIdCodecID && str != "A_VORBIS" && str != "V_VP8") {
-    DVLOG(1) << "Unexpected CodecID " << str;
+    MEDIA_LOG(log_cb_) << "Unexpected CodecID " << str;
     return false;
   }
 

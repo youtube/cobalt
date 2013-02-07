@@ -55,9 +55,9 @@ struct MediaLogEvent {
     TOTAL_BYTES_SET,
     NETWORK_ACTIVITY_SET,
 
-    // Playback has ended.
-    // params: none.
-    ENDED,
+    // Audio/Video stream playback has ended.
+    AUDIO_ENDED,
+    VIDEO_ENDED,
 
     // The audio renderer has been disabled.
     // params: none.
@@ -68,6 +68,10 @@ struct MediaLogEvent {
     //         "buffer_current": <current offset>.
     //         "buffer_end": <last buffered byte>.
     BUFFERED_EXTENTS_CHANGED,
+
+    // Errors reported by Media Source Extensions code.
+    MEDIA_SOURCE_ERROR,
+    // params: "error": Error string describing the error detected.
   };
 
   int32 id;

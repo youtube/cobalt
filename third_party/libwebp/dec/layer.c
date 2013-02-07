@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -11,7 +11,8 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include "vp8i.h"
+
+#include "./vp8i.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

@@ -91,9 +91,9 @@ class NET_EXPORT TransportSecurityState
     //
     // |bad_static_spki_hashes| contains public keys that we don't want to
     // trust.
-    bool IsChainOfPublicKeysPermitted(const FingerprintVector& hashes) const;
+    bool IsChainOfPublicKeysPermitted(const HashValueVector& hashes) const;
 
-    // Returns true if any of the FingerprintVectors |static_spki_hashes|,
+    // Returns true if any of the HashValueVectors |static_spki_hashes|,
     // |bad_static_spki_hashes|, or |dynamic_spki_hashes| contains any
     // items.
     bool HasPins() const;
@@ -131,10 +131,10 @@ class NET_EXPORT TransportSecurityState
     // |dynamic_spki_hashes| take precedence over |static_spki_hashes|.
     // That is, |IsChainOfPublicKeysPermitted| first checks dynamic pins and
     // then checks static pins.
-    FingerprintVector static_spki_hashes;
+    HashValueVector static_spki_hashes;
 
     // Optional; hashes of dynamically pinned SubjectPublicKeyInfos.
-    FingerprintVector dynamic_spki_hashes;
+    HashValueVector dynamic_spki_hashes;
 
     // The absolute time (UTC) when the |dynamic_spki_hashes| expire.
     base::Time dynamic_spki_hashes_expiry;
@@ -142,7 +142,7 @@ class NET_EXPORT TransportSecurityState
     // Optional; hashes of static known-bad SubjectPublicKeyInfos which
     // MUST NOT intersect with the set of SPKIs in the TLS server's
     // certificate chain.
-    FingerprintVector bad_static_spki_hashes;
+    HashValueVector bad_static_spki_hashes;
 
     // The following members are not valid when stored in |enabled_hosts_|:
 
@@ -151,13 +151,10 @@ class NET_EXPORT TransportSecurityState
     std::string domain;
   };
 
-  class Iterator {
+  class NET_EXPORT Iterator {
    public:
-    explicit Iterator(const TransportSecurityState& state)
-        : iterator_(state.enabled_hosts_.begin()),
-          end_(state.enabled_hosts_.end()) {
-    }
-    ~Iterator() {}
+    explicit Iterator(const TransportSecurityState& state);
+    ~Iterator();
 
     bool HasNext() const { return iterator_ != end_; }
     void Advance() { ++iterator_; }
@@ -255,7 +252,7 @@ class NET_EXPORT TransportSecurityState
   // Decodes a pin string |value| (e.g. "sha1/hvfkN/qlp/zhXR3cuerq6jd2Z7g=").
   // If parsing succeeded, updates |*out| and returns true; otherwise returns
   // false without updating |*out|.
-  static bool ParsePin(const std::string& value, Fingerprint* out);
+  static bool ParsePin(const std::string& value, HashValue* out);
 
   // The maximum number of seconds for which we'll cache an HSTS request.
   static const long int kMaxHSTSAgeSecs;
@@ -274,6 +271,13 @@ class NET_EXPORT TransportSecurityState
   // representation of first-class DomainStates, and exposing the preloads
   // to the caller with |GetStaticDomainState|.
   static void ReportUMAOnPinFailure(const std::string& host);
+
+  static const char* HashValueLabel(const HashValue& hash_value);
+
+  // IsBuildTimely returns true if the current build is new enough ensure that
+  // built in security information (i.e. HSTS preloading and pinning
+  // information) is timely.
+  static bool IsBuildTimely();
 
  private:
   // If a Delegate is present, notify it that the internal state has

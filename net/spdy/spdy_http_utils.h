@@ -9,6 +9,7 @@
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_header_block.h"
 
 namespace net {
 

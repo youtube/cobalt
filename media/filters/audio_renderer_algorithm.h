@@ -23,7 +23,7 @@
 #define MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 
 #include "base/callback.h"
-#include "base/gtest_prod_util.h"
+#include "media/audio/audio_parameters.h"
 #include "media/base/seekable_buffer.h"
 
 namespace media {
@@ -35,20 +35,11 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   AudioRendererAlgorithm();
   ~AudioRendererAlgorithm();
 
-  // Call prior to Initialize() to validate configuration.  Returns false if the
-  // configuration is invalid.  Detailed error information will be DVLOG'd.
-  static bool ValidateConfig(int channels,
-                             int samples_per_second,
-                             int bits_per_channel);
-
   // Initializes this object with information about the audio stream.
-  // |samples_per_second| is in Hz. |read_request_callback| is called to
-  // request more data from the client, requests that are fulfilled through
-  // calls to EnqueueBuffer().
-  void Initialize(int channels,
-                  int samples_per_second,
-                  int bits_per_channel,
-                  float initial_playback_rate,
+  // |request_read_cb| is called to request more data from the client, requests
+  // that are fulfilled through calls to EnqueueBuffer().
+  void Initialize(float initial_playback_rate,
+                  const AudioParameters& params,
                   const base::Closure& request_read_cb);
 
   // Tries to fill |requested_frames| frames into |dest| with possibly scaled
@@ -97,6 +88,8 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 
   int bytes_per_channel() { return bytes_per_channel_; }
 
+  int samples_per_second() { return samples_per_second_; }
+
   bool is_muted() { return muted_; }
 
  private:
@@ -112,7 +105,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // data at normal speed, then we "fast forward" by dropping the next bit of
   // audio data, and then we stich the pieces together by crossfading from one
   // audio chunk to the next.
-  bool OutputFasterPlayback(uint8* dest);
+  bool OutputFasterPlayback(uint8* dest, int input_step, int output_step);
 
   // Fills |dest| with one frame of audio data at slower than normal speed.
   // Returns true if a frame was rendered, false otherwise.
@@ -123,7 +116,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // by repeating some of the audio data from the previous audio segment.
   // Segments are stiched together by crossfading from one audio chunk to the
   // next.
-  bool OutputSlowerPlayback(uint8* dest);
+  bool OutputSlowerPlayback(uint8* dest, int input_step, int output_step);
 
   // Resets the window state to the start of a new window.
   void ResetWindow();

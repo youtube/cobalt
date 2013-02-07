@@ -54,7 +54,7 @@
 //   }
 //
 //   {
-//     scoped_ptr<Foo> ptr(new Foo("yay"));  // ptr manages Foo("yay)"
+//     scoped_ptr<Foo> ptr(new Foo("yay"));  // ptr manages Foo("yay").
 //     TakesOwnership(ptr.Pass());           // ptr no longer owns Foo("yay").
 //     scoped_ptr<Foo> ptr2 = CreateFoo();   // ptr2 owns the return Foo.
 //     scoped_ptr<Foo> ptr3 =                // ptr3 now owns what was in ptr2.
@@ -156,11 +156,8 @@ class scoped_ptr {
 #endif
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr(RValue& other)
-      // The type of the underlying object is scoped_ptr; we have to
-      // reinterpret_cast back to the original type for the call to release to
-      // be valid. (See C++11 5.2.10.7)
-      : ptr_(reinterpret_cast<scoped_ptr&>(other).release()) {
+  scoped_ptr(RValue rvalue)
+      : ptr_(rvalue.object->release()) {
   }
 
   // Destructor.  If there is a C object, delete it.
@@ -179,8 +176,8 @@ class scoped_ptr {
   }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_ptr& operator=(RValue& rhs) {
-    swap(rhs);
+  scoped_ptr& operator=(RValue rhs) {
+    swap(*rhs->object);
     return *this;
   }
 
@@ -206,6 +203,11 @@ class scoped_ptr {
     return ptr_;
   }
   C* get() const { return ptr_; }
+
+  // Allow scoped_ptr<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_ptr::*Testable;
+  operator Testable() const { return ptr_ ? &scoped_ptr::ptr_ : NULL; }
 
   // Comparison operators.
   // These return whether two scoped_ptr refer to the same object, not just to
@@ -287,11 +289,8 @@ class scoped_array {
   explicit scoped_array(C* p = NULL) : array_(p) { }
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_array(RValue& other)
-      // The type of the underlying object is scoped_array; we have to
-      // reinterpret_cast back to the original type for the call to release to
-      // be valid. (See C++11 5.2.10.7)
-      : array_(reinterpret_cast<scoped_array&>(other).release()) {
+  scoped_array(RValue rvalue)
+      : array_(rvalue.object->release()) {
   }
 
   // Destructor.  If there is a C object, delete it.
@@ -302,8 +301,8 @@ class scoped_array {
   }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_array& operator=(RValue& rhs) {
-    swap(rhs);
+  scoped_array& operator=(RValue rhs) {
+    swap(*rhs.object);
     return *this;
   }
 
@@ -331,6 +330,11 @@ class scoped_array {
   C* get() const {
     return array_;
   }
+
+  // Allow scoped_array<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_array::*Testable;
+  operator Testable() const { return array_ ? &scoped_array::array_ : NULL; }
 
   // Comparison operators.
   // These return whether two scoped_array refer to the same object, not just to
@@ -409,11 +413,8 @@ class scoped_ptr_malloc {
   explicit scoped_ptr_malloc(C* p = NULL): ptr_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr_malloc(RValue& other)
-      // The type of the underlying object is scoped_ptr_malloc; we have to
-      // reinterpret_cast back to the original type for the call to release to
-      // be valid. (See C++11 5.2.10.7)
-      : ptr_(reinterpret_cast<scoped_ptr_malloc&>(other).release()) {
+  scoped_ptr_malloc(RValue rvalue)
+      : ptr_(rvalue.object->release()) {
   }
 
   // Destructor.  If there is a C object, call the Free functor.
@@ -422,8 +423,8 @@ class scoped_ptr_malloc {
   }
 
   // operator=.  Move operator= for C++03 move emulation of this type.
-  scoped_ptr_malloc& operator=(RValue& rhs) {
-    swap(rhs);
+  scoped_ptr_malloc& operator=(RValue rhs) {
+    swap(*rhs.object);
     return *this;
   }
 
@@ -454,6 +455,11 @@ class scoped_ptr_malloc {
   C* get() const {
     return ptr_;
   }
+
+  // Allow scoped_ptr_malloc<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_ptr_malloc::*Testable;
+  operator Testable() const { return ptr_ ? &scoped_ptr_malloc::ptr_ : NULL; }
 
   // Comparison operators.
   // These return whether a scoped_ptr_malloc and a plain pointer refer

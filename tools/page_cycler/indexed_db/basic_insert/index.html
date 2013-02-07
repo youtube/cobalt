@@ -8,9 +8,8 @@
 
   var failed = false;
   function error(event) {
-    // TODO(jorlow): Remove the old non-event.target part.
-    log('Error ' + (event.code || event.target.errorCode) + ': '
-        + (event.message || event.target.webkitErrorMessage));
+    log('Error ' + event.target.errorCode + ': '
+        + event.target.webkitErrorMessage);
 
     if (!failed)
       testComplete(TEST_FAILED);
@@ -21,36 +20,51 @@
     if (!setup())
       testComplete(SETUP_FAILED);
 
-    var request = indexedDB.open('idb_basic_insert');
-    request.onsuccess = onOpen;
+    var request = indexedDB.deleteDatabase('idb_basic_insert');
+    request.onsuccess = onDelete;
     request.onerror = error;
+    request.onblocked = function(e) {
+      console.log("delete got blocked event");
+    };
   }
 
-  function onOpen() {
-    // TODO(jorlow): Remove the old non-event.target part.
-    window.db = event.result || event.target.result;
-
-    var request = db.setVersion('1');
+  function onDelete() {
+    request = indexedDB.open('idb_basic_insert');
+    request.onblocked = function(e) { console.log("open got blocked event"); };
     request.onerror = error;
-    request.onsuccess = onSetVersion;
+    request.onupgradeneeded = function(e) {
+      createObjectStores(e.target.result);
+    };
+    request.onsuccess = function(e) {
+      db = request.result;
+      var curVersion = db.version;
+      if (curVersion !== 1) {
+        // Old reference build that doesn't have upgradeneeded.
+        // TODO(dgrogan): Remove when reference build is version 23 or later.
+        var setVersionRequest = db.setVersion("1");
+        setVersionRequest.onerror = error;
+        setVersionRequest.onsuccess = function(e) {
+          createObjectStores(db);
+          var versionTransaction = setVersionRequest.result;
+          versionTransaction.onerror = error;
+          versionTransaction.oncomplete = storeCreated;
+        }
+      } else {
+        storeCreated();
+      }
+    };
   }
 
-  function onSetVersion() {
-    // TODO(jorlow): Remove the old non-event.target part.
-    var transaction = event.result || event.target.result;
-    transaction.onerror = error;
-    transaction.oncomplete = storeCreated;
-
-    while (db.objectStoreNames.length)
-      db.deleteObjectStore(db.objectStoreNames[0]);
-
+  function createObjectStores(db) {
     db.createObjectStore('store');
   }
 
   function storeCreated() {
     var transaction = db.transaction(['store'], 'readwrite');
     transaction.oncomplete = insertsDone;
-    transaction.onabort = error;
+    transaction.onabort = function(e) {
+      console.log("readwrite transaction aborted");
+    };
 
     var objectStore = transaction.objectStore('store');
     log('Inserting ' + RECORDS + ' records with explicit key.');

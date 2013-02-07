@@ -3,13 +3,12 @@
 // found in the LICENSE file.
 
 #include "base/string_tokenizer.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 using std::string;
 
 namespace {
-class StringTokenizerTest : public testing::Test {};
-}
 
 TEST(StringTokenizerTest, Simple) {
   string input = "this is a test";
@@ -227,3 +226,5 @@ TEST(StringTokenizerTest, ParseQuotedString_EscapedQuotes2) {
 
   EXPECT_FALSE(t.GetNext());
 }
+
+}  // namespace

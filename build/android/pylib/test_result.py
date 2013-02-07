@@ -9,12 +9,8 @@ import os
 import time
 import traceback
 
+import buildbot_report
 import constants
-
-
-# Language values match constants in Sponge protocol buffer (sponge.proto).
-JAVA = 5
-PYTHON = 7
 
 
 class BaseTestResult(object):
@@ -22,7 +18,7 @@ class BaseTestResult(object):
 
   def __init__(self, name, log):
     self.name = name
-    self.log = log
+    self.log = log.replace('\r', '')
 
 
 class SingleTestResult(BaseTestResult):
@@ -32,13 +28,10 @@ class SingleTestResult(BaseTestResult):
     full_name: Full name of the test.
     start_date: Date in milliseconds when the test began running.
     dur: Duration of the test run in milliseconds.
-    lang: Language of the test (JAVA or PYTHON).
     log: An optional string listing any errors.
-    error: A tuple of a short error message and a longer version used by Sponge
-    if test resulted in a fail or error.  An empty tuple implies a pass.
   """
 
-  def __init__(self, full_name, start_date, dur, lang, log='', error=()):
+  def __init__(self, full_name, start_date, dur, log=''):
     BaseTestResult.__init__(self, full_name, log)
     name_pieces = full_name.rsplit('#')
     if len(name_pieces) > 1:
@@ -49,8 +42,6 @@ class SingleTestResult(BaseTestResult):
       self.test_name = full_name
     self.start_date = start_date
     self.dur = dur
-    self.error = error
-    self.lang = lang
 
 
 class TestResults(object):
@@ -63,16 +54,18 @@ class TestResults(object):
     self.unknown = []
     self.timed_out = False
     self.overall_fail = False
+    self.device_exception = None
 
   @staticmethod
   def FromRun(ok=None, failed=None, crashed=None, timed_out=False,
-              overall_fail=False):
+              overall_fail=False, device_exception=None):
     ret = TestResults()
     ret.ok = ok or []
     ret.failed = failed or []
     ret.crashed = crashed or []
     ret.timed_out = timed_out
     ret.overall_fail = overall_fail
+    ret.device_exception = device_exception
     return ret
 
   @staticmethod
@@ -112,13 +105,15 @@ class TestResults(object):
                      full_name='PythonWrapper#' + test_name,
                      start_date=start_date_ms,
                      dur=duration_ms,
-                     lang=PYTHON,
-                     log=log_msg,
-                     error=(str(exc_type), log_msg))
+                     log=(str(exc_type) + ' ' + log_msg))
 
     results = TestResults()
     results.failed.append(exc_result)
     return results
+
+  @staticmethod
+  def DeviceExceptions(results):
+    return set(filter(lambda t: t.device_exception, results))
 
   def _Log(self, sorted_list):
     for t in sorted_list:
@@ -130,7 +125,7 @@ class TestResults(object):
     """Returns the all broken tests including failed, crashed, unknown."""
     return self.failed + self.crashed + self.unknown
 
-  def LogFull(self, test_group, test_suite):
+  def LogFull(self, test_group, test_suite, build_type, tests_to_run):
     """Output broken test logs, summarize in a log file and the test output."""
     # Output all broken tests or 'passed' if none broken.
     logging.critical('*' * 80)
@@ -151,7 +146,7 @@ class TestResults(object):
     # Summarize in a log file, if tests are running on bots.
     if test_group and test_suite and os.environ.get('BUILDBOT_BUILDERNAME'):
       log_file_path = os.path.join(constants.CHROME_DIR, 'out',
-                                   'Release', 'test_logs')
+                                   build_type, 'test_logs')
       if not os.path.exists(log_file_path):
         os.mkdir(log_file_path)
       full_file_name = os.path.join(log_file_path, test_group)
@@ -181,15 +176,34 @@ class TestResults(object):
         print >> json_file, json.dumps(content)
 
     # Summarize in the test output.
-    summary_string = 'Summary:\n'
-    summary_string += 'RAN=%d\n' % (len(self.ok) + len(self.failed) +
-                                    len(self.crashed) + len(self.unknown))
-    summary_string += 'PASSED=%d\n' % (len(self.ok))
-    summary_string += 'FAILED=%d %s\n' % (len(self.failed),
-                                          [t.name for t in self.failed])
-    summary_string += 'CRASHED=%d %s\n' % (len(self.crashed),
-                                           [t.name for t in self.crashed])
-    summary_string += 'UNKNOWN=%d %s\n' % (len(self.unknown),
-                                           [t.name for t in self.unknown])
+    summary = ['Summary:\n']
+    if tests_to_run:
+      summary += ['TESTS_TO_RUN=%d\n' % (len(tests_to_run))]
+    num_tests_ran = (len(self.ok) + len(self.failed) +
+                     len(self.crashed) + len(self.unknown))
+    tests_passed = [t.name for t in self.ok]
+    tests_failed = [t.name for t in self.failed]
+    tests_crashed = [t.name for t in self.crashed]
+    tests_unknown = [t.name for t in self.unknown]
+    summary += ['RAN=%d\n' % (num_tests_ran),
+                'PASSED=%d\n' % len(tests_passed),
+                'FAILED=%d %s\n' % (len(tests_failed), tests_failed),
+                'CRASHED=%d %s\n' % (len(tests_crashed), tests_crashed),
+                'UNKNOWN=%d %s\n' % (len(tests_unknown), tests_unknown)]
+    if tests_to_run and num_tests_ran != len(tests_to_run):
+      # Add the list of tests we failed to run.
+      tests_failed_to_run = list(set(tests_to_run) - set(tests_passed) -
+                            set(tests_failed) - set(tests_crashed) -
+                            set(tests_unknown))
+      summary += ['FAILED_TO_RUN=%d %s\n' % (len(tests_failed_to_run),
+                                             tests_failed_to_run)]
+    summary_string = ''.join(summary)
     logging.critical(summary_string)
     return summary_string
+
+  def PrintAnnotation(self):
+    """Print buildbot annotations for test results."""
+    if self.failed or self.crashed or self.overall_fail or self.timed_out:
+      buildbot_report.PrintError()
+    else:
+      print 'Step success!'  # No annotation needed

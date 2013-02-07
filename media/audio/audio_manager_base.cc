@@ -9,11 +9,20 @@
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
-#include "media/audio/audio_output_mixer.h"
 #include "media/audio/audio_output_proxy.h"
+#include "media/audio/audio_output_resampler.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/virtual_audio_input_stream.h"
+#include "media/audio/virtual_audio_output_stream.h"
 #include "media/base/media_switches.h"
+
+// TODO(dalecurtis): Temporarily disabled while switching pipeline to use float,
+// http://crbug.com/114700
+#if defined(ENABLE_AUDIO_MIXER)
+#include "media/audio/audio_output_mixer.h"
+#endif
 
 namespace media {
 
@@ -37,7 +46,14 @@ AudioManagerBase::AudioManagerBase()
       max_num_output_streams_(kDefaultMaxOutputStreams),
       max_num_input_streams_(kDefaultMaxInputStreams),
       num_output_streams_(0),
-      num_input_streams_(0) {
+      num_input_streams_(0),
+      audio_thread_(new base::Thread("AudioThread")),
+      virtual_audio_input_stream_(NULL) {
+#if defined(OS_WIN)
+  audio_thread_->init_com_with_mta(true);
+#endif
+  CHECK(audio_thread_->Start());
+  message_loop_ = audio_thread_->message_loop_proxy();
 }
 
 AudioManagerBase::~AudioManagerBase() {
@@ -53,20 +69,12 @@ AudioManagerBase::~AudioManagerBase() {
   DCHECK_EQ(0, num_input_streams_);
 }
 
-void AudioManagerBase::Init() {
-  base::AutoLock lock(audio_thread_lock_);
-  DCHECK(!audio_thread_.get());
-  audio_thread_.reset(new base::Thread("AudioThread"));
-  CHECK(audio_thread_->Start());
-}
-
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
   return string16();
 }
 
 scoped_refptr<base::MessageLoopProxy> AudioManagerBase::GetMessageLoop() {
-  base::AutoLock lock(audio_thread_lock_);
-  return audio_thread_.get() ? audio_thread_->message_loop_proxy() : NULL;
+  return message_loop_;
 }
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
@@ -88,8 +96,23 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
     return NULL;
   }
 
+  // If there are no audio output devices we should use a FakeAudioOutputStream
+  // to ensure video playback continues to work.
+  bool audio_output_disabled =
+      params.format() == AudioParameters::AUDIO_FAKE ||
+      !HasAudioOutputDevices();
+
   AudioOutputStream* stream = NULL;
-  if (params.format() == AudioParameters::AUDIO_MOCK) {
+  if (virtual_audio_input_stream_) {
+#if defined(OS_IOS)
+    // We do not currently support iOS. It does not link.
+    NOTIMPLEMENTED();
+    return NULL;
+#else
+    stream = VirtualAudioOutputStream::MakeStream(this, params, message_loop_,
+        virtual_audio_input_stream_);
+#endif
+  } else if (audio_output_disabled) {
     stream = FakeAudioOutputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearOutputStream(params);
@@ -119,7 +142,31 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
   }
 
   AudioInputStream* stream = NULL;
-  if (params.format() == AudioParameters::AUDIO_MOCK) {
+  if (params.format() == AudioParameters::AUDIO_VIRTUAL) {
+#if defined(OS_IOS)
+    // We do not currently support iOS.
+    NOTIMPLEMENTED();
+    return NULL;
+#else
+    // TODO(justinlin): Currently, audio mirroring will only work for the first
+    // request. Subsequent requests will not get audio.
+    if (!virtual_audio_input_stream_) {
+      virtual_audio_input_stream_ =
+          VirtualAudioInputStream::MakeStream(this, params, message_loop_);
+      stream = virtual_audio_input_stream_;
+      DVLOG(1) << "Virtual audio input stream created.";
+
+      // Make all current output streams recreate themselves as
+      // VirtualAudioOutputStreams that will attach to the above
+      // VirtualAudioInputStream.
+      message_loop_->PostTask(FROM_HERE, base::Bind(
+          &AudioManagerBase::NotifyAllOutputDeviceChangeListeners,
+          base::Unretained(this)));
+    } else {
+      stream = NULL;
+    }
+#endif
+  } else if (params.format() == AudioParameters::AUDIO_FAKE) {
     stream = FakeAudioInputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearInputStream(params, device_id);
@@ -135,21 +182,79 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
     const AudioParameters& params) {
-  DCHECK(GetMessageLoop()->BelongsToCurrentThread());
+#if defined(OS_IOS)
+  // IOS implements audio input only.
+  NOTIMPLEMENTED();
+  return NULL;
+#else
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
-  scoped_refptr<AudioOutputDispatcher>& dispatcher =
-      output_dispatchers_[params];
-  if (!dispatcher) {
-    base::TimeDelta close_delay =
-        base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
-    const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-    if (!cmd_line->HasSwitch(switches::kDisableAudioMixer)) {
-      dispatcher = new AudioOutputMixer(this, params, close_delay);
-    } else {
-      dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
+  bool use_audio_output_resampler =
+      !CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableAudioOutputResampler) &&
+      params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY;
+
+  // If we're not using AudioOutputResampler our output parameters are the same
+  // as our input parameters.
+  AudioParameters output_params = params;
+  if (use_audio_output_resampler) {
+    output_params = GetPreferredLowLatencyOutputStreamParameters(params);
+
+    // Ensure we only pass on valid output parameters.
+    if (!output_params.IsValid()) {
+      // We've received invalid audio output parameters, so switch to a mock
+      // output device based on the input parameters.  This may happen if the OS
+      // provided us junk values for the hardware configuration.
+      LOG(ERROR) << "Invalid audio output parameters received; using fake "
+                 << "audio path. Channels: " << output_params.channels() << ", "
+                 << "Sample Rate: " << output_params.sample_rate() << ", "
+                 << "Bits Per Sample: " << output_params.bits_per_sample()
+                 << ", Frames Per Buffer: "
+                 << output_params.frames_per_buffer();
+
+      // Tell the AudioManager to create a fake output device.
+      output_params = AudioParameters(
+          AudioParameters::AUDIO_FAKE, params.channel_layout(),
+          params.sample_rate(), params.bits_per_sample(),
+          params.frames_per_buffer());
     }
   }
+
+  std::pair<AudioParameters, AudioParameters> dispatcher_key =
+      std::make_pair(params, output_params);
+  AudioOutputDispatchersMap::iterator it =
+      output_dispatchers_.find(dispatcher_key);
+  if (it != output_dispatchers_.end())
+    return new AudioOutputProxy(it->second);
+
+  base::TimeDelta close_delay =
+      base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
+
+  if (use_audio_output_resampler &&
+      output_params.format() != AudioParameters::AUDIO_FAKE) {
+    scoped_refptr<AudioOutputDispatcher> dispatcher =
+        new AudioOutputResampler(this, params, output_params, close_delay);
+    output_dispatchers_[dispatcher_key] = dispatcher;
+    return new AudioOutputProxy(dispatcher);
+  }
+
+#if defined(ENABLE_AUDIO_MIXER)
+  // TODO(dalecurtis): Browser side mixing has a couple issues that must be
+  // fixed before it can be turned on by default: http://crbug.com/138098 and
+  // http://crbug.com/140247
+  if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
+    scoped_refptr<AudioOutputDispatcher> dispatcher =
+        new AudioOutputMixer(this, params, close_delay);
+    output_dispatchers_[dispatcher_key] = dispatcher;
+    return new AudioOutputProxy(dispatcher);
+  }
+#endif
+
+  scoped_refptr<AudioOutputDispatcher> dispatcher =
+      new AudioOutputDispatcherImpl(this, output_params, close_delay);
+  output_dispatchers_[dispatcher_key] = dispatcher;
   return new AudioOutputProxy(dispatcher);
+#endif  // defined(OS_IOS)
 }
 
 bool AudioManagerBase::CanShowAudioInputSettings() {
@@ -175,6 +280,18 @@ void AudioManagerBase::ReleaseOutputStream(AudioOutputStream* stream) {
 void AudioManagerBase::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(stream);
   // TODO(xians) : Have a clearer destruction path for the AudioInputStream.
+
+  if (virtual_audio_input_stream_ == stream) {
+    DVLOG(1) << "Virtual audio input stream stopping.";
+    virtual_audio_input_stream_->Stop();
+    virtual_audio_input_stream_ = NULL;
+
+    // Make all VirtualAudioOutputStreams unregister from the
+    // VirtualAudioInputStream and recreate themselves as regular audio streams
+    // to return sound to hardware.
+    NotifyAllOutputDeviceChangeListeners();
+  }
+
   num_input_streams_--;
   delete stream;
 }
@@ -217,6 +334,10 @@ void AudioManagerBase::Shutdown() {
 }
 
 void AudioManagerBase::ShutdownOnAudioThread() {
+// IOS implements audio input only.
+#if defined(OS_IOS)
+  return;
+#else
   // This should always be running on the audio thread, but since we've cleared
   // the audio_thread_ member pointer when we get here, we can't verify exactly
   // what thread we're running on.  The method is not public though and only
@@ -237,6 +358,40 @@ void AudioManagerBase::ShutdownOnAudioThread() {
   }
 
   output_dispatchers_.clear();
+#endif  // defined(OS_IOS)
+}
+
+AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
+    const AudioParameters& input_params) {
+#if defined(OS_IOS)
+  // IOS implements audio input only.
+  NOTIMPLEMENTED();
+  return AudioParameters();
+#else
+  // TODO(dalecurtis): This should include bits per channel and channel layout
+  // eventually.
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
+      GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
+#endif  // defined(OS_IOS)
+}
+
+void AudioManagerBase::AddOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  output_listeners_.AddObserver(listener);
+}
+
+void AudioManagerBase::RemoveOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  output_listeners_.RemoveObserver(listener);
+}
+
+void AudioManagerBase::NotifyAllOutputDeviceChangeListeners() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DVLOG(1) << "Firing OnDeviceChange() notifications.";
+  FOR_EACH_OBSERVER(AudioDeviceListener, output_listeners_, OnDeviceChange());
 }
 
 }  // namespace media

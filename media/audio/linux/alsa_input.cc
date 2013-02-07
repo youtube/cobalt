@@ -198,7 +198,6 @@ void AlsaPcmInputStream::ReadAudio() {
   }
 
   int num_buffers = frames / params_.frames_per_buffer();
-  int num_buffers_read = num_buffers;
   uint32 hardware_delay_bytes =
       static_cast<uint32>(GetCurrentDelay() * params_.GetBytesPerFrame());
   double normalized_volume = 0.0;
@@ -221,8 +220,7 @@ void AlsaPcmInputStream::ReadAudio() {
     }
   }
 
-  next_read_time_ += base::TimeDelta::FromMilliseconds(
-      buffer_duration_ms_ * num_buffers_read);
+  next_read_time_ += base::TimeDelta::FromMilliseconds(buffer_duration_ms_);
   base::TimeDelta delay = next_read_time_ - base::Time::Now();
   if (delay < base::TimeDelta()) {
     LOG(WARNING) << "Audio read callback behind schedule by "

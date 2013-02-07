@@ -392,7 +392,10 @@ bool HttpUtil::IsNonCoalescingHeader(string::const_iterator name_begin,
     // The format of auth-challenges mixes both space separated tokens and
     // comma separated properties, so coalescing on comma won't work.
     "www-authenticate",
-    "proxy-authenticate"
+    "proxy-authenticate",
+    // STS specifies that UAs must not process any STS headers after the first
+    // one.
+    "strict-transport-security"
   };
   for (size_t i = 0; i < arraysize(kNonCoalescingHeaders); ++i) {
     if (LowerCaseEqualsASCII(name_begin, name_end, kNonCoalescingHeaders[i]))
@@ -728,6 +731,36 @@ bool HttpUtil::HasStrongValidators(HttpVersion version,
     return false;
 
   return ((date - last_modified).InSeconds() >= 60);
+}
+
+// Functions for histogram initialization.  The code 0 is put in the map to
+// track status codes that are invalid.
+// TODO(gavinp): Greatly prune the collected codes once we learn which
+// ones are not sent in practice, to reduce upload size & memory use.
+
+enum {
+  HISTOGRAM_MIN_HTTP_STATUS_CODE = 100,
+  HISTOGRAM_MAX_HTTP_STATUS_CODE = 599,
+};
+
+// static
+std::vector<int> HttpUtil::GetStatusCodesForHistogram() {
+  std::vector<int> codes;
+  codes.reserve(
+      HISTOGRAM_MAX_HTTP_STATUS_CODE - HISTOGRAM_MIN_HTTP_STATUS_CODE + 2);
+  codes.push_back(0);
+  for (int i = HISTOGRAM_MIN_HTTP_STATUS_CODE;
+       i <= HISTOGRAM_MAX_HTTP_STATUS_CODE; ++i)
+    codes.push_back(i);
+  return codes;
+}
+
+// static
+int HttpUtil::MapStatusCodeForHistogram(int code) {
+  if (HISTOGRAM_MIN_HTTP_STATUS_CODE <= code &&
+      code <= HISTOGRAM_MAX_HTTP_STATUS_CODE)
+    return code;
+  return 0;
 }
 
 // BNF from section 4.2 of RFC 2616:

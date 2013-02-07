@@ -11,25 +11,25 @@
 #include "base/synchronization/lock.h"
 #include "base/test/test_timeouts.h"
 #include "base/time.h"
-#include "base/win/scoped_com_initializer.h"
 #include "build/build_config.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/audio_util.h"
+#include "media/base/seekable_buffer.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
 #if defined(OS_LINUX) || defined(OS_OPENBSD)
 #include "media/audio/linux/audio_manager_linux.h"
 #elif defined(OS_MACOSX)
 #include "media/audio/mac/audio_manager_mac.h"
 #elif defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #elif defined(OS_ANDROID)
 #include "media/audio/android/audio_manager_android.h"
 #endif
-#include "media/base/seekable_buffer.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
-using base::win::ScopedCOMInitializer;
 
 namespace media {
 
@@ -82,10 +82,7 @@ struct AudioDelayState {
 // the main thread instead of the audio thread.
 class MockAudioManager : public AudioManagerAnyPlatform {
  public:
-  MockAudioManager() {
-    Init();
-  }
-
+  MockAudioManager() {}
   virtual ~MockAudioManager() {}
 
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
@@ -130,7 +127,6 @@ class AudioLowLatencyInputOutputTest : public testing::Test {
 // The total effect is that recorded audio is played out in loop back using
 // a sync buffer as temporary storage.
 class FullDuplexAudioSinkSource
-
     : public AudioInputStream::AudioInputCallback,
       public AudioOutputStream::AudioSourceCallback {
  public:
@@ -218,9 +214,8 @@ class FullDuplexAudioSinkSource
   virtual void OnError(AudioInputStream* stream, int code) OVERRIDE {}
 
   // AudioOutputStream::AudioSourceCallback.
-  virtual uint32 OnMoreData(uint8* dest,
-                            uint32 max_size,
-                            AudioBuffersState buffers_state) OVERRIDE {
+  virtual int OnMoreData(AudioBus* audio_bus,
+                         AudioBuffersState buffers_state) OVERRIDE {
     base::AutoLock lock(lock_);
 
     // Update one component in the AudioDelayState for the packet
@@ -231,7 +226,7 @@ class FullDuplexAudioSinkSource
       // Special fix for Windows in combination with Wave where the
       // pending bytes field of the audio buffer state is used to
       // report the delay.
-      if (!media::IsWASAPISupported()) {
+      if (!CoreAudioUtil::IsSupported()) {
         output_delay_bytes = buffers_state.pending_bytes;
       }
 #endif
@@ -240,9 +235,28 @@ class FullDuplexAudioSinkSource
       ++output_elements_to_write_;
     }
 
+    int size;
+    const uint8* source;
     // Read the data from the seekable media buffer which contains
     // captured data at the same size and sample rate as the output side.
-    return buffer_->Read(dest, max_size);
+    if (buffer_->GetCurrentChunk(&source, &size) && size > 0) {
+      EXPECT_EQ(channels_, audio_bus->channels());
+      size = std::min(audio_bus->frames() * frame_size_, size);
+      EXPECT_EQ(static_cast<size_t>(size) % sizeof(*audio_bus->channel(0)), 0U);
+      audio_bus->FromInterleaved(
+          source, size / frame_size_, frame_size_ / channels_);
+      buffer_->Seek(size);
+      return size / frame_size_;
+    }
+
+    return 0;
+  }
+
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) OVERRIDE {
+    NOTREACHED();
+    return 0;
   }
 
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE {}
@@ -261,7 +275,7 @@ class FullDuplexAudioSinkSource
   int sample_rate_;
   int samples_per_packet_;
   int channels_;
-  size_t frame_size_;
+  int frame_size_;
   double frames_to_ms_;
   scoped_array<AudioDelayState> delay_states_;
   size_t input_elements_to_write_;
@@ -276,6 +290,11 @@ class AudioInputStreamTraits {
   static int HardwareSampleRate() {
     return static_cast<int>(media::GetAudioInputHardwareSampleRate(
         AudioManagerBase::kDefaultDeviceId));
+  }
+
+  // TODO(henrika): add support for GetAudioInputHardwareBufferSize in media.
+  static int HardwareBufferSize() {
+    return static_cast<int>(media::GetAudioHardwareBufferSize());
   }
 
   static StreamType* CreateStream(AudioManager* audio_manager,
@@ -293,6 +312,10 @@ class AudioOutputStreamTraits {
     return static_cast<int>(media::GetAudioHardwareSampleRate());
   }
 
+  static int HardwareBufferSize() {
+    return static_cast<int>(media::GetAudioHardwareBufferSize());
+  }
+
   static StreamType* CreateStream(AudioManager* audio_manager,
       const AudioParameters& params) {
     return audio_manager->MakeAudioOutputStream(params);
@@ -307,7 +330,10 @@ class StreamWrapper {
   typedef typename StreamTraits::StreamType StreamType;
 
   explicit StreamWrapper(AudioManager* audio_manager)
-      : com_init_(ScopedCOMInitializer::kMTA),
+      :
+#if defined(OS_WIN)
+        com_init_(base::win::ScopedCOMInitializer::kMTA),
+#endif
         audio_manager_(audio_manager),
         format_(AudioParameters::AUDIO_PCM_LOW_LATENCY),
 #if defined(OS_ANDROID)
@@ -316,35 +342,12 @@ class StreamWrapper {
         channel_layout_(CHANNEL_LAYOUT_STEREO),
 #endif
         bits_per_sample_(16) {
-    // Use native/mixing sample rate and N*10ms frame size as default,
-    // where N is platform dependent.
+    // Use the preferred sample rate.
     sample_rate_ = StreamTraits::HardwareSampleRate();
-#if defined(OS_MACOSX)
-    // 10ms buffer size works well for 44.1, 48, 96 and 192kHz.
-    samples_per_packet_ = (sample_rate_ / 100);
-#elif defined(OS_LINUX) || defined(OS_OPENBSD)
-    // 10ms buffer size works well for 44.1, 48, 96 and 192kHz.
-    samples_per_packet_ = (sample_rate_ / 100);
-#elif defined(OS_WIN)
-    if (media::IsWASAPISupported()) {
-      // WASAPI is supported for Windows Vista and higher.
-      if (sample_rate_ == 44100) {
-        // Tests have shown that the shared mode WASAPI implementation
-        // works bests for a period size of ~10.15873 ms when the sample
-        // rate is 44.1kHz.
-        samples_per_packet_ = 448;
-      } else {
-        // 10ms buffer size works well for 48, 96 and 192kHz.
-        samples_per_packet_ = (sample_rate_ / 100);
-      }
-    } else {
-      // Low-latency Wave implementation needs 30ms buffer size to
-      // ensure glitch-free output audio.
-      samples_per_packet_ = 3 * (sample_rate_ / 100);
-    }
-#elif defined(OS_ANDROID)
-      samples_per_packet_ = (sample_rate_ / 100);
-#endif
+
+    // Use the preferred buffer size. Note that the input side uses the same
+    // size as the output side in this implementation.
+    samples_per_packet_ = StreamTraits::HardwareBufferSize();
   }
 
   virtual ~StreamWrapper() {}
@@ -355,14 +358,6 @@ class StreamWrapper {
     return CreateStream();
   }
 
-  // Creates Audio[Input|Output]Stream object using non-default
-  // parameters where the frame size is modified.
-  StreamType* Create(int samples_per_packet) {
-    samples_per_packet_ = samples_per_packet;
-    return CreateStream();
-  }
-
-  AudioParameters::Format format() const { return format_; }
   int channels() const {
     return ChannelLayoutToChannelCount(channel_layout_);
   }
@@ -379,7 +374,10 @@ class StreamWrapper {
     return stream;
   }
 
-  ScopedCOMInitializer com_init_;
+#if defined(OS_WIN)
+  base::win::ScopedCOMInitializer com_init_;
+#endif
+
   AudioManager* audio_manager_;
   AudioParameters::Format format_;
   ChannelLayout channel_layout_;
@@ -458,7 +456,7 @@ TEST_F(AudioLowLatencyInputOutputTest, DISABLED_FullDuplexDelayMeasurement) {
   // All Close() operations that run on the mocked audio thread,
   // should be synchronous and not post additional close tasks to
   // mocked the audio thread. Hence, there is no need to call
-  // message_loop()->RunAllPending() after the Close() methods.
+  // message_loop()->RunUntilIdle() after the Close() methods.
   aos->Close();
   ais->Close();
 }

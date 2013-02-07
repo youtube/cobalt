@@ -39,7 +39,7 @@ URLRequestJob::URLRequestJob(URLRequest* request,
     base::SystemMonitor::Get()->AddPowerObserver(this);
 }
 
-void URLRequestJob::SetUpload(UploadData* upload) {
+void URLRequestJob::SetUpload(UploadDataStream* upload) {
 }
 
 void URLRequestJob::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {
@@ -55,6 +55,7 @@ void URLRequestJob::Kill() {
 
 void URLRequestJob::DetachRequest() {
   request_ = NULL;
+  OnDetachRequest();
 }
 
 // This function calls ReadData to get stream data. If a filter exists, passes
@@ -105,8 +106,8 @@ LoadState URLRequestJob::GetLoadState() const {
   return LOAD_STATE_IDLE;
 }
 
-uint64 URLRequestJob::GetUploadProgress() const {
-  return 0;
+UploadProgress URLRequestJob::GetUploadProgress() const {
+  return UploadProgress();
 }
 
 bool URLRequestJob::GetCharset(std::string* charset) {
@@ -189,6 +190,8 @@ void URLRequestJob::FollowDeferredRedirect() {
 
   // It is also possible that FollowRedirect will drop the last reference to
   // this job, so we need to reset our members before calling it.
+
+  SetUnblockedOnDelegate();
 
   GURL redirect_url = deferred_redirect_url_;
   int redirect_status_code = deferred_redirect_status_code_;
@@ -306,6 +309,7 @@ void URLRequestJob::NotifyHeadersComplete() {
       if (defer_redirect) {
         deferred_redirect_url_ = new_location;
         deferred_redirect_status_code_ = http_status_code;
+        SetBlockedOnDelegate();
       } else {
         FollowRedirect(new_location, http_status_code);
       }

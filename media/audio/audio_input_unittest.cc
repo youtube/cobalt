@@ -23,7 +23,6 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
   explicit TestInputCallback(int max_data_bytes)
       : callback_count_(0),
         had_error_(0),
-        was_closed_(0),
         max_data_bytes_(max_data_bytes) {
   }
   virtual void OnData(AudioInputStream* stream, const uint8* data,
@@ -36,9 +35,7 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
       EXPECT_GE(value, 0);
     }
   }
-  virtual void OnClose(AudioInputStream* stream) {
-    ++was_closed_;
-  }
+  virtual void OnClose(AudioInputStream* stream) {}
   virtual void OnError(AudioInputStream* stream, int code) {
     ++had_error_;
   }
@@ -51,18 +48,9 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
     return had_error_;
   }
 
-  void set_error(bool error) {
-    had_error_ += error ? 1 : 0;
-  }
-  // Returns how many times the OnClose callback was called.
-  int was_closed() const {
-    return was_closed_;
-  }
-
  private:
   int callback_count_;
   int had_error_;
-  int was_closed_;
   int max_data_bytes_;
 };
 
@@ -164,9 +152,9 @@ TEST(AudioInputTest, Record) {
   message_loop.PostDelayedTask(
       FROM_HERE,
       MessageLoop::QuitClosure(),
-      base::TimeDelta::FromMilliseconds(590));
+      base::TimeDelta::FromMilliseconds(690));
   message_loop.Run();
-  EXPECT_GE(test_callback.callback_count(), 10);
+  EXPECT_GE(test_callback.callback_count(), 1);
   EXPECT_FALSE(test_callback.had_error());
 
   ais->Stop();

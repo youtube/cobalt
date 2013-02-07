@@ -13,6 +13,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/test/test_timeouts.h"
@@ -435,8 +436,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsConfigService>(NULL),
-        scoped_ptr<DnsClient>(NULL),
         NULL));
   }
 
@@ -450,8 +449,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         limits,
         params,
-        scoped_ptr<DnsConfigService>(NULL),
-        scoped_ptr<DnsClient>(NULL),
         NULL));
   }
 
@@ -738,7 +735,7 @@ TEST_F(HostResolverImplTest, DeleteWithinAbortedCallback) {
   // |MyHandler| will send quit message once all the requests have finished.
   MessageLoop::current()->Run();
 
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[1]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[2]->result());
   EXPECT_EQ(ERR_IO_PENDING, requests_[3]->result());
@@ -760,11 +757,9 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   resolver_.reset(new HostResolverImpl(
-      NULL,
+      scoped_ptr<HostCache>(),
       DefaultLimits(),
       DefaultParams(proc_),
-      scoped_ptr<DnsConfigService>(NULL),
-      scoped_ptr<DnsClient>(NULL),
       NULL));
 
   for (size_t i = 0; i < 4; ++i) {
@@ -826,7 +821,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
 
   // Flush cache by triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
 
   // Resolve "host1" again -- this time it won't be served from cache, so it
   // will complete asynchronously.
@@ -835,7 +830,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   EXPECT_EQ(OK, req->WaitForResult());
 }
 
-// Test that IP address changes send ERR_ABORTED to pending requests.
+// Test that IP address changes send ERR_NETWORK_CHANGED to pending requests.
 TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   Request* req = CreateRequest("host1", 70);
   EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
@@ -843,10 +838,10 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   EXPECT_TRUE(proc_->WaitFor(1u));
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalAll();
 
-  EXPECT_EQ(ERR_ABORTED, req->WaitForResult());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, req->WaitForResult());
   EXPECT_EQ(0u, resolver_->GetHostCache()->size());
 }
 
@@ -861,10 +856,10 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   EXPECT_TRUE(proc_->WaitFor(1u));
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalMultiple(3u);  // Let the false-start go so that we can catch it.
 
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->WaitForResult());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->WaitForResult());
 
   EXPECT_EQ(1u, num_running_jobs());
 
@@ -905,10 +900,10 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   // Trigger an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   // This should abort all running jobs.
-  MessageLoop::current()->RunAllPending();
-  EXPECT_EQ(ERR_ABORTED, requests_[0]->result());
-  EXPECT_EQ(ERR_ABORTED, requests_[1]->result());
-  EXPECT_EQ(ERR_ABORTED, requests_[2]->result());
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[0]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[1]->result());
+  EXPECT_EQ(ERR_NETWORK_CHANGED, requests_[2]->result());
   ASSERT_EQ(6u, requests_.size());
   // Unblock all calls to proc.
   proc_->SignalMultiple(requests_.size());
@@ -1201,8 +1196,6 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
       new HostResolverImpl(HostCache::CreateDefaultCache(),
                            DefaultLimits(),
                            params,
-                           scoped_ptr<DnsConfigService>(NULL),
-                           scoped_ptr<DnsClient>(NULL),
                            NULL));
 
   // Resolve "host1".
@@ -1215,7 +1208,7 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
 
   resolver_proc->WaitForAllAttemptsToFinish(
       base::TimeDelta::FromMilliseconds(60000));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(resolver_proc->total_attempts_resolved(), kTotalAttempts);
   EXPECT_EQ(resolver_proc->resolved_attempt_number(), kAttemptNumberToResolve);
@@ -1236,23 +1229,44 @@ DnsConfig CreateValidDnsConfig() {
 class HostResolverImplDnsTest : public HostResolverImplTest {
  protected:
   virtual void SetUp() OVERRIDE {
-    config_service_ = new MockDnsConfigService();
+    AddDnsRule("er", dns_protocol::kTypeA, MockDnsClientRule::FAIL_SYNC);
+    AddDnsRule("er", dns_protocol::kTypeAAAA, MockDnsClientRule::FAIL_SYNC);
+    AddDnsRule("nx", dns_protocol::kTypeA, MockDnsClientRule::FAIL_ASYNC);
+    AddDnsRule("nx", dns_protocol::kTypeAAAA, MockDnsClientRule::FAIL_ASYNC);
+    AddDnsRule("ok", dns_protocol::kTypeA, MockDnsClientRule::OK);
+    AddDnsRule("ok", dns_protocol::kTypeAAAA, MockDnsClientRule::OK);
+    AddDnsRule("4ok", dns_protocol::kTypeA, MockDnsClientRule::OK);
+    AddDnsRule("4ok", dns_protocol::kTypeAAAA, MockDnsClientRule::EMPTY);
+    AddDnsRule("6ok", dns_protocol::kTypeA, MockDnsClientRule::EMPTY);
+    AddDnsRule("6ok", dns_protocol::kTypeAAAA, MockDnsClientRule::OK);
+    AddDnsRule("4nx", dns_protocol::kTypeA, MockDnsClientRule::OK);
+    AddDnsRule("4nx", dns_protocol::kTypeAAAA, MockDnsClientRule::FAIL_ASYNC);
+    CreateResolver();
+  }
+
+  void CreateResolver() {
     resolver_.reset(new HostResolverImpl(
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsConfigService>(config_service_),
-        CreateMockDnsClient(DnsConfig()),
         NULL));
+    resolver_->SetDnsClient(CreateMockDnsClient(DnsConfig(), dns_rules_));
+  }
+
+  // Adds a rule to |dns_rules_|. Must be followed by |CreateResolver| to apply.
+  void AddDnsRule(const std::string& prefix,
+                  uint16 qtype,
+                  MockDnsClientRule::Result result) {
+    dns_rules_.push_back(MockDnsClientRule(prefix, qtype, result));
   }
 
   void ChangeDnsConfig(const DnsConfig& config) {
-    config_service_->ChangeConfig(config);
-    config_service_->ChangeHosts(config.hosts);
+    NetworkChangeNotifier::SetDnsConfig(config);
+    // Notification is delivered asynchronously.
+    MessageLoop::current()->RunUntilIdle();
   }
 
-  // Owned by |resolver_|.
-  MockDnsConfigService* config_service_;
+  MockDnsClientRuleList dns_rules_;
 };
 
 // TODO(szym): Test AbortAllInProgressJobs due to DnsConfig change.
@@ -1298,11 +1312,39 @@ TEST_F(HostResolverImplDnsTest, DnsTask) {
   EXPECT_TRUE(requests_[5]->HasOneAddress("192.168.1.102", 80));
 }
 
-TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
-  // Initially, use empty HOSTS file.
+TEST_F(HostResolverImplDnsTest, DnsTaskUnspec) {
   ChangeDnsConfig(CreateValidDnsConfig());
 
-  proc_->AddRuleForAllFamilies("", "0.0.0.0");  // Default to failures.
+  proc_->AddRuleForAllFamilies("4nx", "192.168.1.101");
+  // All other hostnames will fail in proc_.
+
+  EXPECT_EQ(ERR_IO_PENDING, CreateRequest("ok", 80)->Resolve());
+  EXPECT_EQ(ERR_IO_PENDING, CreateRequest("4ok", 80)->Resolve());
+  EXPECT_EQ(ERR_IO_PENDING, CreateRequest("6ok", 80)->Resolve());
+  EXPECT_EQ(ERR_IO_PENDING, CreateRequest("4nx", 80)->Resolve());
+
+  proc_->SignalMultiple(requests_.size());
+
+  for (size_t i = 0; i < requests_.size(); ++i)
+    EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+
+  EXPECT_EQ(2u, requests_[0]->NumberOfAddresses());
+  EXPECT_TRUE(requests_[0]->HasAddress("127.0.0.1", 80));
+  EXPECT_TRUE(requests_[0]->HasAddress("::1", 80));
+  EXPECT_EQ(1u, requests_[1]->NumberOfAddresses());
+  EXPECT_TRUE(requests_[1]->HasAddress("127.0.0.1", 80));
+  EXPECT_EQ(1u, requests_[2]->NumberOfAddresses());
+  EXPECT_TRUE(requests_[2]->HasAddress("::1", 80));
+  EXPECT_EQ(1u, requests_[3]->NumberOfAddresses());
+  EXPECT_TRUE(requests_[3]->HasAddress("192.168.1.101", 80));
+}
+
+TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
+  // Initially, use empty HOSTS file.
+  DnsConfig config = CreateValidDnsConfig();
+  ChangeDnsConfig(config);
+
+  proc_->AddRuleForAllFamilies("", "");  // Default to failures.
   proc_->SignalMultiple(1u);  // For the first request which misses.
 
   Request* req0 = CreateRequest("er_ipv4", 80);
@@ -1320,7 +1362,8 @@ TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
   hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV6)] = local_ipv6;
 
   // Update HOSTS file.
-  config_service_->ChangeHosts(hosts);
+  config.hosts = hosts;
+  ChangeDnsConfig(config);
 
   Request* req1 = CreateRequest("er_ipv4", 80);
   EXPECT_EQ(OK, req1->Resolve());
@@ -1353,7 +1396,7 @@ TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
 TEST_F(HostResolverImplDnsTest, BypassDnsTask) {
   ChangeDnsConfig(CreateValidDnsConfig());
 
-  proc_->AddRuleForAllFamilies("", "0.0.0.0");  // Default to failures.
+  proc_->AddRuleForAllFamilies("", "");  // Default to failures.
 
   EXPECT_EQ(ERR_IO_PENDING, CreateRequest("ok.local", 80)->Resolve());
   EXPECT_EQ(ERR_IO_PENDING, CreateRequest("ok.local.", 80)->Resolve());
@@ -1368,6 +1411,71 @@ TEST_F(HostResolverImplDnsTest, BypassDnsTask) {
 
   for (size_t i = 2; i < requests_.size(); ++i)
     EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+}
+
+TEST_F(HostResolverImplDnsTest, DisableDnsClientOnPersistentFailure) {
+  ChangeDnsConfig(CreateValidDnsConfig());
+
+  proc_->AddRuleForAllFamilies("", "");  // Default to failures.
+
+  // Check that DnsTask works.
+  Request* req = CreateRequest("ok_1", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
+
+  for (unsigned i = 0; i < 20; ++i) {
+    // Use custom names to require separate Jobs.
+    std::string hostname = base::StringPrintf("err_%u", i);
+    // Ensure fallback to ProcTask succeeds.
+    proc_->AddRuleForAllFamilies(hostname, "192.168.1.101");
+    EXPECT_EQ(ERR_IO_PENDING, CreateRequest(hostname, 80)->Resolve()) << i;
+  }
+
+  proc_->SignalMultiple(requests_.size());
+
+  for (size_t i = 0; i < requests_.size(); ++i)
+    EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+
+  ASSERT_FALSE(proc_->HasBlockedRequests());
+
+  // DnsTask should be disabled by now.
+  req = CreateRequest("ok_2", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  proc_->SignalMultiple(1u);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req->WaitForResult());
+
+  // Check that it is re-enabled after DNS change.
+  ChangeDnsConfig(CreateValidDnsConfig());
+  req = CreateRequest("ok_3", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
+}
+
+TEST_F(HostResolverImplDnsTest, DontDisableDnsClientOnSporadicFailure) {
+  ChangeDnsConfig(CreateValidDnsConfig());
+
+  // |proc_| defaults to successes.
+
+  // 20 failures interleaved with 20 successes.
+  for (unsigned i = 0; i < 40; ++i) {
+    // Use custom names to require separate Jobs.
+    std::string hostname = (i % 2) == 0 ? base::StringPrintf("err_%u", i)
+                                        : base::StringPrintf("ok_%u", i);
+    EXPECT_EQ(ERR_IO_PENDING, CreateRequest(hostname, 80)->Resolve()) << i;
+  }
+
+  proc_->SignalMultiple(requests_.size());
+
+  for (size_t i = 0; i < requests_.size(); ++i)
+    EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+
+  // Make |proc_| default to failures.
+  proc_->AddRuleForAllFamilies("", "");
+
+  // DnsTask should still be enabled.
+  Request* req = CreateRequest("ok_last", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
 }
 
 }  // namespace net

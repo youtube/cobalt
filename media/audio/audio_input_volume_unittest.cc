@@ -4,22 +4,28 @@
 
 #include <cmath>
 
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/audio_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using base::win::ScopedCOMInitializer;
+#if defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
+#include "media/audio/win/core_audio_util_win.h"
+#endif
 
 namespace media {
 
 class AudioInputVolumeTest : public ::testing::Test {
  protected:
   AudioInputVolumeTest()
-      : audio_manager_(AudioManager::Create()),
-        com_init_(ScopedCOMInitializer::kMTA) {
+      : audio_manager_(AudioManager::Create())
+#if defined(OS_WIN)
+       , com_init_(base::win::ScopedCOMInitializer::kMTA)
+#endif
+  {
   }
 
   bool CanRunAudioTests() {
@@ -27,7 +33,7 @@ class AudioInputVolumeTest : public ::testing::Test {
     // TODO(henrika): add support for volume control on Windows XP as well.
     // For now, we might as well signal false already here to avoid running
     // these tests on Windows XP.
-    if (!media::IsWASAPISupported())
+    if (!CoreAudioUtil::IsSupported())
       return false;
 #endif
     if (!audio_manager_.get())
@@ -87,7 +93,10 @@ class AudioInputVolumeTest : public ::testing::Test {
   }
 
   scoped_ptr<AudioManager> audio_manager_;
-  ScopedCOMInitializer com_init_;
+
+#if defined(OS_WIN)
+  base::win::ScopedCOMInitializer com_init_;
+#endif
 };
 
 TEST_F(AudioInputVolumeTest, InputVolumeTest) {

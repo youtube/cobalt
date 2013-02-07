@@ -6,6 +6,7 @@
 
 #include "base/build_time.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/sha1.h"
 #include "base/stringprintf.h"
@@ -53,21 +54,25 @@ int FieldTrialList::kExpirationYearInFuture = 0;
 //------------------------------------------------------------------------------
 // FieldTrial methods and members.
 
-FieldTrial::FieldTrial(const std::string& name,
+FieldTrial::FieldTrial(const std::string& trial_name,
                        const Probability total_probability,
                        const std::string& default_group_name)
-  : name_(name),
-    divisor_(total_probability),
-    default_group_name_(default_group_name),
-    random_(static_cast<Probability>(divisor_ * RandDouble())),
-    accumulated_group_probability_(0),
-    next_group_number_(kDefaultGroupNumber + 1),
-    group_(kNotFinalized),
-    enable_field_trial_(true),
-    forced_(false) {
+    : trial_name_(trial_name),
+      divisor_(total_probability),
+      default_group_name_(default_group_name),
+      random_(static_cast<Probability>(divisor_ * RandDouble())),
+      accumulated_group_probability_(0),
+      next_group_number_(kDefaultGroupNumber + 1),
+      group_(kNotFinalized),
+      enable_field_trial_(true),
+      forced_(false),
+      group_reported_(false) {
   DCHECK_GT(total_probability, 0);
-  DCHECK(!name_.empty());
+  DCHECK(!trial_name_.empty());
   DCHECK(!default_group_name_.empty());
+}
+
+FieldTrial::EntropyProvider::~EntropyProvider() {
 }
 
 void FieldTrial::UseOneTimeRandomization() {
@@ -76,17 +81,23 @@ void FieldTrial::UseOneTimeRandomization() {
     return;
   DCHECK_EQ(group_, kNotFinalized);
   DCHECK_EQ(kDefaultGroupNumber + 1, next_group_number_);
-  if (!FieldTrialList::IsOneTimeRandomizationEnabled()) {
+  const EntropyProvider* entropy_provider =
+      FieldTrialList::GetEntropyProviderForOneTimeRandomization();
+  if (!entropy_provider) {
     NOTREACHED();
+    // TODO(stevet): Remove this temporary histogram when logging
+    // investigations are complete.
+    UMA_HISTOGRAM_BOOLEAN("Variations.DisabledNoEntropyProvider", true);
     Disable();
     return;
   }
 
   random_ = static_cast<Probability>(
-      divisor_ * HashClientId(FieldTrialList::client_id(), name_));
+      divisor_ * entropy_provider->GetEntropyForTrial(trial_name_));
 }
 
 void FieldTrial::Disable() {
+  DCHECK(!group_reported_);
   enable_field_trial_ = false;
 
   // In case we are disabled after initialization, we need to switch
@@ -127,35 +138,21 @@ int FieldTrial::AppendGroup(const std::string& name,
   if (group_ == kNotFinalized && accumulated_group_probability_ > random_) {
     // This is the group that crossed the random line, so we do the assignment.
     SetGroupChoice(name, next_group_number_);
-    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return next_group_number_++;
 }
 
 int FieldTrial::group() {
-  if (group_ == kNotFinalized) {
-    accumulated_group_probability_ = divisor_;
-    // Here it's OK to use kDefaultGroupNumber
-    // since we can't be forced and not finalized.
-    DCHECK(!forced_);
-    SetGroupChoice(default_group_name_, kDefaultGroupNumber);
-    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
-  }
+  FinalizeGroupChoice();
+  FieldTrialList::NotifyFieldTrialGroupSelection(this);
   return group_;
 }
 
-std::string FieldTrial::group_name() {
-  group();  // call group() to make sure group assignment was done.
+const std::string& FieldTrial::group_name() {
+  // Call |group()| to ensure group gets assigned and observers are notified.
+  group();
   DCHECK(!group_name_.empty());
   return group_name_;
-}
-
-bool FieldTrial::GetSelectedGroup(SelectedGroup* selected_group) {
-  if (group_ == kNotFinalized)
-    return false;
-  selected_group->trial = name_;
-  selected_group->group = group_name_;
-  return true;
 }
 
 // static
@@ -177,46 +174,53 @@ void FieldTrial::SetForced() {
   // first come first served, e.g., command line switch has precedence.
   if (forced_)
     return;
-  // Explicit forcing should only be for cases where we want to set the group
-  // probabilities before the hard coded field trial setup is executed. So
-  // there must have been at least one non-default group appended at that point.
-  DCHECK_GT(next_group_number_, kDefaultGroupNumber + 1);
 
   // And we must finalize the group choice before we mark ourselves as forced.
-  group();
+  FinalizeGroupChoice();
   forced_ = true;
 }
 
 FieldTrial::~FieldTrial() {}
 
-void FieldTrial::SetGroupChoice(const std::string& name, int number) {
+void FieldTrial::SetGroupChoice(const std::string& group_name, int number) {
   group_ = number;
-  if (name.empty())
+  if (group_name.empty())
     StringAppendF(&group_name_, "%d", group_);
   else
-    group_name_ = name;
-  DVLOG(1) << "Field trial: " << name_ << " Group choice:" << group_name_;
+    group_name_ = group_name;
+  DVLOG(1) << "Field trial: " << trial_name_ << " Group choice:" << group_name_;
 }
 
-// static
-double FieldTrial::HashClientId(const std::string& client_id,
-                                const std::string& trial_name) {
-  // SHA-1 is designed to produce a uniformly random spread in its output space,
-  // even for nearly-identical inputs, so it helps massage whatever client_id
-  // and trial_name we get into something with a uniform distribution, which
-  // is desirable so that we don't skew any part of the 0-100% spectrum.
-  std::string input(client_id + trial_name);
-  unsigned char sha1_hash[kSHA1Length];
-  SHA1HashBytes(reinterpret_cast<const unsigned char*>(input.c_str()),
-                input.size(),
-                sha1_hash);
+void FieldTrial::FinalizeGroupChoice() {
+  if (group_ != kNotFinalized)
+    return;
+  accumulated_group_probability_ = divisor_;
+  // Here it's OK to use |kDefaultGroupNumber| since we can't be forced and not
+  // finalized.
+  DCHECK(!forced_);
+  SetGroupChoice(default_group_name_, kDefaultGroupNumber);
+}
 
-  COMPILE_ASSERT(sizeof(uint64) < sizeof(sha1_hash), need_more_data);
-  uint64 bits;
-  memcpy(&bits, sha1_hash, sizeof(bits));
-  bits = base::ByteSwapToLE64(bits);
-
-  return BitsToOpenEndedUnitInterval(bits);
+bool FieldTrial::GetActiveGroup(ActiveGroup* active_group) const {
+  if (!group_reported_ || !enable_field_trial_) {
+    // TODO(asvitkine): Temporary histogram. Remove this once it is not needed.
+    if (trial_name_ == "UMA-Uniformity-Trial-1-Percent") {
+      const int kGroupNotReported = 1;
+      const int kTrialDisabled = 2;
+      int value = 0;
+      if (!group_reported_)
+        value |= kGroupNotReported;
+      if (!enable_field_trial_)
+        value |= kTrialDisabled;
+      UMA_HISTOGRAM_ENUMERATION("Variations.UniformityTrialGroupNotActive",
+                                value, 4);
+    }
+    return false;
+  }
+  DCHECK_NE(group_, kNotFinalized);
+  active_group->trial_name = trial_name_;
+  active_group->group_name = group_name_;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -228,9 +232,12 @@ FieldTrialList* FieldTrialList::global_ = NULL;
 // static
 bool FieldTrialList::used_without_global_ = false;
 
-FieldTrialList::FieldTrialList(const std::string& client_id)
-    : application_start_time_(TimeTicks::Now()),
-      client_id_(client_id),
+FieldTrialList::Observer::~Observer() {
+}
+
+FieldTrialList::FieldTrialList(
+    const FieldTrial::EntropyProvider* entropy_provider)
+    : entropy_provider_(entropy_provider),
       observer_list_(new ObserverListThreadSafe<FieldTrialList::Observer>(
           ObserverListBase<FieldTrialList::Observer>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!global_);
@@ -281,8 +288,12 @@ FieldTrial* FieldTrialList::FactoryGetFieldTrial(
 
   FieldTrial* field_trial =
       new FieldTrial(name, total_probability, default_group_name);
-  if (GetBuildTime() > CreateTimeFromParams(year, month, day_of_month))
+  if (GetBuildTime() > CreateTimeFromParams(year, month, day_of_month)) {
+    // TODO(asvitkine): Temporary histogram. Remove this once it is not needed.
+    if (name == "UMA-Uniformity-Trial-1-Percent")
+      UMA_HISTOGRAM_BOOLEAN("Variations.UniformityTrialExpired", true);
     field_trial->Disable();
+  }
   FieldTrialList::Register(field_trial);
   return field_trial;
 }
@@ -318,39 +329,34 @@ bool FieldTrialList::TrialExists(const std::string& name) {
 
 // static
 void FieldTrialList::StatesToString(std::string* output) {
-  DCHECK(output->empty());
-  if (!global_)
-    return;
-  AutoLock auto_lock(global_->lock_);
-
-  for (RegistrationList::iterator it = global_->registered_.begin();
-       it != global_->registered_.end(); ++it) {
-    const std::string& name = it->first;
-    std::string group_name = it->second->group_name_internal();
-    if (group_name.empty())
-      continue;  // Should not include uninitialized trials.
-    DCHECK_EQ(name.find(kPersistentStringSeparator), std::string::npos);
-    DCHECK_EQ(group_name.find(kPersistentStringSeparator), std::string::npos);
-    output->append(name);
+  FieldTrial::ActiveGroups active_groups;
+  GetActiveFieldTrialGroups(&active_groups);
+  for (FieldTrial::ActiveGroups::const_iterator it = active_groups.begin();
+       it != active_groups.end(); ++it) {
+    DCHECK_EQ(std::string::npos,
+              it->trial_name.find(kPersistentStringSeparator));
+    DCHECK_EQ(std::string::npos,
+              it->group_name.find(kPersistentStringSeparator));
+    output->append(it->trial_name);
     output->append(1, kPersistentStringSeparator);
-    output->append(group_name);
+    output->append(it->group_name);
     output->append(1, kPersistentStringSeparator);
   }
 }
 
 // static
-void FieldTrialList::GetFieldTrialSelectedGroups(
-    FieldTrial::SelectedGroups* selected_groups) {
-  DCHECK(selected_groups->empty());
+void FieldTrialList::GetActiveFieldTrialGroups(
+    FieldTrial::ActiveGroups* active_groups) {
+  DCHECK(active_groups->empty());
   if (!global_)
     return;
   AutoLock auto_lock(global_->lock_);
 
   for (RegistrationList::iterator it = global_->registered_.begin();
        it != global_->registered_.end(); ++it) {
-    FieldTrial::SelectedGroup selected_group;
-    if (it->second->GetSelectedGroup(&selected_group))
-      selected_groups->push_back(selected_group);
+    FieldTrial::ActiveGroup active_group;
+    if (it->second->GetActiveGroup(&active_group))
+      active_groups->push_back(active_group);
   }
 }
 
@@ -374,8 +380,13 @@ bool FieldTrialList::CreateTrialsFromString(const std::string& trials_string) {
                            group_name_end - name_end - 1);
     next_item = group_name_end + 1;
 
-    if (!CreateFieldTrial(name, group_name))
+    FieldTrial* trial = CreateFieldTrial(name, group_name);
+    if (!trial)
       return false;
+    // Call |group()| to mark the trial as "used" and notify observers, if any.
+    // This is needed to ensure the trial is properly reported in child process
+    // crash reports.
+    trial->group();
   }
   return true;
 }
@@ -412,7 +423,6 @@ FieldTrial* FieldTrialList::CreateFieldTrial(
 void FieldTrialList::AddObserver(Observer* observer) {
   if (!global_)
     return;
-  DCHECK(global_);
   global_->observer_list_->AddObserver(observer);
 }
 
@@ -420,21 +430,28 @@ void FieldTrialList::AddObserver(Observer* observer) {
 void FieldTrialList::RemoveObserver(Observer* observer) {
   if (!global_)
     return;
-  DCHECK(global_);
   global_->observer_list_->RemoveObserver(observer);
 }
 
 // static
-void FieldTrialList::NotifyFieldTrialGroupSelection(
-    const std::string& name,
-    const std::string& group_name) {
+void FieldTrialList::NotifyFieldTrialGroupSelection(FieldTrial* field_trial) {
   if (!global_)
     return;
-  DCHECK(global_);
+
+  {
+    AutoLock auto_lock(global_->lock_);
+    if (field_trial->group_reported_)
+      return;
+    field_trial->group_reported_ = true;
+  }
+
+  if (!field_trial->enable_field_trial_)
+    return;
+
   global_->observer_list_->Notify(
       &FieldTrialList::Observer::OnFieldTrialGroupFinalized,
-      name,
-      group_name);
+      field_trial->trial_name(),
+      field_trial->group_name_internal());
 }
 
 // static
@@ -446,22 +463,14 @@ size_t FieldTrialList::GetFieldTrialCount() {
 }
 
 // static
-bool FieldTrialList::IsOneTimeRandomizationEnabled() {
+const FieldTrial::EntropyProvider*
+    FieldTrialList::GetEntropyProviderForOneTimeRandomization() {
   if (!global_) {
     used_without_global_ = true;
-    return false;
+    return NULL;
   }
 
-  return !global_->client_id_.empty();
-}
-
-// static
-const std::string& FieldTrialList::client_id() {
-  DCHECK(global_);
-  if (!global_)
-    return EmptyString();
-
-  return global_->client_id_;
+  return global_->entropy_provider_.get();
 }
 
 FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
@@ -478,9 +487,9 @@ void FieldTrialList::Register(FieldTrial* trial) {
     return;
   }
   AutoLock auto_lock(global_->lock_);
-  DCHECK(!global_->PreLockedFind(trial->name()));
+  DCHECK(!global_->PreLockedFind(trial->trial_name()));
   trial->AddRef();
-  global_->registered_[trial->name()] = trial;
+  global_->registered_[trial->trial_name()] = trial;
 }
 
 }  // namespace base

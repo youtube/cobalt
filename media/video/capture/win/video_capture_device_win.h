@@ -21,6 +21,7 @@
 #include "base/win/scoped_comptr.h"
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"
+#include "media/video/capture/win/capability_list_win.h"
 #include "media/video/capture/win/sink_filter_win.h"
 #include "media/video/capture/win/sink_input_pin_win.h"
 
@@ -48,6 +49,8 @@ class VideoCaptureDeviceWin
   virtual void DeAllocate() OVERRIDE;
   virtual const Name& device_name() OVERRIDE;
 
+  static void GetDeviceNames(Names* device_names);
+
  private:
   enum InternalState {
     kIdle,  // The device driver is opened but camera is not in use.
@@ -56,13 +59,11 @@ class VideoCaptureDeviceWin
     kError  // Error accessing HW functions.
             // User needs to recover by destroying the object.
   };
-  typedef std::map<int, VideoCaptureCapability> CapabilityMap;
 
   // Implements SinkFilterObserver.
   virtual void FrameReceived(const uint8* buffer, int length);
 
   bool CreateCapabilityMap();
-  int GetBestMatchedCapability(int width, int height, int frame_rate);
   void SetErrorState(const char* reason);
 
   Name device_name_;
@@ -82,7 +83,7 @@ class VideoCaptureDeviceWin
   scoped_refptr<SinkFilter> sink_filter_;
 
   // Map of all capabilities this device support.
-  CapabilityMap capabilities_;
+  CapabilityList capabilities_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(VideoCaptureDeviceWin);
 };

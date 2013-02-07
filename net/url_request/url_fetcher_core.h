@@ -86,14 +86,15 @@ class URLFetcherCore
       const URLFetcher::CreateDataCallback& create_data_callback);
   void SetStopOnRedirect(bool stop_on_redirect);
   void SetAutomaticallyRetryOn5xx(bool retry);
-  void SetMaxRetries(int max_retries);
-  int GetMaxRetries() const;
+  void SetMaxRetriesOn5xx(int max_retries);
+  int GetMaxRetriesOn5xx() const;
   base::TimeDelta GetBackoffDelay() const;
+  void SetAutomaticallyRetryOnNetworkChanges(int max_retries);
   void SaveResponseToFileAtPath(
       const FilePath& file_path,
-      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+      scoped_refptr<base::TaskRunner> file_task_runner);
   void SaveResponseToTemporaryFile(
-      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+      scoped_refptr<base::TaskRunner> file_task_runner);
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   bool WasFetchedViaProxy() const;
@@ -121,11 +122,15 @@ class URLFetcherCore
   virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
   virtual void OnReadCompleted(URLRequest* request,
                                int bytes_read) OVERRIDE;
+  virtual void OnCertificateRequested(
+      URLRequest* request,
+      SSLCertRequestInfo* cert_request_info) OVERRIDE;
 
   URLFetcherDelegate* delegate() const { return delegate_; }
   static void CancelAll();
   static int GetNumFetcherCores();
   static void SetEnableInterceptionForTests(bool enabled);
+  static void SetIgnoreCertificateRequests(bool ignored);
 
  private:
   friend class base::RefCountedThreadSafe<URLFetcherCore>;
@@ -162,12 +167,12 @@ class URLFetcherCore
   // |URLFetcherCore::response_destination_| == TEMP_FILE ||
   // |URLFetcherCore::response_destination_| == PERMANENT_FILE.  Each
   // instance of FileWriter is owned by a URLFetcherCore, which
-  // manages its lifetime and never transfers ownership.  While
-  // writing to a file, all function calls happen on the IO thread.
+  // manages its lifetime and never transfers ownership. All file operations
+  // happen on |file_task_runner_|.
   class FileWriter {
    public:
     FileWriter(URLFetcherCore* core,
-               scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+               scoped_refptr<base::TaskRunner> file_task_runner);
     ~FileWriter();
 
     void CreateFileAtPath(const FilePath& file_path);
@@ -187,8 +192,8 @@ class URLFetcherCore
     // Close the file if it is open.
     void CloseFileAndCompleteRequest();
 
-    // Remove the file if we have created one.
-    void RemoveFile();
+    // Close the file if it is open and then delete it.
+    void CloseAndDeleteFile();
 
     const FilePath& file_path() const { return file_path_; }
     int64 total_bytes_written() { return total_bytes_written_; }
@@ -212,6 +217,10 @@ class URLFetcherCore
     // Callback which gets the result of closing the file.
     void DidCloseFile(base::PlatformFileError error);
 
+    // Callback which gets the result of closing the file. Deletes the file if
+    // it has been created.
+    void DeleteFile(base::PlatformFileError error_code);
+
     // The URLFetcherCore which instantiated this class.
     URLFetcherCore* core_;
 
@@ -222,8 +231,8 @@ class URLFetcherCore
     // Callbacks are created for use with base::FileUtilProxy.
     base::WeakPtrFactory<URLFetcherCore::FileWriter> weak_factory_;
 
-    // Task runner for the thread on which file operations should happen.
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+    // Task runner on which file operations should happen.
+    scoped_refptr<base::TaskRunner> file_task_runner_;
 
     // Path to the file.  This path is empty when there is no file.
     FilePath file_path_;
@@ -301,9 +310,8 @@ class URLFetcherCore
   scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
                                      // Task runner for the creating thread.
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
-                                     // Task runner for the thread
-                                     // on which the request IO happens.
-  scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+                                     // Task runner for file access.
+  scoped_refptr<base::TaskRunner> file_task_runner_;
                                      // Task runner for the thread
                                      // on which file access happens.
   scoped_ptr<URLRequest> request_;   // The actual request this wraps
@@ -349,11 +357,6 @@ class URLFetcherCore
       original_url_throttler_entry_;
   scoped_refptr<URLRequestThrottlerEntryInterface> url_throttler_entry_;
 
-  // |num_retries_| indicates how many times we've failed to successfully
-  // fetch this URL.  Once this value exceeds the maximum number of retries
-  // specified by the owner URLFetcher instance, we'll give up.
-  int num_retries_;
-
   // True if the URLFetcher has been cancelled.
   bool was_cancelled_;
 
@@ -381,10 +384,21 @@ class URLFetcherCore
   // re-execute the request, after the back-off delay has expired.
   // true by default.
   bool automatically_retry_on_5xx_;
-  // Maximum retries allowed.
-  int max_retries_;
+  // |num_retries_on_5xx_| indicates how many times we've failed to successfully
+  // fetch this URL due to 5xx responses.  Once this value exceeds the maximum
+  // number of retries specified by the owner URLFetcher instance,
+  // we'll give up.
+  int num_retries_on_5xx_;
+  // Maximum retries allowed when 5xx responses are received.
+  int max_retries_on_5xx_;
   // Back-off time delay. 0 by default.
   base::TimeDelta backoff_delay_;
+
+  // The number of retries that have been attempted due to ERR_NETWORK_CHANGED.
+  int num_retries_on_network_changes_;
+  // Maximum retries allowed when the request fails with ERR_NETWORK_CHANGED.
+  // 0 by default.
+  int max_retries_on_network_changes_;
 
   // Timer to poll the progress of uploading for POST and PUT requests.
   // When crbug.com/119629 is fixed, scoped_ptr is not necessary here.

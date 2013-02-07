@@ -18,23 +18,6 @@ void ConvertRGB32ToYUV_SSSE3(const uint8* rgbframe,
                              int rgbstride,
                              int ystride,
                              int uvstride) {
-#ifdef ENABLE_SUBSAMPLING
-  for (; height >= 2; height -= 2) {
-    ConvertARGBToYUVEven_SSSE3(rgbframe, yplane, uplane, vplane, width);
-    rgbframe += rgbstride;
-    yplane += ystride;
-
-    ConvertARGBToYUVOdd_SSSE3(rgbframe, yplane, uplane, vplane, width);
-    rgbframe += rgbstride;
-    yplane += ystride;
-
-    uplane += uvstride;
-    vplane += uvstride;
-  }
-
-  if (height)
-    ConvertARGBToYUVEven_SSSE3(rgbframe, yplane, uplane, vplane, width);
-#else
   for (; height >= 2; height -= 2) {
     ConvertARGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
     rgbframe += rgbstride;
@@ -50,7 +33,6 @@ void ConvertRGB32ToYUV_SSSE3(const uint8* rgbframe,
 
   if (height)
     ConvertARGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
-#endif
 }
 
 void ConvertRGB24ToYUV_SSSE3(const uint8* rgbframe,
@@ -62,23 +44,6 @@ void ConvertRGB24ToYUV_SSSE3(const uint8* rgbframe,
                              int rgbstride,
                              int ystride,
                              int uvstride) {
-#ifdef ENABLE_SUBSAMPLING
-  for (; height >= 2; height -= 2) {
-    ConvertRGBToYUVEven_SSSE3(rgbframe, yplane, uplane, vplane, width);
-    rgbframe += rgbstride;
-    yplane += ystride;
-
-    ConvertRGBToYUVOdd_SSSE3(rgbframe, yplane, uplane, vplane, width);
-    rgbframe += rgbstride;
-    yplane += ystride;
-
-    uplane += uvstride;
-    vplane += uvstride;
-  }
-
-  if (height)
-    ConvertRGBToYUVEven_SSSE3(rgbframe, yplane, uplane, vplane, width);
-#else
   for (; height >= 2; height -= 2) {
     ConvertRGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
     rgbframe += rgbstride;
@@ -94,7 +59,6 @@ void ConvertRGB24ToYUV_SSSE3(const uint8* rgbframe,
 
   if (height)
     ConvertRGBToYUVRow_SSSE3(rgbframe, yplane, uplane, vplane, width);
-#endif
 }
 
 }  // namespace media

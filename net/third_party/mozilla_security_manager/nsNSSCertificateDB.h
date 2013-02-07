@@ -42,7 +42,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/cert_database.h"
+#include "net/base/nss_cert_database.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
 namespace net {
@@ -54,16 +54,17 @@ namespace mozilla_security_manager {
 
 bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
-                   net::CertDatabase::TrustBits trustBits,
-                   net::CertDatabase::ImportCertFailureList* not_imported);
+                   net::NSSCertDatabase::TrustBits trustBits,
+                   net::NSSCertDatabase::ImportCertFailureList* not_imported);
 
-bool ImportServerCert(const net::CertificateList& certificates,
-                      net::CertDatabase::TrustBits trustBits,
-                      net::CertDatabase::ImportCertFailureList* not_imported);
+bool ImportServerCert(
+    const net::CertificateList& certificates,
+    net::NSSCertDatabase::TrustBits trustBits,
+    net::NSSCertDatabase::ImportCertFailureList* not_imported);
 
 bool SetCertTrust(const net::X509Certificate* cert,
                   net::CertType type,
-                  net::CertDatabase::TrustBits trustBits);
+                  net::NSSCertDatabase::TrustBits trustBits);
 
 }  // namespace mozilla_security_manager
 

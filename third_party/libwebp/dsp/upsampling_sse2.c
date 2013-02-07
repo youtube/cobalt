@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,14 +9,14 @@
 //
 // Author: somnath@google.com (Somnath Banerjee)
 
-#if defined(__SSE2__) || defined(_MSC_VER)
+#include "./dsp.h"
+
+#if defined(WEBP_USE_SSE2)
 
 #include <assert.h>
 #include <emmintrin.h>
 #include <string.h>
-#include "./dsp.h"
 #include "./yuv.h"
-#include "../dec/webpi.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -176,9 +176,6 @@ SSE2_UPSAMPLE_FUNC(UpsampleRgbLinePairSSE2,  VP8YuvToRgb,  3)
 SSE2_UPSAMPLE_FUNC(UpsampleBgrLinePairSSE2,  VP8YuvToBgr,  3)
 SSE2_UPSAMPLE_FUNC(UpsampleRgbaLinePairSSE2, VP8YuvToRgba, 4)
 SSE2_UPSAMPLE_FUNC(UpsampleBgraLinePairSSE2, VP8YuvToBgra, 4)
-// These two don't erase the alpha value
-SSE2_UPSAMPLE_FUNC(UpsampleRgbKeepAlphaLinePairSSE2, VP8YuvToRgb, 4)
-SSE2_UPSAMPLE_FUNC(UpsampleBgrKeepAlphaLinePairSSE2, VP8YuvToBgr, 4)
 
 #undef GET_M
 #undef PACK_AND_STORE
@@ -190,26 +187,23 @@ SSE2_UPSAMPLE_FUNC(UpsampleBgrKeepAlphaLinePairSSE2, VP8YuvToBgr, 4)
 //------------------------------------------------------------------------------
 
 extern WebPUpsampleLinePairFunc WebPUpsamplers[/* MODE_LAST */];
-extern WebPUpsampleLinePairFunc WebPUpsamplersKeepAlpha[/* MODE_LAST */];
-
-#endif  // FANCY_UPSAMPLING
 
 void WebPInitUpsamplersSSE2(void) {
-#ifdef FANCY_UPSAMPLING
   WebPUpsamplers[MODE_RGB]  = UpsampleRgbLinePairSSE2;
   WebPUpsamplers[MODE_RGBA] = UpsampleRgbaLinePairSSE2;
   WebPUpsamplers[MODE_BGR]  = UpsampleBgrLinePairSSE2;
   WebPUpsamplers[MODE_BGRA] = UpsampleBgraLinePairSSE2;
-
-  WebPUpsamplersKeepAlpha[MODE_RGB]  = UpsampleRgbLinePairSSE2;
-  WebPUpsamplersKeepAlpha[MODE_RGBA] = UpsampleRgbKeepAlphaLinePairSSE2;
-  WebPUpsamplersKeepAlpha[MODE_BGR]  = UpsampleBgrLinePairSSE2;
-  WebPUpsamplersKeepAlpha[MODE_BGRA] = UpsampleBgrKeepAlphaLinePairSSE2;
-#endif  // FANCY_UPSAMPLING
 }
+
+void WebPInitPremultiplySSE2(void) {
+  WebPUpsamplers[MODE_rgbA] = UpsampleRgbaLinePairSSE2;
+  WebPUpsamplers[MODE_bgrA] = UpsampleBgraLinePairSSE2;
+}
+
+#endif  // FANCY_UPSAMPLING
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"
 #endif
 
-#endif   //__SSE2__ || _MSC_VER
+#endif   // WEBP_USE_SSE2

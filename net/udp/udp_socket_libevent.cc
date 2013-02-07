@@ -10,10 +10,10 @@
 #include <sys/socket.h>
 
 #include "base/callback.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/rand_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -292,6 +292,16 @@ void UDPSocketLibevent::AllowBroadcast() {
   socket_options_ |= SOCKET_OPTION_BROADCAST;
 }
 
+void UDPSocketLibevent::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
+  if (!socket_->read_callback_.is_null())
+    socket_->DidCompleteRead();
+}
+
+void UDPSocketLibevent::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
+  if (!socket_->write_callback_.is_null())
+    socket_->DidCompleteWrite();
+}
+
 void UDPSocketLibevent::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(!read_callback_.is_null());
@@ -351,7 +361,7 @@ void UDPSocketLibevent::LogRead(int result,
 }
 
 int UDPSocketLibevent::CreateSocket(const IPEndPoint& address) {
-  socket_ = socket(address.GetFamily(), SOCK_DGRAM, 0);
+  socket_ = socket(address.GetSockAddrFamily(), SOCK_DGRAM, 0);
   if (socket_ == kInvalidSocket)
     return MapSystemError(errno);
   if (SetNonBlocking(socket_)) {
@@ -455,16 +465,20 @@ int UDPSocketLibevent::SetSocketOptions() {
                         sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
-#if defined(SO_REUSEPORT)
+  }
+  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
+    int rv;
+#if defined(OS_MACOSX)
+    // SO_REUSEPORT on OSX permits multiple processes to each receive
+    // UDP multicast or broadcast datagrams destined for the bound
+    // port.
     rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEPORT, &true_value,
                     sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
-#endif
-  }
-  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
-    int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
-                        sizeof(true_value));
+#endif  // defined(OS_MACOSX)
+    rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
+                    sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
   }

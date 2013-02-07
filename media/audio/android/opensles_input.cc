@@ -24,8 +24,13 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
   format_.samplesPerSec = static_cast<SLuint32>(params.sample_rate() * 1000);
   format_.bitsPerSample = params.bits_per_sample();
   format_.containerSize = params.bits_per_sample();
-  format_.channelMask = SL_SPEAKER_FRONT_CENTER;
   format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
+  if (format_.numChannels == 1)
+    format_.channelMask = SL_SPEAKER_FRONT_CENTER;
+  else if (format_.numChannels == 2)
+    format_.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+  else
+    NOTREACHED() << "Unsupported number of channels: " << format_.numChannels;
 
   buffer_size_bytes_ = params.GetBytesPerBuffer();
 
@@ -91,13 +96,15 @@ void OpenSLESInputStream::Stop() {
   // Stop recording by setting the record state to |SL_RECORDSTATE_STOPPED|.
   SLresult err = (*recorder_)->SetRecordState(recorder_,
                                               SL_RECORDSTATE_STOPPED);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "SetRecordState() failed to "
-                                             << "set the state to stop";
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "SetRecordState() failed to set the state to stop";
+  }
 
   // Clear the buffer queue to get rid of old data when resuming recording.
   err = (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "Clear() failed to clear "
-                                             << "the buffer queue";
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "Clear() failed to clear the buffer queue";
+  }
 
   started_ = false;
 }

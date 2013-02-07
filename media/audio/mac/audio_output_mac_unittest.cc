@@ -24,28 +24,13 @@ namespace media {
 
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, uint32(uint8* dest,
-                                  uint32 max_size,
-                                  AudioBuffersState buffers_state));
+  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
+                               AudioBuffersState buffers_state));
+  MOCK_METHOD3(OnMoreIOData, int(AudioBus* source,
+                                 AudioBus* dest,
+                                 AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
-
-// Validate that the SineWaveAudioSource writes the expected values for
-// the FORMAT_16BIT_MONO.
-TEST(MacAudioTest, SineWaveAudio16MonoTest) {
-  const uint32 samples = 1024;
-  const int freq = 200;
-
-  SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             freq, AudioParameters::kTelephoneSampleRate);
-
-  // TODO(cpu): Put the real test when the mock renderer is ported.
-  uint16 buffer[samples] = { 0xffff };
-  source.OnMoreData(reinterpret_cast<uint8*>(buffer), sizeof(buffer),
-                    AudioBuffersState(0, 0));
-  EXPECT_EQ(0, buffer[0]);
-  EXPECT_EQ(5126, buffer[1]);
-}
 
 // ===========================================================================
 // Validation of AudioParameters::AUDIO_PCM_LINEAR
@@ -91,8 +76,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open());
 
-  SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioParameters::kAudioCDSampleRate);
+  SineWaveAudioSource source(1, 200.0, AudioParameters::kAudioCDSampleRate);
   oas->SetVolume(0.5);
   oas->Start(&source);
   usleep(500000);
@@ -121,8 +105,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
                       frames_100_ms));
   ASSERT_TRUE(NULL != oas);
 
-  SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-                             200.0, AudioParameters::kAudioCDSampleRate/2);
+  SineWaveAudioSource source(1, 200.0, AudioParameters::kAudioCDSampleRate/2);
   EXPECT_TRUE(oas->Open());
   oas->Start(&source);
   usleep(1500000);
@@ -131,10 +114,10 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
 }
 
 // Custom action to clear a memory buffer.
-static void ClearBuffer(uint8* dest,
-                        uint32 max_size,
-                        AudioBuffersState buffers_state) {
-  memset(dest, 0, max_size);
+static int ClearBuffer(AudioBus* audio_bus,
+                       AudioBuffersState buffers_state) {
+  audio_bus->Zero();
+  return audio_bus->frames();
 }
 
 TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
@@ -158,18 +141,18 @@ TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
   // And then we will try to provide zero data so the amount of pending bytes
   // will go down and eventually read zero.
   InSequence s;
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+  EXPECT_CALL(source, OnMoreData(NotNull(),
                                  Field(&AudioBuffersState::pending_bytes, 0)))
-      .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+      .WillOnce(Invoke(ClearBuffer));
+  EXPECT_CALL(source, OnMoreData(NotNull(),
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
-      .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+      .WillOnce(Invoke(ClearBuffer));
+  EXPECT_CALL(source, OnMoreData(NotNull(),
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
       .WillOnce(Return(0));
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms, _))
+  EXPECT_CALL(source, OnMoreData(NotNull(), _))
       .Times(AnyNumber())
       .WillRepeatedly(Return(0));
 

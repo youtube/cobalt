@@ -1,42 +1,10 @@
 /*
  * This file contains prototypes for the public SSL functions.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: ssl.h,v 1.54 2012/03/18 00:31:19 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* $Id: ssl.h,v 1.59 2012/09/21 21:58:43 wtc%google.com Exp $ */
 
 #ifndef __ssl_h_
 #define __ssl_h_
@@ -573,6 +541,9 @@ typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
 /*
  * Set the client side callback for SSL to retrieve user's private key
  * and certificate.
+ * Note: If a platform client auth callback is set, the callback configured by
+ * SSL_GetClientAuthDataHook, if any, will not be called.
+ *
  *	fd - the file descriptor for the connection in question
  *	f - the application's callback that delivers the key and cert
  *	a - application specific data
@@ -1031,8 +1002,7 @@ SSL_IMPORT SECStatus DTLS_GetHandshakeTimeout(PRFileDesc *socket,
  * The only argument is a string, which should be the version
  * identifier of the NSS library. That string will be compared
  * against a string that represents the actual build version of
- * the SSL library.  It also invokes the version checking functions
- * of the dependent libraries such as NSPR.
+ * the SSL library.
  */
 extern PRBool NSSSSL_VersionCheck(const char *importedVersion);
 

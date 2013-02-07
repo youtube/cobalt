@@ -1,7 +1,7 @@
 /*
  * Copyright © 1998-2004  David Turner and Werner Lemberg
  * Copyright © 2004,2007,2009,2010  Red Hat, Inc.
- * Copyright © 2011  Google, Inc.
+ * Copyright © 2011,2012  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -28,17 +28,12 @@
  */
 
 #include "hb-buffer-private.hh"
-
-#include <string.h>
-
+#include "hb-utf-private.hh"
 
 
 #ifndef HB_DEBUG_BUFFER
 #define HB_DEBUG_BUFFER (HB_DEBUG+0)
 #endif
-
-#define _HB_BUFFER_UNICODE_FUNCS_DEFAULT (const_cast<hb_unicode_funcs_t *> (&_hb_unicode_funcs_default))
-#define _HB_BUFFER_PROPS_DEFAULT { HB_DIRECTION_INVALID, HB_SCRIPT_INVALID, HB_LANGUAGE_INVALID }
 
 /* Here is how the buffer works internally:
  *
@@ -76,7 +71,7 @@ hb_buffer_t::enlarge (unsigned int size)
   if (unlikely (_hb_unsigned_int_mul_overflows (size, sizeof (info[0]))))
     goto done;
 
-  while (size > new_allocated)
+  while (size >= new_allocated)
     new_allocated += (new_allocated >> 1) + 32;
 
   ASSERT_STATIC (sizeof (info[0]) == sizeof (pos[0]));
@@ -126,10 +121,14 @@ hb_buffer_t::get_scratch_buffer (unsigned int *size)
 {
   have_output = false;
   have_positions = false;
+
   out_len = 0;
+  out_info = info;
+
   *size = allocated * sizeof (pos[0]);
   return pos;
 }
+
 
 
 /* HarfBuzz-Internal API */
@@ -141,11 +140,12 @@ hb_buffer_t::reset (void)
     return;
 
   hb_unicode_funcs_destroy (unicode);
-  unicode = _HB_BUFFER_UNICODE_FUNCS_DEFAULT;
+  unicode = hb_unicode_funcs_get_default ();
 
   hb_segment_properties_t default_props = _HB_BUFFER_PROPS_DEFAULT;
   props = default_props;
 
+  content_type = HB_BUFFER_CONTENT_TYPE_INVALID;
   in_error = false;
   have_output = false;
   have_positions = false;
@@ -153,12 +153,14 @@ hb_buffer_t::reset (void)
   idx = 0;
   len = 0;
   out_len = 0;
+  out_info = info;
 
   serial = 0;
   memset (allocated_var_bytes, 0, sizeof allocated_var_bytes);
   memset (allocated_var_owner, 0, sizeof allocated_var_owner);
 
-  out_info = info;
+  memset (context, 0, sizeof context);
+  memset (context_len, 0, sizeof context_len);
 }
 
 void
@@ -178,6 +180,19 @@ hb_buffer_t::add (hb_codepoint_t  codepoint,
   glyph->cluster = cluster;
 
   len++;
+}
+
+void
+hb_buffer_t::remove_output (void)
+{
+  if (unlikely (hb_object_is_inert (this)))
+    return;
+
+  have_output = false;
+  have_positions = false;
+
+  out_len = 0;
+  out_info = info;
 }
 
 void
@@ -201,6 +216,9 @@ hb_buffer_t::clear_positions (void)
 
   have_output = false;
   have_positions = true;
+
+  out_len = 0;
+  out_info = info;
 
   memset (pos, 0, sizeof (pos[0]) * len);
 }
@@ -230,47 +248,17 @@ hb_buffer_t::swap_buffers (void)
   idx = 0;
 }
 
-void
-hb_buffer_t::replace_glyphs_be16 (unsigned int num_in,
-				  unsigned int num_out,
-				  const char *glyph_data_be)
-{
-  if (!make_room_for (num_in, num_out)) return;
-
-  hb_glyph_info_t orig_info = info[idx];
-  for (unsigned int i = 1; i < num_in; i++)
-  {
-    hb_glyph_info_t *inf = &info[idx + i];
-    orig_info.cluster = MIN (orig_info.cluster, inf->cluster);
-  }
-
-  hb_glyph_info_t *pinfo = &out_info[out_len];
-  const unsigned char *data = (const unsigned char *) glyph_data_be;
-  for (unsigned int i = 0; i < num_out; i++)
-  {
-    *pinfo = orig_info;
-    pinfo->codepoint = (data[2*i] << 8) | data[2*i+1];
-    pinfo++;
-  }
-
-  idx  += num_in;
-  out_len += num_out;
-}
 
 void
 hb_buffer_t::replace_glyphs (unsigned int num_in,
 			     unsigned int num_out,
 			     const uint32_t *glyph_data)
 {
-  if (!make_room_for (num_in, num_out)) return;
+  if (unlikely (!make_room_for (num_in, num_out))) return;
+
+  merge_clusters (idx, idx + num_in);
 
   hb_glyph_info_t orig_info = info[idx];
-  for (unsigned int i = 1; i < num_in; i++)
-  {
-    hb_glyph_info_t *inf = &info[idx + i];
-    orig_info.cluster = MIN (orig_info.cluster, inf->cluster);
-  }
-
   hb_glyph_info_t *pinfo = &out_info[out_len];
   for (unsigned int i = 0; i < num_out; i++)
   {
@@ -286,7 +274,7 @@ hb_buffer_t::replace_glyphs (unsigned int num_in,
 void
 hb_buffer_t::output_glyph (hb_codepoint_t glyph_index)
 {
-  if (!make_room_for (0, 1)) return;
+  if (unlikely (!make_room_for (0, 1))) return;
 
   out_info[out_len] = info[idx];
   out_info[out_len].codepoint = glyph_index;
@@ -295,9 +283,19 @@ hb_buffer_t::output_glyph (hb_codepoint_t glyph_index)
 }
 
 void
+hb_buffer_t::output_info (hb_glyph_info_t &glyph_info)
+{
+  if (unlikely (!make_room_for (0, 1))) return;
+
+  out_info[out_len] = glyph_info;
+
+  out_len++;
+}
+
+void
 hb_buffer_t::copy_glyph (void)
 {
-  if (!make_room_for (0, 1)) return;
+  if (unlikely (!make_room_for (0, 1))) return;
 
   out_info[out_len] = info[idx];
 
@@ -307,33 +305,16 @@ hb_buffer_t::copy_glyph (void)
 void
 hb_buffer_t::replace_glyph (hb_codepoint_t glyph_index)
 {
-  if (!make_room_for (1, 1)) return;
-
-  out_info[out_len] = info[idx];
+  if (unlikely (out_info != info || out_len != idx)) {
+    if (unlikely (!make_room_for (1, 1))) return;
+    out_info[out_len] = info[idx];
+  }
   out_info[out_len].codepoint = glyph_index;
 
   idx++;
   out_len++;
 }
 
-void
-hb_buffer_t::next_glyph (void)
-{
-  if (have_output)
-  {
-    if (out_info != info)
-    {
-      if (unlikely (!ensure (out_len + 1))) return;
-      out_info[out_len] = info[idx];
-    }
-    else if (out_len != idx)
-      out_info[out_len] = info[idx];
-
-    out_len++;
-  }
-
-  idx++;
-}
 
 void
 hb_buffer_t::set_masks (hb_mask_t    value,
@@ -424,32 +405,69 @@ void
 hb_buffer_t::merge_clusters (unsigned int start,
 			     unsigned int end)
 {
-  unsigned int cluster = this->info[start].cluster;
+  if (unlikely (end - start < 2))
+    return;
+
+  unsigned int cluster = info[start].cluster;
 
   for (unsigned int i = start + 1; i < end; i++)
-    cluster = MIN (cluster, this->info[i].cluster);
+    cluster = MIN (cluster, info[i].cluster);
+
+  /* Extend end */
+  while (end < len && info[end - 1].cluster == info[end].cluster)
+    end++;
+
+  /* Extend start */
+  while (idx < start && info[start - 1].cluster == info[start].cluster)
+    start--;
+
+  /* If we hit the start of buffer, continue in out-buffer. */
+  if (idx == start)
+    for (unsigned i = out_len; i && out_info[i - 1].cluster == info[start].cluster; i--)
+      out_info[i - 1].cluster = cluster;
+
   for (unsigned int i = start; i < end; i++)
-    this->info[i].cluster = cluster;
+    info[i].cluster = cluster;
 }
 void
 hb_buffer_t::merge_out_clusters (unsigned int start,
 				 unsigned int end)
 {
-  unsigned int cluster = this->out_info[start].cluster;
+  if (unlikely (end - start < 2))
+    return;
+
+  unsigned int cluster = out_info[start].cluster;
 
   for (unsigned int i = start + 1; i < end; i++)
-    cluster = MIN (cluster, this->out_info[i].cluster);
+    cluster = MIN (cluster, out_info[i].cluster);
+
+  /* Extend start */
+  while (start && out_info[start - 1].cluster == out_info[start].cluster)
+    start--;
+
+  /* Extend end */
+  while (end < out_len && out_info[end - 1].cluster == out_info[end].cluster)
+    end++;
+
+  /* If we hit the end of out-buffer, continue in buffer. */
+  if (end == out_len)
+    for (unsigned i = idx; i < len && info[i].cluster == out_info[end - 1].cluster; i++)
+      info[i].cluster = cluster;
+
   for (unsigned int i = start; i < end; i++)
-    this->out_info[i].cluster = cluster;
+    out_info[i].cluster = cluster;
 }
 
 void
 hb_buffer_t::guess_properties (void)
 {
+  if (unlikely (!len)) return;
+  assert (content_type == HB_BUFFER_CONTENT_TYPE_UNICODE);
+
   /* If script is set to INVALID, guess from buffer contents */
   if (props.script == HB_SCRIPT_INVALID) {
     for (unsigned int i = 0; i < len; i++) {
-      hb_script_t script = hb_unicode_script (unicode, info[i].codepoint);
+      hb_script_t script = unicode->script (info[i].codepoint);
       if (likely (script != HB_SCRIPT_COMMON &&
 		  script != HB_SCRIPT_INHERITED &&
 		  script != HB_SCRIPT_UNKNOWN)) {
@@ -518,6 +536,22 @@ void hb_buffer_t::deallocate_var (unsigned int byte_i, unsigned int count, const
   }
 }
 
+void hb_buffer_t::assert_var (unsigned int byte_i, unsigned int count, const char *owner)
+{
+  if (DEBUG (BUFFER))
+    dump_var_allocation (this);
+
+  DEBUG_MSG (BUFFER, this,
+	     "Asserting var bytes %d..%d for %s",
+	     byte_i, byte_i + count - 1, owner);
+
+  assert (byte_i < 8 && byte_i + count <= 8);
+  for (unsigned int i = byte_i; i < byte_i + count; i++) {
+    assert (allocated_var_bytes[i]);
+    assert (0 == strcmp (allocated_var_owner[i], owner));
+  }
+}
+
 void hb_buffer_t::deallocate_var_all (void)
 {
   memset (allocated_var_bytes, 0, sizeof (allocated_var_bytes));
@@ -545,12 +579,15 @@ hb_buffer_get_empty (void)
   static const hb_buffer_t _hb_buffer_nil = {
     HB_OBJECT_HEADER_STATIC,
 
-    _HB_BUFFER_UNICODE_FUNCS_DEFAULT,
+    const_cast<hb_unicode_funcs_t *> (&_hb_unicode_funcs_nil),
     _HB_BUFFER_PROPS_DEFAULT,
 
+    HB_BUFFER_CONTENT_TYPE_INVALID,
     true, /* in_error */
     true, /* have_output */
     true  /* have_positions */
+
+    /* Zero is good enough for everything else. */
   };
 
   return const_cast<hb_buffer_t *> (&_hb_buffer_nil);
@@ -594,6 +631,20 @@ hb_buffer_get_user_data (hb_buffer_t        *buffer,
 
 
 void
+hb_buffer_set_content_type (hb_buffer_t              *buffer,
+			    hb_buffer_content_type_t  content_type)
+{
+  buffer->content_type = content_type;
+}
+
+hb_buffer_content_type_t
+hb_buffer_get_content_type (hb_buffer_t *buffer)
+{
+  return buffer->content_type;
+}
+
+
+void
 hb_buffer_set_unicode_funcs (hb_buffer_t        *buffer,
 			     hb_unicode_funcs_t *unicode)
 {
@@ -601,7 +652,8 @@ hb_buffer_set_unicode_funcs (hb_buffer_t        *buffer,
     return;
 
   if (!unicode)
-    unicode = _HB_BUFFER_UNICODE_FUNCS_DEFAULT;
+    unicode = hb_unicode_funcs_get_default ();
+
 
   hb_unicode_funcs_reference (unicode);
   hb_unicode_funcs_destroy (buffer->unicode);
@@ -689,6 +741,7 @@ hb_buffer_add (hb_buffer_t    *buffer,
 	       unsigned int    cluster)
 {
   buffer->add (codepoint, mask, cluster);
+  buffer->clear_context (1);
 }
 
 hb_bool_t
@@ -709,6 +762,11 @@ hb_buffer_set_length (hb_buffer_t  *buffer,
   }
 
   buffer->len = length;
+
+  if (!length)
+    buffer->clear_context (0);
+  buffer->clear_context (1);
+
   return true;
 }
 
@@ -761,68 +819,70 @@ hb_buffer_guess_properties (hb_buffer_t *buffer)
   buffer->guess_properties ();
 }
 
-#define ADD_UTF(T) \
-	HB_STMT_START { \
-	  if (text_length == -1) { \
-	    text_length = 0; \
-	    const T *p = (const T *) text; \
-	    while (*p) { \
-	      text_length++; \
-	      p++; \
-	    } \
-	  } \
-	  if (item_length == -1) \
-	    item_length = text_length - item_offset; \
-	  buffer->ensure (buffer->len + item_length * sizeof (T) / 4); \
-	  const T *next = (const T *) text + item_offset; \
-	  const T *end = next + item_length; \
-	  while (next < end) { \
-	    hb_codepoint_t u; \
-	    const T *old_next = next; \
-	    next = UTF_NEXT (next, end, u); \
-	    hb_buffer_add (buffer, u, 1,  old_next - (const T *) text); \
-	  } \
-	} HB_STMT_END
-
-
-#define UTF8_COMPUTE(Char, Mask, Len) \
-  if (Char < 128) { Len = 1; Mask = 0x7f; } \
-  else if ((Char & 0xe0) == 0xc0) { Len = 2; Mask = 0x1f; } \
-  else if ((Char & 0xf0) == 0xe0) { Len = 3; Mask = 0x0f; } \
-  else if ((Char & 0xf8) == 0xf0) { Len = 4; Mask = 0x07; } \
-  else Len = 0;
-
-static inline const uint8_t *
-hb_utf8_next (const uint8_t *text,
-	      const uint8_t *end,
-	      hb_codepoint_t *unicode)
+template <typename T>
+static inline void
+hb_buffer_add_utf (hb_buffer_t  *buffer,
+		   const T      *text,
+		   int           text_length,
+		   unsigned int  item_offset,
+		   int           item_length)
 {
-  uint8_t c = *text;
-  unsigned int mask, len;
+  assert (buffer->content_type == HB_BUFFER_CONTENT_TYPE_UNICODE ||
+	  (!buffer->len && buffer->content_type == HB_BUFFER_CONTENT_TYPE_INVALID));
 
-  /* TODO check for overlong sequences? */
+  if (unlikely (hb_object_is_inert (buffer)))
+    return;
 
-  UTF8_COMPUTE (c, mask, len);
-  if (unlikely (!len || (unsigned int) (end - text) < len)) {
-    *unicode = -1;
-    return text + 1;
-  } else {
-    hb_codepoint_t result;
-    unsigned int i;
-    result = c & mask;
-    for (i = 1; i < len; i++)
-      {
-	if (unlikely ((text[i] & 0xc0) != 0x80))
-	  {
-	    *unicode = -1;
-	    return text + 1;
-	  }
-	result <<= 6;
-	result |= (text[i] & 0x3f);
-      }
-    *unicode = result;
-    return text + len;
+  if (text_length == -1)
+    text_length = hb_utf_strlen (text);
+
+  if (item_length == -1)
+    item_length = text_length - item_offset;
+
+  buffer->ensure (buffer->len + item_length * sizeof (T) / 4);
+
+  /* If buffer is empty and pre-context provided, install it.
+   * This check is written this way, to make sure people can
+   * provide pre-context in one add_utf() call, then provide
+   * text in a follow-up call.  See:
+   *
+   * https://bugzilla.mozilla.org/show_bug.cgi?id=801410#c13
+   */
+  if (!buffer->len && item_offset > 0)
+  {
+    /* Add pre-context */
+    buffer->clear_context (0);
+    const T *prev = text + item_offset;
+    const T *start = text;
+    while (start < prev && buffer->context_len[0] < buffer->CONTEXT_LENGTH)
+    {
+      hb_codepoint_t u;
+      prev = hb_utf_prev (prev, start, &u);
+      buffer->context[0][buffer->context_len[0]++] = u;
+    }
   }
+
+  const T *next = text + item_offset;
+  const T *end = next + item_length;
+  while (next < end)
+  {
+    hb_codepoint_t u;
+    const T *old_next = next;
+    next = hb_utf_next (next, end, &u);
+    buffer->add (u, 1,  old_next - (const T *) text);
+  }
+
+  /* Add post-context */
+  buffer->clear_context (1);
+  end = text + text_length;
+  while (next < end && buffer->context_len[1] < buffer->CONTEXT_LENGTH)
+  {
+    hb_codepoint_t u;
+    next = hb_utf_next (next, end, &u);
+    buffer->context[1][buffer->context_len[1]++] = u;
+  }
+
+  buffer->content_type = HB_BUFFER_CONTENT_TYPE_UNICODE;
 }
 
 void
@@ -832,31 +892,7 @@ hb_buffer_add_utf8 (hb_buffer_t  *buffer,
 		    unsigned int  item_offset,
 		    int           item_length)
 {
-#define UTF_NEXT(S, E, U)	hb_utf8_next (S, E, &(U))
-  ADD_UTF (uint8_t);
-#undef UTF_NEXT
-}
-
-static inline const uint16_t *
-hb_utf16_next (const uint16_t *text,
-	       const uint16_t *end,
-	       hb_codepoint_t *unicode)
-{
-  uint16_t c = *text++;
-
-  if (unlikely (c >= 0xd800 && c < 0xdc00)) {
-    /* high surrogate */
-    uint16_t l;
-    if (text < end && ((l = *text), likely (l >= 0xdc00 && l < 0xe000))) {
-      /* low surrogate */
-      *unicode = ((hb_codepoint_t) ((c) - 0xd800) * 0x400 + (l) - 0xdc00 + 0x10000);
-       text++;
-    } else
-      *unicode = -1;
-  } else
-    *unicode = c;
-
-  return text;
+  hb_buffer_add_utf (buffer, (const uint8_t *) text, text_length, item_offset, item_length);
 }
 
 void
@@ -866,9 +902,7 @@ hb_buffer_add_utf16 (hb_buffer_t    *buffer,
 		     unsigned int    item_offset,
 		     int            item_length)
 {
-#define UTF_NEXT(S, E, U)	hb_utf16_next (S, E, &(U))
-  ADD_UTF (uint16_t);
-#undef UTF_NEXT
+  hb_buffer_add_utf (buffer, text, text_length, item_offset, item_length);
 }
 
 void
@@ -878,9 +912,83 @@ hb_buffer_add_utf32 (hb_buffer_t    *buffer,
 		     unsigned int    item_offset,
 		     int             item_length)
 {
-#define UTF_NEXT(S, E, U)	((U) = *(S), (S)+1)
-  ADD_UTF (uint32_t);
-#undef UTF_NEXT
+  hb_buffer_add_utf (buffer, text, text_length, item_offset, item_length);
 }
 
 
+static int
+compare_info_codepoint (const hb_glyph_info_t *pa,
+			const hb_glyph_info_t *pb)
+{
+  return (int) pb->codepoint - (int) pa->codepoint;
+}
+
+static inline void
+normalize_glyphs_cluster (hb_buffer_t *buffer,
+			  unsigned int start,
+			  unsigned int end,
+			  bool backward)
+{
+  hb_glyph_position_t *pos = buffer->pos;
+
+  /* Total cluster advance */
+  hb_position_t total_x_advance = 0, total_y_advance = 0;
+  for (unsigned int i = start; i < end; i++)
+  {
+    total_x_advance += pos[i].x_advance;
+    total_y_advance += pos[i].y_advance;
+  }
+
+  hb_position_t x_advance = 0, y_advance = 0;
+  for (unsigned int i = start; i < end; i++)
+  {
+    pos[i].x_offset += x_advance;
+    pos[i].y_offset += y_advance;
+
+    x_advance += pos[i].x_advance;
+    y_advance += pos[i].y_advance;
+
+    pos[i].x_advance = 0;
+    pos[i].y_advance = 0;
+  }
+
+  if (backward)
+  {
+    /* Transfer all cluster advance to the last glyph. */
+    pos[end - 1].x_advance = total_x_advance;
+    pos[end - 1].y_advance = total_y_advance;
+
+    hb_bubble_sort (buffer->info + start, end - start - 1, compare_info_codepoint, buffer->pos + start);
+  } else {
+    /* Transfer all cluster advance to the first glyph. */
+    pos[start].x_advance += total_x_advance;
+    pos[start].y_advance += total_y_advance;
+    for (unsigned int i = start + 1; i < end; i++) {
+      pos[i].x_offset -= total_x_advance;
+      pos[i].y_offset -= total_y_advance;
+    }
+    hb_bubble_sort (buffer->info + start + 1, end - start - 1, compare_info_codepoint, buffer->pos + start + 1);
+  }
+}
+
+void
+hb_buffer_normalize_glyphs (hb_buffer_t *buffer)
+{
+  assert (buffer->have_positions);
+  assert (buffer->content_type == HB_BUFFER_CONTENT_TYPE_GLYPHS);
+
+  bool backward = HB_DIRECTION_IS_BACKWARD (buffer->props.direction);
+
+  unsigned int count = buffer->len;
+  if (unlikely (!count)) return;
+  hb_glyph_info_t *info = buffer->info;
+
+  unsigned int start = 0;
+  unsigned int end;
+  for (end = start + 1; end < count; end++)
+    if (info[start].cluster != info[end].cluster) {
+      normalize_glyphs_cluster (buffer, start, end, backward);
+      start = end;
+    }
+  normalize_glyphs_cluster (buffer, start, end, backward);
+}

@@ -5,12 +5,15 @@
 #include "media/mp4/box_definitions.h"
 
 #include "base/logging.h"
-#include "media/mp4/box_reader.h"
-#include "media/mp4/fourccs.h"
+#include "media/mp4/es_descriptor.h"
 #include "media/mp4/rcheck.h"
 
 namespace media {
 namespace mp4 {
+
+FileType::FileType() {}
+FileType::~FileType() {}
+FourCC FileType::BoxType() const { return FOURCC_FTYP; }
 
 bool FileType::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFourCC(&major_brand) && reader->Read4(&minor_version));
@@ -23,11 +26,17 @@ ProtectionSystemSpecificHeader::~ProtectionSystemSpecificHeader() {}
 FourCC ProtectionSystemSpecificHeader::BoxType() const { return FOURCC_PSSH; }
 
 bool ProtectionSystemSpecificHeader::Parse(BoxReader* reader) {
+  // Validate the box's contents and hang on to the system ID.
   uint32 size;
-  return reader->SkipBytes(4) &&
+  RCHECK(reader->ReadFullBoxHeader() &&
          reader->ReadVec(&system_id, 16) &&
          reader->Read4(&size) &&
-         reader->ReadVec(&data, size);
+         reader->HasBytes(size));
+
+  // Copy the entire box, including the header, for passing to EME as initData.
+  DCHECK(raw_box.empty());
+  raw_box.assign(reader->data(), reader->data() + reader->size());
+  return true;
 }
 
 SampleAuxiliaryInformationOffset::SampleAuxiliaryInformationOffset() {}
@@ -85,10 +94,9 @@ SchemeType::~SchemeType() {}
 FourCC SchemeType::BoxType() const { return FOURCC_SCHM; }
 
 bool SchemeType::Parse(BoxReader* reader) {
-  RCHECK(reader->SkipBytes(4) &&
+  RCHECK(reader->ReadFullBoxHeader() &&
          reader->ReadFourCC(&type) &&
          reader->Read4(&version));
-  RCHECK(type == FOURCC_CENC);
   return true;
 }
 
@@ -100,7 +108,8 @@ FourCC TrackEncryption::BoxType() const { return FOURCC_TENC; }
 
 bool TrackEncryption::Parse(BoxReader* reader) {
   uint8 flag;
-  RCHECK(reader->SkipBytes(2) &&
+  RCHECK(reader->ReadFullBoxHeader() &&
+         reader->SkipBytes(2) &&
          reader->Read1(&flag) &&
          reader->Read1(&default_iv_size) &&
          reader->ReadVec(&default_kid, 16));
@@ -126,9 +135,16 @@ ProtectionSchemeInfo::~ProtectionSchemeInfo() {}
 FourCC ProtectionSchemeInfo::BoxType() const { return FOURCC_SINF; }
 
 bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
-  return reader->ScanChildren() &&
-         reader->ReadChild(&type) &&
-         reader->ReadChild(&info);
+  RCHECK(reader->ScanChildren() &&
+         reader->ReadChild(&format) &&
+         reader->ReadChild(&type));
+  if (type.type == FOURCC_CENC)
+    RCHECK(reader->ReadChild(&info));
+  // Other protection schemes are silently ignored. Since the protection scheme
+  // type can't be determined until this box is opened, we return 'true' for
+  // non-CENC protection scheme types. It is the parent box's responsibility to
+  // ensure that this scheme type is a supported one.
+  return true;
 }
 
 MovieHeader::MovieHeader()
@@ -215,8 +231,7 @@ FourCC SampleDescription::BoxType() const { return FOURCC_STSD; }
 bool SampleDescription::Parse(BoxReader* reader) {
   uint32 count;
   RCHECK(reader->SkipBytes(4) &&
-         reader->Read4(&count) &&
-         reader->ScanChildren());
+         reader->Read4(&count));
   video_entries.clear();
   audio_entries.clear();
 
@@ -372,20 +387,46 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
          reader->Read2(&height) &&
          reader->SkipBytes(50));
 
-  RCHECK(reader->ScanChildren());
-  RCHECK(reader->MaybeReadChild(&pixel_aspect));
+  RCHECK(reader->ScanChildren() &&
+         reader->MaybeReadChild(&pixel_aspect));
+
   if (format == FOURCC_ENCV) {
-    RCHECK(reader->ReadChild(&sinf));
+    // Continue scanning until a recognized protection scheme is found, or until
+    // we run out of protection schemes.
+    while (sinf.type.type != FOURCC_CENC) {
+      if (!reader->ReadChild(&sinf))
+        return false;
+    }
   }
 
-  // TODO(strobe): finalize format signaling for encrypted media
-  // (http://crbug.com/132351)
-  //
-  //  if (format == FOURCC_AVC1 ||
-  //      (format == FOURCC_ENCV &&
-  //       sinf.format.format == FOURCC_AVC1)) {
+  if (format == FOURCC_AVC1 ||
+      (format == FOURCC_ENCV && sinf.format.format == FOURCC_AVC1)) {
     RCHECK(reader->ReadChild(&avcc));
-  //  }
+  }
+  return true;
+}
+
+ElementaryStreamDescriptor::ElementaryStreamDescriptor()
+    : object_type(kForbidden) {}
+
+ElementaryStreamDescriptor::~ElementaryStreamDescriptor() {}
+
+FourCC ElementaryStreamDescriptor::BoxType() const {
+  return FOURCC_ESDS;
+}
+
+bool ElementaryStreamDescriptor::Parse(BoxReader* reader) {
+  std::vector<uint8> data;
+  ESDescriptor es_desc;
+
+  RCHECK(reader->ReadFullBoxHeader());
+  RCHECK(reader->ReadVec(&data, reader->size() - reader->pos()));
+  RCHECK(es_desc.Parse(data));
+
+  object_type = es_desc.object_type();
+
+  RCHECK(aac.Parse(es_desc.decoder_specific_info()));
+
   return true;
 }
 
@@ -397,6 +438,7 @@ AudioSampleEntry::AudioSampleEntry()
       samplerate(0) {}
 
 AudioSampleEntry::~AudioSampleEntry() {}
+
 FourCC AudioSampleEntry::BoxType() const {
   DCHECK(false) << "AudioSampleEntry should be parsed according to the "
                 << "handler type recovered in its Media ancestor.";
@@ -417,8 +459,15 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
 
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {
-    RCHECK(reader->ReadChild(&sinf));
+    // Continue scanning until a recognized protection scheme is found, or until
+    // we run out of protection schemes.
+    while (sinf.type.type != FOURCC_CENC) {
+      if (!reader->ReadChild(&sinf))
+        return false;
+    }
   }
+
+  RCHECK(reader->ReadChild(&esds));
   return true;
 }
 
@@ -568,6 +617,7 @@ bool MovieFragmentHeader::Parse(BoxReader* reader) {
 
 TrackFragmentHeader::TrackFragmentHeader()
     : track_id(0),
+      sample_description_index(0),
       default_sample_duration(0),
       default_sample_size(0),
       default_sample_flags(0),

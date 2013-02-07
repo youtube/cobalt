@@ -7,7 +7,8 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && defined(USE_HEAPCHECKER)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_NACL) && \
+    defined(USE_HEAPCHECKER)
 
 #include "third_party/tcmalloc/chromium/src/gperftools/heap-checker.h"
 

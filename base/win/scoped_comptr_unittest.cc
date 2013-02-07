@@ -7,6 +7,7 @@
 #include <shlobj.h>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/win/scoped_com_initializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -33,50 +34,47 @@ TEST(ScopedComPtrTest, ScopedComPtr) {
   EXPECT_TRUE(memcmp(&ScopedComPtr<IUnknown>::iid(), &IID_IUnknown,
                      sizeof(IID)) == 0);
 
-  EXPECT_TRUE(SUCCEEDED(::CoInitialize(NULL)));
+  base::win::ScopedCOMInitializer com_initializer;
+  EXPECT_TRUE(com_initializer.succeeded());
 
-  {
-    ScopedComPtr<IUnknown> unk;
-    EXPECT_TRUE(SUCCEEDED(unk.CreateInstance(CLSID_ShellLink)));
-    ScopedComPtr<IUnknown> unk2;
-    unk2.Attach(unk.Detach());
-    EXPECT_TRUE(unk == NULL);
-    EXPECT_TRUE(unk2 != NULL);
+  ScopedComPtr<IUnknown> unk;
+  EXPECT_TRUE(SUCCEEDED(unk.CreateInstance(CLSID_ShellLink)));
+  ScopedComPtr<IUnknown> unk2;
+  unk2.Attach(unk.Detach());
+  EXPECT_TRUE(unk == NULL);
+  EXPECT_TRUE(unk2 != NULL);
 
-    ScopedComPtr<IMalloc> mem_alloc;
-    EXPECT_TRUE(SUCCEEDED(CoGetMalloc(1, mem_alloc.Receive())));
+  ScopedComPtr<IMalloc> mem_alloc;
+  EXPECT_TRUE(SUCCEEDED(CoGetMalloc(1, mem_alloc.Receive())));
 
-    ScopedComPtr<IUnknown> qi_test;
-    EXPECT_HRESULT_SUCCEEDED(mem_alloc.QueryInterface(IID_IUnknown,
-        reinterpret_cast<void**>(qi_test.Receive())));
-    EXPECT_TRUE(qi_test.get() != NULL);
-    qi_test.Release();
+  ScopedComPtr<IUnknown> qi_test;
+  EXPECT_HRESULT_SUCCEEDED(mem_alloc.QueryInterface(IID_IUnknown,
+      reinterpret_cast<void**>(qi_test.Receive())));
+  EXPECT_TRUE(qi_test.get() != NULL);
+  qi_test.Release();
 
-    // test ScopedComPtr& constructor
-    ScopedComPtr<IMalloc> copy1(mem_alloc);
-    EXPECT_TRUE(copy1.IsSameObject(mem_alloc));
-    EXPECT_FALSE(copy1.IsSameObject(unk2));  // unk2 is valid but different
-    EXPECT_FALSE(copy1.IsSameObject(unk));  // unk is NULL
+  // test ScopedComPtr& constructor
+  ScopedComPtr<IMalloc> copy1(mem_alloc);
+  EXPECT_TRUE(copy1.IsSameObject(mem_alloc));
+  EXPECT_FALSE(copy1.IsSameObject(unk2));  // unk2 is valid but different
+  EXPECT_FALSE(copy1.IsSameObject(unk));  // unk is NULL
 
-    IMalloc* naked_copy = copy1.Detach();
-    copy1 = naked_copy;  // Test the =(T*) operator.
-    naked_copy->Release();
+  IMalloc* naked_copy = copy1.Detach();
+  copy1 = naked_copy;  // Test the =(T*) operator.
+  naked_copy->Release();
 
-    copy1.Release();
-    EXPECT_FALSE(copy1.IsSameObject(unk2));  // unk2 is valid, copy1 is not
+  copy1.Release();
+  EXPECT_FALSE(copy1.IsSameObject(unk2));  // unk2 is valid, copy1 is not
 
-    // test Interface* constructor
-    ScopedComPtr<IMalloc> copy2(static_cast<IMalloc*>(mem_alloc));
-    EXPECT_TRUE(copy2.IsSameObject(mem_alloc));
+  // test Interface* constructor
+  ScopedComPtr<IMalloc> copy2(static_cast<IMalloc*>(mem_alloc));
+  EXPECT_TRUE(copy2.IsSameObject(mem_alloc));
 
-    EXPECT_TRUE(SUCCEEDED(unk.QueryFrom(mem_alloc)));
-    EXPECT_TRUE(unk != NULL);
-    unk.Release();
-    EXPECT_TRUE(unk == NULL);
-    EXPECT_TRUE(unk.IsSameObject(copy1));  // both are NULL
-  }
-
-  ::CoUninitialize();
+  EXPECT_TRUE(SUCCEEDED(unk.QueryFrom(mem_alloc)));
+  EXPECT_TRUE(unk != NULL);
+  unk.Release();
+  EXPECT_TRUE(unk == NULL);
+  EXPECT_TRUE(unk.IsSameObject(copy1));  // both are NULL
 }
 
 TEST(ScopedComPtrTest, ScopedComPtrVector) {

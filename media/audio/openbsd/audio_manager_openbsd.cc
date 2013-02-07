@@ -51,18 +51,6 @@ AudioManagerOpenBSD::~AudioManagerOpenBSD() {
   Shutdown();
 }
 
-void AudioManagerOpenBSD::Init() {
-  AudioManagerBase::Init();
-}
-
-void AudioManagerOpenBSD::MuteAll() {
-  NOTIMPLEMENTED();
-}
-
-void AudioManagerOpenBSD::UnMuteAll() {
-  NOTIMPLEMENTED();
-}
-
 AudioOutputStream* AudioManagerOpenBSD::MakeLinearOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);

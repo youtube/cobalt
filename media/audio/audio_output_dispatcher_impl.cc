@@ -44,8 +44,10 @@ bool AudioOutputDispatcherImpl::OpenStream() {
   paused_proxies_++;
 
   // Ensure that there is at least one open stream.
-  if (idle_streams_.empty() && !CreateAndOpenStream())
+  if (idle_streams_.empty() && !CreateAndOpenStream()) {
+    paused_proxies_--;
     return false;
+  }
 
   close_timer_.Reset();
   return true;

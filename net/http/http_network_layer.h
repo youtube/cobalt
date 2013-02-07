@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,18 +36,13 @@ class NET_EXPORT HttpNetworkLayer
   // when network session is shared.
   static HttpTransactionFactory* CreateFactory(HttpNetworkSession* session);
 
-  // Enable the spdy protocol.
-  // Without calling this function, SPDY is disabled.  The mode can be:
-  //   ""            : (default) SSL and compression are enabled, flow
-  //                   control disabled.
-  //   "no-ssl"      : disables SSL.
-  //   "no-compress" : disables compression.
-  //   "flow-control": enables flow control.
-  //   "none"        : disables both SSL and compression.
-  static void EnableSpdy(const std::string& mode);
+  // Forces an alternate protocol of SPDY/2 on port 443.
+  // TODO(rch): eliminate this method.
+  static void ForceAlternateProtocol();
 
   // HttpTransactionFactory methods:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) OVERRIDE;
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
+                                HttpTransactionDelegate* delegate) OVERRIDE;
   virtual HttpCache* GetCache() OVERRIDE;
   virtual HttpNetworkSession* GetSession() OVERRIDE;
 

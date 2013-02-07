@@ -37,6 +37,7 @@ void OffsetByteQueue::Pop(int count) {
 }
 
 void OffsetByteQueue::PeekAt(int64 offset, const uint8** buf, int* size) {
+  DCHECK(offset >= head());
   if (offset < head() || offset >= tail()) {
     *buf = NULL;
     *size = 0;

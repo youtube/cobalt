@@ -5,6 +5,7 @@
 #ifndef NET_SPDY_SPDY_STREAM_H_
 #define NET_SPDY_SPDY_STREAM_H_
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -21,13 +22,14 @@
 #include "net/base/ssl_client_cert_type.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_session.h"
 
 namespace net {
 
 class AddressList;
 class IPEndPoint;
-class SpdySession;
 class SSLCertRequestInfo;
 class SSLInfo;
 
@@ -52,6 +54,7 @@ class NET_EXPORT_PRIVATE SpdyStream
 
     // Called when stream is ready to send data.
     // Returns network error code. OK when it successfully sent data.
+    // ERR_IO_PENDING when performing operation asynchronously.
     virtual int OnSendBody() = 0;
 
     // Called when data has been sent. |status| indicates network error
@@ -70,8 +73,12 @@ class NET_EXPORT_PRIVATE SpdyStream
                                    base::Time response_time,
                                    int status) = 0;
 
+    // Called when a HEADERS frame is sent.
+    virtual void OnHeadersSent() = 0;
+
     // Called when data is received.
-    virtual void OnDataReceived(const char* data, int length) = 0;
+    // Returns network error code. OK when it successfully receives data.
+    virtual int OnDataReceived(const char* data, int length) = 0;
 
     // Called when data is sent.
     virtual void OnDataSent(int length) = 0;
@@ -80,16 +87,29 @@ class NET_EXPORT_PRIVATE SpdyStream
     virtual void OnClose(int status) = 0;
 
    protected:
-    friend class base::RefCounted<Delegate>;
     virtual ~Delegate() {}
 
    private:
     DISALLOW_COPY_AND_ASSIGN(Delegate);
   };
 
+  // Indicates pending frame type.
+  enum FrameType {
+    TYPE_HEADERS,
+    TYPE_DATA
+  };
+
+  // Structure to contains pending frame information.
+  typedef struct {
+    FrameType type;
+    union {
+      SpdyHeaderBlock* header_block;
+      SpdyDataFrame* data_frame;
+    };
+  } PendingFrame;
+
   // SpdyStream constructor
   SpdyStream(SpdySession* session,
-             SpdyStreamId stream_id,
              bool pushed,
              const BoundNetLog& net_log);
 
@@ -222,6 +242,10 @@ class NET_EXPORT_PRIVATE SpdyStream
   // For non push stream, it will send SYN_STREAM frame.
   int SendRequest(bool has_upload_data);
 
+  // Sends a HEADERS frame. SpdyStream owns |headers| and will release it after
+  // the HEADERS frame is actually sent.
+  int WriteHeaders(SpdyHeaderBlock* headers);
+
   // Sends DATA frame.
   int WriteStreamData(IOBuffer* data, int length,
                       SpdyDataFlags flags);
@@ -251,6 +275,8 @@ class NET_EXPORT_PRIVATE SpdyStream
   int GetProtocolVersion() const;
 
  private:
+  class SpdyStreamIOBufferProducer;
+
   enum State {
     STATE_NONE,
     STATE_GET_DOMAIN_BOUND_CERT,
@@ -300,6 +326,14 @@ class NET_EXPORT_PRIVATE SpdyStream
   // the MessageLoop to replay all the data that the server has already sent.
   void PushedStreamReplayData();
 
+  // Informs the SpdySession that this stream has a write available.
+  void SetHasWriteAvailable();
+
+  // Returns a newly created SPDY frame owned by the called that contains
+  // the next frame to be sent by this frame.  May return NULL if this
+  // stream has become stalled on flow control.
+  SpdyFrame* ProduceNextFrame();
+
   // There is a small period of time between when a server pushed stream is
   // first created, and the pushed data is replayed. Any data received during
   // this time should continue to be buffered.
@@ -334,6 +368,15 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   scoped_ptr<SpdyHeaderBlock> response_;
   base::Time response_time_;
+
+  // An in order list of pending frame data that are going to be sent. HEADERS
+  // frames are queued as SpdyHeaderBlock structures because these must be
+  // compressed just before sending. Data frames are queued as SpdyDataFrame.
+  std::list<PendingFrame> pending_frames_;
+
+  // An in order list of sending frame types. It will be used to know which type
+  // of frame is sent and which callback should be invoked in OnOpen().
+  std::list<FrameType> waiting_completions_;
 
   State io_state_;
 

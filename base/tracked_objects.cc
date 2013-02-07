@@ -21,7 +21,6 @@ using base::TimeDelta;
 namespace tracked_objects {
 
 namespace {
-
 // Flag to compile out almost all of the task tracking code.
 const bool kTrackAllTaskObjects = true;
 
@@ -86,9 +85,15 @@ void DeathData::RecordDeath(const int32 queue_duration,
 
   // Take a uniformly distributed sample over all durations ever supplied.
   // The probability that we (instead) use this new sample is 1/count_.  This
-  // results in a completely uniform selection of the sample.
-  // We ignore the fact that we correlated our selection of a sample of run
-  // and queue times.
+  // results in a completely uniform selection of the sample (at least when we
+  // don't clamp count_... but that should be inconsequentially likely).
+  // We ignore the fact that we correlated our selection of a sample to the run
+  // and queue times (i.e., we used them to generate random_number).
+  if (count_ <= 0) {  // Handle wrapping of count_, such as in bug 138961.
+    CHECK_GE(count_ - 1, 0);  // Detect memory corruption.
+    // We'll just clamp at INT_MAX, but we should note this in the UI as such.
+    count_ = INT_MAX;
+  }
   if (0 == (random_number % count_)) {
     queue_duration_sample_ = queue_duration;
     run_duration_sample_ = run_duration;
@@ -547,8 +552,6 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
-const std::string ThreadData::thread_name() const { return thread_name_; }
-
 // static
 void ThreadData::SnapshotAllExecutedTasks(bool reset_max,
                                           ProcessDataSnapshot* process_data,
@@ -840,7 +843,7 @@ TaskSnapshot::~TaskSnapshot() {
 //------------------------------------------------------------------------------
 // ParentChildPairSnapshot
 
-ParentChildPairSnapshot::ParentChildPairSnapshot(){
+ParentChildPairSnapshot::ParentChildPairSnapshot() {
 }
 
 ParentChildPairSnapshot::ParentChildPairSnapshot(

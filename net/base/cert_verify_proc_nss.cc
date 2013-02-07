@@ -4,6 +4,9 @@
 
 #include "net/base/cert_verify_proc_nss.h"
 
+#include <string>
+#include <vector>
+
 #include <cert.h>
 #include <nss.h>
 #include <prerror.h>
@@ -17,6 +20,7 @@
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -24,25 +28,26 @@
 #include "net/base/x509_certificate.h"
 #include "net/base/x509_util_nss.h"
 
+#if defined(OS_IOS)
+#include <CommonCrypto/CommonDigest.h>
+#include "net/base/x509_util_ios.h"
+#endif  // defined(OS_IOS)
+
+#define NSS_VERSION_NUM (NSS_VMAJOR * 10000 + NSS_VMINOR * 100 + NSS_VPATCH)
+#if NSS_VERSION_NUM < 31305
+// Added in NSS 3.13.5.
+#define SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED -8016
+#endif
+
 namespace net {
 
 namespace {
 
-class ScopedCERTCertificatePolicies {
- public:
-  explicit ScopedCERTCertificatePolicies(CERTCertificatePolicies* policies)
-      : policies_(policies) {}
-
-  ~ScopedCERTCertificatePolicies() {
-    if (policies_)
-      CERT_DestroyCertificatePoliciesExtension(policies_);
-  }
-
- private:
-  CERTCertificatePolicies* policies_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertificatePolicies);
-};
+typedef scoped_ptr_malloc<
+    CERTCertificatePolicies,
+    crypto::NSSDestroyer<CERTCertificatePolicies,
+                         CERT_DestroyCertificatePoliciesExtension> >
+    ScopedCERTCertificatePolicies;
 
 // ScopedCERTValOutParam manages destruction of values in the CERTValOutParam
 // array that cvout points to.  cvout must be initialized as passed to
@@ -101,6 +106,10 @@ int MapSecurityError(int err) {
     case SEC_ERROR_UNTRUSTED_ISSUER:
     case SEC_ERROR_CA_CERT_INVALID:
       return ERR_CERT_AUTHORITY_INVALID;
+    // TODO(port): map ERR_CERT_NO_REVOCATION_MECHANISM.
+    case SEC_ERROR_OCSP_BAD_HTTP_RESPONSE:
+    case SEC_ERROR_OCSP_SERVER_ERROR:
+      return ERR_CERT_UNABLE_TO_CHECK_REVOCATION;
     case SEC_ERROR_REVOKED_CERTIFICATE:
     case SEC_ERROR_UNTRUSTED_CERT:  // Treat as revoked.
       return ERR_CERT_REVOKED;
@@ -108,45 +117,6 @@ int MapSecurityError(int err) {
     case SEC_ERROR_BAD_SIGNATURE:
     case SEC_ERROR_CERT_NOT_VALID:
     // TODO(port): add an ERR_CERT_WRONG_USAGE error code.
-    case SEC_ERROR_CERT_USAGES_INVALID:
-    case SEC_ERROR_INADEQUATE_KEY_USAGE:
-    case SEC_ERROR_INADEQUATE_CERT_TYPE:
-    case SEC_ERROR_POLICY_VALIDATION_FAILED:
-    case SEC_ERROR_CERT_NOT_IN_NAME_SPACE:
-    case SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID:
-    case SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION:
-    case SEC_ERROR_EXTENSION_VALUE_INVALID:
-      return ERR_CERT_INVALID;
-    default:
-      LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
-      return ERR_FAILED;
-  }
-}
-
-// Map PORT_GetError() return values to our cert status flags.
-CertStatus MapCertErrorToCertStatus(int err) {
-  switch (err) {
-    case SSL_ERROR_BAD_CERT_DOMAIN:
-      return CERT_STATUS_COMMON_NAME_INVALID;
-    case SEC_ERROR_INVALID_TIME:
-    case SEC_ERROR_EXPIRED_CERTIFICATE:
-    case SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE:
-      return CERT_STATUS_DATE_INVALID;
-    case SEC_ERROR_UNKNOWN_ISSUER:
-    case SEC_ERROR_UNTRUSTED_ISSUER:
-    case SEC_ERROR_CA_CERT_INVALID:
-      return CERT_STATUS_AUTHORITY_INVALID;
-    // TODO(port): map CERT_STATUS_NO_REVOCATION_MECHANISM.
-    case SEC_ERROR_OCSP_BAD_HTTP_RESPONSE:
-    case SEC_ERROR_OCSP_SERVER_ERROR:
-      return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
-    case SEC_ERROR_REVOKED_CERTIFICATE:
-    case SEC_ERROR_UNTRUSTED_CERT:  // Treat as revoked.
-      return CERT_STATUS_REVOKED;
-    case SEC_ERROR_BAD_DER:
-    case SEC_ERROR_BAD_SIGNATURE:
-    case SEC_ERROR_CERT_NOT_VALID:
-    // TODO(port): add a CERT_STATUS_WRONG_USAGE error code.
     case SEC_ERROR_CERT_USAGES_INVALID:
     case SEC_ERROR_INADEQUATE_KEY_USAGE:  // Key usage.
     case SEC_ERROR_INADEQUATE_CERT_TYPE:  // Extended key usage and whether
@@ -156,10 +126,19 @@ CertStatus MapCertErrorToCertStatus(int err) {
     case SEC_ERROR_PATH_LEN_CONSTRAINT_INVALID:
     case SEC_ERROR_UNKNOWN_CRITICAL_EXTENSION:
     case SEC_ERROR_EXTENSION_VALUE_INVALID:
-      return CERT_STATUS_INVALID;
+      return ERR_CERT_INVALID;
+    case SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED:
+      return ERR_CERT_WEAK_SIGNATURE_ALGORITHM;
     default:
-      return 0;
+      LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
+      return ERR_FAILED;
   }
+}
+
+// Map PORT_GetError() return values to our cert status flags.
+CertStatus MapCertErrorToCertStatus(int err) {
+  int net_error = MapSecurityError(err);
+  return MapNetErrorToCertStatus(net_error);
 }
 
 // Saves some information about the certificate chain cert_list in
@@ -233,8 +212,13 @@ void GetCertChainInfo(CERTCertList* cert_list,
 
   if (root_cert)
     verified_chain.push_back(root_cert);
+#if defined(OS_IOS)
+  verify_result->verified_cert =
+      x509_util_ios::CreateCertFromNSSHandles(verified_cert, verified_chain);
+#else
   verify_result->verified_cert =
       X509Certificate::CreateFromHandle(verified_cert, verified_chain);
+#endif  // defined(OS_IOS)
 }
 
 // IsKnownRoot returns true if the given certificate is one that we believe
@@ -320,17 +304,17 @@ CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
 
 // Forward declarations.
 SECStatus RetryPKIXVerifyCertWithWorkarounds(
-    X509Certificate::OSCertHandle cert_handle, int num_policy_oids,
+    CERTCertificate* cert_handle, int num_policy_oids,
     bool cert_io_enabled, std::vector<CERTValInParam>* cvin,
     CERTValOutParam* cvout);
-SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle);
+SECOidTag GetFirstCertPolicy(CERTCertificate* cert_handle);
 
 // Call CERT_PKIXVerifyCert for the cert_handle.
 // Verification results are stored in an array of CERTValOutParam.
 // If policy_oids is not NULL and num_policy_oids is positive, policies
 // are also checked.
 // Caller must initialize cvout before calling this function.
-SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
+SECStatus PKIXVerifyCert(CERTCertificate* cert_handle,
                          bool check_revocation,
                          bool cert_io_enabled,
                          const SECOidTag* policy_oids,
@@ -453,7 +437,7 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
 // CERT_PKIXVerifyCert.  All the arguments of this function are either the
 // arguments or local variables of PKIXVerifyCert.
 SECStatus RetryPKIXVerifyCertWithWorkarounds(
-    X509Certificate::OSCertHandle cert_handle, int num_policy_oids,
+    CERTCertificate* cert_handle, int num_policy_oids,
     bool cert_io_enabled, std::vector<CERTValInParam>* cvin,
     CERTValOutParam* cvout) {
   // We call this function when the first CERT_PKIXVerifyCert call in
@@ -534,7 +518,7 @@ SECStatus RetryPKIXVerifyCertWithWorkarounds(
 // be decoded.  The returned value must be freed with a
 // CERT_DestroyCertificatePoliciesExtension call.
 CERTCertificatePolicies* DecodeCertPolicies(
-    X509Certificate::OSCertHandle cert_handle) {
+    CERTCertificate* cert_handle) {
   SECItem policy_ext;
   SECStatus rv = CERT_FindCertExtension(cert_handle,
                                         SEC_OID_X509_CERTIFICATE_POLICIES,
@@ -550,11 +534,11 @@ CERTCertificatePolicies* DecodeCertPolicies(
 // Returns the OID tag for the first certificate policy in the certificate's
 // certificatePolicies extension.  Returns SEC_OID_UNKNOWN if the certificate
 // has no certificate policy.
-SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle) {
-  CERTCertificatePolicies* policies = DecodeCertPolicies(cert_handle);
-  if (!policies)
+SECOidTag GetFirstCertPolicy(CERTCertificate* cert_handle) {
+  ScopedCERTCertificatePolicies policies(DecodeCertPolicies(cert_handle));
+  if (!policies.get())
     return SEC_OID_UNKNOWN;
-  ScopedCERTCertificatePolicies scoped_policies(policies);
+
   CERTPolicyInfo* policy_info = policies->policyInfos[0];
   if (!policy_info)
     return SEC_OID_UNKNOWN;
@@ -576,45 +560,72 @@ SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle) {
   return SECOID_AddEntry(&od);
 }
 
-bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
-                       SECOidTag ev_policy_tag) {
-  CERTCertificatePolicies* policies = DecodeCertPolicies(cert_handle);
-  if (!policies) {
-    LOG(ERROR) << "Cert has no policies extension or extension couldn't be "
-                  "decoded.";
-    return false;
-  }
-  ScopedCERTCertificatePolicies scoped_policies(policies);
-  CERTPolicyInfo** policy_infos = policies->policyInfos;
-  while (*policy_infos != NULL) {
-    CERTPolicyInfo* policy_info = *policy_infos++;
-    SECOidTag oid_tag = policy_info->oid;
-    if (oid_tag == SEC_OID_UNKNOWN)
-      continue;
-    if (oid_tag == ev_policy_tag)
-      return true;
-  }
-  return false;
+HashValue CertPublicKeyHashSHA1(CERTCertificate* cert) {
+  HashValue hash(HASH_VALUE_SHA1);
+#if defined(OS_IOS)
+  CC_SHA1(cert->derPublicKey.data, cert->derPublicKey.len, hash.data());
+#else
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data(),
+                              cert->derPublicKey.data, cert->derPublicKey.len);
+  DCHECK_EQ(SECSuccess, rv);
+#endif
+  return hash;
 }
 
-SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
-  SHA1Fingerprint hash;
-  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data,
+HashValue CertPublicKeyHashSHA256(CERTCertificate* cert) {
+  HashValue hash(HASH_VALUE_SHA256);
+#if defined(OS_IOS)
+  CC_SHA256(cert->derPublicKey.data, cert->derPublicKey.len, hash.data());
+#else
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA256, hash.data(),
                               cert->derPublicKey.data, cert->derPublicKey.len);
   DCHECK_EQ(rv, SECSuccess);
+#endif
   return hash;
 }
 
 void AppendPublicKeyHashes(CERTCertList* cert_list,
                            CERTCertificate* root_cert,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           HashValueVector* hashes) {
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
-    hashes->push_back(CertPublicKeyHash(node->cert));
+    hashes->push_back(CertPublicKeyHashSHA1(node->cert));
+    hashes->push_back(CertPublicKeyHashSHA256(node->cert));
   }
-  if (root_cert)
-    hashes->push_back(CertPublicKeyHash(root_cert));
+  if (root_cert) {
+    hashes->push_back(CertPublicKeyHashSHA1(root_cert));
+    hashes->push_back(CertPublicKeyHashSHA256(root_cert));
+  }
+}
+
+// Returns true if |cert_handle| contains a policy OID that is an EV policy
+// OID according to |metadata|, storing the resulting policy OID in
+// |*ev_policy_oid|. A true return is not sufficient to establish that a
+// certificate is EV, but a false return is sufficient to establish the
+// certificate cannot be EV.
+bool IsEVCandidate(EVRootCAMetadata* metadata,
+                   CERTCertificate* cert_handle,
+                   SECOidTag* ev_policy_oid) {
+  DCHECK(cert_handle);
+  ScopedCERTCertificatePolicies policies(DecodeCertPolicies(cert_handle));
+  if (!policies.get())
+    return false;
+
+  CERTPolicyInfo** policy_infos = policies->policyInfos;
+  while (*policy_infos != NULL) {
+    CERTPolicyInfo* policy_info = *policy_infos++;
+    // If the Policy OID is unknown, that implicitly means it has not been
+    // registered as an EV policy.
+    if (policy_info->oid == SEC_OID_UNKNOWN)
+      continue;
+    if (metadata->IsEVPolicyOID(policy_info->oid)) {
+      *ev_policy_oid = policy_info->oid;
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
@@ -624,9 +635,11 @@ void AppendPublicKeyHashes(CERTCertList* cert_list,
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
-bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
-  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
-
+bool VerifyEV(CERTCertificate* cert_handle,
+              int flags,
+              CRLSet* crl_set,
+              EVRootCAMetadata* metadata,
+              SECOidTag ev_policy_oid) {
   CERTValOutParam cvout[3];
   int cvout_index = 0;
   cvout[cvout_index].type = cert_po_certList;
@@ -640,12 +653,16 @@ bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
+  bool rev_checking_enabled =
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY);
+
   SECStatus status = PKIXVerifyCert(
       cert_handle,
-      flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED,
-      flags & X509Certificate::VERIFY_CERT_IO_ENABLED,
-      metadata->GetPolicyOIDs(),
-      metadata->NumPolicyOIDs(),
+      rev_checking_enabled,
+      flags & CertVerifier::VERIFY_CERT_IO_ENABLED,
+      &ev_policy_oid,
+      1,
       cvout);
   if (status != SECSuccess)
     return false;
@@ -667,19 +684,13 @@ bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
       return false;
   }
 
-  SHA1Fingerprint fingerprint =
+#if defined(OS_IOS)
+  SHA1HashValue fingerprint = x509_util_ios::CalculateFingerprintNSS(root_ca);
+#else
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
-  std::vector<SECOidTag> ev_policy_tags;
-  if (!metadata->GetPolicyOIDsForCA(fingerprint, &ev_policy_tags))
-    return false;
-  DCHECK(!ev_policy_tags.empty());
-
-  for (std::vector<SECOidTag>::const_iterator
-       i = ev_policy_tags.begin(); i != ev_policy_tags.end(); ++i) {
-    if (CheckCertPolicies(cert_handle, *i))
-      return true;
-  }
-  return false;
+#endif
+  return metadata->HasEVPolicyOID(fingerprint, ev_policy_oid);
 }
 
 }  // namespace
@@ -693,7 +704,15 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
                                       int flags,
                                       CRLSet* crl_set,
                                       CertVerifyResult* verify_result) {
+#if defined(OS_IOS)
+  // For iOS, the entire chain must be loaded into NSS's in-memory certificate
+  // store.
+  x509_util_ios::NSSCertChain scoped_chain(cert);
+  CERTCertificate* cert_handle = scoped_chain.cert_handle();
+#else
   CERTCertificate* cert_handle = cert->os_cert_handle();
+#endif  // defined(OS_IOS)
+
   // Make sure that the hostname matches with the common name of the cert.
   SECStatus status = CERT_VerifyCertName(cert_handle, hostname.c_str());
   if (status != SECSuccess)
@@ -718,15 +737,35 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
-  bool cert_io_enabled = flags & X509Certificate::VERIFY_CERT_IO_ENABLED;
+  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
+  SECOidTag ev_policy_oid = SEC_OID_UNKNOWN;
+  bool is_ev_candidate =
+      (flags & CertVerifier::VERIFY_EV_CERT) &&
+      IsEVCandidate(metadata, cert_handle, &ev_policy_oid);
+  bool cert_io_enabled = flags & CertVerifier::VERIFY_CERT_IO_ENABLED;
   bool check_revocation =
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) &&
-      cert_io_enabled;
+      cert_io_enabled &&
+      ((flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
+       ((flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY) &&
+        is_ev_candidate));
   if (check_revocation)
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
 
   status = PKIXVerifyCert(cert_handle, check_revocation, cert_io_enabled,
                           NULL, 0, cvout);
+
+  if (status == SECSuccess) {
+    AppendPublicKeyHashes(cvout[cvout_cert_list_index].value.pointer.chain,
+                          cvout[cvout_trust_anchor_index].value.pointer.cert,
+                          &verify_result->public_key_hashes);
+
+    verify_result->is_issued_by_known_root =
+        IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
+
+    GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
+                     cvout[cvout_trust_anchor_index].value.pointer.cert,
+                     verify_result);
+  }
 
   if (crl_set) {
     CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
@@ -757,21 +796,11 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
     return MapSecurityError(err);
   }
 
-  GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
-                   cvout[cvout_trust_anchor_index].value.pointer.cert,
-                   verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  AppendPublicKeyHashes(cvout[cvout_cert_list_index].value.pointer.chain,
-                        cvout[cvout_trust_anchor_index].value.pointer.cert,
-                        &verify_result->public_key_hashes);
-
-  verify_result->is_issued_by_known_root =
-      IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
-
-  if ((flags & X509Certificate::VERIFY_EV_CERT) &&
-      VerifyEV(cert_handle, flags, crl_set)) {
+  if ((flags & CertVerifier::VERIFY_EV_CERT) && is_ev_candidate &&
+      VerifyEV(cert_handle, flags, crl_set, metadata, ev_policy_oid)) {
     verify_result->cert_status |= CERT_STATUS_IS_EV;
   }
 

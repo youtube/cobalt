@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,23 +62,19 @@ BASE_EXPORT std::string SysWideToMultiByte(const std::wstring& wide,
 // for releasing it. Returns NULL on failure.
 BASE_EXPORT CFStringRef SysUTF8ToCFStringRef(const std::string& utf8);
 BASE_EXPORT CFStringRef SysUTF16ToCFStringRef(const string16& utf16);
-BASE_EXPORT CFStringRef SysWideToCFStringRef(const std::wstring& wide);
 
 // Same, but returns an autoreleased NSString.
 BASE_EXPORT NSString* SysUTF8ToNSString(const std::string& utf8);
 BASE_EXPORT NSString* SysUTF16ToNSString(const string16& utf16);
-BASE_EXPORT NSString* SysWideToNSString(const std::wstring& wide);
 
 // Converts a CFStringRef to an STL string. Returns an empty string on failure.
 BASE_EXPORT std::string SysCFStringRefToUTF8(CFStringRef ref);
 BASE_EXPORT string16 SysCFStringRefToUTF16(CFStringRef ref);
-BASE_EXPORT std::wstring SysCFStringRefToWide(CFStringRef ref);
 
 // Same, but accepts NSString input. Converts nil NSString* to the appropriate
 // string type of length 0.
 BASE_EXPORT std::string SysNSStringToUTF8(NSString* ref);
 BASE_EXPORT string16 SysNSStringToUTF16(NSString* ref);
-BASE_EXPORT std::wstring SysNSStringToWide(NSString* ref);
 
 #endif  // defined(OS_MACOSX)
 

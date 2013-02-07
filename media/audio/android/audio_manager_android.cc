@@ -5,7 +5,6 @@
 #include "media/audio/android/audio_manager_android.h"
 
 #include "base/logging.h"
-#include "media/audio/android/audio_track_output_android.h"
 #include "media/audio/android/opensles_input.h"
 #include "media/audio/android/opensles_output.h"
 #include "media/audio/audio_manager.h"
@@ -34,14 +33,6 @@ bool AudioManagerAndroid::HasAudioOutputDevices() {
 
 bool AudioManagerAndroid::HasAudioInputDevices() {
   return false;
-}
-
-void AudioManagerAndroid::MuteAll() {
-  NOTIMPLEMENTED();
-}
-
-void AudioManagerAndroid::UnMuteAll() {
-  NOTIMPLEMENTED();
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(

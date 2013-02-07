@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <secerr.h>
 
+#include <algorithm>
 #include <string>
 
 #include "base/basictypes.h"
@@ -29,18 +30,27 @@
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 
+namespace net {
+
 namespace {
 
 // Protects |g_request_context|.
 pthread_mutex_t g_request_context_lock = PTHREAD_MUTEX_INITIALIZER;
-static net::URLRequestContext* g_request_context = NULL;
+URLRequestContext* g_request_context = NULL;
+
+// The default timeout for network fetches in NSS is 60 seconds. Choose a
+// saner upper limit for OCSP/CRL/AIA fetches.
+const int kNetworkFetchTimeoutInSecs = 15;
 
 class OCSPRequestSession;
 
@@ -69,6 +79,20 @@ class OCSPIOLoop {
 
   void AddRequest(OCSPRequestSession* request);
   void RemoveRequest(OCSPRequestSession* request);
+
+  // Clears internal state and calls |StartUsing()|. Should be called only in
+  // the context of testing.
+  void ReuseForTesting() {
+    {
+      base::AutoLock autolock(lock_);
+      DCHECK(MessageLoopForIO::current());
+      thread_checker_.DetachFromThread();
+      thread_checker_.CalledOnValidThread();
+      shutdown_ = false;
+      used_ = false;
+    }
+    StartUsing();
+  }
 
  private:
   friend struct base::DefaultLazyInstanceTraits<OCSPIOLoop>;
@@ -144,13 +168,13 @@ base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization =
     LAZY_INSTANCE_INITIALIZER;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
-// Public methods except virtual methods of net::URLRequest::Delegate
+// Public methods except virtual methods of URLRequest::Delegate
 // (On* methods) run on certificate verifier thread (worker thread).
-// Virtual methods of net::URLRequest::Delegate and private methods run
+// Virtual methods of URLRequest::Delegate and private methods run
 // on IO thread.
 class OCSPRequestSession
     : public base::RefCountedThreadSafe<OCSPRequestSession>,
-      public net::URLRequest::Delegate {
+      public URLRequest::Delegate {
  public:
   OCSPRequestSession(const GURL& url,
                      const char* http_request_method,
@@ -159,7 +183,7 @@ class OCSPRequestSession
         http_request_method_(http_request_method),
         timeout_(timeout),
         request_(NULL),
-        buffer_(new net::IOBuffer(kRecvBufferSize)),
+        buffer_(new IOBuffer(kRecvBufferSize)),
         response_code_(-1),
         cv_(&lock_),
         io_loop_(NULL),
@@ -167,6 +191,8 @@ class OCSPRequestSession
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
                    const char* http_content_type) {
+    // |upload_content_| should not be modified if |request_| is active.
+    DCHECK(!request_);
     upload_content_.assign(http_data, http_data_len);
     upload_content_type_.assign(http_content_type);
   }
@@ -252,9 +278,9 @@ class OCSPRequestSession
     return data_;
   }
 
-  virtual void OnReceivedRedirect(net::URLRequest* request,
+  virtual void OnReceivedRedirect(URLRequest* request,
                                   const GURL& new_url,
-                                  bool* defer_redirect) {
+                                  bool* defer_redirect) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -265,7 +291,7 @@ class OCSPRequestSession
     }
   }
 
-  virtual void OnResponseStarted(net::URLRequest* request) {
+  virtual void OnResponseStarted(URLRequest* request) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -279,7 +305,8 @@ class OCSPRequestSession
     OnReadCompleted(request_, bytes_read);
   }
 
-  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read) {
+  virtual void OnReadCompleted(URLRequest* request,
+                               int bytes_read) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -353,7 +380,7 @@ class OCSPRequestSession
     DCHECK(!request_);
 
     pthread_mutex_lock(&g_request_context_lock);
-    net::URLRequestContext* url_request_context = g_request_context;
+    URLRequestContext* url_request_context = g_request_context;
     pthread_mutex_unlock(&g_request_context_lock);
 
     if (url_request_context == NULL)
@@ -366,11 +393,10 @@ class OCSPRequestSession
       g_ocsp_io_loop.Get().AddRequest(this);
     }
 
-    request_ = new net::URLRequest(url_, this, url_request_context);
+    request_ = new URLRequest(url_, this, url_request_context);
     // To meet the privacy requirements of incognito mode.
-    request_->set_load_flags(
-        net::LOAD_DISABLE_CACHE | net::LOAD_DO_NOT_SAVE_COOKIES |
-        net::LOAD_DO_NOT_SEND_COOKIES);
+    request_->set_load_flags(LOAD_DISABLE_CACHE | LOAD_DO_NOT_SAVE_COOKIES |
+                             LOAD_DO_NOT_SEND_COOKIES);
 
     if (http_request_method_ == "POST") {
       DCHECK(!upload_content_.empty());
@@ -378,9 +404,12 @@ class OCSPRequestSession
 
       request_->set_method("POST");
       extra_request_headers_.SetHeader(
-          net::HttpRequestHeaders::kContentType, upload_content_type_);
-      request_->AppendBytesToUpload(upload_content_.data(),
-                                    static_cast<int>(upload_content_.size()));
+          HttpRequestHeaders::kContentType, upload_content_type_);
+
+      scoped_ptr<UploadElementReader> reader(new UploadBytesElementReader(
+          upload_content_.data(), upload_content_.size()));
+      request_->set_upload(make_scoped_ptr(
+          UploadDataStream::CreateWithReader(reader.Pass(), 0)));
     }
     if (!extra_request_headers_.IsEmpty())
       request_->SetExtraRequestHeaders(extra_request_headers_);
@@ -392,16 +421,18 @@ class OCSPRequestSession
   GURL url_;                      // The URL we eventually wound up at
   std::string http_request_method_;
   base::TimeDelta timeout_;       // The timeout for OCSP
-  net::URLRequest* request_;           // The actual request this wraps
-  scoped_refptr<net::IOBuffer> buffer_;  // Read buffer
-  net::HttpRequestHeaders extra_request_headers_;
-  std::string upload_content_;    // HTTP POST payload
+  URLRequest* request_;           // The actual request this wraps
+  scoped_refptr<IOBuffer> buffer_;  // Read buffer
+  HttpRequestHeaders extra_request_headers_;
+
+  // HTTP POST payload. |request_| reads bytes from this.
+  std::string upload_content_;
   std::string upload_content_type_;  // MIME type of POST payload
 
   int response_code_;             // HTTP status code for the request
   std::string response_content_type_;
-  scoped_refptr<net::HttpResponseHeaders> response_headers_;
-  std::string data_;              // Results of the requst
+  scoped_refptr<HttpResponseHeaders> response_headers_;
+  std::string data_;              // Results of the request
 
   // |lock_| protects |finished_| and |io_loop_|.
   mutable base::Lock lock_;
@@ -417,7 +448,7 @@ class OCSPRequestSession
 class OCSPServerSession {
  public:
   OCSPServerSession(const char* host, PRUint16 port)
-      : host_(host), port_(port) {}
+      : host_and_port_(host, port) {}
   ~OCSPServerSession() {}
 
   OCSPRequestSession* CreateRequest(const char* http_protocol_variant,
@@ -432,24 +463,26 @@ class OCSPServerSession {
       return NULL;
     }
 
-    // TODO(ukai): If |host| is an IPv6 literal, we need to quote it with
-    //  square brackets [].
-    std::string url_string(base::StringPrintf("%s://%s:%d%s",
-                                              http_protocol_variant,
-                                              host_.c_str(),
-                                              port_,
-                                              path_and_query_string));
+    std::string url_string(base::StringPrintf(
+        "%s://%s%s",
+        http_protocol_variant,
+        host_and_port_.ToString().c_str(),
+        path_and_query_string));
     VLOG(1) << "URL [" << url_string << "]";
     GURL url(url_string);
-    return new OCSPRequestSession(
-        url, http_request_method,
+
+    // NSS does not expose public functions to adjust the fetch timeout when
+    // using libpkix, so hardcode the upper limit for network fetches.
+    base::TimeDelta actual_timeout = std::min(
+        base::TimeDelta::FromSeconds(kNetworkFetchTimeoutInSecs),
         base::TimeDelta::FromMilliseconds(PR_IntervalToMilliseconds(timeout)));
+
+    return new OCSPRequestSession(url, http_request_method, actual_timeout);
   }
 
 
  private:
-  std::string host_;
-  int port_;
+  HostPortPair host_and_port_;
 
   DISALLOW_COPY_AND_ASSIGN(OCSPServerSession);
 };
@@ -573,13 +606,13 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
                             SEC_HTTP_SERVER_SESSION* pSession) {
   VLOG(1) << "OCSP create session: host=" << host << " port=" << portnum;
   pthread_mutex_lock(&g_request_context_lock);
-  net::URLRequestContext* request_context = g_request_context;
+  URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
   if (request_context == NULL) {
     LOG(ERROR) << "No URLRequestContext for NSS HTTP handler. host: " << host;
     // The application failed to call SetURLRequestContextForNSSHttpIO or
     // has already called ShutdownNSSHttpIO, so we can't create and use
-    // net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an accurate error
+    // URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an accurate error
     // code for these error conditions, but is close enough.
     PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
     return SECFailure;
@@ -754,20 +787,20 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
   bool is_crl = strcasecmp(mime_type, "application/x-pkcs7-crl") == 0 ||
                 strcasecmp(mime_type, "application/x-x509-crl") == 0 ||
                 strcasecmp(mime_type, "application/pkix-crl") == 0;
-  bool is_crt =
+  bool is_cert =
       strcasecmp(mime_type, "application/x-x509-ca-cert") == 0 ||
       strcasecmp(mime_type, "application/x-x509-server-cert") == 0 ||
       strcasecmp(mime_type, "application/pkix-cert") == 0 ||
       strcasecmp(mime_type, "application/pkcs7-mime") == 0;
 
-  if (!is_crt && !is_crt && !is_ocsp) {
+  if (!is_cert && !is_crl && !is_ocsp) {
     // We didn't get a hint from the MIME type, so do the best that we can.
     const std::string path = req->url().path();
     const std::string host = req->url().host();
     is_crl = strcasestr(path.c_str(), ".crl") != NULL;
-    is_crt = strcasestr(path.c_str(), ".crt") != NULL ||
-             strcasestr(path.c_str(), ".p7c") != NULL ||
-             strcasestr(path.c_str(), ".cer") != NULL;
+    is_cert = strcasestr(path.c_str(), ".crt") != NULL ||
+              strcasestr(path.c_str(), ".p7c") != NULL ||
+              strcasestr(path.c_str(), ".cer") != NULL;
     is_ocsp = strcasestr(host.c_str(), "ocsp") != NULL ||
               req->http_request_method() == "POST";
   }
@@ -788,7 +821,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       UMA_HISTOGRAM_TIMES("Net.CRLRequestFailedTimeMs", duration);
       UMA_HISTOGRAM_BOOLEAN("Net.CRLRequestSuccess", false);
     }
-  } else if (is_crt) {
+  } else if (is_cert) {
     if (ok)
       UMA_HISTOGRAM_TIMES("Net.CRTRequestTimeMs", duration);
   } else {
@@ -905,8 +938,6 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 
 }  // anonymous namespace
 
-namespace net {
-
 void SetMessageLoopForNSSHttpIO() {
   // Must have a MessageLoopForIO.
   DCHECK(MessageLoopForIO::current());
@@ -924,6 +955,10 @@ void EnsureNSSHttpIOInit() {
 
 void ShutdownNSSHttpIO() {
   g_ocsp_io_loop.Get().Shutdown();
+}
+
+void ResetNSSHttpIOForTesting() {
+  g_ocsp_io_loop.Get().ReuseForTesting();
 }
 
 // This function would be called before NSS initialization.

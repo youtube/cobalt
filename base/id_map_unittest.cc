@@ -8,9 +8,6 @@
 
 namespace {
 
-class IDMapTest : public testing::Test {
-};
-
 class TestObject {
 };
 
@@ -18,11 +15,12 @@ class DestructorCounter {
  public:
   explicit DestructorCounter(int* counter) : counter_(counter) {}
   ~DestructorCounter() { ++(*counter_); }
+
  private:
   int* counter_;
 };
 
-TEST_F(IDMapTest, Basic) {
+TEST(IDMapTest, Basic) {
   IDMap<TestObject> map;
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
@@ -54,9 +52,11 @@ TEST_F(IDMapTest, Basic) {
   map.AddWithID(&obj2, 2);
   EXPECT_EQ(&obj1, map.Lookup(1));
   EXPECT_EQ(&obj2, map.Lookup(2));
+
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
+TEST(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
   IDMap<TestObject> map;
 
   TestObject obj1;
@@ -69,6 +69,9 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
 
   {
     IDMap<TestObject>::const_iterator iter(&map);
+
+    EXPECT_EQ(1, map.iteration_depth());
+
     while (!iter.IsAtEnd()) {
       map.Remove(iter.GetCurrentKey());
       iter.Advance();
@@ -82,9 +85,11 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
 
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
+
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
+TEST(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   IDMap<TestObject> map;
 
   const int kCount = 5;
@@ -97,6 +102,8 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   int counter = 0;
   for (IDMap<TestObject>::const_iterator iter(&map);
        !iter.IsAtEnd(); iter.Advance()) {
+    EXPECT_EQ(1, map.iteration_depth());
+
     switch (counter) {
       case 0:
         EXPECT_EQ(ids[0], iter.GetCurrentKey());
@@ -120,9 +127,105 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
 
     counter++;
   }
+
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, OwningPointersDeletesThemOnRemove) {
+TEST(IDMapTest, CopyIterator) {
+  IDMap<TestObject> map;
+
+  TestObject obj1;
+  TestObject obj2;
+  TestObject obj3;
+
+  map.Add(&obj1);
+  map.Add(&obj2);
+  map.Add(&obj3);
+
+  EXPECT_EQ(0, map.iteration_depth());
+
+  {
+    IDMap<TestObject>::const_iterator iter1(&map);
+    EXPECT_EQ(1, map.iteration_depth());
+
+    // Make sure that copying the iterator correctly increments
+    // map's iteration depth.
+    IDMap<TestObject>::const_iterator iter2(iter1);
+    EXPECT_EQ(2, map.iteration_depth());
+  }
+
+  // Make sure after destroying all iterators the map's iteration depth
+  // returns to initial state.
+  EXPECT_EQ(0, map.iteration_depth());
+}
+
+TEST(IDMapTest, AssignIterator) {
+  IDMap<TestObject> map;
+
+  TestObject obj1;
+  TestObject obj2;
+  TestObject obj3;
+
+  map.Add(&obj1);
+  map.Add(&obj2);
+  map.Add(&obj3);
+
+  EXPECT_EQ(0, map.iteration_depth());
+
+  {
+    IDMap<TestObject>::const_iterator iter1(&map);
+    EXPECT_EQ(1, map.iteration_depth());
+
+    IDMap<TestObject>::const_iterator iter2(&map);
+    EXPECT_EQ(2, map.iteration_depth());
+
+    // Make sure that assigning the iterator correctly updates
+    // map's iteration depth (-1 for destruction, +1 for assignment).
+    EXPECT_EQ(2, map.iteration_depth());
+  }
+
+  // Make sure after destroying all iterators the map's iteration depth
+  // returns to initial state.
+  EXPECT_EQ(0, map.iteration_depth());
+}
+
+TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
+  IDMap<TestObject> map;
+
+  const int kCount = 5;
+  TestObject obj[kCount];
+  int32 ids[kCount];
+
+  for (int i = 0; i < kCount; i++)
+    ids[i] = map.Add(&obj[i]);
+
+  int counter = 0;
+  for (IDMap<TestObject>::const_iterator iter(&map);
+       !iter.IsAtEnd(); iter.Advance()) {
+    switch (counter) {
+      case 0:
+        EXPECT_EQ(ids[0], iter.GetCurrentKey());
+        EXPECT_EQ(&obj[0], iter.GetCurrentValue());
+        break;
+      case 1:
+        EXPECT_EQ(ids[1], iter.GetCurrentKey());
+        EXPECT_EQ(&obj[1], iter.GetCurrentValue());
+        map.Clear();
+        EXPECT_TRUE(map.IsEmpty());
+        EXPECT_EQ(0U, map.size());
+        break;
+      default:
+        FAIL() << "should not have that many elements";
+        break;
+    }
+    counter++;
+  }
+
+  EXPECT_TRUE(map.IsEmpty());
+  EXPECT_EQ(0U, map.size());
+}
+
+TEST(IDMapTest, OwningPointersDeletesThemOnRemove) {
   const int kCount = 3;
 
   int external_del_count = 0;
@@ -160,7 +263,44 @@ TEST_F(IDMapTest, OwningPointersDeletesThemOnRemove) {
   EXPECT_EQ(owned_del_count, kCount);
 }
 
-TEST_F(IDMapTest, OwningPointersDeletesThemOnDestruct) {
+TEST(IDMapTest, OwningPointersDeletesThemOnClear) {
+  const int kCount = 3;
+
+  int external_del_count = 0;
+  DestructorCounter* external_obj[kCount];
+
+  int owned_del_count = 0;
+  DestructorCounter* owned_obj[kCount];
+
+  IDMap<DestructorCounter> map_external;
+  IDMap<DestructorCounter, IDMapOwnPointer> map_owned;
+
+  for (int i = 0; i < kCount; ++i) {
+    external_obj[i] = new DestructorCounter(&external_del_count);
+    map_external.Add(external_obj[i]);
+
+    owned_obj[i] = new DestructorCounter(&owned_del_count);
+    map_owned.Add(owned_obj[i]);
+  }
+
+  EXPECT_EQ(external_del_count, 0);
+  EXPECT_EQ(owned_del_count, 0);
+
+  map_external.Clear();
+  map_owned.Clear();
+
+  EXPECT_EQ(external_del_count, 0);
+  EXPECT_EQ(owned_del_count, kCount);
+
+  for (int i = 0; i < kCount; ++i) {
+    delete external_obj[i];
+  }
+
+  EXPECT_EQ(external_del_count, kCount);
+  EXPECT_EQ(owned_del_count, kCount);
+}
+
+TEST(IDMapTest, OwningPointersDeletesThemOnDestruct) {
   const int kCount = 3;
 
   int external_del_count = 0;
