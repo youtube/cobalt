@@ -2347,7 +2347,6 @@
           # TODO(phajdan.jr): Use -fstack-protector-strong when our gcc
           # supports it.
           '-fstack-protector',
-          '--param=ssp-buffer-size=4',
         ],
         'ldflags': [
           '-Wl,-z,now',
@@ -2382,6 +2381,7 @@
           # Note: this is *required* to make some plugins work.
           '-fvisibility=hidden',
           '-pipe',
+          '--param=ssp-buffer-size=4',
         ],
         'cflags_cc': [
           '-fno-rtti',
