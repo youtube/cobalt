@@ -67,7 +67,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolManager {
       HttpNetworkSession::SocketPoolType pool_type,
       int socket_count);
 
-  virtual void FlushSocketPools() = 0;
+  virtual void FlushSocketPoolsWithError(int error) = 0;
   virtual void CloseIdleSockets() = 0;
   virtual TransportClientSocketPool* GetTransportSocketPool() = 0;
   virtual SSLClientSocketPool* GetSSLSocketPool() = 0;

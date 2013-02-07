@@ -68,7 +68,7 @@ TEST(AddressListTest, CreateFromAddrinfo) {
 
   ASSERT_EQ(kNumElements, list.size());
   for (size_t i = 0; i < list.size(); ++i) {
-    EXPECT_EQ(AF_INET, list[i].GetFamily());
+    EXPECT_EQ(ADDRESS_FAMILY_IPV4, list[i].GetFamily());
     // Only check the first byte of the address.
     EXPECT_EQ(i, list[i].address()[0]);
     EXPECT_EQ(static_cast<int>(i << 2), list[i].port());

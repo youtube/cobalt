@@ -7,6 +7,7 @@
 #include <openssl/x509.h>
 
 #include "base/logging.h"
+#include "base/observer_list_threadsafe.h"
 #include "net/base/crypto_module.h"
 #include "net/base/net_errors.h"
 #include "net/base/openssl_private_key_store.h"
@@ -14,8 +15,11 @@
 
 namespace net {
 
-CertDatabase::CertDatabase() {
+CertDatabase::CertDatabase()
+    : observer_list_(new ObserverListThreadSafe<Observer>) {
 }
+
+CertDatabase::~CertDatabase() {}
 
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (!cert)
@@ -31,7 +35,6 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
 }
 
 int CertDatabase::AddUserCert(X509Certificate* cert) {
-  // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }

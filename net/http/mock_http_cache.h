@@ -96,6 +96,7 @@ class MockDiskCache : public disk_cache::Backend {
   MockDiskCache();
   virtual ~MockDiskCache();
 
+  virtual net::CacheType GetCacheType() const OVERRIDE;
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
                         const net::CompletionCallback& callback) OVERRIDE;

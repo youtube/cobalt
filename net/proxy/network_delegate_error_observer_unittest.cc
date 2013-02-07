@@ -40,7 +40,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE {
     return net::OK;
   }
@@ -84,6 +84,9 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       const CompletionCallback& callback) OVERRIDE {
     return OK;
   }
+  virtual void OnRequestWaitStateChange(const net::URLRequest& request,
+                                        RequestWaitState state) OVERRIDE {
+  }
 
   bool got_pac_error_;
 };
@@ -104,7 +107,7 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
       base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
                  base::Unretained(&observer), 42, string16()));
   thread.Stop();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_TRUE(network_delegate.got_pac_error());
 }
 
@@ -119,7 +122,7 @@ TEST(NetworkDelegateErrorObserverTest, NoDelegate) {
       base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
                  base::Unretained(&observer), 42, string16()));
   thread.Stop();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   // Shouldn't have crashed until here...
 }
 

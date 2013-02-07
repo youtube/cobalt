@@ -11,10 +11,12 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/server_bound_cert_store.h"
 #include "net/base/ssl_client_cert_type.h"
 
 namespace base {
@@ -25,7 +27,6 @@ namespace net {
 
 class ServerBoundCertServiceJob;
 class ServerBoundCertServiceWorker;
-class ServerBoundCertStore;
 
 // A class for creating and fetching server bound certs.
 // Inherits from NonThreadSafe in order to use the function
@@ -54,6 +55,12 @@ class NET_EXPORT ServerBoundCertService
   // "registry controlled domain", or the "ETLD + 1" where one exists, or
   // the origin otherwise.
   static std::string GetDomainForHost(const std::string& host);
+
+  // Tests whether the system time is within the supported range for
+  // certificate generation.  This value is cached when ServerBoundCertService
+  // is created, so if the system time is changed by a huge amount, this may no
+  // longer hold.
+  bool IsSystemTimeValid() const { return is_system_time_valid_; }
 
   // Fetches the domain bound cert for the specified origin of the specified
   // type if one exists and creates one otherwise. Returns OK if successful or
@@ -97,31 +104,9 @@ class NET_EXPORT ServerBoundCertService
   uint64 inflight_joins() const { return inflight_joins_; }
 
  private:
-  friend class ServerBoundCertServiceWorker;  // Calls HandleResult.
-
-  // On success, |private_key| stores a DER-encoded PrivateKeyInfo
-  // struct, |cert| stores a DER-encoded certificate, |creation_time| stores the
-  // start of the validity period of the certificate and |expiration_time|
-  // stores the expiration time of the certificate. Returns OK if successful and
-  // an error code otherwise.
-  // |serial_number| is passed in because it is created with the function
-  // base::RandInt, which opens the file /dev/urandom. /dev/urandom is opened
-  // with a LazyInstance, which is not allowed on a worker thread.
-  static int GenerateCert(const std::string& server_identifier,
-                          SSLClientCertType type,
-                          uint32 serial_number,
-                          base::Time* creation_time,
-                          base::Time* expiration_time,
-                          std::string* private_key,
-                          std::string* cert);
-
   void HandleResult(const std::string& server_identifier,
                     int error,
-                    SSLClientCertType type,
-                    base::Time creation_time,
-                    base::Time expiration_time,
-                    const std::string& private_key,
-                    const std::string& cert);
+                    scoped_ptr<ServerBoundCertStore::ServerBoundCert> cert);
 
   scoped_ptr<ServerBoundCertStore> server_bound_cert_store_;
   scoped_refptr<base::TaskRunner> task_runner_;
@@ -129,10 +114,13 @@ class NET_EXPORT ServerBoundCertService
   // inflight_ maps from a server to an active generation which is taking
   // place.
   std::map<std::string, ServerBoundCertServiceJob*> inflight_;
+  base::WeakPtrFactory<ServerBoundCertService> weak_ptr_factory_;
 
   uint64 requests_;
   uint64 cert_store_hits_;
   uint64 inflight_joins_;
+
+  bool is_system_time_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(ServerBoundCertService);
 };

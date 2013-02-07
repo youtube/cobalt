@@ -23,6 +23,15 @@ def PrintMsg(msg):
   print '@@@STEP_TEXT@%s@@@' % msg
 
 
+def PrintSummaryText(msg):
+  """Appends |msg| to main build summary. Visible from waterfall.
+
+  Args:
+    msg: String to be appended.
+  """
+  print '@@@STEP_SUMMARY_TEXT@%s@@@' % msg
+
+
 def PrintError():
   """Marks the current step as failed."""
   print '@@@STEP_FAILURE@@@'
@@ -35,3 +44,11 @@ def PrintWarning():
 
 def PrintNamedStep(step):
   print '@@@BUILD_STEP %s@@@' % step
+
+
+def PrintStepResultIfNeeded(options, result):
+  if result:
+    if options.buildbot_step_failure:
+      PrintError()
+    else:
+      PrintWarning()

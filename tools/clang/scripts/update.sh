@@ -8,7 +8,7 @@
 # Do NOT CHANGE this if you don't know what you're doing -- see
 # https://code.google.com/p/chromium/wiki/UpdatingClang
 # Reverting problematic clang rolls is safe, though.
-CLANG_REVISION=159409
+CLANG_REVISION=169803
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
@@ -16,6 +16,7 @@ LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
 LLVM_BOOTSTRAP_DIR="${LLVM_DIR}/../llvm-bootstrap"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
 COMPILER_RT_DIR="${LLVM_DIR}/projects/compiler-rt"
+ANDROID_NDK_DIR="${LLVM_DIR}/../android_tools/ndk"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
 
 # ${A:-a} returns $A if it's set, a else.
@@ -31,6 +32,11 @@ force_local_build=
 mac_only=
 run_tests=
 bootstrap=
+with_android=yes
+if [[ "${OS}" = "Darwin" ]]; then
+  with_android=
+fi
+
 while [[ $# > 0 ]]; do
   case $1 in
     --bootstrap)
@@ -45,12 +51,16 @@ while [[ $# > 0 ]]; do
     --run-tests)
       run_tests=yes
       ;;
+    --without-android)
+      with_android=
+      ;;
     --help)
       echo "usage: $0 [--force-local-build] [--mac-only] [--run-tests] "
       echo "--bootstrap: First build clang with CC, then with itself."
       echo "--force-local-build: Don't try to download prebuilt binaries."
       echo "--mac-only: Do initial download only on Mac systems."
       echo "--run-tests: Run tests after building. Only for local builds."
+      echo "--without-android: Don't build ASan Android runtime library."
       exit 1
       ;;
   esac
@@ -62,6 +72,7 @@ done
 # --mac-only is passed in and the system isn't a mac. People who don't like this
 # can just delete their third_party/llvm-build directory.
 if [[ -n "$mac_only" ]] && [[ "${OS}" != "Darwin" ]] &&
+    [[ ! ( "$GYP_DEFINES" =~ .*(clang|tsan|asan)=1.* ) ]] &&
     ! [[ -d "${LLVM_BUILD_DIR}" ]]; then
   exit 0
 fi
@@ -145,6 +156,7 @@ for CONFIG in Debug Release; do
     echo "Clobbering ${CONFIG} PCH and .o files for ninja build"
     find "${MAKE_DIR}/${CONFIG}/obj" -name '*.gch' -exec rm {} +
     find "${MAKE_DIR}/${CONFIG}/obj" -name '*.o' -exec rm {} +
+    find "${MAKE_DIR}/${CONFIG}/obj" -name '*.o.d' -exec rm {} +
   fi
 
   if [[ "${OS}" = "Darwin" ]]; then
@@ -188,6 +200,15 @@ if [[ -z "$force_local_build" ]]; then
   else
     echo Did not find prebuilt clang at r"${CLANG_REVISION}", building
   fi
+fi
+
+if [[ -n "${with_android}" ]] && ! [[ -d "${ANDROID_NDK_DIR}" ]]; then
+  echo "Android NDK not found at ${ANDROID_NDK_DIR}"
+  echo "The Android NDK is needed to build a Clang whose -fsanitize=address"
+  echo "works on Android. See "
+  echo "http://code.google.com/p/chromium/wiki/AndroidBuildInstructions for how"
+  echo "to install the NDK, or pass --without-android."
+  exit 1
 fi
 
 echo Getting LLVM r"${CLANG_REVISION}" in "${LLVM_DIR}"
@@ -259,6 +280,28 @@ fi
 
 MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
 cd -
+
+if [[ -n "${with_android}" ]]; then
+  # Make a standalone Android toolchain.
+  ${ANDROID_NDK_DIR}/build/tools/make-standalone-toolchain.sh \
+      --platform=android-9 \
+      --install-dir="${LLVM_BUILD_DIR}/android-toolchain"
+
+  # Fixup mismatching version numbers in android-ndk-r8b.
+  # TODO: This will be fixed in the next NDK, remove this when that ships.
+  TC="${LLVM_BUILD_DIR}/android-toolchain"
+  if [[ -d "${TC}/lib/gcc/arm-linux-androideabi/4.6.x-google" ]]; then
+    mv "${TC}/lib/gcc/arm-linux-androideabi/4.6.x-google" \
+        "${TC}/lib/gcc/arm-linux-androideabi/4.6"
+    mv "${TC}/libexec/gcc/arm-linux-androideabi/4.6.x-google" \
+        "${TC}/libexec/gcc/arm-linux-androideabi/4.6"
+  fi
+
+  # Build ASan runtime for Android.
+  cd "${LLVM_BUILD_DIR}"
+  make -C tools/clang/runtime/ LLVM_ANDROID_TOOLCHAIN_DIR="../../../../${TC}"
+  cd -
+fi
 
 # Build plugin.
 # Copy it into the clang tree and use clang's build system to compile the

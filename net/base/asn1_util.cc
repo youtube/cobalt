@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -156,6 +156,34 @@ bool ExtractSPKIFromDERCert(base::StringPiece cert,
     return false;
   return true;
 }
+
+bool ExtractSubjectPublicKeyFromSPKI(base::StringPiece spki,
+                                     base::StringPiece* spk_out) {
+  // From RFC 5280, Section 4.1
+  //   SubjectPublicKeyInfo  ::=  SEQUENCE  {
+  //     algorithm            AlgorithmIdentifier,
+  //     subjectPublicKey     BIT STRING  }
+  //
+  //   AlgorithmIdentifier  ::=  SEQUENCE  {
+  //     algorithm               OBJECT IDENTIFIER,
+  //     parameters              ANY DEFINED BY algorithm OPTIONAL  }
+
+  // Step into SubjectPublicKeyInfo sequence.
+  base::StringPiece spki_contents;
+  if (!asn1::GetElement(&spki, asn1::kSEQUENCE, &spki_contents))
+    return false;
+
+  // Step over algorithm field (a SEQUENCE).
+  base::StringPiece algorithm;
+  if (!asn1::GetElement(&spki_contents, asn1::kSEQUENCE, &algorithm))
+    return false;
+
+  // Extract the subjectPublicKey field.
+  if (!asn1::GetElement(&spki_contents, asn1::kBITSTRING, spk_out))
+    return false;
+  return true;
+}
+
 
 bool ExtractCRLURLsFromDERCert(base::StringPiece cert,
                                std::vector<base::StringPiece>* urls_out) {

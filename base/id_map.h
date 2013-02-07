@@ -92,6 +92,17 @@ class IDMap : public base::NonThreadSafe {
     }
   }
 
+  void Clear() {
+    DCHECK(CalledOnValidThread());
+    if (iteration_depth_ == 0) {
+      Releaser<OS, 0>::release_all(&data_);
+    } else {
+      for (typename HashTable::iterator i = data_.begin();
+           i != data_.end(); ++i)
+        removed_ids_.insert(i->first);
+    }
+  }
+
   bool IsEmpty() const {
     DCHECK(CalledOnValidThread());
     return size() == 0u;
@@ -110,6 +121,12 @@ class IDMap : public base::NonThreadSafe {
     return data_.size() - removed_ids_.size();
   }
 
+#if defined(UNIT_TEST)
+  int iteration_depth() const {
+    return iteration_depth_;
+  }
+#endif  // defined(UNIT_TEST)
+
   // It is safe to remove elements from the map during iteration. All iterators
   // will remain valid.
   template<class ReturnType>
@@ -118,13 +135,29 @@ class IDMap : public base::NonThreadSafe {
     Iterator(IDMap<T, OS>* map)
         : map_(map),
           iter_(map_->data_.begin()) {
-      DCHECK(map->CalledOnValidThread());
-      ++map_->iteration_depth_;
-      SkipRemovedEntries();
+      Init();
+    }
+
+    Iterator(const Iterator& iter)
+        : map_(iter.map_),
+          iter_(iter.iter_) {
+      Init();
+    }
+
+    const Iterator& operator=(const Iterator& iter) {
+      map_ = iter.map;
+      iter_ = iter.iter;
+      Init();
+      return *this;
     }
 
     ~Iterator() {
       DCHECK(map_->CalledOnValidThread());
+
+      // We're going to decrement iteration depth. Make sure it's greater than
+      // zero so that it doesn't become negative.
+      DCHECK_LT(0, map_->iteration_depth_);
+
       if (--map_->iteration_depth_ == 0)
         map_->Compact();
     }
@@ -151,6 +184,12 @@ class IDMap : public base::NonThreadSafe {
     }
 
    private:
+    void Init() {
+      DCHECK(map_->CalledOnValidThread());
+      ++map_->iteration_depth_;
+      SkipRemovedEntries();
+    }
+
     void SkipRemovedEntries() {
       while (iter_ != map_->data_.end() &&
              map_->removed_ids_.find(iter_->first) !=

@@ -573,7 +573,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequestByDeleting) {
   resolver.reset();
 
   // Give any posted tasks a chance to run (in case there is badness).
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Check that none of the outstanding requests were completed.
   EXPECT_FALSE(callback0.have_result());
@@ -657,7 +657,7 @@ TEST(MultiThreadedProxyResolverTest, ThreeThreads_Basic) {
   ASSERT_EQ(1u, factory->resolvers().size());
   EXPECT_EQ(1, factory->resolvers()[0]->request_count());
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now start 8 requests in parallel -- this will cause the maximum of
   // three threads to be provisioned (an additional two from what we already

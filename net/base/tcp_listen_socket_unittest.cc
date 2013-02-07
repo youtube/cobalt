@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 #include "base/bind.h"
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_util.h"
 #include "testing/platform_test.h"
@@ -56,7 +56,15 @@ void TCPListenSocketTester::SetUp() {
   int ret = HANDLE_EINTR(
       connect(test_socket_, reinterpret_cast<sockaddr*>(&client),
               sizeof(client)));
-  ASSERT_NE(ret, StreamListenSocket::kSocketError);
+#if defined(OS_POSIX)
+  // The connect() call may be interrupted by a signal. When connect()
+  // is retried on EINTR, it fails with EISCONN.
+  if (ret == StreamListenSocket::kSocketError)
+    ASSERT_EQ(EISCONN, errno);
+#else
+  // Don't have signals.
+  ASSERT_NE(StreamListenSocket::kSocketError, ret);
+#endif
 
   NextAction();
   ASSERT_EQ(ACTION_ACCEPT, last_action_.type());
@@ -168,25 +176,25 @@ void TCPListenSocketTester::TestServerSend() {
   char buf[buf_len+1];
   unsigned recv_len = 0;
   while (recv_len < strlen(kHelloWorld)) {
-    int r = HANDLE_EINTR(recv(test_socket_, buf, buf_len, 0));
+    int r = HANDLE_EINTR(recv(test_socket_,
+                              buf + recv_len, buf_len - recv_len, 0));
     ASSERT_GE(r, 0);
     recv_len += static_cast<unsigned>(r);
     if (!r)
       break;
   }
   buf[recv_len] = 0;
-  ASSERT_STREQ(buf, kHelloWorld);
+  ASSERT_STREQ(kHelloWorld, buf);
 }
 
 void TCPListenSocketTester::TestServerSendMultiple() {
   // Send enough data to exceed the socket receive window. 20kb is probably a
   // safe bet.
   int send_count = (1024*20) / (sizeof(kHelloWorld)-1);
-  int i;
 
-  // Send multiple writes. Since no reading is occuring the data should be
+  // Send multiple writes. Since no reading is occurring the data should be
   // buffered in TCPListenSocket.
-  for (i = 0; i < send_count; ++i) {
+  for (int i = 0; i < send_count; ++i) {
     loop_->PostTask(FROM_HERE, base::Bind(
         &TCPListenSocketTester::SendFromTester, this));
     NextAction();
@@ -196,17 +204,18 @@ void TCPListenSocketTester::TestServerSendMultiple() {
   // Make multiple reads. All of the data should eventually be returned.
   char buf[sizeof(kHelloWorld)];
   const int buf_len = sizeof(kHelloWorld);
-  for (i = 0; i < send_count; ++i) {
+  for (int i = 0; i < send_count; ++i) {
     unsigned recv_len = 0;
     while (recv_len < buf_len-1) {
-      int r = HANDLE_EINTR(recv(test_socket_, buf, buf_len-1, 0));
+      int r = HANDLE_EINTR(recv(test_socket_,
+                                buf + recv_len, buf_len - 1 - recv_len, 0));
       ASSERT_GE(r, 0);
       recv_len += static_cast<unsigned>(r);
       if (!r)
         break;
     }
     buf[recv_len] = 0;
-    ASSERT_STREQ(buf, kHelloWorld);
+    ASSERT_STREQ(kHelloWorld, buf);
   }
 }
 

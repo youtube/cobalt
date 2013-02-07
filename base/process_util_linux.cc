@@ -68,6 +68,11 @@ bool ReadProcStats(pid_t pid, std::string* buffer) {
 // Returns true if successful.
 bool ParseProcStats(const std::string& stats_data,
                     std::vector<std::string>* proc_stats) {
+  // |stats_data| may be empty if the process disappeared somehow.
+  // e.g. http://crbug.com/145811
+  if (stats_data.empty())
+    return false;
+
   // The stat file is formatted as:
   // pid (process name) data1 data2 .... dataN
   // Look for the closing paren by scanning backwards, to avoid being fooled by
@@ -104,18 +109,21 @@ bool ParseProcStats(const std::string& stats_data,
 // simply |pid|, and the next two values are strings.
 int GetProcStatsFieldAsInt(const std::vector<std::string>& proc_stats,
                            ProcStatsFields field_num) {
-  if (field_num < VM_PPID) {
-    NOTREACHED();
-    return 0;
-  }
+  DCHECK_GE(field_num, VM_PPID);
+  CHECK_LT(static_cast<size_t>(field_num), proc_stats.size());
 
-  if (proc_stats.size() > static_cast<size_t>(field_num)) {
-    int value;
-    if (base::StringToInt(proc_stats[field_num], &value))
-      return value;
-  }
-  NOTREACHED();
-  return 0;
+  int value;
+  return base::StringToInt(proc_stats[field_num], &value) ? value : 0;
+}
+
+// Same as GetProcStatsFieldAsInt(), but for size_t values.
+size_t GetProcStatsFieldAsSizeT(const std::vector<std::string>& proc_stats,
+                                ProcStatsFields field_num) {
+  DCHECK_GE(field_num, VM_PPID);
+  CHECK_LT(static_cast<size_t>(field_num), proc_stats.size());
+
+  size_t value;
+  return base::StringToSizeT(proc_stats[field_num], &value) ? value : 0;
 }
 
 // Convenience wrapper around GetProcStatsFieldAsInt(), ParseProcStats() and
@@ -128,6 +136,17 @@ int ReadProcStatsAndGetFieldAsInt(pid_t pid, ProcStatsFields field_num) {
   if (!ParseProcStats(stats_data, &proc_stats))
     return 0;
   return GetProcStatsFieldAsInt(proc_stats, field_num);
+}
+
+// Same as ReadProcStatsAndGetFieldAsInt() but for size_t values.
+size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid, ProcStatsFields field_num) {
+  std::string stats_data;
+  if (!ReadProcStats(pid, &stats_data))
+    return 0;
+  std::vector<std::string> proc_stats;
+  if (!ParseProcStats(stats_data, &proc_stats))
+    return 0;
+  return GetProcStatsFieldAsSizeT(proc_stats, field_num);
 }
 
 // Reads the |field_num|th field from |proc_stats|.
@@ -228,7 +247,7 @@ int GetProcessCPU(pid_t pid) {
 
 // Read /proc/<pid>/status and returns the value for |field|, or 0 on failure.
 // Only works for fields in the form of "Field: value kB".
-int ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
+size_t ReadProcStatusAndGetFieldAsSizeT(pid_t pid, const std::string& field) {
   FilePath stat_file = GetProcPidDir(pid).Append("status");
   std::string status;
   {
@@ -260,8 +279,8 @@ int ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
             NOTREACHED();
             return 0;
           }
-          int value;
-          if (!base::StringToInt(split_value_str[0], &value)) {
+          size_t value;
+          if (!base::StringToSizeT(split_value_str[0], &value)) {
             NOTREACHED();
             return 0;
           }
@@ -282,6 +301,8 @@ namespace base {
 #if defined(USE_LINUX_BREAKPAD)
 size_t g_oom_size = 0U;
 #endif
+
+const char kProcSelfExe[] = "/proc/self/exe";
 
 ProcessId GetParentProcessId(ProcessHandle process) {
   ProcessId pid = ReadProcStatsAndGetFieldAsInt(process, VM_PPID);
@@ -390,22 +411,22 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 
 // On linux, we return vsize.
 size_t ProcessMetrics::GetPagefileUsage() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_VSIZE);
+  return ReadProcStatsAndGetFieldAsSizeT(process_, VM_VSIZE);
 }
 
 // On linux, we return the high water mark of vsize.
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmPeak") * 1024;
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmPeak") * 1024;
 }
 
 // On linux, we return RSS.
 size_t ProcessMetrics::GetWorkingSetSize() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_RSS) * getpagesize();
+  return ReadProcStatsAndGetFieldAsSizeT(process_, VM_RSS) * getpagesize();
 }
 
 // On linux, we return the high water mark of RSS.
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmHWM") * 1024;
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmHWM") * 1024;
 }
 
 bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
@@ -602,7 +623,9 @@ SystemMemoryInfoKB::SystemMemoryInfoKB()
       inactive_anon(0),
       active_file(0),
       inactive_file(0),
-      shmem(0) {
+      shmem(0),
+      gem_objects(-1),
+      gem_size(-1) {
 }
 
 bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
@@ -656,6 +679,41 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
     }
   }
 #endif
+
+  // Check for graphics memory data and report if present. Synchronously
+  // reading files in /sys is fast.
+#if defined(ARCH_CPU_ARM_FAMILY)
+  FilePath geminfo_file("/sys/kernel/debug/dri/0/exynos_gem_objects");
+#else
+  FilePath geminfo_file("/sys/kernel/debug/dri/0/i915_gem_objects");
+#endif
+  std::string geminfo_data;
+  meminfo->gem_objects = -1;
+  meminfo->gem_size = -1;
+  if (file_util::ReadFileToString(geminfo_file, &geminfo_data)) {
+    int gem_objects = -1;
+    long long gem_size = -1;
+    int num_res = sscanf(geminfo_data.c_str(),
+                         "%d objects, %lld bytes",
+                         &gem_objects, &gem_size);
+    if (num_res == 2) {
+      meminfo->gem_objects = gem_objects;
+      meminfo->gem_size = gem_size;
+    }
+  }
+
+#if defined(ARCH_CPU_ARM_FAMILY)
+  // Incorporate Mali graphics memory if present.
+  FilePath mali_memory_file("/sys/devices/platform/mali.0/memory");
+  std::string mali_memory_data;
+  if (file_util::ReadFileToString(mali_memory_file, &mali_memory_data)) {
+    long long mali_size = -1;
+    int num_res = sscanf(mali_memory_data.c_str(), "%lld bytes", &mali_size);
+    if (num_res == 1)
+      meminfo->gem_size += mali_size;
+  }
+#endif  // defined(ARCH_CPU_ARM_FAMILY)
+
   return true;
 }
 

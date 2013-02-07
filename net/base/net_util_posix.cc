@@ -6,9 +6,10 @@
 
 #include <sys/types.h>
 
-#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/posix/eintr_wrapper.h"
+#include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "googleurl/src/gurl.h"
@@ -21,6 +22,10 @@
 #endif
 #include <net/if.h>
 #include <netinet/in.h>
+
+#if defined(OS_ANDROID)
+#include "net/android/network_library.h"
+#endif
 
 namespace net {
 
@@ -59,11 +64,30 @@ bool FileURLToFilePath(const GURL& url, FilePath* path) {
 }
 
 bool GetNetworkList(NetworkInterfaceList* networks) {
-#if defined(OS_ANDROID) || defined(__LB_SHELL__)
-  // TODO: Android API doesn't support ifaddrs. This method was only used by
-  // P2PMessage. Consider to implement it until really needed. The possible
-  // approach is implementing the similar feature by
-  // java.net.NetworkInterface through JNI.
+#if defined(OS_ANDROID)
+  std::string network_list = android::GetNetworkList();
+  StringTokenizer network_interfaces(network_list, ";");
+  while (network_interfaces.GetNext()) {
+    std::string network_item = network_interfaces.token();
+    StringTokenizer network_tokenizer(network_item, ",");
+    std::string name;
+    if (!network_tokenizer.GetNext())
+      continue;
+    name = network_tokenizer.token();
+
+    std::string literal_address;
+    if (!network_tokenizer.GetNext())
+      continue;
+    literal_address = network_tokenizer.token();
+
+    IPAddressNumber address;
+    if (!ParseIPLiteralToNumber(literal_address, &address))
+      continue;
+    networks->push_back(NetworkInterface(name, address));
+  }
+  return true;
+#elif defined(__LB_SHELL__)
+  // lbshell doesn't support ifaddrs.
   NOTIMPLEMENTED();
   return false;
 #else

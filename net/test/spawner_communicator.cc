@@ -14,6 +14,8 @@
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_util.h"
+#include "net/base/upload_bytes_element_reader.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request_test_util.h"
 
@@ -169,9 +171,8 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
   // Prepare the URLRequest for sending the command.
   DCHECK(!cur_request_.get());
   context_.reset(new TestURLRequestContext);
-  cur_request_.reset(new URLRequest(GenerateSpawnerCommandURL(command, port_),
-                                    this,
-                                    context_.get()));
+  cur_request_.reset(context_->CreateRequest(
+      GenerateSpawnerCommandURL(command, port_), this));
   DCHECK(cur_request_.get());
   int current_request_id = ++next_id_;
   SpawnerRequestData* data = new SpawnerRequestData(current_request_id,
@@ -184,7 +185,10 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
     cur_request_->set_method("GET");
   } else {
     cur_request_->set_method("POST");
-    cur_request_->AppendBytesToUpload(post_data.c_str(), post_data.size());
+    scoped_ptr<UploadElementReader> reader(
+        UploadOwnedBytesElementReader::CreateWithString(post_data));
+    cur_request_->set_upload(make_scoped_ptr(
+        UploadDataStream::CreateWithReader(reader.Pass(), 0)));
     net::HttpRequestHeaders headers;
     headers.SetHeader(net::HttpRequestHeaders::kContentType,
                       "application/json");

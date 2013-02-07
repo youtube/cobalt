@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,7 @@ namespace base {
 
 // This structure is copied around by value.
 struct BASE_EXPORT TrackingInfo {
+  TrackingInfo();
   TrackingInfo(const tracked_objects::Location& posted_from,
                base::TimeTicks delayed_run_time);
   ~TrackingInfo();

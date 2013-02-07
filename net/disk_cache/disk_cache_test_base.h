@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "net/base/cache_type.h"
@@ -48,6 +49,7 @@ class DiskCacheTest : public PlatformTest {
   FilePath cache_path_;
 
  private:
+  base::ScopedTempDir temp_dir_;
   scoped_ptr<MessageLoop> message_loop_;
 };
 

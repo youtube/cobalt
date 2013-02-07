@@ -17,13 +17,15 @@
 #include "net/base/net_errors.h"
 #endif
 
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
 #if defined(__LB_SHELL__)
@@ -34,7 +36,6 @@ using std::string;
 
 #if defined(OS_WIN)
 typedef int socklen_t;
-#include "net/base/winsock_init.h"
 #endif  // defined(OS_WIN)
 
 namespace net {
@@ -42,33 +43,6 @@ namespace net {
 namespace {
 
 const int kReadBufSize = 4096;
-const int kMaxSendBufSize = 1024 * 1024 * 5;  // 5MB
-
-const net::BackoffEntry::Policy kSendBackoffPolicy = {
-  // Number of initial errors (in sequence) to ignore before applying
-  // exponential back-off rules.
-  0,
-
-  // Initial delay for exponential back-off in ms.
-  25,
-
-  // Factor by which the waiting time will be multiplied.
-  2,
-
-  // Fuzzing percentage. ex: 10% will spread requests randomly
-  // between 90%-100% of the calculated time.
-  0,
-
-  // Maximum amount of time we are willing to delay our request in ms.
-  100,
-
-  // Time to keep an entry from being discarded even when it
-  // has no significant state, -1 to never discard.
-  -1,
-
-  // Don't use initial delay unless the last request was an error.
-  false,
-};
 
 }  // namespace
 
@@ -85,10 +59,7 @@ StreamListenSocket::StreamListenSocket(SocketDescriptor s,
     : socket_delegate_(del),
       socket_(s),
       reads_paused_(false),
-      has_pending_reads_(false),
-      send_pending_size_(0),
-      send_error_(false),
-      send_backoff_(&kSendBackoffPolicy) {
+      has_pending_reads_(false) {
 #if defined(OS_WIN)
   socket_event_ = WSACreateEvent();
   // TODO(ibrar): error handling in case of socket_event_ == WSA_INVALID_EVENT.
@@ -119,6 +90,21 @@ void StreamListenSocket::Send(const string& str, bool append_linefeed) {
   Send(str.data(), static_cast<int>(str.length()), append_linefeed);
 }
 
+int StreamListenSocket::GetLocalAddress(IPEndPoint* address) {
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len)) {
+#if defined(OS_WIN)
+    int err = WSAGetLastError();
+#else
+    int err = errno;
+#endif
+    return MapSystemError(err);
+  }
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
+    return ERR_FAILED;
+  return OK;
+}
+
 SocketDescriptor StreamListenSocket::AcceptSocket() {
   SocketDescriptor conn = HANDLE_EINTR(accept(socket_, NULL, NULL));
   if (conn == kInvalidSocket)
@@ -129,28 +115,44 @@ SocketDescriptor StreamListenSocket::AcceptSocket() {
 }
 
 void StreamListenSocket::SendInternal(const char* bytes, int len) {
-  DCHECK(bytes);
-  if (!bytes || len <= 0)
-    return;
-
-  if (send_error_)
-    return;
-
-  if (send_pending_size_ + len > kMaxSendBufSize) {
-    LOG(ERROR) << "send failed: buffer overrun";
-    send_buffers_.clear();
-    send_pending_size_ = 0;
-    send_error_ = true;
-    return;
+  char* send_buf = const_cast<char *>(bytes);
+  int len_left = len;
+  while (true) {
+    int sent = HANDLE_EINTR(send(socket_, send_buf, len_left, 0));
+    if (sent == len_left) {  // A shortcut to avoid extraneous checks.
+      break;
+    }
+    if (sent == kSocketError) {
+#if defined(OS_WIN)
+      if (WSAGetLastError() != WSAEWOULDBLOCK) {
+        LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
+#elif defined(OS_POSIX)
+      if (errno != EWOULDBLOCK && errno != EAGAIN) {
+        LOG(ERROR) << "send failed: errno==" << errno;
+#endif
+        break;
+      }
+      // Otherwise we would block, and now we have to wait for a retry.
+      // Fall through to PlatformThread::YieldCurrentThread()
+#if defined(__LB_SHELL__)
+    } else if (sent < 0) {
+      // PS3 returns a negative error code for 'sent' instead of a simple -1.
+      // Thus, we must check it in this else case.
+      if (!LB::Platform::NetWouldBlock()) {
+        LOG(ERROR) << "send failed: sent==" << sent;
+        break;
+      }
+      // Otherwise we would block, and now we have to wait for a retry.
+      // Fall through to PlatformThread::YieldCurrentThread()
+#endif
+    } else {
+      // sent != len_left according to the shortcut above.
+      // Shift the buffer start and send the remainder after a short while.
+      send_buf += sent;
+      len_left -= sent;
+    }
+    base::PlatformThread::YieldCurrentThread();
   }
-
-  scoped_refptr<IOBuffer> buffer(new IOBuffer(len));
-  memcpy(buffer->data(), bytes, len);
-  send_buffers_.push_back(new DrainableIOBuffer(buffer, len));
-  send_pending_size_ += len;
-
-  if (!send_timer_.IsRunning())
-    SendData();
 }
 
 void StreamListenSocket::Listen() {
@@ -351,78 +353,6 @@ void StreamListenSocket::ResumeReads() {
   if (has_pending_reads_) {
     has_pending_reads_ = false;
     Read();
-  }
-}
-
-void StreamListenSocket::SendData() {
-  DCHECK(!send_buffers_.empty());
-
-  int total_sent = 0;
-
-  // Send data until all buffers have been sent or a call would block.
-  while (!send_buffers_.empty()) {
-    scoped_refptr<DrainableIOBuffer> buffer = send_buffers_.front();
-
-    int len_left = buffer->BytesRemaining();
-    int sent = HANDLE_EINTR(send(socket_, buffer->data(), len_left, 0));
-    if (sent > 0) {
-      if (sent == len_left)
-        send_buffers_.pop_front();
-      else
-        buffer->DidConsume(sent);
-
-      total_sent += sent;
-    } else if (sent == kSocketError) {
-#if defined(OS_WIN)
-      if (WSAGetLastError() != WSAEWOULDBLOCK) {
-        LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
-#elif defined(OS_POSIX)
-      if (errno != EWOULDBLOCK && errno != EAGAIN) {
-        LOG(ERROR) << "send failed: errno==" << errno;
-#endif
-        // Don't try to re-send data after a socket error.
-        send_buffers_.clear();
-        send_pending_size_ = 0;
-        send_error_ = true;
-        return;
-      }
-
-      // The call would block. Don't send any more data at this time.
-      break;
-    } else {
-#if defined(__LB_SHELL__)
-      // PS3 returns a negative error code for 'sent' instead of a simple -1.
-      // Thus, we must check it in this else case.
-      if (!LB::Platform::NetWouldBlock()) {
-        // Don't try to re-send data after a socket error.
-        send_buffers_.clear();
-        send_pending_size_ = 0;
-        send_error_ = true;
-        return;
-      }
-      break;
-#else
-      NOTREACHED();
-      break;
-#endif
-    }
-  }
-
-  if (total_sent > 0) {
-    send_pending_size_ -= total_sent;
-    DCHECK_GE(send_pending_size_, 0);
-
-    // Clear the back-off delay.
-    send_backoff_.Reset();
-  } else {
-    // Increase the back-off delay.
-    send_backoff_.InformOfRequest(false);
-  }
-
-  if (!send_buffers_.empty()) {
-    DCHECK(!send_timer_.IsRunning());
-    send_timer_.Start(FROM_HERE, send_backoff_.GetTimeUntilRelease(),
-                      this, &StreamListenSocket::SendData);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,9 +9,9 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include <stdlib.h>
 #include <string.h>
-#include "vp8enci.h"
+
+#include "./vp8enci.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -24,7 +24,7 @@ extern "C" {
 static void InitLeft(VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
   enc->y_left_[-1] = enc->u_left_[-1] = enc->v_left_[-1] =
-      (it->y_) > 0 ? 129 : 127;
+      (it->y_ > 0) ? 129 : 127;
   memset(enc->y_left_, 129, 16);
   memset(enc->u_left_, 129, 8);
   memset(enc->v_left_, 129, 8);
@@ -33,7 +33,7 @@ static void InitLeft(VP8EncIterator* const it) {
 
 static void InitTop(VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
-  const int top_size = enc->mb_w_ * 16;
+  const size_t top_size = enc->mb_w_ * 16;
   memset(enc->y_top_, 127, 2 * top_size);
   memset(enc->nz_, 0, enc->mb_w_ * sizeof(*enc->nz_));
 }
@@ -65,65 +65,80 @@ void VP8IteratorInit(VP8Encoder* const enc, VP8EncIterator* const it) {
   it->yuv_out2_ = enc->yuv_out2_;
   it->yuv_p_    = enc->yuv_p_;
   it->lf_stats_ = enc->lf_stats_;
+  it->percent0_ = enc->percent_;
   VP8IteratorReset(it);
+}
+
+int VP8IteratorProgress(const VP8EncIterator* const it, int delta) {
+  VP8Encoder* const enc = it->enc_;
+  if (delta && enc->pic_->progress_hook) {
+    const int percent = (enc->mb_h_ <= 1)
+                      ? it->percent0_
+                      : it->percent0_ + delta * it->y_ / (enc->mb_h_ - 1);
+    return WebPReportProgress(enc->pic_, percent, &enc->percent_);
+  }
+  return 1;
 }
 
 //------------------------------------------------------------------------------
 // Import the source samples into the cache. Takes care of replicating
 // boundary pixels if necessary.
 
+static void ImportBlock(const uint8_t* src, int src_stride,
+                        uint8_t* dst, int w, int h, int size) {
+  int i;
+  for (i = 0; i < h; ++i) {
+    memcpy(dst, src, w);
+    if (w < size) {
+      memset(dst + w, dst[w - 1], size - w);
+    }
+    dst += BPS;
+    src += src_stride;
+  }
+  for (i = h; i < size; ++i) {
+    memcpy(dst, dst - BPS, size);
+    dst += BPS;
+  }
+}
+
 void VP8IteratorImport(const VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
   const int x = it->x_, y = it->y_;
   const WebPPicture* const pic = enc->pic_;
-  const uint8_t* ysrc = pic->y + (y * pic->y_stride + x) * 16;
-  const uint8_t* usrc = pic->u + (y * pic->uv_stride + x) * 8;
-  const uint8_t* vsrc = pic->v + (y * pic->uv_stride + x) * 8;
-  uint8_t* ydst = it->yuv_in_ + Y_OFF;
-  uint8_t* udst = it->yuv_in_ + U_OFF;
-  uint8_t* vdst = it->yuv_in_ + V_OFF;
+  const uint8_t* const ysrc = pic->y + (y * pic->y_stride + x) * 16;
+  const uint8_t* const usrc = pic->u + (y * pic->uv_stride + x) * 8;
+  const uint8_t* const vsrc = pic->v + (y * pic->uv_stride + x) * 8;
+  uint8_t* const ydst = it->yuv_in_ + Y_OFF;
+  uint8_t* const udst = it->yuv_in_ + U_OFF;
+  uint8_t* const vdst = it->yuv_in_ + V_OFF;
   int w = (pic->width - x * 16);
   int h = (pic->height - y * 16);
-  int i;
 
   if (w > 16) w = 16;
   if (h > 16) h = 16;
+
   // Luma plane
-  for (i = 0; i < h; ++i) {
-    memcpy(ydst, ysrc, w);
-    if (w < 16) memset(ydst + w, ydst[w - 1], 16 - w);
-    ydst += BPS;
-    ysrc += pic->y_stride;
-  }
-  for (i = h; i < 16; ++i) {
-    memcpy(ydst, ydst - BPS, 16);
-    ydst += BPS;
-  }
-  // U/V plane
-  w = (w + 1) / 2;
-  h = (h + 1) / 2;
-  for (i = 0; i < h; ++i) {
-    memcpy(udst, usrc, w);
-    memcpy(vdst, vsrc, w);
-    if (w < 8) {
-      memset(udst + w, udst[w - 1], 8 - w);
-      memset(vdst + w, vdst[w - 1], 8 - w);
-    }
-    udst += BPS;
-    vdst += BPS;
-    usrc += pic->uv_stride;
-    vsrc += pic->uv_stride;
-  }
-  for (i = h; i < 8; ++i) {
-    memcpy(udst, udst - BPS, 8);
-    memcpy(vdst, vdst - BPS, 8);
-    udst += BPS;
-    vdst += BPS;
+  ImportBlock(ysrc, pic->y_stride, ydst, w, h, 16);
+
+  {   // U/V planes
+    const int uv_w = (w + 1) >> 1;
+    const int uv_h = (h + 1) >> 1;
+    ImportBlock(usrc, pic->uv_stride, udst, uv_w, uv_h, 8);
+    ImportBlock(vsrc, pic->uv_stride, vdst, uv_w, uv_h, 8);
   }
 }
 
 //------------------------------------------------------------------------------
 // Copy back the compressed samples into user space if requested.
+
+static void ExportBlock(const uint8_t* src, uint8_t* dst, int dst_stride,
+                        int w, int h) {
+  while (h-- > 0) {
+    memcpy(dst, src, w);
+    dst += dst_stride;
+    src += BPS;
+  }
+}
 
 void VP8IteratorExport(const VP8EncIterator* const it) {
   const VP8Encoder* const enc = it->enc_;
@@ -133,28 +148,23 @@ void VP8IteratorExport(const VP8EncIterator* const it) {
     const uint8_t* const usrc = it->yuv_out_ + U_OFF;
     const uint8_t* const vsrc = it->yuv_out_ + V_OFF;
     const WebPPicture* const pic = enc->pic_;
-    uint8_t* ydst = pic->y + (y * pic->y_stride + x) * 16;
-    uint8_t* udst = pic->u + (y * pic->uv_stride + x) * 8;
-    uint8_t* vdst = pic->v + (y * pic->uv_stride + x) * 8;
+    uint8_t* const ydst = pic->y + (y * pic->y_stride + x) * 16;
+    uint8_t* const udst = pic->u + (y * pic->uv_stride + x) * 8;
+    uint8_t* const vdst = pic->v + (y * pic->uv_stride + x) * 8;
     int w = (pic->width - x * 16);
     int h = (pic->height - y * 16);
-    int i;
 
     if (w > 16) w = 16;
     if (h > 16) h = 16;
 
     // Luma plane
-    for (i = 0; i < h; ++i) {
-      memcpy(ydst + i * pic->y_stride, ysrc + i * BPS, w);
-    }
-    // U/V plane
-    {
-      const int uv_w = (w + 1) / 2;
-      const int uv_h = (h + 1) / 2;
-      for (i = 0; i < uv_h; ++i) {
-        memcpy(udst + i * pic->uv_stride, usrc + i * BPS, uv_w);
-        memcpy(vdst + i * pic->uv_stride, vsrc + i * BPS, uv_w);
-      }
+    ExportBlock(ysrc, ydst, pic->y_stride, w, h);
+
+    {   // U/V planes
+      const int uv_w = (w + 1) >> 1;
+      const int uv_h = (h + 1) >> 1;
+      ExportBlock(usrc, udst, pic->uv_stride, uv_w, uv_h);
+      ExportBlock(vsrc, vdst, pic->uv_stride, uv_w, uv_h);
     }
   }
 }
@@ -178,47 +188,51 @@ void VP8IteratorExport(const VP8EncIterator* const it) {
 
 void VP8IteratorNzToBytes(VP8EncIterator* const it) {
   const int tnz = it->nz_[0], lnz = it->nz_[-1];
+  int* const top_nz = it->top_nz_;
+  int* const left_nz = it->left_nz_;
 
   // Top-Y
-  it->top_nz_[0] = BIT(tnz, 12);
-  it->top_nz_[1] = BIT(tnz, 13);
-  it->top_nz_[2] = BIT(tnz, 14);
-  it->top_nz_[3] = BIT(tnz, 15);
+  top_nz[0] = BIT(tnz, 12);
+  top_nz[1] = BIT(tnz, 13);
+  top_nz[2] = BIT(tnz, 14);
+  top_nz[3] = BIT(tnz, 15);
   // Top-U
-  it->top_nz_[4] = BIT(tnz, 18);
-  it->top_nz_[5] = BIT(tnz, 19);
+  top_nz[4] = BIT(tnz, 18);
+  top_nz[5] = BIT(tnz, 19);
   // Top-V
-  it->top_nz_[6] = BIT(tnz, 22);
-  it->top_nz_[7] = BIT(tnz, 23);
+  top_nz[6] = BIT(tnz, 22);
+  top_nz[7] = BIT(tnz, 23);
   // DC
-  it->top_nz_[8] = BIT(tnz, 24);
+  top_nz[8] = BIT(tnz, 24);
 
   // left-Y
-  it->left_nz_[0] = BIT(lnz,  3);
-  it->left_nz_[1] = BIT(lnz,  7);
-  it->left_nz_[2] = BIT(lnz, 11);
-  it->left_nz_[3] = BIT(lnz, 15);
+  left_nz[0] = BIT(lnz,  3);
+  left_nz[1] = BIT(lnz,  7);
+  left_nz[2] = BIT(lnz, 11);
+  left_nz[3] = BIT(lnz, 15);
   // left-U
-  it->left_nz_[4] = BIT(lnz, 17);
-  it->left_nz_[5] = BIT(lnz, 19);
+  left_nz[4] = BIT(lnz, 17);
+  left_nz[5] = BIT(lnz, 19);
   // left-V
-  it->left_nz_[6] = BIT(lnz, 21);
-  it->left_nz_[7] = BIT(lnz, 23);
+  left_nz[6] = BIT(lnz, 21);
+  left_nz[7] = BIT(lnz, 23);
   // left-DC is special, iterated separately
 }
 
 void VP8IteratorBytesToNz(VP8EncIterator* const it) {
   uint32_t nz = 0;
+  const int* const top_nz = it->top_nz_;
+  const int* const left_nz = it->left_nz_;
   // top
-  nz |= (it->top_nz_[0] << 12) | (it->top_nz_[1] << 13);
-  nz |= (it->top_nz_[2] << 14) | (it->top_nz_[3] << 15);
-  nz |= (it->top_nz_[4] << 18) | (it->top_nz_[5] << 19);
-  nz |= (it->top_nz_[6] << 22) | (it->top_nz_[7] << 23);
-  nz |= (it->top_nz_[8] << 24);  // we propagate the _top_ bit, esp. for intra4
+  nz |= (top_nz[0] << 12) | (top_nz[1] << 13);
+  nz |= (top_nz[2] << 14) | (top_nz[3] << 15);
+  nz |= (top_nz[4] << 18) | (top_nz[5] << 19);
+  nz |= (top_nz[6] << 22) | (top_nz[7] << 23);
+  nz |= (top_nz[8] << 24);  // we propagate the _top_ bit, esp. for intra4
   // left
-  nz |= (it->left_nz_[0] << 3) | (it->left_nz_[1] << 7);
-  nz |= (it->left_nz_[2] << 11);
-  nz |= (it->left_nz_[4] << 17) | (it->left_nz_[6] << 21);
+  nz |= (left_nz[0] << 3) | (left_nz[1] << 7);
+  nz |= (left_nz[2] << 11);
+  nz |= (left_nz[4] << 17) | (left_nz[6] << 21);
 
   *it->nz_ = nz;
 }
@@ -274,8 +288,8 @@ int VP8IteratorNext(VP8EncIterator* const it,
 // Helper function to set mode properties
 
 void VP8SetIntra16Mode(const VP8EncIterator* const it, int mode) {
-  int y;
   uint8_t* preds = it->preds_;
+  int y;
   for (y = 0; y < 4; ++y) {
     memset(preds, mode, 4);
     preds += it->enc_->preds_w_;
@@ -283,14 +297,13 @@ void VP8SetIntra16Mode(const VP8EncIterator* const it, int mode) {
   it->mb_->type_ = 1;
 }
 
-void VP8SetIntra4Mode(const VP8EncIterator* const it, int modes[16]) {
-  int x, y;
+void VP8SetIntra4Mode(const VP8EncIterator* const it, const uint8_t* modes) {
   uint8_t* preds = it->preds_;
-  for (y = 0; y < 4; ++y) {
-    for (x = 0; x < 4; ++x) {
-      preds[x] = modes[x + y * 4];
-    }
+  int y;
+  for (y = 4; y > 0; --y) {
+    memcpy(preds, modes, 4 * sizeof(*modes));
     preds += it->enc_->preds_w_;
+    modes += 4;
   }
   it->mb_->type_ = 0;
 }
@@ -347,7 +360,7 @@ static const uint8_t VP8TopLeftI4[16] = {
 };
 
 void VP8IteratorStartI4(VP8EncIterator* const it) {
-  VP8Encoder* const enc = it->enc_;
+  const VP8Encoder* const enc = it->enc_;
   int i;
 
   it->i4_ = 0;    // first 4x4 sub-block
@@ -393,7 +406,7 @@ int VP8IteratorRotateI4(VP8EncIterator* const it,
     }
   }
   // move pointers to next sub-block
-  it->i4_++;
+  ++it->i4_;
   if (it->i4_ == 16) {    // we're done
     return 0;
   }

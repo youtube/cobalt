@@ -36,6 +36,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_header_block.h"
 
 namespace net {
 
@@ -68,7 +69,8 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeRequestHandler {
   // Also, fills challenge data in |challenge|.
   bool GetRequestHeaderBlock(const GURL& url,
                              SpdyHeaderBlock* headers,
-                             std::string* challenge);
+                             std::string* challenge,
+                             int spdy_protocol_version);
   // Gets WebSocket handshake raw request message to open WebSocket
   // connection.
   std::string GetRawRequest();
@@ -117,7 +119,8 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeResponseHandler {
                          const std::string& challenge);
   // Parses WebSocket handshake response as SpdyHeaderBlock.
   bool ParseResponseHeaderBlock(const SpdyHeaderBlock& headers,
-                                const std::string& challenge);
+                                const std::string& challenge,
+                                int spdy_protocol_version);
 
   // Gets the headers value.
   void GetHeaders(const char* const headers_to_get[],

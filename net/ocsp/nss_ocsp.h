@@ -26,6 +26,10 @@ NET_EXPORT void EnsureNSSHttpIOInit();
 // related HTTP fetches.
 NET_EXPORT void ShutdownNSSHttpIO();
 
+// Can be called after a call to |ShutdownNSSHttpIO()| to reset internal state
+// and associate it with the current thread.
+NET_EXPORT void ResetNSSHttpIOForTesting();
+
 // Sets the URLRequestContext for HTTP requests issued by NSS.
 NET_EXPORT void SetURLRequestContextForNSSHttpIO(
     URLRequestContext* request_context);

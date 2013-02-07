@@ -16,7 +16,7 @@
 #include "net/socket/ssl_client_socket_win.h"
 #elif defined(USE_OPENSSL)
 #include "net/socket/ssl_client_socket_openssl.h"
-#elif defined(USE_NSS)
+#elif defined(USE_NSS) || defined(OS_IOS)
 #include "net/socket/ssl_client_socket_nss.h"
 #elif defined(OS_MACOSX)
 #include "net/socket/ssl_client_socket_mac.h"
@@ -58,20 +58,20 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
               base::SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
     }
 
-    CertDatabase::AddObserver(this);
+    CertDatabase::GetInstance()->AddObserver(this);
   }
 
   virtual ~DefaultClientSocketFactory() {
     // Note: This code never runs, as the factory is defined as a Leaky
     // singleton.
-    CertDatabase::RemoveObserver(this);
+    CertDatabase::GetInstance()->RemoveObserver(this);
   }
 
-  virtual void OnUserCertAdded(const X509Certificate* cert) {
+  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE {
     ClearSSLSessionCache();
   }
 
-  virtual void OnCertTrustChanged(const X509Certificate* cert) {
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE {
     // Per wtc, we actually only need to flush when trust is reduced.
     // Always flush now because OnCertTrustChanged does not tell us this.
     // See comments in ClientSocketPoolManager::OnCertTrustChanged.
@@ -82,7 +82,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       DatagramSocket::BindType bind_type,
       const RandIntCallback& rand_int_cb,
       NetLog* net_log,
-      const NetLog::Source& source) {
+      const NetLog::Source& source) OVERRIDE {
 #if !defined(__LB_SHELL__)
     return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
 #else
@@ -93,7 +93,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
-      const NetLog::Source& source) {
+      const NetLog::Source& source) OVERRIDE {
     return new TCPClientSocket(addresses, net_log, source);
   }
 
@@ -101,7 +101,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) {
+      const SSLClientSocketContext& context) OVERRIDE {
     // nss_thread_task_runner_ may be NULL if g_use_dedicated_nss_thread is
     // false or if the dedicated NSS thread failed to start. If so, cause NSS
     // functions to execute on the current task runner.
@@ -119,7 +119,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
 #if defined(USE_OPENSSL)
     return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
                                       ssl_config, context);
-#elif defined(USE_NSS)
+#elif defined(USE_NSS) || defined(OS_IOS)
     return new SSLClientSocketNSS(nss_task_runner, transport_socket,
                                   host_and_port, ssl_config, context);
 #elif defined(OS_WIN)
@@ -144,7 +144,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
 #endif
   }
 
-  void ClearSSLSessionCache() {
+  virtual void ClearSSLSessionCache() OVERRIDE {
     SSLClientSocket::ClearSessionCache();
   }
 
@@ -182,7 +182,7 @@ void ClientSocketFactory::UseSystemSSL() {
 #if defined(OS_WIN)
   // Reflect the capability of SSLClientSocketWin.
   SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) && !defined(OS_IOS)
   // Reflect the capability of SSLClientSocketMac.
   SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
 #endif

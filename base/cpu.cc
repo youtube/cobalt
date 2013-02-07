@@ -6,6 +6,8 @@
 
 #include <string.h>
 
+#include <algorithm>
+
 #include "build/build_config.h"
 
 #if defined(ARCH_CPU_X86_FAMILY)
@@ -84,22 +86,20 @@ void __cpuidex(int cpu_info[4], int info_type, int info_index) {
 void CPU::Initialize() {
 #if defined(ARCH_CPU_X86_FAMILY)
   int cpu_info[4] = {-1};
-  char cpu_string[0x20];
+  char cpu_string[48];
 
   // __cpuid with an InfoType argument of 0 returns the number of
   // valid Ids in CPUInfo[0] and the CPU identification string in
   // the other three array elements. The CPU identification string is
   // not in linear order. The code below arranges the information
-  // in a human readable form.
-  //
-  // More info can be found here:
-  // http://msdn.microsoft.com/en-us/library/hskdteyh.aspx
+  // in a human readable form. The human readable order is CPUInfo[1] |
+  // CPUInfo[3] | CPUInfo[2]. CPUInfo[2] and CPUInfo[3] are swapped
+  // before using memcpy to copy these three array elements to cpu_string.
   __cpuid(cpu_info, 0);
   int num_ids = cpu_info[0];
-  memset(cpu_string, 0, sizeof(cpu_string));
-  *(reinterpret_cast<int*>(cpu_string)) = cpu_info[1];
-  *(reinterpret_cast<int*>(cpu_string+4)) = cpu_info[3];
-  *(reinterpret_cast<int*>(cpu_string+8)) = cpu_info[2];
+  std::swap(cpu_info[2], cpu_info[3]);
+  memcpy(cpu_string, &cpu_info[1], 3 * sizeof(cpu_info[1]));
+  cpu_vendor_.assign(cpu_string, 3 * sizeof(cpu_info[1]));
 
   // Interpret CPU feature information.
   if (num_ids > 0) {
@@ -110,7 +110,6 @@ void CPU::Initialize() {
     type_ = (cpu_info[0] >> 12) & 0x3;
     ext_model_ = (cpu_info[0] >> 16) & 0xf;
     ext_family_ = (cpu_info[0] >> 20) & 0xff;
-    cpu_vendor_ = cpu_string;
     has_mmx_ = (cpu_info[3] & 0x00800000) != 0;
     has_sse_ = (cpu_info[3] & 0x02000000) != 0;
     has_sse2_ = (cpu_info[3] & 0x04000000) != 0;
@@ -118,6 +117,22 @@ void CPU::Initialize() {
     has_ssse3_ = (cpu_info[2] & 0x00000200) != 0;
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
+  }
+
+  // Get the brand string of the cpu.
+  __cpuid(cpu_info, 0x80000000);
+  const int parameter_end = 0x80000004;
+
+  if (cpu_info[0] >= parameter_end) {
+    char* cpu_string_ptr = cpu_string;
+
+    for (int parameter = 0x80000002; parameter <= parameter_end &&
+         cpu_string_ptr < &cpu_string[sizeof(cpu_string)]; parameter++) {
+      __cpuid(cpu_info, parameter);
+      memcpy(cpu_string_ptr, cpu_info, sizeof(cpu_info));
+      cpu_string_ptr += sizeof(cpu_info);
+    }
+    cpu_brand_.assign(cpu_string, cpu_string_ptr - cpu_string);
   }
 #endif
 }

@@ -52,6 +52,22 @@ def _KillAllEmulators():
     time.sleep(1)
 
 
+def DeleteAllTempAVDs():
+  """Delete all temporary AVDs which are created for tests.
+
+  If the test exits abnormally and some temporary AVDs created when testing may
+  be left in the system. Clean these AVDs.
+  """
+  avds = android_commands.GetAVDs()
+  if not avds:
+    return
+  for avd_name in avds:
+    if 'run_tests_avd' in avd_name:
+      cmd = ['android', '-s', 'delete', 'avd', '--name', avd_name]
+      cmd_helper.GetCmdOutput(cmd)
+      logging.info('Delete AVD %s' % avd_name)
+
+
 class PortPool(object):
   """Pool for emulator port starting position that changes over time."""
   _port_min = 5554
@@ -149,14 +165,18 @@ class Emulator(object):
     return ('emulator-%d' % port, port)
 
   def _CreateAVD(self, avd_name):
+    """Creates an AVD with the given name.
+
+    Return avd_name.
+    """
     avd_command = [
         self.android,
         '--silent',
         'create', 'avd',
         '--name', avd_name,
         '--abi', self.abi,
-        '--target', 'android-15',
-        '-c', '64M',
+        '--target', 'android-16',
+        '-c', '128M',
         '--force',
     ]
     avd_process = subprocess.Popen(args=avd_command,
@@ -166,9 +186,10 @@ class Emulator(object):
     avd_process.stdin.write('no\n')
     avd_process.wait()
     logging.info('Create AVD command: %s', ' '.join(avd_command))
-    return self.avd
+    return avd_name
 
   def _DeleteAVD(self):
+    """Delete the AVD of this emulator."""
     avd_command = [
         self.android,
         '--silent',
@@ -200,6 +221,8 @@ class Emulator(object):
         # The default /data size is 64M.
         # That's not enough for 8 unit test bundles and their data.
         '-partition-size', '512',
+        # Enable GPU by default.
+        '-gpu', 'on',
         # Use a familiar name and port.
         '-avd', self.avd,
         '-port', str(port)]

@@ -16,23 +16,37 @@
 
 #include "ui/gfx/point.h"
 #include "ui/gfx/rect_base.h"
+#include "ui/gfx/rect_f.h"
 #include "ui/gfx/size.h"
+#include "ui/gfx/vector2d.h"
 
 #if defined(OS_WIN)
 typedef struct tagRECT RECT;
 #elif defined(TOOLKIT_GTK)
 typedef struct _GdkRectangle GdkRectangle;
+#elif defined(OS_IOS)
+#include <CoreGraphics/CoreGraphics.h>
+#elif defined(OS_MACOSX)
+#include <ApplicationServices/ApplicationServices.h>
 #endif
 
 namespace gfx {
 
 class Insets;
 
-class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
+class UI_EXPORT Rect
+    : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
  public:
-  Rect();
-  Rect(int width, int height);
-  Rect(int x, int y, int width, int height);
+  Rect() : RectBase<Rect, Point, Size, Insets, Vector2d, int>(Point()) {}
+
+  Rect(int width, int height)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>
+            (Size(width, height)) {}
+
+  Rect(int x, int y, int width, int height)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>
+            (Point(x, y), Size(width, height)) {}
+
 #if defined(OS_WIN)
   explicit Rect(const RECT& r);
 #elif defined(OS_MACOSX)
@@ -40,18 +54,14 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
 #elif defined(TOOLKIT_GTK)
   explicit Rect(const GdkRectangle& r);
 #endif
-  explicit Rect(const gfx::Size& size);
-  Rect(const gfx::Point& origin, const gfx::Size& size);
 
-  ~Rect();
+  explicit Rect(const gfx::Size& size)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>(size) {}
 
-#if defined(OS_WIN)
-  Rect& operator=(const RECT& r);
-#elif defined(OS_MACOSX)
-  Rect& operator=(const CGRect& r);
-#elif defined(TOOLKIT_GTK)
-  Rect& operator=(const GdkRectangle& r);
-#endif
+  Rect(const gfx::Point& origin, const gfx::Size& size)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>(origin, size) {}
+
+  ~Rect() {}
 
 #if defined(OS_WIN)
   // Construct an equivalent Win32 RECT object.
@@ -63,11 +73,42 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   CGRect ToCGRect() const;
 #endif
 
+  operator RectF() const {
+    return RectF(origin().x(), origin().y(), size().width(), size().height());
+  }
+
   std::string ToString() const;
 };
 
+inline bool operator==(const Rect& lhs, const Rect& rhs) {
+  return lhs.origin() == rhs.origin() && lhs.size() == rhs.size();
+}
+
+inline bool operator!=(const Rect& lhs, const Rect& rhs) {
+  return !(lhs == rhs);
+}
+
+UI_EXPORT Rect operator+(const Rect& lhs, const Vector2d& rhs);
+UI_EXPORT Rect operator-(const Rect& lhs, const Vector2d& rhs);
+
+inline Rect operator+(const Vector2d& lhs, const Rect& rhs) {
+  return rhs + lhs;
+}
+
+UI_EXPORT Rect IntersectRects(const Rect& a, const Rect& b);
+UI_EXPORT Rect UnionRects(const Rect& a, const Rect& b);
+UI_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
+
+// Constructs a rectangle with |p1| and |p2| as opposite corners.
+//
+// This could also be thought of as "the smallest rect that contains both
+// points", except that we consider points on the right/bottom edges of the
+// rect to be outside the rect.  So technically one or both points will not be
+// contained within the rect, because they will appear on one of these edges.
+UI_EXPORT Rect BoundingRect(const Point& p1, const Point& p2);
+
 #if !defined(COMPILER_MSVC)
-extern template class RectBase<Rect, Point, Size, Insets, int>;
+extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
 #endif
 
 }  // namespace gfx

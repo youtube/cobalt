@@ -19,6 +19,9 @@ namespace base {
 bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
   DCHECK_EQ(-1, mapped_file_ );
 
+  if (options.size > static_cast<size_t>(std::numeric_limits<int>::max()))
+    return false;
+
   // "name" is just a label in ashmem. It is visible in /proc/pid/maps.
   mapped_file_ = ashmem_create_region(
       options.name == NULL ? "" : options.name->c_str(),

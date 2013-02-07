@@ -7,12 +7,15 @@
 
 #include <string>
 
-#include "build/build_config.h"
+#include "base/compiler_specific.h"
 #include "ui/base/ui_export.h"
 #include "ui/gfx/size_base.h"
+#include "ui/gfx/size_f.h"
 
 #if defined(OS_WIN)
 typedef struct tagSIZE SIZE;
+#elif defined(OS_IOS)
+#include <CoreGraphics/CoreGraphics.h>
 #elif defined(OS_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
 #endif
@@ -22,13 +25,13 @@ namespace gfx {
 // A size has width and height values.
 class UI_EXPORT Size : public SizeBase<Size, int> {
  public:
-  Size();
-  Size(int width, int height);
+  Size() : SizeBase<Size, int>(0, 0) {}
+  Size(int width, int height) : SizeBase<Size, int>(width, height) {}
 #if defined(OS_MACOSX)
   explicit Size(const CGSize& s);
 #endif
 
-  ~Size();
+  ~Size() {}
 
 #if defined(OS_MACOSX)
   Size& operator=(const CGSize& s);
@@ -40,8 +43,20 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
   CGSize ToCGSize() const;
 #endif
 
+  operator SizeF() const {
+    return SizeF(width(), height());
+  }
+
   std::string ToString() const;
 };
+
+inline bool operator==(const Size& lhs, const Size& rhs) {
+  return lhs.width() == rhs.width() && lhs.height() == rhs.height();
+}
+
+inline bool operator!=(const Size& lhs, const Size& rhs) {
+  return !(lhs == rhs);
+}
 
 #if !defined(COMPILER_MSVC)
 extern template class SizeBase<Size, int>;

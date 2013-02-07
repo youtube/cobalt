@@ -17,6 +17,7 @@ import time
 
 from pylib import android_commands
 from pylib import device_stats_monitor
+from pylib import test_options_parser
 
 
 def main(argv):
@@ -27,10 +28,11 @@ def main(argv):
                            help='Seconds to monitor.')
   option_parser.add_option('--outfile', default='/tmp/devicestatsmonitor',
                            help='Location to start output file.')
+  test_options_parser.AddBuildTypeOption(option_parser)
   options, args = option_parser.parse_args(argv)
 
   monitor = device_stats_monitor.DeviceStatsMonitor(
-      android_commands.AndroidCommands(), options.hz)
+      android_commands.AndroidCommands(), options.hz, options.build_type)
   monitor.Start()
   print 'Waiting for %d seconds while profiling.' % options.duration
   time.sleep(options.duration)

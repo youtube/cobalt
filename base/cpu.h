@@ -32,6 +32,7 @@ class BASE_EXPORT CPU {
   bool has_ssse3() const { return has_ssse3_; }
   bool has_sse41() const { return has_sse41_; }
   bool has_sse42() const { return has_sse42_; }
+  const std::string& cpu_brand() const { return cpu_brand_; }
 
  private:
   // Query the processor for CPUID information.
@@ -51,6 +52,7 @@ class BASE_EXPORT CPU {
   bool has_sse41_;
   bool has_sse42_;
   std::string cpu_vendor_;
+  std::string cpu_brand_;
 };
 
 }  // namespace base

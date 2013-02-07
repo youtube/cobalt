@@ -23,13 +23,18 @@
 //
 // The templated Callback class is a generalized function object. Together
 // with the Bind() function in bind.h, they provide a type-safe method for
-// performing currying of arguments, and creating a "closure."
+// performing partial application of functions.
 //
-// In programming languages, a closure is a first-class function where all its
-// parameters have been bound (usually via currying).  Closures are well
-// suited for representing, and passing around a unit of delayed execution.
-// They are used in Chromium code to schedule tasks on different MessageLoops.
+// Partial application (or "currying") is the process of binding a subset of
+// a function's arguments to produce another function that takes fewer
+// arguments. This can be used to pass around a unit of delayed execution,
+// much like lexical closures are used in other languages. For example, it
+// is used in Chromium code to schedule tasks on different MessageLoops.
 //
+// A callback with no unbound input parameters (base::Callback<void(void)>)
+// is called a base::Closure. Note that this is NOT the same as what other
+// languages refer to as a closure -- it does not retain a reference to its
+// enclosing environment.
 //
 // MEMORY MANAGEMENT AND PASSING
 //
@@ -123,7 +128,7 @@
 //   the rest when you execute the callback.
 //
 //   void MyFunc(int i, const std::string& str) {}
-//   base::Callback<void(int)> cb = base::Bind(&MyFunc, 23);
+//   base::Callback<void(const std::string&)> cb = base::Bind(&MyFunc, 23);
 //   cb.Run("hello world");
 //
 //   When calling a function bound parameters are first, followed by unbound
@@ -269,6 +274,8 @@
 //
 // By default Bind() will store copies of all bound parameters, and attempt
 // to refcount a target object if the function being bound is a class method.
+// These copies are created even if the function takes parameters as const
+// references. (Binding to non-const references is forbidden, see bind.h.)
 //
 // To change this behavior, we introduce a set of argument wrappers
 // (e.g., Unretained(), and ConstRef()).  These are simple container templates
@@ -364,15 +371,16 @@ class Callback<R(void)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -403,15 +411,16 @@ class Callback<R(A1)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -443,15 +452,16 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -486,15 +496,16 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -532,15 +543,16 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -582,15 +594,16 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -635,15 +648,16 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
@@ -691,15 +705,16 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
 
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename Runnable, typename RunType, typename BoundArgsType>
-  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
       : CallbackBase(bind_state) {
 
     // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
     PolymorphicInvoke invoke_func =
-        &internal::BindState<Runnable, RunType, BoundArgsType>
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }

@@ -91,7 +91,7 @@ class X509CertificateCache {
     // the cached OS certificate handle will be freed.
     int ref_count;
   };
-  typedef std::map<SHA1Fingerprint, Entry, SHA1FingerprintLessThan> CertMap;
+  typedef std::map<SHA1HashValue, Entry, SHA1HashValueLessThan> CertMap;
 
   // Obtain an instance of X509CertificateCache via a LazyInstance.
   X509CertificateCache() {}
@@ -114,7 +114,7 @@ base::LazyInstance<X509CertificateCache>::Leaky
 void X509CertificateCache::InsertOrUpdate(
     X509Certificate::OSCertHandle* cert_handle) {
   DCHECK(cert_handle);
-  SHA1Fingerprint fingerprint =
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(*cert_handle);
 
   X509Certificate::OSCertHandle old_handle = NULL;
@@ -160,7 +160,7 @@ void X509CertificateCache::InsertOrUpdate(
 }
 
 void X509CertificateCache::Remove(X509Certificate::OSCertHandle cert_handle) {
-  SHA1Fingerprint fingerprint =
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(cert_handle);
   base::AutoLock lock(lock_);
 

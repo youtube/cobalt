@@ -20,6 +20,10 @@ void StoreValue(int* destination, int value) {
   *destination = value;
 }
 
+void StoreDoubleValue(double* destination, double value) {
+  *destination = value;
+}
+
 int g_foo_destruct_count = 0;
 int g_foo_free_count = 0;
 
@@ -70,9 +74,24 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResult) {
       Bind(&ReturnFourtyTwo),
       Bind(&StoreValue, &result));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(42, result);
+}
+
+TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultImplicitConvert) {
+  MessageLoop message_loop;
+  double result = 0;
+
+  PostTaskAndReplyWithResult(
+      message_loop.message_loop_proxy(),
+      FROM_HERE,
+      Bind(&ReturnFourtyTwo),
+      Bind(&StoreDoubleValue, &result));
+
+  message_loop.RunUntilIdle();
+
+  EXPECT_DOUBLE_EQ(42.0, result);
 }
 
 TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
@@ -87,7 +106,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
       Bind(&CreateFoo),
       Bind(&ExpectFoo));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(1, g_foo_destruct_count);
   EXPECT_EQ(0, g_foo_free_count);
@@ -105,7 +124,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassedFreeProc) {
       Bind(&CreateScopedFoo),
       Bind(&ExpectScopedFoo));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(1, g_foo_destruct_count);
   EXPECT_EQ(1, g_foo_free_count);

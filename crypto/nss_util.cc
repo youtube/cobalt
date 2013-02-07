@@ -6,11 +6,11 @@
 #include "crypto/nss_util_internal.h"
 
 #include <nss.h>
+#include <pk11pub.h>
 #include <plarena.h>
 #include <prerror.h>
 #include <prinit.h>
 #include <prtime.h>
-#include <pk11pub.h>
 #include <secmod.h>
 
 #if defined(OS_LINUX)
@@ -23,14 +23,15 @@
 
 #include <vector>
 
+#include "base/debug/alias.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
-#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -222,7 +223,19 @@ base::LazyInstance<NSPRInitSingleton>::Leaky
 // This is a LazyInstance so that it will be deleted automatically when the
 // unittest exits.  NSSInitSingleton is a LeakySingleton, so it would not be
 // deleted if it were a regular member.
-base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<base::ScopedTempDir> g_test_nss_db_dir =
+    LAZY_INSTANCE_INITIALIZER;
+
+// Force a crash with error info on NSS_NoDB_Init failure.
+void CrashOnNSSInitFailure() {
+  int nss_error = PR_GetError();
+  int os_error = PR_GetOSError();
+  base::debug::Alias(&nss_error);
+  base::debug::Alias(&os_error);
+  LOG(ERROR) << "Error initializing NSS without a persistent database: "
+             << GetNSSErrorMessage();
+  LOG(FATAL) << "nss_error=" << nss_error << ", os_error=" << os_error;
+}
 
 class NSSInitSingleton {
  public:
@@ -449,9 +462,12 @@ class NSSInitSingleton {
     if (nodb_init) {
       status = NSS_NoDB_Init(NULL);
       if (status != SECSuccess) {
-        LOG(ERROR) << "Error initializing NSS without a persistent "
-                      "database: " << GetNSSErrorMessage();
+        CrashOnNSSInitFailure();
+        return;
       }
+#if defined(OS_IOS)
+      root_ = InitDefaultRootCerts();
+#endif  // defined(OS_IOS)
     } else {
 #if defined(USE_NSS)
       FilePath database_dir = GetInitialConfigDirectory();
@@ -480,8 +496,7 @@ class NSSInitSingleton {
         VLOG(1) << "Initializing NSS without a persistent database.";
         status = NSS_NoDB_Init(NULL);
         if (status != SECSuccess) {
-          LOG(ERROR) << "Error initializing NSS without a persistent "
-                        "database: " << GetNSSErrorMessage();
+          CrashOnNSSInitFailure();
           return;
         }
       }
@@ -503,6 +518,12 @@ class NSSInitSingleton {
       root_ = InitDefaultRootCerts();
 #endif  // defined(USE_NSS)
     }
+
+    // Disable MD5 certificate signatures. (They are disabled by default in
+    // NSS 3.14.)
+    NSS_SetAlgorithmPolicy(SEC_OID_MD5, 0, NSS_USE_ALG_IN_CERT_SIGNATURE);
+    NSS_SetAlgorithmPolicy(SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION,
+                           0, NSS_USE_ALG_IN_CERT_SIGNATURE);
   }
 
   // NOTE(willchan): We don't actually execute this code since we leak NSS to
@@ -538,7 +559,7 @@ class NSSInitSingleton {
     }
   }
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   // Load nss's built-in root certs.
   SECMODModule* InitDefaultRootCerts() {
     SECMODModule* root = LoadModule("Root Certs", "libnssckbi.so", NULL);
@@ -629,6 +650,17 @@ void EnsureNSPRInit() {
   g_nspr_singleton.Get();
 }
 
+void InitNSSSafely() {
+  // We might fork, but we haven't loaded any security modules.
+  DisableNSSForkCheck();
+  // If we're sandboxed, we shouldn't be able to open user security modules,
+  // but it's more correct to tell NSS to not even try.
+  // Loading user security modules would have security implications.
+  ForceNSSNoDBInit();
+  // Initialize NSS.
+  EnsureNSSInit();
+}
+
 void EnsureNSSInit() {
   // Initializing SSL causes us to do blocking IO.
   // Temporarily allow it until we fix
@@ -699,8 +731,14 @@ bool CheckNSSVersion(const char* version) {
 }
 
 #if defined(USE_NSS)
-bool OpenTestNSSDB() {
-  return g_nss_singleton.Get().OpenTestNSSDB();
+ScopedTestNSSDB::ScopedTestNSSDB()
+  : is_open_(g_nss_singleton.Get().OpenTestNSSDB()) {
+}
+
+ScopedTestNSSDB::~ScopedTestNSSDB() {
+  // TODO(mattm): Close the dababase once NSS 3.14 is required,
+  // which fixes https://bugzilla.mozilla.org/show_bug.cgi?id=588269
+  // Resource leaks are suppressed. http://crbug.com/156433 .
 }
 
 base::Lock* GetNSSWriteLock() {

@@ -4,6 +4,20 @@
 
 #include "base/test/main_hook.h"
 
-#if !defined(OS_IOS)
+#if defined(__LB_SHELL__)
+#include "lb_shell_platform_delegate.h"
+#include "lb_stack.h"
+#endif
+
+#if defined(__LB_SHELL__FOR_RELEASE__)
+#error You cannot build unit tests in gold builds.
+#endif
+
+#if defined(__LB_SHELL__)
+MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
+  LBShellPlatformDelegate::PlatformInit();
+  LB::SetStackSize();
+}
+#elif !defined(OS_IOS)
 MainHook::MainHook(MainType main_func, int argc, char* argv[]) {}
 #endif

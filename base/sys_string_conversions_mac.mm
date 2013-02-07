@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -152,10 +152,6 @@ CFStringRef SysUTF16ToCFStringRef(const string16& utf16) {
   return STLStringToCFStringWithEncodingsT(utf16, kMediumStringEncoding);
 }
 
-CFStringRef SysWideToCFStringRef(const std::wstring& wide) {
-  return STLStringToCFStringWithEncodingsT(wide, kWideStringEncoding);
-}
-
 NSString* SysUTF8ToNSString(const std::string& utf8) {
   return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
       SysUTF8ToCFStringRef(utf8));
@@ -164,11 +160,6 @@ NSString* SysUTF8ToNSString(const std::string& utf8) {
 NSString* SysUTF16ToNSString(const string16& utf16) {
   return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
       SysUTF16ToCFStringRef(utf16));
-}
-
-NSString* SysWideToNSString(const std::wstring& wide) {
-  return (NSString*)base::mac::CFTypeRefToNSObjectAutorelease(
-      SysWideToCFStringRef(wide));
 }
 
 std::string SysCFStringRefToUTF8(CFStringRef ref) {
@@ -181,11 +172,6 @@ string16 SysCFStringRefToUTF16(CFStringRef ref) {
                                                     kMediumStringEncoding);
 }
 
-std::wstring SysCFStringRefToWide(CFStringRef ref) {
-  return CFStringToSTLStringWithEncodingT<std::wstring>(ref,
-                                                        kWideStringEncoding);
-}
-
 std::string SysNSStringToUTF8(NSString* nsstring) {
   if (!nsstring)
     return std::string();
@@ -196,12 +182,6 @@ string16 SysNSStringToUTF16(NSString* nsstring) {
   if (!nsstring)
     return string16();
   return SysCFStringRefToUTF16(reinterpret_cast<CFStringRef>(nsstring));
-}
-
-std::wstring SysNSStringToWide(NSString* nsstring) {
-  if (!nsstring)
-    return std::wstring();
-  return SysCFStringRefToWide(reinterpret_cast<CFStringRef>(nsstring));
 }
 
 }  // namespace base

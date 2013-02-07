@@ -50,7 +50,7 @@ class WebSocketHixie76 : public net::WebSocket {
     return new WebSocketHixie76(connection, request, pos);
   }
 
-  virtual void Accept(const HttpServerRequestInfo& request) {
+  virtual void Accept(const HttpServerRequestInfo& request) OVERRIDE {
     std::string key1 = request.GetHeaderValue("Sec-WebSocket-Key1");
     std::string key2 = request.GetHeaderValue("Sec-WebSocket-Key2");
 
@@ -80,7 +80,7 @@ class WebSocketHixie76 : public net::WebSocket {
     connection_->Send(reinterpret_cast<char*>(digest.a), 16);
   }
 
-  virtual ParseResult Read(std::string* message) {
+  virtual ParseResult Read(std::string* message) OVERRIDE {
     DCHECK(message);
     const std::string& data = connection_->recv_data();
     if (data[0])
@@ -97,7 +97,7 @@ class WebSocketHixie76 : public net::WebSocket {
     return FRAME_OK;
   }
 
-  virtual void Send(const std::string& message) {
+  virtual void Send(const std::string& message) OVERRIDE {
     char message_start = 0;
     char message_end = -1;
     connection_->Send(&message_start, 1);
@@ -115,14 +115,18 @@ class WebSocketHixie76 : public net::WebSocket {
     std::string key2 = request.GetHeaderValue("Sec-WebSocket-Key2");
 
     if (key1.empty()) {
-      connection->Send500("Invalid request format. "
-                          "Sec-WebSocket-Key1 is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key1 is empty or isn't specified.",
+                       "text/html");
       return;
     }
 
     if (key2.empty()) {
-      connection->Send500("Invalid request format. "
-                          "Sec-WebSocket-Key2 is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key2 is empty or isn't specified.",
+                       "text/html");
       return;
     }
 
@@ -175,14 +179,16 @@ class WebSocketHybi17 : public WebSocket {
 
     std::string key = request.GetHeaderValue("Sec-WebSocket-Key");
     if (key.empty()) {
-      connection->Send500("Invalid request format. "
-              "Sec-WebSocket-Key is empty or isn't specified.");
+      connection->Send(net::HTTP_INTERNAL_SERVER_ERROR,
+                       "Invalid request format. "
+                           "Sec-WebSocket-Key is empty or isn't specified.",
+                       "text/html");
       return NULL;
     }
     return new WebSocketHybi17(connection, request, pos);
   }
 
-  virtual void Accept(const HttpServerRequestInfo& request) {
+  virtual void Accept(const HttpServerRequestInfo& request) OVERRIDE {
     static const char* const kWebSocketGuid =
         "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     std::string key = request.GetHeaderValue("Sec-WebSocket-Key");
@@ -200,7 +206,7 @@ class WebSocketHybi17 : public WebSocket {
     connection_->Send(response);
   }
 
-  virtual ParseResult Read(std::string* message) {
+  virtual ParseResult Read(std::string* message) OVERRIDE {
     size_t data_length = connection_->recv_data().length();
     if (data_length < 2)
       return FRAME_INCOMPLETE;
@@ -284,7 +290,7 @@ class WebSocketHybi17 : public WebSocket {
     return closed_ ? FRAME_CLOSE : FRAME_OK;
   }
 
-  virtual void Send(const std::string& message) {
+  virtual void Send(const std::string& message) OVERRIDE {
     if (closed_)
       return;
 

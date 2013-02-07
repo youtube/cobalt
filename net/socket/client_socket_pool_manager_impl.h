@@ -68,7 +68,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
                               HttpNetworkSession::SocketPoolType pool_type);
   virtual ~ClientSocketPoolManagerImpl();
 
-  virtual void FlushSocketPools() OVERRIDE;
+  virtual void FlushSocketPoolsWithError(int error) OVERRIDE;
   virtual void CloseIdleSockets() OVERRIDE;
 
   virtual TransportClientSocketPool* GetTransportSocketPool() OVERRIDE;
@@ -89,7 +89,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
   virtual base::Value* SocketPoolInfoToValue() const OVERRIDE;
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE;
+  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE;
   virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
  private:

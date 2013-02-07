@@ -28,14 +28,13 @@ const int32 kExtendedASCIIStart = 0x80;
 // This and the class below are used to own the JSON input string for when
 // string tokens are stored as StringPiece instead of std::string. This
 // optimization avoids about 2/3rds of string memory copies. The constructor
-// takes the input string and swaps its data into the new instance. The real
-// root value is also Swap()ed into the new instance.
+// takes ownership of the input string. The real root value is Swap()ed into
+// the new instance.
 class DictionaryHiddenRootValue : public base::DictionaryValue {
  public:
-  DictionaryHiddenRootValue(std::string* json, Value* root) {
+  DictionaryHiddenRootValue(std::string* json, Value* root) : json_(json) {
     DCHECK(root->IsType(Value::TYPE_DICTIONARY));
     DictionaryValue::Swap(static_cast<DictionaryValue*>(root));
-    json->swap(json_);
   }
 
   virtual void Swap(DictionaryValue* other) OVERRIDE {
@@ -49,7 +48,7 @@ class DictionaryHiddenRootValue : public base::DictionaryValue {
     // Then erase the contents of the current dictionary and swap in the
     // new contents, originally from |other|.
     Clear();
-    json_.clear();
+    json_.reset();
     DictionaryValue::Swap(copy.get());
   }
 
@@ -77,17 +76,16 @@ class DictionaryHiddenRootValue : public base::DictionaryValue {
   }
 
  private:
-  std::string json_;
+  scoped_ptr<std::string> json_;
 
   DISALLOW_COPY_AND_ASSIGN(DictionaryHiddenRootValue);
 };
 
 class ListHiddenRootValue : public base::ListValue {
  public:
-  ListHiddenRootValue(std::string* json, Value* root) {
+  ListHiddenRootValue(std::string* json, Value* root) : json_(json) {
     DCHECK(root->IsType(Value::TYPE_LIST));
     ListValue::Swap(static_cast<ListValue*>(root));
-    json->swap(json_);
   }
 
   virtual void Swap(ListValue* other) OVERRIDE {
@@ -101,7 +99,7 @@ class ListHiddenRootValue : public base::ListValue {
     // Then erase the contents of the current list and swap in the new contents,
     // originally from |other|.
     Clear();
-    json_.clear();
+    json_.reset();
     ListValue::Swap(copy.get());
   }
 
@@ -125,7 +123,7 @@ class ListHiddenRootValue : public base::ListValue {
   }
 
  private:
-  std::string json_;
+  scoped_ptr<std::string> json_;
 
   DISALLOW_COPY_AND_ASSIGN(ListHiddenRootValue);
 };
@@ -140,17 +138,17 @@ class JSONStringValue : public base::Value {
         string_piece_(piece) {
   }
 
-  // Value:
-  bool GetAsString(std::string* out_value) const OVERRIDE {
+  // Overridden from base::Value:
+  virtual bool GetAsString(std::string* out_value) const OVERRIDE {
     string_piece_.CopyToString(out_value);
     return true;
   }
-  bool GetAsString(string16* out_value) const OVERRIDE {
+  virtual bool GetAsString(string16* out_value) const OVERRIDE {
     *out_value = UTF8ToUTF16(string_piece_);
     return true;
   }
   virtual Value* DeepCopy() const OVERRIDE {
-    return Value::CreateStringValue(string_piece_.as_string());
+    return new StringValue(string_piece_.as_string());
   }
   virtual bool Equals(const Value* other) const OVERRIDE {
     std::string other_string;
@@ -206,19 +204,13 @@ JSONParser::~JSONParser() {
 }
 
 Value* JSONParser::Parse(const StringPiece& input) {
-  // TODO(rsesek): Windows has problems with StringPiece/hidden roots. Fix
-  // <http://crbug.com/126107> when my Windows box arrives.
-#if defined(OS_WIN)
-  options_ |= JSON_DETACHABLE_CHILDREN;
-#endif
-
-  std::string input_copy;
+  scoped_ptr<std::string> input_copy;
   // If the children of a JSON root can be detached, then hidden roots cannot
   // be used, so do not bother copying the input because StringPiece will not
   // be used anywhere.
   if (!(options_ & JSON_DETACHABLE_CHILDREN)) {
-    input_copy = input.as_string();
-    start_pos_ = input_copy.data();
+    input_copy.reset(new std::string(input.as_string()));
+    start_pos_ = input_copy->data();
   } else {
     start_pos_ = input.data();
   }
@@ -259,9 +251,9 @@ Value* JSONParser::Parse(const StringPiece& input) {
   // hidden root.
   if (!(options_ & JSON_DETACHABLE_CHILDREN)) {
     if (root->IsType(Value::TYPE_DICTIONARY)) {
-      return new DictionaryHiddenRootValue(&input_copy, root.get());
+      return new DictionaryHiddenRootValue(input_copy.release(), root.get());
     } else if (root->IsType(Value::TYPE_LIST)) {
-      return new ListHiddenRootValue(&input_copy, root.get());
+      return new ListHiddenRootValue(input_copy.release(), root.get());
     } else if (root->IsType(Value::TYPE_STRING)) {
       // A string type could be a JSONStringValue, but because there's no
       // corresponding HiddenRootValue, the memory will be lost. Deep copy to
@@ -873,12 +865,12 @@ Value* JSONParser::ConsumeNumber() {
 
   int num_int;
   if (StringToInt(num_string, &num_int))
-    return Value::CreateIntegerValue(num_int);
+    return new FundamentalValue(num_int);
 
   double num_double;
   if (base::StringToDouble(num_string.as_string(), &num_double) &&
       IsFinite(num_double)) {
-    return Value::CreateDoubleValue(num_double);
+    return new FundamentalValue(num_double);
   }
 
   return NULL;
@@ -914,7 +906,7 @@ Value* JSONParser::ConsumeLiteral() {
         return NULL;
       }
       NextNChars(kTrueLen - 1);
-      return Value::CreateBooleanValue(true);
+      return new FundamentalValue(true);
     }
     case 'f': {
       const char* kFalseLiteral = "false";
@@ -925,7 +917,7 @@ Value* JSONParser::ConsumeLiteral() {
         return NULL;
       }
       NextNChars(kFalseLen - 1);
-      return Value::CreateBooleanValue(false);
+      return new FundamentalValue(false);
     }
     case 'n': {
       const char* kNullLiteral = "null";

@@ -8,6 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
@@ -40,6 +41,26 @@ class ScopedBusyTimeout {
   sqlite3* db_;
 };
 
+// Helper to "safely" enable writable_schema.  No error checking
+// because it is reasonable to just forge ahead in case of an error.
+// If turning it on fails, then most likely nothing will work, whereas
+// if turning it off fails, it only matters if some code attempts to
+// continue working with the database and tries to modify the
+// sqlite_master table (none of our code does this).
+class ScopedWritableSchema {
+ public:
+  explicit ScopedWritableSchema(sqlite3* db)
+      : db_(db) {
+    sqlite3_exec(db_, "PRAGMA writable_schema=1", NULL, NULL, NULL);
+  }
+  ~ScopedWritableSchema() {
+    sqlite3_exec(db_, "PRAGMA writable_schema=0", NULL, NULL, NULL);
+  }
+
+ private:
+  sqlite3* db_;
+};
+
 }  // namespace
 
 namespace sql {
@@ -50,15 +71,17 @@ bool StatementID::operator<(const StatementID& other) const {
   return strcmp(str_, other.str_) < 0;
 }
 
-ErrorDelegate::ErrorDelegate() {
-}
-
 ErrorDelegate::~ErrorDelegate() {
 }
 
 Connection::StatementRef::StatementRef()
     : connection_(NULL),
       stmt_(NULL) {
+}
+
+Connection::StatementRef::StatementRef(sqlite3_stmt* stmt)
+    : connection_(NULL),
+      stmt_(stmt) {
 }
 
 Connection::StatementRef::StatementRef(Connection* connection,
@@ -76,6 +99,14 @@ Connection::StatementRef::~StatementRef() {
 
 void Connection::StatementRef::Close() {
   if (stmt_) {
+    // Call to AssertIOAllowed() cannot go at the beginning of the function
+    // because Close() is called unconditionally from destructor to clean
+    // connection_. And if this is inactive statement this won't cause any
+    // disk access and destructor most probably will be called on thread
+    // not allowing disk access.
+    // TODO(paivanof@gmail.com): This should move to the beginning
+    // of the function. http://crbug.com/136655.
+    AssertIOAllowed();
     sqlite3_finalize(stmt_);
     stmt_ = NULL;
   }
@@ -88,7 +119,9 @@ Connection::Connection()
       cache_size_(0),
       exclusive_locking_(false),
       transaction_nesting_(0),
-      needs_rollback_(false) {
+      needs_rollback_(false),
+      in_memory_(false),
+      error_delegate_(NULL) {
 }
 
 Connection::~Connection() {
@@ -104,6 +137,7 @@ bool Connection::Open(const FilePath& path) {
 }
 
 bool Connection::OpenInMemory() {
+  in_memory_ = true;
   return OpenInternal(":memory:");
 }
 
@@ -125,6 +159,13 @@ void Connection::Close() {
   ClearCache();
 
   if (db_) {
+    // Call to AssertIOAllowed() cannot go at the beginning of the function
+    // because Close() must be called from destructor to clean
+    // statement_cache_, it won't cause any disk access and it most probably
+    // will happen on thread not allowing disk access.
+    // TODO(paivanof@gmail.com): This should move to the beginning
+    // of the function. http://crbug.com/136655.
+    AssertIOAllowed();
     // TODO(shess): Histogram for failure.
     sqlite3_close(db_);
     db_ = NULL;
@@ -132,6 +173,8 @@ void Connection::Close() {
 }
 
 void Connection::Preload() {
+  AssertIOAllowed();
+
   if (!db_) {
     DLOG(FATAL) << "Cannot preload null db";
     return;
@@ -156,6 +199,8 @@ void Connection::Preload() {
 // Create an in-memory database with the existing database's page
 // size, then backup that database over the existing database.
 bool Connection::Raze() {
+  AssertIOAllowed();
+
   if (!db_) {
     DLOG(FATAL) << "Cannot raze null db";
     return false;
@@ -172,14 +217,27 @@ bool Connection::Raze() {
     return false;
   }
 
-  // Get the page size from the current connection, then propagate it
-  // to the null database.
-  Statement s(GetUniqueStatement("PRAGMA page_size"));
-  if (!s.Step())
+  if (page_size_) {
+    // Enforce SQLite restrictions on |page_size_|.
+    DCHECK(!(page_size_ & (page_size_ - 1)))
+        << " page_size_ " << page_size_ << " is not a power of two.";
+    const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
+    DCHECK_LE(page_size_, kSqliteMaxPageSize);
+    const std::string sql = StringPrintf("PRAGMA page_size=%d", page_size_);
+    if (!null_db.Execute(sql.c_str()))
+      return false;
+  }
+
+#if defined(OS_ANDROID)
+  // Android compiles with SQLITE_DEFAULT_AUTOVACUUM.  Unfortunately,
+  // in-memory databases do not respect this define.
+  // TODO(shess): Figure out a way to set this without using platform
+  // specific code.  AFAICT from sqlite3.c, the only way to do it
+  // would be to create an actual filesystem database, which is
+  // unfortunate.
+  if (!null_db.Execute("PRAGMA auto_vacuum = 1"))
     return false;
-  const std::string sql = StringPrintf("PRAGMA page_size=%d", s.ColumnInt(0));
-  if (!null_db.Execute(sql.c_str()))
-    return false;
+#endif
 
   // The page size doesn't take effect until a database has pages, and
   // at this point the null database has none.  Changing the schema
@@ -190,6 +248,17 @@ bool Connection::Raze() {
   // so that other readers see the schema change and act accordingly.
   if (!null_db.Execute("PRAGMA schema_version = 1"))
     return false;
+
+  // SQLite tracks the expected number of database pages in the first
+  // page, and if it does not match the total retrieved from a
+  // filesystem call, treats the database as corrupt.  This situation
+  // breaks almost all SQLite calls.  "PRAGMA writable_schema" can be
+  // used to hint to SQLite to soldier on in that case, specifically
+  // for purposes of recovery.  [See SQLITE_CORRUPT_BKPT case in
+  // sqlite3.c lockBtree().]
+  // TODO(shess): With this, "PRAGMA auto_vacuum" and "PRAGMA
+  // page_size" can be used to query such a database.
+  ScopedWritableSchema writable_schema(db_);
 
   sqlite3_backup* backup = sqlite3_backup_init(db_, "main",
                                                null_db.db_, "main");
@@ -292,6 +361,7 @@ bool Connection::CommitTransaction() {
 }
 
 int Connection::ExecuteAndReturnErrorCode(const char* sql) {
+  AssertIOAllowed();
   if (!db_)
     return false;
   return sqlite3_exec(db_, sql, NULL, NULL, NULL);
@@ -299,6 +369,9 @@ int Connection::ExecuteAndReturnErrorCode(const char* sql) {
 
 bool Connection::Execute(const char* sql) {
   int error = ExecuteAndReturnErrorCode(sql);
+  if (error != SQLITE_OK)
+    error = OnSqliteError(error, NULL);
+
   // This needs to be a FATAL log because the error case of arriving here is
   // that there's a malformed SQL statement. This can arise in development if
   // a change alters the schema but not all queries adjust.
@@ -342,19 +415,41 @@ scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
 
 scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
     const char* sql) {
+  AssertIOAllowed();
+
   if (!db_)
-    return new StatementRef(this, NULL);  // Return inactive statement.
+    return new StatementRef();  // Return inactive statement.
 
   sqlite3_stmt* stmt = NULL;
-  if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK) {
+  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL);
+  if (rc != SQLITE_OK) {
     // This is evidence of a syntax error in the incoming SQL.
     DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
-    return new StatementRef(this, NULL);
+
+    // It could also be database corruption.
+    OnSqliteError(rc, NULL);
+    return new StatementRef();
   }
   return new StatementRef(this, stmt);
 }
 
+scoped_refptr<Connection::StatementRef> Connection::GetUntrackedStatement(
+    const char* sql) const {
+  if (!db_)
+    return new StatementRef();  // Return inactive statement.
+
+  sqlite3_stmt* stmt = NULL;
+  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL);
+  if (rc != SQLITE_OK) {
+    // This is evidence of a syntax error in the incoming SQL.
+    DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
+    return new StatementRef();
+  }
+  return new StatementRef(stmt);
+}
+
 bool Connection::IsSQLValid(const char* sql) {
+  AssertIOAllowed();
   sqlite3_stmt* stmt = NULL;
   if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK)
     return false;
@@ -373,11 +468,8 @@ bool Connection::DoesIndexExist(const char* index_name) const {
 
 bool Connection::DoesTableOrIndexExist(
     const char* name, const char* type) const {
-  // GetUniqueStatement can't be const since statements may modify the
-  // database, but we know ours doesn't modify it, so the cast is safe.
-  Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
-      "SELECT name FROM sqlite_master "
-      "WHERE type=? AND name=?"));
+  const char* kSql = "SELECT name FROM sqlite_master WHERE type=? AND name=?";
+  Statement statement(GetUntrackedStatement(kSql));
   statement.BindString(0, type);
   statement.BindString(1, name);
 
@@ -390,10 +482,7 @@ bool Connection::DoesColumnExist(const char* table_name,
   sql.append(table_name);
   sql.append(")");
 
-  // Our SQL is non-mutating, so this cast is OK.
-  Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
-      sql.c_str()));
-
+  Statement statement(GetUntrackedStatement(sql.c_str()));
   while (statement.Step()) {
     if (!statement.ColumnString(1).compare(column_name))
       return true;
@@ -441,6 +530,8 @@ const char* Connection::GetErrorMessage() const {
 }
 
 bool Connection::OpenInternal(const std::string& file_name) {
+  AssertIOAllowed();
+
   if (db_) {
     DLOG(FATAL) << "sql::Connection is already open.";
     return false;
@@ -448,11 +539,25 @@ bool Connection::OpenInternal(const std::string& file_name) {
 
   int err = sqlite3_open(file_name.c_str(), &db_);
   if (err != SQLITE_OK) {
+    // Histogram failures specific to initial open for debugging
+    // purposes.
+    UMA_HISTOGRAM_ENUMERATION("Sqlite.OpenFailure", err & 0xff, 50);
+
     OnSqliteError(err, NULL);
     Close();
     db_ = NULL;
     return false;
   }
+
+  // sqlite3_open() does not actually read the database file (unless a
+  // hot journal is found).  Successfully executing this pragma on an
+  // existing database requires a valid header on page 1.
+  // TODO(shess): For now, just probing to see what the lay of the
+  // land is.  If it's mostly SQLITE_NOTADB, then the database should
+  // be razed.
+  err = ExecuteAndReturnErrorCode("PRAGMA auto_vacuum");
+  if (err != SQLITE_OK)
+    UMA_HISTOGRAM_ENUMERATION("Sqlite.OpenProbeFailure", err & 0xff, 50);
 
   // Enable extended result codes to provide more color on I/O errors.
   // Not having extended result codes is not a fatal problem, as
@@ -495,7 +600,7 @@ bool Connection::OpenInternal(const std::string& file_name) {
     // Enforce SQLite restrictions on |page_size_|.
     DCHECK(!(page_size_ & (page_size_ - 1)))
         << " page_size_ " << page_size_ << " is not a power of two.";
-    static const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
+    const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
     DCHECK_LE(page_size_, kSqliteMaxPageSize);
     const std::string sql = StringPrintf("PRAGMA page_size=%d", page_size_);
     if (!ExecuteWithTimeout(sql.c_str(), kBusyTimeout))

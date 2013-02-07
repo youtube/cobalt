@@ -275,4 +275,142 @@ TEST(ParsedCookieTest, ParseTokensAndValues) {
             ParsedCookie::ParseValueString("A=B=C;D=E"));
 }
 
+TEST(ParsedCookieTest, SerializeCookieLine) {
+  const char input[] = "ANCUUID=zohNumRKgI0oxyhSsV3Z7D  ; "
+                       "expires=Sun, 18-Apr-2027 21:06:29 GMT ; "
+                       "path=/  ;  ";
+  const char output[] = "ANCUUID=zohNumRKgI0oxyhSsV3Z7D; "
+                        "expires=Sun, 18-Apr-2027 21:06:29 GMT; "
+                        "path=/";
+  ParsedCookie pc(input);
+  EXPECT_EQ(output, pc.ToCookieLine());
+}
+
+
+TEST(ParsedCookieTest, SetNameAndValue) {
+  ParsedCookie empty("");
+  EXPECT_FALSE(empty.IsValid());
+  EXPECT_FALSE(empty.SetDomain("foobar.com"));
+  EXPECT_TRUE(empty.SetName("name"));
+  EXPECT_TRUE(empty.SetValue("value"));
+  EXPECT_EQ("name=value", empty.ToCookieLine());
+  EXPECT_TRUE(empty.IsValid());
+
+  // We don't test
+  //   ParsedCookie invalid("@foo=bar");
+  //   EXPECT_FALSE(invalid.IsValid());
+  // here because we are slightly more tolerant to invalid cookie names and
+  // values that are set by webservers. We only enforce a correct name and
+  // value if set via SetName() and SetValue().
+
+  ParsedCookie pc("name=value");
+  EXPECT_TRUE(pc.IsValid());
+
+  // Set invalid name / value.
+  EXPECT_FALSE(pc.SetName("@foobar"));
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  EXPECT_FALSE(pc.SetName(""));
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  EXPECT_FALSE(pc.SetValue("foo bar"));
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  EXPECT_FALSE(pc.SetValue("\"foobar"));
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  // Set valid name / value
+  EXPECT_TRUE(pc.SetName("test"));
+  EXPECT_EQ("test=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  EXPECT_TRUE(pc.SetValue("\"foobar\""));
+  EXPECT_EQ("test=\"foobar\"", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  EXPECT_TRUE(pc.SetValue(""));
+  EXPECT_EQ("test=", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+}
+
+TEST(ParsedCookieTest, SetAttributes) {
+  ParsedCookie pc("name=value");
+  EXPECT_TRUE(pc.IsValid());
+
+  // Clear an unset attribute.
+  EXPECT_TRUE(pc.SetDomain(""));
+  EXPECT_FALSE(pc.HasDomain());
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  // Set a string containing an invalid character
+  EXPECT_FALSE(pc.SetDomain("foo;bar"));
+  EXPECT_FALSE(pc.HasDomain());
+  EXPECT_EQ("name=value", pc.ToCookieLine());
+  EXPECT_TRUE(pc.IsValid());
+
+  // Set all other attributes and check that they are appended in order.
+  EXPECT_TRUE(pc.SetDomain("domain.com"));
+  EXPECT_TRUE(pc.SetPath("/"));
+  EXPECT_TRUE(pc.SetMACKey("mackey"));
+  EXPECT_TRUE(pc.SetMACAlgorithm("\"macalgorithm\""));
+  EXPECT_TRUE(pc.SetExpires("Sun, 18-Apr-2027 21:06:29 GMT"));
+  EXPECT_TRUE(pc.SetMaxAge("12345"));
+  EXPECT_TRUE(pc.SetIsSecure(true));
+  EXPECT_TRUE(pc.SetIsHttpOnly(true));
+  EXPECT_EQ("name=value; domain=domain.com; path=/; mac-key=mackey; "
+            "mac-algorithm=\"macalgorithm\"; "
+            "expires=Sun, 18-Apr-2027 21:06:29 GMT; max-age=12345; secure; "
+            "httponly",
+            pc.ToCookieLine());
+  EXPECT_TRUE(pc.HasDomain());
+  EXPECT_TRUE(pc.HasPath());
+  EXPECT_TRUE(pc.HasMACKey());
+  EXPECT_TRUE(pc.HasMACAlgorithm());
+  EXPECT_TRUE(pc.HasExpires());
+  EXPECT_TRUE(pc.HasMaxAge());
+  EXPECT_TRUE(pc.IsSecure());
+  EXPECT_TRUE(pc.IsHttpOnly());
+
+  // Clear one attribute from the middle.
+  EXPECT_TRUE(pc.SetMACAlgorithm(""));
+  EXPECT_TRUE(pc.HasDomain());
+  EXPECT_TRUE(pc.HasPath());
+  EXPECT_TRUE(pc.HasMACKey());
+  EXPECT_FALSE(pc.HasMACAlgorithm());
+  EXPECT_TRUE(pc.HasExpires());
+  EXPECT_TRUE(pc.HasMaxAge());
+  EXPECT_TRUE(pc.IsSecure());
+  EXPECT_TRUE(pc.IsHttpOnly());
+  EXPECT_EQ("name=value; domain=domain.com; path=/; mac-key=mackey; "
+            "expires=Sun, 18-Apr-2027 21:06:29 GMT; max-age=12345; secure; "
+            "httponly",
+            pc.ToCookieLine());
+
+  // Clear the rest and change the name and value.
+  EXPECT_TRUE(pc.SetDomain(""));
+  EXPECT_TRUE(pc.SetPath(""));
+  EXPECT_TRUE(pc.SetMACKey(""));
+  EXPECT_TRUE(pc.SetMACAlgorithm(""));
+  EXPECT_TRUE(pc.SetExpires(""));
+  EXPECT_TRUE(pc.SetMaxAge(""));
+  EXPECT_TRUE(pc.SetIsSecure(false));
+  EXPECT_TRUE(pc.SetIsHttpOnly(false));
+  EXPECT_TRUE(pc.SetName("name2"));
+  EXPECT_TRUE(pc.SetValue("value2"));
+  EXPECT_FALSE(pc.HasDomain());
+  EXPECT_FALSE(pc.HasPath());
+  EXPECT_FALSE(pc.HasMACKey());
+  EXPECT_FALSE(pc.HasMACAlgorithm());
+  EXPECT_FALSE(pc.HasExpires());
+  EXPECT_FALSE(pc.HasMaxAge());
+  EXPECT_FALSE(pc.IsSecure());
+  EXPECT_FALSE(pc.IsHttpOnly());
+  EXPECT_EQ("name2=value2", pc.ToCookieLine());
+}
+
 }  // namespace net

@@ -6,8 +6,8 @@
 
 #include <unistd.h>
 
-#include "base/eintr_wrapper.h"
 #include "base/message_loop.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,8 +30,8 @@ class MessagePumpLibeventTest : public testing::Test {
     Thread::Options options(MessageLoop::TYPE_IO, 0);
     ASSERT_TRUE(io_thread_.StartWithOptions(options));
     ASSERT_EQ(MessageLoop::TYPE_IO, io_thread_.message_loop()->type());
-    int err = pipe(pipefds_);
-    ASSERT_EQ(0, err);
+    int ret = pipe(pipefds_);
+    ASSERT_EQ(0, ret);
   }
 
   virtual void TearDown() OVERRIDE {
@@ -52,9 +52,11 @@ class MessagePumpLibeventTest : public testing::Test {
     pump->OnLibeventNotification(0, EV_WRITE | EV_READ, controller);
   }
 
+  int pipefds_[2];
+
+ private:
   MessageLoop ui_loop_;
   Thread io_thread_;
-  int pipefds_[2];
 };
 
 namespace {

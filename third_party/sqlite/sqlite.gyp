@@ -34,37 +34,44 @@
                 ],
           },
         ],
-        ['OS=="linux" and not use_system_sqlite', {
-          'link_settings': {
-            'libraries': [
-              '-ldl',
-            ],
-          },
-        }],
-        ['os_posix == 1 and OS != "mac" and use_system_sqlite', {
+        ['use_system_sqlite', {
           'type': 'none',
           'direct_dependent_settings': {
-            'cflags': [
-              # This next command produces no output but it it will fail (and
-              # cause GYP to fail) if we don't have a recent enough version of
-              # sqlite.
-              '<!@(pkg-config --atleast-version=<(required_sqlite_version) sqlite3)',
-
-              '<!@(pkg-config --cflags sqlite3)',
-            ],
             'defines': [
               'USE_SYSTEM_SQLITE',
             ],
           },
-          'link_settings': {
-            'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other sqlite3)',
-            ],
-            'libraries': [
-              '<!@(pkg-config --libs-only-l sqlite3)',
-            ],
-          },
-        }, { # else: os_posix == 1 or OS == "mac" or ! use_system_sqlite
+
+          'conditions': [
+            ['OS == "ios"', {
+              'link_settings': {
+                'libraries': [
+                  '$(SDKROOT)/usr/lib/libsqlite3.dylib',
+                ],
+              },
+            }],
+            ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
+              'direct_dependent_settings': {
+                'cflags': [
+                  # This next command produces no output but it it will fail
+                  # (and cause GYP to fail) if we don't have a recent enough
+                  # version of sqlite.
+                  '<!@(pkg-config --atleast-version=<(required_sqlite_version) sqlite3)',
+
+                  '<!@(pkg-config --cflags sqlite3)',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(pkg-config --libs-only-L --libs-only-other sqlite3)',
+                ],
+                'libraries': [
+                  '<!@(pkg-config --libs-only-l sqlite3)',
+                ],
+              },
+            }],
+          ],
+        }, { # !use_system_sqlite
           'product_name': 'sqlite3',
           'type': 'static_library',
           'sources': [
@@ -109,7 +116,24 @@
             4018, 4244,
           ],
           'conditions': [
-            ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
+            ['OS=="linux"', {
+              'link_settings': {
+                'libraries': [
+                  '-ldl',
+                ],
+              },
+            }],
+            ['OS == "android"', {
+              'defines': [
+                'HAVE_USLEEP=1',
+                'SQLITE_DEFAULT_JOURNAL_SIZE_LIMIT=1048576',
+                'SQLITE_DEFAULT_AUTOVACUUM=1',
+                'SQLITE_TEMP_STORE=3',
+                'SQLITE_ENABLE_FTS3_BACKWARDS',
+                'DSQLITE_DEFAULT_FILE_FORMAT=4',
+              ],
+            }],
+            ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
               'cflags': [
                 # SQLite doesn't believe in compiler warnings,
                 # preferring testing.
@@ -147,7 +171,7 @@
     },
   ],
   'conditions': [
-    ['os_posix == 1 and OS != "mac" and not use_system_sqlite', {
+    ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android" and not use_system_sqlite', {
       'targets': [
         {
           'target_name': 'sqlite_shell',
