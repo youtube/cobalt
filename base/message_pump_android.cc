@@ -11,7 +11,8 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
-#include "jni/system_message_handler_jni.h"
+#include "base/time.h"
+#include "jni/SystemMessageHandler_jni.h"
 
 using base::android::ScopedJavaLocalRef;
 
@@ -107,8 +108,7 @@ void MessagePumpForUI::Quit() {
 }
 
 void MessagePumpForUI::ScheduleWork() {
-  if (g_system_message_handler_obj.Get().is_null())
-    return;
+  DCHECK(!g_system_message_handler_obj.Get().is_null());
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);
@@ -118,8 +118,7 @@ void MessagePumpForUI::ScheduleWork() {
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
-  if (g_system_message_handler_obj.Get().is_null())
-    return;
+  DCHECK(!g_system_message_handler_obj.Get().is_null());
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);

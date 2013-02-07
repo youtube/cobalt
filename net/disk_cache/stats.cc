@@ -6,6 +6,7 @@
 
 #include "base/format_macros.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/disk_cache/backend_impl.h"
@@ -60,7 +61,8 @@ static const char* kCounterNames[] = {
   "Fatal error",
   "Last report",
   "Last report timer",
-  "Doom recent entries"
+  "Doom recent entries",
+  "ga.js evicted"
 };
 COMPILE_ASSERT(arraysize(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
                update_the_names);
@@ -87,6 +89,11 @@ bool LoadStats(BackendImpl* backend, Addr address, OnDiskStats* stats) {
   // counter; we keep old data if we can.
   if (static_cast<unsigned int>(stats->size) > sizeof(*stats)) {
     memset(stats, 0, sizeof(*stats));
+    stats->signature = kDiskSignature;
+  } else if (static_cast<unsigned int>(stats->size) != sizeof(*stats)) {
+    size_t delta = sizeof(*stats) - static_cast<unsigned int>(stats->size);
+    memset(reinterpret_cast<char*>(stats) + stats->size, 0, delta);
+    stats->size = sizeof(*stats);
   }
 
   return true;
@@ -150,9 +157,7 @@ bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
         backend->ShouldReportAgain()) {
       // Stats may be reused when the cache is re-created, but we want only one
       // histogram at any given time.
-      size_histogram_ =
-          StatsHistogram::FactoryGet("DiskCache.SizeStats");
-      size_histogram_->Init(this);
+      size_histogram_ = StatsHistogram::FactoryGet("DiskCache.SizeStats", this);
     }
   }
 
@@ -264,13 +269,12 @@ int Stats::GetBucketRange(size_t i) const {
   return n;
 }
 
-void Stats::Snapshot(StatsHistogram::StatsSamples* samples) const {
-  samples->GetCounts()->resize(kDataSizesLength);
+void Stats::Snapshot(base::HistogramSamples* samples) const {
   for (int i = 0; i < kDataSizesLength; i++) {
     int count = data_sizes_[i];
     if (count < 0)
       count = 0;
-    samples->GetCounts()->at(i) = count;
+    samples->Accumulate(GetBucketRange(i), count);
   }
 }
 

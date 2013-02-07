@@ -53,12 +53,20 @@ bool ParseVmsFilename(const string16& raw_filename, string16* parsed_filename,
 }
 
 bool ParseVmsFilesize(const string16& input, int64* size) {
+  if (ContainsOnlyChars(input, ASCIIToUTF16("*"))) {
+    // Response consisting of asterisks means unknown size.
+    *size = -1;
+    return true;
+  }
+
   // VMS's directory listing gives us file size in blocks. We assume that
   // the block size is 512 bytes. It doesn't give accurate file size, but is the
   // best information we have.
   const int kBlockSize = 512;
 
   if (base::StringToInt64(input, size)) {
+    if (*size < 0)
+      return false;
     *size *= kBlockSize;
     return true;
   }
@@ -74,6 +82,8 @@ bool ParseVmsFilesize(const string16& input, int64* size) {
   if (!base::StringToInt64(parts[1], &blocks_allocated))
     return false;
   if (blocks_used > blocks_allocated)
+    return false;
+  if (blocks_used < 0 || blocks_allocated < 0)
     return false;
 
   *size = blocks_used * kBlockSize;
@@ -121,9 +131,11 @@ bool LooksLikeVmsUserIdentificationCode(const string16& input) {
   return input[0] == '[' && input[input.length() - 1] == ']';
 }
 
-bool LooksLikePermissionDeniedError(const string16& text) {
+bool LooksLikeVMSError(const string16& text) {
   static const char* kPermissionDeniedMessages[] = {
-    "%RMS-E-PRV",
+    "%RMS-E-FNF",  // File not found.
+    "%RMS-E-PRV",  // Access denied.
+    "%SYSTEM-F-NOPRIV",
     "privilege",
   };
 
@@ -187,6 +199,11 @@ bool ParseFtpDirectoryListingVms(
   // seing the header.
   bool seen_header = false;
 
+  // Sometimes the listing doesn't end with a "Total" line, but
+  // it's only okay when it contains some errors (it's needed
+  // to distinguish it from "ls -l" format).
+  bool seen_error = false;
+
   for (size_t i = 0; i < lines.size(); i++) {
     if (lines[i].empty())
       continue;
@@ -205,8 +222,10 @@ bool ParseFtpDirectoryListingVms(
       continue;
     }
 
-    if (LooksLikePermissionDeniedError(lines[i]))
+    if (LooksLikeVMSError(lines[i])) {
+      seen_error = true;
       continue;
+    }
 
     std::vector<string16> columns;
     base::SplitString(CollapseWhitespace(lines[i], false), ' ', &columns);
@@ -216,13 +235,21 @@ bool ParseFtpDirectoryListingVms(
       if (i == lines.size() - 1)
         return false;
 
+      // Skip the next line.
+      i++;
+
+      // This refers to the continuation line.
+      if (LooksLikeVMSError(lines[i])) {
+        seen_error = true;
+        continue;
+      }
+
       // Join the current and next line and split them into columns.
       base::SplitString(
-          CollapseWhitespace(lines[i] + ASCIIToUTF16(" ") + lines[i + 1],
+          CollapseWhitespace(lines[i - 1] + ASCIIToUTF16(" ") + lines[i],
                              false),
           ' ',
           &columns);
-      i++;
     }
 
     FtpDirectoryListingEntry entry;
@@ -247,8 +274,6 @@ bool ParseFtpDirectoryListingVms(
 
     if (!ParseVmsFilesize(columns[1], &entry.size))
       return false;
-    if (entry.size < 0)
-      return false;
     if (entry.type != FtpDirectoryListingEntry::FILE)
       entry.size = -1;
     if (!VmsDateListingToTime(columns, &entry.last_modified))
@@ -258,8 +283,9 @@ bool ParseFtpDirectoryListingVms(
   }
 
   // The only place where we return true is after receiving the "Total" line,
-  // that should be present in every VMS listing.
-  return false;
+  // that should be present in every VMS listing. Alternatively, if the listing
+  // contains error messages, it's OK not to have the "Total" line.
+  return seen_error;
 }
 
 }  // namespace net

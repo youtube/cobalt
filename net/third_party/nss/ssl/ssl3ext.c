@@ -1,47 +1,12 @@
 /*
  * SSL3 Protocol
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com> and
- *   Douglas Stebila <douglas@stebila.ca>, Sun Microsystems Laboratories
- *   Nagendra Modadugu <ngm@google.com>, Google Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* TLS extension code moved here from ssl3ecc.c */
-/* $Id: ssl3ext.c,v 1.22 2012/03/12 19:14:12 wtc%google.com Exp $ */
+/* $Id: ssl3ext.c,v 1.28 2012/09/21 00:28:05 wtc%google.com Exp $ */
 
 #include "nssrenam.h"
 #include "nss.h"
@@ -49,17 +14,23 @@
 #include "sslimpl.h"
 #include "sslproto.h"
 #include "pk11pub.h"
+#ifdef NO_PKCS11_BYPASS
+#include "blapit.h"
+#else
 #include "blapi.h"
+#endif
 #include "prinit.h"
 
 static unsigned char  key_name[SESS_TICKET_KEY_NAME_LEN];
 static PK11SymKey    *session_ticket_enc_key_pkcs11 = NULL;
 static PK11SymKey    *session_ticket_mac_key_pkcs11 = NULL;
 
+#ifndef NO_PKCS11_BYPASS
 static unsigned char  session_ticket_enc_key[AES_256_KEY_LENGTH];
 static unsigned char  session_ticket_mac_key[SHA256_LENGTH];
 
 static PRBool         session_ticket_keys_initialized = PR_FALSE;
+#endif
 static PRCallOnceType generate_session_keys_once;
 
 /* forward static function declarations */
@@ -71,27 +42,29 @@ static SECStatus ssl3_AppendNumberToItem(SECItem *item, PRUint32 num,
     PRInt32 lenSize);
 static SECStatus ssl3_GetSessionTicketKeysPKCS11(sslSocket *ss,
     PK11SymKey **aes_key, PK11SymKey **mac_key);
+#ifndef NO_PKCS11_BYPASS
 static SECStatus ssl3_GetSessionTicketKeys(const unsigned char **aes_key,
     PRUint32 *aes_key_length, const unsigned char **mac_key,
     PRUint32 *mac_key_length);
+#endif
 static PRInt32 ssl3_SendRenegotiationInfoXtn(sslSocket * ss,
     PRBool append, PRUint32 maxBytes);
 static SECStatus ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, 
     PRUint16 ex_type, SECItem *data);
 static SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
-static SECStatus ssl3_ClientHandleChannelIDXtn(sslSocket *ss,
-			PRUint16 ex_type, SECItem *data);
 static SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 static PRInt32 ssl3_ClientSendNextProtoNegoXtn(sslSocket *ss, PRBool append,
 					       PRUint32 maxBytes);
-static PRInt32 ssl3_ClientSendChannelIDXtn(sslSocket *ss, PRBool append,
-					  PRUint32 maxBytes);
 static PRInt32 ssl3_SendUseSRTPXtn(sslSocket *ss, PRBool append,
     PRUint32 maxBytes);
 static SECStatus ssl3_HandleUseSRTPXtn(sslSocket * ss, PRUint16 ex_type,
     SECItem *data);
+static SECStatus ssl3_ClientHandleChannelIDXtn(sslSocket *ss,
+    PRUint16 ex_type, SECItem *data);
+static PRInt32 ssl3_ClientSendChannelIDXtn(sslSocket *ss, PRBool append,
+    PRUint32 maxBytes);
 
 /*
  * Write bytes.  Using this function means the SECItem structure
@@ -202,6 +175,7 @@ ssl3_GetSessionTicketKeysPKCS11(sslSocket *ss, PK11SymKey **aes_key,
     return SECSuccess;
 }
 
+#ifndef NO_PKCS11_BYPASS
 static PRStatus
 ssl3_GenerateSessionTicketKeys(void)
 {
@@ -235,6 +209,7 @@ ssl3_GetSessionTicketKeys(const unsigned char **aes_key,
 
     return SECSuccess;
 }
+#endif
 
 /* Table of handlers for received TLS hello extensions, one per extension.
  * In the second generation, this table will be dynamic, and functions
@@ -262,9 +237,9 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ClientHandleNextProtoNegoXtn },
-    { ssl_channel_id_xtn,          &ssl3_ClientHandleChannelIDXtn },
+    { ssl_use_srtp_xtn,           &ssl3_HandleUseSRTPXtn },
+    { ssl_channel_id_xtn,         &ssl3_ClientHandleChannelIDXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
-    { ssl_use_srtp_xtn,           &ssl3_HandleUseSRTPXtn},
     { -1, NULL }
 };
 
@@ -289,9 +264,9 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ClientSendNextProtoNegoXtn },
+    { ssl_use_srtp_xtn,           &ssl3_SendUseSRTPXtn },
     { ssl_channel_id_xtn,         &ssl3_ClientSendChannelIDXtn },
-    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
-    { ssl_use_srtp_xtn,           &ssl3_SendUseSRTPXtn }
+    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn }
     /* any extra entries will appear as { 0, NULL }    */
 };
 
@@ -826,17 +801,19 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     PRUint32             now;
     PK11SymKey          *aes_key_pkcs11;
     PK11SymKey          *mac_key_pkcs11;
+#ifndef NO_PKCS11_BYPASS
     const unsigned char *aes_key;
     const unsigned char *mac_key;
     PRUint32             aes_key_length;
     PRUint32             mac_key_length;
     PRUint64             aes_ctx_buf[MAX_CIPHER_CONTEXT_LLONGS];
     AESContext          *aes_ctx;
-    CK_MECHANISM_TYPE    cipherMech = CKM_AES_CBC;
-    PK11Context         *aes_ctx_pkcs11;
     const SECHashObject *hashObj = NULL;
     PRUint64             hmac_ctx_buf[MAX_MAC_CONTEXT_LLONGS];
     HMACContext         *hmac_ctx;
+#endif
+    CK_MECHANISM_TYPE    cipherMech = CKM_AES_CBC;
+    PK11Context         *aes_ctx_pkcs11;
     CK_MECHANISM_TYPE    macMech = CKM_SHA256_HMAC;
     PK11Context         *hmac_ctx_pkcs11;
     unsigned char        computed_mac[TLS_EX_SESS_TICKET_MAC_LENGTH];
@@ -864,10 +841,13 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     rv = PK11_GenerateRandom(iv, sizeof(iv));
     if (rv != SECSuccess) goto loser;
 
+#ifndef NO_PKCS11_BYPASS
     if (ss->opt.bypassPKCS11) {
 	rv = ssl3_GetSessionTicketKeys(&aes_key, &aes_key_length,
 	    &mac_key, &mac_key_length);
-    } else {
+    } else 
+#endif
+    {
 	rv = ssl3_GetSessionTicketKeysPKCS11(ss, &aes_key_pkcs11,
 	    &mac_key_pkcs11);
     }
@@ -1034,6 +1014,7 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     }
 
     /* Generate encrypted portion of ticket. */
+#ifndef NO_PKCS11_BYPASS
     if (ss->opt.bypassPKCS11) {
 	aes_ctx = (AESContext *)aes_ctx_buf;
 	rv = AES_InitContext(aes_ctx, aes_key, aes_key_length, iv, 
@@ -1044,7 +1025,9 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
 	    ciphertext.len, plaintext_item.data,
 	    plaintext_item.len);
 	if (rv != SECSuccess) goto loser;
-    } else {
+    } else 
+#endif
+    {
 	aes_ctx_pkcs11 = PK11_CreateContextBySymKey(cipherMech,
 	    CKA_ENCRYPT, aes_key_pkcs11, &ivItem);
 	if (!aes_ctx_pkcs11) 
@@ -1063,6 +1046,7 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     length_buf[1] = (ciphertext.len     ) & 0xff;
 
     /* Compute MAC. */
+#ifndef NO_PKCS11_BYPASS
     if (ss->opt.bypassPKCS11) {
 	hmac_ctx = (HMACContext *)hmac_ctx_buf;
 	hashObj = HASH_GetRawHashObject(HASH_AlgSHA256);
@@ -1077,7 +1061,9 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
 	HMAC_Update(hmac_ctx, ciphertext.data, ciphertext.len);
 	HMAC_Finish(hmac_ctx, computed_mac, &computed_mac_length,
 	    sizeof(computed_mac));
-    } else {
+    } else 
+#endif
+    {
 	SECItem macParam;
 	macParam.data = NULL;
 	macParam.len = 0;
@@ -1175,19 +1161,21 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	EncryptedSessionTicket enc_session_ticket;
 	unsigned char          computed_mac[TLS_EX_SESS_TICKET_MAC_LENGTH];
 	unsigned int           computed_mac_length;
+#ifndef NO_PKCS11_BYPASS
 	const SECHashObject   *hashObj;
 	const unsigned char   *aes_key;
 	const unsigned char   *mac_key;
-	PK11SymKey            *aes_key_pkcs11;
-	PK11SymKey            *mac_key_pkcs11;
 	PRUint32               aes_key_length;
 	PRUint32               mac_key_length;
 	PRUint64               hmac_ctx_buf[MAX_MAC_CONTEXT_LLONGS];
 	HMACContext           *hmac_ctx;
-	PK11Context           *hmac_ctx_pkcs11;
-	CK_MECHANISM_TYPE      macMech = CKM_SHA256_HMAC;
 	PRUint64               aes_ctx_buf[MAX_CIPHER_CONTEXT_LLONGS];
 	AESContext            *aes_ctx;
+#endif
+	PK11SymKey            *aes_key_pkcs11;
+	PK11SymKey            *mac_key_pkcs11;
+	PK11Context           *hmac_ctx_pkcs11;
+	CK_MECHANISM_TYPE      macMech = CKM_SHA256_HMAC;
 	PK11Context           *aes_ctx_pkcs11;
 	CK_MECHANISM_TYPE      cipherMech = CKM_AES_CBC;
 	unsigned char *        padding;
@@ -1204,7 +1192,8 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	 * renegotiation.)
 	 */
 	if (ss->sec.ci.sid != NULL) {
-	    ss->sec.uncache(ss->sec.ci.sid);
+	    if (ss->sec.uncache)
+		ss->sec.uncache(ss->sec.ci.sid);
 	    ssl_FreeSID(ss->sec.ci.sid);
 	    ss->sec.ci.sid = NULL;
 	}
@@ -1217,10 +1206,13 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	    return SECFailure;
 
 	/* Get session ticket keys. */
+#ifndef NO_PKCS11_BYPASS
 	if (ss->opt.bypassPKCS11) {
 	    rv = ssl3_GetSessionTicketKeys(&aes_key, &aes_key_length,
 		&mac_key, &mac_key_length);
-	} else {
+	} else 
+#endif
+    {
 	    rv = ssl3_GetSessionTicketKeysPKCS11(ss, &aes_key_pkcs11,
 		&mac_key_pkcs11);
 	}
@@ -1243,6 +1235,7 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	/* Verify the MAC on the ticket.  MAC verification may also
 	 * fail if the MAC key has been recently refreshed.
 	 */
+#ifndef NO_PKCS11_BYPASS
 	if (ss->opt.bypassPKCS11) {
 	    hmac_ctx = (HMACContext *)hmac_ctx_buf;
 	    hashObj = HASH_GetRawHashObject(HASH_AlgSHA256);
@@ -1255,7 +1248,9 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	    if (HMAC_Finish(hmac_ctx, computed_mac, &computed_mac_length,
 		    sizeof(computed_mac)) != SECSuccess)
 		goto no_ticket;
-	} else {
+	} else 
+#endif
+    {
 	    SECItem macParam;
 	    macParam.data = NULL;
 	    macParam.len = 0;
@@ -1299,6 +1294,7 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	decrypted_state = SECITEM_AllocItem(NULL, NULL,
 	    enc_session_ticket.encrypted_state.len);
 
+#ifndef NO_PKCS11_BYPASS
 	if (ss->opt.bypassPKCS11) {
 	    aes_ctx = (AESContext *)aes_ctx_buf;
 	    rv = AES_InitContext(aes_ctx, aes_key,
@@ -1316,7 +1312,9 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 		enc_session_ticket.encrypted_state.len);
 	    if (rv != SECSuccess)
 		goto no_ticket;
-	} else {
+	} else 
+#endif
+    {
 	    SECItem ivItem;
 	    ivItem.data = enc_session_ticket.iv;
 	    ivItem.len = AES_BLOCK_SIZE;
@@ -1490,9 +1488,11 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	    sid->keaKeyBits = parsed_session_ticket->keaKeyBits;
 
 	    /* Copy master secret. */
+#ifndef NO_PKCS11_BYPASS
 	    if (ss->opt.bypassPKCS11 &&
 		    parsed_session_ticket->ms_is_wrapped)
 		goto no_ticket;
+#endif
 	    if (parsed_session_ticket->ms_length >
 		    sizeof(sid->u.ssl3.keys.wrapped_master_secret))
 		goto no_ticket;
@@ -1861,8 +1861,8 @@ ssl3_HandleUseSRTPXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
 {
     SECStatus rv;
     SECItem ciphers = {siBuffer, NULL, 0};
-    PRInt16 i;
-    PRInt16 j;
+    PRUint16 i;
+    unsigned int j;
     PRUint16 cipher = 0;
     PRBool found = PR_FALSE;
     SECItem litem;

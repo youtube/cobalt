@@ -303,7 +303,8 @@ void HttpAuthHandlerDigest::GetRequestMethodAndPath(
 
   const GURL& url = request->url;
 
-  if (target_ == HttpAuth::AUTH_PROXY && url.SchemeIs("https")) {
+  if (target_ == HttpAuth::AUTH_PROXY &&
+      (url.SchemeIs("https") || url.SchemeIs("ws") || url.SchemeIs("wss"))) {
     *method = "CONNECT";
     *path = GetHostAndPort(url);
   } else {

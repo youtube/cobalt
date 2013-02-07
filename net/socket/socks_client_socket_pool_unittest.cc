@@ -49,7 +49,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
    private:
     scoped_ptr<StaticSocketDataProvider> data_;
     scoped_array<MockWrite> writes_;
-    scoped_array<MockWrite> reads_;
+    scoped_array<MockRead> reads_;
   };
 
   SOCKSClientSocketPoolTest()
@@ -127,10 +127,10 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, TransportConnectError) {
-  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
-  socket_data->set_connect_data(MockConnect(SYNCHRONOUS,
-                                            ERR_CONNECTION_REFUSED));
-  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  StaticSocketDataProvider socket_data;
+  socket_data.set_connect_data(MockConnect(SYNCHRONOUS,
+                                           ERR_CONNECTION_REFUSED));
+  transport_client_socket_factory_.AddSocketDataProvider(&socket_data);
 
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, CompletionCallback(),
@@ -141,9 +141,9 @@ TEST_F(SOCKSClientSocketPoolTest, TransportConnectError) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, AsyncTransportConnectError) {
-  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
-  socket_data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
-  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  StaticSocketDataProvider socket_data;
+  socket_data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
+  transport_client_socket_factory_.AddSocketDataProvider(&socket_data);
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
@@ -162,10 +162,10 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
   MockRead failed_read[] = {
     MockRead(SYNCHRONOUS, 0),
   };
-  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
-        failed_read, arraysize(failed_read), NULL, 0));
-  socket_data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
-  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  StaticSocketDataProvider socket_data(
+      failed_read, arraysize(failed_read), NULL, 0);
+  socket_data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
+  transport_client_socket_factory_.AddSocketDataProvider(&socket_data);
 
   ClientSocketHandle handle;
   EXPECT_EQ(0, transport_socket_pool_.release_count());
@@ -181,10 +181,10 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   MockRead failed_read[] = {
     MockRead(ASYNC, 0),
   };
-  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
-        failed_read, arraysize(failed_read), NULL, 0));
-  socket_data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
-  transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
+  StaticSocketDataProvider socket_data(
+        failed_read, arraysize(failed_read), NULL, 0);
+  socket_data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
+  transport_client_socket_factory_.AddSocketDataProvider(&socket_data);
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
@@ -222,7 +222,7 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTransportConnect) {
   EXPECT_EQ(0, transport_socket_pool_.cancel_count());
 
   // Now wait for the TCP sockets to connect.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(2));
@@ -258,7 +258,7 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
   EXPECT_EQ(0, transport_socket_pool_.release_count());
 
   // Now wait for the async data to reach the SOCKS connect jobs.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(ClientSocketPoolTest::kRequestNotFound, GetOrderOfRequest(2));

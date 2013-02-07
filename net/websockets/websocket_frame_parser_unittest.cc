@@ -4,13 +4,17 @@
 
 #include "net/websockets/websocket_frame_parser.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_vector.h"
 #include "base/port.h"
+#include "net/base/io_buffer.h"
 #include "net/websockets/websocket_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace net {
 
 namespace {
 
@@ -27,29 +31,31 @@ struct FrameHeaderTestCase {
   const char* frame_header;
   size_t frame_header_length;
   uint64 frame_length;
+  WebSocketError error_code;
 };
 
 const FrameHeaderTestCase kFrameHeaderTests[] = {
-  { "\x81\x00", 2, GG_UINT64_C(0) },
-  { "\x81\x7D", 2, GG_UINT64_C(125) },
-  { "\x81\x7E\x00\x7E", 4, GG_UINT64_C(126) },
-  { "\x81\x7E\xFF\xFF", 4, GG_UINT64_C(0xFFFF) },
-  { "\x81\x7F\x00\x00\x00\x00\x00\x01\x00\x00", 10, GG_UINT64_C(0x10000) },
+  { "\x81\x00", 2, GG_UINT64_C(0), WEB_SOCKET_OK },
+  { "\x81\x7D", 2, GG_UINT64_C(125), WEB_SOCKET_OK },
+  { "\x81\x7E\x00\x7E", 4, GG_UINT64_C(126), WEB_SOCKET_OK },
+  { "\x81\x7E\xFF\xFF", 4, GG_UINT64_C(0xFFFF), WEB_SOCKET_OK },
+  { "\x81\x7F\x00\x00\x00\x00\x00\x01\x00\x00", 10, GG_UINT64_C(0x10000),
+    WEB_SOCKET_OK },
+  { "\x81\x7F\x00\x00\x00\x00\x7F\xFF\xFF\xFF", 10, GG_UINT64_C(0x7FFFFFFF),
+    WEB_SOCKET_OK },
+  { "\x81\x7F\x00\x00\x00\x00\x80\x00\x00\x00", 10, GG_UINT64_C(0x80000000),
+    WEB_SOCKET_ERR_MESSAGE_TOO_BIG },
   { "\x81\x7F\x7F\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 10,
-    GG_UINT64_C(0x7FFFFFFFFFFFFFFF) }
+    GG_UINT64_C(0x7FFFFFFFFFFFFFFF), WEB_SOCKET_ERR_MESSAGE_TOO_BIG }
 };
 const int kNumFrameHeaderTests = arraysize(kFrameHeaderTests);
-
-}  // Unnamed namespace
-
-namespace net {
 
 TEST(WebSocketFrameParserTest, DecodeNormalFrame) {
   WebSocketFrameParser parser;
 
   ScopedVector<WebSocketFrameChunk> frames;
   EXPECT_TRUE(parser.Decode(kHelloFrame, kHelloFrameLength, &frames));
-  EXPECT_FALSE(parser.failed());
+  EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
   ASSERT_EQ(1u, frames.size());
   WebSocketFrameChunk* frame = frames[0];
   ASSERT_TRUE(frame != NULL);
@@ -66,8 +72,8 @@ TEST(WebSocketFrameParserTest, DecodeNormalFrame) {
   }
   EXPECT_TRUE(frame->final_chunk);
 
-  std::vector<char> expected_data(kHello, kHello + kHelloLength);
-  EXPECT_EQ(expected_data, frame->data);
+  ASSERT_EQ(static_cast<int>(kHelloLength), frame->data->size());
+  EXPECT_TRUE(std::equal(kHello, kHello + kHelloLength, frame->data->data()));
 }
 
 TEST(WebSocketFrameParserTest, DecodeMaskedFrame) {
@@ -76,7 +82,7 @@ TEST(WebSocketFrameParserTest, DecodeMaskedFrame) {
   ScopedVector<WebSocketFrameChunk> frames;
   EXPECT_TRUE(parser.Decode(kMaskedHelloFrame, kMaskedHelloFrameLength,
                             &frames));
-  EXPECT_FALSE(parser.failed());
+  EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
   ASSERT_EQ(1u, frames.size());
   WebSocketFrameChunk* frame = frames[0];
   ASSERT_TRUE(frame != NULL);
@@ -93,8 +99,8 @@ TEST(WebSocketFrameParserTest, DecodeMaskedFrame) {
   }
   EXPECT_TRUE(frame->final_chunk);
 
-  std::vector<char> expected_data(kHello, kHello + kHelloLength);
-  EXPECT_EQ(expected_data, frame->data);
+  ASSERT_EQ(static_cast<int>(kHelloLength), frame->data->size());
+  EXPECT_TRUE(std::equal(kHello, kHello + kHelloLength, frame->data->data()));
 }
 
 TEST(WebSocketFrameParserTest, DecodeManyFrames) {
@@ -134,7 +140,7 @@ TEST(WebSocketFrameParserTest, DecodeManyFrames) {
 
   ScopedVector<WebSocketFrameChunk> frames;
   EXPECT_TRUE(parser.Decode(&input.front(), input.size(), &frames));
-  EXPECT_FALSE(parser.failed());
+  EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
   ASSERT_EQ(static_cast<size_t>(kNumInputs), frames.size());
 
   for (int i = 0; i < kNumInputs; ++i) {
@@ -143,10 +149,12 @@ TEST(WebSocketFrameParserTest, DecodeManyFrames) {
     if (!frame)
       continue;
     EXPECT_TRUE(frame->final_chunk);
-    std::vector<char> expected_data(
+    ASSERT_EQ(kInputs[i].expected_payload_length,
+              static_cast<uint64>(frame->data->size()));
+    EXPECT_TRUE(std::equal(
         kInputs[i].expected_payload,
-        kInputs[i].expected_payload + kInputs[i].expected_payload_length);
-    EXPECT_EQ(expected_data, frame->data);
+        kInputs[i].expected_payload + kInputs[i].expected_payload_length,
+        frame->data->data()));
 
     const WebSocketFrameHeader* header = frame->header.get();
     EXPECT_TRUE(header != NULL);
@@ -178,7 +186,7 @@ TEST(WebSocketFrameParserTest, DecodePartialFrame) {
 
     ScopedVector<WebSocketFrameChunk> frames1;
     EXPECT_TRUE(parser.Decode(&input1.front(), input1.size(), &frames1));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames1.size());
     if (frames1.size() != 1u)
       continue;
@@ -187,7 +195,14 @@ TEST(WebSocketFrameParserTest, DecodePartialFrame) {
     if (!frame1)
       continue;
     EXPECT_FALSE(frame1->final_chunk);
-    EXPECT_EQ(expected1, frame1->data);
+    if (expected1.size() == 0) {
+      EXPECT_EQ(NULL, frame1->data.get());
+    } else {
+      ASSERT_EQ(cutting_pos, static_cast<size_t>(frame1->data->size()));
+      EXPECT_TRUE(std::equal(expected1.begin(),
+                             expected1.end(),
+                             frame1->data->data()));
+    }
     const WebSocketFrameHeader* header1 = frame1->header.get();
     EXPECT_TRUE(header1 != NULL);
     if (!header1)
@@ -202,7 +217,7 @@ TEST(WebSocketFrameParserTest, DecodePartialFrame) {
 
     ScopedVector<WebSocketFrameChunk> frames2;
     EXPECT_TRUE(parser.Decode(&input2.front(), input2.size(), &frames2));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames2.size());
     if (frames2.size() != 1u)
       continue;
@@ -211,7 +226,14 @@ TEST(WebSocketFrameParserTest, DecodePartialFrame) {
     if (!frame2)
       continue;
     EXPECT_TRUE(frame2->final_chunk);
-    EXPECT_EQ(expected2, frame2->data);
+    if (expected2.size() == 0) {
+      EXPECT_EQ(NULL, frame2->data.get());
+    } else {
+      ASSERT_EQ(expected2.size(), static_cast<uint64>(frame2->data->size()));
+      EXPECT_TRUE(std::equal(expected2.begin(),
+                             expected2.end(),
+                             frame2->data->data()));
+    }
     const WebSocketFrameHeader* header2 = frame2->header.get();
     EXPECT_TRUE(header2 == NULL);
   }
@@ -234,7 +256,7 @@ TEST(WebSocketFrameParserTest, DecodePartialMaskedFrame) {
 
     ScopedVector<WebSocketFrameChunk> frames1;
     EXPECT_TRUE(parser.Decode(&input1.front(), input1.size(), &frames1));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames1.size());
     if (frames1.size() != 1u)
       continue;
@@ -243,7 +265,14 @@ TEST(WebSocketFrameParserTest, DecodePartialMaskedFrame) {
     if (!frame1)
       continue;
     EXPECT_FALSE(frame1->final_chunk);
-    EXPECT_EQ(expected1, frame1->data);
+    if (expected1.size() == 0) {
+      EXPECT_EQ(NULL, frame1->data.get());
+    } else {
+      ASSERT_EQ(expected1.size(), static_cast<uint64>(frame1->data->size()));
+      EXPECT_TRUE(std::equal(expected1.begin(),
+                             expected1.end(),
+                             frame1->data->data()));
+    }
     const WebSocketFrameHeader* header1 = frame1->header.get();
     EXPECT_TRUE(header1 != NULL);
     if (!header1)
@@ -258,7 +287,7 @@ TEST(WebSocketFrameParserTest, DecodePartialMaskedFrame) {
 
     ScopedVector<WebSocketFrameChunk> frames2;
     EXPECT_TRUE(parser.Decode(&input2.front(), input2.size(), &frames2));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames2.size());
     if (frames2.size() != 1u)
       continue;
@@ -267,7 +296,14 @@ TEST(WebSocketFrameParserTest, DecodePartialMaskedFrame) {
     if (!frame2)
       continue;
     EXPECT_TRUE(frame2->final_chunk);
-    EXPECT_EQ(expected2, frame2->data);
+    if (expected2.size() == 0) {
+      EXPECT_EQ(NULL, frame2->data.get());
+    } else {
+      ASSERT_EQ(expected2.size(), static_cast<uint64>(frame2->data->size()));
+      EXPECT_TRUE(std::equal(expected2.begin(),
+                             expected2.end(),
+                             frame2->data->data()));
+    }
     const WebSocketFrameHeader* header2 = frame2->header.get();
     EXPECT_TRUE(header2 == NULL);
   }
@@ -288,21 +324,36 @@ TEST(WebSocketFrameParserTest, DecodeFramesOfVariousLengths) {
     WebSocketFrameParser parser;
 
     ScopedVector<WebSocketFrameChunk> frames;
-    EXPECT_TRUE(parser.Decode(&input.front(), input.size(), &frames));
-    EXPECT_FALSE(parser.failed());
-    EXPECT_EQ(1u, frames.size());
+    EXPECT_EQ(kFrameHeaderTests[i].error_code == WEB_SOCKET_OK,
+        parser.Decode(&input.front(), input.size(), &frames));
+    EXPECT_EQ(kFrameHeaderTests[i].error_code, parser.websocket_error());
+    if (kFrameHeaderTests[i].error_code != WEB_SOCKET_OK) {
+      EXPECT_EQ(0u, frames.size());
+    } else {
+      EXPECT_EQ(1u, frames.size());
+    }
     if (frames.size() != 1u)
       continue;
     WebSocketFrameChunk* frame = frames[0];
     EXPECT_TRUE(frame != NULL);
     if (!frame)
       continue;
-    if (frame_length == input_payload_size)
+    if (frame_length == input_payload_size) {
       EXPECT_TRUE(frame->final_chunk);
-    else
+    } else {
       EXPECT_FALSE(frame->final_chunk);
+    }
     std::vector<char> expected_payload(input_payload_size, 'a');
-    EXPECT_EQ(expected_payload, frame->data);
+    if (expected_payload.size() == 0) {
+      EXPECT_EQ(NULL, frame->data.get());
+    } else {
+      ASSERT_EQ(expected_payload.size(),
+                static_cast<uint64>(frame->data->size()));
+      EXPECT_TRUE(std::equal(
+          expected_payload.begin(),
+          expected_payload.end(),
+          frame->data->data()));
+    }
     const WebSocketFrameHeader* header = frame->header.get();
     EXPECT_TRUE(header != NULL);
     if (!header)
@@ -328,13 +379,22 @@ TEST(WebSocketFrameParserTest, DecodePartialHeader) {
     ScopedVector<WebSocketFrameChunk> frames;
     // Feed each byte to the parser to see if the parser behaves correctly
     // when it receives partial frame header.
+    size_t last_byte_offset = frame_header_length - 1;
     for (size_t j = 0; j < frame_header_length; ++j) {
-      EXPECT_TRUE(parser.Decode(frame_header + j, 1, &frames));
-      EXPECT_FALSE(parser.failed());
-      if (j == frame_header_length - 1)
+      bool failed = kFrameHeaderTests[i].error_code != WEB_SOCKET_OK &&
+          j == last_byte_offset;
+      EXPECT_EQ(!failed, parser.Decode(frame_header + j, 1, &frames));
+      if (failed) {
+        EXPECT_EQ(kFrameHeaderTests[i].error_code, parser.websocket_error());
+      } else {
+        EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
+      }
+      if (kFrameHeaderTests[i].error_code == WEB_SOCKET_OK &&
+          j == last_byte_offset) {
         EXPECT_EQ(1u, frames.size());
-      else
+      } else {
         EXPECT_EQ(0u, frames.size());
+      }
     }
     if (frames.size() != 1u)
       continue;
@@ -342,11 +402,12 @@ TEST(WebSocketFrameParserTest, DecodePartialHeader) {
     EXPECT_TRUE(frame != NULL);
     if (!frame)
       continue;
-    if (frame_length == 0u)
+    if (frame_length == 0u) {
       EXPECT_TRUE(frame->final_chunk);
-    else
+    } else {
       EXPECT_FALSE(frame->final_chunk);
-    EXPECT_EQ(std::vector<char>(), frame->data);
+    }
+    EXPECT_EQ(NULL, frame->data.get());
     const WebSocketFrameHeader* header = frame->header.get();
     EXPECT_TRUE(header != NULL);
     if (!header)
@@ -385,15 +446,15 @@ TEST(WebSocketFrameParserTest, InvalidLengthEncoding) {
     WebSocketFrameParser parser;
 
     ScopedVector<WebSocketFrameChunk> frames;
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_FALSE(parser.Decode(frame_header, frame_header_length, &frames));
-    EXPECT_TRUE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_ERR_PROTOCOL_ERROR, parser.websocket_error());
     EXPECT_EQ(0u, frames.size());
 
     // Once the parser has failed, it no longer accepts any input (even if
     // the input is empty).
     EXPECT_FALSE(parser.Decode("", 0, &frames));
-    EXPECT_TRUE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_ERR_PROTOCOL_ERROR, parser.websocket_error());
     EXPECT_EQ(0u, frames.size());
   }
 }
@@ -435,7 +496,7 @@ TEST(WebSocketFrameParserTest, FrameTypes) {
 
     ScopedVector<WebSocketFrameChunk> frames;
     EXPECT_TRUE(parser.Decode(frame_header, frame_header_length, &frames));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames.size());
     if (frames.size() != 1u)
       continue;
@@ -444,7 +505,7 @@ TEST(WebSocketFrameParserTest, FrameTypes) {
     if (!frame)
       continue;
     EXPECT_TRUE(frame->final_chunk);
-    EXPECT_EQ(std::vector<char>(), frame->data);
+    EXPECT_EQ(NULL, frame->data.get());
     const WebSocketFrameHeader* header = frame->header.get();
     EXPECT_TRUE(header != NULL);
     if (!header)
@@ -456,7 +517,7 @@ TEST(WebSocketFrameParserTest, FrameTypes) {
     EXPECT_EQ(opcode, header->opcode);
     EXPECT_FALSE(header->masked);
     EXPECT_EQ(0u, header->payload_length);
-  };
+  }
 }
 
 TEST(WebSocketFrameParserTest, FinalBitAndReservedBits) {
@@ -491,7 +552,7 @@ TEST(WebSocketFrameParserTest, FinalBitAndReservedBits) {
 
     ScopedVector<WebSocketFrameChunk> frames;
     EXPECT_TRUE(parser.Decode(frame_header, frame_header_length, &frames));
-    EXPECT_FALSE(parser.failed());
+    EXPECT_EQ(WEB_SOCKET_OK, parser.websocket_error());
     EXPECT_EQ(1u, frames.size());
     if (frames.size() != 1u)
       continue;
@@ -500,7 +561,7 @@ TEST(WebSocketFrameParserTest, FinalBitAndReservedBits) {
     if (!frame)
       continue;
     EXPECT_TRUE(frame->final_chunk);
-    EXPECT_EQ(std::vector<char>(), frame->data);
+    EXPECT_EQ(NULL, frame->data.get());
     const WebSocketFrameHeader* header = frame->header.get();
     EXPECT_TRUE(header != NULL);
     if (!header)
@@ -514,5 +575,7 @@ TEST(WebSocketFrameParserTest, FinalBitAndReservedBits) {
     EXPECT_EQ(0u, header->payload_length);
   }
 }
+
+}  // Unnamed namespace
 
 }  // namespace net

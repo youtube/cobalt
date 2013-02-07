@@ -306,7 +306,8 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
     EXPECT_EQ(net::OK,
               session_->InitializeWithSocket(connection, false, net::OK));
   }
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans) {
+  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans,
+                                net::HttpTransactionDelegate* delegate) {
     NOTREACHED();
     return net::ERR_UNEXPECTED;
   }
@@ -333,7 +334,6 @@ namespace net {
 class WebSocketJobSpdy3Test : public PlatformTest {
  public:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
     context_.reset(new MockURLRequestContext(cookie_store_.get()));
@@ -481,9 +481,6 @@ class WebSocketJobSpdy3Test : public PlatformTest {
   static const size_t kHandshakeResponseWithCookieLength;
   static const size_t kDataHelloLength;
   static const size_t kDataWorldLength;
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 const char WebSocketJobSpdy3Test::kHandshakeRequestWithoutCookie[] =
@@ -543,17 +540,17 @@ const char WebSocketJobSpdy3Test::kDataHello[] = "Hello, ";
 const char WebSocketJobSpdy3Test::kDataWorld[] = "World!\n";
 
 const char* const WebSocketJobSpdy3Test::kHandshakeRequestForSpdy[] = {
-  "path", "/demo",
-  "version", "WebSocket/13",
-  "scheme", "ws",
-  "host", "example.com",
-  "origin", "http://example.com",
-  "sec-websocket-protocol", "sample"
+  ":path", "/demo",
+  ":version", "WebSocket/13",
+  ":scheme", "ws",
+  ":host", "example.com",
+  ":origin", "http://example.com",
+  ":sec-websocket-protocol", "sample"
 };
 
 const char* const WebSocketJobSpdy3Test::kHandshakeResponseForSpdy[] = {
-  "status", "101 Switching Protocols",
-  "sec-websocket-protocol", "sample"
+  ":status", "101 Switching Protocols",
+  ":sec-websocket-protocol", "sample"
 };
 
 const size_t WebSocketJobSpdy3Test::kHandshakeRequestWithoutCookieLength =
@@ -578,7 +575,7 @@ void WebSocketJobSpdy3Test::TestSimpleHandshake() {
   SkipToConnecting();
 
   DoSendRequest();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithoutCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_.get(),
@@ -588,7 +585,7 @@ void WebSocketJobSpdy3Test::TestSimpleHandshake() {
   websocket_->OnReceivedData(socket_.get(),
                              kHandshakeResponseWithoutCookie,
                              kHandshakeResponseWithoutCookieLength);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
   CloseWebSocketJob();
@@ -603,7 +600,7 @@ void WebSocketJobSpdy3Test::TestSlowHandshake() {
   DoSendRequest();
   // We assume request is sent in one data chunk (from WebKit)
   // We don't support streaming request.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithoutCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_.get(),
@@ -618,12 +615,12 @@ void WebSocketJobSpdy3Test::TestSlowHandshake() {
     websocket_->OnReceivedData(socket_,
                                line.c_str(),
                                line.size());
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     EXPECT_TRUE(delegate.received_data().empty());
     EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   }
   websocket_->OnReceivedData(socket_.get(), "\r\n", 2);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_FALSE(delegate.received_data().empty());
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
@@ -652,7 +649,7 @@ TEST_F(WebSocketJobSpdy3Test, DelayedCookies) {
   bool sent = websocket_->SendData(kHandshakeRequestWithCookie,
                                    kHandshakeRequestWithCookieLength);
   EXPECT_TRUE(sent);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithFilteredCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_,
@@ -663,7 +660,7 @@ TEST_F(WebSocketJobSpdy3Test, DelayedCookies) {
   websocket_->OnReceivedData(socket_.get(),
                              kHandshakeResponseWithCookie,
                              kHandshakeResponseWithCookieLength);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
 
@@ -687,7 +684,7 @@ void WebSocketJobSpdy3Test::TestHandshakeWithCookie() {
   bool sent = websocket_->SendData(kHandshakeRequestWithCookie,
                                    kHandshakeRequestWithCookieLength);
   EXPECT_TRUE(sent);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithFilteredCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_,
@@ -698,7 +695,7 @@ void WebSocketJobSpdy3Test::TestHandshakeWithCookie() {
   websocket_->OnReceivedData(socket_.get(),
                              kHandshakeResponseWithCookie,
                              kHandshakeResponseWithCookieLength);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
 
@@ -731,7 +728,7 @@ void WebSocketJobSpdy3Test::TestHandshakeWithCookieButNotAllowed() {
   bool sent = websocket_->SendData(kHandshakeRequestWithCookie,
                                    kHandshakeRequestWithCookieLength);
   EXPECT_TRUE(sent);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithoutCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_, kHandshakeRequestWithoutCookieLength);
@@ -741,7 +738,7 @@ void WebSocketJobSpdy3Test::TestHandshakeWithCookieButNotAllowed() {
   websocket_->OnReceivedData(socket_.get(),
                              kHandshakeResponseWithCookie,
                              kHandshakeResponseWithCookieLength);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
 
@@ -781,7 +778,7 @@ void WebSocketJobSpdy3Test::TestInvalidSendData() {
   DoSendRequest();
   // We assume request is sent in one data chunk (from WebKit)
   // We don't support streaming request.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(kHandshakeRequestWithoutCookie, sent_data());
   EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
   websocket_->OnSentData(socket_.get(),

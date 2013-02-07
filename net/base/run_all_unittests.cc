@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/metrics/statistics_recorder.h"
+#include "base/test/main_hook.h"
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
@@ -15,26 +16,14 @@
 #include "net/android/net_jni_registrar.h"
 #endif
 
-#if defined(__LB_SHELL__)
-#include "lb_shell_platform_delegate.h"
-#include "lb_stack.h"
-#endif
-
-#if defined(__LB_SHELL__FOR_RELEASE__)
-#error You cannot build unit tests in gold builds.
-#endif
-
 using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
 
 int main(int argc, char** argv) {
-#if defined(__LB_SHELL__)
-  LBShellPlatformDelegate::PlatformInit();
-  LB::SetStackSize();
-#endif
+  MainHook hook(main, argc, argv);
 
   // Record histograms, so we can get histograms data in tests.
-  base::StatisticsRecorder recorder;
+  base::StatisticsRecorder::Initialize();
 
 #if defined(OS_ANDROID)
   // Register JNI bindings for android. Doing it early as the test suite setup

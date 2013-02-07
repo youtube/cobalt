@@ -20,6 +20,49 @@ namespace net {
 
 namespace test_spdy3 {
 
+SpdyFrame* ConstructSpdyWebSocketSynStream(int stream_id,
+                                           const char* path,
+                                           const char* host,
+                                           const char* origin) {
+  const char* const kWebSocketHeaders[] = {
+    ":path",
+    path,
+    ":host",
+    host,
+    ":version",
+    "WebSocket/13",
+    ":scheme",
+    "ws",
+    ":origin",
+    origin
+  };
+  return ConstructSpdyControlFrame(/*extra_headers*/ NULL,
+                                   /*extra_header_count*/ 0,
+                                   /*compressed*/ false,
+                                   stream_id,
+                                   HIGHEST,
+                                   SYN_STREAM,
+                                   CONTROL_FLAG_NONE,
+                                   kWebSocketHeaders,
+                                   arraysize(kWebSocketHeaders));
+}
+
+SpdyFrame* ConstructSpdyWebSocketSynReply(int stream_id) {
+  static const char* const kStandardWebSocketHeaders[] = {
+    ":status",
+    "101"
+  };
+  return ConstructSpdyControlFrame(NULL,
+                                   0,
+                                   false,
+                                   stream_id,
+                                   LOWEST,
+                                   SYN_REPLY,
+                                   CONTROL_FLAG_NONE,
+                                   kStandardWebSocketHeaders,
+                                   arraysize(kStandardWebSocketHeaders));
+}
+
 SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
     const char* const headers[],
     int header_count,
@@ -80,6 +123,28 @@ SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
       header_count);
 }
 
+SpdyFrame* ConstructSpdyWebSocketHeadersFrame(int stream_id,
+                                              const char* length,
+                                              bool fin) {
+  static const char* const kHeaders[] = {
+    ":opcode",
+    "1",  // text frame
+    ":length",
+    length,
+    ":fin",
+    fin ? "1" : "0"
+  };
+  return ConstructSpdyControlFrame(/*extra_headers*/ NULL,
+                                   /*extra_header_count*/ 0,
+                                   /*compression*/ false,
+                                   stream_id,
+                                   LOWEST,
+                                   HEADERS,
+                                   CONTROL_FLAG_NONE,
+                                   kHeaders,
+                                   arraysize(kHeaders));
+}
+
 SpdyFrame* ConstructSpdyWebSocketDataFrame(
     const char* data,
     int len,
@@ -87,7 +152,7 @@ SpdyFrame* ConstructSpdyWebSocketDataFrame(
     bool fin) {
 
   // Construct SPDY data frame.
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
   return framer.CreateDataFrame(
       stream_id,
       data,

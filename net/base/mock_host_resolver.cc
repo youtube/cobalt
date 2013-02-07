@@ -18,6 +18,9 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/test_completion_callback.h"
+#if defined(OS_WIN)
+#include "net/base/winsock_init.h"
+#endif
 
 namespace net {
 
@@ -81,10 +84,13 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
   requests_[id] = req;
   if (handle)
     *handle = reinterpret_cast<RequestHandle>(id);
-  MessageLoop::current()->PostTask(FROM_HERE,
-                                   base::Bind(&MockHostResolverBase::ResolveNow,
-                                              AsWeakPtr(),
-                                              id));
+
+  if (!ondemand_mode_) {
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&MockHostResolverBase::ResolveNow, AsWeakPtr(), id));
+  }
+
   return ERR_IO_PENDING;
 }
 
@@ -114,11 +120,22 @@ HostCache* MockHostResolverBase::GetHostCache() {
   return cache_.get();
 }
 
+void MockHostResolverBase::ResolveAllPending() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(ondemand_mode_);
+  for (RequestMap::iterator i = requests_.begin(); i != requests_.end(); ++i) {
+    MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(&MockHostResolverBase::ResolveNow, AsWeakPtr(), i->first));
+  }
+}
+
 // start id from 1 to distinguish from NULL RequestHandle
 MockHostResolverBase::MockHostResolverBase(bool use_caching)
-    : synchronous_mode_(false), next_request_id_(1) {
+    : synchronous_mode_(false),
+      ondemand_mode_(false),
+      next_request_id_(1) {
   rules_ = CreateCatchAllHostResolverProc();
-  proc_ = rules_;
 
   if (use_caching) {
     cache_.reset(new HostCache(kMaxCacheEntries));
@@ -142,10 +159,8 @@ int MockHostResolverBase::ResolveFromIPLiteralOrCache(const RequestInfo& info,
     const HostCache::Entry* entry = cache_->Lookup(key, base::TimeTicks::Now());
     if (entry) {
       rv = entry->error;
-      if (rv == OK) {
-        *addresses = entry->addrlist;
-        SetPortOnAddressList(info.port(), addresses);
-      }
+      if (rv == OK)
+        *addresses = AddressList::CopyWithPort(entry->addrlist, info.port());
     }
   }
   return rv;
@@ -155,11 +170,11 @@ int MockHostResolverBase::ResolveProc(size_t id,
                                       const RequestInfo& info,
                                       AddressList* addresses) {
   AddressList addr;
-  int rv = proc_->Resolve(info.hostname(),
-                          info.address_family(),
-                          info.host_resolver_flags(),
-                          &addr,
-                          NULL);
+  int rv = rules_->Resolve(info.hostname(),
+                           info.address_family(),
+                           info.host_resolver_flags(),
+                           &addr,
+                           NULL);
   if (cache_.get()) {
     HostCache::Key key(info.hostname(),
                        info.address_family(),
@@ -168,12 +183,10 @@ int MockHostResolverBase::ResolveProc(size_t id,
     base::TimeDelta ttl;
     if (rv == OK)
       ttl = base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds);
-    cache_->Set(key, rv, addr, base::TimeTicks::Now(), ttl);
+    cache_->Set(key, HostCache::Entry(rv, addr), base::TimeTicks::Now(), ttl);
   }
-  if (rv == OK) {
-    *addresses = addr;
-    SetPortOnAddressList(info.port(), addresses);
-  }
+  if (rv == OK)
+    *addresses = AddressList::CopyWithPort(addr, info.port());
   return rv;
 }
 
@@ -324,6 +337,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         case Rule::kResolverTypeFail:
           return ERR_NAME_NOT_RESOLVED;
         case Rule::kResolverTypeSystem:
+#if defined(OS_WIN)
+          net::EnsureWinsockInit();
+#endif
           return SystemHostResolverProc(effective_host,
                                         address_family,
                                         host_resolver_flags,

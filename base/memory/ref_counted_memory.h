@@ -27,6 +27,9 @@ class BASE_EXPORT RefCountedMemory
   // Size of the memory pointed to.
   virtual size_t size() const = 0;
 
+  // Returns true if |other| is byte for byte equal.
+  bool Equals(const scoped_refptr<RefCountedMemory>& other) const;
+
  protected:
   friend class base::RefCountedThreadSafe<RefCountedMemory>;
   RefCountedMemory();

@@ -29,15 +29,17 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
   ~TCPServerSocketWin();
 
   // net::ServerSocket implementation.
-  virtual int Listen(const net::IPEndPoint& address, int backlog);
-  virtual int GetLocalAddress(IPEndPoint* address) const;
+  virtual void AllowAddressReuse() OVERRIDE;
+  virtual int Listen(const net::IPEndPoint& address, int backlog) OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     const CompletionCallback& callback);
+                     const CompletionCallback& callback) OVERRIDE;
 
   // base::ObjectWatcher::Delegate implementation.
   virtual void OnObjectSignaled(HANDLE object);
 
  private:
+  int SetSocketOptions();
   int AcceptInternal(scoped_ptr<StreamSocket>* socket);
   void Close();
 
@@ -48,6 +50,8 @@ class NET_EXPORT_PRIVATE TCPServerSocketWin
 
   scoped_ptr<StreamSocket>* accept_socket_;
   CompletionCallback accept_callback_;
+
+  bool reuse_address_;
 
   BoundNetLog net_log_;
 };

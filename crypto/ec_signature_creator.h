@@ -5,6 +5,7 @@
 #ifndef CRYPTO_EC_SIGNATURE_CREATOR_H_
 #define CRYPTO_EC_SIGNATURE_CREATOR_H_
 
+#include <string>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -31,7 +32,7 @@ class CRYPTO_EXPORT ECSignatureCreator {
 
   // Create an instance. The caller must ensure that the provided PrivateKey
   // instance outlives the created ECSignatureCreator.
-  // TODO(rch):  This is currently hard coded to use SHA1. Ideally, we should
+  // TODO(rch):  This is currently hard coded to use SHA256. Ideally, we should
   // pass in the hash algorithm identifier.
   static ECSignatureCreator* Create(ECPrivateKey* key);
 
@@ -50,6 +51,14 @@ class CRYPTO_EXPORT ECSignatureCreator {
   virtual bool Sign(const uint8* data,
                     int data_len,
                     std::vector<uint8>* signature) = 0;
+
+  // DecodeSignature converts from a DER encoded ECDSA-Sig-Value (as produced
+  // by Sign) to a `raw' ECDSA signature which consists of a pair of
+  // big-endian, zero-padded, 256-bit integers, r and s. On success it returns
+  // true and puts the raw signature into |out_raw_sig|.
+  // (Only P-256 signatures are supported.)
+  virtual bool DecodeSignature(const std::vector<uint8>& signature,
+                               std::vector<uint8>* out_raw_sig) = 0;
 };
 
 }  // namespace crypto

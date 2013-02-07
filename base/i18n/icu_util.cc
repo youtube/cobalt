@@ -33,7 +33,7 @@
 
 #if defined(OS_WIN)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
-#elif defined(__LB_SHELL__)
+#elif defined(OS_IOS) || defined(__LB_SHELL__)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #else
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC

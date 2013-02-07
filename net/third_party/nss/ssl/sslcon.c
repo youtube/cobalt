@@ -1,43 +1,10 @@
 /* 
  * SSL v2 handshake functions, and functions common to SSL2 and SSL3.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslcon.c,v 1.48 2012/03/18 00:31:20 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* $Id: sslcon.c,v 1.52 2012/07/17 14:43:11 kaie%kuix.de Exp $ */
 
 #include "nssrenam.h"
 #include "cert.h"
@@ -658,7 +625,8 @@ ssl2_SendServerFinishedMessage(sslSocket *ss)
 
 	if (sent < 0) {
 	    /* If send failed, it is now a bogus  session-id */
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    rv = (SECStatus)sent;
 	} else if (!ss->opt.noCache) {
 	    /* Put the sid in session-id cache, (may already be there) */
@@ -2891,9 +2859,10 @@ ssl2_HandleServerHelloMessage(sslSocket *ss)
 	    /* Forget our session-id - server didn't like it */
 	    SSL_TRC(7, ("%d: SSL[%d]: server forgot me, uncaching session-id",
 			SSL_GETPID(), ss->fd));
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    ssl_FreeSID(sid);
-	    ss->sec.ci.sid = sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	    ss->sec.ci.sid = sid = PORT_ZNew(sslSessionID);
 	    if (!sid) {
 		goto loser;
 	    }
@@ -3065,7 +3034,8 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 
 	/* if we're not doing this SID's protocol any more, drop it. */
 	if (!sidVersionEnabled) {
-	    ss->sec.uncache(sid);
+	    if (ss->sec.uncache)
+		ss->sec.uncache(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	    break;
@@ -3077,7 +3047,8 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 		    break;
 	    }
 	    if (i >= ss->sizeCipherSpecs) {
-		ss->sec.uncache(sid);
+		if (ss->sec.uncache)
+		    ss->sec.uncache(sid);
 		ssl_FreeSID(sid);
 		sid = NULL;
 		break;
@@ -3096,7 +3067,7 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     } 
     if (!sid) {
 	sidLen = 0;
-	sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	sid = PORT_ZNew(sslSessionID);
 	if (!sid) {
 	    goto loser;
 	}
@@ -3522,7 +3493,7 @@ ssl2_HandleClientHelloMessage(sslSocket *ss)
 	    goto loser;
 	}
 	hit = 0;
-	sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	sid = PORT_ZNew(sslSessionID);
 	if (!sid) {
 	    goto loser;
 	}

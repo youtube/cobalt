@@ -4,11 +4,11 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
-#include "base/scoped_temp_dir.h"
 #include "net/base/directory_lister.h"
 #include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -126,13 +126,13 @@ TEST(DirectoryListerTest, CancelTest) {
 
   lister.Cancel();
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(num_files, delegate.num_files());
 }
 
 TEST(DirectoryListerTest, EmptyDirTest) {
-  ScopedTempDir tempDir;
+  base::ScopedTempDir tempDir;
   EXPECT_TRUE(tempDir.CreateUniqueTempDir());
 
   bool kRecursive = false;

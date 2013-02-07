@@ -16,7 +16,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
 #include "net/base/net_errors.h"

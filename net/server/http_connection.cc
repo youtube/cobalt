@@ -26,40 +26,38 @@ void HttpConnection::Send(const char* bytes, int len) {
   socket_->Send(bytes, len);
 }
 
-void HttpConnection::Send200(const std::string& data,
-                             const std::string& content_type) {
+void HttpConnection::Send(HttpStatusCode status_code,
+                          const std::string& data,
+                          const std::string& content_type) {
   if (!socket_)
     return;
+
+  std::string status_message;
+  switch (status_code) {
+    case HTTP_OK:
+      status_message = "OK";
+      break;
+    case HTTP_NOT_FOUND:
+      status_message = "Not Found";
+      break;
+    case HTTP_INTERNAL_SERVER_ERROR:
+      status_message = "Internal Error";
+      break;
+    default:
+      status_message = "";
+      break;
+  }
+
   socket_->Send(base::StringPrintf(
-      "HTTP/1.1 200 OK\r\n"
+      "HTTP/1.1 %d %s\r\n"
       "Content-Type:%s\r\n"
       "Content-Length:%d\r\n"
       "\r\n",
+      status_code,
+      status_message.c_str(),
       content_type.c_str(),
       static_cast<int>(data.length())));
   socket_->Send(data);
-}
-
-void HttpConnection::Send404() {
-  if (!socket_)
-    return;
-  socket_->Send(
-      "HTTP/1.1 404 Not Found\r\n"
-      "Content-Length: 0\r\n"
-      "\r\n");
-}
-
-void HttpConnection::Send500(const std::string& message) {
-  if (!socket_)
-    return;
-  socket_->Send(base::StringPrintf(
-      "HTTP/1.1 500 Internal Error\r\n"
-      "Content-Type:text/html\r\n"
-      "Content-Length:%d\r\n"
-      "\r\n"
-      "%s",
-      static_cast<int>(message.length()),
-      message.c_str()));
 }
 
 HttpConnection::HttpConnection(HttpServer* server, StreamListenSocket* sock)

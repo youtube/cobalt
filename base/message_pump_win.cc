@@ -95,7 +95,9 @@ int MessagePumpWin::GetCurrentDelay() const {
 //-----------------------------------------------------------------------------
 // MessagePumpForUI public:
 
-MessagePumpForUI::MessagePumpForUI() : instance_(NULL) {
+MessagePumpForUI::MessagePumpForUI()
+    : instance_(NULL),
+      message_filter_(new MessageFilter) {
   InitMessageWnd();
 }
 
@@ -295,16 +297,17 @@ void MessagePumpForUI::WaitForWork() {
     // If a parent child relationship exists between windows across threads
     // then their thread inputs are implicitly attached.
     // This causes the MsgWaitForMultipleObjectsEx API to return indicating
-    // that messages are ready for processing (specifically mouse messages
-    // intended for the child window. Occurs if the child window has capture)
-    // The subsequent PeekMessages call fails to return any messages thus
+    // that messages are ready for processing (Specifically, mouse messages
+    // intended for the child window may appear if the child window has
+    // capture).
+    // The subsequent PeekMessages call may fail to return any messages thus
     // causing us to enter a tight loop at times.
     // The WaitMessage call below is a workaround to give the child window
-    // sometime to process its input messages.
+    // some time to process its input messages.
     MSG msg = {0};
     DWORD queue_status = GetQueueStatus(QS_MOUSE);
     if (HIWORD(queue_status) & QS_MOUSE &&
-       !PeekMessage(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_NOREMOVE)) {
+        !PeekMessage(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_NOREMOVE)) {
       WaitMessage();
     }
     return;
@@ -361,7 +364,7 @@ bool MessagePumpForUI::ProcessNextWindowsMessage() {
     sent_messages_in_queue = true;
 
   MSG msg;
-  if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+  if (message_filter_->DoPeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     return ProcessMessageHelper(msg);
 
   return sent_messages_in_queue;
@@ -387,12 +390,14 @@ bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
 
   WillProcessMessage(msg);
 
-  if (state_->dispatcher) {
-    if (!state_->dispatcher->Dispatch(msg))
-      state_->should_quit = true;
-  } else {
-    TranslateMessage(&msg);
-    DispatchMessage(&msg);
+  if (!message_filter_->ProcessMessage(msg)) {
+    if (state_->dispatcher) {
+      if (!state_->dispatcher->Dispatch(msg))
+        state_->should_quit = true;
+    } else {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
   }
 
   DidProcessMessage(msg);
@@ -419,7 +424,8 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
     have_message = PeekMessage(&msg, NULL, WM_PAINT, WM_PAINT, PM_REMOVE) ||
                    PeekMessage(&msg, NULL, WM_TIMER, WM_TIMER, PM_REMOVE);
   } else {
-    have_message = (0 != PeekMessage(&msg, NULL, 0, 0, PM_REMOVE));
+    have_message = !!message_filter_->DoPeekMessage(&msg, NULL, 0, 0,
+                                                    PM_REMOVE);
   }
 
   DCHECK(!have_message || kMsgHaveWork != msg.message ||
@@ -439,6 +445,11 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
   // kMsgHaveWork events get (percentage wise) rarer and rarer.
   ScheduleWork();
   return ProcessMessageHelper(msg);
+}
+
+void MessagePumpForUI::SetMessageFilter(
+    scoped_ptr<MessageFilter> message_filter) {
+  message_filter_ = message_filter.Pass();
 }
 
 //-----------------------------------------------------------------------------
@@ -475,9 +486,24 @@ void MessagePumpForIO::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
 
 void MessagePumpForIO::RegisterIOHandler(HANDLE file_handle,
                                          IOHandler* handler) {
-  ULONG_PTR key = reinterpret_cast<ULONG_PTR>(handler);
+  ULONG_PTR key = HandlerToKey(handler, true);
   HANDLE port = CreateIoCompletionPort(file_handle, port_, key, 1);
   DPCHECK(port);
+}
+
+bool MessagePumpForIO::RegisterJobObject(HANDLE job_handle,
+                                         IOHandler* handler) {
+  // Job object notifications use the OVERLAPPED pointer to carry the message
+  // data. Mark the completion key correspondingly, so we will not try to
+  // convert OVERLAPPED* to IOContext*.
+  ULONG_PTR key = HandlerToKey(handler, false);
+  JOBOBJECT_ASSOCIATE_COMPLETION_PORT info;
+  info.CompletionKey = reinterpret_cast<void*>(key);
+  info.CompletionPort = port_;
+  return SetInformationJobObject(job_handle,
+                                 JobObjectAssociateCompletionPortInformation,
+                                 &info,
+                                 sizeof(info)) != FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -546,12 +572,16 @@ bool MessagePumpForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
       return true;
   }
 
-  if (item.context->handler) {
+  // If |item.has_valid_io_context| is false then |item.context| does not point
+  // to a context structure, and so should not be dereferenced, although it may
+  // still hold valid non-pointer data.
+  if (!item.has_valid_io_context || item.context->handler) {
     if (filter && item.handler != filter) {
       // Save this item for later
       completed_io_.push_back(item);
     } else {
-      DCHECK_EQ(item.context->handler, item.handler);
+      DCHECK(!item.has_valid_io_context ||
+             (item.context->handler == item.handler));
       WillProcessIOEvent();
       item.handler->OnIOCompleted(item.context, item.bytes_transfered,
                                   item.error);
@@ -577,7 +607,7 @@ bool MessagePumpForIO::GetIOItem(DWORD timeout, IOItem* item) {
     item->bytes_transfered = 0;
   }
 
-  item->handler = reinterpret_cast<IOHandler*>(key);
+  item->handler = KeyToHandler(key, &item->has_valid_io_context);
   item->context = reinterpret_cast<IOContext*>(overlapped);
   return true;
 }
@@ -621,6 +651,30 @@ void MessagePumpForIO::WillProcessIOEvent() {
 
 void MessagePumpForIO::DidProcessIOEvent() {
   FOR_EACH_OBSERVER(IOObserver, io_observers_, DidProcessIOEvent());
+}
+
+// static
+ULONG_PTR MessagePumpForIO::HandlerToKey(IOHandler* handler,
+                                         bool has_valid_io_context) {
+  ULONG_PTR key = reinterpret_cast<ULONG_PTR>(handler);
+
+  // |IOHandler| is at least pointer-size aligned, so the lowest two bits are
+  // always cleared. We use the lowest bit to distinguish completion keys with
+  // and without the associated |IOContext|.
+  DCHECK((key & 1) == 0);
+
+  // Mark the completion key as context-less.
+  if (!has_valid_io_context)
+    key = key | 1;
+  return key;
+}
+
+// static
+MessagePumpForIO::IOHandler* MessagePumpForIO::KeyToHandler(
+    ULONG_PTR key,
+    bool* has_valid_io_context) {
+  *has_valid_io_context = ((key & 1) == 0);
+  return reinterpret_cast<IOHandler*>(key & ~static_cast<ULONG_PTR>(1));
 }
 
 }  // namespace base

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@ namespace asn1 {
 // These are the DER encodings of the tag byte for ASN.1 objects.
 static const unsigned kBOOLEAN = 0x01;
 static const unsigned kINTEGER = 0x02;
+static const unsigned kBITSTRING = 0x03;
 static const unsigned kOCTETSTRING = 0x04;
 static const unsigned kOID = 0x06;
 static const unsigned kSEQUENCE = 0x30;
@@ -61,6 +62,13 @@ bool GetElement(base::StringPiece* in,
 // |spki_out| is set to contain the SPKI, pointing into |cert|.
 NET_EXPORT_PRIVATE bool ExtractSPKIFromDERCert(base::StringPiece cert,
                                                base::StringPiece* spki_out);
+
+// ExtractSubjectPublicKeyFromSPKI parses the DER encoded SubjectPublicKeyInfo
+// in |spki| and extracts the bytes of the SubjectPublicKey. On successful
+// return, |spk_out| is set to contain the public key, pointing into |spki|.
+NET_EXPORT_PRIVATE bool ExtractSubjectPublicKeyFromSPKI(
+    base::StringPiece spki,
+    base::StringPiece* spk_out);
 
 // ExtractCRLURLsFromDERCert parses the DER encoded certificate in |cert| and
 // extracts the URL of each CRL. On successful return, the elements of

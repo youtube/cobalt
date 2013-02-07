@@ -10,12 +10,12 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/mac/bundle_locations.h"
 #include "base/mac/mac_logging.h"
 #import "base/mac/mac_util.h"
 #include "base/mac/scoped_authorizationref.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 

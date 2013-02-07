@@ -9,9 +9,9 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/process.h"
-#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/sys_info.h"
 #include "base/win/event_trace_controller.h"
@@ -161,7 +161,7 @@ TEST_F(EtwTraceControllerTest, StartRealTimeSession) {
 }
 
 TEST_F(EtwTraceControllerTest, StartFileSession) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath temp;
   ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir.path(), &temp));

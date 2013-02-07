@@ -52,6 +52,10 @@
 
 namespace net {
 
+// Absurdly long size to avoid imposing a constraint on chunked encoding
+// extensions.
+const size_t HttpChunkedDecoder::kMaxLineBufLen = 16384;
+
 HttpChunkedDecoder::HttpChunkedDecoder()
     : chunk_remaining_(0),
       chunk_terminator_remaining_(false),
@@ -95,8 +99,8 @@ int HttpChunkedDecoder::FilterBuf(char* buf, int buf_len) {
 }
 
 int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
-  DCHECK(chunk_remaining_ == 0);
-  DCHECK(buf_len > 0);
+  DCHECK_EQ(0, chunk_remaining_);
+  DCHECK_GT(buf_len, 0);
 
   int bytes_consumed = 0;
 
@@ -152,6 +156,11 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
     if (buf[buf_len - 1] == '\r')
       buf_len--;
 
+    if (line_buf_.length() + buf_len > kMaxLineBufLen) {
+      DLOG(ERROR) << "Chunked line length too long";
+      return ERR_INVALID_CHUNKED_ENCODING;
+    }
+
     line_buf_.append(buf, buf_len);
   }
   return bytes_consumed;
@@ -179,7 +188,7 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
 //
 //         Us: ^\X+[ ]*$
 bool HttpChunkedDecoder::ParseChunkSize(const char* start, int len, int* out) {
-  DCHECK(len >= 0);
+  DCHECK_GE(len, 0);
 
   // Strip trailing spaces
   while (len && start[len - 1] == ' ')

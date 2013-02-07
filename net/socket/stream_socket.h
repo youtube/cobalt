@@ -14,6 +14,7 @@ namespace net {
 
 class AddressList;
 class IPEndPoint;
+class SSLInfo;
 
 class NET_EXPORT_PRIVATE StreamSocket : public Socket {
  public:
@@ -59,7 +60,7 @@ class NET_EXPORT_PRIVATE StreamSocket : public Socket {
   virtual int GetPeerAddress(IPEndPoint* address) const = 0;
 
   // Copies the local address to |address| and returns a network error code.
-  // ERR_SOCKET_NOT_CONNECTED will be returned if the socket is not connected.
+  // ERR_SOCKET_NOT_CONNECTED will be returned if the socket is not bound.
   virtual int GetLocalAddress(IPEndPoint* address) const = 0;
 
   // Gets the NetLog for this socket.
@@ -86,9 +87,16 @@ class NET_EXPORT_PRIVATE StreamSocket : public Socket {
   // Returns the connection setup time of this socket.
   virtual base::TimeDelta GetConnectTimeMicros() const = 0;
 
+  // Returns true if NPN was negotiated during the connection of this socket.
+  virtual bool WasNpnNegotiated() const = 0;
+
   // Returns the protocol negotiated via NPN for this socket, or
   // kProtoUnknown will be returned if NPN is not applicable.
   virtual NextProto GetNegotiatedProtocol() const = 0;
+
+  // Gets the SSL connection information of the socket.  Returns false if
+  // SSL was not used by this socket.
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) = 0;
 
  protected:
   // The following class is only used to gather statistics about the history of

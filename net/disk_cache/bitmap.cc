@@ -36,7 +36,7 @@ int FindLSBNonEmpty(uint32 word, bool value) {
   return FindLSBSetNonZero(word);
 }
 
-}
+}  // namespace
 
 namespace disk_cache {
 
@@ -105,7 +105,7 @@ bool Bitmap::Get(int index) const {
   DCHECK_GE(index, 0);
   const int i = index & (kIntBits-1);
   const int j = index / kIntBits;
-  return map_[j] & (1 << i) ? true : false;
+  return ((map_[j] & (1 << i)) != 0);
 }
 
 void Bitmap::Toggle(int index) {

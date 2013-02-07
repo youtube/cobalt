@@ -180,12 +180,29 @@ base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+bool SOCKSClientSocket::WasNpnNegotiated() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasNpnNegotiated();
+  }
+  NOTREACHED();
+  return false;
+}
+
 NextProto SOCKSClientSocket::GetNegotiatedProtocol() const {
   if (transport_.get() && transport_->socket()) {
     return transport_->socket()->GetNegotiatedProtocol();
   }
   NOTREACHED();
   return kProtoUnknown;
+}
+
+bool SOCKSClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetSSLInfo(ssl_info);
+  }
+  NOTREACHED();
+  return false;
+
 }
 
 // Read is called by the transport layer above to read. This can only be done
@@ -314,7 +331,7 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
   // TODO(eroman): we only ever use the first address in the list. It would be
   //               more robust to try all the IP addresses we have before
   //               failing the connect attempt.
-  CHECK_EQ(AF_INET, endpoint.GetFamily());
+  CHECK_EQ(ADDRESS_FAMILY_IPV4, endpoint.GetFamily());
   CHECK_LE(endpoint.address().size(), sizeof(request.ip));
   memcpy(&request.ip, &endpoint.address()[0], endpoint.address().size());
 

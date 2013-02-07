@@ -242,8 +242,8 @@ void SOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void SOCKSClientSocketPool::Flush() {
-  base_.Flush();
+void SOCKSClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool SOCKSClientSocketPool::IsStalled() const {

@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/entry_impl.h"
 
+#include "base/hash.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
@@ -12,7 +13,6 @@
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/bitmap.h"
 #include "net/disk_cache/cache_util.h"
-#include "net/disk_cache/hash.h"
 #include "net/disk_cache/histogram_macros.h"
 #include "net/disk_cache/net_log_parameters.h"
 #include "net/disk_cache/sparse_control.h"
@@ -40,9 +40,9 @@ class SyncCallback: public disk_cache::FileIOCallback {
     entry->AddRef();
     entry->IncrementIoCount();
   }
-  ~SyncCallback() {}
+  virtual ~SyncCallback() {}
 
-  virtual void OnFileIOComplete(int bytes_copied);
+  virtual void OnFileIOComplete(int bytes_copied) OVERRIDE;
   void Discard();
 
  private:
@@ -451,8 +451,7 @@ bool EntryImpl::IsSameEntry(const std::string& key, uint32 hash) {
       static_cast<size_t>(entry_.Data()->key_len) != key.size())
     return false;
 
-  std::string my_key = GetKey();
-  return key.compare(my_key) ? false : true;
+  return (key.compare(GetKey()) == 0);
 }
 
 void EntryImpl::InternalDoom() {
@@ -616,7 +615,7 @@ bool EntryImpl::DataSanityCheck() {
   if (!key_addr.is_initialized() && stored->key[stored->key_len])
     return false;
 
-  if (stored->hash != Hash(GetKey()))
+  if (stored->hash != base::Hash(GetKey()))
     return false;
 
   for (int i = 0; i < kNumStreams; i++) {

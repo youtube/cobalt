@@ -19,7 +19,9 @@ class URLRequestFileDirJob
   : public URLRequestJob,
     public DirectoryLister::DirectoryListerDelegate {
  public:
-  URLRequestFileDirJob(URLRequest* request, const FilePath& dir_path);
+  URLRequestFileDirJob(URLRequest* request,
+                       NetworkDelegate* network_delegate,
+                       const FilePath& dir_path);
 
   bool list_complete() const { return list_complete_; }
 

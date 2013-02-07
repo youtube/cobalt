@@ -3,9 +3,12 @@
 # found in the LICENSE file.
 
 
+import android_commands
 import logging
 import multiprocessing
 
+from android_commands import errors
+from forwarder import Forwarder
 from test_result import TestResults
 
 
@@ -16,7 +19,11 @@ def _ShardedTestRunnable(test):
     logging.getLogger().handlers[0].setFormatter(logging.Formatter(log_format))
   else:
     logging.basicConfig(format=log_format)
-  return test.Run()
+  # Handle SystemExit here since python has a bug to exit current process
+  try:
+    return test.Run()
+  except SystemExit:
+    return TestResults()
 
 
 def SetTestsContainer(tests_container):
@@ -37,10 +44,13 @@ class BaseTestSharder(object):
   # See more in SetTestsContainer.
   tests_container = None
 
-  def __init__(self, attached_devices):
+  def __init__(self, attached_devices, build_type='Debug'):
     self.attached_devices = attached_devices
-    self.retries = 1
+    # Worst case scenario: a device will drop offline per run, so we need
+    # to retry until we're out of devices.
+    self.retries = len(self.attached_devices)
     self.tests = []
+    self.build_type = build_type
 
   def CreateShardedTestRunner(self, device, index):
     """Factory function to create a suite-specific test runner.
@@ -62,6 +72,9 @@ class BaseTestSharder(object):
     """Notifies that we completed the tests."""
     pass
 
+  def _KillHostForwarder(self):
+    Forwarder.KillHost(self.build_type)
+
   def RunShardedTests(self):
     """Runs the tests in all connected devices.
 
@@ -75,23 +88,48 @@ class BaseTestSharder(object):
     logging.warning('Look for the "Final result" banner in the end.')
     logging.warning('*' * 80)
     final_results = TestResults()
+    self._KillHostForwarder()
     for retry in xrange(self.retries):
       logging.warning('Try %d of %d', retry + 1, self.retries)
       self.SetupSharding(self.tests)
       test_runners = []
-      for index, device in enumerate(self.attached_devices):
-        logging.warning('*' * 80)
-        logging.warning('Creating shard %d for %s', index, device)
-        logging.warning('*' * 80)
-        test_runner = self.CreateShardedTestRunner(device, index)
-        test_runners += [test_runner]
+
+      # Try to create N shards, and retrying on failure.
+      try:
+        for index, device in enumerate(self.attached_devices):
+          logging.warning('*' * 80)
+          logging.warning('Creating shard %d for %s', index, device)
+          logging.warning('*' * 80)
+          test_runner = self.CreateShardedTestRunner(device, index)
+          test_runners += [test_runner]
+      except errors.DeviceUnresponsiveError as e:
+        logging.critical('****Failed to create a shard: [%s]', e)
+        self.attached_devices.remove(device)
+        continue
+
       logging.warning('Starting...')
       pool = multiprocessing.Pool(len(self.attached_devices),
                                   SetTestsContainer,
                                   [BaseTestSharder.tests_container])
-      results_lists = pool.map(_ShardedTestRunnable, test_runners)
+      # map can't handle KeyboardInterrupt exception. It's a python bug.
+      # So use map_async instead.
+      async_results = pool.map_async(_ShardedTestRunnable, test_runners)
+      try:
+        results_lists = async_results.get(999999)
+      except errors.DeviceUnresponsiveError as e:
+        logging.critical('****Failed to run test: [%s]', e)
+        self.attached_devices = android_commands.GetAttachedDevices()
+        continue
       test_results = TestResults.FromTestResults(results_lists)
-      if retry == self.retries - 1:
+      # Re-check the attached devices for some devices may
+      # become offline
+      retry_devices = set(android_commands.GetAttachedDevices())
+      # Remove devices that had exceptions.
+      retry_devices -= TestResults.DeviceExceptions(results_lists)
+      # Retry on devices that didn't have any exception.
+      self.attached_devices = list(retry_devices)
+      if (retry == self.retries - 1 or
+          len(self.attached_devices) == 0):
         all_passed = final_results.ok + test_results.ok
         final_results = test_results
         final_results.ok = all_passed
@@ -103,5 +141,10 @@ class BaseTestSharder(object):
           self.tests += [t.name]
         if not self.tests:
           break
+    else:
+      # We ran out retries, possibly out of healthy devices.
+      # There's no recovery at this point.
+      raise Exception('Unrecoverable error while retrying test runs.')
     self.OnTestsCompleted(test_runners, final_results)
+    self._KillHostForwarder()
     return final_results

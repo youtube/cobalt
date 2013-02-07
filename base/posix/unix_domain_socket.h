@@ -15,6 +15,9 @@ class Pickle;
 
 class BASE_EXPORT UnixDomainSocket {
  public:
+  // Maximum number of file descriptors that can be read by RecvMsg().
+  static const size_t kMaxFileDescriptors;
+
   // Use sendmsg to write the given msg and include a vector of file
   // descriptors. Returns true if successful.
   static bool SendMsg(int fd,
@@ -23,7 +26,7 @@ class BASE_EXPORT UnixDomainSocket {
                       const std::vector<int>& fds);
 
   // Use recvmsg to read a message and an array of file descriptors. Returns
-  // -1 on failure. Note: will read, at most, 16 descriptors.
+  // -1 on failure. Note: will read, at most, |kMaxFileDescriptors| descriptors.
   static ssize_t RecvMsg(int fd,
                          void* msg,
                          size_t length,

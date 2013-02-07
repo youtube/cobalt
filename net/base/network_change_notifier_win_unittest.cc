@@ -89,7 +89,7 @@ class NetworkChangeNotifierWinTest : public testing::Test {
 
     // If a task to notify observers of the IP address change event was
     // incorrectly posted, make sure it gets run to trigger a failure.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Calls WatchForAddressChange, and simulates a WatchForAddressChangeInternal
@@ -112,7 +112,7 @@ class NetworkChangeNotifierWinTest : public testing::Test {
 
     // If a task to notify observers of the IP address change event was
     // incorrectly posted, make sure it gets run.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Simulates a network change event, resulting in a call to OnObjectSignaled.
@@ -132,7 +132,7 @@ class NetworkChangeNotifierWinTest : public testing::Test {
     EXPECT_EQ(0, network_change_notifier_.sequential_failures());
 
     // Run the task to notify observers of the IP address change event.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Simulates a network change event, resulting in a call to OnObjectSignaled.
@@ -154,7 +154,7 @@ class NetworkChangeNotifierWinTest : public testing::Test {
     EXPECT_LT(0, network_change_notifier_.sequential_failures());
 
     // Run the task to notify observers of the IP address change event.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Runs the message loop until WatchForAddressChange is called again, as a
@@ -204,7 +204,7 @@ class NetworkChangeNotifierWinTest : public testing::Test {
 
     // If a task to notify observers of the IP address change event was
     // incorrectly posted, make sure it gets run.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
  private:

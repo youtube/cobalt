@@ -32,6 +32,16 @@ enum {
   DIR_COMMON_APP_DATA,    // W2K, XP, W2K3: "C:\Documents and Settings\
                           // All Users\Application Data".
                           // Vista, W2K8 and above: "C:\ProgramData".
+  DIR_APP_SHORTCUTS,      // Where tiles on the start screen are stored, only
+                          // for Windows 8. Maps to "Local\AppData\Microsoft\
+                          // Windows\Application Shortcuts\".
+  DIR_COMMON_DESKTOP,     // Directory for the common desktop (visible
+                          // on all user's Desktop).
+  DIR_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts.
+  DIR_DEFAULT_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts
+                                  // of the Default user.
+  DIR_TASKBAR_PINS,       // Directory for the shortcuts pinned to taskbar via
+                          // base::win::TaskbarPinShortcutLink().
 
   PATH_WIN_END
 };

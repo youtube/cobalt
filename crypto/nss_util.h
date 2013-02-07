@@ -36,6 +36,17 @@ CRYPTO_EXPORT void EarlySetupForNSSInit();
 // thread-safe, and NSPR will only ever be initialized once.
 CRYPTO_EXPORT void EnsureNSPRInit();
 
+// Initialize NSS safely for strict sandboxing.  This function tells NSS to not
+// load user security modules, and makes sure NSS will have proper entropy in a
+// restricted, sandboxed environment.
+//
+// As a defense in depth measure, this function should be called in a sandboxed
+// environment.  That way, in the event of a bug, NSS will still not be able to
+// load security modules that could expose private data and keys.
+//
+// Make sure to get an LGTM from the Chrome Security Team if you use this.
+CRYPTO_EXPORT void InitNSSSafely();
+
 // Initialize NSS if it isn't already initialized.  This must be called before
 // any other NSS functions.  This function is thread-safe, and NSS will only
 // ever be initialized once.
@@ -58,7 +69,7 @@ CRYPTO_EXPORT void EnsureNSSInit();
 // WARNING: Use this with caution.
 CRYPTO_EXPORT void ForceNSSNoDBInit();
 
-// This methods is used to disable checks in NSS when used in a forked process.
+// This method is used to disable checks in NSS when used in a forked process.
 // NSS checks whether it is running a forked process to avoid problems when
 // using user security modules in a forked process.  However if we are sure
 // there are no modules loaded before the process is forked then there is no
@@ -128,11 +139,21 @@ CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
 
 #if defined(USE_NSS)
 // Exposed for unittests only.
-// TODO(mattm): when https://bugzilla.mozilla.org/show_bug.cgi?id=588269 is
-// fixed, switch back to using a separate userdb for each test.  (Maybe refactor
-// to provide a ScopedTestNSSDB instead of open/close methods.)
-CRYPTO_EXPORT bool OpenTestNSSDB();
-// NOTE: due to NSS bug 588269, mentioned above, there is no CloseTestNSSDB.
+// TODO(mattm): When NSS 3.14 is the minimum version required,
+// switch back to using a separate user DB for each test.
+// Because of https://bugzilla.mozilla.org/show_bug.cgi?id=588269 , the
+// opened user DB is not automatically closed.
+class CRYPTO_EXPORT_PRIVATE ScopedTestNSSDB {
+ public:
+  ScopedTestNSSDB();
+  ~ScopedTestNSSDB();
+
+  bool is_open() { return is_open_; }
+
+ private:
+  bool is_open_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedTestNSSDB);
+};
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair
