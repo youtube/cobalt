@@ -23,7 +23,7 @@
 #include "net/test/test_server.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "net/url_request/url_request_file_job.h"
-#include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_job_factory_impl.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -49,19 +49,21 @@ struct FetchResult {
 class CheckNoRevocationFlagSetInterceptor :
     public URLRequestJobFactory::Interceptor {
  public:
-  virtual URLRequestJob* MaybeIntercept(URLRequest* request) const OVERRIDE {
+  virtual URLRequestJob* MaybeIntercept(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     EXPECT_TRUE(request->load_flags() & LOAD_DISABLE_CERT_REVOCATION_CHECKING);
     return NULL;
   }
 
-  virtual URLRequestJob* MaybeInterceptRedirect(const GURL& location,
-                                                URLRequest* request)
-      const OVERRIDE {
+  virtual URLRequestJob* MaybeInterceptRedirect(
+      const GURL& location,
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 
-  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request)
-      const OVERRIDE{
+  virtual URLRequestJob* MaybeInterceptResponse(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 };
@@ -71,7 +73,7 @@ class RequestContext : public URLRequestContext {
  public:
   RequestContext() : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
     ProxyConfig no_proxy;
-    storage_.set_host_resolver(new MockHostResolver);
+    storage_.set_host_resolver(scoped_ptr<HostResolver>(new MockHostResolver));
     storage_.set_cert_verifier(new MockCertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
     storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
@@ -88,10 +90,10 @@ class RequestContext : public URLRequestContext {
     storage_.set_http_transaction_factory(new HttpCache(
         network_session,
         HttpCache::DefaultBackend::InMemory(0)));
-    url_request_job_factory_.reset(new URLRequestJobFactory);
+    scoped_ptr<URLRequestJobFactoryImpl> factory(new URLRequestJobFactoryImpl);
+    factory->AddInterceptor(new CheckNoRevocationFlagSetInterceptor);
+    url_request_job_factory_ = factory.Pass();
     set_job_factory(url_request_job_factory_.get());
-    url_request_job_factory_->AddInterceptor(
-        new CheckNoRevocationFlagSetInterceptor);
   }
 
   virtual ~RequestContext() {
@@ -139,7 +141,7 @@ class BasicNetworkDelegate : public NetworkDelegate {
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers)
       OVERRIDE {
     return OK;
@@ -191,6 +193,10 @@ class BasicNetworkDelegate : public NetworkDelegate {
       SocketStream* stream,
       const CompletionCallback& callback) OVERRIDE {
     return OK;
+  }
+
+  virtual void OnRequestWaitStateChange(const net::URLRequest& request,
+                                        RequestWaitState state) OVERRIDE {
   }
 
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
@@ -313,6 +319,7 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   EXPECT_EQ(ASCIIToUTF16("-downloadable.pac-\n"), text);
 }
 
+// Verifies that PAC scripts are not being cached.
 TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
@@ -329,18 +336,27 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
     EXPECT_EQ(ASCIIToUTF16("-cacheable_1hr.pac-\n"), text);
   }
 
-  // Now kill the HTTP server.
+  // Kill the HTTP server.
   ASSERT_TRUE(test_server_.Stop());
 
-  // Try to fetch the file again -- if should fail, since the server is not
-  // running anymore. (If it were instead being loaded from cache, we would
-  // get a success.
+  // Try to fetch the file again. Since the server is not running anymore, the
+  // call should fail, thus indicating that the file was not fetched from the
+  // local cache.
   {
     string16 text;
     TestCompletionCallback callback;
     int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
+
+#if defined(OS_ANDROID)
+    // On Android platform, the tests are run on the device while the server
+    // runs on the host machine. After killing the server, port forwarder
+    // running on the device is still active, which produces error message
+    // "Connection reset by peer" rather than "Connection refused".
+    EXPECT_EQ(ERR_CONNECTION_RESET, callback.WaitForResult());
+#else
     EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
+#endif
   }
 }
 

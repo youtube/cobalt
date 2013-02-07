@@ -11,6 +11,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/stl_util.h"
 
 namespace base {
 namespace win {
@@ -131,9 +132,6 @@ class BASE_EXPORT RegKey {
 };
 
 // Iterates the entries found in a particular folder on the registry.
-// For this application I happen to know I wont need data size larger
-// than MAX_PATH, but in real life this wouldn't neccessarily be
-// adequate.
 class BASE_EXPORT RegistryValueIterator {
  public:
   RegistryValueIterator(HKEY root_key, const wchar_t* folder_key);
@@ -148,8 +146,9 @@ class BASE_EXPORT RegistryValueIterator {
   // Advances to the next registry entry.
   void operator++();
 
-  const wchar_t* Name() const { return name_; }
-  const wchar_t* Value() const { return value_; }
+  const wchar_t* Name() const { return name_.c_str(); }
+  const wchar_t* Value() const { return vector_as_array(&value_); }
+  // ValueSize() is in bytes.
   DWORD ValueSize() const { return value_size_; }
   DWORD Type() const { return type_; }
 
@@ -166,8 +165,8 @@ class BASE_EXPORT RegistryValueIterator {
   int index_;
 
   // Current values.
-  wchar_t name_[MAX_PATH];
-  wchar_t value_[MAX_PATH];
+  std::wstring name_;
+  std::vector<wchar_t> value_;
   DWORD value_size_;
   DWORD type_;
 

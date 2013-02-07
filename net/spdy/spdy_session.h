@@ -19,13 +19,14 @@
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
+#include "net/base/ssl_client_cert_type.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 #include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_credential_state.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -76,7 +77,7 @@ enum SpdyProtocolErrorDetails {
   PROTOCOL_ERROR_UNEXPECTED_PING,
   PROTOCOL_ERROR_RST_STREAM_FOR_NON_ACTIVE_STREAM,
   PROTOCOL_ERROR_SPDY_COMPRESSION_FAILURE,
-  PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION,
+  PROTOCOL_ERROR_REQUEST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION,
   PROTOCOL_ERROR_SYN_REPLY_NOT_RECEIVED,
   NUM_SPDY_PROTOCOL_ERROR_DETAILS
 };
@@ -93,6 +94,34 @@ COMPILE_ASSERT(PROTOCOL_ERROR_UNEXPECTED_PING ==
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                public BufferedSpdyFramerVisitorInterface {
  public:
+  typedef base::TimeTicks (*TimeFunc)(void);
+
+  // Defines an interface for producing SpdyIOBuffers.
+  class NET_EXPORT_PRIVATE SpdyIOBufferProducer {
+   public:
+    SpdyIOBufferProducer() {}
+
+    // Returns a newly created SpdyIOBuffer, owned by the caller, or NULL
+    // if not buffer is ready to be produced.
+    virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) = 0;
+
+    virtual RequestPriority GetPriority() const = 0;
+
+    virtual ~SpdyIOBufferProducer() {}
+
+   protected:
+    // Activates |spdy_stream| in |spdy_session|.
+    static void ActivateStream(SpdySession* spdy_session,
+                               SpdyStream* spdy_stream);
+
+    static SpdyIOBuffer* CreateIOBuffer(SpdyFrame* frame,
+                                        RequestPriority priority,
+                                        SpdyStream* spdy_stream);
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(SpdyIOBufferProducer);
+  };
+
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
   // the proxy configuration settings that it's using.
@@ -105,6 +134,14 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
               HttpServerProperties* http_server_properties,
               bool verify_domain_authentication,
               bool enable_sending_initial_settings,
+              bool enable_credential_frames,
+              bool enable_compression,
+              bool enable_ping_based_connection_checking,
+              NextProto default_protocol_,
+              size_t initial_recv_window_size,
+              size_t initial_max_concurrent_streams,
+              size_t max_concurrent_streams_limit,
+              TimeFunc time_func,
               const HostPortPair& trusted_spdy_proxy,
               NetLog* net_log);
 
@@ -157,9 +194,14 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // authentication now.
   bool VerifyDomainAuthentication(const std::string& domain);
 
+  // Records that |stream| has a write available from |producer|.
+  // |producer| will be owned by this SpdySession.
+  void SetStreamHasWriteAvailable(SpdyStream* stream,
+                                  SpdyIOBufferProducer* producer);
+
   // Send the SYN frame for |stream_id|. This also sends PING message to check
   // the status of the connection.
-  int WriteSynStream(
+  SpdySynStreamControlFrame* CreateSynStream(
       SpdyStreamId stream_id,
       RequestPriority priority,
       uint8 credential_slot,
@@ -167,20 +209,28 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       const SpdyHeaderBlock& headers);
 
   // Write a CREDENTIAL frame to the session.
-  int WriteCredentialFrame(const std::string& origin,
-                           SSLClientCertType type,
-                           const std::string& key,
-                           const std::string& cert,
-                           RequestPriority priority);
+  SpdyCredentialControlFrame* CreateCredentialFrame(const std::string& origin,
+                                                    SSLClientCertType type,
+                                                    const std::string& key,
+                                                    const std::string& cert,
+                                                    RequestPriority priority);
+
+  // Write a HEADERS frame to the stream.
+  SpdyHeadersControlFrame* CreateHeadersFrame(SpdyStreamId stream_id,
+                                              const SpdyHeaderBlock& headers,
+                                              SpdyControlFlags flags);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
-  int WriteStreamData(SpdyStreamId stream_id, net::IOBuffer* data,
-                      int len,
-                      SpdyDataFlags flags);
+  SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id,
+                                 net::IOBuffer* data, int len,
+                                 SpdyDataFlags flags);
 
   // Close a stream.
   void CloseStream(SpdyStreamId stream_id, int status);
+
+  // Close a stream that has been created but is not yet active.
+  void CloseCreatedStream(SpdyStream* stream, int status);
 
   // Reset a stream by sending a RST_STREAM frame with given status code.
   // Also closes the stream.  Was not piggybacked to CloseStream since not
@@ -208,27 +258,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Returns the ServerBoundCertService used by this Socket, or NULL
   // if server bound certs are not supported in this session.
   ServerBoundCertService* GetServerBoundCertService() const;
-
-  // Reset all static settings to initialized values. Used to init test suite.
-  static void ResetStaticSettingsToInit();
-
-  // Specify the SPDY protocol to be used for SPDY session which do not use NPN
-  // to negotiate a particular protocol.
-  static void set_default_protocol(NextProto default_protocol);
-
-  // Sets the max concurrent streams per session, as a ceiling on any server
-  // specific SETTINGS value.
-  static void set_max_concurrent_streams(size_t value);
-
-  // Enable sending of PING frame with each request.
-  static void set_enable_ping_based_connection_checking(bool enable);
-
-  // The initial max concurrent streams per session, can be overridden by the
-  // server via SETTINGS.
-  static void set_init_max_concurrent_streams(size_t value);
-
-  // Sets the initial receive window size for newly created sessions.
-  static void set_default_initial_recv_window_size(size_t value);
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
@@ -268,7 +297,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Returns true if session is not currently active
   bool is_active() const {
-    return !active_streams_.empty();
+    return !active_streams_.empty() || !created_streams_.empty();
   }
 
   // Access to the number of active and pending streams.  These are primarily
@@ -276,6 +305,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   size_t num_active_streams() const { return active_streams_.size(); }
   size_t num_unclaimed_pushed_streams() const {
       return unclaimed_pushed_streams_.size();
+  }
+  size_t num_created_streams() const { return created_streams_.size(); }
+
+  size_t pending_create_stream_queues(int priority) {
+    DCHECK_LT(priority, NUM_PRIORITIES);
+    return pending_create_stream_queues_[priority].size();
   }
 
   // Returns true if flow control is enabled for the session.
@@ -320,11 +355,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   friend class base::RefCounted<SpdySession>;
 
   // Allow tests to access our innards for testing purposes.
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, ClientPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, GetActivePushStream);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, DeleteExpiredPushStreams);
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, ClientPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, GetActivePushStream);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, DeleteExpiredPushStreams);
@@ -333,13 +368,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        const CompletionCallback& callback)
-        : url(&url),
-          priority(priority),
-          spdy_stream(spdy_stream),
-          stream_net_log(&stream_net_log),
-          callback(callback) {
-    }
+                        const CompletionCallback& callback);
 
     ~PendingCreateStream();
 
@@ -356,9 +385,21 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       std::pair<scoped_refptr<SpdyStream>, base::TimeTicks> > PushedStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
+  typedef std::set<scoped_refptr<SpdyStream> > CreatedStreamSet;
+  typedef std::map<SpdyIOBufferProducer*, SpdyStream*> StreamProducerMap;
+  class SpdyIOBufferProducerCompare {
+   public:
+    bool operator() (const SpdyIOBufferProducer* lhs,
+                     const SpdyIOBufferProducer* rhs) const {
+      return lhs->GetPriority() < rhs->GetPriority();
+    }
+  };
+  typedef std::priority_queue<SpdyIOBufferProducer*,
+                              std::vector<SpdyIOBufferProducer*>,
+                              SpdyIOBufferProducerCompare> WriteQueue;
+
   struct CallbackResultPair {
-    CallbackResultPair(const CompletionCallback& callback_in, int result_in)
-        : callback(callback_in), result(result_in) {}
+    CallbackResultPair(const CompletionCallback& callback_in, int result_in);
     ~CallbackResultPair();
 
     CompletionCallback callback;
@@ -374,8 +415,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     CONNECTED,
     CLOSED
   };
-
-  typedef base::TimeTicks (*TimeFunc)(void);
 
   virtual ~SpdySession();
 
@@ -434,9 +473,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Queue a frame for sending.
   // |frame| is the frame to send.
   // |priority| is the priority for insertion into the queue.
-  // |stream| is the stream which this IO is associated with (or NULL).
-  void QueueFrame(SpdyFrame* frame, RequestPriority priority,
-                  SpdyStream* stream);
+  void QueueFrame(SpdyFrame* frame, RequestPriority priority);
 
   // Track active streams in the active stream list.
   void ActivateStream(SpdyStream* stream);
@@ -461,6 +498,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Closes all streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error status);
+
+  void LogAbandonedStream(const scoped_refptr<SpdyStream>& stream,
+                          net::Error status);
 
   // Invokes a user callback for stream creation.  We provide this method so it
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
@@ -508,8 +548,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // --------------------------
   // Helper methods for testing
   // --------------------------
-
-  static TimeFunc set_time_func(TimeFunc new_time_func);
 
   void set_connection_at_risk_of_loss_time(base::TimeDelta duration) {
     connection_at_risk_of_loss_time_ = duration;
@@ -565,7 +603,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Queue, for each priority, of pending Create Streams that have not
   // yet been satisfied
-  PendingCreateStreamQueue create_stream_queues_[NUM_PRIORITIES];
+  PendingCreateStreamQueue pending_create_stream_queues_[NUM_PRIORITIES];
 
   // Map from stream id to all active streams.  Streams are active in the sense
   // that they have a consumer (typically SpdyNetworkTransaction and regardless
@@ -580,8 +618,16 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // server, but do not have consumers yet.
   PushedStreamMap unclaimed_pushed_streams_;
 
-  // As we gather data to be sent, we put it into the output queue.
-  OutputQueue queue_;
+  // Set of all created streams but that have not yet sent any frames.
+  CreatedStreamSet created_streams_;
+
+  // As streams have data to be sent, we put them into the write queue.
+  WriteQueue write_queue_;
+
+  // Mapping from SpdyIOBufferProducers to their corresponding SpdyStream
+  // so that when a stream is destroyed, we can remove the corresponding
+  // producer from |write_queue_|.
+  StreamProducerMap stream_producers_;
 
   // The packet we are currently sending.
   bool write_pending_;            // Will be true when a write is in progress.
@@ -607,6 +653,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Limits
   size_t max_concurrent_streams_;  // 0 if no limit
+  size_t max_concurrent_streams_limit_;
 
   // Some statistics counters for the session.
   int streams_initiated_count_;
@@ -658,6 +705,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Outside of tests, these should always be true.
   bool verify_domain_authentication_;
   bool enable_sending_initial_settings_;
+  bool enable_credential_frames_;
+  bool enable_compression_;
+  bool enable_ping_based_connection_checking_;
+  NextProto default_protocol_;
 
   SpdyCredentialState credential_state_;
 
@@ -686,6 +737,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // This SPDY proxy is allowed to push resources from origins that are
   // different from those of their associated streams.
   HostPortPair trusted_spdy_proxy_;
+
+  TimeFunc time_func_;
 };
 
 }  // namespace net

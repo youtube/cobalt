@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -16,29 +16,15 @@
 extern "C" {
 #endif
 
-#include "../webp/decode_vp8.h"
+#include "../utils/rescaler.h"
+#include "./decode_vp8.h"
 
 //------------------------------------------------------------------------------
 // WebPDecParams: Decoding output parameters. Transient internal object.
 
 typedef struct WebPDecParams WebPDecParams;
 typedef int (*OutputFunc)(const VP8Io* const io, WebPDecParams* const p);
-
-// Structure use for on-the-fly rescaling
-typedef struct {
-  int x_expand;               // true if we're expanding in the x direction
-  int fy_scale, fx_scale;     // fixed-point scaling factor
-  int64_t fxy_scale;          // ''
-  // we need hpel-precise add/sub increments, for the downsampled U/V planes.
-  int y_accum;                // vertical accumulator
-  int y_add, y_sub;           // vertical increments (add ~= src, sub ~= dst)
-  int x_add, x_sub;           // horizontal increments (add ~= src, sub ~= dst)
-  int src_width, src_height;  // source dimensions
-  int dst_width, dst_height;  // destination dimensions
-  uint8_t* dst;
-  int dst_stride;
-  int32_t* irow, *frow;       // work buffer
-} WebPRescaler;
+typedef int (*OutputRowFunc)(WebPDecParams* const p, int y_pos);
 
 struct WebPDecParams {
   WebPDecBuffer* output;             // output buffer.
@@ -49,9 +35,11 @@ struct WebPDecParams {
   const WebPDecoderOptions* options;  // if not NULL, use alt decoding features
   // rescalers
   WebPRescaler scaler_y, scaler_u, scaler_v, scaler_a;
-  void* memory;               // overall scratch memory for the output work.
-  OutputFunc emit;            // output RGB or YUV samples
-  OutputFunc emit_alpha;      // output alpha channel
+  void* memory;                  // overall scratch memory for the output work.
+
+  OutputFunc emit;               // output RGB or YUV samples
+  OutputFunc emit_alpha;         // output alpha channel
+  OutputRowFunc emit_alpha_row;  // output one line of rescaled alpha values
 };
 
 // Should be called first, before any use of the WebPDecParams object.
@@ -60,69 +48,25 @@ void WebPResetDecParams(WebPDecParams* const params);
 //------------------------------------------------------------------------------
 // Header parsing helpers
 
-#define TAG_SIZE 4
-#define CHUNK_HEADER_SIZE 8
-#define RIFF_HEADER_SIZE 12
-#define FRAME_CHUNK_SIZE 20
-#define LOOP_CHUNK_SIZE 4
-#define TILE_CHUNK_SIZE 8
-#define VP8X_CHUNK_SIZE 12
-#define VP8_FRAME_HEADER_SIZE 10  // Size of the frame header within VP8 data.
+// Structure storing a description of the RIFF headers.
+typedef struct {
+  const uint8_t* data;         // input buffer
+  size_t data_size;            // input buffer size
+  size_t offset;               // offset to main data chunk (VP8 or VP8L)
+  const uint8_t* alpha_data;   // points to alpha chunk (if present)
+  size_t alpha_data_size;      // alpha chunk size
+  size_t compressed_size;      // VP8/VP8L compressed data size
+  size_t riff_size;            // size of the riff payload (or 0 if absent)
+  int is_lossless;             // true if a VP8L chunk is present
+} WebPHeaderStructure;
 
-// Validates the RIFF container (if detected) and skips over it.
-// If a RIFF container is detected,
-// Returns VP8_STATUS_BITSTREAM_ERROR for invalid header, and
-//         VP8_STATUS_OK otherwise.
-// In case there are not enough bytes (partial RIFF container), return 0 for
-// riff_size. Else return the riff_size extracted from the header.
-VP8StatusCode WebPParseRIFF(const uint8_t** data, uint32_t* data_size,
-                            uint32_t* riff_size);
-
-// Validates the VP8X Header and skips over it.
-// Returns VP8_STATUS_BITSTREAM_ERROR for invalid VP8X header,
-//         VP8_STATUS_NOT_ENOUGH_DATA in case of insufficient data, and
-//         VP8_STATUS_OK otherwise.
-// If a VP8 chunk is found, bytes_skipped is set to the total number of bytes
-// that are skipped; also Width, Height & Flags are set to the corresponding
-// fields extracted from the VP8X chunk.
-VP8StatusCode WebPParseVP8X(const uint8_t** data, uint32_t* data_size,
-                            uint32_t* bytes_skipped,
-                            int* width, int* height, uint32_t* flags);
-
-// Skips to the next VP8 chunk header in the data given the size of the RIFF
-// chunk 'riff_size'.
-// Returns VP8_STATUS_BITSTREAM_ERROR if any invalid chunk size is encountered,
-//         VP8_STATUS_NOT_ENOUGH_DATA in case of insufficient data, and
-//         VP8_STATUS_OK otherwise.
-// If a VP8 chunk is found, bytes_skipped is set to the total number of bytes
-// that are skipped.
-VP8StatusCode WebPParseOptionalChunks(const uint8_t** data, uint32_t* data_size,
-                                      uint32_t riff_size,
-                                      uint32_t* bytes_skipped);
-
-// Validates the VP8 Header ("VP8 nnnn") and skips over it.
-// Returns VP8_STATUS_BITSTREAM_ERROR for invalid (vp8_chunk_size greater than
-//         riff_size) VP8 header,
-//         VP8_STATUS_NOT_ENOUGH_DATA in case of insufficient data, and
-//         VP8_STATUS_OK otherwise.
-// If a VP8 chunk is found, bytes_skipped is set to the total number of bytes
-// that are skipped and vp8_chunk_size is set to the corresponding size
-// extracted from the VP8 chunk header.
-// For a partial VP8 chunk, vp8_chunk_size is set to 0.
-VP8StatusCode WebPParseVP8Header(const uint8_t** data, uint32_t* data_size,
-                                 uint32_t riff_size, uint32_t* bytes_skipped,
-                                 uint32_t* vp8_chunk_size);
-
-// Skips over all valid chunks prior to the first VP8 frame header.
+// Skips over all valid chunks prior to the first VP8/VP8L frame header.
 // Returns VP8_STATUS_OK on success,
 //         VP8_STATUS_BITSTREAM_ERROR if an invalid header/chunk is found, and
 //         VP8_STATUS_NOT_ENOUGH_DATA if case of insufficient data.
-// Also, data, data_size, vp8_size & bytes_skipped are updated appropriately
-// on success, where
-// vp8_size is the size of VP8 chunk data (extracted from VP8 chunk header) and
-// bytes_skipped is set to the total number of bytes that are skipped.
-VP8StatusCode WebPParseHeaders(const uint8_t** data, uint32_t* data_size,
-                               uint32_t* vp8_size, uint32_t* bytes_skipped);
+// In 'headers', compressed_size, offset, alpha_data, alpha_size and lossless
+// fields are updated appropriately upon success.
+VP8StatusCode WebPParseHeaders(WebPHeaderStructure* const headers);
 
 //------------------------------------------------------------------------------
 // Misc utils
@@ -130,6 +74,11 @@ VP8StatusCode WebPParseHeaders(const uint8_t** data, uint32_t* data_size,
 // Initializes VP8Io with custom setup, io and teardown functions. The default
 // hooks will use the supplied 'params' as io->opaque handle.
 void WebPInitCustomIo(WebPDecParams* const params, VP8Io* const io);
+
+// Setup crop_xxx fields, mb_w and mb_h in io. 'src_colorspace' refers
+// to the *compressed* format, not the output one.
+int WebPIoInitFromOptions(const WebPDecoderOptions* const options,
+                          VP8Io* const io, WEBP_CSP_MODE src_colorspace);
 
 //------------------------------------------------------------------------------
 // Internal functions regarding WebPDecBuffer memory (in buffer.c).
@@ -153,6 +102,8 @@ void WebPCopyDecBuffer(const WebPDecBuffer* const src,
 
 // Copy and transfer ownership from src to dst (beware of parameter order!)
 void WebPGrabDecBuffer(WebPDecBuffer* const src, WebPDecBuffer* const dst);
+
+
 
 //------------------------------------------------------------------------------
 

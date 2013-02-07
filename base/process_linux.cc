@@ -26,14 +26,14 @@ const int kForegroundPriority = 0;
 // the foregrounding / backgrounding process so we don't have to keep
 // chrome / chromeos specific logic here.
 const int kBackgroundPriority = 19;
-const char kControlPath[] = "/tmp/cgroup/cpu%s/cgroup.procs";
+const char kControlPath[] = "/sys/fs/cgroup/cpu%s/cgroup.procs";
 const char kForeground[] = "/chrome_renderers/foreground";
 const char kBackground[] = "/chrome_renderers/background";
 const char kProcPath[] = "/proc/%d/cgroup";
 
 struct CGroups {
   // Check for cgroups files. ChromeOS supports these by default. It creates
-  // a cgroup mount in /tmp/cgroup and then configures two cpu task groups,
+  // a cgroup mount in /sys/fs/cgroup and then configures two cpu task groups,
   // one contains at most a single foreground renderer and the other contains
   // all background renderers. This allows us to limit the impact of background
   // renderers on foreground ones to a greater level than simple renicing.

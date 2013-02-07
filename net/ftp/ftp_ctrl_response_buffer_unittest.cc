@@ -12,6 +12,10 @@
 namespace {
 
 class FtpCtrlResponseBufferTest : public testing::Test {
+ public:
+  FtpCtrlResponseBufferTest() : buffer_(net::BoundNetLog()) {
+  }
+
  protected:
   int PushDataToBuffer(const char* data) {
     return buffer_.ConsumeData(data, strlen(data));

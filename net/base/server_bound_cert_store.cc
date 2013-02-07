@@ -26,4 +26,12 @@ ServerBoundCertStore::ServerBoundCert::ServerBoundCert(
 
 ServerBoundCertStore::ServerBoundCert::~ServerBoundCert() {}
 
+void ServerBoundCertStore::InitializeFrom(const ServerBoundCertList& list) {
+  for (ServerBoundCertList::const_iterator i = list.begin(); i != list.end();
+      ++i) {
+    SetServerBoundCert(i->server_identifier(), i->type(), i->creation_time(),
+                       i->expiration_time(), i->private_key(), i->cert());
+  }
+}
+
 }  // namespace net

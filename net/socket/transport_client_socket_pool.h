@@ -164,7 +164,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
                              int id) OVERRIDE;
-  virtual void Flush() OVERRIDE;
+  virtual void FlushWithError(int error) OVERRIDE;
   virtual bool IsStalled() const OVERRIDE;
   virtual void CloseIdleSockets() OVERRIDE;
   virtual int IdleSocketCount() const OVERRIDE;

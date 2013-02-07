@@ -41,7 +41,7 @@ float GetDecibel(float value) {
 
 }  // namespace
 
-namespace speech {
+namespace content {
 
 // Stores threshold-crossing histories for making decisions about the speech
 // state.
@@ -373,4 +373,4 @@ EpStatus EnergyEndpointer::Status(int64* status_time)  const {
   return status_;
 }
 
-}  // namespace speech
+}  // namespace content

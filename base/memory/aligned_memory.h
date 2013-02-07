@@ -18,13 +18,31 @@
 //
 //   // ... later, to destruct my_class:
 //   my_class.data_as<MyClass>()->MyClass::~MyClass();
+//
+// Alternatively, a runtime sized aligned allocation can be created:
+//
+//   float* my_array = static_cast<float*>(AlignedAlloc(size, alignment));
+//
+//   // ... later, to release the memory:
+//   AlignedFree(my_array);
+//
+// Or using scoped_ptr_malloc:
+//
+//   scoped_ptr_malloc<float, ScopedPtrAlignedFree> my_array(
+//       static_cast<float*>(AlignedAlloc(size, alignment)));
 
 #ifndef BASE_MEMORY_ALIGNED_MEMORY_H_
 #define BASE_MEMORY_ALIGNED_MEMORY_H_
 
+#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/logging.h"
+
+#if defined(COMPILER_MSVC)
+#include <malloc.h>
+#else
+#include <stdlib.h>
+#endif
 
 namespace base {
 
@@ -38,15 +56,15 @@ struct AlignedMemory {};
     class AlignedMemory<Size, byte_alignment> { \
      public: \
       ALIGNAS(byte_alignment) uint8 data_[Size]; \
-      void* void_data() { return reinterpret_cast<void*>(data_); } \
+      void* void_data() { return static_cast<void*>(data_); } \
       const void* void_data() const { \
-        return reinterpret_cast<const void*>(data_); \
+        return static_cast<const void*>(data_); \
       } \
       template<typename Type> \
-      Type* data_as() { return reinterpret_cast<Type*>(void_data()); } \
+      Type* data_as() { return static_cast<Type*>(void_data()); } \
       template<typename Type> \
       const Type* data_as() const { \
-        return reinterpret_cast<const Type*>(void_data()); \
+        return static_cast<const Type*>(void_data()); \
       } \
      private: \
       void* operator new(size_t); \
@@ -71,6 +89,26 @@ BASE_DECL_ALIGNED_MEMORY(1024);
 BASE_DECL_ALIGNED_MEMORY(2048);
 BASE_DECL_ALIGNED_MEMORY(4096);
 
-}  // base
+#undef BASE_DECL_ALIGNED_MEMORY
+
+BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
+
+inline void AlignedFree(void* ptr) {
+#if defined(COMPILER_MSVC)
+  _aligned_free(ptr);
+#else
+  free(ptr);
+#endif
+}
+
+// Helper class for use with scoped_ptr_malloc.
+class BASE_EXPORT ScopedPtrAlignedFree {
+ public:
+  inline void operator()(void* ptr) const {
+    AlignedFree(ptr);
+  }
+};
+
+}  // namespace base
 
 #endif  // BASE_MEMORY_ALIGNED_MEMORY_H_

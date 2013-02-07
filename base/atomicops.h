@@ -128,16 +128,19 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 }  // namespace base
 
 // Include our platform specific implementation.
-#if defined(OS_WIN) && defined(COMPILER_MSVC) && defined(ARCH_CPU_X86_FAMILY)
+#if defined(THREAD_SANITIZER)
+#include "base/atomicops_internals_tsan.h"
+#elif defined(OS_WIN) && defined(COMPILER_MSVC) && defined(ARCH_CPU_X86_FAMILY)
 #include "base/atomicops_internals_x86_msvc.h"
 #elif defined(OS_MACOSX)
 #include "base/atomicops_internals_mac.h"
 #elif defined(__LB_SHELL__)
 #include "chromium/base/atomicops_internals_shell.h"  // from the platform lib
+#elif (defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)) || \
+       defined(OS_NACL)
+#include "base/atomicops_internals_gcc.h"
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_X86_FAMILY)
 #include "base/atomicops_internals_x86_gcc.h"
-#elif defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)
-#include "base/atomicops_internals_arm_gcc.h"
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_MIPS_FAMILY)
 #include "base/atomicops_internals_mips_gcc.h"
 #else

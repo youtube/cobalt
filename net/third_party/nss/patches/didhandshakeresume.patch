@@ -1,7 +1,7 @@
-diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
---- a/src/net/third_party/nss/ssl/ssl.h	2012-02-28 20:34:50.114663722 -0800
-+++ b/src/net/third_party/nss/ssl/ssl.h	2012-02-29 14:37:56.872332622 -0800
-@@ -818,6 +818,9 @@ SSL_IMPORT SECStatus SSL_HandshakeNegoti
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:44:22.247069358 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:43:25.766243027 -0800
+@@ -917,6 +917,9 @@ SSL_IMPORT SECStatus SSL_HandshakeNegoti
                                                        SSLExtensionType extId,
                                                        PRBool *yes);
  
@@ -9,12 +9,12 @@ diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
 +                                                 PRBool *last_handshake_resumed);
 +
  /*
-  * Return a boolean that indicates whether the underlying library
-  * will perform as the caller expects.
-diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/sslsock.c
---- a/src/net/third_party/nss/ssl/sslsock.c	2012-02-28 20:34:50.124663860 -0800
-+++ b/src/net/third_party/nss/ssl/sslsock.c	2012-02-29 14:39:13.203415737 -0800
-@@ -1590,6 +1590,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *f
+ ** How long should we wait before retransmitting the next flight of
+ ** the DTLS handshake? Returns SECFailure if not DTLS or not in a
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:44:22.247069358 -0800
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:40:33.053714908 -0800
+@@ -1912,6 +1912,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *f
      return SECSuccess;
  }
  

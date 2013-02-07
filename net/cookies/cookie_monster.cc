@@ -59,9 +59,9 @@
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/parsed_cookie.h"
-#include "net/base/registry_controlled_domain.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -1133,7 +1133,6 @@ int CookieMonster::DeleteAllForHost(const GURL& url) {
   if (!HasCookieableScheme(url))
     return 0;
 
-  const std::string scheme(url.scheme());
   const std::string host(url.host());
 
   // We store host cookies in the store by their canonical host name;
@@ -1148,7 +1147,7 @@ int CookieMonster::DeleteAllForHost(const GURL& url) {
     const CanonicalCookie* const cc = curit->second;
 
     // Delete only on a match as a host cookie.
-    if (cc->IsHostCookie() && cc->IsDomainMatch(scheme, host)) {
+    if (cc->IsHostCookie() && cc->IsDomainMatch(host)) {
       num_deleted++;
 
       InternalDeleteCookie(curit, true, DELETE_COOKIE_EXPLICIT);
@@ -1603,10 +1602,6 @@ void CookieMonster::FindCookiesForKey(
     std::vector<CanonicalCookie*>* cookies) {
   lock_.AssertAcquired();
 
-  const std::string scheme(url.scheme());
-  const std::string host(url.host());
-  bool secure = url.SchemeIsSecure();
-
   for (CookieMapItPair its = cookies_.equal_range(key);
        its.first != its.second; ) {
     CookieMap::iterator curit = its.first;
@@ -1619,22 +1614,13 @@ void CookieMonster::FindCookiesForKey(
       continue;
     }
 
-    // Filter out HttpOnly cookies, per options.
-    if (options.exclude_httponly() && cc->IsHttpOnly())
+    // Filter out cookies that should not be included for a request to the
+    // given |url|. HTTP only cookies are filtered depending on the passed
+    // cookie |options|.
+    if (!cc->IncludeForRequestURL(url, options))
       continue;
 
-    // Filter out secure cookies unless we're https.
-    if (!secure && cc->IsSecure())
-      continue;
-
-    // Filter out cookies that don't apply to this domain.
-    if (!cc->IsDomainMatch(scheme, host))
-      continue;
-
-    if (!cc->IsOnPath(url.path()))
-      continue;
-
-    // Add this cookie to the set of matching cookies.  Update the access
+    // Add this cookie to the set of matching cookies. Update the access
     // time if we've been requested to do so.
     if (update_access_time) {
       InternalUpdateCookieAccessTime(cc, current);
@@ -1703,43 +1689,9 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
     creation_time = CurrentTime();
     last_time_seen_ = creation_time;
   }
-  Time server_time;
-  if (options.has_server_time())
-    server_time = options.server_time();
-  else
-    server_time = creation_time;
 
-  // Parse the cookie.
-  ParsedCookie pc(cookie_line);
-
-  if (!pc.IsValid()) {
-    VLOG(kVlogSetCookies) << "WARNING: Couldn't parse cookie";
-    return false;
-  }
-
-  if (options.exclude_httponly() && pc.IsHttpOnly()) {
-    VLOG(kVlogSetCookies) << "SetCookie() not setting httponly cookie";
-    return false;
-  }
-
-  std::string cookie_domain;
-  if (!GetCookieDomain(url, pc, &cookie_domain)) {
-    return false;
-  }
-
-  std::string cookie_path = CanonicalCookie::CanonPath(url, pc);
-  std::string mac_key = pc.HasMACKey() ? pc.MACKey() : std::string();
-  std::string mac_algorithm = pc.HasMACAlgorithm() ?
-      pc.MACAlgorithm() : std::string();
-
-  scoped_ptr<CanonicalCookie> cc;
-  Time cookie_expires =
-      CanonicalCookie::CanonExpiration(pc, creation_time, server_time);
-
-  cc.reset(new CanonicalCookie(url, pc.Name(), pc.Value(), cookie_domain,
-                               cookie_path, mac_key, mac_algorithm,
-                               creation_time, cookie_expires,
-                               creation_time, pc.IsSecure(), pc.IsHttpOnly()));
+  scoped_ptr<CanonicalCookie> cc(
+      CanonicalCookie::Create(url, cookie_line, creation_time, options));
 
   if (!cc.get()) {
     VLOG(kVlogSetCookies) << "WARNING: Failed to allocate CanonicalCookie";

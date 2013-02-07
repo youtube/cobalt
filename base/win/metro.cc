@@ -12,7 +12,9 @@
 namespace base {
 namespace win {
 
-const char kActivateApplication[] = "ActivateApplication";
+namespace {
+bool g_should_tsf_aware_required = false;
+}
 
 HMODULE GetMetroModule() {
   const HMODULE kUninitialized = reinterpret_cast<HMODULE>(1);
@@ -39,38 +41,67 @@ bool IsMetroProcess() {
     kImmersiveTrue,
     kImmersiveFalse
   };
-  typedef BOOL (WINAPI* IsImmersiveProcessFunc)(HANDLE process);
-
   // The immersive state of a process can never change.
   // Look it up once and cache it here.
   static ImmersiveState state = kImmersiveUnknown;
 
   if (state == kImmersiveUnknown) {
-    // The lookup hasn't been done yet. Note that the code below here is
-    // idempotent, so it doesn't matter if it races to assignment on multiple
-    // threads.
-    HMODULE user32 = ::GetModuleHandleA("user32.dll");
-    DCHECK(user32 != NULL);
-
-    IsImmersiveProcessFunc is_immersive_process =
-        reinterpret_cast<IsImmersiveProcessFunc>(
-            ::GetProcAddress(user32, "IsImmersiveProcess"));
-
-    if (is_immersive_process != NULL) {
-      if (is_immersive_process(::GetCurrentProcess())) {
-        state = kImmersiveTrue;
-      } else {
-        state = kImmersiveFalse;
-      }
+    if (IsProcessImmersive(::GetCurrentProcess())) {
+      state = kImmersiveTrue;
     } else {
-      // No "IsImmersiveProcess" export on user32.dll, so this is pre-Windows8
-      // and therefore not immersive.
       state = kImmersiveFalse;
     }
   }
   DCHECK_NE(kImmersiveUnknown, state);
-
   return state == kImmersiveTrue;
+}
+
+bool IsProcessImmersive(HANDLE process) {
+  typedef BOOL (WINAPI* IsImmersiveProcessFunc)(HANDLE process);
+  HMODULE user32 = ::GetModuleHandleA("user32.dll");
+  DCHECK(user32 != NULL);
+
+  IsImmersiveProcessFunc is_immersive_process =
+      reinterpret_cast<IsImmersiveProcessFunc>(
+          ::GetProcAddress(user32, "IsImmersiveProcess"));
+
+  if (is_immersive_process)
+    return is_immersive_process(process) ? true: false;
+  return false;
+}
+
+bool IsTSFAwareRequired() {
+  // Although this function is equal to IsMetroProcess at this moment,
+  // Chrome for Win7 and Vista may support TSF in the future.
+  return g_should_tsf_aware_required || IsMetroProcess();
+}
+
+void SetForceToUseTSF() {
+  g_should_tsf_aware_required = true;
+
+  // Since Windows 8 Metro mode disables CUAS (Cicero Unaware Application
+  // Support) via ImmDisableLegacyIME API, Chrome must be fully TSF-aware on
+  // Metro mode. For debugging purposes, explicitly call ImmDisableLegacyIME so
+  // that one can test TSF functionality even on Windows 8 desktop mode. Note
+  // that CUAS cannot be disabled on Windows Vista/7 where ImmDisableLegacyIME
+  // is not available.
+  typedef BOOL (* ImmDisableLegacyIMEFunc)();
+  HMODULE imm32 = ::GetModuleHandleA("imm32.dll");
+  if (imm32 == NULL)
+    return;
+
+  ImmDisableLegacyIMEFunc imm_disable_legacy_ime =
+      reinterpret_cast<ImmDisableLegacyIMEFunc>(
+          ::GetProcAddress(imm32, "ImmDisableLegacyIME"));
+
+  if (imm_disable_legacy_ime == NULL) {
+    // Unsupported API, just do nothing.
+    return;
+  }
+
+  if (!imm_disable_legacy_ime()) {
+    DVLOG(1) << "Failed to disable legacy IME.";
+  }
 }
 
 wchar_t* LocalAllocAndCopyString(const string16& src) {
@@ -82,7 +113,7 @@ wchar_t* LocalAllocAndCopyString(const string16& src) {
 
 bool IsTouchEnabled() {
   int value = GetSystemMetrics(SM_DIGITIZER);
-  return value & (NID_READY | NID_INTEGRATED_TOUCH) ==
+  return (value & (NID_READY | NID_INTEGRATED_TOUCH)) ==
              (NID_READY | NID_INTEGRATED_TOUCH);
 }
 
@@ -116,6 +147,42 @@ bool IsParentalControlActivityLoggingOn() {
   parental_control_logging_required =
       (restrictions & WPCFLAG_LOGGING_REQUIRED) == WPCFLAG_LOGGING_REQUIRED;
   return parental_control_logging_required;
+}
+
+// Metro driver exports for getting the launch type, initial url, initial
+// search term, etc.
+extern "C" {
+typedef const wchar_t* (*GetInitialUrl)();
+typedef const wchar_t* (*GetInitialSearchString)();
+typedef base::win::MetroLaunchType (*GetLaunchType)(
+    base::win::MetroPreviousExecutionState* previous_state);
+}
+
+MetroLaunchType GetMetroLaunchParams(string16* params) {
+  HMODULE metro = base::win::GetMetroModule();
+  if (!metro)
+    return base::win::METRO_LAUNCH_ERROR;
+
+  GetLaunchType get_launch_type = reinterpret_cast<GetLaunchType>(
+      ::GetProcAddress(metro, "GetLaunchType"));
+  DCHECK(get_launch_type);
+
+  base::win::MetroLaunchType launch_type = get_launch_type(NULL);
+
+  if ((launch_type == base::win::METRO_PROTOCOL) ||
+      (launch_type == base::win::METRO_LAUNCH)) {
+    GetInitialUrl initial_metro_url = reinterpret_cast<GetInitialUrl>(
+        ::GetProcAddress(metro, "GetInitialUrl"));
+    DCHECK(initial_metro_url);
+    *params = initial_metro_url();
+  } else if (launch_type == base::win::METRO_SEARCH) {
+    GetInitialSearchString initial_search_string =
+        reinterpret_cast<GetInitialSearchString>(
+            ::GetProcAddress(metro, "GetInitialSearchString"));
+    DCHECK(initial_search_string);
+    *params = initial_search_string();
+  }
+  return launch_type;
 }
 
 }  // namespace win

@@ -14,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,9 +50,7 @@ class MockCertVerifyProc : public CertVerifyProc {
 
 class MultiThreadedCertVerifierTest : public ::testing::Test {
  public:
-  MultiThreadedCertVerifierTest() {
-    verifier_.SetCertVerifyProc(new MockCertVerifyProc());
-  }
+  MultiThreadedCertVerifierTest() : verifier_(new MockCertVerifyProc()) {}
   virtual ~MultiThreadedCertVerifierTest() {}
 
  protected:
@@ -243,10 +242,10 @@ TEST_F(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
 }
 
 TEST_F(MultiThreadedCertVerifierTest, RequestParamsComparators) {
-  SHA1Fingerprint a_key;
+  SHA1HashValue a_key;
   memset(a_key.data, 'a', sizeof(a_key.data));
 
-  SHA1Fingerprint z_key;
+  SHA1HashValue z_key;
   memset(z_key.data, 'z', sizeof(z_key.data));
 
   struct {
@@ -294,7 +293,7 @@ TEST_F(MultiThreadedCertVerifierTest, RequestParamsComparators) {
     {  // The same certificate, chain, and host, but with different flags
        // are different validation keys.
       MultiThreadedCertVerifier::RequestParams(a_key, a_key, "www.example.test",
-                                               X509Certificate::VERIFY_EV_CERT),
+                                               CertVerifier::VERIFY_EV_CERT),
       MultiThreadedCertVerifier::RequestParams(a_key, a_key, "www.example.test",
                                                0),
       1,

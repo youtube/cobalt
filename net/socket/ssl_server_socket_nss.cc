@@ -36,11 +36,15 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/ocsp/nss_ocsp.h"
 #include "net/socket/nss_ssl_util.h"
 #include "net/socket/ssl_error_params.h"
 
-static const int kRecvBufferSize = 4096;
+// SSL plaintext fragments are shorter than 16KB. Although the record layer
+// overhead is allowed to be 2K + 5 bytes, in practice the overhead is much
+// smaller than 1KB. So a 17KB buffer should be large enough to hold an
+// entire SSL record.
+static const int kRecvBufferSize = 17 * 1024;
+static const int kSendBufferSize = 17 * 1024;
 
 #define GotoState(s) next_handshake_state_ = s
 
@@ -92,6 +96,8 @@ SSLServerSocketNSS::SSLServerSocketNSS(
     const SSLConfig& ssl_config)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
+      user_read_buf_len_(0),
+      user_write_buf_len_(0),
       nss_fd_(NULL),
       nss_bufs_(NULL),
       transport_socket_(transport_socket),
@@ -166,6 +172,22 @@ int SSLServerSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
     LogFailedNSSFunction(net_log_, "SSL_ExportKeyingMaterial", "");
     return MapNSSError(PORT_GetError());
   }
+  return OK;
+}
+
+int SSLServerSocketNSS::GetTLSUniqueChannelBinding(std::string* out) {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  unsigned char buf[64];
+  unsigned int len;
+  SECStatus result = SSL_GetChannelBinding(nss_fd_,
+                                           SSL_CHANNEL_BINDING_TLS_UNIQUE,
+                                           buf, &len, arraysize(buf));
+  if (result != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_GetChannelBinding", "");
+    return MapNSSError(PORT_GetError());
+  }
+  out->assign(reinterpret_cast<char*>(buf), len);
   return OK;
 }
 
@@ -279,15 +301,23 @@ base::TimeDelta SSLServerSocketNSS::GetConnectTimeMicros() const {
   return transport_socket_->GetConnectTimeMicros();
 }
 
+bool SSLServerSocketNSS::WasNpnNegotiated() const {
+  return false;
+}
+
 NextProto SSLServerSocketNSS::GetNegotiatedProtocol() const {
   // NPN is not supported by this class.
   return kProtoUnknown;
 }
 
+bool SSLServerSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 int SSLServerSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
-  // TODO(port): specify rx and tx buffer sizes separately
-  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
+  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize, kSendBufferSize);
   if (nss_fd_ == NULL) {
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }

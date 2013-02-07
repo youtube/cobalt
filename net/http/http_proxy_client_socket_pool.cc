@@ -380,6 +380,12 @@ HttpProxyClientSocketPool::HttpProxyConnectJobFactory::NewConnectJob(
                                  net_log_);
 }
 
+base::TimeDelta
+HttpProxyClientSocketPool::HttpProxyConnectJobFactory::ConnectionTimeout(
+    ) const {
+  return timeout_;
+}
+
 HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,
@@ -445,8 +451,8 @@ void HttpProxyClientSocketPool::ReleaseSocket(const std::string& group_name,
   base_.ReleaseSocket(group_name, socket, id);
 }
 
-void HttpProxyClientSocketPool::Flush() {
-  base_.Flush();
+void HttpProxyClientSocketPool::FlushWithError(int error) {
+  base_.FlushWithError(error);
 }
 
 bool HttpProxyClientSocketPool::IsStalled() const {

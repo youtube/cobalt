@@ -9,57 +9,31 @@
 
 namespace net {
 
-CertDatabase::ImportCertFailure::ImportCertFailure(
-    X509Certificate* cert, int err)
-    : certificate(cert), net_error(err) {
+// static
+CertDatabase* CertDatabase::GetInstance() {
+  return Singleton<CertDatabase>::get();
 }
-
-CertDatabase::ImportCertFailure::~ImportCertFailure() {
-}
-
-// CertDatabaseNotifier notifies registered observers when new user certificates
-// are added to the database.
-class CertDatabaseNotifier {
- public:
-  CertDatabaseNotifier()
-      : observer_list_(new ObserverListThreadSafe<CertDatabase::Observer>) {
-  }
-
-  static CertDatabaseNotifier* GetInstance() {
-    return Singleton<CertDatabaseNotifier>::get();
-  }
-
-  friend struct DefaultSingletonTraits<CertDatabaseNotifier>;
-  friend class CertDatabase;
-
- private:
-  const scoped_refptr<ObserverListThreadSafe<CertDatabase::Observer> >
-      observer_list_;
-};
 
 void CertDatabase::AddObserver(Observer* observer) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->AddObserver(observer);
+  observer_list_->AddObserver(observer);
 }
 
 void CertDatabase::RemoveObserver(Observer* observer) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->RemoveObserver(observer);
+  observer_list_->RemoveObserver(observer);
 }
 
-void CertDatabase::NotifyObserversOfUserCertAdded(const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnUserCertAdded, make_scoped_refptr(cert));
+void CertDatabase::NotifyObserversOfCertAdded(const X509Certificate* cert) {
+  observer_list_->Notify(&Observer::OnCertAdded, make_scoped_refptr(cert));
 }
 
-void CertDatabase::NotifyObserversOfUserCertRemoved(
-    const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnUserCertRemoved, make_scoped_refptr(cert));
+void CertDatabase::NotifyObserversOfCertRemoved(const X509Certificate* cert) {
+  observer_list_->Notify(&Observer::OnCertRemoved, make_scoped_refptr(cert));
 }
 
 void CertDatabase::NotifyObserversOfCertTrustChanged(
     const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnCertTrustChanged, make_scoped_refptr(cert));
+  observer_list_->Notify(
+      &Observer::OnCertTrustChanged, make_scoped_refptr(cert));
 }
 
 }  // namespace net

@@ -32,11 +32,14 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   // SSLServerSocket interface.
   virtual int Handshake(const CompletionCallback& callback) OVERRIDE;
+
+  // SSLSocket interface.
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    bool has_context,
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) OVERRIDE;
+  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -60,7 +63,9 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual bool UsingTCPFastOpen() const OVERRIDE;
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+  virtual bool WasNpnNegotiated() const OVERRIDE;
   virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
 
  private:
   enum State {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,7 +80,7 @@ const MockTransaction kETagGET_Transaction = {
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
   "Cache-Control: max-age=10000\n"
-  "Etag: foopy\n",
+  "Etag: \"foopy\"\n",
   base::Time(),
   "<html><body>Google Blah Blah</body></html>",
   TEST_MODE_NORMAL,
@@ -151,7 +151,7 @@ TestTransactionConsumer::TestTransactionConsumer(
       trans_(NULL),
       error_(net::OK) {
   // Disregard the error code.
-  factory->CreateTransaction(&trans_);
+  factory->CreateTransaction(&trans_, NULL);
   ++quit_counter_;
 }
 
@@ -251,6 +251,7 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
     response_.response_time = t->response_time;
 
   response_.headers = new net::HttpResponseHeaders(header_data);
+  response_.vary_data.Init(*request, *response_.headers);
   response_.ssl_info.cert_status = t->cert_status;
   data_ = resp_data;
   test_mode_ = t->test_mode;
@@ -315,8 +316,8 @@ net::LoadState MockNetworkTransaction::GetLoadState() const {
   return net::LOAD_STATE_IDLE;
 }
 
-uint64 MockNetworkTransaction::GetUploadProgress() const {
-  return 0;
+net::UploadProgress MockNetworkTransaction::GetUploadProgress() const {
+  return net::UploadProgress();
 }
 
 void MockNetworkTransaction::CallbackLater(
@@ -341,7 +342,8 @@ void MockNetworkLayer::TransactionDoneReading() {
 }
 
 int MockNetworkLayer::CreateTransaction(
-    scoped_ptr<net::HttpTransaction>* trans) {
+    scoped_ptr<net::HttpTransaction>* trans,
+    net::HttpTransactionDelegate* delegate) {
   transaction_count_++;
   trans->reset(new MockNetworkTransaction(this));
   return net::OK;

@@ -9,6 +9,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 
 #include "base/bind.h"
 #include "base/memory/singleton.h"
@@ -46,8 +47,10 @@ const size_t kSessionCacheMaxEntires = 1024;
 // the server supports NPN, choosing "http/1.1" is the best answer.
 const char kDefaultSupportedNPNProtocol[] = "http/1.1";
 
-// This method doesn't seemed to have made it into the OpenSSL headers.
+#if OPENSSL_VERSION_NUMBER < 0x1000103fL
+// This method doesn't seem to have made it into the OpenSSL headers.
 unsigned long SSL_CIPHER_get_id(const SSL_CIPHER* cipher) { return cipher->id; }
+#endif
 
 // Used for encoding the |connection_status| field of an SSLInfo object.
 int EncodeSSLConnectionStatus(int cipher_suite,
@@ -108,6 +111,7 @@ int MapOpenSSLErrorSSL() {
     case SSL_R_NO_SHARED_CIPHER:
     case SSL_R_TLSV1_ALERT_INSUFFICIENT_SECURITY:
     case SSL_R_TLSV1_ALERT_PROTOCOL_VERSION:
+    case SSL_R_UNSUPPORTED_PROTOCOL:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SSL_R_SSLV3_ALERT_BAD_CERTIFICATE:
     case SSL_R_SSLV3_ALERT_UNSUPPORTED_CERTIFICATE:
@@ -490,10 +494,7 @@ bool SSLClientSocketOpenSSL::Init() {
 #endif
 
 #if defined(SSL_OP_NO_COMPRESSION)
-  // If TLS was disabled also disable compression, to provide maximum site
-  // compatibility in the case of protocol fallback. See http://crbug.com/31628
-  options.ConfigureFlag(SSL_OP_NO_COMPRESSION,
-                        ssl_config_.version_max < SSL_PROTOCOL_VERSION_TLS1);
+  options.ConfigureFlag(SSL_OP_NO_COMPRESSION, true);
 #endif
 
   // TODO(joth): Set this conditionally, see http://crbug.com/55410
@@ -591,10 +592,10 @@ int SSLClientSocketOpenSSL::ClientCertRequestCallback(SSL* ssl,
 
 // SSLClientSocket methods
 
-void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
+bool SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   if (!server_cert_)
-    return;
+    return false;
 
   ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -631,6 +632,7 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
       << SSLConnectionStatusToCompression(ssl_info->connection_status)
       << " version = "
       << SSLConnectionStatusToVersion(ssl_info->connection_status);
+  return true;
 }
 
 void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
@@ -659,6 +661,10 @@ int SSLClientSocketOpenSSL::ExportKeyingMaterial(
     return MapOpenSSLError(ssl_error, err_tracer);
   }
   return OK;
+}
+
+int SSLClientSocketOpenSSL::GetTLSUniqueChannelBinding(std::string* out) {
+  return ERR_NOT_IMPLEMENTED;
 }
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
@@ -915,11 +921,11 @@ int SSLClientSocketOpenSSL::DoVerifyCert(int result) {
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+    flags |= CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
-    flags |= X509Certificate::VERIFY_EV_CERT;
+    flags |= CertVerifier::VERIFY_EV_CERT;
   if (ssl_config_.cert_io_enabled)
-    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
+    flags |= CertVerifier::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,

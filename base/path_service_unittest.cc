@@ -5,15 +5,21 @@
 #include "base/path_service.h"
 
 #include "base/basictypes.h"
-#include "base/file_util.h"
 #include "base/file_path.h"
-#include "base/scoped_temp_dir.h"
-#if defined(OS_WIN)
-#include "base/win/windows_version.h"
-#endif
-#include "testing/gtest/include/gtest/gtest.h"
+#include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/string_util.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+
+#if defined(OS_WIN)
+#include <userenv.h>
+#include "base/win/windows_version.h"
+// userenv.dll is required for GetDefaultUserProfileDirectory().
+#pragma comment(lib, "userenv.lib")
+#endif
 
 namespace {
 
@@ -22,20 +28,50 @@ namespace {
 bool ReturnsValidPath(int dir_type) {
   FilePath path;
   bool result = PathService::Get(dir_type, &path);
+  // Some paths might not exist on some platforms in which case confirming
+  // |result| is true and !path.empty() is the best we can do.
+  bool check_path_exists = true;
 #if defined(OS_POSIX)
   // If chromium has never been started on this account, the cache path may not
   // exist.
   if (dir_type == base::DIR_CACHE)
-    return result && !path.value().empty();
+    check_path_exists = false;
 #endif
-  return result && !path.value().empty() && file_util::PathExists(path);
+#if defined(OS_LINUX)
+  // On the linux try-bots: a path is returned (e.g. /home/chrome-bot/Desktop),
+  // but it doesn't exist.
+  if (dir_type == base::DIR_USER_DESKTOP)
+    check_path_exists = false;
+#endif
+#if defined(OS_WIN)
+  if (dir_type == base::DIR_DEFAULT_USER_QUICK_LAUNCH) {
+    // On Windows XP, the Quick Launch folder for the "Default User" doesn't
+    // exist by default. At least confirm that the path returned begins with the
+    // Default User's profile path.
+    if (base::win::GetVersion() < base::win::VERSION_VISTA) {
+      wchar_t default_profile_path[MAX_PATH];
+      DWORD size = arraysize(default_profile_path);
+      return (result &&
+              ::GetDefaultUserProfileDirectory(default_profile_path, &size) &&
+              StartsWith(path.value(), default_profile_path, false));
+    }
+  } else if (dir_type == base::DIR_TASKBAR_PINS) {
+    // There is no pinned-to-taskbar shortcuts prior to Win7.
+    if (base::win::GetVersion() < base::win::VERSION_WIN7)
+      check_path_exists = false;
+  }
+#endif
+  return result && !path.empty() && (!check_path_exists ||
+                                     file_util::PathExists(path));
 }
 
 #if defined(OS_WIN)
-// Function to test DIR_LOCAL_APP_DATA_LOW on Windows XP. Make sure it fails.
+// Function to test any directory keys that are not supported on some versions
+// of Windows. Checks that the function fails and that the returned path is
+// empty.
 bool ReturnsInvalidPath(int dir_type) {
   FilePath path;
-  bool result = PathService::Get(base::DIR_LOCAL_APP_DATA_LOW, &path);
+  bool result = PathService::Get(dir_type, &path);
   return !result && path.empty();
 }
 #endif
@@ -51,27 +87,50 @@ typedef PlatformTest PathServiceTest;
 // later changes to Get broke the semantics of the function and yielded the
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
-  for (int key = base::DIR_CURRENT; key < base::PATH_END; ++key) {
+  for (int key = base::PATH_START + 1; key < base::PATH_END; ++key) {
 #if defined(OS_ANDROID)
-    if (key == base::FILE_MODULE)
-      continue;  // Android doesn't implement FILE_MODULE;
+    if (key == base::FILE_MODULE || key == base::DIR_USER_DESKTOP)
+      continue;  // Android doesn't implement FILE_MODULE and DIR_USER_DESKTOP;
+#elif defined(OS_IOS)
+    if (key == base::DIR_USER_DESKTOP)
+      continue;  // iOS doesn't implement DIR_USER_DESKTOP;
 #endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #if defined(OS_WIN)
   for (int key = base::PATH_WIN_START + 1; key < base::PATH_WIN_END; ++key) {
-    if (key == base::DIR_LOCAL_APP_DATA_LOW &&
-        base::win::GetVersion() < base::win::VERSION_VISTA) {
-      // DIR_LOCAL_APP_DATA_LOW is not supported prior Vista and is expected to
-      // fail.
-      EXPECT_TRUE(ReturnsInvalidPath(key)) << key;
-    } else {
-      EXPECT_TRUE(ReturnsValidPath(key)) << key;
+    bool valid = true;
+    switch(key) {
+      case base::DIR_LOCAL_APP_DATA_LOW:
+        // DIR_LOCAL_APP_DATA_LOW is not supported prior Vista and is expected
+        // to fail.
+        valid = base::win::GetVersion() >= base::win::VERSION_VISTA;
+        break;
+      case base::DIR_APP_SHORTCUTS:
+        // DIR_APP_SHORTCUTS is not supported prior Windows 8 and is expected to
+        // fail.
+        valid = base::win::GetVersion() >= base::win::VERSION_WIN8;
+        break;
     }
+
+    if (valid)
+      EXPECT_TRUE(ReturnsValidPath(key)) << key;
+    else
+      EXPECT_TRUE(ReturnsInvalidPath(key)) << key;
   }
 #elif defined(OS_MACOSX)
   for (int key = base::PATH_MAC_START + 1; key < base::PATH_MAC_END; ++key) {
-      EXPECT_PRED1(ReturnsValidPath, key);
+    EXPECT_PRED1(ReturnsValidPath, key);
+  }
+#elif defined(OS_ANDROID)
+  for (int key = base::PATH_ANDROID_START + 1; key < base::PATH_ANDROID_END;
+       ++key) {
+    EXPECT_PRED1(ReturnsValidPath, key);
+  }
+#elif defined(OS_POSIX)
+  for (int key = base::PATH_POSIX_START + 1; key < base::PATH_POSIX_END;
+       ++key) {
+    EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
 }
@@ -80,7 +139,7 @@ TEST_F(PathServiceTest, Get) {
 // are supposed to do.
 TEST_F(PathServiceTest, Override) {
   int my_special_key = 666;
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath fake_cache_dir(temp_dir.path().AppendASCII("cache"));
   // PathService::Override should always create the path provided if it doesn't
@@ -98,4 +157,49 @@ TEST_F(PathServiceTest, Override) {
                                                      fake_cache_dir2,
                                                      true));
   EXPECT_TRUE(file_util::PathExists(fake_cache_dir2));
+}
+
+// Check if multiple overrides can co-exist.
+TEST_F(PathServiceTest, OverrideMultiple) {
+  int my_special_key = 666;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath fake_cache_dir1(temp_dir.path().AppendASCII("1"));
+  EXPECT_TRUE(PathService::Override(my_special_key, fake_cache_dir1));
+  EXPECT_TRUE(file_util::PathExists(fake_cache_dir1));
+  ASSERT_EQ(1, file_util::WriteFile(fake_cache_dir1.AppendASCII("t1"), ".", 1));
+
+  FilePath fake_cache_dir2(temp_dir.path().AppendASCII("2"));
+  EXPECT_TRUE(PathService::Override(my_special_key + 1, fake_cache_dir2));
+  EXPECT_TRUE(file_util::PathExists(fake_cache_dir2));
+  ASSERT_EQ(1, file_util::WriteFile(fake_cache_dir2.AppendASCII("t2"), ".", 1));
+
+  FilePath result;
+  EXPECT_TRUE(PathService::Get(my_special_key, &result));
+  // Override might have changed the path representation but our test file
+  // should be still there.
+  EXPECT_TRUE(file_util::PathExists(result.AppendASCII("t1")));
+  EXPECT_TRUE(PathService::Get(my_special_key + 1, &result));
+  EXPECT_TRUE(file_util::PathExists(result.AppendASCII("t2")));
+}
+
+TEST_F(PathServiceTest, RemoveOverride) {
+  // Before we start the test we have to call RemoveOverride at least once to
+  // clear any overrides that might have been left from other tests.
+  PathService::RemoveOverride(base::DIR_TEMP);
+
+  FilePath original_user_data_dir;
+  EXPECT_TRUE(PathService::Get(base::DIR_TEMP, &original_user_data_dir));
+  EXPECT_FALSE(PathService::RemoveOverride(base::DIR_TEMP));
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  EXPECT_TRUE(PathService::Override(base::DIR_TEMP, temp_dir.path()));
+  FilePath new_user_data_dir;
+  EXPECT_TRUE(PathService::Get(base::DIR_TEMP, &new_user_data_dir));
+  EXPECT_NE(original_user_data_dir, new_user_data_dir);
+
+  EXPECT_TRUE(PathService::RemoveOverride(base::DIR_TEMP));
+  EXPECT_TRUE(PathService::Get(base::DIR_TEMP, &new_user_data_dir));
+  EXPECT_EQ(original_user_data_dir, new_user_data_dir);
 }

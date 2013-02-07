@@ -186,6 +186,10 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
     return cache_type_;
   }
 
+  bool read_only() const {
+    return read_only_;
+  }
+
   // Returns a weak pointer to this object.
   base::WeakPtr<BackendImpl> GetWeakPtr();
 
@@ -256,6 +260,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   void FlushIndex();
 
   // Backend implementation.
+  virtual net::CacheType GetCacheType() const OVERRIDE;
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         const CompletionCallback& callback) OVERRIDE;

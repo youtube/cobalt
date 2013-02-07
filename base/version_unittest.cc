@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/scoped_ptr.h"
 #include "base/version.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
-class VersionTest : public testing::Test {
-};
+namespace {
 
-TEST_F(VersionTest, DefaultConstructor) {
+TEST(VersionTest, DefaultConstructor) {
   Version v;
   EXPECT_FALSE(v.IsValid());
 }
 
-TEST_F(VersionTest, ValueSemantics) {
+TEST(VersionTest, ValueSemantics) {
   Version v1("1.2.3.4");
   EXPECT_TRUE(v1.IsValid());
   Version v3;
@@ -28,7 +27,7 @@ TEST_F(VersionTest, ValueSemantics) {
   EXPECT_TRUE(v3.Equals(v1));
 }
 
-TEST_F(VersionTest, GetVersionFromString) {
+TEST(VersionTest, GetVersionFromString) {
   static const struct version_string {
     const char* input;
     size_t parts;
@@ -62,7 +61,7 @@ TEST_F(VersionTest, GetVersionFromString) {
   }
 }
 
-TEST_F(VersionTest, Compare) {
+TEST(VersionTest, Compare) {
   static const struct version_compare {
     const char* lhs;
     const char* rhs;
@@ -89,7 +88,7 @@ TEST_F(VersionTest, Compare) {
   }
 }
 
-TEST_F(VersionTest, CompareToWildcardString) {
+TEST(VersionTest, CompareToWildcardString) {
   static const struct version_compare {
     const char* lhs;
     const char* rhs;
@@ -116,7 +115,7 @@ TEST_F(VersionTest, CompareToWildcardString) {
   }
 }
 
-TEST_F(VersionTest, IsValidWildcardString) {
+TEST(VersionTest, IsValidWildcardString) {
   static const struct version_compare {
     const char* version;
     bool expected;
@@ -138,3 +137,5 @@ TEST_F(VersionTest, IsValidWildcardString) {
         cases[i].expected) << cases[i].version << "?" << cases[i].expected;
   }
 }
+
+}  // namespace

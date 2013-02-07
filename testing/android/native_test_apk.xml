@@ -11,24 +11,28 @@ found in the LICENSE file.
     Building native test runner ChromeNativeTests_replaceme.apk
   </description>
 
-  <property environment="env"/>
-  <property name="sdk.dir" location="${env.ANDROID_SDK_ROOT}"/>
-  <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
-  <property name="toolchain.dir" location="${env.ANDROID_TOOLCHAIN}"/>
-  <property name="src" location="."/>
-  <property name="source.dir" location="java/src"/>
+  <!--
+    TODO(beverloo): Remove this property when all gyp files (also those in
+    WebKit) define the CHROMIUM_SRC property. This works because properties
+    in ant files are immutable.
+  -->
+  <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../.." />
+
+  <import file="${CHROMIUM_SRC}/build/android/ant/common.xml"/>
+
+  <!--
+    TODO(yfriedman): Remove the need to specify this. We should generate the packages in a way such
+    that it's not required.
+  -->
+  <property name="source.absolute.dir" value="java/src"/>
+  <path id="javac.custom.classpath">
+    <pathelement location="${ANDROID_SDK}/android.jar" />
+  </path>
   <property name="target.abi" value="${APP_ABI}"/>
 
-  <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
   <path id="native.libs.gdbserver">
-    <fileset file="${toolchain.dir}/../../gdbserver"/>
+    <fileset file="${android.gdbserver}"/>
   </path>
-
-  <condition property="location.base" 
-             value="${sdk.dir}" 
-             else="${sdk.dir}/platforms/android-${sdk.version}">
-    <isset property="env.ANDROID_BUILD_TOP"/>
-  </condition>
 
   <!-- We expect PRODUCT_DIR to be set like the gyp var
        (e.g. $ROOT/out/Debug) -->
@@ -45,18 +49,13 @@ found in the LICENSE file.
   <property name="resource.absolute.dir" value="res"/>
   <property name="gen.absolute.dir" value="${out.dir}/gen"/>
 
-  <condition property="external.jars.dir"
-             value="${out.dir}/java/libs"
-             else="">
-      <available file="${out.dir}/java/libs" type="dir"/>
-  </condition>
   <path id="out.dex.jar.input.ref">
-      <fileset dir="${external.jars.dir}" includes="*.jar"/>
+      <filelist files="${INPUT_JARS_PATHS}"/>
   </path>
   <condition property="java.compilerargs"
              value="-classpath ${toString:out.dex.jar.input.ref}">
     <not>
-      <equals arg1="${external.jars.dir}" arg2=""/>
+      <equals arg1="${toString:out.dex.jar.input.ref}" arg2=""/>
     </not>
   </condition>
   <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
@@ -83,6 +82,7 @@ found in the LICENSE file.
     </if>
   </target>
 
+  <import file="${CHROMIUM_SRC}/build/android/ant/sdk-targets.xml"/>
   <import file="${sdk.dir}/tools/ant/build.xml" />
 
 </project>

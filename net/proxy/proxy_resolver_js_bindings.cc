@@ -230,7 +230,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
     // Save the result back to the per-request DNS cache.
     if (host_cache) {
-      host_cache->Set(cache_key, result, *address_list,
+      host_cache->Set(cache_key, HostCache::Entry(result, *address_list),
                       base::TimeTicks::Now(),
                       base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds));
     }

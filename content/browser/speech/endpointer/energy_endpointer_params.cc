@@ -4,7 +4,7 @@
 
 #include "content/browser/speech/endpointer/energy_endpointer_params.h"
 
-namespace speech {
+namespace content {
 
 EnergyEndpointerParams::EnergyEndpointerParams() {
   SetDefaults();
@@ -50,4 +50,4 @@ void EnergyEndpointerParams::operator=(const EnergyEndpointerParams& source) {
   contamination_rejection_period_ = source.contamination_rejection_period();
 }
 
-}  //  namespace speech
+}  //  namespace content

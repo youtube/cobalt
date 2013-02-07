@@ -55,7 +55,9 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   virtual bool UsingTCPFastOpen() const OVERRIDE;
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+  virtual bool WasNpnNegotiated() const OVERRIDE;
   virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
 
   // Socket implementation.
   // Multiple outstanding requests are not supported.
@@ -86,10 +88,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
 
     // MessageLoopForIO::Watcher methods
 
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
-      if (!socket_->read_callback_.is_null())
-        socket_->DidCompleteRead();
-    }
+    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE;
 
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {}
 
@@ -105,13 +104,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
 
     // MessageLoopForIO::Watcher implementation.
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
-      if (socket_->waiting_connect()) {
-        socket_->DidCompleteConnect();
-      } else if (!socket_->write_callback_.is_null()) {
-        socket_->DidCompleteWrite();
-      }
-    }
+    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
    private:
     TCPClientSocketLibevent* const socket_;
