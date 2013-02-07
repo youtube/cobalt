@@ -1,5 +1,6 @@
 Name: Network Security Services (NSS)
 URL: http://www.mozilla.org/projects/security/pki/nss/
+License: MPL 1.1/GPL 2.0/LGPL 2.1
 
 We extracted the SHA-256 source files, eliminated unneeded dependencies,
 deleted or commented out unused code, and tweaked them for Chrome's source

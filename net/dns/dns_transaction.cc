@@ -14,6 +14,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/string_piece.h"
@@ -30,12 +31,16 @@
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_session.h"
-#include "net/socket/client_socket_factory.h"
 #include "net/udp/datagram_client_socket.h"
 
 namespace net {
 
 namespace {
+
+// Provide a common macro to simplify code and readability. We must use a
+// macro as the underlying HISTOGRAM macro creates static variables.
+#define DNS_HISTOGRAM(name, time) UMA_HISTOGRAM_CUSTOM_TIMES(name, time, \
+    base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromHours(1), 100)
 
 // Count labels in the fully-qualified name in DNS format.
 int CountLabels(const std::string& name) {
@@ -66,13 +71,12 @@ Value* NetLogStartCallback(const std::string* hostname,
 // matches. Logging is done in the socket and in the outer DnsTransaction.
 class DnsUDPAttempt {
  public:
-  DnsUDPAttempt(scoped_ptr<DatagramClientSocket> socket,
-                const IPEndPoint& server,
+  DnsUDPAttempt(scoped_ptr<DnsSession::SocketLease> socket_lease,
                 scoped_ptr<DnsQuery> query,
                 const CompletionCallback& callback)
       : next_state_(STATE_NONE),
-        socket_(socket.Pass()),
-        server_(server),
+        received_malformed_response_(false),
+        socket_lease_(socket_lease.Pass()),
         query_(query.Pass()),
         callback_(callback) {
   }
@@ -81,7 +85,8 @@ class DnsUDPAttempt {
   // and calls |callback| upon completion.
   int Start() {
     DCHECK_EQ(STATE_NONE, next_state_);
-    next_state_ = STATE_CONNECT;
+    start_time_ = base::TimeTicks::Now();
+    next_state_ = STATE_SEND_QUERY;
     return DoLoop(OK);
   }
 
@@ -89,8 +94,8 @@ class DnsUDPAttempt {
     return query_.get();
   }
 
-  const DatagramClientSocket* socket() const {
-    return socket_.get();
+  const BoundNetLog& socket_net_log() const {
+    return socket_lease_->socket()->NetLog();
   }
 
   // Returns the response or NULL if has not received a matching response from
@@ -109,19 +114,22 @@ class DnsUDPAttempt {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("rcode", response_->rcode());
     dict->SetInteger("answer_count", response_->answer_count());
-    socket_->NetLog().source().AddToEventParameters(dict);
+    socket_net_log().source().AddToEventParameters(dict);
     return dict;
   }
 
  private:
   enum State {
-    STATE_CONNECT,
     STATE_SEND_QUERY,
     STATE_SEND_QUERY_COMPLETE,
     STATE_READ_RESPONSE,
     STATE_READ_RESPONSE_COMPLETE,
     STATE_NONE,
   };
+
+  DatagramClientSocket* socket() {
+    return socket_lease_->socket();
+  }
 
   int DoLoop(int result) {
     CHECK_NE(STATE_NONE, next_state_);
@@ -130,9 +138,6 @@ class DnsUDPAttempt {
       State state = next_state_;
       next_state_ = STATE_NONE;
       switch (state) {
-        case STATE_CONNECT:
-          rv = DoConnect();
-          break;
         case STATE_SEND_QUERY:
           rv = DoSendQuery();
           break;
@@ -150,21 +155,26 @@ class DnsUDPAttempt {
           break;
       }
     } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
-
+    // If we received a malformed response, and are now waiting for another one,
+    // indicate to the transaction that the server might be misbehaving.
+    if (rv == ERR_IO_PENDING && received_malformed_response_)
+      return ERR_DNS_MALFORMED_RESPONSE;
+    if (rv == OK) {
+      DNS_HISTOGRAM("AsyncDNS.UDPAttemptSuccess",
+                    base::TimeTicks::Now() - start_time_);
+    } else if (rv != ERR_IO_PENDING) {
+      DNS_HISTOGRAM("AsyncDNS.UDPAttemptFail",
+                    base::TimeTicks::Now() - start_time_);
+    }
     return rv;
-  }
-
-  int DoConnect() {
-    next_state_ = STATE_SEND_QUERY;
-    return socket_->Connect(server_);
   }
 
   int DoSendQuery() {
     next_state_ = STATE_SEND_QUERY_COMPLETE;
-    return socket_->Write(query_->io_buffer(),
-                          query_->io_buffer()->size(),
-                          base::Bind(&DnsUDPAttempt::OnIOComplete,
-                                     base::Unretained(this)));
+    return socket()->Write(query_->io_buffer(),
+                              query_->io_buffer()->size(),
+                              base::Bind(&DnsUDPAttempt::OnIOComplete,
+                                         base::Unretained(this)));
   }
 
   int DoSendQueryComplete(int rv) {
@@ -183,10 +193,10 @@ class DnsUDPAttempt {
   int DoReadResponse() {
     next_state_ = STATE_READ_RESPONSE_COMPLETE;
     response_.reset(new DnsResponse());
-    return socket_->Read(response_->io_buffer(),
-                         response_->io_buffer()->size(),
-                         base::Bind(&DnsUDPAttempt::OnIOComplete,
-                                    base::Unretained(this)));
+    return socket()->Read(response_->io_buffer(),
+                             response_->io_buffer()->size(),
+                             base::Bind(&DnsUDPAttempt::OnIOComplete,
+                                        base::Unretained(this)));
   }
 
   int DoReadResponseComplete(int rv) {
@@ -196,12 +206,14 @@ class DnsUDPAttempt {
 
     DCHECK(rv);
     if (!response_->InitParse(rv, *query_)) {
-      // TODO(szym): Consider making this reaction less aggressive.
       // Other implementations simply ignore mismatched responses. Since each
       // DnsUDPAttempt binds to a different port, we might find that responses
       // to previously timed out queries lead to failures in the future.
-      // http://crbug.com/107413
-      return ERR_DNS_MALFORMED_RESPONSE;
+      // Our solution is to make another attempt, in case the query truly
+      // failed, but keep this attempt alive, in case it was a false alarm.
+      received_malformed_response_ = true;
+      next_state_ = STATE_READ_RESPONSE;
+      return OK;
     }
     if (response_->flags() & dns_protocol::kFlagTC)
       return ERR_DNS_SERVER_REQUIRES_TCP;
@@ -222,9 +234,10 @@ class DnsUDPAttempt {
   }
 
   State next_state_;
+  bool received_malformed_response_;
+  base::TimeTicks start_time_;
 
-  scoped_ptr<DatagramClientSocket> socket_;
-  IPEndPoint server_;
+  scoped_ptr<DnsSession::SocketLease> socket_lease_;
   scoped_ptr<DnsQuery> query_;
 
   scoped_ptr<DnsResponse> response_;
@@ -287,7 +300,7 @@ class DnsTransactionImpl : public DnsTransaction,
                         base::Bind(&NetLogStartCallback, &hostname_, qtype_));
     int rv = PrepareSearch();
     if (rv == OK) {
-      AttemptResult result = FinishAttempt(StartQuery());
+      AttemptResult result = ProcessAttemptResult(StartQuery());
       if (result.rv == OK) {
         // DnsTransaction must never succeed synchronously.
         MessageLoop::current()->PostTask(
@@ -384,21 +397,6 @@ class DnsTransactionImpl : public DnsTransaction,
   AttemptResult MakeAttempt() {
     unsigned attempt_number = attempts_.size();
 
-#if defined(OS_WIN)
-    // Avoid the Windows firewall warning about explicit UDP binding.
-    // TODO(szym): Reuse a pool of pre-bound sockets. http://crbug.com/107413
-    DatagramSocket::BindType bind_type = DatagramSocket::DEFAULT_BIND;
-#else
-    DatagramSocket::BindType bind_type = DatagramSocket::RANDOM_BIND;
-#endif
-
-    scoped_ptr<DatagramClientSocket> socket(
-        session_->socket_factory()->CreateDatagramClientSocket(
-            bind_type,
-            base::Bind(&base::RandInt),
-            net_log_.net_log(),
-            net_log_.source()));
-
     uint16 id = session_->NextQueryId();
     scoped_ptr<DnsQuery> query;
     if (attempts_.empty()) {
@@ -407,23 +405,31 @@ class DnsTransactionImpl : public DnsTransaction,
       query.reset(attempts_[0]->query()->CloneWithNewId(id));
     }
 
-    net_log_.AddEvent(NetLog::TYPE_DNS_TRANSACTION_ATTEMPT,
-                      socket->NetLog().source().ToEventParametersCallback());
-
     const DnsConfig& config = session_->config();
 
     unsigned server_index = first_server_index_ +
         (attempt_number % config.nameservers.size());
 
+    scoped_ptr<DnsSession::SocketLease> lease =
+        session_->AllocateSocket(server_index, net_log_.source());
+
+    bool got_socket = !!lease.get();
+
     DnsUDPAttempt* attempt = new DnsUDPAttempt(
-        socket.Pass(),
-        config.nameservers[server_index],
+        lease.Pass(),
         query.Pass(),
         base::Bind(&DnsTransactionImpl::OnAttemptComplete,
                    base::Unretained(this),
                    attempt_number));
 
     attempts_.push_back(attempt);
+
+    if (!got_socket)
+      return AttemptResult(ERR_CONNECTION_REFUSED, NULL);
+
+    net_log_.AddEvent(
+        NetLog::TYPE_DNS_TRANSACTION_ATTEMPT,
+        attempt->socket_net_log().source().ToEventParametersCallback());
 
     int rv = attempt->Start();
     if (rv == ERR_IO_PENDING) {
@@ -451,7 +457,7 @@ class DnsTransactionImpl : public DnsTransaction,
       return;
     DCHECK_LT(attempt_number, attempts_.size());
     const DnsUDPAttempt* attempt = attempts_[attempt_number];
-    AttemptResult result = FinishAttempt(AttemptResult(rv, attempt));
+    AttemptResult result = ProcessAttemptResult(AttemptResult(rv, attempt));
     if (result.rv != ERR_IO_PENDING)
       DoCallback(result);
   }
@@ -472,7 +478,7 @@ class DnsTransactionImpl : public DnsTransaction,
 
   // Resolves the result of a DnsUDPAttempt until a terminal result is reached
   // or it will complete asynchronously (ERR_IO_PENDING).
-  AttemptResult FinishAttempt(AttemptResult result) {
+  AttemptResult ProcessAttemptResult(AttemptResult result) {
     while (result.rv != ERR_IO_PENDING) {
       LogResponse(result.attempt);
 
@@ -494,6 +500,7 @@ class DnsTransactionImpl : public DnsTransaction,
             result = StartQuery();
           }
           break;
+        case ERR_CONNECTION_REFUSED:
         case ERR_DNS_TIMED_OUT:
           if (MoreAttemptsAllowed()) {
             result = MakeAttempt();
@@ -510,8 +517,11 @@ class DnsTransactionImpl : public DnsTransaction,
           }
           if (MoreAttemptsAllowed()) {
             result = MakeAttempt();
+          } else if (result.rv == ERR_DNS_MALFORMED_RESPONSE) {
+            // Wait until the last attempt times out.
+            return AttemptResult(ERR_IO_PENDING, NULL);
           } else {
-            return AttemptResult(ERR_DNS_SERVER_FAILED, NULL);
+            return AttemptResult(result.rv, NULL);
           }
           break;
       }
@@ -522,7 +532,7 @@ class DnsTransactionImpl : public DnsTransaction,
   void OnTimeout() {
     if (callback_.is_null())
       return;
-    AttemptResult result = FinishAttempt(
+    AttemptResult result = ProcessAttemptResult(
         AttemptResult(ERR_DNS_TIMED_OUT, NULL));
     if (result.rv != ERR_IO_PENDING)
       DoCallback(result);

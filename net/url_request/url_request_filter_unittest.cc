@@ -19,15 +19,19 @@ namespace {
 
 URLRequestTestJob* job_a;
 
-URLRequestJob* FactoryA(URLRequest* request, const std::string& scheme) {
-  job_a = new URLRequestTestJob(request);
+URLRequestJob* FactoryA(URLRequest* request,
+                        NetworkDelegate* network_delegate,
+                        const std::string& scheme) {
+  job_a = new URLRequestTestJob(request, network_delegate);
   return job_a;
 }
 
 URLRequestTestJob* job_b;
 
-URLRequestJob* FactoryB(URLRequest* request, const std::string& scheme) {
-  job_b = new URLRequestTestJob(request);
+URLRequestJob* FactoryB(URLRequest* request,
+                        NetworkDelegate* network_delegate,
+                        const std::string& scheme) {
+  job_b = new URLRequestTestJob(request, network_delegate);
   return job_b;
 }
 
@@ -51,7 +55,7 @@ TEST(URLRequestFilter, BasicMatching) {
                                                              &FactoryA));
   {
     scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, url_1.scheme());
+        &request_1, request_context.network_delegate(), url_1.scheme());
     EXPECT_EQ(job_a, found);
     EXPECT_TRUE(job_a != NULL);
     job_a = NULL;
@@ -59,7 +63,8 @@ TEST(URLRequestFilter, BasicMatching) {
   EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 1);
 
   // Check we don't match other URLs.
-  EXPECT_TRUE(URLRequestFilter::Factory(&request_2, url_2.scheme()) == NULL);
+  EXPECT_TRUE(URLRequestFilter::Factory(
+      &request_2, request_context.network_delegate(), url_2.scheme()) == NULL);
   EXPECT_EQ(1, URLRequestFilter::GetInstance()->hit_count());
 
   // Check we can overwrite URL handler.
@@ -67,7 +72,7 @@ TEST(URLRequestFilter, BasicMatching) {
                                                              &FactoryB));
   {
     scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, url_1.scheme());
+        &request_1, request_context.network_delegate(), url_1.scheme());
     EXPECT_EQ(job_b, found);
     EXPECT_TRUE(job_b != NULL);
     job_b = NULL;
@@ -76,7 +81,8 @@ TEST(URLRequestFilter, BasicMatching) {
 
   // Check we can remove URL matching.
   URLRequestFilter::GetInstance()->RemoveUrlHandler(url_1);
-  EXPECT_TRUE(URLRequestFilter::Factory(&request_1, url_1.scheme()) == NULL);
+  EXPECT_TRUE(URLRequestFilter::Factory(
+      &request_1, request_context.network_delegate(), url_1.scheme()) == NULL);
   EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 2);
 
   // Check hostname matching.
@@ -87,7 +93,7 @@ TEST(URLRequestFilter, BasicMatching) {
                                                       &FactoryB);
   {
     scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, url_1.scheme());
+        &request_1, request_context.network_delegate(), url_1.scheme());
     EXPECT_EQ(job_b, found);
     EXPECT_TRUE(job_b != NULL);
     job_b = NULL;
@@ -95,7 +101,8 @@ TEST(URLRequestFilter, BasicMatching) {
   EXPECT_EQ(1, URLRequestFilter::GetInstance()->hit_count());
 
   // Check we don't match other hostnames.
-  EXPECT_TRUE(URLRequestFilter::Factory(&request_2, url_2.scheme()) == NULL);
+  EXPECT_TRUE(URLRequestFilter::Factory(
+      &request_2, request_context.network_delegate(), url_2.scheme()) == NULL);
   EXPECT_EQ(URLRequestFilter::GetInstance()->hit_count(), 1);
 
   // Check we can overwrite hostname handler.
@@ -104,7 +111,7 @@ TEST(URLRequestFilter, BasicMatching) {
                                                       &FactoryA);
   {
     scoped_refptr<URLRequestJob> found = URLRequestFilter::Factory(
-        &request_1, url_1.scheme());
+        &request_1, request_context.network_delegate(), url_1.scheme());
     EXPECT_EQ(job_a, found);
     EXPECT_TRUE(job_a != NULL);
     job_a = NULL;
@@ -114,7 +121,8 @@ TEST(URLRequestFilter, BasicMatching) {
   // Check we can remove hostname matching.
   URLRequestFilter::GetInstance()->RemoveHostnameHandler(url_1.scheme(),
                                                          url_1.host());
-  EXPECT_TRUE(URLRequestFilter::Factory(&request_1, url_1.scheme()) == NULL);
+  EXPECT_TRUE(URLRequestFilter::Factory(
+      &request_1, request_context.network_delegate(), url_1.scheme()) == NULL);
   EXPECT_EQ(2, URLRequestFilter::GetInstance()->hit_count());
 }
 

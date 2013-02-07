@@ -5,9 +5,11 @@
 #ifndef MEDIA_WEBM_WEBM_TRACKS_PARSER_H_
 #define MEDIA_WEBM_WEBM_TRACKS_PARSER_H_
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/time.h"
+#include "media/base/media_log.h"
 #include "media/webm/webm_content_encodings_client.h"
 #include "media/webm/webm_parser.h"
 
@@ -16,7 +18,7 @@ namespace media {
 // Parser for WebM Tracks element.
 class WebMTracksParser : public WebMParserClient {
  public:
-  explicit WebMTracksParser(int64 timecode_scale);
+  explicit WebMTracksParser(const LogCB& log_cb);
   virtual ~WebMTracksParser();
 
   // Parses a WebM Tracks element in |buf|.
@@ -28,9 +30,12 @@ class WebMTracksParser : public WebMParserClient {
 
   int64 audio_track_num() const { return audio_track_num_; }
   int64 video_track_num() const { return video_track_num_; }
-
-  const uint8* video_encryption_key_id() const;
-  int video_encryption_key_id_size() const;
+  const std::string& audio_encryption_key_id() const {
+    return audio_encryption_key_id_;
+  }
+  const std::string& video_encryption_key_id() const {
+    return video_encryption_key_id_;
+  }
 
  private:
   // WebMParserClient methods
@@ -41,19 +46,17 @@ class WebMTracksParser : public WebMParserClient {
   virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
   virtual bool OnString(int id, const std::string& str) OVERRIDE;
 
-  int64 timecode_scale_;
-
   int64 track_type_;
   int64 track_num_;
   scoped_ptr<WebMContentEncodingsClient> track_content_encodings_client_;
 
   int64 audio_track_num_;
-  scoped_ptr<WebMContentEncodingsClient> audio_content_encodings_client_;
-
   int64 video_track_num_;
-  scoped_ptr<WebMContentEncodingsClient> video_content_encodings_client_;
+  std::string audio_encryption_key_id_;
+  std::string video_encryption_key_id_;
+  LogCB log_cb_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WebMTracksParser);
+  DISALLOW_COPY_AND_ASSIGN(WebMTracksParser);
 };
 
 }  // namespace media

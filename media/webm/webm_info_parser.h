@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,13 @@
 #define MEDIA_WEBM_WEBM_INFO_PARSER_H_
 
 #include "base/compiler_specific.h"
+#include "media/base/media_export.h"
 #include "media/webm/webm_parser.h"
 
 namespace media {
 
 // Parser for WebM Info element.
-class WebMInfoParser : public WebMParserClient {
+class MEDIA_EXPORT WebMInfoParser : public WebMParserClient {
  public:
   WebMInfoParser();
   virtual ~WebMInfoParser();

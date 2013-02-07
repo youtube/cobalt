@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "net/base/net_errors.h"
 #include "net/http/http_chunked_decoder.h"
+
+#include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
+#include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace net {
 
 namespace {
 
@@ -15,7 +19,7 @@ void RunTest(const char* inputs[], size_t num_inputs,
              const char* expected_output,
              bool expected_eof,
              int bytes_after_eof) {
-  net::HttpChunkedDecoder decoder;
+  HttpChunkedDecoder decoder;
   EXPECT_FALSE(decoder.reached_eof());
 
   std::string result;
@@ -37,28 +41,26 @@ void RunTest(const char* inputs[], size_t num_inputs,
 void RunTestUntilFailure(const char* inputs[],
                          size_t num_inputs,
                          size_t fail_index) {
-  net::HttpChunkedDecoder decoder;
+  HttpChunkedDecoder decoder;
   EXPECT_FALSE(decoder.reached_eof());
 
   for (size_t i = 0; i < num_inputs; ++i) {
     std::string input = inputs[i];
     int n = decoder.FilterBuf(&input[0], static_cast<int>(input.size()));
     if (n < 0) {
-      EXPECT_EQ(net::ERR_INVALID_CHUNKED_ENCODING, n);
+      EXPECT_EQ(ERR_INVALID_CHUNKED_ENCODING, n);
       EXPECT_EQ(fail_index, i);
       return;
     }
   }
-  FAIL(); // We should have failed on the i'th iteration of the loop.
+  FAIL();  // We should have failed on the |fail_index| iteration of the loop.
 }
-
-}  // namespace
 
 TEST(HttpChunkedDecoderTest, Basic) {
   const char* inputs[] = {
-    "5\r\nhello\r\n0\r\n\r\n"
+    "B\r\nhello hello\r\n0\r\n\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true, 0);
+  RunTest(inputs, arraysize(inputs), "hello hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, OneChunk) {
@@ -90,6 +92,20 @@ TEST(HttpChunkedDecoderTest, Incremental) {
     "\r",
     "\n",
     "\r",
+    "\n"
+  };
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
+}
+
+// Same as above, but group carriage returns with previous input.
+TEST(HttpChunkedDecoderTest, Incremental2) {
+  const char* inputs[] = {
+    "5\r",
+    "\n",
+    "hello\r",
+    "\n",
+    "0\r",
+    "\n\r",
     "\n"
   };
   RunTest(inputs, arraysize(inputs), "hello", true, 0);
@@ -307,3 +323,34 @@ TEST(HttpChunkedDecoderTest, MultipleExtraDataBlocks) {
   };
   RunTest(inputs, arraysize(inputs), "hello", true, 11);
 }
+
+// Test when the line with the chunk length is too long.
+TEST(HttpChunkedDecoderTest, LongChunkLengthLine) {
+  int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
+  scoped_array<char> big_chunk(new char[big_chunk_length + 1]);
+  memset(big_chunk.get(), '0', big_chunk_length);
+  big_chunk[big_chunk_length] = 0;
+  const char* inputs[] = {
+    big_chunk.get(),
+    "5"
+  };
+  RunTestUntilFailure(inputs, arraysize(inputs), 1);
+}
+
+// Test when the extension portion of the line with the chunk length is too
+// long.
+TEST(HttpChunkedDecoderTest, LongLengthLengthLine) {
+  int big_chunk_length = HttpChunkedDecoder::kMaxLineBufLen;
+  scoped_array<char> big_chunk(new char[big_chunk_length + 1]);
+  memset(big_chunk.get(), '0', big_chunk_length);
+  big_chunk[big_chunk_length] = 0;
+  const char* inputs[] = {
+    "5;",
+    big_chunk.get()
+  };
+  RunTestUntilFailure(inputs, arraysize(inputs), 1);
+}
+
+}  // namespace
+
+}  // namespace net

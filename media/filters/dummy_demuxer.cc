@@ -32,13 +32,7 @@ void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
 
-Ranges<base::TimeDelta> DummyDemuxerStream::GetBufferedRanges() {
-  return Ranges<base::TimeDelta>();
-}
-
-DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio)
-    : has_video_(has_video),
-      has_audio_(has_audio) {
+DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio) {
   streams_.resize(DemuxerStream::NUM_TYPES);
   if (has_audio)
     streams_[DemuxerStream::AUDIO] =
@@ -60,10 +54,6 @@ scoped_refptr<DemuxerStream> DummyDemuxer::GetStream(DemuxerStream::Type type) {
 
 base::TimeDelta DummyDemuxer::GetStartTime() const {
   return base::TimeDelta();
-}
-
-int DummyDemuxer::GetBitrate() {
-  return 0;
 }
 
 DummyDemuxer::~DummyDemuxer() {}

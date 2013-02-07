@@ -140,4 +140,6 @@ class PlatformUtility(object):
 
     if not self._httpd_cmd_string:
       return ["true"]   # Haven't been asked for the start cmd yet. Just pass.
-    return [self._bash, "-c", self._httpd_cmd_string + ' -k stop']
+    # Add a sleep after the shutdown because sometimes it takes some time for
+    # the port to be available again.
+    return [self._bash, "-c", self._httpd_cmd_string + ' -k stop && sleep 5']

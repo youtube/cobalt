@@ -11,6 +11,10 @@
 #include "crypto/nss_util.h"
 #include "net/base/x509_certificate.h"
 
+#if defined(OS_IOS)
+#include "net/base/x509_util_ios.h"
+#endif
+
 namespace net {
 
 // TrustEntry is used to store the original CERTCertificate and CERTCertTrust
@@ -20,11 +24,11 @@ class TestRootCerts::TrustEntry {
  public:
   // Creates a new TrustEntry by incrementing the reference to |certificate|
   // and copying |trust|.
-  TrustEntry(CERTCertificate* certificate, CERTCertTrust trust);
+  TrustEntry(CERTCertificate* certificate, const CERTCertTrust& trust);
   ~TrustEntry();
 
   CERTCertificate* certificate() const { return certificate_; }
-  CERTCertTrust trust() const { return trust_; }
+  const CERTCertTrust& trust() const { return trust_; }
 
  private:
   // The temporary root certificate.
@@ -38,7 +42,7 @@ class TestRootCerts::TrustEntry {
 };
 
 TestRootCerts::TrustEntry::TrustEntry(CERTCertificate* certificate,
-                                      CERTCertTrust trust)
+                                      const CERTCertTrust& trust)
     : certificate_(CERT_DupCertificate(certificate)),
       trust_(trust) {
 }
@@ -48,11 +52,16 @@ TestRootCerts::TrustEntry::~TrustEntry() {
 }
 
 bool TestRootCerts::Add(X509Certificate* certificate) {
+#if defined(OS_IOS)
+  x509_util_ios::NSSCertificate nss_certificate(certificate->os_cert_handle());
+  CERTCertificate* cert_handle = nss_certificate.cert_handle();
+#else
+  CERTCertificate* cert_handle = certificate->os_cert_handle();
+#endif
   // Preserve the original trust bits so that they can be restored when
   // the certificate is removed.
   CERTCertTrust original_trust;
-  SECStatus rv = CERT_GetCertTrust(certificate->os_cert_handle(),
-                                   &original_trust);
+  SECStatus rv = CERT_GetCertTrust(cert_handle, &original_trust);
   if (rv != SECSuccess) {
     // CERT_GetCertTrust will fail if the certificate does not have any
     // particular trust settings associated with it, and attempts to use
@@ -71,16 +80,13 @@ bool TestRootCerts::Add(X509Certificate* certificate) {
     return false;
   }
 
-  rv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
-                            certificate->os_cert_handle(),
-                            &new_trust);
+  rv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), cert_handle, &new_trust);
   if (rv != SECSuccess) {
     LOG(ERROR) << "Cannot change certificate trust.";
     return false;
   }
 
-  trust_cache_.push_back(new TrustEntry(certificate->os_cert_handle(),
-                                        original_trust));
+  trust_cache_.push_back(new TrustEntry(cert_handle, original_trust));
   return true;
 }
 

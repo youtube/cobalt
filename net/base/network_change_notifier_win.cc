@@ -13,7 +13,7 @@
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "net/base/winsock_init.h"
-#include "net/dns/dns_config_watcher.h"
+#include "net/dns/dns_config_service.h"
 
 #pragma comment(lib, "iphlpapi.lib")
 
@@ -26,38 +26,41 @@ const int kWatchForAddressChangeRetryIntervalMs = 500;
 
 }  // namespace
 
-// Thread on which we can run DnsConfigWatcher, which requires AssertIOAllowed
+// Thread on which we can run DnsConfigService, which requires AssertIOAllowed
 // to open registry keys and to handle FilePathWatcher updates.
-class NetworkChangeNotifierWin::DnsWatcherThread : public base::Thread {
+class NetworkChangeNotifierWin::DnsConfigServiceThread : public base::Thread {
  public:
-  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+  DnsConfigServiceThread() : base::Thread("DnsConfigService") {}
 
-  virtual ~DnsWatcherThread() {
+  virtual ~DnsConfigServiceThread() {
     Stop();
   }
 
   virtual void Init() OVERRIDE {
-    watcher_.Init();
+    service_ = DnsConfigService::CreateSystemService();
+    service_->WatchConfig(base::Bind(&NetworkChangeNotifier::SetDnsConfig));
   }
 
   virtual void CleanUp() OVERRIDE {
-    watcher_.CleanUp();
+    service_.reset();
   }
 
  private:
-  internal::DnsConfigWatcher watcher_;
+  scoped_ptr<DnsConfigService> service_;
 
-  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceThread);
 };
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
-    : is_watching_(false),
+    : NetworkChangeNotifier(NetworkChangeCalculatorParamsWin()),
+      is_watching_(false),
       sequential_failures_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      dns_watcher_thread_(new DnsWatcherThread()) {
+      dns_config_service_thread_(new DnsConfigServiceThread()),
+      last_announced_offline_(IsOffline()) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
-  dns_watcher_thread_->StartWithOptions(
+  dns_config_service_thread_->StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
@@ -67,6 +70,20 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
     addr_watcher_.StopWatching();
   }
   WSACloseEvent(addr_overlapped_.hEvent);
+}
+
+// static
+NetworkChangeNotifier::NetworkChangeCalculatorParams
+NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
+  NetworkChangeCalculatorParams params;
+  // Delay values arrived at by simple experimentation and adjusted so as to
+  // produce a single signal when switching between network connections.
+  params.ip_address_offline_delay_ = base::TimeDelta::FromMilliseconds(1500);
+  params.ip_address_online_delay_ = base::TimeDelta::FromMilliseconds(1500);
+  params.connection_type_offline_delay_ =
+      base::TimeDelta::FromMilliseconds(1500);
+  params.connection_type_online_delay_ = base::TimeDelta::FromMilliseconds(500);
+  return params;
 }
 
 // This implementation does not return the actual connection type but merely
@@ -211,7 +228,9 @@ void NetworkChangeNotifierWin::NotifyObservers() {
   //
   // The one second delay chosen here was determined experimentally
   // by adamk on Windows 7.
-  timer_.Stop();  // cancel any already waiting notification
+  // If after one second we determine we are still offline, we will
+  // delay again.
+  offline_polls_ = 0;
   timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
                &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
 }
@@ -270,6 +289,21 @@ bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
 }
 
 void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange() {
+  bool current_offline = IsOffline();
+  offline_polls_++;
+  // If we continue to appear offline, delay sending out the notification in
+  // case we appear to go online within 20 seconds.  UMA histogram data shows
+  // we may not detect the transition to online state after 1 second but within
+  // 20 seconds we generally do.
+  if (last_announced_offline_ && current_offline && offline_polls_ <= 20) {
+    timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
+                 &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
+    return;
+  }
+  if (last_announced_offline_)
+    UMA_HISTOGRAM_CUSTOM_COUNTS("NCN.OfflinePolls", offline_polls_, 1, 50, 50);
+  last_announced_offline_ = current_offline;
+
   NotifyObserversOfConnectionTypeChange();
 }
 

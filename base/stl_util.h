@@ -7,8 +7,12 @@
 #ifndef BASE_STL_UTIL_H_
 #define BASE_STL_UTIL_H_
 
+#include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
+
+#include "base/logging.h"
 
 // Clears internal memory of an STL object.
 // STL clear()/reserve(0) does not always free internal memory allocated
@@ -190,5 +194,29 @@ template <typename Collection, typename Key>
 bool ContainsKey(const Collection& collection, const Key& key) {
   return collection.find(key) != collection.end();
 }
+
+namespace base {
+
+// Returns true if the container is sorted.
+template <typename Container>
+bool STLIsSorted(const Container& cont) {
+  return std::adjacent_find(cont.begin(), cont.end(),
+                            std::greater<typename Container::value_type>())
+      == cont.end();
+}
+
+// Returns a new ResultType containing the difference of two sorted containers.
+template <typename ResultType, typename Arg1, typename Arg2>
+ResultType STLSetDifference(const Arg1& a1, const Arg2& a2) {
+  DCHECK(STLIsSorted(a1));
+  DCHECK(STLIsSorted(a2));
+  ResultType difference;
+  std::set_difference(a1.begin(), a1.end(),
+                      a2.begin(), a2.end(),
+                      std::inserter(difference, difference.end()));
+  return difference;
+}
+
+}  // namespace base
 
 #endif  // BASE_STL_UTIL_H_

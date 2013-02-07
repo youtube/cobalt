@@ -4,6 +4,8 @@
 
 package org.chromium.example.jni_generator;
 
+import android.graphics.Rect;
+
 // This class serves as a reference test for the bindings generator, and as example documentation
 // for how to use the jni generator.
 // The C++ counter-part is sample_for_tests.cc.
@@ -16,7 +18,7 @@ package org.chromium.example.jni_generator;
 // This JNINamespace annotation indicates that all native methods should be
 // generated inside this namespace, including the native class that this
 // object binds to.
-@JNINamespace("content")
+@JNINamespace("base::android")
 class SampleForTests {
   // Classes can store their C++ pointer counter part as an int that is normally initialized by
   // calling out a nativeInit() function.
@@ -77,6 +79,19 @@ class SampleForTests {
   // See more details at the "@CalledByNativeUnchecked" annotation.
   @CalledByNativeUnchecked
   void methodThatThrowsException() throws Exception {}
+
+  // The generator is not confused by inline comments:
+  // @CalledByNative void thisShouldNotAppearInTheOutput();
+  // @CalledByNativeUnchecked public static void neitherShouldThis(int foo);
+
+  /**
+   * The generator is not confused by block comments:
+   * @CalledByNative void thisShouldNotAppearInTheOutputEither();
+   * @CalledByNativeUnchecked public static void andDefinitelyNotThis(int foo);
+   */
+
+  // String constants that look like comments don't confuse the generator:
+  private String arrgh = "*/*";
 
   //------------------------------------------------------------------------------------------------
   // Java fields which are accessed from C++ code only must be annotated with @AccessedByNative to

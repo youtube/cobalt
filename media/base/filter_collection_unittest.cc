@@ -20,80 +20,46 @@ class FilterCollectionTest : public ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(FilterCollectionTest);
 };
 
-TEST_F(FilterCollectionTest, TestIsEmptyAndClear) {
-  EXPECT_TRUE(collection_.IsEmpty());
-
-  collection_.AddAudioDecoder(mock_filters_.audio_decoder());
-
-  EXPECT_FALSE(collection_.IsEmpty());
-
-  collection_.Clear();
-
-  EXPECT_TRUE(collection_.IsEmpty());
-}
-
 TEST_F(FilterCollectionTest, SelectXXXMethods) {
-  scoped_refptr<AudioDecoder> audio_decoder;
-  scoped_refptr<VideoDecoder> video_decoder;
+  scoped_refptr<AudioRenderer> audio_renderer;
 
-  collection_.AddVideoDecoder(mock_filters_.video_decoder());
-  EXPECT_FALSE(collection_.IsEmpty());
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 
-  // Verify that the video decoder will not be returned if we
-  // ask for a different type.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
-  EXPECT_FALSE(collection_.IsEmpty());
-
-  // Verify that we can actually retrieve the video decoder
-  // and that it is removed from the collection.
-  collection_.SelectVideoDecoder(&video_decoder);
-  EXPECT_TRUE(video_decoder);
-  EXPECT_TRUE(collection_.IsEmpty());
-
-  // Add a video decoder and audio decoder.
-  collection_.AddVideoDecoder(mock_filters_.video_decoder());
-  collection_.AddAudioDecoder(mock_filters_.audio_decoder());
+  // Add an audio decoder.
+  collection_.AddAudioRenderer(mock_filters_.audio_renderer());
 
   // Verify that we can select the audio decoder.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
-  EXPECT_FALSE(collection_.IsEmpty());
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
 
   // Verify that we can't select it again since only one has been added.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
-
-  // Verify that we can select the video decoder and that doing so will
-  // empty the collection again.
-  collection_.SelectVideoDecoder(&video_decoder);
-  EXPECT_TRUE(collection_.IsEmpty());
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 }
 
 TEST_F(FilterCollectionTest, MultipleFiltersOfSameType) {
-  scoped_refptr<AudioDecoder> audio_decoder_a(new MockAudioDecoder());
-  scoped_refptr<AudioDecoder> audio_decoder_b(new MockAudioDecoder());
+  scoped_refptr<AudioRenderer> audio_renderer_a(new MockAudioRenderer());
+  scoped_refptr<AudioRenderer> audio_renderer_b(new MockAudioRenderer());
 
-  scoped_refptr<AudioDecoder> audio_decoder;
+  scoped_refptr<AudioRenderer> audio_renderer;
 
-  collection_.AddAudioDecoder(audio_decoder_a.get());
-  collection_.AddAudioDecoder(audio_decoder_b.get());
+  collection_.AddAudioRenderer(audio_renderer_a.get());
+  collection_.AddAudioRenderer(audio_renderer_b.get());
 
-  // Verify that first SelectAudioDecoder() returns audio_decoder_a.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
-  EXPECT_EQ(audio_decoder, audio_decoder_a);
-  EXPECT_FALSE(collection_.IsEmpty());
+  // Verify that first SelectAudioRenderer() returns audio_renderer_a.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
+  EXPECT_EQ(audio_renderer, audio_renderer_a);
 
-  // Verify that second SelectAudioDecoder() returns audio_decoder_b.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
-  EXPECT_EQ(audio_decoder, audio_decoder_b);
-  EXPECT_TRUE(collection_.IsEmpty());
+  // Verify that second SelectAudioRenderer() returns audio_renderer_b.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
+  EXPECT_EQ(audio_renderer, audio_renderer_b);
 
-  // Verify that third SelectAudioDecoder() returns nothing.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
+  // Verify that third SelectAudioRenderer() returns nothing.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 }
 
 }  // namespace media

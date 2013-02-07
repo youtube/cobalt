@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/process_util.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
@@ -19,11 +20,24 @@ namespace debug {
 
 namespace {
 
+// Previous unhandled filter. Will be called if not NULL when we intercept an
+// exception. Only used in unit tests.
+LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
+
+// Prints the exception call stack.
+// This is the unit tests exception filter.
+long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
+  debug::StackTrace(info).PrintBacktrace();
+  if (g_previous_filter)
+    return g_previous_filter(info);
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
 // SymbolContext is a threadsafe singleton that wraps the DbgHelp Sym* family
 // of functions.  The Sym* family of functions may only be invoked by one
 // thread at a time.  SymbolContext code may access a symbol server over the
 // network while holding the lock for this singleton.  In the case of high
-// latency, this code will adversly affect performance.
+// latency, this code will adversely affect performance.
 //
 // There is also a known issue where this backtrace code can interact
 // badly with breakpad if breakpad is invoked in a separate thread while
@@ -57,7 +71,7 @@ class SymbolContext {
   // LOG(FATAL) here because this code is called might be triggered by a
   // LOG(FATAL) itself.
   void OutputTraceToStream(const void* const* trace,
-                           int count,
+                           size_t count,
                            std::ostream* os) {
     base::AutoLock lock(lock_);
 
@@ -95,7 +109,7 @@ class SymbolContext {
         (*os) << symbol->Name << " [0x" << trace[i] << "+"
               << sym_displacement << "]";
       } else {
-        // If there is no symbol informtion, add a spacer.
+        // If there is no symbol information, add a spacer.
         (*os) << "(No symbol) [0x" << trace[i] << "]";
       }
       if (has_line) {
@@ -134,6 +148,14 @@ class SymbolContext {
 };
 
 }  // namespace
+
+bool EnableInProcessStackDumping() {
+  // Add stack dumping support on exception on windows. Similar to OS_POSIX
+  // signal() handling in process_util_posix.cc.
+  g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
+  RouteStdioToConsole();
+  return true;
+}
 
 // Disable optimizations for the StackTrace::StackTrace function. It is
 // important to disable at least frame pointer optimization ("y"), since
@@ -185,6 +207,9 @@ StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
          count_ < arraysize(trace_)) {
     trace_[count_++] = reinterpret_cast<void*>(stack_frame.AddrPC.Offset);
   }
+
+  for (size_t i = count_; i < arraysize(trace_); ++i)
+    trace_[i] = NULL;
 }
 
 void StackTrace::PrintBacktrace() const {

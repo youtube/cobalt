@@ -18,8 +18,9 @@
 #include "net/test/test_server.h"
 
 static void PrintUsage() {
-  printf("run_testserver --doc-root=relpath [--http|--https|--ftp|--sync]\n"
-         "               [--https-cert=ok|mismatched-name|expired]\n"
+  printf("run_testserver --doc-root=relpath\n"
+         "               [--http|--https|--ws|--wss|--ftp|--sync]\n"
+         "               [--ssl-cert=ok|mismatched-name|expired]\n"
          "               [--port=<port>] [--xmpp-port=<xmpp_port>]\n");
   printf("(NOTE: relpath should be relative to the 'src' directory.\n");
   printf("       --port and --xmpp-port only work with the --sync flag.)\n");
@@ -27,7 +28,7 @@ static void PrintUsage() {
 
 // Launches the chromiumsync_test script, testing the --sync functionality.
 static bool RunSyncTest() {
- if (!net::TestServer::SetPythonPath()) {
+ if (!net::TestServer::SetPythonPathStatic()) {
     LOG(ERROR) << "Error trying to set python path. Exiting.";
     return false;
   }
@@ -40,13 +41,13 @@ static bool RunSyncTest() {
 
   sync_test_path =
       sync_test_path.Append(FILE_PATH_LITERAL("chromiumsync_test.py"));
-  FilePath python_runtime;
-  if (!GetPythonRunTime(&python_runtime)) {
+
+  CommandLine python_command(CommandLine::NO_PROGRAM);
+  if (!GetPythonCommand(&python_command)) {
     LOG(ERROR) << "Could not get python runtime command.";
     return false;
   }
 
-  CommandLine python_command(python_runtime);
   python_command.AppendArgPath(sync_test_path);
   if (!base::LaunchProcess(python_command, base::LaunchOptions(), NULL)) {
     LOG(ERROR) << "Failed to launch test script.";
@@ -101,31 +102,48 @@ int main(int argc, const char* argv[]) {
     return -1;
   }
 
-  net::TestServer::Type server_type(net::TestServer::TYPE_HTTP);
-  if (command_line->HasSwitch("https")) {
+  net::TestServer::Type server_type;
+  if (command_line->HasSwitch("http")) {
+    server_type = net::TestServer::TYPE_HTTP;
+  } else if (command_line->HasSwitch("https")) {
     server_type = net::TestServer::TYPE_HTTPS;
+  } else if (command_line->HasSwitch("ws")) {
+    server_type = net::TestServer::TYPE_WS;
+  } else if (command_line->HasSwitch("wss")) {
+    server_type = net::TestServer::TYPE_WSS;
   } else if (command_line->HasSwitch("ftp")) {
     server_type = net::TestServer::TYPE_FTP;
   } else if (command_line->HasSwitch("sync")) {
     server_type = net::TestServer::TYPE_SYNC;
   } else if (command_line->HasSwitch("sync-test")) {
     return RunSyncTest() ? 0 : -1;
+  } else {
+    // If no scheme switch is specified, select http or https scheme.
+    // TODO(toyoshim): Remove this estimation.
+    if (command_line->HasSwitch("ssl-cert"))
+      server_type = net::TestServer::TYPE_HTTPS;
+    else
+      server_type = net::TestServer::TYPE_HTTP;
   }
 
-  net::TestServer::HTTPSOptions https_options;
-  if (command_line->HasSwitch("https-cert")) {
-    server_type = net::TestServer::TYPE_HTTPS;
-    std::string cert_option = command_line->GetSwitchValueASCII("https-cert");
+  net::TestServer::SSLOptions ssl_options;
+  if (command_line->HasSwitch("ssl-cert")) {
+    if (!net::TestServer::UsingSSL(server_type)) {
+      printf("Error: --ssl-cert is specified on non-secure scheme\n");
+      PrintUsage();
+      return -1;
+    }
+    std::string cert_option = command_line->GetSwitchValueASCII("ssl-cert");
     if (cert_option == "ok") {
-      https_options.server_certificate = net::TestServer::HTTPSOptions::CERT_OK;
+      ssl_options.server_certificate = net::TestServer::SSLOptions::CERT_OK;
     } else if (cert_option == "mismatched-name") {
-      https_options.server_certificate =
-          net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME;
+      ssl_options.server_certificate =
+          net::TestServer::SSLOptions::CERT_MISMATCHED_NAME;
     } else if (cert_option == "expired") {
-      https_options.server_certificate =
-          net::TestServer::HTTPSOptions::CERT_EXPIRED;
+      ssl_options.server_certificate =
+          net::TestServer::SSLOptions::CERT_EXPIRED;
     } else {
-      printf("Error: --https-cert has invalid value %s\n", cert_option.c_str());
+      printf("Error: --ssl-cert has invalid value %s\n", cert_option.c_str());
       PrintUsage();
       return -1;
     }
@@ -139,28 +157,21 @@ int main(int argc, const char* argv[]) {
   }
 
   scoped_ptr<net::TestServer> test_server;
-  switch (server_type) {
-    case net::TestServer::TYPE_HTTPS: {
-      test_server.reset(new net::TestServer(https_options, doc_root));
-      break;
+  if (net::TestServer::UsingSSL(server_type)) {
+    test_server.reset(new net::TestServer(server_type, ssl_options, doc_root));
+  } else if (server_type == net::TestServer::TYPE_SYNC) {
+    uint16 port = 0;
+    uint16 xmpp_port = 0;
+    if (!GetPortFromSwitch("port", &port) ||
+        !GetPortFromSwitch("xmpp-port", &xmpp_port)) {
+      printf("Error: Could not extract --port and/or --xmpp-port.\n");
+      return -1;
     }
-    case net::TestServer::TYPE_SYNC: {
-      uint16 port = 0;
-      uint16 xmpp_port = 0;
-      if (!GetPortFromSwitch("port", &port) ||
-          !GetPortFromSwitch("xmpp-port", &xmpp_port)) {
-        printf("Error: Could not extract --port and/or --xmpp-port.\n");
-        return -1;
-      }
-      test_server.reset(new net::LocalSyncTestServer(port, xmpp_port));
-      break;
-    }
-    default: {
-      test_server.reset(new net::TestServer(server_type,
-                                            net::TestServer::kLocalhost,
-                                            doc_root));
-      break;
-    }
+    test_server.reset(new net::LocalSyncTestServer(port, xmpp_port));
+  } else {
+    test_server.reset(new net::TestServer(server_type,
+                                          net::TestServer::kLocalhost,
+                                          doc_root));
   }
 
   if (!test_server->Start()) {

@@ -8,15 +8,21 @@
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
 
+#include <string>
+#include <vector>
+
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sha1.h"
 #include "base/string_piece.h"
+#include "base/synchronization/lock.h"
+#include "crypto/mac_security_services_lock.h"
 #include "crypto/nss_util.h"
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
@@ -156,7 +162,8 @@ OSStatus CreateTrustPolicies(const std::string& hostname,
   // revocation checking policies and instead respect the application-level
   // revocation preference.
   status = x509_util::CreateRevocationPolicies(
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED),
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED),
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY),
       local_policies);
   if (status)
     return status;
@@ -231,7 +238,7 @@ void GetCertChainInfo(CFArrayRef cert_chain,
 }
 
 void AppendPublicKeyHashes(CFArrayRef chain,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           HashValueVector* hashes) {
   const CFIndex n = CFArrayGetCount(chain);
   for (CFIndex i = 0; i < n; i++) {
     SecCertificateRef cert = reinterpret_cast<SecCertificateRef>(
@@ -246,9 +253,13 @@ void AppendPublicKeyHashes(CFArrayRef chain,
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
       continue;
 
-    SHA1Fingerprint hash;
-    CC_SHA1(spki_bytes.data(), spki_bytes.size(), hash.data);
-    hashes->push_back(hash);
+    HashValue sha1(HASH_VALUE_SHA1);
+    CC_SHA1(spki_bytes.data(), spki_bytes.size(), sha1.data());
+    hashes->push_back(sha1);
+
+    HashValue sha256(HASH_VALUE_SHA256);
+    CC_SHA256(spki_bytes.data(), spki_bytes.size(), sha256.data());
+    hashes->push_back(sha256);
   }
 }
 
@@ -325,7 +336,7 @@ bool IsIssuedByKnownRoot(CFArrayRef chain) {
     return false;
   SecCertificateRef root_ref = reinterpret_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(chain, n - 1)));
-  SHA1Fingerprint hash = X509Certificate::CalculateFingerprint(root_ref);
+  SHA1HashValue hash = X509Certificate::CalculateFingerprint(root_ref);
   return IsSHA1HashInSortedArray(
       hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
 }
@@ -353,11 +364,9 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
   // chain building.
   ScopedCFTypeRef<CFArrayRef> cert_array(cert->CreateOSCertChainForCert());
 
-  // From here on, only one thread can be active at a time. We have had a number
-  // of sporadic crashes in the SecTrustEvaluate call below, way down inside
-  // Apple's cert code, which we suspect are caused by a thread-safety issue.
-  // So as a speculative fix allow only one thread to use SecTrust on this cert.
-  base::AutoLock lock(verification_lock_);
+  // Serialize all calls that may use the Keychain, to work around various
+  // issues in OS X 10.6+ with multi-threaded access to Security.framework.
+  base::AutoLock lock(crypto::GetMacSecurityServicesLock());
 
   SecTrustRef trust_ref = NULL;
   status = SecTrustCreateWithCertificates(cert_array, trust_policies,
@@ -380,7 +389,9 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
   tp_action_data.ActionFlags = CSSM_TP_ACTION_FETCH_CERT_FROM_NET |
                                CSSM_TP_ACTION_TRUST_SETTINGS;
 
-  if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) {
+  // Note: For EV certificates, the Apple TP will handle setting these flags
+  // as part of EV evaluation.
+  if (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) {
     // Require a positive result from an OCSP responder or a CRL (or both)
     // for every certificate in the chain. The Apple TP automatically
     // excludes the self-signed root from this requirement. If a certificate
@@ -530,10 +541,13 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
   // compatible with WinHTTP, which doesn't report this error (bug 3004).
   verify_result->cert_status &= ~CERT_STATUS_NO_REVOCATION_MECHANISM;
 
+  AppendPublicKeyHashes(completed_chain, &verify_result->public_key_hashes);
+  verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(completed_chain);
+
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  if (flags & X509Certificate::VERIFY_EV_CERT) {
+  if (flags & CertVerifier::VERIFY_EV_CERT) {
     // Determine the certificate's EV status using SecTrustCopyExtendedResult(),
     // which we need to look up because the function wasn't added until
     // Mac OS X 10.5.7.
@@ -564,14 +578,13 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
           if (CFDictionaryContainsKey(ev_dict,
                                       kSecEVOrganizationName)) {
             verify_result->cert_status |= CERT_STATUS_IS_EV;
+            if (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY)
+              verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
           }
         }
       }
     }
   }
-
-  AppendPublicKeyHashes(completed_chain, &verify_result->public_key_hashes);
-  verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(completed_chain);
 
   return OK;
 }

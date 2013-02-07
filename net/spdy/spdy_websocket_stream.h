@@ -13,6 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/request_priority.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
@@ -77,11 +78,14 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
-  virtual void OnDataReceived(const char* data, int length) OVERRIDE;
+  virtual void OnHeadersSent() OVERRIDE;
+  virtual int OnDataReceived(const char* data, int length) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
 
  private:
+  friend class SpdyWebSocketStreamSpdy2Test;
+  friend class SpdyWebSocketStreamSpdy3Test;
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy2Test, Basic);
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy3Test, Basic);
 

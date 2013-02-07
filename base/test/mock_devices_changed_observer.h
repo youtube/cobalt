@@ -10,23 +10,21 @@
 #include "base/system_monitor/system_monitor.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-class FilePath;
-
 namespace base {
 
 class MockDevicesChangedObserver
-  : public base::SystemMonitor::DevicesChangedObserver {
+    : public base::SystemMonitor::DevicesChangedObserver {
  public:
   MockDevicesChangedObserver();
   ~MockDevicesChangedObserver();
 
-  MOCK_METHOD0(OnDevicesChanged, void());
-  MOCK_METHOD3(OnMediaDeviceAttached,
-               void(const base::SystemMonitor::DeviceIdType& id,
-                    const std::string& name,
-                    const FilePath& path));
-  MOCK_METHOD1(OnMediaDeviceDetached,
-               void(const base::SystemMonitor::DeviceIdType& id));
+  MOCK_METHOD1(OnDevicesChanged,
+               void(base::SystemMonitor::DeviceType device_type));
+  MOCK_METHOD3(OnRemovableStorageAttached,
+               void(const std::string& id,
+                    const string16& name,
+                    const FilePath::StringType& location));
+  MOCK_METHOD1(OnRemovableStorageDetached, void(const std::string& id));
 
   DISALLOW_COPY_AND_ASSIGN(MockDevicesChangedObserver);
 };

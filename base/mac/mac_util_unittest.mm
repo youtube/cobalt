@@ -8,10 +8,10 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
-#include "base/scoped_temp_dir.h"
 #include "base/sys_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -151,58 +151,30 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
   base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
 
   if (major == 10) {
-    if (minor == 5) {
-      EXPECT_TRUE(IsOSLeopard());
-      EXPECT_TRUE(IsOSLeopardOrEarlier());
-      EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
-      EXPECT_FALSE(IsOSSnowLeopardOrLater());
-      EXPECT_FALSE(IsOSLion());
-      EXPECT_TRUE(IsOSLionOrEarlier());
-      EXPECT_FALSE(IsOSLionOrLater());
-      EXPECT_FALSE(IsOSMountainLion());
-      EXPECT_FALSE(IsOSMountainLionOrLater());
-      EXPECT_FALSE(
-          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
-    } else if (minor == 6) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
+    if (minor == 6) {
       EXPECT_TRUE(IsOSSnowLeopard());
-      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
       EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_FALSE(IsOSLionOrLater());
       EXPECT_FALSE(IsOSMountainLion());
       EXPECT_FALSE(IsOSMountainLionOrLater());
-      EXPECT_FALSE(
-          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
+      EXPECT_FALSE(IsOSLaterThanMountainLion_DontCallThis());
     } else if (minor == 7) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
       EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_TRUE(IsOSLion());
       EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_TRUE(IsOSLionOrLater());
       EXPECT_FALSE(IsOSMountainLion());
       EXPECT_FALSE(IsOSMountainLionOrLater());
-      EXPECT_FALSE(
-          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
+      EXPECT_FALSE(IsOSLaterThanMountainLion_DontCallThis());
     } else if (minor == 8) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
       EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
       EXPECT_FALSE(IsOSLionOrEarlier());
       EXPECT_TRUE(IsOSLionOrLater());
       EXPECT_TRUE(IsOSMountainLion());
       EXPECT_TRUE(IsOSMountainLionOrLater());
-      EXPECT_FALSE(
-          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
+      EXPECT_FALSE(IsOSLaterThanMountainLion_DontCallThis());
     } else {
       // Not five, six, seven, or eight. Ah, ah, ah.
       EXPECT_TRUE(false);

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/memory/scoped_nsobject.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,6 +41,16 @@ TEST(ScopedNSObjectTest, ScopedNSObject) {
   ASSERT_TRUE(p1 != p5.get());
   ASSERT_FALSE(p1 == p5);
   ASSERT_FALSE(p1 == p5.get());
+
+  scoped_nsobject<NSObject> p6 = p1;
+  ASSERT_EQ(3u, [p6 retainCount]);
+  {
+    base::mac::ScopedNSAutoreleasePool pool;
+    p6.autorelease();
+    ASSERT_EQ(nil, p6.get());
+    ASSERT_EQ(3u, [p1 retainCount]);
+  }
+  ASSERT_EQ(2u, [p1 retainCount]);
 }
 
 TEST(ScopedNSObjectTest, ScopedNSObjectInContainer) {

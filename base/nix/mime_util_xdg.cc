@@ -588,6 +588,8 @@ namespace base {
 namespace nix {
 
 std::string GetFileMimeType(const FilePath& filepath) {
+  if (filepath.empty())
+    return std::string();
   base::ThreadRestrictions::AssertIOAllowed();
   base::AutoLock scoped_lock(g_mime_util_xdg_lock.Get());
   return xdg_mime_get_mime_type_from_file_name(filepath.value().c_str());
@@ -625,7 +627,7 @@ FilePath GetMimeIcon(const std::string& mime_type, size_t size) {
   std::string icon_name;
   FilePath icon_file;
 
-  {
+  if (!mime_type.empty()) {
     base::AutoLock scoped_lock(g_mime_util_xdg_lock.Get());
     const char *icon = xdg_mime_get_icon(mime_type.c_str());
     icon_name = std::string(icon ? icon : "");

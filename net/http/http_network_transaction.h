@@ -26,10 +26,9 @@ namespace net {
 
 class HttpAuthController;
 class HttpNetworkSession;
-class HttpStream;
+class HttpStreamBase;
 class HttpStreamRequest;
 class IOBuffer;
-class UploadDataStream;
 struct HttpRequestInfo;
 
 class NET_EXPORT_PRIVATE HttpNetworkTransaction
@@ -60,12 +59,12 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   virtual void DoneReading() OVERRIDE {}
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
 
   // HttpStreamRequest::Delegate methods:
   virtual void OnStreamReady(const SSLConfig& used_ssl_config,
                              const ProxyInfo& used_proxy_info,
-                             HttpStream* stream) OVERRIDE;
+                             HttpStreamBase* stream) OVERRIDE;
   virtual void OnStreamFailed(int status,
                               const SSLConfig& used_ssl_config) OVERRIDE;
   virtual void OnCertificateError(int status,
@@ -81,7 +80,7 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
                                           const SSLConfig& used_ssl_config,
                                           const ProxyInfo& used_proxy_info,
-                                          HttpStream* stream) OVERRIDE;
+                                          HttpStreamBase* stream) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
@@ -118,6 +117,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
     STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_GENERATE_SERVER_AUTH_TOKEN,
     STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE,
+    STATE_INIT_REQUEST_BODY,
+    STATE_INIT_REQUEST_BODY_COMPLETE,
     STATE_BUILD_REQUEST,
     STATE_BUILD_REQUEST_COMPLETE,
     STATE_SEND_REQUEST,
@@ -151,6 +152,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   int DoGenerateProxyAuthTokenComplete(int result);
   int DoGenerateServerAuthToken();
   int DoGenerateServerAuthTokenComplete(int result);
+  int DoInitRequestBody();
+  int DoInitRequestBodyComplete(int result);
   int DoBuildRequest();
   int DoBuildRequestComplete(int result);
   int DoSendRequest();
@@ -248,7 +251,6 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   CompletionCallback io_callback_;
   CompletionCallback callback_;
-  scoped_ptr<UploadDataStream> request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;
 
@@ -260,7 +262,7 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   ProxyInfo proxy_info_;
 
   scoped_ptr<HttpStreamRequest> stream_request_;
-  scoped_ptr<HttpStream> stream_;
+  scoped_ptr<HttpStreamBase> stream_;
 
   // True if we've validated the headers that the stream parser has returned.
   bool headers_valid_;

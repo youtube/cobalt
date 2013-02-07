@@ -74,6 +74,15 @@ AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   return list;
 }
 
+// static
+AddressList AddressList::CopyWithPort(const AddressList& list, uint16 port) {
+  AddressList out;
+  out.set_canonical_name(list.canonical_name());
+  for (size_t i = 0; i < list.size(); ++i)
+    out.push_back(IPEndPoint(list[i].address(), port));
+  return out;
+}
+
 void AddressList::SetDefaultCanonicalName() {
   DCHECK(!empty());
   set_canonical_name(front().ToStringWithoutPort());
@@ -81,12 +90,6 @@ void AddressList::SetDefaultCanonicalName() {
 
 NetLog::ParametersCallback AddressList::CreateNetLogCallback() const {
   return base::Bind(&NetLogAddressListCallback, this);
-}
-
-void SetPortOnAddressList(uint16 port, AddressList* list) {
-  DCHECK(list);
-  for (AddressList::iterator it = list->begin(); it != list->end(); ++it)
-    *it = IPEndPoint(it->address(), port);
 }
 
 }  // namespace net

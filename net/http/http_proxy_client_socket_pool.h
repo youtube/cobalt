@@ -204,7 +204,7 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
                              StreamSocket* socket,
                              int id) OVERRIDE;
 
-  virtual void Flush() OVERRIDE;
+  virtual void FlushWithError(int error) OVERRIDE;
 
   virtual bool IsStalled() const OVERRIDE;
 
@@ -252,9 +252,7 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
         const PoolBase::Request& request,
         ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
-      return timeout_;
-    }
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
    private:
     TransportClientSocketPool* const transport_pool_;

@@ -8,11 +8,12 @@
 
 #include "base/command_line.h"
 #include "base/debug/alias.h"
-#include "base/eintr_wrapper.h"
+#include "base/debug/stack_trace.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/process_util.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
@@ -72,6 +73,12 @@ const int kExpectedKilledExitCode = 1;
 const int kExpectedStillRunningExitCode = 0;
 #endif
 
+#if defined(OS_WIN)
+// HeapQueryInformation function pointer.
+typedef BOOL (WINAPI* HeapQueryFn)  \
+    (HANDLE, HEAP_INFORMATION_CLASS, PVOID, SIZE_T, PSIZE_T);
+#endif
+
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
   FILE* fp;
@@ -104,7 +111,12 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kInterval);
     waited += kInterval;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
+// Waiting for more time for process termination on android devices.
+#if defined(OS_ANDROID)
+           waited < TestTimeouts::large_test_timeout());
+#else
            waited < TestTimeouts::action_max_timeout());
+#endif
 
   return status;
 }
@@ -279,7 +291,7 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
   base::CloseProcessHandle(handle);
 
   // Reset signal handlers back to "normal".
-  base::EnableInProcessStackDumping();
+  base::debug::EnableInProcessStackDumping();
   remove(signal_file.c_str());
 }
 #endif  // !defined(OS_MACOSX)
@@ -377,17 +389,29 @@ TEST_F(ProcessUtilTest, EnableLFH) {
     if (!no_debug_env || strcmp(no_debug_env, "1"))
       return;
   }
+  HMODULE kernel32 = GetModuleHandle(L"kernel32.dll");
+  ASSERT_TRUE(kernel32 != NULL);
+  HeapQueryFn heap_query = reinterpret_cast<HeapQueryFn>(GetProcAddress(
+      kernel32,
+      "HeapQueryInformation"));
+
+  // On Windows 2000, the function is not exported. This is not a reason to
+  // fail but we won't be able to retrieves information about the heap, so we
+  // should stop here.
+  if (heap_query == NULL)
+    return;
+
   HANDLE heaps[1024] = { 0 };
   unsigned number_heaps = GetProcessHeaps(1024, heaps);
   EXPECT_GT(number_heaps, 0u);
   for (unsigned i = 0; i < number_heaps; ++i) {
     ULONG flag = 0;
     SIZE_T length;
-    ASSERT_NE(0, HeapQueryInformation(heaps[i],
-                                      HeapCompatibilityInformation,
-                                      &flag,
-                                      sizeof(flag),
-                                      &length));
+    ASSERT_NE(0, heap_query(heaps[i],
+                            HeapCompatibilityInformation,
+                            &flag,
+                            sizeof(flag),
+                            &length));
     // If flag is 0, the heap is a standard heap that does not support
     // look-asides. If flag is 1, the heap supports look-asides. If flag is 2,
     // the heap is a low-fragmentation heap (LFH). Note that look-asides are not
@@ -504,6 +528,7 @@ TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
 TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // Assert that freeing an unallocated pointer will crash the process.
   char buf[3];
+  asm("" : "=r" (buf));  // Prevent clang from being too smart.
 #if !defined(ADDRESS_SANITIZER)
   ASSERT_DEATH(free(buf), "being freed.*"
       "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
@@ -588,7 +613,12 @@ int ProcessUtilTest::CountOpenFDsInChild() {
       HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
   CHECK_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
 
+#if defined(THREAD_SANITIZER)
+  // Compiler-based ThreadSanitizer makes this test slow.
+  CHECK(base::WaitForSingleProcess(handle, base::TimeDelta::FromSeconds(3)));
+#else
   CHECK(base::WaitForSingleProcess(handle, base::TimeDelta::FromSeconds(1)));
+#endif
   base::CloseProcessHandle(handle);
   ret = HANDLE_EINTR(close(fds[0]));
   DPCHECK(ret == 0);
@@ -1086,83 +1116,58 @@ TEST_F(OutOfMemoryDeathTest, ViaSharedLibraries) {
 // Android doesn't implement posix_memalign().
 #if defined(OS_POSIX) && !defined(OS_ANDROID)
 TEST_F(OutOfMemoryDeathTest, Posix_memalign) {
-  typedef int (*memalign_t)(void **, size_t, size_t);
-#if defined(OS_MACOSX)
-  // posix_memalign only exists on >= 10.6. Use dlsym to grab it at runtime
-  // because it may not be present in the SDK used for compilation.
-  memalign_t memalign =
-      reinterpret_cast<memalign_t>(dlsym(RTLD_DEFAULT, "posix_memalign"));
-#else
-  memalign_t memalign = posix_memalign;
-#endif  // defined(OS_MACOSX)
-  if (memalign) {
-    // Grab the return value of posix_memalign to silence a compiler warning
-    // about unused return values. We don't actually care about the return
-    // value, since we're asserting death.
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        EXPECT_EQ(ENOMEM, memalign(&value_, 8, test_size_));
-      }, "");
-  }
+  // Grab the return value of posix_memalign to silence a compiler warning
+  // about unused return values. We don't actually care about the return
+  // value, since we're asserting death.
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_));
+    }, "");
 }
 #endif  // defined(OS_POSIX) && !defined(OS_ANDROID)
 
 #if defined(OS_MACOSX)
 
-// Purgeable zone tests (if it exists)
+// Purgeable zone tests
 
 TEST_F(OutOfMemoryDeathTest, MallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_malloc(zone, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_malloc(zone, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, ReallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_realloc(zone, NULL, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_realloc(zone, NULL, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, CallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, VallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_valloc(zone, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_valloc(zone, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-
-  typedef void* (*zone_memalign_t)(malloc_zone_t*, size_t, size_t);
-  // malloc_zone_memalign only exists on >= 10.6. Use dlsym to grab it at
-  // runtime because it may not be present in the SDK used for compilation.
-  zone_memalign_t zone_memalign =
-      reinterpret_cast<zone_memalign_t>(
-        dlsym(RTLD_DEFAULT, "malloc_zone_memalign"));
-
-  if (zone && zone_memalign) {
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = zone_memalign(zone, 8, test_size_);
-      }, "");
-  }
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_memalign(zone, 8, test_size_);
+    }, "");
 }
 
 // Since these allocation functions take a signed size, it's possible that

@@ -21,8 +21,8 @@ namespace net {
 class NET_EXPORT MappedHostResolver : public HostResolver {
  public:
   // Creates a MappedHostResolver that forwards all of its requests through
-  // |impl|.  It takes ownership of |impl|.
-  explicit MappedHostResolver(HostResolver* impl);
+  // |impl|.
+  explicit MappedHostResolver(scoped_ptr<HostResolver> impl);
   virtual ~MappedHostResolver();
 
   // Adds a rule to this mapper. The format of the rule can be one of:

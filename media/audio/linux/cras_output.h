@@ -116,6 +116,9 @@ class MEDIA_EXPORT CrasOutputStream : public AudioOutputStream {
   // Callback to get audio samples.
   AudioSourceCallback* source_callback_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(CrasOutputStream);
 };
 

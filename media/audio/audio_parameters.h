@@ -26,25 +26,21 @@ struct MEDIA_EXPORT AudioInputBuffer {
 
 class MEDIA_EXPORT AudioParameters {
  public:
-  // Compare is useful when AudioParameters is used as a key in std::map.
-  class MEDIA_EXPORT Compare {
-   public:
-    bool operator()(const AudioParameters& a, const AudioParameters& b) const;
-  };
-
   enum Format {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
-    AUDIO_MOCK,               // Creates a dummy AudioOutputStream object.
-    AUDIO_LAST_FORMAT         // Only used for validation of format.y
+    AUDIO_FAKE,               // Creates a fake AudioOutputStream object.
+    AUDIO_VIRTUAL,            // Creates a VirtualAudioInputStream object.
+                              // Applies to input streams only.
+    AUDIO_LAST_FORMAT         // Only used for validation of format.
   };
 
-  // Telephone quality sample rate, mostly for speech-only audio.
-  static const uint32 kTelephoneSampleRate = 8000;
-  // CD sampling rate is 44.1 KHz or conveniently 2x2x3x3x5x5x7x7.
-  static const uint32 kAudioCDSampleRate = 44100;
-  // Digital Audio Tape sample rate.
-  static const uint32 kAudioDATSampleRate = 48000;
+  enum {
+    // Telephone quality sample rate, mostly for speech-only audio.
+    kTelephoneSampleRate = 8000,
+    // CD sampling rate is 44.1 KHz or conveniently 2x2x3x3x5x5x7x7.
+    kAudioCDSampleRate = 44100,
+  };
 
   AudioParameters();
   AudioParameters(Format format, ChannelLayout channel_layout,
@@ -84,6 +80,19 @@ class MEDIA_EXPORT AudioParameters {
   int channels_;                  // Number of channels. Value set based on
                                   // |channel_layout|.
 };
+
+// Comparison is useful when AudioParameters is used with std structures.
+inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
+  if (a.format() != b.format())
+    return a.format() < b.format();
+  if (a.channels() != b.channels())
+    return a.channels() < b.channels();
+  if (a.sample_rate() != b.sample_rate())
+    return a.sample_rate() < b.sample_rate();
+  if (a.bits_per_sample() != b.bits_per_sample())
+    return a.bits_per_sample() < b.bits_per_sample();
+  return a.frames_per_buffer() < b.frames_per_buffer();
+}
 
 }  // namespace media
 

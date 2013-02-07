@@ -7,11 +7,13 @@
 
 #include <jni.h>
 
+#include "net/base/net_export.h"
+
 namespace net {
 namespace android {
 
 // Register all JNI bindings necessary for net.
-bool RegisterJni(JNIEnv* env);
+NET_EXPORT bool RegisterJni(JNIEnv* env);
 
 }  // namespace android
 }  // namespace net

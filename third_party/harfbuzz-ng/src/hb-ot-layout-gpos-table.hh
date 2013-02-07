@@ -32,6 +32,8 @@
 #include "hb-ot-layout-gsubgpos-private.hh"
 
 
+namespace OT {
+
 
 /* buffer **position** var allocations */
 #define attach_lookback() var.u16[0] /* number of glyphs to go back to attach this glyph to its base */
@@ -225,7 +227,7 @@ struct AnchorFormat1
     return TRACE_RETURN (c->check_struct (this));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   SHORT		xCoordinate;		/* Horizontal value--in design units */
   SHORT		yCoordinate;		/* Vertical value--in design units */
@@ -247,7 +249,7 @@ struct AnchorFormat2
       hb_bool_t ret = false;
 
       if (x_ppem || y_ppem)
-	ret = hb_font_get_glyph_contour_point_for_origin (font, glyph_id, anchorPoint, HB_DIRECTION_LTR, &cx, &cy);
+	ret = font->get_glyph_contour_point_for_origin (glyph_id, anchorPoint, HB_DIRECTION_LTR, &cx, &cy);
       *x = x_ppem && ret ? cx : font->em_scale_x (xCoordinate);
       *y = y_ppem && ret ? cy : font->em_scale_y (yCoordinate);
   }
@@ -257,7 +259,7 @@ struct AnchorFormat2
     return TRACE_RETURN (c->check_struct (this));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 2 */
   SHORT		xCoordinate;		/* Horizontal value--in design units */
   SHORT		yCoordinate;		/* Vertical value--in design units */
@@ -288,7 +290,7 @@ struct AnchorFormat3
     return TRACE_RETURN (c->check_struct (this) && xDeviceTable.sanitize (c, this) && yDeviceTable.sanitize (c, this));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 3 */
   SHORT		xCoordinate;		/* Horizontal value--in design units */
   SHORT		yCoordinate;		/* Vertical value--in design units */
@@ -329,7 +331,7 @@ struct Anchor
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   AnchorFormat1		format1;
@@ -360,7 +362,7 @@ struct AnchorMatrix
   }
 
   USHORT	rows;			/* Number of rows */
-  private:
+  protected:
   OffsetTo<Anchor>
 		matrix[VAR];		/* Matrix of offsets to Anchor tables--
 					 * from beginning of AnchorMatrix table */
@@ -378,7 +380,7 @@ struct MarkRecord
     return TRACE_RETURN (c->check_struct (this) && markAnchor.sanitize (c, base));
   }
 
-  private:
+  protected:
   USHORT	klass;			/* Class defined for this mark */
   OffsetTo<Anchor>
 		markAnchor;		/* Offset to Anchor table--from
@@ -429,6 +431,12 @@ struct SinglePosFormat1
   friend struct SinglePos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -447,7 +455,7 @@ struct SinglePosFormat1
     return TRACE_RETURN (c->check_struct (this) && coverage.sanitize (c, this) && valueFormat.sanitize_value (c, this, values));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
@@ -466,6 +474,12 @@ struct SinglePosFormat2
   friend struct SinglePos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -487,7 +501,7 @@ struct SinglePosFormat2
     return TRACE_RETURN (c->check_struct (this) && coverage.sanitize (c, this) && valueFormat.sanitize_values (c, this, values, valueCount));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 2 */
   OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
@@ -506,6 +520,16 @@ struct SinglePos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    case 2: return u.format2.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -526,7 +550,7 @@ struct SinglePos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   SinglePosFormat1	format1;
@@ -539,7 +563,7 @@ struct PairValueRecord
 {
   friend struct PairSet;
 
-  private:
+  protected:
   GlyphID	secondGlyph;		/* GlyphID of second glyph in the
 					 * pair--first glyph is listed in the
 					 * Coverage table */
@@ -601,7 +625,7 @@ struct PairSet
 		      && closure->valueFormats[1].sanitize_values_stride_unsafe (c, closure->base, &record->values[closure->len1], count, closure->stride));
   }
 
-  private:
+  protected:
   USHORT	len;			/* Number of PairValueRecords */
   USHORT	array[VAR];		/* Array of PairValueRecords--ordered
 					 * by GlyphID of the second glyph */
@@ -614,6 +638,12 @@ struct PairPosFormat1
   friend struct PairPos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -643,7 +673,7 @@ struct PairPosFormat1
     return TRACE_RETURN (c->check_struct (this) && coverage.sanitize (c, this) && pairSet.sanitize (c, this, &closure));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
@@ -666,6 +696,12 @@ struct PairPosFormat2
   friend struct PairPos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -715,7 +751,7 @@ struct PairPosFormat2
 			 valueFormat2.sanitize_values_stride_unsafe (c, this, &values[len1], count, stride));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 2 */
   OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
@@ -750,6 +786,16 @@ struct PairPos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    case 2: return u.format2.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -770,7 +816,7 @@ struct PairPos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   PairPosFormat1	format1;
@@ -788,7 +834,7 @@ struct EntryExitRecord
     return TRACE_RETURN (entryAnchor.sanitize (c, base) && exitAnchor.sanitize (c, base));
   }
 
-  private:
+  protected:
   OffsetTo<Anchor>
 		entryAnchor;		/* Offset to EntryAnchor table--from
 					 * beginning of CursivePos
@@ -806,6 +852,12 @@ struct CursivePosFormat1
   friend struct CursivePos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -893,7 +945,7 @@ struct CursivePosFormat1
     return TRACE_RETURN (coverage.sanitize (c, this) && entryExitRecord.sanitize (c, this));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
@@ -910,6 +962,15 @@ struct CursivePos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -928,7 +989,7 @@ struct CursivePos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   CursivePosFormat1	format1;
@@ -946,6 +1007,12 @@ struct MarkBasePosFormat1
   friend struct MarkBasePos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+markCoverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -955,7 +1022,12 @@ struct MarkBasePosFormat1
     /* now we search backwards for a non-mark glyph */
     unsigned int property;
     hb_apply_context_t::mark_skipping_backward_iterator_t skippy_iter (c, c->buffer->idx, 1);
-    if (!skippy_iter.prev (&property, LookupFlag::IgnoreMarks)) return TRACE_RETURN (false);
+    do {
+      if (!skippy_iter.prev (&property, LookupFlag::IgnoreMarks)) return TRACE_RETURN (false);
+      /* We only want to attach to the first of a MultipleSubst sequence.  Reject others. */
+      if (0 == get_lig_comp (c->buffer->info[skippy_iter.idx])) break;
+      skippy_iter.reject ();
+    } while (1);
 
     /* The following assertion is too strong, so we've disabled it. */
     if (!(property & HB_OT_LAYOUT_GLYPH_CLASS_BASE_GLYPH)) {/*return TRACE_RETURN (false);*/}
@@ -972,7 +1044,7 @@ struct MarkBasePosFormat1
 			 markArray.sanitize (c, this) && baseArray.sanitize (c, this, (unsigned int) classCount));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		markCoverage;		/* Offset to MarkCoverage table--from
@@ -996,6 +1068,15 @@ struct MarkBasePos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -1014,7 +1095,7 @@ struct MarkBasePos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   MarkBasePosFormat1	format1;
@@ -1037,6 +1118,12 @@ struct MarkLigPosFormat1
   friend struct MarkLigPos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+markCoverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -1062,19 +1149,16 @@ struct MarkLigPosFormat1
     unsigned int comp_count = lig_attach.rows;
     if (unlikely (!comp_count)) return TRACE_RETURN (false);
 
-    unsigned int comp_index;
     /* We must now check whether the ligature ID of the current mark glyph
      * is identical to the ligature ID of the found ligature.  If yes, we
      * can directly use the component index.  If not, we attach the mark
      * glyph to the last component of the ligature. */
-    if (get_lig_id (c->buffer->info[j]) &&
-	get_lig_id (c->buffer->cur()) &&
-	get_lig_comp (c->buffer->cur()) > 0)
-    {
-      comp_index = get_lig_comp (c->buffer->cur()) - 1;
-      if (comp_index >= comp_count)
-	comp_index = comp_count - 1;
-    }
+    unsigned int comp_index;
+    unsigned int lig_id = get_lig_id (c->buffer->info[j]);
+    unsigned int mark_id = get_lig_id (c->buffer->cur());
+    unsigned int mark_comp = get_lig_comp (c->buffer->cur());
+    if (lig_id && lig_id == mark_id && mark_comp > 0)
+      comp_index = MIN (comp_count, get_lig_comp (c->buffer->cur())) - 1;
     else
       comp_index = comp_count - 1;
 
@@ -1087,7 +1171,7 @@ struct MarkLigPosFormat1
 			 markArray.sanitize (c, this) && ligatureArray.sanitize (c, this, (unsigned int) classCount));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		markCoverage;		/* Offset to Mark Coverage table--from
@@ -1112,6 +1196,15 @@ struct MarkLigPos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -1130,7 +1223,7 @@ struct MarkLigPos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   MarkLigPosFormat1	format1;
@@ -1148,6 +1241,12 @@ struct MarkMarkPosFormat1
   friend struct MarkMarkPos;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    return this+mark1Coverage;
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -1163,14 +1262,27 @@ struct MarkMarkPosFormat1
 
     unsigned int j = skippy_iter.idx;
 
-    /* Two marks match only if they belong to the same base, or same component
-     * of the same ligature.  That is, the component numbers must match, and
-     * if those are non-zero, the ligid number should also match. */
-    if ((get_lig_comp (c->buffer->cur())) ||
-	(get_lig_comp (c->buffer->info[j]) > 0 &&
-	 get_lig_id (c->buffer->cur())))
-      return TRACE_RETURN (false);
+    unsigned int id1 = get_lig_id (c->buffer->cur());
+    unsigned int id2 = get_lig_id (c->buffer->info[j]);
+    unsigned int comp1 = get_lig_comp (c->buffer->cur());
+    unsigned int comp2 = get_lig_comp (c->buffer->info[j]);
 
+    if (likely (id1 == id2)) {
+      if (id1 == 0) /* Marks belonging to the same base. */
+	goto good;
+      else if (comp1 == comp2) /* Marks belonging to the same ligature component. */
+        goto good;
+    } else {
+      /* If ligature ids don't match, it may be the case that one of the marks
+       * itself is a ligature.  In which case match. */
+      if ((id1 > 0 && !comp1) || (id2 > 0 && !comp2))
+	goto good;
+    }
+
+    /* Didn't match. */
+    return TRACE_RETURN (false);
+
+    good:
     unsigned int mark2_index = (this+mark2Coverage) (c->buffer->info[j].codepoint);
     if (mark2_index == NOT_COVERED) return TRACE_RETURN (false);
 
@@ -1184,7 +1296,7 @@ struct MarkMarkPosFormat1
 			 && mark2Array.sanitize (c, this, (unsigned int) classCount));
   }
 
-  private:
+  protected:
   USHORT	format;			/* Format identifier--format = 1 */
   OffsetTo<Coverage>
 		mark1Coverage;		/* Offset to Combining Mark1 Coverage
@@ -1210,6 +1322,15 @@ struct MarkMarkPos
   friend struct PosLookupSubTable;
 
   private:
+
+  inline const Coverage &get_coverage (void) const
+  {
+    switch (u.format) {
+    case 1: return u.format1.get_coverage ();
+    default:return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c) const
   {
     TRACE_APPLY ();
@@ -1228,7 +1349,7 @@ struct MarkMarkPos
     }
   }
 
-  private:
+  protected:
   union {
   USHORT		format;		/* Format identifier */
   MarkMarkPosFormat1	format1;
@@ -1275,6 +1396,8 @@ struct ExtensionPos : Extension
     return StructAtOffset<PosLookupSubTable> (this, offset);
   }
 
+  inline const Coverage &get_coverage (void) const;
+
   inline bool apply (hb_apply_context_t *c) const;
 
   inline bool sanitize (hb_sanitize_context_t *c);
@@ -1303,6 +1426,22 @@ struct PosLookupSubTable
     Extension		= 9
   };
 
+  inline const Coverage &get_coverage (unsigned int lookup_type) const
+  {
+    switch (lookup_type) {
+    case Single:		return u.single.get_coverage ();
+    case Pair:			return u.pair.get_coverage ();
+    case Cursive:		return u.cursive.get_coverage ();
+    case MarkBase:		return u.markBase.get_coverage ();
+    case MarkLig:		return u.markLig.get_coverage ();
+    case MarkMark:		return u.markMark.get_coverage ();
+    case Context:		return u.context.get_coverage ();
+    case ChainContext:		return u.chainContext.get_coverage ();
+    case Extension:		return u.extension.get_coverage ();
+    default:			return Null(Coverage);
+    }
+  }
+
   inline bool apply (hb_apply_context_t *c, unsigned int lookup_type) const
   {
     TRACE_APPLY ();
@@ -1313,7 +1452,7 @@ struct PosLookupSubTable
     case MarkBase:		return TRACE_RETURN (u.markBase.apply (c));
     case MarkLig:		return TRACE_RETURN (u.markLig.apply (c));
     case MarkMark:		return TRACE_RETURN (u.markMark.apply (c));
-    case Context:		return TRACE_RETURN (u.c.apply (c));
+    case Context:		return TRACE_RETURN (u.context.apply (c));
     case ChainContext:		return TRACE_RETURN (u.chainContext.apply (c));
     case Extension:		return TRACE_RETURN (u.extension.apply (c));
     default:			return TRACE_RETURN (false);
@@ -1322,6 +1461,8 @@ struct PosLookupSubTable
 
   inline bool sanitize (hb_sanitize_context_t *c, unsigned int lookup_type) {
     TRACE_SANITIZE ();
+    if (!u.header.sub_format.sanitize (c))
+      return TRACE_RETURN (false);
     switch (lookup_type) {
     case Single:		return TRACE_RETURN (u.single.sanitize (c));
     case Pair:			return TRACE_RETURN (u.pair.sanitize (c));
@@ -1329,28 +1470,30 @@ struct PosLookupSubTable
     case MarkBase:		return TRACE_RETURN (u.markBase.sanitize (c));
     case MarkLig:		return TRACE_RETURN (u.markLig.sanitize (c));
     case MarkMark:		return TRACE_RETURN (u.markMark.sanitize (c));
-    case Context:		return TRACE_RETURN (u.c.sanitize (c));
+    case Context:		return TRACE_RETURN (u.context.sanitize (c));
     case ChainContext:		return TRACE_RETURN (u.chainContext.sanitize (c));
     case Extension:		return TRACE_RETURN (u.extension.sanitize (c));
     default:			return TRACE_RETURN (true);
     }
   }
 
-  private:
+  protected:
   union {
-  USHORT		sub_format;
+  struct {
+    USHORT			sub_format;
+  } header;
   SinglePos		single;
   PairPos		pair;
   CursivePos		cursive;
   MarkBasePos		markBase;
   MarkLigPos		markLig;
   MarkMarkPos		markMark;
-  ContextPos		c;
+  ContextPos		context;
   ChainContextPos	chainContext;
   ExtensionPos		extension;
   } u;
   public:
-  DEFINE_SIZE_UNION (2, sub_format);
+  DEFINE_SIZE_UNION (2, header.sub_format);
 };
 
 
@@ -1359,33 +1502,51 @@ struct PosLookup : Lookup
   inline const PosLookupSubTable& get_subtable (unsigned int i) const
   { return this+CastR<OffsetArrayOf<PosLookupSubTable> > (subTable)[i]; }
 
+  template <typename set_t>
+  inline void add_coverage (set_t *glyphs) const
+  {
+    const Coverage *last = NULL;
+    unsigned int count = get_subtable_count ();
+    for (unsigned int i = 0; i < count; i++) {
+      const Coverage *c = &get_subtable (i).get_coverage (get_type ());
+      if (c != last) {
+        c->add_coverage (glyphs);
+        last = c;
+      }
+    }
+  }
+
   inline bool apply_once (hb_apply_context_t *c) const
   {
     unsigned int lookup_type = get_type ();
 
-    if (!_hb_ot_layout_check_glyph_property (c->face, &c->buffer->cur(), c->lookup_props, &c->property))
+    if (!c->check_glyph_property (&c->buffer->cur(), c->lookup_props, &c->property))
       return false;
 
-    for (unsigned int i = 0; i < get_subtable_count (); i++)
+    unsigned int count = get_subtable_count ();
+    for (unsigned int i = 0; i < count; i++)
       if (get_subtable (i).apply (c, lookup_type))
 	return true;
 
     return false;
   }
 
-  inline bool apply_string (hb_apply_context_t *c) const
+  inline bool apply_string (hb_apply_context_t *c, const hb_set_digest_t *digest) const
   {
     bool ret = false;
 
-    if (unlikely (!c->buffer->len))
+    if (unlikely (!c->buffer->len || !c->lookup_mask))
       return false;
 
     c->set_lookup (*this);
 
     c->buffer->idx = 0;
+
     while (c->buffer->idx < c->buffer->len)
     {
-      if ((c->buffer->cur().mask & c->lookup_mask) && apply_once (c))
+      if ((c->buffer->cur().mask & c->lookup_mask) &&
+	  digest->may_have (c->buffer->cur().codepoint) &&
+	  apply_once (c))
 	ret = true;
       else
 	c->buffer->idx++;
@@ -1415,11 +1576,12 @@ struct GPOS : GSUBGPOS
   inline const PosLookup& get_lookup (unsigned int i) const
   { return CastR<PosLookup> (GSUBGPOS::get_lookup (i)); }
 
-  inline bool position_lookup (hb_apply_context_t *c, unsigned int lookup_index) const
-  { return get_lookup (lookup_index).apply_string (c); }
+  template <typename set_t>
+  inline void add_coverage (set_t *glyphs, unsigned int lookup_index) const
+  { get_lookup (lookup_index).add_coverage (glyphs); }
 
-  static inline void position_start (hb_buffer_t *buffer);
-  static inline void position_finish (hb_buffer_t *buffer);
+  static inline void position_start (hb_font_t *font, hb_buffer_t *buffer);
+  static inline void position_finish (hb_font_t *font, hb_buffer_t *buffer, hb_bool_t zero_width_attahced_marks);
 
   inline bool sanitize (hb_sanitize_context_t *c) {
     TRACE_SANITIZE ();
@@ -1435,32 +1597,34 @@ struct GPOS : GSUBGPOS
 static void
 fix_cursive_minor_offset (hb_glyph_position_t *pos, unsigned int i, hb_direction_t direction)
 {
-    unsigned int j = pos[i].cursive_chain();
-    if (likely (!j))
-      return;
+  unsigned int j = pos[i].cursive_chain();
+  if (likely (!j))
+    return;
 
-    j += i;
+  j += i;
 
-    pos[i].cursive_chain() = 0;
+  pos[i].cursive_chain() = 0;
 
-    fix_cursive_minor_offset (pos, j, direction);
+  fix_cursive_minor_offset (pos, j, direction);
 
-    if (HB_DIRECTION_IS_HORIZONTAL (direction))
-      pos[i].y_offset += pos[j].y_offset;
-    else
-      pos[i].x_offset += pos[j].x_offset;
+  if (HB_DIRECTION_IS_HORIZONTAL (direction))
+    pos[i].y_offset += pos[j].y_offset;
+  else
+    pos[i].x_offset += pos[j].x_offset;
 }
 
 static void
-fix_mark_attachment (hb_glyph_position_t *pos, unsigned int i, hb_direction_t direction)
+fix_mark_attachment (hb_glyph_position_t *pos, unsigned int i, hb_direction_t direction, hb_bool_t zero_width_attached_marks)
 {
   if (likely (!(pos[i].attach_lookback())))
     return;
 
   unsigned int j = i - pos[i].attach_lookback();
 
-  pos[i].x_advance = 0;
-  pos[i].y_advance = 0;
+  if (zero_width_attached_marks) {
+    pos[i].x_advance = 0;
+    pos[i].y_advance = 0;
+  }
   pos[i].x_offset += pos[j].x_offset;
   pos[i].y_offset += pos[j].y_offset;
 
@@ -1477,7 +1641,7 @@ fix_mark_attachment (hb_glyph_position_t *pos, unsigned int i, hb_direction_t di
 }
 
 void
-GPOS::position_start (hb_buffer_t *buffer)
+GPOS::position_start (hb_font_t *font HB_UNUSED, hb_buffer_t *buffer)
 {
   buffer->clear_positions ();
 
@@ -1487,7 +1651,7 @@ GPOS::position_start (hb_buffer_t *buffer)
 }
 
 void
-GPOS::position_finish (hb_buffer_t *buffer)
+GPOS::position_finish (hb_font_t *font HB_UNUSED, hb_buffer_t *buffer, hb_bool_t zero_width_attached_marks)
 {
   unsigned int len;
   hb_glyph_position_t *pos = hb_buffer_get_glyph_positions (buffer, &len);
@@ -1499,15 +1663,20 @@ GPOS::position_finish (hb_buffer_t *buffer)
 
   /* Handle attachments */
   for (unsigned int i = 0; i < len; i++)
-    fix_mark_attachment (pos, i, direction);
+    fix_mark_attachment (pos, i, direction, zero_width_attached_marks);
 
   HB_BUFFER_DEALLOCATE_VAR (buffer, syllable);
   HB_BUFFER_DEALLOCATE_VAR (buffer, lig_props);
-  HB_BUFFER_DEALLOCATE_VAR (buffer, props_cache);
+  HB_BUFFER_DEALLOCATE_VAR (buffer, glyph_props);
 }
 
 
 /* Out-of-class implementation for methods recursing */
+
+inline const Coverage & ExtensionPos::get_coverage (void) const
+{
+  return get_subtable ().get_coverage (get_type ());
+}
 
 inline bool ExtensionPos::apply (hb_apply_context_t *c) const
 {
@@ -1526,7 +1695,7 @@ inline bool ExtensionPos::sanitize (hb_sanitize_context_t *c)
 
 static inline bool position_lookup (hb_apply_context_t *c, unsigned int lookup_index)
 {
-  const GPOS &gpos = *(c->face->ot_layout->gpos);
+  const GPOS &gpos = *(hb_ot_layout_from_face (c->face)->gpos);
   const PosLookup &l = gpos.get_lookup (lookup_index);
 
   if (unlikely (c->nesting_level_left == 0))
@@ -1542,6 +1711,8 @@ static inline bool position_lookup (hb_apply_context_t *c, unsigned int lookup_i
 #undef attach_lookback
 #undef cursive_chain
 
+
+} // namespace OT
 
 
 #endif /* HB_OT_LAYOUT_GPOS_TABLE_HH */

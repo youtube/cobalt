@@ -11,10 +11,17 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/process_util.h"
+#include "base/string16.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/win/scoped_handle.h"
 #include "net/disk_cache/disk_format.h"
+#include "net/tools/dump_cache/dump_files.h"
+#include "net/tools/dump_cache/simple_cache_dumper.h"
+
+#if defined(OS_WIN)
+#include "base/win/scoped_handle.h"
+#include "net/tools/dump_cache/upgrade_win.h"
+#endif
 
 enum Errors {
   GENERIC = -1,
@@ -24,13 +31,6 @@ enum Errors {
   UNKNOWN_VERSION,
   TOOL_NOT_FOUND,
 };
-
-int GetMajorVersion(const FilePath& input_path);
-int DumpContents(const FilePath& input_path);
-int DumpHeaders(const FilePath& input_path);
-int RunSlave(const FilePath& input_path, const std::wstring& pipe_number);
-int CopyCache(const FilePath& output_path, HANDLE pipe, bool copy_to_text);
-HANDLE CreateServer(std::wstring* pipe_number);
 
 const char kUpgradeHelp[] =
     "\nIn order to use the upgrade function, a version of this tool that\n"
@@ -70,9 +70,11 @@ int Help() {
   return INVALID_ARGUMENT;
 }
 
+#if defined(OS_WIN)
+
 // Starts a new process, to generate the files.
 int LaunchSlave(CommandLine command_line,
-                const std::wstring& pipe_number,
+                const string16& pipe_number,
                 int version) {
   bool do_upgrade = command_line.HasSwitch(kUpgrade);
   bool do_convert_to_text = command_line.HasSwitch(kDumpToFiles);
@@ -95,6 +97,8 @@ int LaunchSlave(CommandLine command_line,
   return ALL_GOOD;
 }
 
+#endif
+
 // -----------------------------------------------------------------------
 
 int main(int argc, const char* argv[]) {
@@ -108,26 +112,18 @@ int main(int argc, const char* argv[]) {
   if (input_path.empty())
     return Help();
 
-  bool upgrade = false;
-  bool slave_required = false;
-  bool copy_to_text = false;
+  bool dump_to_files = command_line.HasSwitch(kDumpToFiles);
+  bool upgrade = command_line.HasSwitch(kUpgrade);
+
   FilePath output_path = command_line.GetSwitchValuePath(kOutputPath);
-
-  if (command_line.HasSwitch(kUpgrade))
-    upgrade = true;
-  if (command_line.HasSwitch(kDumpToFiles))
-    copy_to_text = true;
-
-  if (upgrade || copy_to_text) {
-    if (output_path.empty())
-      return Help();
-    slave_required = true;
-  }
+  if ((dump_to_files || upgrade) && output_path.empty())
+    return Help();
 
   int version = GetMajorVersion(input_path);
   if (!version)
     return FILE_ACCESS_ERROR;
 
+  bool slave_required = upgrade;
   if (version != disk_cache::kCurrentVersion >> 16) {
     if (command_line.HasSwitch(kSlave)) {
       printf("Unknown version\n");
@@ -136,7 +132,8 @@ int main(int argc, const char* argv[]) {
     slave_required = true;
   }
 
-  std::wstring pipe_number = command_line.GetSwitchValueNative(kPipe);
+#if defined(OS_WIN)
+  string16 pipe_number = command_line.GetSwitchValueNative(kPipe);
   if (command_line.HasSwitch(kSlave) && slave_required)
     return RunSlave(input_path, pipe_number);
 
@@ -145,7 +142,7 @@ int main(int argc, const char* argv[]) {
     server.Set(CreateServer(&pipe_number));
     if (!server.IsValid()) {
       printf("Unable to create the server pipe\n");
-      return -1;
+      return GENERIC;
     }
 
     int ret = LaunchSlave(command_line, pipe_number, version);
@@ -153,8 +150,8 @@ int main(int argc, const char* argv[]) {
       return ret;
   }
 
-  if (upgrade || copy_to_text)
-    return CopyCache(output_path, server, copy_to_text);
+  if (upgrade)
+    return UpgradeCache(output_path, server);
 
   if (slave_required) {
     // Wait until the slave starts dumping data before we quit. Lazy "fix" for a
@@ -162,10 +159,24 @@ int main(int argc, const char* argv[]) {
     Sleep(500);
     return ALL_GOOD;
   }
+#else  // defined(OS_WIN)
+  if (slave_required) {
+    printf("Unsupported operation\n");
+    return INVALID_ARGUMENT;
+  }
+#endif
+
+  if (dump_to_files) {
+    net::SimpleCacheDumper dumper(input_path, output_path);
+    dumper.Run();
+    return ALL_GOOD;
+  }
 
   if (command_line.HasSwitch(kDumpContents))
     return DumpContents(input_path);
+
   if (command_line.HasSwitch(kDumpHeaders))
     return DumpHeaders(input_path);
+
   return Help();
 }

@@ -37,4 +37,7 @@
 #define GL_APIENTRY KHRONOS_APIENTRY
 #endif
 
+#undef GL_APIENTRY
+#define GL_APIENTRY
+
 #endif /* __gl2platform_h_ */

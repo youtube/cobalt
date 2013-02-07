@@ -59,6 +59,7 @@ class BASE_EXPORT FilePathWatcher {
 
     // Start watching for the given |path| and notify |delegate| about changes.
     virtual bool Watch(const FilePath& path,
+                       bool recursive,
                        Delegate* delegate) WARN_UNUSED_RESULT = 0;
 
     // Stop watching. This is called from FilePathWatcher's dtor in order to
@@ -119,9 +120,13 @@ class BASE_EXPORT FilePathWatcher {
       WARN_UNUSED_RESULT;
 
   // Invokes |callback| whenever updates to |path| are detected. This should be
-  // called at most once, and from a MessageLoop of TYPE_IO. The callback will
-  // be invoked on the same loop. Returns true on success.
-  bool Watch(const FilePath& path, const Callback& callback);
+  // called at most once, and from a MessageLoop of TYPE_IO. Set |recursive| to
+  // true, to watch |path| and its children. The callback will be invoked on
+  // the same loop. Returns true on success.
+  //
+  // NOTE: Recursive watch is not supported on all platforms and file systems.
+  // Watch() will return false in the case of failure.
+  bool Watch(const FilePath& path, bool recursive, const Callback& callback);
 
  private:
   scoped_refptr<PlatformDelegate> impl_;

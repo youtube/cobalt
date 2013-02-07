@@ -15,8 +15,8 @@
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
-#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -111,7 +111,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 // verify that we are not running on XP since the low-latency (WASAPI-
 // based) version requires Windows Vista or higher.
 static bool CanRunAudioTests(AudioManager* audio_man) {
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     LOG(WARNING) << "This tests requires Windows Vista or higher.";
     return false;
   }

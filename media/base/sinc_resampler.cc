@@ -38,13 +38,25 @@
 
 #include <cmath>
 
+#include "base/cpu.h"
 #include "base/logging.h"
+#include "build/build_config.h"
+
+#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
+#include <xmmintrin.h>
+#endif
+
+#if defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
+#include <arm_neon.h>
+#endif
 
 namespace media {
 
+namespace {
+
 enum {
   // The kernel size can be adjusted for quality (higher is better) at the
-  // expense of performance.  Must be an even number.
+  // expense of performance.  Must be a multiple of 32.
   // TODO(dalecurtis): Test performance to see if we can jack this up to 64+.
   kKernelSize = 32,
 
@@ -63,15 +75,20 @@ enum {
   kBufferSize = kBlockSize + kKernelSize
 };
 
+}  // namespace
+
+const int SincResampler::kMaximumLookAheadSize = kBufferSize;
+
 SincResampler::SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       virtual_source_idx_(0),
       buffer_primed_(false),
       read_cb_(read_cb),
-      // TODO(dalecurtis): When we switch to AVX/SSE optimization, we'll need to
-      // allocate with 32-byte alignment and ensure they're sized % 32 bytes.
-      kernel_storage_(new float[kKernelStorageSize]),
-      input_buffer_(new float[kBufferSize]),
+      // Create input buffers with a 16-byte alignment for SSE optimizations.
+      kernel_storage_(static_cast<float*>(
+          base::AlignedAlloc(sizeof(float) * kKernelStorageSize, 16))),
+      input_buffer_(static_cast<float*>(
+          base::AlignedAlloc(sizeof(float) * kBufferSize, 16))),
       // Setup various region pointers in the buffer (see diagram above).
       r0_(input_buffer_.get() + kKernelSize / 2),
       r1_(input_buffer_.get()),
@@ -79,7 +96,10 @@ SincResampler::SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb)
       r3_(r0_ + kBlockSize - kKernelSize / 2),
       r4_(r0_ + kBlockSize),
       r5_(r0_ + kKernelSize / 2) {
-  DCHECK_EQ(kKernelSize % 2, 0) << "kKernelSize must be even!";
+  // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
+  // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
+  // input_buffer_ being 16-byte aligned.
+  DCHECK_EQ(kKernelSize % 32, 0) << "kKernelSize must be a multiple of 32!";
   DCHECK_GT(kBlockSize, kKernelSize)
       << "kBlockSize must be greater than kKernelSize!";
   // Basic sanity checks to ensure buffer regions are laid out correctly:
@@ -143,7 +163,7 @@ void SincResampler::InitializeKernel() {
           * cos(4.0 * M_PI * x);
 
       // Window the sinc() function and store at the correct offset.
-      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
+      kernel_storage_.get()[i + offset_idx * kKernelSize] = sinc * window;
     }
   }
 }
@@ -168,36 +188,18 @@ void SincResampler::Resample(float* destination, int frames) {
       double virtual_offset_idx = subsample_remainder * kKernelOffsetCount;
       int offset_idx = static_cast<int>(virtual_offset_idx);
 
+      // We'll compute "convolutions" for the two kernels which straddle
+      // |virtual_source_idx_|.
       float* k1 = kernel_storage_.get() + offset_idx * kKernelSize;
       float* k2 = k1 + kKernelSize;
 
       // Initialize input pointer based on quantized |virtual_source_idx_|.
       float* input_ptr = r1_ + source_idx;
 
-      // We'll compute "convolutions" for the two kernels which straddle
-      // |virtual_source_idx_|.
-      float sum1 = 0;
-      float sum2 = 0;
-
       // Figure out how much to weight each kernel's "convolution".
       double kernel_interpolation_factor = virtual_offset_idx - offset_idx;
-
-      // Generate a single output sample.
-      int n = kKernelSize;
-      float input;
-      // TODO(dalecurtis): For initial commit, I've ripped out all the SSE
-      // optimizations, these definitely need to go back in before release.
-      while (n--) {
-        input = *input_ptr++;
-        sum1 += input * *k1++;
-        sum2 += input * *k2++;
-      }
-
-      // Linearly interpolate the two "convolutions".
-      double result = (1.0 - kernel_interpolation_factor) * sum1
-          + kernel_interpolation_factor * sum2;
-
-      *destination++ = result;
+      *destination++ = Convolve(
+          input_ptr, k1, k2, kernel_interpolation_factor);
 
       // Advance the virtual index.
       virtual_source_idx_ += io_sample_rate_ratio_;
@@ -223,5 +225,123 @@ void SincResampler::Resample(float* destination, int frames) {
 int SincResampler::ChunkSize() {
   return kBlockSize / io_sample_rate_ratio_;
 }
+
+void SincResampler::Flush() {
+  virtual_source_idx_ = 0;
+  buffer_primed_ = false;
+  memset(input_buffer_.get(), 0, sizeof(*input_buffer_.get()) * kBufferSize);
+}
+
+float SincResampler::Convolve(const float* input_ptr, const float* k1,
+                              const float* k2,
+                              double kernel_interpolation_factor) {
+  // Rely on function level static initialization to keep ConvolveProc selection
+  // thread safe.
+  typedef float (*ConvolveProc)(const float* src, const float* k1,
+                                const float* k2,
+                                double kernel_interpolation_factor);
+#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
+  static const ConvolveProc kConvolveProc =
+      base::CPU().has_sse() ? Convolve_SSE : Convolve_C;
+#elif defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
+  static const ConvolveProc kConvolveProc = Convolve_NEON;
+#else
+  static const ConvolveProc kConvolveProc = Convolve_C;
+#endif
+
+  return kConvolveProc(input_ptr, k1, k2, kernel_interpolation_factor);
+}
+
+float SincResampler::Convolve_C(const float* input_ptr, const float* k1,
+                                const float* k2,
+                                double kernel_interpolation_factor) {
+  float sum1 = 0;
+  float sum2 = 0;
+
+  // Generate a single output sample.  Unrolling this loop hurt performance in
+  // local testing.
+  int n = kKernelSize;
+  while (n--) {
+    sum1 += *input_ptr * *k1++;
+    sum2 += *input_ptr++ * *k2++;
+  }
+
+  // Linearly interpolate the two "convolutions".
+  return (1.0 - kernel_interpolation_factor) * sum1
+      + kernel_interpolation_factor * sum2;
+}
+
+#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
+float SincResampler::Convolve_SSE(const float* input_ptr, const float* k1,
+                                  const float* k2,
+                                  double kernel_interpolation_factor) {
+  // Ensure |k1|, |k2| are 16-byte aligned for SSE usage.  Should always be true
+  // so long as kKernelSize is a multiple of 16.
+  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(k1) & 0x0F);
+  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(k2) & 0x0F);
+
+  __m128 m_input;
+  __m128 m_sums1 = _mm_setzero_ps();
+  __m128 m_sums2 = _mm_setzero_ps();
+
+  // Based on |input_ptr| alignment, we need to use loadu or load.  Unrolling
+  // these loops hurt performance in local testing.
+  if (reinterpret_cast<uintptr_t>(input_ptr) & 0x0F) {
+    for (int i = 0; i < kKernelSize; i += 4) {
+      m_input = _mm_loadu_ps(input_ptr + i);
+      m_sums1 = _mm_add_ps(m_sums1, _mm_mul_ps(m_input, _mm_load_ps(k1 + i)));
+      m_sums2 = _mm_add_ps(m_sums2, _mm_mul_ps(m_input, _mm_load_ps(k2 + i)));
+    }
+  } else {
+    for (int i = 0; i < kKernelSize; i += 4) {
+      m_input = _mm_load_ps(input_ptr + i);
+      m_sums1 = _mm_add_ps(m_sums1, _mm_mul_ps(m_input, _mm_load_ps(k1 + i)));
+      m_sums2 = _mm_add_ps(m_sums2, _mm_mul_ps(m_input, _mm_load_ps(k2 + i)));
+    }
+  }
+
+  // Linearly interpolate the two "convolutions".
+  m_sums1 = _mm_mul_ps(m_sums1, _mm_set_ps1(1.0 - kernel_interpolation_factor));
+  m_sums2 = _mm_mul_ps(m_sums2, _mm_set_ps1(kernel_interpolation_factor));
+  m_sums1 = _mm_add_ps(m_sums1, m_sums2);
+
+  // Sum components together.
+  float result;
+  m_sums2 = _mm_add_ps(_mm_movehl_ps(m_sums1, m_sums1), m_sums1);
+  _mm_store_ss(&result, _mm_add_ss(m_sums2, _mm_shuffle_ps(
+      m_sums2, m_sums2, 1)));
+
+  return result;
+}
+#endif
+
+#if defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
+float SincResampler::Convolve_NEON(const float* input_ptr, const float* k1,
+                                   const float* k2,
+                                   double kernel_interpolation_factor) {
+  float32x4_t m_input;
+  float32x4_t m_sums1 = vmovq_n_f32(0);
+  float32x4_t m_sums2 = vmovq_n_f32(0);
+
+  const float* upper = input_ptr + kKernelSize;
+  for (; input_ptr < upper; ) {
+    m_input = vld1q_f32(input_ptr);
+    input_ptr += 4;
+    m_sums1 = vmlaq_f32(m_sums1, m_input, vld1q_f32(k1));
+    k1 += 4;
+    m_sums2 = vmlaq_f32(m_sums2, m_input, vld1q_f32(k2));
+    k2 += 4;
+  }
+
+  // Linearly interpolate the two "convolutions".
+  m_sums1 = vmlaq_f32(
+      vmulq_f32(m_sums1, vmovq_n_f32(1.0 - kernel_interpolation_factor)),
+      m_sums2, vmovq_n_f32(kernel_interpolation_factor));
+
+  // Sum components together.
+  float32x2_t m_half = vadd_f32(vget_high_f32(m_sums1), vget_low_f32(m_sums1));
+  return vget_lane_f32(vpadd_f32(m_half, m_half), 0);
+}
+#endif
 
 }  // namespace media

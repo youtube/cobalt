@@ -66,10 +66,9 @@ class BASE_EXPORT Value {
 
   virtual ~Value();
 
-  // Convenience methods for creating Value objects for various
-  // kinds of values without thinking about which class implements them.
-  // These can always be expected to return a valid Value*.
   static Value* CreateNullValue();
+  // DEPRECATED: Do not use the following 5 functions. Instead, use
+  // new FundamentalValue or new StringValue.
   static FundamentalValue* CreateBooleanValue(bool in_value);
   static FundamentalValue* CreateIntegerValue(int in_value);
   static FundamentalValue* CreateDoubleValue(double in_value);
@@ -115,16 +114,13 @@ class BASE_EXPORT Value {
   static bool Equals(const Value* a, const Value* b);
 
  protected:
-  // This isn't safe for end-users (they should use the Create*Value()
-  // static methods above), but it's useful for subclasses.
+  // These aren't safe for end-users, but they are useful for subclasses.
   explicit Value(Type type);
+  Value(const Value& that);
+  Value& operator=(const Value& that);
 
  private:
-  Value();
-
   Type type_;
-
-  DISALLOW_COPY_AND_ASSIGN(Value);
 };
 
 // FundamentalValue represents the simple fundamental types of values.
@@ -148,8 +144,6 @@ class BASE_EXPORT FundamentalValue : public Value {
     int integer_value_;
     double double_value_;
   };
-
-  DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
 class BASE_EXPORT StringValue : public Value {
@@ -170,8 +164,6 @@ class BASE_EXPORT StringValue : public Value {
 
  private:
   std::string value_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
 class BASE_EXPORT BinaryValue: public Value {
@@ -256,6 +248,15 @@ class BASE_EXPORT DictionaryValue : public Value {
   // be used as paths.
   void SetWithoutPathExpansion(const std::string& key, Value* in_value);
 
+  // Convenience forms of SetWithoutPathExpansion().
+  void SetBooleanWithoutPathExpansion(const std::string& path, bool in_value);
+  void SetIntegerWithoutPathExpansion(const std::string& path, int in_value);
+  void SetDoubleWithoutPathExpansion(const std::string& path, double in_value);
+  void SetStringWithoutPathExpansion(const std::string& path,
+                                     const std::string& in_value);
+  void SetStringWithoutPathExpansion(const std::string& path,
+                                     const string16& in_value);
+
   // Gets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
   // into the next DictionaryValue down.  If the path can be resolved
@@ -263,7 +264,8 @@ class BASE_EXPORT DictionaryValue : public Value {
   // through the |out_value| parameter, and the function will return true.
   // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
-  bool Get(const std::string& path, Value** out_value) const;
+  bool Get(const std::string& path, const Value** out_value) const;
+  bool Get(const std::string& path, Value** out_value);
 
   // These are convenience forms of Get().  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
@@ -274,27 +276,38 @@ class BASE_EXPORT DictionaryValue : public Value {
   bool GetString(const std::string& path, std::string* out_value) const;
   bool GetString(const std::string& path, string16* out_value) const;
   bool GetStringASCII(const std::string& path, std::string* out_value) const;
-  bool GetBinary(const std::string& path, BinaryValue** out_value) const;
+  bool GetBinary(const std::string& path, const BinaryValue** out_value) const;
+  bool GetBinary(const std::string& path, BinaryValue** out_value);
   bool GetDictionary(const std::string& path,
-                     DictionaryValue** out_value) const;
-  bool GetList(const std::string& path, ListValue** out_value) const;
+                     const DictionaryValue** out_value) const;
+  bool GetDictionary(const std::string& path, DictionaryValue** out_value);
+  bool GetList(const std::string& path, const ListValue** out_value) const;
+  bool GetList(const std::string& path, ListValue** out_value);
 
   // Like Get(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
   bool GetWithoutPathExpansion(const std::string& key,
-                               Value** out_value) const;
+                               const Value** out_value) const;
+  bool GetWithoutPathExpansion(const std::string& key, Value** out_value);
+  bool GetBooleanWithoutPathExpansion(const std::string& key,
+                                      bool* out_value) const;
   bool GetIntegerWithoutPathExpansion(const std::string& key,
                                       int* out_value) const;
   bool GetDoubleWithoutPathExpansion(const std::string& key,
-                                   double* out_value) const;
+                                     double* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      std::string* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      string16* out_value) const;
+  bool GetDictionaryWithoutPathExpansion(
+      const std::string& key,
+      const DictionaryValue** out_value) const;
   bool GetDictionaryWithoutPathExpansion(const std::string& key,
-                                         DictionaryValue** out_value) const;
+                                         DictionaryValue** out_value);
   bool GetListWithoutPathExpansion(const std::string& key,
-                                   ListValue** out_value) const;
+                                   const ListValue** out_value) const;
+  bool GetListWithoutPathExpansion(const std::string& key,
+                                   ListValue** out_value);
 
   // Removes the Value with the specified path from this dictionary (or one
   // of its child dictionaries, if the path is more than just a local key).
@@ -329,10 +342,12 @@ class BASE_EXPORT DictionaryValue : public Value {
   // YOU SHOULD ALWAYS USE THE XXXWithoutPathExpansion() APIs WITH THESE, NOT
   // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
   // keys have '.'s in them.
-  class key_iterator
+  class BASE_EXPORT key_iterator
       : private std::iterator<std::input_iterator_tag, const std::string> {
    public:
-    explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
+    explicit key_iterator(ValueMap::const_iterator itr);
+    // Not explicit, because this is a copy constructor.
+    key_iterator(const key_iterator& rhs);
     key_iterator operator++() {
       ++itr_;
       return *this;
@@ -350,10 +365,9 @@ class BASE_EXPORT DictionaryValue : public Value {
 
   // This class provides an iterator over both keys and values in the
   // dictionary.  It can't be used to modify the dictionary.
-  class Iterator {
+  class BASE_EXPORT Iterator {
    public:
-    explicit Iterator(const DictionaryValue& target)
-        : target_(target), it_(target.dictionary_.begin()) {}
+    explicit Iterator(const DictionaryValue& target);
 
     bool HasNext() const { return it_ != target_.dictionary_.end(); }
     void Advance() { ++it_; }
@@ -404,7 +418,8 @@ class BASE_EXPORT ListValue : public Value {
   // Gets the Value at the given index.  Modifies |out_value| (and returns true)
   // only if the index falls within the current list range.
   // Note that the list always owns the Value passed out via |out_value|.
-  bool Get(size_t index, Value** out_value) const;
+  bool Get(size_t index, const Value** out_value) const;
+  bool Get(size_t index, Value** out_value);
 
   // Convenience forms of Get().  Modifies |out_value| (and returns true)
   // only if the index is valid and the Value at that index can be returned
@@ -414,9 +429,12 @@ class BASE_EXPORT ListValue : public Value {
   bool GetDouble(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
   bool GetString(size_t index, string16* out_value) const;
-  bool GetBinary(size_t index, BinaryValue** out_value) const;
-  bool GetDictionary(size_t index, DictionaryValue** out_value) const;
-  bool GetList(size_t index, ListValue** out_value) const;
+  bool GetBinary(size_t index, const BinaryValue** out_value) const;
+  bool GetBinary(size_t index, BinaryValue** out_value);
+  bool GetDictionary(size_t index, const DictionaryValue** out_value) const;
+  bool GetDictionary(size_t index, DictionaryValue** out_value);
+  bool GetList(size_t index, const ListValue** out_value) const;
+  bool GetList(size_t index, ListValue** out_value);
 
   // Removes the Value with the specified index from this list.
   // If |out_value| is non-NULL, the removed Value AND ITS OWNERSHIP will be
@@ -436,6 +454,15 @@ class BASE_EXPORT ListValue : public Value {
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
+
+  // Convenience forms of Append.
+  void AppendBoolean(bool in_value);
+  void AppendInteger(int in_value);
+  void AppendDouble(double in_value);
+  void AppendString(const std::string& in_value);
+  void AppendString(const string16& in_value);
+  void AppendStrings(const std::vector<std::string>& in_values);
+  void AppendStrings(const std::vector<string16>& in_values);
 
   // Appends a Value if it's not already present. Takes ownership of the
   // |in_value|. Returns true if successful, or false if the value was already
@@ -489,6 +516,9 @@ class BASE_EXPORT ValueSerializer {
   // error message including the location of the error if appropriate.
   virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
 };
+
+// Stream operator so Values can be used in assertion statements.
+BASE_EXPORT std::ostream& operator<<(std::ostream& out, const Value& value);
 
 }  // namespace base
 

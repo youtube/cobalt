@@ -11,6 +11,8 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
+#include "build/build_config.h"
+#include "media/audio/shared_memory_util.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -18,30 +20,30 @@ using base::WaitableEvent;
 
 namespace media {
 
-// Signal a pause in low-latency mode.
-const int AudioOutputController::kPauseMark = -1;
-
 // Polling-related constants.
 const int AudioOutputController::kPollNumAttempts = 3;
 const int AudioOutputController::kPollPauseInMilliseconds = 3;
 
-AudioOutputController::AudioOutputController(EventHandler* handler,
+AudioOutputController::AudioOutputController(AudioManager* audio_manager,
+                                             EventHandler* handler,
+                                             const AudioParameters& params,
                                              SyncReader* sync_reader)
-    : handler_(handler),
+    : audio_manager_(audio_manager),
+      handler_(handler),
       stream_(NULL),
       volume_(1.0),
       state_(kEmpty),
       sync_reader_(sync_reader),
-      message_loop_(NULL),
+      message_loop_(audio_manager->GetMessageLoop()),
       number_polling_attempts_left_(0),
+      params_(params),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
 }
 
 AudioOutputController::~AudioOutputController() {
   DCHECK_EQ(kClosed, state_);
-  DCHECK(message_loop_);
 
-  if (!message_loop_.get() || message_loop_->BelongsToCurrentThread()) {
+  if (message_loop_->BelongsToCurrentThread()) {
     DoStopCloseAndClearStream(NULL);
   } else {
     // http://crbug.com/120973
@@ -70,12 +72,11 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 
   // Starts the audio controller thread.
   scoped_refptr<AudioOutputController> controller(new AudioOutputController(
-      event_handler, sync_reader));
+      audio_manager, event_handler, params, sync_reader));
 
-  controller->message_loop_ = audio_manager->GetMessageLoop();
   controller->message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoCreate, controller,
-      base::Unretained(audio_manager), params));
+      &AudioOutputController::DoCreate, controller));
+
   return controller;
 }
 
@@ -110,24 +111,26 @@ void AudioOutputController::SetVolume(double volume) {
       &AudioOutputController::DoSetVolume, this, volume));
 }
 
-void AudioOutputController::DoCreate(AudioManager* audio_manager,
-                                     const AudioParameters& params) {
+void AudioOutputController::DoCreate() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Close() can be called before DoCreate() is executed.
   if (state_ == kClosed)
     return;
-  DCHECK_EQ(kEmpty, state_);
+  DCHECK(state_ == kEmpty || state_ == kRecreating) << state_;
 
   DoStopCloseAndClearStream(NULL);
-  stream_ = audio_manager->MakeAudioOutputStreamProxy(params);
+  stream_ = audio_manager_->MakeAudioOutputStreamProxy(params_);
   if (!stream_) {
+    state_ = kError;
+
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
     return;
   }
 
   if (!stream_->Open()) {
+    state_ = kError;
     DoStopCloseAndClearStream(NULL);
 
     // TODO(hclam): Define error types.
@@ -135,14 +138,21 @@ void AudioOutputController::DoCreate(AudioManager* audio_manager,
     return;
   }
 
+  // Everything started okay, so register for state change callbacks if we have
+  // not already done so.
+  if (state_ != kRecreating)
+    audio_manager_->AddOutputDeviceChangeListener(this);
+
   // We have successfully opened the stream. Set the initial volume.
   stream_->SetVolume(volume_);
 
   // Finally set the state to kCreated.
+  State original_state = state_;
   state_ = kCreated;
 
-  // And then report we have been created.
-  handler_->OnCreated(this);
+  // And then report we have been created if we haven't done so already.
+  if (original_state != kRecreating)
+    handler_->OnCreated(this);
 }
 
 void AudioOutputController::DoPlay() {
@@ -284,10 +294,15 @@ void AudioOutputController::DoReportError(int code) {
     handler_->OnError(this, code);
 }
 
-uint32 AudioOutputController::OnMoreData(uint8* dest,
-                                         uint32 max_size,
-                                         AudioBuffersState buffers_state) {
-  TRACE_EVENT0("audio", "AudioOutputController::OnMoreData");
+int AudioOutputController::OnMoreData(AudioBus* dest,
+                                      AudioBuffersState buffers_state) {
+  return OnMoreIOData(NULL, dest, buffers_state);
+}
+
+int AudioOutputController::OnMoreIOData(AudioBus* source,
+                                        AudioBus* dest,
+                                        AudioBuffersState buffers_state) {
+  TRACE_EVENT0("audio", "AudioOutputController::OnMoreIOData");
 
   {
     // Check state and do nothing if we are not playing.
@@ -297,23 +312,29 @@ uint32 AudioOutputController::OnMoreData(uint8* dest,
       return 0;
     }
   }
-  uint32 size = sync_reader_->Read(dest, max_size);
-  sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
-  return size;
+
+  int frames = sync_reader_->Read(source, dest);
+  sync_reader_->UpdatePendingBytes(
+      buffers_state.total_bytes() + frames * params_.GetBytesPerFrame());
+  return frames;
 }
 
 void AudioOutputController::WaitTillDataReady() {
-  if (!sync_reader_->DataReady()) {
-    // In the different place we use different mechanism to poll, get max
-    // polling delay from constants used there.
-    const base::TimeDelta kMaxPollingDelay = TimeDelta::FromMilliseconds(
-        kPollNumAttempts * kPollPauseInMilliseconds);
-    Time start_time = Time::Now();
-    do {
-      base::PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
-    } while (!sync_reader_->DataReady() &&
-             Time::Now() - start_time < kMaxPollingDelay);
+#if defined(OS_WIN) || defined(OS_MACOSX)
+  base::Time start = base::Time::Now();
+  // Wait for up to 1.5 seconds for DataReady().  1.5 seconds was chosen because
+  // it's larger than the playback time of the WaveOut buffer size using the
+  // minimum supported sample rate: 4096 / 3000 = ~1.4 seconds.  Even a client
+  // expecting real time playout should be able to fill in this time.
+  const base::TimeDelta max_wait = base::TimeDelta::FromMilliseconds(1500);
+  while (!sync_reader_->DataReady() &&
+         ((base::Time::Now() - start) < max_wait)) {
+    base::PlatformThread::YieldCurrentThread();
   }
+#else
+  // WaitTillDataReady() is deprecated and should not be used.
+  CHECK(false);
+#endif
 }
 
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
@@ -322,20 +343,58 @@ void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
       &AudioOutputController::DoReportError, this, code));
 }
 
-void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent *done) {
+void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent* done) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Allow calling unconditionally and bail if we don't have a stream_ to close.
-  if (stream_ != NULL) {
+  if (stream_) {
     stream_->Stop();
     stream_->Close();
     stream_ = NULL;
+
+    audio_manager_->RemoveOutputDeviceChangeListener(this);
+    audio_manager_ = NULL;
+
     weak_this_.InvalidateWeakPtrs();
   }
 
   // Should be last in the method, do not touch "this" from here on.
-  if (done != NULL)
+  if (done)
     done->Signal();
+}
+
+void AudioOutputController::OnDeviceChange() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // We should always have a stream by this point.
+  CHECK(stream_);
+
+  // Preserve the original state and shutdown the stream.
+  State original_state = state_;
+  stream_->Stop();
+  stream_->Close();
+  stream_ = NULL;
+
+  // Recreate the stream, exit if we ran into an error.
+  state_ = kRecreating;
+  DoCreate();
+  if (!stream_ || state_ == kError)
+    return;
+
+  // Get us back to the original state or an equivalent state.
+  switch (original_state) {
+    case kStarting:
+    case kPlaying:
+      DoPlay();
+      return;
+    case kCreated:
+    case kPausedWhenStarting:
+    case kPaused:
+      // From the outside these three states are equivalent.
+      return;
+    default:
+      NOTREACHED() << "Invalid original state.";
+  }
 }
 
 }  // namespace media

@@ -361,6 +361,19 @@ TEST(SharedMemoryTest, AnonymousExecutable) {
 }
 #endif
 
+// Map() will return addresses which are aligned to the platform page size, this
+// varies from platform to platform though.  Since we'd like to advertise a
+// minimum alignment that callers can count on, test for it here.
+TEST(SharedMemoryTest, MapMinimumAlignment) {
+  static const int kDataSize = 8192;
+
+  SharedMemory shared_memory;
+  ASSERT_TRUE(shared_memory.CreateAndMapAnonymous(kDataSize));
+  EXPECT_EQ(0U, reinterpret_cast<uintptr_t>(
+      shared_memory.memory()) & (SharedMemory::MAP_MINIMUM_ALIGNMENT - 1));
+  shared_memory.Close();
+}
+
 #if !defined(OS_IOS)  // iOS does not allow multiple processes.
 
 // On POSIX it is especially important we test shmem across processes,
