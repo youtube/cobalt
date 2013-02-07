@@ -948,7 +948,7 @@
           ],
           'sources': [
             'base/file_stream_metrics_shell.cc',
-            'base/file_stream_shell.cc',
+            'base/file_stream_context_shell.cc',
             'base/net_errors_shell.cc',
             'base/net_util_shell.cc',
             'disk_cache/cache_util_shell.cc',
