@@ -92,7 +92,7 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
 
   bool WatchSocket(int s,
                    bool persistent,
-                   Mode mode,
+                   int mode,
                    FileDescriptorWatcher *controller,
                    Watcher *del);
 
