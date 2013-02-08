@@ -28,7 +28,13 @@
         # iOS does not use V8.
         'use_v8_in_net%': 0,
         'enable_built_in_dns%': 0,
-      }, {
+      }],
+      ['OS=="lb_shell"', {
+         'enable_websockets%' : 1,
+         'use_v8_in_net%' : 0,
+         'enable_built_in_dns%' : 1,
+      }],
+      ['OS != "ios" and OS != "lb_shell"', {
         'enable_websockets%': 1,
         'use_v8_in_net%': 1,
         'enable_built_in_dns%': 1,
@@ -2102,7 +2108,7 @@
         },
       ],
     }],
-    ['OS != "ios"', {
+    ['OS != "ios" and OS != "lb_shell"', {
       'targets': [
         # iOS doesn't have the concept of simple executables, these targets
         # can't be compiled on the platform.
