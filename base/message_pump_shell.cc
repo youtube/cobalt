@@ -118,7 +118,7 @@ void MessagePumpShell::RemoveObserver(Observer* observer) {
 
 bool MessagePumpShell::WatchSocket(int s,
                                    bool persistent,
-                                   Mode mode,
+                                   int mode,
                                    FileDescriptorWatcher *controller,
                                    Watcher *del) {
   NOTREACHED();
