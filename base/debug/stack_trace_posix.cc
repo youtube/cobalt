@@ -41,6 +41,10 @@ namespace debug {
 
 namespace {
 
+#if defined(__LB_SHELL__)
+typedef int sig_atomic_t;
+#endif
+
 volatile sig_atomic_t in_signal_handler = 0;
 
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
@@ -170,6 +174,7 @@ void ProcessBacktrace(void *const *trace,
 #endif  // defined(USE_SYMBOLIZE)
 }
 
+#if !defined(__LB_SHELL__)
 void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -231,6 +236,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
 #endif  // defined(OS_MACOSX)
   _exit(1);
 }
+#endif
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
@@ -296,7 +302,7 @@ void WarmUpBacktrace() {
 
 }  // namespace
 
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(__LB_SHELL__)
 bool EnableInProcessStackDumping() {
   // When running in an application, our code typically expects SIGPIPE
   // to be ignored.  Therefore, when testing that same code, it should run
