@@ -25,7 +25,7 @@ void* AlignedAlloc(size_t size, size_t alignment) {
 // free(), so we can use it instead.  Issues filed with each project for docs:
 // http://code.google.com/p/android/issues/detail?id=35391
 // http://code.google.com/p/chromium/issues/detail?id=138579
-#elif defined(OS_ANDROID) || defined(OS_NACL)
+#elif defined(OS_ANDROID) || defined(OS_NACL) || defined(__LB_SHELL__)
   ptr = memalign(alignment, size);
 #else
   if (posix_memalign(&ptr, alignment, size))
