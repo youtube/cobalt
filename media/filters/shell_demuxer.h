@@ -98,7 +98,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-  virtual int GetBitrate() OVERRIDE;
 
   // Issues a task to the demuxer to identify the next buffer of provided type
   // in the stream, allocate memory to contain that buffer, download the bytes
