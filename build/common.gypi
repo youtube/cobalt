@@ -1988,7 +1988,7 @@
               '-Werror',
             ],
           }],
-          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android"', {
+          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android" and target_arch!="ps3" and target_arch!="wiiu"', {
             'cflags': [
               # Don't warn about ignoring the return value from e.g. close().
               # This is off by default in some gccs but on by default in others.
@@ -2341,12 +2341,13 @@
     },
   },
   'conditions': [
-    ['os_posix==1', {
+    ['os_posix==1 and target_arch!="ps3" and target_arch!="wiiu"', {
       'target_defaults': {
         'cflags': [
           # TODO(phajdan.jr): Use -fstack-protector-strong when our gcc
           # supports it.
           '-fstack-protector',
+          '--param=ssp-buffer-size=4',
         ],
         'ldflags': [
           '-Wl,-z,now',
@@ -2381,7 +2382,6 @@
           # Note: this is *required* to make some plugins work.
           '-fvisibility=hidden',
           '-pipe',
-          '--param=ssp-buffer-size=4',
         ],
         'cflags_cc': [
           '-fno-rtti',
