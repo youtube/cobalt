@@ -1988,7 +1988,7 @@
               '-Werror',
             ],
           }],
-          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android" and target_arch!="ps3" and target_arch!="wiiu"', {
+          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android" and OS!="lb_shell"', {
             'cflags': [
               # Don't warn about ignoring the return value from e.g. close().
               # This is off by default in some gccs but on by default in others.
@@ -2341,7 +2341,7 @@
     },
   },
   'conditions': [
-    ['os_posix==1 and target_arch!="ps3" and target_arch!="wiiu"', {
+    ['os_posix==1 and OS!="lb_shell"', {
       'target_defaults': {
         'cflags': [
           # TODO(phajdan.jr): Use -fstack-protector-strong when our gcc
