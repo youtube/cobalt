@@ -751,6 +751,15 @@
             'win/win_util_unittest.cc',
           ],
         }],
+        ['OS == "lb_shell"', {
+          'dependencies!': [
+            '../third_party/libevent/libevent.gyp:libevent'
+          ],
+          'sources!': [
+            'message_pump_libevent_unittest.cc',
+            'process_util_unittest.cc',
+          ],
+        }],
       ],  # conditions
       'target_conditions': [
         ['OS == "ios"', {
