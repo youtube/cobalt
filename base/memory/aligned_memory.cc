@@ -6,7 +6,7 @@
 
 #include "base/logging.h"
 
-#if defined(OS_ANDROID) || defined(OS_NACL)
+#if defined(OS_ANDROID) || defined(OS_NACL) || defined(__LB_SHELL__)
 #include <malloc.h>
 #endif
 
