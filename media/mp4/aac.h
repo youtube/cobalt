@@ -40,6 +40,10 @@ class MEDIA_EXPORT AAC {
   int GetOutputSamplesPerSecond(bool sbr_in_mimetype) const;
   ChannelLayout channel_layout() const;
 
+  // Given an aac channel configuration return the appropriate ChannelLayout
+  // enumeration, or CHANNEL_LAYOUT_UNSUPPORTED.
+  static ChannelLayout GetChannelLayout(uint8 channel_config);
+
   // This function converts a raw AAC frame into an AAC frame with an ADTS
   // header. On success, the function returns true and stores the converted data
   // in the buffer. The function returns false on failure and leaves the buffer
