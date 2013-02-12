@@ -2355,11 +2355,6 @@
         ],
       },
     }],
-    ['target_arch=="wiiu"', {
-      'target_defaults': {
-        'cflags!': [ '-fstack-protector', ],
-      },
-    }],
     ['os_posix==1 and OS!="mac" and OS!="ios" and OS!="lb_shell"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
