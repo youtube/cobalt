@@ -1380,6 +1380,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
     return true;
   }
 
+#if defined(IN6ADDR_ANY_INIT)
   if (sock_addr->sa_family == AF_INET6) {
     if (sock_addr_len < static_cast<socklen_t>(sizeof(struct sockaddr_in6)))
       return false;
@@ -1391,6 +1392,7 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
       *port = base::NetToHost16(addr->sin6_port);
     return true;
   }
+#endif
 
   return false;  // Unrecognized |sa_family|.
 }
@@ -1784,8 +1786,8 @@ IPv6SupportResult TestIPv6SupportInternal() {
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
   return IPv6SupportResult(true, IPV6_SUPPORT_MAX, 0);
-#elif defined(__LB_PS3__) || defined(__LB_WIIU__)
-  return false;
+#elif !defined(IN6ADDR_ANY_INIT)
+  return IPv6SupportResult(false, IPV6_CANNOT_CREATE_SOCKETS, EAFNOSUPPORT);
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == -1)
