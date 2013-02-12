@@ -519,10 +519,6 @@ base::TimeDelta ShellDemuxer::GetStartTime() const {
   return base::TimeDelta();
 }
 
-int ShellDemuxer::GetBitrate() {
-  return parser_->BitsPerSecond();
-}
-
 const AudioDecoderConfig& ShellDemuxer::AudioConfig() {
   return parser_->AudioConfig();
 }

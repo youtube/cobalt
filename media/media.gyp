@@ -443,6 +443,17 @@
           # we use our own AudioRendererAlgorithm and Impl
           ['exclude', 'filters/audio_renderer'],
           ['include', 'filters/chunk_demuxer'],
+          # we use hardware mixers
+          ['exclude', 'base/channel_mixer'],
+          # we stream from network only
+          ['exclude', 'filters/file_data_source'],
+          # avc/aac only (for now)
+          ['exclude', 'filters/opus'],
+          # likely to use our own encryption
+          ['exclude', 'crypto/aes'],
+          ['exclude', 'filters/decrypting'],
+          # gpu-based decoding is interesting, perhaps explore further
+          ['exclude', 'filters/gpu'],
          ],
         }, { # OS != lb_shell
           'dependencies': [

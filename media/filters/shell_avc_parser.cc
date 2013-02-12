@@ -20,7 +20,7 @@
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/filters/shell_rbsp_stream.h"
-#include "media/mp4/avc.h"
+#include "media/mp4/aac.h"
 
 namespace media {
 
@@ -341,7 +341,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   }
   // distance in pixels from the associated edge of the media:
   //
-  // <----------------width--------------------->
+  // <---coded_size---width--------------------->
   //
   // +------------------------------------------+   ^
   // |                 ^                        |   |
@@ -351,7 +351,7 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   // |                 v                        | height
   // |               +---------+                |   |
   // |<--crop_left-->| visible |                |   |
-  // |               |  media  |<--crop_right-->|   |
+  // |               |   rect  |<--crop_right-->|   |
   // |               +---------+                |   |
   // |                  ^                       |   |
   // |                  |                       |   |
@@ -402,13 +402,11 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
       VideoFrame::NATIVE_TEXTURE,   // we always decode directly to texture
       gfx::Size(width, height),
       gfx::Rect(crop_left, crop_top, visible_width, visible_height),
-      // framerate of zero is provided to signal that the decoder
-      // should trust demuxer timestamps
-      0, 1,
-      // for now assume square pixels
-      1, 1,
+      gfx::Size(visible_width, visible_height),
       // attach our extra data structure
       (const uint8*)&extra_data, sizeof(AVCExtraData),
+      // is not currently encrypted
+      false,
       // ignore stats for now
       false);
 
@@ -471,15 +469,15 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   uint8 sample_freq_index = ((b0 & 0x07) << 1) |
                             ((b1 & 0x80) >> 7) & 0x0f;
   int frequency = kAACSamplingFrequencyIndex[sample_freq_index];
-  uint8 channel_count = ((b1 & 0x78) >> 3) & 0x0f;
-  ChannelLayout channel_layout =
-      mp4::AVC::ConvertAACChannelCountToChannelLayout(channel_count);
+  uint8 channel_config = ((b1 & 0x78) >> 3) & 0x0f;
+  ChannelLayout channel_layout = mp4::AAC::GetChannelLayout(channel_config);
   audio_config_.Initialize(kCodecAAC,
                            16,   // AAC is always 16 bit
                            channel_layout,
                            frequency,
                            NULL,
                            0,
+                           false,
                            false);
 
   // Now we have sufficient data to build the ADTS header, do so now. This
@@ -514,9 +512,9 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   // byte 2 is eeffffgh
   audio_prepend_[2] = (aac_object_type - 1) << 6       |
                       (sample_freq_index & 0x0f) << 2  |
-                      (channel_count & 0x04) >> 2;
+                      (channel_config & 0x04) >> 2;
   // byte 3 is hhijklmm, we leave m at 0 for now
-  audio_prepend_[3] = (channel_count & 0x03) << 6;
+  audio_prepend_[3] = (channel_config & 0x03) << 6;
   // byte 4 is mmmmmmmm, leave at 0 for now
   audio_prepend_[4] = 0;
   // byte 5 is mmmooooo, fullness needs to be all 1s, put them in place
