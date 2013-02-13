@@ -29,7 +29,7 @@ class MEDIA_EXPORT ShellAudioRenderer
   // platform-specific factory method
   static ShellAudioRenderer* Create(
       media::AudioRendererSink* sink,
-      const base::Callback<MessageLoop*()> &message_loop_cb);
+      const scoped_refptr<base::MessageLoopProxy>& message_loop);
 
   // ======== AudioRenderer Implementation
 
