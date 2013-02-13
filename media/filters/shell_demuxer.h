@@ -84,7 +84,7 @@ class ShellDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
-  ShellDemuxer(MessageLoop* message_loop,
+  ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                const scoped_refptr<DataSource>& data_source);
   virtual ~ShellDemuxer();
 
@@ -110,7 +110,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   const VideoDecoderConfig& VideoConfig();
 
   // Provide access to ShellDemuxerStream.
-  MessageLoop* message_loop() { return message_loop_; }
+  bool MessageLoopBelongsToCurrentThread() const;
 
   // Callback from ShellBufferFactory
   void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
@@ -131,7 +131,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   bool WithinEpsilon(const base::TimeDelta& a, const base::TimeDelta& b);
 
-  MessageLoop* message_loop_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
   DemuxerHost* host_;
   scoped_refptr<DataSource> data_source_;
   scoped_refptr<ShellDataSourceReader> reader_;
