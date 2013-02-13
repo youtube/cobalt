@@ -222,8 +222,9 @@ void OnComplete(const net::CompletionCallback& callback, int* result) {
 }  // namespace
 
 namespace BASE_HASH_NAMESPACE {
-#if defined(COMPILER_MSVC)
-inline size_t hash_value(const Key& key) {
+#if defined(COMPILER_MSVC) || defined(__LB_PS3__)
+template <>
+inline size_t hash_value<Key>(const Key& key) {
   return base::Hash(key.value, kKeySizeBytes);
 }
 #elif defined(COMPILER_GCC)
@@ -408,7 +409,7 @@ class InfiniteCache::Worker : public base::RefCountedThreadSafe<Worker> {
 
  private:
   friend class base::RefCountedThreadSafe<Worker>;
-#if defined(COMPILER_MSVC)
+#if defined(COMPILER_MSVC) || defined(__LB_PS3__)
   typedef BASE_HASH_NAMESPACE::hash_map<
       Key, Details, BASE_HASH_NAMESPACE::hash_compare<Key, Key_less> > KeyMap;
 #elif defined(COMPILER_GCC)
