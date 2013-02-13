@@ -96,7 +96,7 @@ void ShellDemuxerStream::EnableBitstreamConverter() {
 
 void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
   // ensure running on ShellDemuxer thread
-  DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
@@ -136,7 +136,7 @@ base::TimeDelta ShellDemuxerStream::OldestEnqueuedTimestamp() {
 
 void ShellDemuxerStream::SetBuffering(bool buffering) {
   // call me on Demuxer Thread only please
-  DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   // if transitioning from buffering to not, service any pending
   // reads we have accumulated
@@ -153,14 +153,14 @@ void ShellDemuxerStream::SetBuffering(bool buffering) {
 }
 
 void ShellDemuxerStream::FlushBuffers() {
-  DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
 }
 
 void ShellDemuxerStream::Stop() {
-  DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   // fulfill any pending callbacks with EOS buffers
@@ -176,8 +176,9 @@ void ShellDemuxerStream::Stop() {
 //
 // ShellDemuxer
 //
-ShellDemuxer::ShellDemuxer(MessageLoop* message_loop,
-                           const scoped_refptr<DataSource> &data_source)
+ShellDemuxer::ShellDemuxer(
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const scoped_refptr<DataSource>& data_source)
     : message_loop_(message_loop)
     , host_(NULL)
     , data_source_(data_source)
@@ -525,6 +526,10 @@ const AudioDecoderConfig& ShellDemuxer::AudioConfig() {
 
 const VideoDecoderConfig& ShellDemuxer::VideoConfig() {
   return parser_->VideoConfig();
+}
+
+bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
+  return message_loop_.BelongsToCurrentThread();
 }
 
 bool ShellDemuxer::WithinEpsilon(const base::TimeDelta& a,
