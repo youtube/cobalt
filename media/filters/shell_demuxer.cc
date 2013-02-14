@@ -25,6 +25,8 @@
 #include "base/time.h"
 #include "media/base/data_source.h"
 
+#include <inttypes.h>
+
 namespace media {
 
 // How many outstanding requests for AUs should we allow?
@@ -324,7 +326,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
     if (!WithinEpsilon(au->GetTimestamp(), next_audio_unit_)) {
       DLOG(WARNING) << base::StringPrintf(
           "Out-of-order or missing audio, "
-          "expected timestamp at %lld ms, got timestamp at %lld ms",
+          "expected timestamp at %"PRId64" ms, got timestamp at %"PRId64" ms",
           next_audio_unit_.InMilliseconds(),
           au->GetTimestamp().InMilliseconds());
     }
@@ -343,9 +345,9 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
       if (video_out_of_order_frames_ > parser_->NumRefFrames()) {
         DLOG(WARNING) << base::StringPrintf(
             "Video has exceeded max out-of-order frame count. "
-            "Last continuous timestamp: %lld ms, "
-            "highest timestamp seen: %lld ms, "
-            "current timestamp: %lld ms.",
+            "Last continuous timestamp: %"PRId64" ms, "
+            "highest timestamp seen: %"PRId64" ms, "
+            "current timestamp: %"PRId64" ms.",
             next_video_unit_.InMilliseconds(),
             highest_video_unit_.InMilliseconds(),
             au->GetTimestamp().InMilliseconds());

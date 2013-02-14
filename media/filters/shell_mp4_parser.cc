@@ -19,6 +19,7 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
 #include "lb_platform.h"
+#include <inttypes.h>
 
 #if SHELL_MP4_PARSER_DUMP_ATOMS
 extern const std::string *global_game_content_path;
@@ -218,7 +219,7 @@ bool ShellMP4Parser::ParseNextAtom() {
   // atom sizes also include the size of the start of the atom, so sanity-check
   // the size we just parsed against the number of bytes we needed to parse it
   if (atom_size < atom_body) {
-    DLOG(WARNING) << base::StringPrintf("atom size: %d less than min body size %d",
+    DLOG(WARNING) << base::StringPrintf("atom size: %"PRId64" less than min body size %d",
         atom_size, atom_body);
     return false;
   }
@@ -418,7 +419,7 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
 bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   // sanity check for minimum size
   if (atom_data_size < kMinSize_esds) {
-    DLOG(WARNING) << base::StringPrintf("bad size %lld on esds.",
+    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on esds.",
       atom_data_size);
     return false;
   }
@@ -428,7 +429,7 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   uint8* esds = NULL;
   if (!esds_storage || !(esds = esds_storage->Get())) {
     DLOG(WARNING) << base::StringPrintf(
-        "unable to allocate esds temp array of %d bytes",
+        "unable to allocate esds temp array of %"PRId64" bytes",
         atom_data_size);
     return false;
   }
@@ -500,7 +501,7 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   DCHECK_LE(kDesiredBytes_hdlr + 16, kAtomDownload);
   // sanity-check for minimum size
   if (atom_data_size < kDesiredBytes_hdlr) {
-    DLOG(WARNING) << base::StringPrintf("bad size %lld on hdlr",
+    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on hdlr",
         atom_data_size);
     return false;
   }
@@ -527,7 +528,7 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
 bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   DCHECK_LE(kDesiredBytes_mdhd + 16, kAtomDownload);
   if (atom_data_size < kDesiredBytes_mdhd) {
-    DLOG(WARNING) << base::StringPrintf("bad size %lld on mdhd",
+    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on mdhd",
         atom_data_size);
     return false;
   }
@@ -539,7 +540,7 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
                                                time_scale);
   if (track_duration < duration_) {
     DLOG(WARNING) << base::StringPrintf(
-        "mdhd has shorter duration: %lld ms than old value: %lld ms.",
+        "mdhd has shorter duration: %"PRId64" ms than old value: %"PRId64" ms.",
         track_duration.InMilliseconds(), duration_.InMilliseconds());
     duration_ = track_duration;
   }
@@ -564,7 +565,7 @@ bool ShellMP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
   // number of this atom, which tells us the size of the rest of the header,
   // telling us how much we should skip to get to the extension contents.
   if (atom_data_size < kDesiredBytes_mp4a) {
-    DLOG(WARNING) << base::StringPrintf("bad size %lld on mp4a",
+    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on mp4a",
         atom_data_size);
     return false;
   }
@@ -604,7 +605,7 @@ bool ShellMP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
   DCHECK_LE(kDesiredBytes_mvhd + 16, kAtomDownload);
   // it should be at least long enough for us to extract the parts we want
   if (atom_data_size < kDesiredBytes_mvhd) {
-    DLOG(WARNING) << base::StringPrintf("bad size %lld on mvhd",
+    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on mvhd",
         atom_data_size);
     return false;
   }

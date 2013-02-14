@@ -118,10 +118,10 @@
     }\
   }
 #else  // #if !defined(__LB_SHELL__)
-#define CACHE_HISTOGRAM_COUNTS_10000(name, sample) (0)
+#define CACHE_HISTOGRAM_COUNTS_10000(name, sample)
 
-#define CACHE_HISTOGRAM_COUNTS_50000(name, sample) (0)
-#define CACHE_UMA(type, name, experiment, sample) (0)
+#define CACHE_HISTOGRAM_COUNTS_50000(name, sample)
+#define CACHE_UMA(type, name, experiment, sample)
 
 #endif  // #if !defined(__LB_SHELL__)
 
