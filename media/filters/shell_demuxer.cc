@@ -212,7 +212,7 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
 
 void ShellDemuxer::InitializeTask(DemuxerHost *host,
                                   const PipelineStatusCB &status_cb) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(MessageLoopBelongsToCurrentThread());
   DCHECK(reader_);
 
   host_ = host;
@@ -267,7 +267,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // Should always be run on the ShellDemuxer thread
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(MessageLoopBelongsToCurrentThread());
 
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
@@ -373,7 +373,7 @@ void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
 
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   // Should always be run on the ShellDemuxer thread
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(MessageLoopBelongsToCurrentThread());
   // We need at least one pending request for this callback to make sense.
   DCHECK(active_aus_.size());
 
@@ -465,7 +465,7 @@ void ShellDemuxer::Stop(const base::Closure &callback) {
 }
 
 void ShellDemuxer::StopTask(const base::Closure& callback) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(MessageLoopBelongsToCurrentThread());
   // tell downstream we've stopped
   if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
   if (video_demuxer_stream_) video_demuxer_stream_->Stop();
@@ -479,7 +479,7 @@ void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
 }
 
 void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(MessageLoopBelongsToCurrentThread());
   // flush audio and video buffers
 //  if (audio_demuxer_stream_) audio_demuxer_stream_->FlushBuffers();
 //  if (video_demuxer_stream_) video_demuxer_stream_->FlushBuffers();
@@ -529,7 +529,7 @@ const VideoDecoderConfig& ShellDemuxer::VideoConfig() {
 }
 
 bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
-  return message_loop_.BelongsToCurrentThread();
+  return message_loop_->BelongsToCurrentThread();
 }
 
 bool ShellDemuxer::WithinEpsilon(const base::TimeDelta& a,
