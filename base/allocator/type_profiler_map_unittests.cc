@@ -91,9 +91,9 @@ TEST(TypeProfilerMapTest, MultipleInsertWithoutErase) {
 }  // namespace type_profiler
 }  // namespace base
 
-#endif  // defined(TYPE_PROFILING)
-
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+#endif  // defined(TYPE_PROFILING)
