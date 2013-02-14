@@ -284,7 +284,7 @@ ShellBufferFactory::~ShellBufferFactory() {
   if (allocs_.size() > 1) {
     DLOG(WARNING) << base::StringPrintf(
         "%d unfreed allocs on termination now pointing at invalid memory!",
-        allocs_.size() - 1);
+        static_cast<int>(allocs_.size()) - 1);
   }
   // and no outstanding array requests
   DCHECK_EQ(array_requested_size_, 0);
