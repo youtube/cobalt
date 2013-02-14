@@ -102,7 +102,7 @@ ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader)
     , current_chunk_sample_(0)
     , next_chunk_sample_(0)
     , current_chunk_offset_(0)
-    , highest_valid_sample_number_(ULONG_MAX)
+    , highest_valid_sample_number_(UINT32_MAX)
     , ctts_table_index_(0)
     , ctts_first_sample_(0)
     , ctts_sample_offset_(0)
@@ -512,7 +512,7 @@ bool ShellMP4Map::ctts_AdvanceToSample(uint32 sample_number) {
           "out of range sample number %d in ctts, last valid sample number: %d",
           sample_number, ctts_next_first_sample_);
       ctts_sample_offset_ = 0;
-      ctts_next_first_sample_ = ULONG_MAX;
+      ctts_next_first_sample_ = UINT32_MAX;
       break;
     }
   }
@@ -594,8 +594,8 @@ void ShellMP4Map::stsc_Init() {
     } else {
       // every chunk in the file has the sample sample count, set next first
       // chunk to highest valid chunk number.
-      stsc_next_first_chunk_ = ULONG_MAX;
-      stsc_next_first_chunk_sample_ = ULONG_MAX;
+      stsc_next_first_chunk_ = UINT32_MAX;
+      stsc_next_first_chunk_sample_ = UINT32_MAX;
     }
     stsc_table_index_ = 0;
 
@@ -681,8 +681,8 @@ bool ShellMP4Map::stsc_AdvanceToSample(uint32 sample_number) {
       } else {
         // this is the normal place to encounter the end of the chunk table.
         // set the next chunk to the highest valid chunk number
-        stsc_next_first_chunk_ = ULONG_MAX;
-        stsc_next_first_chunk_sample_ = ULONG_MAX;
+        stsc_next_first_chunk_ = UINT32_MAX;
+        stsc_next_first_chunk_sample_ = UINT32_MAX;
       }
     } else {
       // We should normally encounter the end of the chunk table on lookup
@@ -730,8 +730,8 @@ bool ShellMP4Map::stsc_SlipCacheToSample(uint32 sample_number,
   } else {
     // We seem to have cached an entry 1 entry before end of the table, and
     // are seeking to a region contained in that last entry in the table.
-    stsc_next_first_chunk_ = ULONG_MAX;
-    stsc_next_first_chunk_sample_ = ULONG_MAX;
+    stsc_next_first_chunk_ = UINT32_MAX;
+    stsc_next_first_chunk_sample_ = UINT32_MAX;
   }
   return true;
 }
