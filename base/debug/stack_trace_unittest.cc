@@ -13,14 +13,14 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_IOS)
+#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_IOS) && !defined(__LB_SHELL__)
 #include "base/test/multiprocess_test.h"
 #endif
 
 namespace base {
 namespace debug {
 
-#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_IOS)
+#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_IOS) && !defined(__LB_SHELL__)
 typedef MultiProcessTest StackTraceTest;
 #else
 typedef testing::Test StackTraceTest;
@@ -131,7 +131,7 @@ TEST_F(StackTraceTest, DebugPrintBacktrace) {
 }
 
 #if defined(OS_POSIX) && !defined(OS_ANDROID)
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(__LB_SHELL__)
 MULTIPROCESS_TEST_MAIN(MismatchedMallocChildProcess) {
   char* pointer = new char[10];
   delete pointer;
@@ -147,7 +147,7 @@ TEST_F(StackTraceTest, AsyncSignalUnsafeSignalHandlerHang) {
   ASSERT_NE(kNullProcessHandle, child);
   ASSERT_TRUE(WaitForSingleProcess(child, TestTimeouts::action_timeout()));
 }
-#endif  // !defined(OS_IOS)
+#endif  // !defined(OS_IOS) &&!defined(__LB_SHELL__)
 
 namespace {
 
