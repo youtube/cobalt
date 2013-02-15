@@ -876,6 +876,11 @@
             ['include', '^test/test_file_util_mac\\.cc$'],
           ],
         }],
+        ['OS == "lb_shell"', {
+          'sources/': [
+            ['exclude', 'test/multiprocess_test'],
+          ],
+        }],
       ],  # target_conditions
     },
     {
