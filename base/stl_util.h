@@ -9,6 +9,9 @@
 
 #include <algorithm>
 #include <functional>
+#if defined(__LB_SHELL__)
+#include <iterator>
+#endif
 #include <string>
 #include <vector>
 
