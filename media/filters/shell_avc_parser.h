@@ -29,7 +29,6 @@ struct AVCExtraData {
   uint32 num_ref_frames;
 };
 
-static const int kADTSPrependSize = 7;
 // Typical size of an annexB prepend will be around 60 bytes. We make more room
 // to ensure that only a very few videos will fail to play for lack of room
 // in the prepend.
@@ -64,7 +63,7 @@ class ShellAVCParser : public ShellParser {
   uint8 nal_header_size_;
   // audio frames have a fixed-size small prepend that we attach to every
   // audio buffer created by DownloadBuffer()
-  uint8 audio_prepend_[kADTSPrependSize];
+  std::vector<uint8> audio_prepend_;
   // video frames have a variable-size prepend that we limit to a reasonable
   // upper bound. We only need to attach it to keyframes, however, the rest
   // of the frames need only an AnnexB start code.
