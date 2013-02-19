@@ -77,7 +77,11 @@ static uint32 Crc32(uint32 sum, HistogramBase::Sample value) {
     } converter;
     converter.range = value;
     for (size_t i = 0; i < sizeof(converter); ++i)
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
       sum = kCrcTable[(sum & 0xff) ^ converter.bytes[i]] ^ (sum >> 8);
+#else
+      sum = kCrcTable[(sum & 0xff) ^ converter.bytes[sizeof(converter) - i - 1]] ^ (sum >> 8);
+#endif
   } else {
     // Use hash techniques provided in ReallyFastHash, except we don't care
     // about "avalanching" (which would worsten the hash, and add collisions),
