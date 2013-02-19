@@ -27,26 +27,6 @@ namespace media {
 // what's the smallest meaningful AVC config we can parse?
 static const int kAVCConfigMinSize = 8;
 
-// sampling frequency index according to subclause 1.6.3.4 in ISO14496-3.
-static const int kAACSamplingFrequencyIndex[] = {
-  96000,
-  88200,
-  64000,
-  48000,
-  44100,
-  32000,
-  24000,
-  22050,
-  16000,
-  12000,
-  11025,
-  8000,
-  7350,
-  -1,
-  -1,
-  -1
-};
-
 // AnnexB start code is 4 bytes 0x00000001 big-endian
 static const int kAnnexBStartCodeSize = 4;
 static const uint32 kAnnexBStartCode = 0x00000001;
@@ -79,13 +59,15 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
       LB::Platform::store_uint32_big_endian(kAnnexBStartCode, prepend_buffer);
     }
   } else if (au->GetType() == DemuxerStream::AUDIO) {
+    if (audio_prepend_.empty())  // valid ADTS header not available
+      return false;
     // audio, need to copy ADTS header and then add buffer size
-    uint32 buffer_size = au->GetSize() + kADTSPrependSize;
+    uint32 buffer_size = au->GetSize() + audio_prepend_.size();
     // we can't express an AU size larger than 13 bits, something's bad here.
     if (buffer_size & 0xffffe000) {
       return false;
     }
-    memcpy(prepend_buffer, audio_prepend_, kADTSPrependSize);
+    memcpy(prepend_buffer, &audio_prepend_[0], audio_prepend_.size());
     // OR size into buffer, byte 3 gets 2 MSb of 13-bit size
     prepend_buffer[3] |= (uint8)((buffer_size & 0x00001800) >> 11);
     // byte 4 gets bits 10-3 of size
@@ -459,68 +441,26 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
 }
 
 void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
-  // see http://wiki.multimedia.cx/index.php?title=Understanding_AAC for
-  // best description of bit packing within these two bytes, basically
-  // aaaaabbb bccccdef
-  // aaaaa: 5 bits of aac object type
-  // bbbb: 4 bits of frequency table index
-  // cccc: 4 bits of channel config index
-  uint8 aac_object_type = (b0 >> 3) & 0x1f;
-  uint8 sample_freq_index = ((b0 & 0x07) << 1) |
-                            ((b1 & 0x80) >> 7) & 0x0f;
-  int frequency = kAACSamplingFrequencyIndex[sample_freq_index];
-  uint8 channel_config = ((b1 & 0x78) >> 3) & 0x0f;
-  ChannelLayout channel_layout = mp4::AAC::GetChannelLayout(channel_config);
+  media::mp4::AAC aac;
+  std::vector<uint8> aac_config(2);
+
+  aac_config[0] = b0;
+  aac_config[1] = b1;
+  audio_prepend_.clear();
+
+  if (!aac.Parse(aac_config) || !aac.ConvertEsdsToADTS(&audio_prepend_)) {
+    DLOG(WARNING) << "Error in parsing AudioSpecificConfig.";
+    return;
+  }
+
   audio_config_.Initialize(kCodecAAC,
                            16,   // AAC is always 16 bit
-                           channel_layout,
-                           frequency,
+                           aac.channel_layout(),
+                           aac.GetOutputSamplesPerSecond(false),
                            NULL,
                            0,
                            false,
                            false);
-
-  // Now we have sufficient data to build the ADTS header, do so now. This
-  // explanation of the ADTS header is adopted from the text at:
-  // http://wiki.multimedia.cx/index.php?title=ADTS.
-  //
-  // ADTS is 7 bytes as we always omit the 2-byte optional data CRC. Each byte
-  // is bitpacked values, layout is as follows:
-  //
-  // aaaaaaaa aaaabccd eeffffgh hhijklmm mmmmmmmm mmmooooo oooooopp
-  //
-  // key | bits | description
-  // a   | 12   | syncword 0xfff, all bits are 1
-  // b   | 1    | mpeg version, set to 0 for mp4
-  // c   | 2    | layer, always 0
-  // d   | 1    | protection absent, always 1 for no CRC
-  // e   | 2    | mp4 aac_object_type minus 1
-  // f   | 4    | mp4 sampling frequency index
-  // g   | 1    | private stream, ignored, set to 0
-  // h   | 3    | mp4 channel config
-  // i   | 1    | originality, ignored, set to 0
-  // j   | 1    | home, ignored, set to 0
-  // k   | 1    | copyrighted, ignored, set to 0
-  // l   | 1    | copyright start, ignored, set to 0
-  // m   | 13   | frame length in bytes including header, set on every buffer
-  // n   | 0    | there is no letter n
-  // o   | 11   | buffer fullness, leave at all 1s
-  // p   | 2    | number of NALUs in this packet minus 1, for us always 1
-  //
-  // bytes 0 and 1 aaaaaaaa aaaabccd are constant, set them now
-  LB::Platform::store_uint16_big_endian(0xfff1, audio_prepend_);
-  // byte 2 is eeffffgh
-  audio_prepend_[2] = (aac_object_type - 1) << 6       |
-                      (sample_freq_index & 0x0f) << 2  |
-                      (channel_config & 0x04) >> 2;
-  // byte 3 is hhijklmm, we leave m at 0 for now
-  audio_prepend_[3] = (channel_config & 0x03) << 6;
-  // byte 4 is mmmmmmmm, leave at 0 for now
-  audio_prepend_[4] = 0;
-  // byte 5 is mmmooooo, fullness needs to be all 1s, put them in place
-  audio_prepend_[5] = 0x1f;
-  // byte 6 is oooooopp, fullnes and constant NALU count - 1 of 0
-  audio_prepend_[6] = 0xfc;
 }
 
 size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
@@ -533,7 +473,7 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
       prepend_size = kAnnexBStartCodeSize;
     }
   } else if (type == DemuxerStream::AUDIO) {
-    prepend_size = kADTSPrependSize;  // fixed-size audio prepend
+    prepend_size = audio_prepend_.size();
   } else {
     NOTREACHED() << "unsupported stream type";
   }
