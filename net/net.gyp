@@ -960,6 +960,7 @@
             'disk_cache/cache_util_shell.cc',
             'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
+            'dns/address_sorter_shell.cc',
           ],
           'sources/': [
             # no UDP
