@@ -26,7 +26,8 @@ COMPILE_ASSERT(PLATFORM_FILE_FROM_BEGIN   == SEEK_SET &&
                PLATFORM_FILE_FROM_CURRENT == SEEK_CUR &&
                PLATFORM_FILE_FROM_END     == SEEK_END, whence_matches_system);
 
-#if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_WIIU__)
+#if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_WIIU__) || \
+    defined(__LB_PS3__)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -175,6 +176,7 @@ int64 SeekPlatformFile(PlatformFile file,
   return lseek(file, static_cast<off_t>(offset), static_cast<int>(whence));
 }
 
+#if !defined(__LB_PS3__)
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0 || size < 0)
@@ -193,6 +195,7 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
 
   return bytes_read ? bytes_read : rv;
 }
+#endif
 
 int ReadPlatformFileAtCurrentPos(PlatformFile file, char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -212,6 +215,7 @@ int ReadPlatformFileAtCurrentPos(PlatformFile file, char* data, int size) {
   return bytes_read ? bytes_read : rv;
 }
 
+#if !defined(__LB_PS3__)
 int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
                                  char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -220,6 +224,7 @@ int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
 
   return HANDLE_EINTR(pread(file, data, size, offset));
 }
+#endif
 
 int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
                                        char* data, int size) {
@@ -230,6 +235,7 @@ int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
   return HANDLE_EINTR(read(file, data, size));
 }
 
+#if !defined(__LB_PS3__)
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -249,6 +255,7 @@ int WritePlatformFile(PlatformFile file, int64 offset,
 
   return bytes_written ? bytes_written : rv;
 }
+#endif
 
 int WritePlatformFileAtCurrentPos(PlatformFile file,
                                   const char* data, int size) {
@@ -288,7 +295,7 @@ bool FlushPlatformFile(PlatformFile file) {
   return !HANDLE_EINTR(fsync(file));
 }
 
-#if !defined(__LB_WIIU__)
+#if !defined(__LB_WIIU__) && !defined(__LB_PS3__)
 bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
                        const base::Time& last_modified_time) {
   base::ThreadRestrictions::AssertIOAllowed();
