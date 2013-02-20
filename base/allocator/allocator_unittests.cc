@@ -290,19 +290,12 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
   if (!ok) {
     EXPECT_EQ(NULL, p) << "calloc(n, s) should not succeed";
   } else {
-#if defined(__LB_PS3__)
-    if (n == 0 || s == 0) {
-      // calloc in PS3 compiler returns NULL for size 0 calloc.
-      EXPECT_EQ(reinterpret_cast<void*>(NULL), p) <<
-        "calloc(n, s) should fail";
-    } else {
-      EXPECT_NE(reinterpret_cast<void*>(NULL), p) <<
-        "calloc(n, s) should succeed";
-    }
-#else
+  // TODO(__LB_SHELL__): This behavior is not defined by c++ standard.
+  // However it is possible that chromium expects it. We need to make sure
+  // these functions work the same way as expected by chromium when we override
+  // memory functions.
     EXPECT_NE(reinterpret_cast<void*>(NULL), p) <<
         "calloc(n, s) should succeed";
-#endif
     for (int i = 0; i < n*s; i++) {
       EXPECT_EQ('\0', p[i]);
     }
@@ -401,10 +394,16 @@ TEST(Allocators, Calloc) {
 
   TestCalloc(kMaxSize, 2, false);
   TestCalloc(2, kMaxSize, false);
+  // TODO(__LB_WIIU__): WiiU calloc() has a bug to handle this case.
+  // It converts the call to malloc(kMaxSize * kMaxSize) aka malloc(1).
+  // We should fix it when we override memory functions.
   TestCalloc(kMaxSize, kMaxSize, false);
 
   TestCalloc(kMaxSignedSize, 3, false);
   TestCalloc(3, kMaxSignedSize, false);
+  // TODO(__LB_WIIU__): WiiU calloc() has a bug to handle this case.
+  // It converts the call to malloc(kMaxSignedSize * kMaxSignedSize)
+  // aka malloc(1). We should fix it when we override memory functions.
   TestCalloc(kMaxSignedSize, kMaxSignedSize, false);
 }
 
@@ -416,24 +415,11 @@ TEST(Allocators, New) {
 }
 #endif
 
-#if defined(__LB_SHELL__)
-// Whether or not the pointer is the same is highly implementation specific.
-// Only test reallocating to a smaller size.
-TEST(Allocators, ReallocLBShell) {
-  int start_sizes[] = { 100, 1000, 10000, 100000 };
-  int deltas[] = { -1, -2, -4, -8, -16, -32, -64, -128 };
+// TODO(__LB_SHELL__): This behavior is not defined by c++ standard.
+// However it is possible that chromium expects it. We need to make sure
+// these functions work the same way as expected by chromium when we override
+// memory functions.
 
-  for (int s = 0; s < sizeof(start_sizes)/sizeof(*start_sizes); ++s) {
-    void* p = malloc(start_sizes[s]);
-    ASSERT_TRUE(p);
-    for (int d = 0; d < s*2; ++d) {
-      void* new_p = realloc(p, start_sizes[s] + deltas[d]);
-      ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
-    }
-    free(p);
-  }
-}
-#else
 // This makes sure that reallocing a small number of bytes in either
 // direction doesn't cause us to allocate new memory.
 TEST(Allocators, Realloc1) {
@@ -456,7 +442,6 @@ TEST(Allocators, Realloc1) {
     free(p);
   }
 }
-#endif
 
 TEST(Allocators, Realloc2) {
   for (int src_size = 0; src_size >= 0; src_size = NextSize(src_size)) {
@@ -494,26 +479,17 @@ TEST(Allocators, Realloc2) {
   free(p);
 }
 
+// TODO(__LB_SHELL__): This behavior is not defined by c++ standard.
+// However it is possible that chromium expects it. We need to make sure
+// these functions work the same way as expected by chromium when we override
+// memory functions.
 TEST(Allocators, ReallocZero) {
   // Test that realloc to zero does not return NULL.
   for (int size = 0; size >= 0; size = NextSize(size)) {
     char* ptr = reinterpret_cast<char*>(malloc(size));
-#if defined(__LB_SHELL__)
-    if (size == 0)
-      // LB_SHELL returns NULL for size 0 malloc.
-      EXPECT_EQ(static_cast<char*>(NULL), ptr);
-    else
-      EXPECT_NE(static_cast<char*>(NULL), ptr);
-#else
     EXPECT_NE(static_cast<char*>(NULL), ptr);
-#endif
     ptr = reinterpret_cast<char*>(realloc(ptr, 0));
-#if defined(__LB_SHELL__)
-    // LB_SHELL returns NULL for size 0 realloc.
-    EXPECT_EQ(static_cast<char*>(NULL), ptr);
-#else
     EXPECT_NE(static_cast<char*>(NULL), ptr);
-#endif
     if (ptr)
       free(ptr);
   }
