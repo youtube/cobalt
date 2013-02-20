@@ -84,7 +84,7 @@ TEST_F(LoggingTest, BasicLogging) {
 }
 
 TEST_F(LoggingTest, LogIsOn) {
-#if defined(NDEBUG)
+#if defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
   const bool kDfatalIsFatal = false;
 #else  // defined(NDEBUG)
   const bool kDfatalIsFatal = true;
