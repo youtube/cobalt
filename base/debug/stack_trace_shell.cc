@@ -10,13 +10,8 @@ namespace debug {
 
 // But re-implement this:
 bool EnableInProcessStackDumping() {
-#if defined(__LB_LINUX__) || defined(__LB_PS3__)
+  // We need this to return true to run unit tests
   return true;
-#elif defined(__LB_WIIU__)
-  return false;
-#else
-#error Must specify EnableInProcessStackDumping for platform.
-#endif
 }
 
 } // namespace debug
