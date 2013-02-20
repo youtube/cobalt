@@ -96,7 +96,7 @@ inline RectF ScaleRect(const RectF& r, float scale) {
 // contained within the rect, because they will appear on one of these edges.
 UI_EXPORT RectF BoundingRect(const PointF& p1, const PointF& p2);
 
-#if !defined(COMPILER_MSVC)
+#if !defined(COMPILER_MSVC) && !defined(COMPILER_SNC) && !defined(COMPILER_GHS)
 extern template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
 #endif
 
