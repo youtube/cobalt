@@ -107,7 +107,7 @@ UI_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
 // contained within the rect, because they will appear on one of these edges.
 UI_EXPORT Rect BoundingRect(const Point& p1, const Point& p2);
 
-#if !defined(COMPILER_MSVC)
+#if !defined(COMPILER_MSVC) && !defined(COMPILER_SNC) && !defined(COMPILER_GHS)
 extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
 #endif
 
