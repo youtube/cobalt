@@ -41,7 +41,7 @@ void* MappedFile::Init(const FilePath& name, size_t size) {
   } else {
     // Reset
     view_size_ = 0;
-    delete [] buffer_;
+    delete [] static_cast<char*>(buffer_);
     buffer_ = NULL;
   }
   return buffer_;
@@ -64,7 +64,7 @@ MappedFile::~MappedFile() {
   if (init_) {
     // update file
     Write(buffer_, view_size_, 0);
-    delete [] buffer_;
+    delete [] static_cast<char*>(buffer_);
     buffer_ = NULL;
   }
 }
