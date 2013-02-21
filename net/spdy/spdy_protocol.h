@@ -583,7 +583,7 @@ class SpdyFrame {
     | Flags (8)  |  Length (24 bits)   |
     +----------------------------------+
     */
-    frame_->flags_length_.length_ = htonl(length & kLengthMask
+    frame_->flags_length_.length_ = htonl((length & kLengthMask)
                                           | (flags() << 24));
   }
 
