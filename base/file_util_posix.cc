@@ -25,7 +25,7 @@
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
 #include "base/mac/foundation_util.h"
-#elif !defined(OS_ANDROID)
+#elif !defined(OS_ANDROID) && !defined(__LB_SHELL__)
 #include <glib.h>
 #endif
 
@@ -50,7 +50,7 @@
 #include "base/os_compat_android.h"
 #endif
 
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(__LB_SHELL__)
 #include <grp.h>
 #endif
 
@@ -62,7 +62,7 @@ namespace file_util {
 
 namespace {
 
-#if defined(OS_BSD) || defined(OS_MACOSX)
+#if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_SHELL__)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -165,7 +165,7 @@ int CountFilesCreatedAfter(const FilePath& path,
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
-    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -519,6 +519,7 @@ bool CreateTemporaryFile(FilePath* path) {
   return true;
 }
 
+#if !defined(__LB_SHELL__)
 FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
   FilePath directory;
   if (!GetShmemTempDir(&directory, executable))
@@ -526,6 +527,7 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
 }
+#endif
 
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
   int fd = CreateAndOpenFdForTemporaryFile(dir, path);
@@ -639,6 +641,7 @@ bool GetFileInfo(const FilePath& file_path, base::PlatformFileInfo* results) {
   return true;
 }
 
+#if !defined(__LB_SHELL__)
 bool GetInode(const FilePath& path, ino_t* inode) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to stat().
   struct stat buffer;
@@ -649,6 +652,7 @@ bool GetInode(const FilePath& path, ino_t* inode) {
   *inode = buffer.st_ino;
   return true;
 }
+#endif
 
 FILE* OpenFile(const std::string& filename, const char* mode) {
   return OpenFile(FilePath(filename), mode);
@@ -852,7 +856,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
     return false;
 
 #if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
-    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -887,7 +891,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
 
 ///////////////////////////////////////////////
 // MemoryMappedFile
-
+#if !defined(__LB_SHELL__)
 MemoryMappedFile::MemoryMappedFile()
     : file_(base::kInvalidPlatformFileValue),
       data_(NULL),
@@ -924,6 +928,7 @@ void MemoryMappedFile::CloseHandles() {
   length_ = 0;
   file_ = base::kInvalidPlatformFileValue;
 }
+#endif
 
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
@@ -947,6 +952,7 @@ bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
 }
 
 #if !defined(OS_MACOSX)
+#if !defined(__LB_SHELL__)
 bool GetTempDir(FilePath* path) {
   const char* tmp = getenv("TMPDIR");
   if (tmp)
@@ -1039,6 +1045,7 @@ FilePath GetHomeDir() {
   // Last resort.
   return FilePath("/tmp");
 }
+#endif // !defined(__LB_SHELL__)
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
   base::ThreadRestrictions::AssertIOAllowed();

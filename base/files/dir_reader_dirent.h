@@ -59,12 +59,14 @@ class DirReaderDirent {
     return current_->d_name;
   }
 
+#if !defined(__LB_SHELL__)
   // reading the linux implementation this is clear it is a call for the
   // opened directory fd
   int fd() const {
     if (!IsValid()) return -1;
     return dir_->fd;
   }
+#endif
 
   static bool IsFallback() {
     return false;
