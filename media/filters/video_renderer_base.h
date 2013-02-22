@@ -199,6 +199,8 @@ class MEDIA_EXPORT VideoRendererBase
   //       [kUninitialized] -------> [kError]
   //              |
   //              | Initialize()
+  //        [kInitializing]
+  //              |
   //              V        All frames returned
   //   +------[kFlushed]<-----[kFlushing]<--- OnDecoderResetDone()
   //   |          | Preroll() or upon                  ^
@@ -221,6 +223,7 @@ class MEDIA_EXPORT VideoRendererBase
   // Simple state tracking variable.
   enum State {
     kUninitialized,
+    kInitializing,
     kPrerolled,
     kPaused,
     kFlushingDecoder,
