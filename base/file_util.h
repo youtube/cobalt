@@ -517,7 +517,7 @@ class BASE_EXPORT FileEnumerator {
   bool has_find_data_;
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_;
-#elif defined(OS_POSIX) && !defined(__LB_WIIU__)
+#elif defined(OS_POSIX)
   struct DirectoryEntryInfo {
     FilePath filename;
     struct stat stat;
