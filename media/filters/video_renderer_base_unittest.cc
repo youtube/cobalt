@@ -5,6 +5,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
+#include "base/debug/stack_trace.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "base/stringprintf.h"
@@ -118,26 +119,26 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   void InitializeRenderer(PipelineStatus expected) {
     SCOPED_TRACE(base::StringPrintf("InitializeRenderer(%d)", expected));
+    WaitableMessageLoopEvent event;
+    CallInitialize(event.GetPipelineStatusCB());
+    event.RunAndWaitForStatus(expected);
+  }
+
+  void CallInitialize(const PipelineStatusCB& status_cb) {
     VideoRendererBase::VideoDecoderList decoders;
     decoders.push_back(decoder_);
-
-    WaitableMessageLoopEvent event;
     renderer_->Initialize(
-        demuxer_stream_,
-        decoders,
-        event.GetPipelineStatusCB(),
+        demuxer_stream_, decoders, status_cb,
         base::Bind(&MockStatisticsCB::OnStatistics,
                    base::Unretained(&statistics_cb_object_)),
         base::Bind(&VideoRendererBaseTest::OnTimeUpdate,
                    base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnNaturalSizeChanged,
                    base::Unretained(this)),
-        ended_event_.GetClosure(),
-        error_event_.GetPipelineStatusCB(),
+        ended_event_.GetClosure(), error_event_.GetPipelineStatusCB(),
         base::Bind(&VideoRendererBaseTest::GetTime, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::GetDuration,
                    base::Unretained(this)));
-    event.RunAndWaitForStatus(expected);
   }
 
   void Play() {
@@ -358,10 +359,42 @@ class VideoRendererBaseTest : public ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
 
+TEST_F(VideoRendererBaseTest, DoNothing) {
+  // Test that creation and deletion doesn't depend on calls to Initialize()
+  // and/or Stop().
+}
+
+TEST_F(VideoRendererBaseTest, StopWithoutInitialize) {
+  Stop();
+}
+
 TEST_F(VideoRendererBaseTest, Initialize) {
   Initialize();
   EXPECT_EQ(0, GetCurrentTimestampInMs());
   Shutdown();
+}
+
+static void ExpectNotCalled(PipelineStatus) {
+  base::debug::StackTrace stack;
+  ADD_FAILURE() << "Expected callback not to be called\n" << stack.ToString();
+}
+
+TEST_F(VideoRendererBaseTest, StopWhileInitializing) {
+  EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunCallback<1>(PIPELINE_OK));
+  CallInitialize(base::Bind(&ExpectNotCalled));
+  Stop();
+
+  // ~VideoRendererBase() will CHECK() if we left anything initialized.
+}
+
+TEST_F(VideoRendererBaseTest, StopWhileFlushing) {
+  Initialize();
+  Pause();
+  renderer_->Flush(base::Bind(&ExpectNotCalled, PIPELINE_OK));
+  Stop();
+
+  // ~VideoRendererBase() will CHECK() if we left anything initialized.
 }
 
 TEST_F(VideoRendererBaseTest, Play) {
