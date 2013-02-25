@@ -1151,6 +1151,15 @@ TEST(HttpResponseHeadersTest, GetContentLength) {
 }
 
 TEST(HttpResponseHeaders, GetContentRange) {
+
+#if defined(__LB_SHELL__)
+  // LB Shell has the check for smaller content length removed,
+  // it is still reported as valid HTTP header.
+  const bool kAllowSmallerContentLength = true;
+#else
+  const bool kAllowSmallerContentLength = false;
+#endif
+
   const struct {
     const char* headers;
     bool expected_return_value;
@@ -1292,7 +1301,7 @@ TEST(HttpResponseHeaders, GetContentRange) {
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-10000000000/10000000000",
-      false,
+      kAllowSmallerContentLength,
       0,
       10000000000ll,
       10000000000ll
@@ -1300,7 +1309,7 @@ TEST(HttpResponseHeaders, GetContentRange) {
     // 64 bits wraparound.
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0 - 9223372036854775807 / 100",
-      false,
+      kAllowSmallerContentLength,
       0,
       kint64max,
       100
@@ -1322,14 +1331,14 @@ TEST(HttpResponseHeaders, GetContentRange) {
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-50/10",
-      false,
+      kAllowSmallerContentLength,
       0,
       50,
       10
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 40-50/45",
-      false,
+      kAllowSmallerContentLength,
       40,
       50,
       45
