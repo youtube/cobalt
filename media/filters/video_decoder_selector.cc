@@ -67,6 +67,7 @@ void VideoDecoderSelector::SelectVideoDecoder(
     return;
   }
 
+#if !defined(__LB_SHELL__)
   video_decoder_ = new DecryptingVideoDecoder(message_loop_,
                                               set_decryptor_ready_cb_);
 
@@ -76,8 +77,13 @@ void VideoDecoderSelector::SelectVideoDecoder(
           &VideoDecoderSelector::DecryptingVideoDecoderInitDone,
           weak_ptr_factory_.GetWeakPtr())),
       statistics_cb_);
+#else
+  DLOG(ERROR) << "DecryptingVideoDecoder is not supported by our player yet.";
+  base::ResetAndReturn(&select_decoder_cb_).Run(NULL, NULL);
+#endif
 }
 
+#if !defined(__LB_SHELL__)
 void VideoDecoderSelector::DecryptingVideoDecoderInitDone(
     PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -120,6 +126,7 @@ void VideoDecoderSelector::DecryptingDemuxerStreamInitDone(
   input_stream_ = decrypted_stream_;
   InitializeNextDecoder();
 }
+#endif
 
 void VideoDecoderSelector::InitializeNextDecoder() {
   DCHECK(message_loop_->BelongsToCurrentThread());
