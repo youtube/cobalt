@@ -60,8 +60,10 @@ class MEDIA_EXPORT VideoDecoderSelector {
                           const SelectDecoderCB& select_decoder_cb);
 
  private:
+#if !defined(__LB_SHELL__)
   void DecryptingVideoDecoderInitDone(PipelineStatus status);
   void DecryptingDemuxerStreamInitDone(PipelineStatus status);
+#endif
   void InitializeNextDecoder();
   void DecoderInitDone(PipelineStatus status);
 

@@ -66,11 +66,13 @@ void VideoRendererBase::Flush(const base::Closure& callback) {
   flush_cb_ = callback;
   state_ = kFlushingDecoder;
 
+#if !defined(__LB_SHELL__)
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
         &VideoRendererBase::ResetDecoder, this));
     return;
   }
+#endif
 
   decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderResetDone, this));
 }
@@ -110,11 +112,13 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
+#if !defined(__LB_SHELL__)
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
         &VideoRendererBase::StopDecoder, this, callback));
     return;
   }
+#endif
 
   decoder_->Stop(callback);
 }
