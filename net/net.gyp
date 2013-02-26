@@ -344,6 +344,10 @@
         'cookies/cookie_util.h',
         'cookies/parsed_cookie.cc',
         'cookies/parsed_cookie.h',
+        'dial/dial_udp_server.cc',
+        'dial/dial_udp_server.h',
+        'dial/dial_udp_socket_factory.cc',
+        'dial/dial_udp_socket_factory.h',
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',
@@ -845,6 +849,8 @@
         'udp/datagram_socket.h',
         'udp/udp_client_socket.cc',
         'udp/udp_client_socket.h',
+        'udp/udp_listen_socket.cc',
+        'udp/udp_listen_socket.h',
         'udp/udp_net_log_parameters.cc',
         'udp/udp_net_log_parameters.h',
         'udp/udp_server_socket.cc',
@@ -963,9 +969,7 @@
             'dns/address_sorter_shell.cc',
           ],
           'sources/': [
-            # no UDP
-            ['exclude', 'udp'],
-            # or file tree access
+            # we don't use file tree access
             ['exclude', 'base/file_stream_posix.cc'],
             ['exclude', 'base/unix_domain_socket_posix.cc'],
             ['exclude', 'disk_cache/cache_util_posix.cc'],
@@ -1425,6 +1429,7 @@
         'cookies/cookie_store_unittest.h',
         'cookies/cookie_util_unittest.cc',
         'cookies/parsed_cookie_unittest.cc',
+        'dial/dial_udp_server_unittests.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
@@ -1617,6 +1622,7 @@
         'tools/dump_cache/url_utilities.h',
         'tools/dump_cache/url_utilities.cc',
         'tools/dump_cache/url_utilities_unittest.cc',
+        'udp/udp_listen_socket_unittest.cc',
         'udp/udp_socket_unittest.cc',
         'url_request/url_fetcher_impl_unittest.cc',
         'url_request/url_request_context_builder_unittest.cc',
