@@ -92,8 +92,8 @@ int MapOpenSSLErrorSSL() {
       return ERR_SSL_PROTOCOL_ERROR;
   } while (ERR_GET_LIB(error_code) != ERR_LIB_SSL);
 
-  DVLOG(1) << "OpenSSL SSL error, reason: " << ERR_GET_REASON(error_code)
-           << ", name: " << ERR_error_string(error_code, NULL);
+  DLOG(ERROR) << "OpenSSL SSL error, reason: " << ERR_GET_REASON(error_code)
+              << ", name: " << ERR_error_string(error_code, NULL);
   switch (ERR_GET_REASON(error_code)) {
     case SSL_R_READ_TIMEOUT_EXPIRED:
       return ERR_TIMED_OUT;
