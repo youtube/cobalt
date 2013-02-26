@@ -152,6 +152,8 @@ HttpServer::~HttpServer() {
   server_ = NULL;
 }
 
+namespace { // anonymous
+
 //
 // HTTP Request Parser
 // This HTTP request parser uses a simple state machine to quickly parse
@@ -214,17 +216,17 @@ int charToInput(char ch) {
   return INPUT_DEFAULT;
 }
 
-bool HttpServer::ParseHeaders(HttpConnection* connection,
-                              HttpServerRequestInfo* info,
-                              size_t* ppos) {
+bool ParseHeadersInternal(const std::string& received_data,
+                          HttpServerRequestInfo* info,
+                          size_t* ppos) {
   size_t& pos = *ppos;
-  size_t data_len = connection->recv_data_.length();
+  size_t data_len = received_data.length();
   int state = ST_METHOD;
   std::string buffer;
   std::string header_name;
   std::string header_value;
   while (pos < data_len) {
-    char ch = connection->recv_data_[pos++];
+    char ch = received_data[pos++];
     int input = charToInput(ch);
     int next_state = parser_state[state][input];
 
@@ -281,6 +283,20 @@ bool HttpServer::ParseHeaders(HttpConnection* connection,
   }
   // No more characters, but we haven't finished parsing yet.
   return false;
+}
+} // anonymous namespace
+
+bool HttpServer::ParseHeaders(HttpConnection* connection,
+                              HttpServerRequestInfo* info,
+                              size_t* ppos) {
+  return ParseHeadersInternal(connection->recv_data_, info, ppos);
+}
+
+// static
+bool HttpServer::ParseHeaders(const std::string& received_data,
+                              HttpServerRequestInfo* info) {
+  size_t pos = 0;
+  return ParseHeadersInternal(received_data, info, &pos);
 }
 
 HttpConnection* HttpServer::FindConnection(int connection_id) {
