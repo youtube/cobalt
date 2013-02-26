@@ -69,6 +69,10 @@ class HttpServer : public StreamListenSocket::Delegate,
                        int len) OVERRIDE;
   virtual void DidClose(StreamListenSocket* socket) OVERRIDE;
 
+  // Parse HTTP header information from a string.
+  static bool ParseHeaders(const std::string& received_data,
+                           HttpServerRequestInfo* info);
+
  protected:
   virtual ~HttpServer();
 
