@@ -155,6 +155,10 @@ bool UTF16ToCodepage(const string16& utf16,
                      const char* codepage_name,
                      OnStringConversionError::Type on_error,
                      std::string* encoded) {
+#if defined(__LB_SHELL__)
+  // ICU codepage conversion is not supported in lbshell.
+  NOTREACHED();
+#endif  // defined(__LB_SHELL__)
   encoded->clear();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -170,6 +174,10 @@ bool CodepageToUTF16(const std::string& encoded,
                      const char* codepage_name,
                      OnStringConversionError::Type on_error,
                      string16* utf16) {
+#if defined(__LB_SHELL__)
+  // ICU codepage conversion is not supported in lbshell.
+  NOTREACHED();
+#endif  // defined(__LB_SHELL__)
   utf16->clear();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -206,6 +214,11 @@ bool WideToCodepage(const std::wstring& wide,
                     const char* codepage_name,
                     OnStringConversionError::Type on_error,
                     std::string* encoded) {
+#if defined(__LB_SHELL__)
+  // ICU codepage conversion is not supported in lbshell.
+  NOTREACHED();
+#endif  // defined(__LB_SHELL__)
+
 #if defined(WCHAR_T_IS_UTF16)
   return UTF16ToCodepage(wide, codepage_name, on_error, encoded);
 #elif defined(WCHAR_T_IS_UTF32)
@@ -236,6 +249,11 @@ bool CodepageToWide(const std::string& encoded,
                     const char* codepage_name,
                     OnStringConversionError::Type on_error,
                     std::wstring* wide) {
+#if defined(__LB_SHELL__)
+  // ICU codepage conversion is not supported in lbshell.
+  NOTREACHED();
+#endif  // defined(__LB_SHELL__)
+
 #if defined(WCHAR_T_IS_UTF16)
   return CodepageToUTF16(encoded, codepage_name, on_error, wide);
 #elif defined(WCHAR_T_IS_UTF32)
@@ -273,6 +291,11 @@ bool CodepageToWide(const std::string& encoded,
 bool ConvertToUtf8AndNormalize(const std::string& text,
                                const std::string& charset,
                                std::string* result) {
+#if defined(__LB_SHELL__)
+  // ICU codepage conversion is not supported in lbshell.
+  NOTREACHED();
+#endif  // defined(__LB_SHELL__)
+
   result->clear();
   string16 utf16;
   if (!CodepageToUTF16(
