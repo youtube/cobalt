@@ -440,20 +440,25 @@
           # media is not excluding windows sources automatically.
           # forcibly exclude them.
           ['exclude', 'win'],
-          # we use our own AudioRendererAlgorithm and Impl
-          ['exclude', 'filters/audio_renderer'],
-          ['include', 'filters/chunk_demuxer'],
+          ['exclude', 'audio/audio_device_thread'],
+          ['exclude', 'audio/audio_manager'],
           # we use hardware mixers
+          ['exclude', 'base/audio_converter'],
+          ['exclude', 'base/audio_renderer_mixer'],
           ['exclude', 'base/channel_mixer'],
-          # we stream from network only
-          ['exclude', 'filters/file_data_source'],
-          # avc/aac only (for now)
-          ['exclude', 'filters/opus'],
           # likely to use our own encryption
           ['exclude', 'crypto/aes'],
+          # we use our own AudioRendererAlgorithm and Impl
+          ['exclude', 'filters/audio_decoder_selector'],
+          ['exclude', 'filters/audio_renderer'],
+          ['include', 'filters/chunk_demuxer'],
           ['exclude', 'filters/decrypting'],
+          # we stream from network only
+          ['exclude', 'filters/file_data_source'],
           # gpu-based decoding is interesting, perhaps explore further
           ['exclude', 'filters/gpu'],
+          # avc/aac only (for now)
+          ['exclude', 'filters/opus'],
          ],
         }, { # OS != lb_shell
           'dependencies': [
