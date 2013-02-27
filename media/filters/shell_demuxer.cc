@@ -22,7 +22,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
+#include "base/task_runner_util.h"
 #include "base/time.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/data_source.h"
 
 #include <inttypes.h>
@@ -97,9 +99,6 @@ void ShellDemuxerStream::EnableBitstreamConverter() {
 }
 
 void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
-  // ensure running on ShellDemuxer thread
-  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
-
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     // it's possible due to pipelining both downstream and within the
@@ -138,7 +137,6 @@ base::TimeDelta ShellDemuxerStream::OldestEnqueuedTimestamp() {
 
 void ShellDemuxerStream::SetBuffering(bool buffering) {
   // call me on Demuxer Thread only please
-  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   // if transitioning from buffering to not, service any pending
   // reads we have accumulated
@@ -183,6 +181,7 @@ ShellDemuxer::ShellDemuxer(
     const scoped_refptr<DataSource>& data_source)
     : message_loop_(message_loop)
     , host_(NULL)
+    , blocking_thread_("ShellDemuxer")
     , data_source_(data_source)
     , read_has_failed_(false)
     , video_out_of_order_frames_(0) {
@@ -232,16 +231,27 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
   audio_demuxer_stream_ = new ShellDemuxerStream(this, DemuxerStream::AUDIO);
   video_demuxer_stream_ = new ShellDemuxerStream(this, DemuxerStream::VIDEO);
 
-  // instruct the parser to extract audio and video config from the file
-  if (!parser_->ParseConfig()) {
+  // start the blocking thread and have it download and parse the media config
+  if (!blocking_thread_.Start()) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
+  base::PostTaskAndReplyWithResult(
+      blocking_thread_.message_loop_proxy(), FROM_HERE,
+      base::Bind(&ShellDemuxer::ParseConfigBlocking, this),
+      base::Bind(&ShellDemuxer::ParseConfigDone, this, status_cb));
+}
+
+bool ShellDemuxer::ParseConfigBlocking() {
+  // instruct the parser to extract audio and video config from the file
+  if (!parser_->ParseConfig()) {
+    return false;
+  }
+
   // make sure we got a valid and complete configuration
   if (!parser_->IsConfigComplete()) {
-    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
-    return;
+    return false;
   }
 
   // IsConfigComplete() should guarantee we know the duration
@@ -253,6 +263,19 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
     data_source_->SetBitrate(bitrate);
   }
 
+  // successful parse of config data, inform the nonblocking demuxer thread
+  return true;
+}
+
+void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
+                                   bool result) {
+  DCHECK(MessageLoopBelongsToCurrentThread());
+  // if the blocking parser thread cannot parse config we're done.
+  if (!result) {
+    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
+    return;
+  }
+
   // OK, initialization is complete, but defer telling the pipeline
   // we are ready until we have done seek prebuffering.
   audio_demuxer_stream_->SetBuffering(true);
@@ -262,15 +285,12 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
 }
 
 void ShellDemuxer::Request(DemuxerStream::Type type) {
-  // post task to our own thread
-  message_loop_->PostTask(FROM_HERE,
+  // post task to our blocking thread
+  blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
       base::Bind(&ShellDemuxer::RequestTask, this, type));
 }
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
-  // Should always be run on the ShellDemuxer thread
-  DCHECK(MessageLoopBelongsToCurrentThread());
-
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
@@ -367,15 +387,13 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   }
 }
 
-// callback from ShellBufferAllocated, post a task to our own thread
+// callback from ShellBufferAllocated, post a task to the blocking thread
 void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
-  message_loop_->PostTask(FROM_HERE,
+  blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
       base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
 }
 
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
-  // Should always be run on the ShellDemuxer thread
-  DCHECK(MessageLoopBelongsToCurrentThread());
   // We need at least one pending request for this callback to make sense.
   DCHECK(active_aus_.size());
 
