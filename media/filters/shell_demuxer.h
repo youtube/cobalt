@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/message_loop.h"
+#include "base/threading/thread.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/ranges.h"
@@ -118,6 +119,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  private:
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
+  void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
   void RequestTask(DemuxerStream::Type type);
   void DownloadTask(scoped_refptr<ShellBuffer> buffer);
   // Carries out a seek on the demuxer thread.
@@ -131,8 +133,17 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   bool WithinEpsilon(const base::TimeDelta& a, const base::TimeDelta& b);
 
+  // methods that perform blocking I/O, and are therefore run on the
+  // blocking_thread_
+  // download enough of the stream to parse the configuration. returns
+  // false on error.
+  bool ParseConfigBlocking();
+
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   DemuxerHost* host_;
+
+  // Thread on which all blocking operations are executed.
+  base::Thread blocking_thread_;
   scoped_refptr<DataSource> data_source_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
