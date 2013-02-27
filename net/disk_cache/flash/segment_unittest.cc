@@ -111,7 +111,8 @@ TEST_F(FlashCacheTest, SegmentFillWithSmallEntries) {
     num_bytes_written += entry.size;
   }
   int32 space_left = kSegmentFreeSpace - num_bytes_written;
-  EXPECT_GE(space_left, entry.size);
+  int32 entry_size = entry.size;
+  EXPECT_GE(space_left, entry_size);
   EXPECT_EQ(segment->GetOffsets().size(), disk_cache::kFlashMaxEntryCount);
   EXPECT_TRUE(segment->Close());
 }
@@ -131,7 +132,8 @@ TEST_F(FlashCacheTest, SegmentFillWithLargeEntries) {
     num_bytes_written += entry->size;
   }
   int32 space_left = kSegmentFreeSpace - num_bytes_written;
-  EXPECT_LT(space_left, entry->size);
+  int32 entry_size = entry->size;
+  EXPECT_LT(space_left, entry_size);
   EXPECT_LT(segment->GetOffsets().size(), disk_cache::kFlashMaxEntryCount);
   EXPECT_TRUE(segment->Close());
 }
