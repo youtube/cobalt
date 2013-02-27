@@ -415,10 +415,9 @@ TEST(Allocators, New) {
 }
 #endif
 
-// TODO(__LB_SHELL__): This behavior is not defined by c++ standard.
-// However it is possible that chromium expects it. We need to make sure
-// these functions work the same way as expected by chromium when we override
-// memory functions.
+#if !defined(__LB_SHELL__)
+// The test assumes the memory space to be very empty
+// and doesn't work on lb_shell platforms.
 
 // This makes sure that reallocing a small number of bytes in either
 // direction doesn't cause us to allocate new memory.
@@ -442,6 +441,7 @@ TEST(Allocators, Realloc1) {
     free(p);
   }
 }
+#endif
 
 TEST(Allocators, Realloc2) {
   for (int src_size = 0; src_size >= 0; src_size = NextSize(src_size)) {
