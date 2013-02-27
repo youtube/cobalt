@@ -272,6 +272,12 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
       if (base::strcasecmp(record.name.c_str(), expected_name.c_str()) != 0)
         return DNS_NAME_MISMATCH;
 
+#if !defined(IN6ADDR_ANY_INIT)
+      // Skip IPv6 addresses if there is no support for them
+      if (record.type == dns_protocol::kTypeAAAA)
+        continue;
+#endif
+
       ttl_sec = std::min(ttl_sec, record.ttl);
       ip_addresses.push_back(IPAddressNumber(record.rdata.begin(),
                                              record.rdata.end()));
