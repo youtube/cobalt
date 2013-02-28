@@ -31,6 +31,10 @@ bool ReturnsValidPath(int dir_type) {
   // Some paths might not exist on some platforms in which case confirming
   // |result| is true and !path.empty() is the best we can do.
   bool check_path_exists = true;
+#if defined(__LB_SHELL__)
+  if (dir_type == base::DIR_USER_DESKTOP)
+    check_path_exists = false;
+#endif
 #if defined(OS_POSIX)
   // If chromium has never been started on this account, the cache path may not
   // exist.
@@ -94,6 +98,9 @@ TEST_F(PathServiceTest, Get) {
 #elif defined(OS_IOS)
     if (key == base::DIR_USER_DESKTOP)
       continue;  // iOS doesn't implement DIR_USER_DESKTOP;
+#elif defined(__LB_SHELL__)
+    if (key == base::FILE_MODULE || key == base::FILE_EXE || key == base::DIR_USER_DESKTOP)
+      continue;  // lb_shell doesn't implement FILE_MODULE, FILE_EXE and DIR_USER_DESKTOP;
 #endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
@@ -130,6 +137,10 @@ TEST_F(PathServiceTest, Get) {
 #elif defined(OS_POSIX)
   for (int key = base::PATH_POSIX_START + 1; key < base::PATH_POSIX_END;
        ++key) {
+#if defined(__LB_SHELL__)
+    if (key == base::DIR_HOME)
+      continue;  // lb_shell doesn't implement DIR_HOME;
+#endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
