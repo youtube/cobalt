@@ -187,6 +187,16 @@ void CreateTextFile(const FilePath& filename,
   ASSERT_TRUE(file != NULL);
   fputws(contents.c_str(), file);
   fclose(file);
+#elif defined(__LB_WIIU__)
+  int fd = open(filename.value().c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+  ASSERT_TRUE(fd >= 0);
+  char mb_sequence[64];
+  const wchar_t* wc_string = contents.c_str();
+  size_t nbytes = wcsrtombs(mb_sequence, &wc_string, arraysize(mb_sequence), NULL);
+  ssize_t bytes_written = write(fd, mb_sequence, nbytes);
+  ASSERT_TRUE(bytes_written == nbytes);
+  ASSERT_TRUE(wc_string == NULL);
+  close(fd);
 #else
   std::wofstream file;
   file.open(filename.value().c_str());
@@ -204,6 +214,16 @@ std::wstring ReadTextFile(const FilePath& filename) {
   EXPECT_TRUE(file != NULL);
   fgetws(contents, arraysize(contents), file);
   fclose(file);
+#elif defined(__LB_WIIU__)
+  char mb_sequence_buffer[64];
+  int fd = open(filename.value().c_str(), O_RDONLY);
+  EXPECT_TRUE(fd >= 0);
+  ssize_t bytes_read = read(fd, mb_sequence_buffer, arraysize(mb_sequence_buffer));
+  EXPECT_TRUE(bytes_read >= 0);
+  close(fd);
+  const char * mb_sequence = mb_sequence_buffer;
+  size_t nbytes = mbsrtowcs(contents, &mb_sequence, sizeof(contents), NULL);
+  EXPECT_TRUE(mb_sequence == NULL);
 #else
   std::wifstream file;
   file.open(filename.value().c_str());
@@ -1815,11 +1835,13 @@ TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
   EXPECT_TRUE(file_util::Delete(new_dir, false));
 }
 
+#if !defined(__LB_SHELL__)
 TEST_F(FileUtilTest, GetShmemTempDirTest) {
   FilePath dir;
   EXPECT_TRUE(file_util::GetShmemTempDir(&dir, false));
   EXPECT_TRUE(file_util::DirectoryExists(dir));
 }
+#endif
 
 TEST_F(FileUtilTest, CreateDirectoryTest) {
   FilePath test_root =
