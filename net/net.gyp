@@ -1853,6 +1853,11 @@
             'base/x509_cert_types_unittest.cc',
           ],
         }],
+        ['OS=="lb_shell"', {
+          'include_dirs': [
+            '../../openssl/openssl/include',
+            ],
+        }],
       ],
     },
     {
