@@ -25,6 +25,7 @@
 
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
 #endif
 
 using base::TimeDelta;
@@ -224,6 +225,10 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+
+#if defined(__LB_SHELL__)
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+#endif
 
  protected:
   virtual ~ChunkDemuxerStream();
@@ -570,6 +575,12 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
   NOTREACHED();
   return false;
 }
+
+#if defined(__LB_SHELL__)
+scoped_refptr<ShellFilterGraphLog> ChunkDemuxerStream::filter_graph_log() {
+  return NULL;
+}
+#endif
 
 ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
                            const NeedKeyCB& need_key_cb,

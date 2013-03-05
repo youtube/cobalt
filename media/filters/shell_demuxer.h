@@ -27,6 +27,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/ranges.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_parser.h"
 
 namespace media {
@@ -51,6 +52,7 @@ class ShellDemuxerStream : public DemuxerStream {
   virtual Ranges<base::TimeDelta> GetBufferedRanges();
   virtual Type type();
   virtual void EnableBitstreamConverter();
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log();
 
   // Functions used by ShellDemuxer
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
@@ -79,6 +81,8 @@ class ShellDemuxerStream : public DemuxerStream {
 
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
+  // non-own ptr to avoid circular reference
+  ShellFilterGraphLog* filter_graph_log_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };
@@ -115,6 +119,9 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   // Callback from ShellBufferFactory
   void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
+
+  // exposes the filter graph log for re-use by downstream graph objects
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
 
  private:
   // Carries out initialization on the demuxer thread.
@@ -160,6 +167,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   base::TimeDelta next_audio_unit_;
   base::TimeDelta next_video_unit_;
