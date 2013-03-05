@@ -19,6 +19,7 @@
 
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
+#include "media/base/decryptor.h"
 
 namespace media {
 
@@ -29,6 +30,7 @@ class MEDIA_EXPORT ShellAudioRenderer
   // platform-specific factory method
   static ShellAudioRenderer* Create(
       media::AudioRendererSink* sink,
+      const SetDecryptorReadyCB& set_decryptor_ready_cb,
       const scoped_refptr<base::MessageLoopProxy>& message_loop);
 
   // ======== AudioRenderer Implementation
