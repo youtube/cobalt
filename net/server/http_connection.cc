@@ -29,6 +29,13 @@ void HttpConnection::Send(const char* bytes, int len) {
 void HttpConnection::Send(HttpStatusCode status_code,
                           const std::string& data,
                           const std::string& content_type) {
+  Send(status_code, data, content_type, std::vector<std::string>());
+}
+
+void HttpConnection::Send(HttpStatusCode status_code,
+                          const std::string& data,
+                          const std::string& content_type,
+                          const std::vector<std::string>& headers) {
   if (!socket_)
     return;
 
@@ -52,11 +59,13 @@ void HttpConnection::Send(HttpStatusCode status_code,
       "HTTP/1.1 %d %s\r\n"
       "Content-Type:%s\r\n"
       "Content-Length:%d\r\n"
+      "%s\r\n"
       "\r\n",
       status_code,
       status_message.c_str(),
       content_type.c_str(),
-      static_cast<int>(data.length())));
+      static_cast<int>(data.length()),
+      JoinString(headers, "\r\n").c_str()));
   socket_->Send(data);
 }
 
