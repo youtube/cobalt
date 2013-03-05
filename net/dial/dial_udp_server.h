@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/udp/udp_listen_socket.h"
 
@@ -21,7 +22,7 @@ class HttpServerRequestInfo;
 
 class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
  public:
-  DialUdpServer(UdpSocketFactory* factory);
+  DialUdpServer();
   virtual ~DialUdpServer();
 
   bool Start(const std::string& location_url,
@@ -49,7 +50,7 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
   bool IsValidMSearchRequest(const HttpServerRequestInfo& info) const;
 
   scoped_refptr<UDPListenSocket> socket_;
-  UdpSocketFactory* factory_;
+  scoped_ptr<UdpSocketFactory> factory_;
 
   // Value to pass in LOCATION: header
   std::string location_url_;
