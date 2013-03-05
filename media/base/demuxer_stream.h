@@ -15,6 +15,7 @@ namespace media {
 class AudioDecoderConfig;
 #if defined(__LB_SHELL__)
 class ShellBuffer;
+class ShellFilterGraphLog;
 #else
 class DecoderBuffer;
 #endif
@@ -77,6 +78,10 @@ class MEDIA_EXPORT DemuxerStream
   virtual Type type() = 0;
 
   virtual void EnableBitstreamConverter() = 0;
+
+#if defined(__LB_SHELL__)
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() = 0;
+#endif
 
  protected:
   friend class base::RefCountedThreadSafe<DemuxerStream>;
