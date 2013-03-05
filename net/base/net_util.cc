@@ -1218,6 +1218,7 @@ string16 GetSuggestedFilename(const GURL& url,
 #endif
 }
 
+#if !defined(__LB_SHELL__)
 FilePath GenerateFileName(const GURL& url,
                           const std::string& content_disposition,
                           const std::string& referrer_charset,
@@ -1249,6 +1250,7 @@ FilePath GenerateFileName(const GURL& url,
 
   return generated_name;
 }
+#endif  // !defined(__LB_SHELL__)
 
 bool IsPortAllowedByDefault(int port) {
   int array_size = arraysize(kRestrictedPorts);
