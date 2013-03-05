@@ -16,6 +16,11 @@
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "media/filters/video_decoder_selector.h"
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_filter_graph_log.h"
+#include "media/base/shell_filter_graph_log_constants.h"
+#endif
+
 namespace media {
 
 base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
@@ -45,6 +50,9 @@ VideoRendererBase::VideoRendererBase(
 
 void VideoRendererBase::Play(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPlay);
+#endif
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPrerolled, state_);
   state_ = kPlaying;
@@ -53,6 +61,9 @@ void VideoRendererBase::Play(const base::Closure& callback) {
 
 void VideoRendererBase::Pause(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPause);
+#endif
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ != kUninitialized || state_ == kError);
   state_ = kPaused;
@@ -61,18 +72,19 @@ void VideoRendererBase::Pause(const base::Closure& callback) {
 
 void VideoRendererBase::Flush(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventFlush);
+#endif
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kPaused);
   flush_cb_ = callback;
   state_ = kFlushingDecoder;
 
-#if !defined(__LB_SHELL__)
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
         &VideoRendererBase::ResetDecoder, this));
     return;
   }
-#endif
 
   decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderResetDone, this));
 }
@@ -85,6 +97,9 @@ void VideoRendererBase::ResetDecoder() {
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventStop);
+#endif
   if (state_ == kUninitialized || state_ == kStopped) {
     callback.Run();
     return;
@@ -112,13 +127,11 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
-#if !defined(__LB_SHELL__)
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
         &VideoRendererBase::StopDecoder, this, callback));
     return;
   }
-#endif
 
   decoder_->Stop(callback);
 }
@@ -138,6 +151,9 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
 void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoDecoder, kEventPreroll);
+#endif
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
   DCHECK(!cb.is_null());
@@ -173,6 +189,10 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
   DCHECK(!get_time_cb.is_null());
   DCHECK(!get_duration_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
+#if defined(__LB_SHELL__)
+  filter_graph_log_ = stream->filter_graph_log();
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventInitialize);
+#endif
 
   init_cb_ = init_cb;
   statistics_cb_ = statistics_cb;
@@ -384,6 +404,10 @@ void VideoRendererBase::ThreadMain() {
 }
 
 void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
+#if defined(__LB_SHELL__)
+  // sorta weird here - perhaps something different will do
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventRender);
+#endif
   current_frame_ = ready_frames_.front();
   ready_frames_.pop_front();
 
@@ -596,6 +620,9 @@ void VideoRendererBase::AttemptRead() {
 
 void VideoRendererBase::AttemptRead_Locked() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventRead);
+#endif
   lock_.AssertAcquired();
 
   if (pending_read_ ||
