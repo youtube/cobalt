@@ -451,10 +451,9 @@
           # we use our own encryption
           ['exclude', 'crypto/aes'],
           # we use our own AudioRendererAlgorithm and Impl
-          ['exclude', 'filters/audio_decoder_selector'],
           ['exclude', 'filters/audio_renderer'],
+          # but re-use various other parts of the stack
           ['include', 'filters/chunk_demuxer'],
-          ['exclude', 'filters/decrypting'],
           # we stream from network only
           ['exclude', 'filters/file_data_source'],
           # gpu-based decoding is interesting, perhaps explore further
