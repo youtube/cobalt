@@ -486,6 +486,7 @@ std::string DumpIPNumber(const IPAddressNumber& v) {
   return out;
 }
 
+#if !defined(__LB_SHELL__)
 void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
                                  size_t iteration,
                                  const char* suite) {
@@ -498,6 +499,7 @@ void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
             file_util::FilePathAsWString(file_path))
       << "Iteration " << iteration << " of " << suite << ": " << test_case->url;
 }
+#endif  // !defined(__LB_SHELL__)
 
 }  // anonymous namespace
 
@@ -978,6 +980,7 @@ TEST(NetUtilTest, GenerateSafeFileName) {
   }
 }
 
+#if !defined(__LB_SHELL__)
 TEST(NetUtilTest, GenerateFileName) {
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
   // This test doesn't run when the locale is not UTF-8 because some of the
@@ -2110,6 +2113,7 @@ TEST(NetUtilTest, GenerateFileName) {
     RunGenerateFileNameTestCase(&test_case, i, "generation (referrer=GBK)");
   }
 }
+#endif  // !defined(__LB_SHELL__)
 
 // This is currently a windows specific function.
 #if defined(OS_WIN)
