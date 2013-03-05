@@ -293,6 +293,7 @@ NET_EXPORT string16 GetSuggestedFilename(const GURL& url,
                                          const std::string& mime_type,
                                          const std::string& default_name);
 
+#if !defined(__LB_SHELL__)
 // Similar to GetSuggestedFilename(), but returns a FilePath.
 NET_EXPORT FilePath GenerateFileName(const GURL& url,
                                      const std::string& content_disposition,
@@ -300,6 +301,7 @@ NET_EXPORT FilePath GenerateFileName(const GURL& url,
                                      const std::string& suggested_name,
                                      const std::string& mime_type,
                                      const std::string& default_name);
+#endif  // !defined(__LB_SHELL__)
 
 // Ensures that the filename and extension is safe to use in the filesystem.
 //
