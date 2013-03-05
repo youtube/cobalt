@@ -37,8 +37,8 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
 }
 } // namespace anonymous
 
-DialUdpServer::DialUdpServer(UdpSocketFactory* factory)
-  : factory_(factory) {
+DialUdpServer::DialUdpServer()
+  : factory_(new DialUdpSocketFactory()) {
 }
 
 DialUdpServer::~DialUdpServer() {

@@ -4,13 +4,12 @@
 
 #include "net/dial/dial_udp_server.h"
 
-#include "net/dial/dial_udp_socket_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 TEST(DialUdpServerTest, ParseSearchRequest) {
-  DialUdpServer server(new UdpSocketFactory());
+  DialUdpServer server;
   struct TestData {
     std::string received_data;
     bool result;
