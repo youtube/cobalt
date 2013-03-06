@@ -219,6 +219,7 @@
             'guid_shell.cc',
             'safe_strerror_shell.cc',
             'sys_string_conversions_shell.cc',
+            'test/test_file_util_shell.cc',
             'threading/thread_local_shell.cc',
             'threading/thread_local_storage_shell.cc',
             'threading/worker_pool_shell.cc',
