@@ -67,7 +67,9 @@
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
+#if !defined(__LB_SHELL__)
 #include "net/http/http_content_disposition.h"
+#endif  // !defined(__LB_SHELL__)
 #include "unicode/datefmt.h"
 #include "unicode/regex.h"
 #include "unicode/uidna.h"
@@ -1155,10 +1157,12 @@ string16 GetSuggestedFilename(const GURL& url,
   bool overwrite_extension = false;
 
   // Try to extract a filename from content-disposition first.
+#if !defined(__LB_SHELL__)
   if (!content_disposition.empty()) {
     HttpContentDisposition header(content_disposition, referrer_charset);
     filename = header.filename();
   }
+#endif  // !defined(__LB_SHELL__)
 
   // Then try to use the suggested name.
   if (filename.empty() && !suggested_name.empty())
