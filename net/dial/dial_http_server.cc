@@ -17,18 +17,6 @@
 
 namespace net {
 
-#if defined(__LB_PS3__)
-  const char* DialSystemConfig::kDefaultFriendlyName = "Sony PS3";
-  const char* DialSystemConfig::kDefaultManufacturerName = "Sony";
-  const char* DialSystemConfig::kDefaultModelName = "PS3";
-  const char* DialSystemConfig::kDefaultModelUuid = "";
-#elif defined(__LB_LINUX__)
-  const char* DialSystemConfig::kDefaultFriendlyName = "Linux Dummy";
-  const char* DialSystemConfig::kDefaultManufacturerName = "GNU";
-  const char* DialSystemConfig::kDefaultModelName = "Linux";
-  const char* DialSystemConfig::kDefaultModelUuid = "";
-#endif
-
 const static char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
 
 const static char* kDdXmlFormat =
