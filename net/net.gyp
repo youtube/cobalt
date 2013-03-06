@@ -990,6 +990,11 @@
             ['exclude', 'libevent'],
             # WWW-authenticate: Negotiate requries a native GSSAPI, which PS3 lacks
             ['exclude', 'http/http_auth_handler_negotiate.cc'],
+            # HttpContentDisposition is currently only used by
+            # net::GetSuggestedFilename and that function can figure out a
+            # file name without HttpContentDisposition.
+            ['exclude', 'http/http_content_disposition.cc'],
+            ['exclude', 'http/http_content_disposition.h'],
             # crl_filter code assumes little-endian machine
             ['exclude', 'crl_filter'],
             # no support for a recursive resolver
