@@ -6,6 +6,10 @@
 
 #include "base/logging.h"
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_filter_graph_log.h"
+#endif
+
 namespace media {
 
 DummyDemuxerStream::DummyDemuxerStream(Type type)
@@ -31,6 +35,12 @@ const VideoDecoderConfig& DummyDemuxerStream::video_decoder_config() {
 void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
+
+#if defined(__LB_SHELL__)
+scoped_refptr<ShellFilterGraphLog> DummyDemuxerStream::filter_graph_log() {
+  return NULL;
+}
+#endif
 
 DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio) {
   streams_.resize(DemuxerStream::NUM_TYPES);

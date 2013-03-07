@@ -18,6 +18,7 @@
 #include "media/base/pipeline.h"
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
 #endif
 
 namespace media {
@@ -386,5 +387,15 @@ void DecryptingDemuxerStream::SetDecoderConfig(
       return;
   }
 }
+
+#if defined(__LB_SHELL__)
+scoped_refptr<ShellFilterGraphLog>
+    DecryptingDemuxerStream::filter_graph_log() {
+  if (demuxer_stream_) {
+    return demuxer_stream_->filter_graph_log();
+  }
+  return NULL;
+}
+#endif
 
 }  // namespace media

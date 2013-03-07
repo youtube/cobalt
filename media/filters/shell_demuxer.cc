@@ -26,6 +26,7 @@
 #include "base/time.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/data_source.h"
+#include "media/base/shell_filter_graph_log_constants.h"
 
 #include <inttypes.h>
 
@@ -43,11 +44,18 @@ ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
     , stopped_(false)
     , buffering_(true) {
   DCHECK(demuxer_);
+  filter_graph_log_ = demuxer->filter_graph_log();
+  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventConstructor);
 }
 
+scoped_refptr<ShellFilterGraphLog> ShellDemuxerStream::filter_graph_log() {
+  DCHECK(demuxer_);
+  return demuxer_->filter_graph_log();
+}
 
 void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
+  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventRead);
 
   base::AutoLock auto_lock(lock_);
 
@@ -75,6 +83,8 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     }
     read_queue_.push_back(read_cb);
   }
+  filter_graph_log_->LogDemuxerStreamStateQueues(
+      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 const AudioDecoderConfig& ShellDemuxerStream::audio_decoder_config() {
@@ -99,6 +109,7 @@ void ShellDemuxerStream::EnableBitstreamConverter() {
 }
 
 void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
+  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEnqueue);
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     // it's possible due to pipelining both downstream and within the
@@ -125,6 +136,8 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
   }
+  filter_graph_log_->LogDemuxerStreamStateQueues(
+      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 base::TimeDelta ShellDemuxerStream::OldestEnqueuedTimestamp() {
@@ -136,7 +149,7 @@ base::TimeDelta ShellDemuxerStream::OldestEnqueuedTimestamp() {
 }
 
 void ShellDemuxerStream::SetBuffering(bool buffering) {
-  // call me on Demuxer Thread only please
+  filter_graph_log_->LogDemuxerStreamStateBuffering(type_, buffering);
   base::AutoLock auto_lock(lock_);
   // if transitioning from buffering to not, service any pending
   // reads we have accumulated
@@ -150,17 +163,23 @@ void ShellDemuxerStream::SetBuffering(bool buffering) {
     }
   }
   buffering_ = buffering;
+  filter_graph_log_->LogDemuxerStreamStateQueues(
+      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 void ShellDemuxerStream::FlushBuffers() {
   DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
+  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventFlush);
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
+  filter_graph_log_->LogDemuxerStreamStateQueues(
+      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 void ShellDemuxerStream::Stop() {
   DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
+  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventStop);
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   // fulfill any pending callbacks with EOS buffers
@@ -171,6 +190,8 @@ void ShellDemuxerStream::Stop() {
   }
   read_queue_.clear();
   stopped_ = true;
+  filter_graph_log_->LogDemuxerStreamStateQueues(
+      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 //
@@ -187,6 +208,8 @@ ShellDemuxer::ShellDemuxer(
     , video_out_of_order_frames_(0) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
+  filter_graph_log_ = new ShellFilterGraphLog("graph.log");
+  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventConstructor);
   epsilon_ = base::TimeDelta::FromMicroseconds(kBufferTimeEpsilonMicroseconds);
   preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
@@ -215,6 +238,7 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
                                   const PipelineStatusCB &status_cb) {
   DCHECK(MessageLoopBelongsToCurrentThread());
   DCHECK(reader_);
+  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventInitialize);
 
   host_ = host;
   data_source_->set_host(host);
@@ -291,6 +315,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 }
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
+  filter_graph_log_->LogDemuxerRequestEvent(type);
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
@@ -396,6 +421,7 @@ void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   // We need at least one pending request for this callback to make sense.
   DCHECK(active_aus_.size());
+  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventDownload);
 
   // copy and remove top unit from active demuxes queue
   scoped_refptr<ShellAU> au(active_aus_.front());
@@ -486,6 +512,7 @@ void ShellDemuxer::Stop(const base::Closure &callback) {
 
 void ShellDemuxer::StopTask(const base::Closure& callback) {
   DCHECK(MessageLoopBelongsToCurrentThread());
+  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventStop);
   // tell downstream we've stopped
   if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
   if (video_demuxer_stream_) video_demuxer_stream_->Stop();
@@ -500,6 +527,7 @@ void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
 
 void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   DCHECK(MessageLoopBelongsToCurrentThread());
+  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventSeek);
   // flush audio and video buffers
 //  if (audio_demuxer_stream_) audio_demuxer_stream_->FlushBuffers();
 //  if (video_demuxer_stream_) video_demuxer_stream_->FlushBuffers();
@@ -555,6 +583,10 @@ bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
 bool ShellDemuxer::WithinEpsilon(const base::TimeDelta& a,
                                  const base::TimeDelta& b) {
   return ((a - epsilon_ < b) && (a + epsilon_ > b));
+}
+
+scoped_refptr<ShellFilterGraphLog> ShellDemuxer::filter_graph_log() {
+  return filter_graph_log_;
 }
 
 }  // namespace media

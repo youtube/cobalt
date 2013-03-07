@@ -20,6 +20,7 @@
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/decryptor.h"
+#include "media/base/shell_filter_graph_log.h"
 
 namespace media {
 
@@ -36,6 +37,9 @@ class MEDIA_EXPORT ShellAudioRenderer
   // ======== AudioRenderer Implementation
 
   // ======== Filter Implementation
+
+  // ======== ShellAudioRenderer Implementation
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() = 0;
 
  protected:
   virtual ~ShellAudioRenderer() { }
