@@ -28,6 +28,10 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
+#if defined(__LB_SHELL__)
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+#endif
+
  protected:
   virtual ~DummyDemuxerStream();
 
