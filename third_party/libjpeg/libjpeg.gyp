@@ -6,7 +6,7 @@
   # This file handles building both with our local libjpeg and with the system
   # libjpeg.
   'conditions': [
-    ['OS=="lb_shell" or use_system_libjpeg==0', {
+    ['use_system_libjpeg==0', {
       'targets': [
         {
           'target_name': 'libjpeg',
