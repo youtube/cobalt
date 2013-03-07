@@ -407,6 +407,8 @@
       'sas_dll_path%': '<(DEPTH)/third_party/platformsdk_win7/files/redist/x86',
       'wix_path%': '<(DEPTH)/third_party/wix',
 
+      'use_harfbuzz_ng%': 0,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -562,6 +564,7 @@
           'linux_use_gold_flags': 0,
           'notifications': 0,
           'disable_ftp_support': 1,
+          'use_harfbuzz_ng': 1,
         }],
 
         ['OS=="android" or OS=="ios"', {
@@ -731,6 +734,7 @@
     'google_api_key%': '<(google_api_key)',
     'google_default_client_id%': '<(google_default_client_id)',
     'google_default_client_secret%': '<(google_default_client_secret)',
+    'use_harfbuzz_ng%': '<(use_harfbuzz_ng)',
 
     # Use system protobuf instead of bundled one.
     'use_system_protobuf%': 0,
