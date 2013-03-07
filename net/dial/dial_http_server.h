@@ -7,17 +7,21 @@
 
 #include <string>
 
+#include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/tcp_listen_socket.h"
+#include "net/dial/dial_service_handler.h"
 #include "net/http/http_status_code.h"
 #include "net/server/http_server.h"
 
 namespace net {
 
 class IPEndPoint;
+class HttpResponseInfo;
 
-class NET_EXPORT DialHttpServer : public HttpServer::Delegate {
+class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
+    public base::RefCountedThreadSafe<DialHttpServer> {
  public:
   DialHttpServer();
   virtual ~DialHttpServer();
@@ -33,11 +37,11 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate {
 
   // Unused HttpServer::Delegate
   virtual void OnWebSocketRequest(int connection_id,
-                                  const HttpServerRequestInfo& info) OVERRIDE { }
+                                  const HttpServerRequestInfo& info) OVERRIDE {
+  }
 
   virtual void OnWebSocketMessage(int connection_id,
                                   const std::string& data) OVERRIDE { }
-
 
   // Return the formatted application URL
   std::string application_url() const {
@@ -59,13 +63,10 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate {
   // Send the DIAL Device Description Manifest to the client.
   void SendDeviceDescriptionManifest(int conn_id);
 
-  // Send the DIAL Application Information Response to the client.
-  void SendApplicationInformationResponse(int conn_id);
-
   // Callbacks Javascript Handlers, if any.
-  bool CallbackJsHttpRequest(int conn_id, const HttpServerRequestInfo& info) {
-    return false;
-  }
+  bool CallbackJsHttpRequest(int conn_id, const HttpServerRequestInfo& info);
+  void ReceivedResponse(int, HttpServerResponseInfo*, bool);
+  void AsyncReceivedResponse(int, HttpServerResponseInfo*, bool);
 
   scoped_ptr<TCPListenSocketFactory> factory_;
   scoped_refptr<HttpServer> http_server_;

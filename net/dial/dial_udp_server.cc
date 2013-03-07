@@ -93,7 +93,7 @@ void DialUdpServer::DidRead(UDPListenSocket* server,
 bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
   HttpServerRequestInfo info;
   if (!HttpServer::ParseHeaders(request, &info)) {
-    DLOG(WARNING) << "Failed parsing SSDP headers: " << request;
+    DVLOG(1) << "Failed parsing SSDP headers: " << request;
     return false;
   }
 
@@ -101,15 +101,15 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
     return false;
   }
 
-  DLOG(INFO) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
-
   std::string st_request = info.GetHeaderValue("ST");
   ignore_result(TrimWhitespaceASCII(st_request, TRIM_ALL, &st_request));
 
   if (st_request != kDialStRequest) {
-    DLOG(WARNING) << "Received incorrect ST headers: " << st_request;
+    DVLOG(1) << "Received incorrect ST headers: " << st_request;
     return false;
   }
+
+  DLOG(INFO) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
 
   return true;
 }
@@ -117,17 +117,17 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
 bool DialUdpServer::IsValidMSearchRequest(
     const HttpServerRequestInfo& info) const {
   if (info.method != "M-SEARCH") {
-    DLOG(WARNING) << "Invalid M-Search: SSDP method incorrect.";
+    DVLOG(1) << "Invalid M-Search: SSDP method incorrect.";
     return false;
   }
 
   if (info.path != "*") {
-    DLOG(WARNING) << "Invalid M-Search: SSDP path incorrect.";
+    DVLOG(1) << "Invalid M-Search: SSDP path incorrect.";
     return false;
   }
 
   if (!info.data.empty()) {
-    DLOG(WARNING) << "Invalid M-Search: SSDP request contains a body.";
+    DVLOG(1) << "Invalid M-Search: SSDP request contains a body.";
     return false;
   }
 
