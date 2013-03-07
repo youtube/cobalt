@@ -42,20 +42,32 @@ namespace OT {
  */
 
 /* Cast to struct T, reference to reference */
+#if defined(__LB_WIIU__)
+template<typename Type, typename TObject>
+inline Type& CastR(const TObject &X)
+{ return reinterpret_cast<Type&> (const_cast<TObject&>(X)); }
+#else
 template<typename Type, typename TObject>
 inline const Type& CastR(const TObject &X)
 { return reinterpret_cast<const Type&> (X); }
 template<typename Type, typename TObject>
 inline Type& CastR(TObject &X)
 { return reinterpret_cast<Type&> (X); }
+#endif
 
 /* Cast to struct T, pointer to pointer */
+#if defined(__LB_WIIU__)
+template<typename Type, typename TObject>
+inline Type* CastP(const TObject *X)
+{ return reinterpret_cast<Type*> (const_cast<TObject*>(X)); }
+#else
 template<typename Type, typename TObject>
 inline const Type* CastP(const TObject *X)
 { return reinterpret_cast<const Type*> (X); }
 template<typename Type, typename TObject>
 inline Type* CastP(TObject *X)
 { return reinterpret_cast<Type*> (X); }
+#endif
 
 /* StructAtOffset<T>(P,Ofs) returns the struct T& that is placed at memory
  * location pointed to by P plus Ofs bytes. */
@@ -68,13 +80,18 @@ inline Type& StructAtOffset(void *P, unsigned int offset)
 
 /* StructAfter<T>(X) returns the struct T& that is placed after X.
  * Works with X of variable size also.  X must implement get_size() */
+#if defined(__LB_WIIU__)
+template<typename Type, typename TObject>
+inline Type& StructAfter(const TObject &X)
+{ return StructAtOffset<Type>(&const_cast<TObject&>(X), X.get_size()); }
+#else
 template<typename Type, typename TObject>
 inline const Type& StructAfter(const TObject &X)
 { return StructAtOffset<Type>(&X, X.get_size()); }
 template<typename Type, typename TObject>
 inline Type& StructAfter(TObject &X)
 { return StructAtOffset<Type>(&X, X.get_size()); }
-
+#endif
 
 
 /*
@@ -107,9 +124,14 @@ inline Type& StructAfter(TObject &X)
 /* Size signifying variable-sized array */
 #define VAR 1
 
+#if defined(__LB_WIIU__)
+#define DEFINE_SIZE_UNION(size, _member) \
+  static const unsigned int min_size = (size)
+#else
 #define DEFINE_SIZE_UNION(size, _member) \
   DEFINE_INSTANCE_ASSERTION (this->u._member.static_size == (size)); \
   static const unsigned int min_size = (size)
+#endif
 
 #define DEFINE_SIZE_MIN(size) \
   DEFINE_INSTANCE_ASSERTION (sizeof (*this) >= (size)); \
