@@ -26,13 +26,13 @@ namespace net {
 // Test fixture
 class DialHttpServerTest : public testing::Test {
  protected:
-  scoped_ptr<DialHttpServer> server_;
+  scoped_refptr<DialHttpServer> server_;
   IPEndPoint addr_;
   scoped_refptr<HttpNetworkSession> session_;
   scoped_ptr<HttpNetworkTransaction> client_;
 
   virtual void SetUp() OVERRIDE {
-    server_.reset(new DialHttpServer());
+    server_ = new DialHttpServer();
     server_->Start();
     EXPECT_EQ(OK, server_->GetLocalAddress(&addr_));
     EXPECT_NE(0, addr_.port());
@@ -69,41 +69,15 @@ TEST_F(DialHttpServerTest, SendManifest) {
 
   const HttpResponseInfo* resp = GetResponse(req);
   std::string store;
-  EXPECT_EQ(200, resp->headers->response_code());
+  EXPECT_EQ(HTTP_OK, resp->headers->response_code());
 
   EXPECT_TRUE(resp->headers->GetMimeType(&store));
   EXPECT_EQ("text/xml", store);
   EXPECT_TRUE(resp->headers->GetCharset(&store));
   EXPECT_EQ("utf-8", store);
 
-  EXPECT_TRUE(resp->headers->HasHeaderValue("APPLICATION-URL", server_->application_url()));
-
-  int64 content_length = resp->headers->GetContentLength();
-  ASSERT_NE(0, content_length); // if failed, no point continuing.
-
-  scoped_refptr<IOBuffer> buffer(new IOBuffer(content_length));
-  TestCompletionCallback callback;
-  int rv = client_->Read(buffer, content_length, callback.callback());
-  if (rv == net::ERR_IO_PENDING)
-    rv = callback.WaitForResult();
-
-  EXPECT_EQ(content_length, rv);
-}
-
-TEST_F(DialHttpServerTest, SendAppInfoForYouTube) {
-  HttpRequestInfo req;
-  req.url = GURL("http://" + addr_.ToString() + "/apps/YouTube");
-  req.method = "GET";
-  req.load_flags = LOAD_BYPASS_PROXY | LOAD_DISABLE_CACHE;
-
-  const HttpResponseInfo* resp = GetResponse(req);
-  std::string store;
-  EXPECT_EQ(200, resp->headers->response_code());
-
-  EXPECT_TRUE(resp->headers->GetMimeType(&store));
-  EXPECT_EQ("text/xml", store);
-  EXPECT_TRUE(resp->headers->GetCharset(&store));
-  EXPECT_EQ("utf-8", store);
+  EXPECT_TRUE(resp->headers->HasHeaderValue("APPLICATION-URL",
+                                            server_->application_url()));
 
   int64 content_length = resp->headers->GetContentLength();
   ASSERT_NE(0, content_length); // if failed, no point continuing.
@@ -123,10 +97,10 @@ TEST_F(DialHttpServerTest, AllOtherRequests) {
     const char* path;
     const int response_code_received;
   } tests[] = {
-    { "GET", "/", 404 },
-    { "GET", "/etc", 404 },
-    { "POST", "/dd.xml", 404 },
-    { "POST", "/apps/YouTube", 404 },
+    { "GET", "/", HTTP_NOT_FOUND },
+    { "GET", "/etc", HTTP_NOT_FOUND },
+    { "POST", "/dd.xml", HTTP_NOT_FOUND },
+    { "POST", "/apps/YouTube", HTTP_NOT_FOUND },
   };
 
   for (int i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
