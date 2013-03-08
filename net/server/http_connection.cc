@@ -58,14 +58,20 @@ void HttpConnection::Send(HttpStatusCode status_code,
   socket_->Send(base::StringPrintf(
       "HTTP/1.1 %d %s\r\n"
       "Content-Type:%s\r\n"
-      "Content-Length:%d\r\n"
-      "%s\r\n"
-      "\r\n",
-      status_code,
-      status_message.c_str(),
+      "Content-Length:%d\r\n",
+      status_code, status_message.c_str(),
       content_type.c_str(),
-      static_cast<int>(data.length()),
-      JoinString(headers, "\r\n").c_str()));
+      static_cast<int>(data.length())));
+
+  // Custom headers. Since JoinString does not add a trailing delimiter,
+  // add one manually.
+  if (!headers.empty()) {
+    socket_->Send(JoinString(headers, "\r\n"));
+    socket_->Send("\r\n", 2);
+  }
+
+  // End linefeed and body.
+  socket_->Send("\r\n", 2);
   socket_->Send(data);
 }
 
