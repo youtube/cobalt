@@ -32,10 +32,7 @@
 
 namespace media {
 
-// How many outstanding requests for AUs should we allow?
-// note that these are still processed sequentially.
-static const int kDemuxerMaxRequests = 16;
-static const uint64 kDemuxerPreloadTimeMilliseconds = 1000;
+static const uint64 kDemuxerPreloadTimeMilliseconds = 2000;
 
 ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
                                        Type type)
@@ -63,7 +60,8 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   // The demuxer_ may have been destroyed in the pipleine thread.
   if (stopped_) {
     read_cb.Run(DemuxerStream::kOk,
-                scoped_refptr<ShellBuffer>(ShellBuffer::CreateEOSBuffer()));
+                scoped_refptr<ShellBuffer>(
+                    ShellBuffer::CreateEOSBuffer(filter_graph_log_)));
     return;
   }
 
@@ -74,13 +72,12 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     // Send the oldest buffer back.
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
+    RebuildEnqueuedRanges_Locked();
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
     // Ask the demuxer to issue a request for data of our type next,
     // giving this priority over its normal latency logic.
-    if (read_queue_.empty()) {
-      demuxer_->Request(type_);
-    }
+    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventRequestInterrupt);
     read_queue_.push_back(read_cb);
   }
   filter_graph_log_->LogDemuxerStreamStateQueues(
@@ -135,15 +132,28 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
+    enqueued_ranges_.Add(buffer->GetTimestamp(),
+                         buffer->GetTimestamp() + buffer->GetDuration());
   }
   filter_graph_log_->LogDemuxerStreamStateQueues(
       type_, buffer_queue_.size(), read_queue_.size());
 }
 
-base::TimeDelta ShellDemuxerStream::OldestEnqueuedTimestamp() {
+void ShellDemuxerStream::RebuildEnqueuedRanges_Locked() {
+  lock_.AssertAcquired();
+  enqueued_ranges_.clear();
+  for (BufferQueue::iterator it = buffer_queue_.begin();
+       it != buffer_queue_.end();
+       it++) {
+    enqueued_ranges_.Add((*it)->GetTimestamp(),
+                         (*it)->GetTimestamp() + (*it)->GetDuration());
+  }
+}
+
+base::TimeDelta ShellDemuxerStream::GetEndOfContiguousEnqueuedRange() {
   base::AutoLock auto_lock(lock_);
-  if (buffer_queue_.size()) {
-    return buffer_queue_.front()->GetTimestamp();
+  if (enqueued_ranges_.size()) {
+    return enqueued_ranges_.end(0);
   }
   return kNoTimestamp();
 }
@@ -161,6 +171,7 @@ void ShellDemuxerStream::SetBuffering(bool buffering) {
       read_queue_.pop_front();
       read_cb.Run(DemuxerStream::kOk, buffer);
     }
+    RebuildEnqueuedRanges_Locked();
   }
   buffering_ = buffering;
   filter_graph_log_->LogDemuxerStreamStateQueues(
@@ -173,6 +184,7 @@ void ShellDemuxerStream::FlushBuffers() {
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
+  enqueued_ranges_.clear();
   filter_graph_log_->LogDemuxerStreamStateQueues(
       type_, buffer_queue_.size(), read_queue_.size());
 }
@@ -182,11 +194,13 @@ void ShellDemuxerStream::Stop() {
   filter_graph_log_->LogDemuxerStreamEvent(type_, kEventStop);
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
+  enqueued_ranges_.clear();
   // fulfill any pending callbacks with EOS buffers
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
     it->Run(DemuxerStream::kOk,
-            scoped_refptr<ShellBuffer>(ShellBuffer::CreateEOSBuffer()));
+            scoped_refptr<ShellBuffer>(
+                ShellBuffer::CreateEOSBuffer(filter_graph_log_)));
   }
   read_queue_.clear();
   stopped_ = true;
@@ -204,13 +218,11 @@ ShellDemuxer::ShellDemuxer(
     , host_(NULL)
     , blocking_thread_("ShellDemuxer")
     , data_source_(data_source)
-    , read_has_failed_(false)
-    , video_out_of_order_frames_(0) {
+    , read_has_failed_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
   filter_graph_log_ = new ShellFilterGraphLog("graph.log");
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventConstructor);
-  epsilon_ = base::TimeDelta::FromMicroseconds(kBufferTimeEpsilonMicroseconds);
   preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
@@ -244,7 +256,7 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
   data_source_->set_host(host);
 
   // construct stream parser with error callback
-  parser_ = ShellParser::Construct(reader_, status_cb);
+  parser_ = ShellParser::Construct(reader_, status_cb, filter_graph_log_);
   // if we can't construct a parser for this stream it's a fatal error, return
   if (!parser_) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
@@ -315,6 +327,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 }
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
+  DCHECK(!requested_au_) << "overlapping requests not supported!";
   filter_graph_log_->LogDemuxerRequestEvent(type);
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
@@ -330,7 +343,8 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
     // enqueue EOS buffer with correct stream
-    scoped_refptr<ShellBuffer> eos_buffer = ShellBuffer::CreateEOSBuffer();
+    scoped_refptr<ShellBuffer> eos_buffer =
+        ShellBuffer::CreateEOSBuffer(filter_graph_log_);
     if (type == DemuxerStream::AUDIO) {
       audio_demuxer_stream_->EnqueueBuffer(eos_buffer);
     } else if (type == DemuxerStream::VIDEO) {
@@ -350,65 +364,17 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
     base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
   }
 
+  // enqueue the request
+  requested_au_ = au;
+
   // AllocateBuffer will return false if the requested size is larger
   // than the maximum limit for a single buffer.
   if (!ShellBufferFactory::Instance()->AllocateBuffer(
       au->GetTotalSize(),
-      base::Bind(&ShellDemuxer::BufferAllocated, this))) {
+      base::Bind(&ShellDemuxer::BufferAllocated, this),
+      filter_graph_log_)) {
     host_->OnDemuxerError(PIPELINE_ERROR_COULD_NOT_RENDER);
     return;
-  }
-
-  // enqueue the request
-  active_aus_.push_back(au);
-
-  base::TimeDelta timestamp_after = au->GetTimestamp() + au->GetDuration();
-
-  // update the appropriate timer, check for consistency
-  if (type == DemuxerStream::AUDIO) {
-    // no B-frames in audio, so audio timestamps should always increase
-    // monotonically and completely
-    if (!WithinEpsilon(au->GetTimestamp(), next_audio_unit_)) {
-      DLOG(WARNING) << base::StringPrintf(
-          "Out-of-order or missing audio, "
-          "expected timestamp at %"PRId64" ms, got timestamp at %"PRId64" ms",
-          next_audio_unit_.InMilliseconds(),
-          au->GetTimestamp().InMilliseconds());
-    }
-    next_audio_unit_ = timestamp_after;
-  } else if (type == DemuxerStream::VIDEO) {
-    // We support a max constant number of B-frames, meaning out-of-order
-    // timestamps won't advance our next_video_unit_ counter and we will
-    // preferentially download video data as a result up to that number
-    // of frames, after which we will consider the out-of-order timestamp a
-    // dropped frame and update our expected time to the highest time we've
-    // seen on this sequence. It is also possible that a demuxed video NALU will
-    // have the same timestamp as the last NALU, but we treat that the same
-    // as an out-of-order frame.
-    if (!WithinEpsilon(au->GetTimestamp(), next_video_unit_)) {
-      video_out_of_order_frames_++;
-      if (video_out_of_order_frames_ > parser_->NumRefFrames()) {
-        DLOG(WARNING) << base::StringPrintf(
-            "Video has exceeded max out-of-order frame count. "
-            "Last continuous timestamp: %"PRId64" ms, "
-            "highest timestamp seen: %"PRId64" ms, "
-            "current timestamp: %"PRId64" ms.",
-            next_video_unit_.InMilliseconds(),
-            highest_video_unit_.InMilliseconds(),
-            au->GetTimestamp().InMilliseconds());
-        next_video_unit_ = highest_video_unit_;
-        video_out_of_order_frames_ = 0;
-      }
-    } else {
-      // normal frame-to-frame operation, advance timestamp to next frame
-      next_video_unit_ = timestamp_after;
-    }
-    // always update highest_video_unit_ if relevant
-    if (timestamp_after > highest_video_unit_) {
-      highest_video_unit_ = timestamp_after;
-    }
-  } else {
-    NOTREACHED() << "invalid buffer type requested";
   }
 }
 
@@ -419,44 +385,44 @@ void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
 }
 
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
-  // We need at least one pending request for this callback to make sense.
-  DCHECK(active_aus_.size());
-  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventDownload);
+  // We need a requested_au_ for this call to make sense
+  DCHECK(requested_au_);
+  filter_graph_log_->LogDemuxerDownloadEvent(requested_au_->GetType());
 
-  // copy and remove top unit from active demuxes queue
-  scoped_refptr<ShellAU> au(active_aus_.front());
-  active_aus_.pop_front();
-  // we should always be getting these buffers back in FIFO order
-  DCHECK_LE(au->GetSize() + au->GetPrependSize(), buffer->GetDataSize());
+  DCHECK_LE(requested_au_->GetSize() + requested_au_->GetPrependSize(),
+            buffer->GetDataSize());
 
   // download data into the buffer
   int bytes_read = reader_->BlockingRead(
-      au->GetOffset(),
-      au->GetSize(),
-      buffer->GetWritableData() + au->GetPrependSize());
-  if (bytes_read < au->GetSize()) {
+      requested_au_->GetOffset(),
+      requested_au_->GetSize(),
+      buffer->GetWritableData() + requested_au_->GetPrependSize());
+  if (bytes_read < requested_au_->GetSize()) {
     host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
 
   // copy in relevant prepend
-  if (!parser_->Prepend(au, buffer)) {
+  if (!parser_->Prepend(requested_au_, buffer)) {
     host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
 
   // copy timestamp and duration values
-  buffer->SetTimestamp(au->GetTimestamp());
-  buffer->SetDuration(au->GetDuration());
+  buffer->SetTimestamp(requested_au_->GetTimestamp());
+  buffer->SetDuration(requested_au_->GetDuration());
 
   // enqueue buffer into appropriate stream
-  if (au->GetType() == DemuxerStream::AUDIO) {
+  if (requested_au_->GetType() == DemuxerStream::AUDIO) {
     audio_demuxer_stream_->EnqueueBuffer(buffer);
-  } else if (au->GetType() == DemuxerStream::VIDEO) {
+  } else if (requested_au_->GetType() == DemuxerStream::VIDEO) {
     video_demuxer_stream_->EnqueueBuffer(buffer);
   } else {
     NOTREACHED() << "invalid buffer type enqueued";
   }
+
+  // finished with this au, deref
+  requested_au_ = NULL;
 
   // Calculate total range of buffered data for both audio and video.
   Ranges<base::TimeDelta> buffered(
@@ -471,12 +437,8 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   // see if we've gotten enough data downloaded we can start.
   if (!seek_cb_.is_null()) {
     base::TimeDelta audio_buffered =
-        audio_demuxer_stream_->OldestEnqueuedTimestamp();
+        audio_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
     if (audio_buffered != kNoTimestamp()) {
-      // total audio buffered is difference between the next audio unit
-      // timestamp we expect and the oldest audio unit in the demuxer
-      // stream.
-      audio_buffered = next_audio_unit_ - audio_buffered;
       // If we've buffered enough audio to start playing, proceed
       // TODO: make this a function of data bitrate and download speed
       if (audio_buffered >= preload_) {
@@ -488,16 +450,26 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
     }
   }
 
-  // If there's a few outstanding pending requests we can settle down :)
-  if (active_aus_.size() >= kDemuxerMaxRequests) {
-    return;
-  }
-
-  // Request whichever unit we have the least recent continuous data for.
-  if (next_audio_unit_ <= next_video_unit_) {
+  // priority order for figuring out what to download next
+  base::TimeDelta next_audio_hole =
+      audio_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
+  // if the audio demuxer stream is empty, always fill it first
+  if (next_audio_hole == kNoTimestamp()) {
     Request(DemuxerStream::AUDIO);
   } else {
-    Request(DemuxerStream::VIDEO);
+    base::TimeDelta next_video_hole =
+        video_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
+    // if the video demuxer stream is empty, we need data for it
+    if (next_video_hole == kNoTimestamp()) {
+      Request(DemuxerStream::VIDEO);
+    } else {
+      // alright, fill the earlier hole in the enqueued ranges
+      if (next_video_hole < next_audio_hole) {
+        Request(DemuxerStream::VIDEO);
+      } else {
+        Request(DemuxerStream::AUDIO);
+      }
+    }
   }
 }
 
@@ -578,11 +550,6 @@ const VideoDecoderConfig& ShellDemuxer::VideoConfig() {
 
 bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
   return message_loop_->BelongsToCurrentThread();
-}
-
-bool ShellDemuxer::WithinEpsilon(const base::TimeDelta& a,
-                                 const base::TimeDelta& b) {
-  return ((a - epsilon_ < b) && (a + epsilon_ > b));
 }
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxer::filter_graph_log() {

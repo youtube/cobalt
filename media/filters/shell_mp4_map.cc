@@ -18,22 +18,26 @@
 
 #include "base/stringprintf.h"
 #include "lb_platform.h"
+#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_mp4_parser.h"
 
 namespace media {
 
 // ==== TableCache =============================================================
 
-ShellMP4Map::TableCache::TableCache(uint64 table_offset,
-                                    uint32 entry_count,
-                                    uint32 entry_size,
-                                    uint32 cache_size_entries,
-                                    scoped_refptr<ShellDataSourceReader> reader)
+ShellMP4Map::TableCache::TableCache(
+    uint64 table_offset,
+    uint32 entry_count,
+    uint32 entry_size,
+    uint32 cache_size_entries,
+    scoped_refptr<ShellDataSourceReader> reader,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
     : entry_size_(entry_size)
     , entry_count_(entry_count)
     , cache_size_entries_(cache_size_entries)
     , table_offset_(table_offset)
     , reader_(reader)
+    , filter_graph_log_(filter_graph_log)
     , cache_first_entry_number_(0)
     , cache_entry_count_(0) {
   // pre-fill the table
@@ -61,7 +65,8 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
     // drop old data to allow ShellBufferFactory to defrag
     cache_ = NULL;
     int bytes_to_read = cache_entry_count_ * entry_size_;
-    cache_ = ShellBufferFactory::Instance()->AllocateArray(bytes_to_read);
+    cache_ = ShellBufferFactory::Instance()->AllocateArray(bytes_to_read,
+                                                           filter_graph_log_);
     if (!cache_ || !cache_->Get()) {
       cache_entry_count_ = 0;
       return NULL;
@@ -97,8 +102,10 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
 // stts | time-to-sample        | 8    | run-length sample number to duration
 // stsz | sample size           | 4    | per-sample list of sample sizes
 
-ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader)
+ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader,
+                         scoped_refptr<ShellFilterGraphLog> filter_graph_log)
     : reader_(reader)
+    , filter_graph_log_(filter_graph_log)
     , current_chunk_sample_(0)
     , next_chunk_sample_(0)
     , current_chunk_offset_(0)
@@ -336,7 +343,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_co64,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       co64_Init();
       break;
 
@@ -345,7 +353,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_ctts,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       ctts_Init();
       break;
 
@@ -354,7 +363,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_stco,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       stco_Init();
       break;
 
@@ -363,7 +373,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_stsc,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       stsc_Init();
       break;
 
@@ -375,7 +386,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_stss,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       break;
 
     case kAtomType_stts:
@@ -383,7 +395,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_stts,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       stts_Init();
       break;
 
@@ -392,7 +405,8 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              count,
                              kEntrySize_stsz,
                              cache_size_entries,
-                             reader_);
+                             reader_,
+                             filter_graph_log_);
       break;
 
     default:
