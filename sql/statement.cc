@@ -181,6 +181,14 @@ ColType Statement::DeclaredColumnType(int col) const {
   return COLUMN_TYPE_NULL;
 }
 
+std::string Statement::ColumnName(int col) const {
+  const char *name = sqlite3_column_name(ref_->stmt(), col);
+  std::string result;
+  if (name)
+    result.assign(name);
+  return result;
+}
+
 bool Statement::ColumnBool(int col) const {
   return !!ColumnInt(col);
 }

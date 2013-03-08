@@ -142,13 +142,20 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['OS=="lb_shell" and target_arch != "linux"', {
+            ['OS=="lb_shell"', {
               'include_dirs': [
                 '../..'
               ],
               'defines': [
-                'SQLITE_OS_OTHER=1',
-                'SQLITE_OMIT_WAL=1'
+                # "write-ahead log", requires shared memory primitives
+                # which we don't have on every platform.
+                'SQLITE_OMIT_WAL=1',
+                # disable journaling, since we only use on-disk dbs as
+                # an intermediate stage to the savegame manager.
+                'SQLITE_NO_SYNC',
+                # disable sqlite plugins
+                'SQLITE_OMIT_LOAD_EXTENSION',
+                'HAVE_USLEEP=1',
               ],
             }],
             ['clang==1', {
