@@ -206,11 +206,6 @@ bool Connection::Raze() {
     return false;
   }
 
-  if (transaction_nesting_ > 0) {
-    DLOG(FATAL) << "Cannot raze within a transaction";
-    return false;
-  }
-
   sql::Connection null_db;
   if (!null_db.OpenInMemory()) {
     DLOG(FATAL) << "Unable to open in-memory database.";
@@ -260,8 +255,44 @@ bool Connection::Raze() {
   // page_size" can be used to query such a database.
   ScopedWritableSchema writable_schema(db_);
 
+  int pages = 0;
+  bool ok = CloneInternal(&null_db, &pages);
+  if (ok) {
+    // Exactly one page should have been backed up.  If this breaks,
+    // check this function to make sure assumptions aren't being broken.
+    DCHECK_EQ(pages, 1);
+  }
+  return ok;
+}
+
+bool Connection::RazeWithTimout(base::TimeDelta timeout) {
+  if (!db_) {
+    DLOG(FATAL) << "Cannot raze null db";
+    return false;
+  }
+
+  ScopedBusyTimeout busy_timeout(db_);
+  busy_timeout.SetTimeout(timeout);
+  return Raze();
+}
+
+bool Connection::CloneFrom(Connection *other) {
+  return CloneInternal(other, NULL);
+}
+
+bool Connection::CloneInternal(Connection *other, int *pages) {
+  if (!db_ || !other || !other->db_) {
+    DLOG(FATAL) << "Cannot clone to or from a null db";
+    return false;
+  }
+
+  if (transaction_nesting_ > 0) {
+    DLOG(FATAL) << "Cannot clone within a transaction";
+    return false;
+  }
+
   sqlite3_backup* backup = sqlite3_backup_init(db_, "main",
-                                               null_db.db_, "main");
+                                               other->db_, "main");
   if (!backup) {
     DLOG(FATAL) << "Unable to start sqlite3_backup().";
     return false;
@@ -269,7 +300,7 @@ bool Connection::Raze() {
 
   // -1 backs up the entire database.
   int rc = sqlite3_backup_step(backup, -1);
-  int pages = sqlite3_backup_pagecount(backup);
+  if (pages) *pages = sqlite3_backup_pagecount(backup);
   sqlite3_backup_finish(backup);
 
   // The destination database was locked.
@@ -283,22 +314,7 @@ bool Connection::Raze() {
     return false;
   }
 
-  // Exactly one page should have been backed up.  If this breaks,
-  // check this function to make sure assumptions aren't being broken.
-  DCHECK_EQ(pages, 1);
-
   return true;
-}
-
-bool Connection::RazeWithTimout(base::TimeDelta timeout) {
-  if (!db_) {
-    DLOG(FATAL) << "Cannot raze null db";
-    return false;
-  }
-
-  ScopedBusyTimeout busy_timeout(db_);
-  busy_timeout.SetTimeout(timeout);
-  return Raze();
 }
 
 bool Connection::BeginTransaction() {
