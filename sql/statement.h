@@ -125,6 +125,9 @@ class SQL_EXPORT Statement {
   ColType ColumnType(int col) const;
   ColType DeclaredColumnType(int col) const;
 
+  // Returns the name of a given column.
+  std::string ColumnName(int col) const;
+
   // These all take a 0-based argument index.
   bool ColumnBool(int col) const;
   int ColumnInt(int col) const;
