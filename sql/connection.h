@@ -211,6 +211,9 @@ class SQL_EXPORT Connection {
   bool Raze();
   bool RazeWithTimout(base::TimeDelta timeout);
 
+  // Clone another database into this one.
+  bool CloneFrom(Connection *other);
+
   // Transactions --------------------------------------------------------------
 
   // Transaction management. We maintain a virtual transaction stack to emulate
@@ -390,6 +393,9 @@ class SQL_EXPORT Connection {
     DISALLOW_COPY_AND_ASSIGN(StatementRef);
   };
   friend class StatementRef;
+
+  // Shared code between CloneFrom and Raze.
+  bool CloneInternal(Connection *other, int *pages);
 
   // Executes a rollback statement, ignoring all transaction state. Used
   // internally in the transaction management code.
