@@ -4,11 +4,14 @@
 
 #include "dial_http_server.h"
 
+#include "base/bind.h"
 #include "base/stringprintf.h"
 #include "base/string_util.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/dial/dial_system_config.h"
+#include "net/dial/dial_service.h"
+#include "net/dial/dial_service_handler.h"
 #include "net/server/http_server_request_info.h"
 
 #if defined(__LB_SHELL__)
@@ -36,15 +39,6 @@ const static char* kDdXmlFormat =
     "    <UDN>uuid:%s</UDN>"
     "  </device>"
     "</root>";
-
-// TODO: Make this application agnostic.
-const static char* kYouTubeAppInfo =
-    "<?xml version=\"1.0\" enconding=\"UTF-8\"?>"
-    "<service xmlns=\"urn:dial-multiscreen-org:schemas:dial\">"
-    "  <name>YouTube</name>"
-    "  <options allowStop=\"false\"/>"
-    "  <state>running</state>"
-    "</service>";
 
 DialHttpServer::DialHttpServer()
     : factory_(new TCPListenSocketFactory("0.0.0.0", 0)) {
@@ -107,11 +101,9 @@ void DialHttpServer::OnHttpRequest(int conn_id,
              << info.method << " " << info.path << " HTTP/1.1";
   if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     SendDeviceDescriptionManifest(conn_id);
-  } else if (info.path == "/apps/YouTube" && info.method == "GET") {
-    SendApplicationInformationResponse(conn_id);
   } else {
     bool callback_registered = false;
-    if (info.path.find("/apps/YouTube") == 0)
+    if (StartsWithASCII(info.path, std::string("/apps/"), true))
       callback_registered = CallbackJsHttpRequest(conn_id, info);
 
     if (!callback_registered)
@@ -149,8 +141,56 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   http_server_->Send(conn_id, HTTP_OK, data, kXmlMimeType, headers);
 }
 
-void DialHttpServer::SendApplicationInformationResponse(int conn_id) {
-  http_server_->Send200(conn_id, std::string(kYouTubeAppInfo), kXmlMimeType);
+bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
+                                           const HttpServerRequestInfo& info) {
+  DialServiceHandler* handler =
+      DialService::GetInstance()->GetHandler(info.path);
+  if (handler == NULL) {
+    return false;
+  }
+
+  DLOG(INFO) << "Dispatching request to DialServiceHandler: " << info.path;
+  HttpServerResponseInfo* response = new HttpServerResponseInfo();
+
+  DCHECK_EQ(0, info.path.find("/apps/" + handler->service_name()));
+  const std::string handler_path =
+      info.path.substr(("/apps/" + handler->service_name()).length());
+  DCHECK(handler_path.empty() || handler_path[0] == '/');
+  bool ret = handler->handleRequest(handler_path, info, response,
+      base::Bind(&DialHttpServer::AsyncReceivedResponse, this, conn_id,
+                 response));
+  if (!ret) {
+    delete response;
+  }
+  return ret;
+}
+
+// This runs on JS thread. Free it up ASAP.
+void DialHttpServer::AsyncReceivedResponse(int conn_id,
+    HttpServerResponseInfo* response, bool ok) {
+  // Should not be called from the same thread. Call ReceivedResponse instead.
+  DCHECK_NE(DialService::GetMessageLoop(), MessageLoop::current());
+
+  DLOG(INFO) << "Received response from JS.";
+  DialService::GetMessageLoop()->PostTask(FROM_HERE,
+      base::Bind(&DialHttpServer::ReceivedResponse, this, conn_id, response,
+                 ok));
+}
+
+void DialHttpServer::ReceivedResponse(int conn_id,
+    HttpServerResponseInfo* response, bool ok) {
+  DCHECK(response);
+  DCHECK_EQ(DialService::GetMessageLoop(), MessageLoop::current());
+
+  if (!ok) {
+    http_server_->Send404(conn_id);
+  } else {
+    http_server_->Send(conn_id,
+                       static_cast<HttpStatusCode>(response->response_code),
+                       response->body,
+                       response->mime_type);
+  }
+  delete response;
 }
 
 } // namespace net
