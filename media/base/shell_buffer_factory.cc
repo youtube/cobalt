@@ -20,18 +20,26 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#include "media/base/shell_filter_graph_log.h"
+#include "media/base/shell_filter_graph_log_constants.h"
 
 namespace media {
 
 // ==== ShellScopedArray =======================================================
 
-ShellScopedArray::ShellScopedArray(uint8* reusable_buffer, size_t size)
+ShellScopedArray::ShellScopedArray(
+    uint8* reusable_buffer,
+    size_t size,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
     : array_(reusable_buffer)
-    , size_(size) {
+    , size_(size)
+    , filter_graph_log_(filter_graph_log) {
 }
 
 ShellScopedArray::~ShellScopedArray() {
   if (array_) {
+    filter_graph_log_->LogEvent(kObjectIdBufferFactory,
+                                kEventArrayAllocationReclaim);
     ShellBufferFactory::Instance()->Reclaim(array_);
   }
 }
@@ -39,19 +47,26 @@ ShellScopedArray::~ShellScopedArray() {
 // ==== ShellBuffer ============================================================
 
 // static
-scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer() {
-  return scoped_refptr<ShellBuffer>(new ShellBuffer(NULL, 0));
+scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer(
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  return scoped_refptr<ShellBuffer>(
+      new ShellBuffer(NULL, 0, filter_graph_log));
 }
 
-ShellBuffer::ShellBuffer(uint8* reusable_buffer, size_t size)
+ShellBuffer::ShellBuffer(uint8* reusable_buffer,
+                         size_t size,
+                         scoped_refptr<ShellFilterGraphLog> filter_graph_log)
     : Buffer(kNoTimestamp(), kInfiniteDuration())
     , buffer_(reusable_buffer)
-    , size_(size) {
+    , size_(size)
+    , filter_graph_log_(filter_graph_log) {
 }
 
 ShellBuffer::~ShellBuffer() {
   // recycle our buffer
   if (buffer_) {
+    filter_graph_log_->LogEvent(kObjectIdBufferFactory,
+                                kEventBufferAllocationReclaim);
     ShellBufferFactory::Instance()->Reclaim(buffer_);
   }
 }
@@ -68,10 +83,17 @@ void ShellBufferFactory::Initialize() {
   }
 }
 
-bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
+bool ShellBufferFactory::AllocateBuffer(
+    size_t size,
+    AllocCB cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                             kEventBufferAllocationRequest);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
   // with the provided EOS method.
   if (size == 0) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventBufferAllocationError);
     return false;
   }
   size_t aligned_size = SizeAlign(size);
@@ -85,14 +107,22 @@ bool ShellBufferFactory::AllocateBuffer(size_t size, AllocCB cb) {
     uint8* shell_buffer_bytes;
     if (pending_allocs_.size() == 0 && aligned_size <= largest_free_space_) {
       instant_buffer = new ShellBuffer(AllocateLockAcquired(aligned_size),
-                                       size);
+                                       size,
+                                       filter_graph_log);
+      filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                                 kEventBufferAllocationSuccess);
       DCHECK(!instant_buffer->IsEndOfStream());
     } else {
       // Alright, we have to wait, enqueue the buffer and size.
-      pending_allocs_.push_back(std::make_pair(cb, size));
+      filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                                 kEventBufferAllocationDeferred);
+      pending_allocs_.push_back(
+          std::make_pair(cb, new ShellBuffer(NULL, size, filter_graph_log)));
     }
   } else {
     // allocation size request was too large, return failure
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventBufferAllocationError);
     return false;
   }
   // If we managed to create a buffer run the callback after releasing the lock.
@@ -107,9 +137,15 @@ bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
   return (SizeAlign(size) <= largest_free_space_);
 }
 
-scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
+scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(
+    size_t size,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                             kEventArrayAllocationRequest);
   uint8* allocated_bytes = NULL;
   if (size == 0) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventArrayAllocationError);
     return NULL;
   }
   size_t aligned_size = SizeAlign(size);
@@ -117,6 +153,8 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
     base::AutoLock lock(lock_);
     // there should not already be somebody waiting on an array
     if (array_requested_size_ > 0) {
+      filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                                 kEventArrayAllocationError);
       NOTREACHED() << "Max one thread blocking on array allocation at a time.";
       return NULL;
     }
@@ -127,10 +165,14 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
       array_requested_size_ = aligned_size;
     }
   } else {  // oversized requests always fail instantly.
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventArrayAllocationError);
     return NULL;
   }
   // Lock is released. Now safe to block this thread if we need to.
   if (!allocated_bytes) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventArrayAllocationDeferred);
     // Wait until enough memory has been released to service this allocation.
     array_allocation_event_.Wait();
     {
@@ -146,8 +188,10 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
   }
   // Whether we blocked or not we should now have a pointer
   DCHECK(allocated_bytes);
-  return scoped_refptr<ShellScopedArray>(new ShellScopedArray(allocated_bytes,
-                                                              size));
+  filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                             kEventArrayAllocationSuccess);
+  return scoped_refptr<ShellScopedArray>(
+      new ShellScopedArray(allocated_bytes, size, filter_graph_log));
 }
 
 void ShellBufferFactory::Reclaim(uint8* p) {
@@ -189,13 +233,16 @@ void ShellBufferFactory::Reclaim(uint8* p) {
     }
     // Try to process any enqueued allocs in FIFO order until we run out of room
     while (service_buffers && pending_allocs_.size()) {
-      size_t size = pending_allocs_.front().second;
+      size_t size = pending_allocs_.front().second->GetDataSize();
       size_t aligned_size = SizeAlign(size);
       uint8* bytes = AllocateLockAcquired(aligned_size);
       if (bytes) {
+        scoped_refptr<ShellBuffer> alloc_buff = pending_allocs_.front().second;
+        alloc_buff->SetBuffer(bytes);
+        alloc_buff->filter_graph_log()->LogEvent(kObjectIdBufferFactory,
+                                                 kEventBufferAllocationSuccess);
         finished_allocs_.push_back(std::make_pair(
-            pending_allocs_.front().first,
-            new ShellBuffer(bytes, size)));
+            pending_allocs_.front().first, alloc_buff));
         pending_allocs_.pop_front();
       } else {
         service_buffers = false;

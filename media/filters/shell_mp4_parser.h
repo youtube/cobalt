@@ -73,9 +73,11 @@ class ShellMP4Parser : public ShellAVCParser {
   static scoped_refptr<ShellParser> Construct(
       scoped_refptr<ShellDataSourceReader> reader,
       const uint8* construction_header,
-      const PipelineStatusCB& status_cb);
+      const PipelineStatusCB& status_cb,
+      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                 uint32 ftyp_atom_size);
+                 uint32 ftyp_atom_size,
+                 scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual ~ShellMP4Parser();
 
   // === ShellParser implementation
@@ -105,6 +107,9 @@ class ShellMP4Parser : public ShellAVCParser {
   scoped_refptr<ShellMP4Map> video_map_;
   uint32 audio_sample_;
   uint32 video_sample_;
+  // for keeping audio buffers contiguous across time scales
+  uint64 first_audio_hole_ticks_;
+  base::TimeDelta first_audio_hole_;
 };
 
 }  // namespace media

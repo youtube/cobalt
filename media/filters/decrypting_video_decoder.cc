@@ -19,6 +19,7 @@
 #include "media/base/video_frame.h"
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
 #endif
 
 namespace media {
