@@ -41,7 +41,8 @@ class NET_EXPORT DialService {
   bool Register(const std::string& path, DialServiceHandler* handler);
   bool Deregister(const std::string& path, DialServiceHandler* handler);
 
-  DialServiceHandler* GetHandler(const std::string& service_name);
+  DialServiceHandler* GetHandler(const std::string& service_name,
+                                 std::string* remaining_handler);
 
   bool is_running() const { return is_running_; }
 
