@@ -24,6 +24,10 @@
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 
+#if defined(__LB_SHELL__)
+#include "lb_platform.h"
+#endif
+
 using std::string;
 
 namespace net {
@@ -66,6 +70,8 @@ SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
     if (bind(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
 #if defined(OS_WIN)
       closesocket(s);
+#elif defined(__LB_SHELL__)
+      LB::Platform::close_socket(s);
 #elif defined(OS_POSIX)
       close(s);
 #endif
@@ -91,6 +97,8 @@ SocketDescriptor TCPListenSocket::CreateAndBindAnyPort(const string& ip,
     LOG(ERROR) << "Could not determine bound port, getsockname() failed";
 #if defined(OS_WIN)
     closesocket(s);
+#elif defined(__LB_SHELL__)
+    LB::Platform::close_socket(s);
 #elif defined(OS_POSIX)
     close(s);
 #endif
