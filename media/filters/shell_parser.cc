@@ -25,9 +25,11 @@ namespace media {
 // ==== ShellAU ================================================================
 
 // static
-scoped_refptr<ShellAU> ShellAU::CreateEndOfStreamAU(DemuxerStream::Type type) {
+scoped_refptr<ShellAU> ShellAU::CreateEndOfStreamAU(
+    DemuxerStream::Type type,
+    base::TimeDelta timestamp) {
   scoped_refptr<ShellAU> eos = new ShellAU(type,
-    0, 0, 0, false, kNoTimestamp(), kInfiniteDuration());
+    0, 0, 0, false, timestamp, kInfiniteDuration());
   eos->is_eos_ = true;
   return eos;
 }
@@ -37,10 +39,11 @@ bool ShellAU::IsEndOfStream() {
 }
 
 bool ShellAU::IsValid() {
-  if (offset_ == 0                 ||
-      size_ == 0                   ||
-      timestamp_ == kNoTimestamp() ||
-      duration_ == kInfiniteDuration()) {
+  if (is_eos_) {
+    return true;
+  } else if (offset_ == 0                 ||
+           size_ == 0                     ||
+           timestamp_ == kNoTimestamp()) {
     return false;
   }
   return true;

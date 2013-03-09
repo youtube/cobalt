@@ -159,16 +159,14 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
   // Extract first AU in queue
   scoped_refptr<ShellAU> au(next_audio_aus_.front());
   next_audio_aus_.pop_front();
-  if (!au->IsEndOfStream() && !next_audio_aus_.front()->IsEndOfStream()) {
-    // Next timestamp should be greater than ours, if not something is very funny
-    // with this FLV and we won't be able to calculate duration.
-    if (next_audio_aus_.front()->GetTimestamp() >= au->GetTimestamp()) {
-      au->SetDuration(next_audio_aus_.front()->GetTimestamp() -
-                      au->GetTimestamp());
-    } else {
-      DLOG(WARNING) <<
-          "out of order audio timestamps encountered on FLV parsing.";
-    }
+  // Next timestamp should be greater than ours, if not something is very funny
+  // with this FLV and we won't be able to calculate duration.
+  if (next_audio_aus_.front()->GetTimestamp() >= au->GetTimestamp()) {
+    au->SetDuration(next_audio_aus_.front()->GetTimestamp() -
+                    au->GetTimestamp());
+  } else {
+    DLOG(ERROR) <<
+        "out of order audio timestamps encountered on FLV parsing.";
   }
   return au;
 }
@@ -238,9 +236,11 @@ bool ShellFLVParser::ParseNextTag() {
     at_end_of_file_ = true;
     // Normal termination of an FLV. Enqueue EOS AUs in both streams.
     next_video_aus_.push_back(
-        ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO));
+        ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO,
+                                     video_track_duration_));
     next_audio_aus_.push_back(
-        ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO));
+        ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO,
+                                     audio_track_duration_));
     return true;
   }
 
@@ -321,7 +321,12 @@ bool ShellFLVParser::ParseAudioDataTag(uint8* tag,
     // and 3 in the tag buffer
     ParseAudioSpecificConfig(tag[2], tag[3]);
   } else if (tag[1] == kAACPacketTypeRaw) {  // raw AAC audio
-    // this is audio data, build the AU
+    // this is audio data, check timestamp
+    base::TimeDelta ts = base::TimeDelta::FromMilliseconds(timestamp);
+    if (ts > audio_track_duration_) {
+      audio_track_duration_ = ts;
+    }
+    // build the AU
     size_t prepend_size = CalculatePrependSize(DemuxerStream::AUDIO, true);
     scoped_refptr<ShellAU> au = new ShellAU(
         DemuxerStream::AUDIO,
@@ -329,7 +334,7 @@ bool ShellFLVParser::ParseAudioDataTag(uint8* tag,
         size - kAudioTagSize,
         prepend_size,
         true,
-        base::TimeDelta::FromMilliseconds(timestamp),
+        ts,
         kInfiniteDuration());
     next_audio_aus_.push_back(au);
   }
@@ -419,7 +424,12 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
       }
       // advance tag offset past size
       avc_tag_offset += nal_header_size_;
-      // this is video data, build the AU
+      // this is video data, build the timestamp
+      base::TimeDelta ts = base::TimeDelta::FromMilliseconds(pts);
+      if (ts > video_track_duration_) {
+        video_track_duration_ = ts;
+      }
+
       size_t prepend_size = CalculatePrependSize(DemuxerStream::VIDEO,
                                                  is_keyframe);
       scoped_refptr<ShellAU> au = new ShellAU(
@@ -428,7 +438,7 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
           nal_size,
           prepend_size,
           is_keyframe,
-          base::TimeDelta::FromMilliseconds(pts),
+          ts,
           kInfiniteDuration());
       // now advance past the NALU data
       avc_tag_offset += nal_size;

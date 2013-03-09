@@ -59,9 +59,11 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   // Don't accept any additional reads if we've been told to stop.
   // The demuxer_ may have been destroyed in the pipleine thread.
   if (stopped_) {
+    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
     read_cb.Run(DemuxerStream::kOk,
                 scoped_refptr<ShellBuffer>(
-                    ShellBuffer::CreateEOSBuffer(filter_graph_log_)));
+                    ShellBuffer::CreateEOSBuffer(kNoTimestamp(),
+                                                 filter_graph_log_)));
     return;
   }
 
@@ -73,6 +75,9 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
     RebuildEnqueuedRanges_Locked();
+    if (buffer->IsEndOfStream()) {
+      filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
+    }
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
     // Ask the demuxer to issue a request for data of our type next,
@@ -116,24 +121,36 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
     return;
   }
 
-  if (buffer->GetTimestamp() != kNoTimestamp() &&
-      buffer->GetDuration() != kInfiniteDuration()) {
-    buffered_ranges_.Add(buffer->GetTimestamp(),
-                         buffer->GetTimestamp() + buffer->GetDuration());
+  bool range_valid = true;
+  if (buffer->IsEndOfStream()) {
+    filter_graph_log_->LogDemuxerStreamEvent(type_,
+                                             kEventEndOfStreamReceived);
+    range_valid = false;
   } else {
-    DLOG(WARNING) << "bad timestamp or duration info on enqueued buffer.";
+    if (buffer->GetTimestamp() != kNoTimestamp() &&
+        buffer->GetDuration() != kInfiniteDuration()) {
+      buffered_ranges_.Add(buffer->GetTimestamp(),
+                           buffer->GetTimestamp() + buffer->GetDuration());
+    } else {
+      DLOG(WARNING) << "bad timestamp or duration info on enqueued buffer.";
+      range_valid = false;
+    }
   }
 
   // Check for any already waiting reads, service oldest read if there
   if (!buffering_ && read_queue_.size()) {
+    // assumption here is that buffer queue is empty
+    DCHECK_EQ(buffer_queue_.size(), 0);
     ReadCB read_cb(read_queue_.front());
     read_queue_.pop_front();
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
-    enqueued_ranges_.Add(buffer->GetTimestamp(),
-                         buffer->GetTimestamp() + buffer->GetDuration());
+    if (range_valid) {
+      enqueued_ranges_.Add(buffer->GetTimestamp(),
+                           buffer->GetTimestamp() + buffer->GetDuration());
+    }
   }
   filter_graph_log_->LogDemuxerStreamStateQueues(
       type_, buffer_queue_.size(), read_queue_.size());
@@ -145,8 +162,11 @@ void ShellDemuxerStream::RebuildEnqueuedRanges_Locked() {
   for (BufferQueue::iterator it = buffer_queue_.begin();
        it != buffer_queue_.end();
        it++) {
-    enqueued_ranges_.Add((*it)->GetTimestamp(),
-                         (*it)->GetTimestamp() + (*it)->GetDuration());
+    if ((*it)->GetTimestamp() != kNoTimestamp() &&
+        (*it)->GetDuration() != kInfiniteDuration()) {
+      enqueued_ranges_.Add((*it)->GetTimestamp(),
+                           (*it)->GetTimestamp() + (*it)->GetDuration());
+    }
   }
 }
 
@@ -195,12 +215,14 @@ void ShellDemuxerStream::Stop() {
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   enqueued_ranges_.clear();
-  // fulfill any pending callbacks with EOS buffers
+  // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
+    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
     it->Run(DemuxerStream::kOk,
             scoped_refptr<ShellBuffer>(
-                ShellBuffer::CreateEOSBuffer(filter_graph_log_)));
+                ShellBuffer::CreateEOSBuffer(kNoTimestamp(),
+                                             filter_graph_log_)));
   }
   read_queue_.clear();
   stopped_ = true;
@@ -218,7 +240,9 @@ ShellDemuxer::ShellDemuxer(
     , host_(NULL)
     , blocking_thread_("ShellDemuxer")
     , data_source_(data_source)
-    , read_has_failed_(false) {
+    , read_has_failed_(false)
+    , audio_reached_eos_(false)
+    , video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
   filter_graph_log_ = new ShellFilterGraphLog("graph.log");
@@ -231,6 +255,7 @@ ShellDemuxer::ShellDemuxer(
 }
 
 ShellDemuxer::~ShellDemuxer() {
+  NOTIMPLEMENTED();
 }
 
 void ShellDemuxer::OnDataSourceReaderError() {
@@ -333,6 +358,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
   if (!au || !au->IsValid()) {
+    DLOG(ERROR) << "got back bad AU from parser";
     host_->OnDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
@@ -342,14 +368,19 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
 
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
+    filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventEndOfStreamSent);
     // enqueue EOS buffer with correct stream
     scoped_refptr<ShellBuffer> eos_buffer =
-        ShellBuffer::CreateEOSBuffer(filter_graph_log_);
+        ShellBuffer::CreateEOSBuffer(au->GetTimestamp(),
+                                     filter_graph_log_);
     if (type == DemuxerStream::AUDIO) {
+      audio_reached_eos_ = true;
       audio_demuxer_stream_->EnqueueBuffer(eos_buffer);
     } else if (type == DemuxerStream::VIDEO) {
+      video_reached_eos_ = true;
       video_demuxer_stream_->EnqueueBuffer(eos_buffer);
     }
+    IssueNextRequestTask();
     return;
   }
 
@@ -398,12 +429,18 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
       requested_au_->GetSize(),
       buffer->GetWritableData() + requested_au_->GetPrependSize());
   if (bytes_read < requested_au_->GetSize()) {
-    host_->OnDemuxerError(PIPELINE_ERROR_READ);
+    // 0 or under-sized download could mean normal termination of video,
+    // check for error
+    if (bytes_read == DataSource::kReadError) {
+      DLOG(ERROR) << "unable to download AU";
+      host_->OnDemuxerError(PIPELINE_ERROR_READ);
+    }
     return;
   }
 
   // copy in relevant prepend
   if (!parser_->Prepend(requested_au_, buffer)) {
+    DLOG(ERROR) << "prepend failed";
     host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
@@ -449,6 +486,27 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
       }
     }
   }
+  IssueNextRequestTask();
+}
+
+void ShellDemuxer::IssueNextRequestTask() {
+  DCHECK(!requested_au_);
+  // if we have eos in one or both buffers the decision is easy
+  if (audio_reached_eos_ || video_reached_eos_) {
+    if (audio_reached_eos_) {
+      if (video_reached_eos_) {
+        // both are true, issue no more requests!
+        return;
+      } else {
+        // audio is at eos, video isn't, get more video
+        Request(DemuxerStream::VIDEO);
+      }
+    } else {
+      // audio is not at eos, video is, get more audio
+      Request(DemuxerStream::AUDIO);
+    }
+    return;
+  }
 
   // priority order for figuring out what to download next
   base::TimeDelta next_audio_hole =
@@ -477,9 +535,6 @@ void ShellDemuxer::Stop(const base::Closure &callback) {
   // Post a task to notify the streams to stop as well.
   message_loop_->PostTask(FROM_HERE,
                           base::Bind(&ShellDemuxer::StopTask, this, callback));
-
-  // Then wakes up the thread from reading.
-  reader_->AbortPendingReadIfAny();
 }
 
 void ShellDemuxer::StopTask(const base::Closure& callback) {
@@ -488,6 +543,11 @@ void ShellDemuxer::StopTask(const base::Closure& callback) {
   // tell downstream we've stopped
   if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
   if (video_demuxer_stream_) video_demuxer_stream_->Stop();
+  // terminate both streams
+  audio_reached_eos_ = true;
+  video_reached_eos_ = true;
+  // Wake up the thread from reading, if needed
+  reader_->AbortPendingReadIfAny();
   // tell upstream we've stopped and let them callback when finished
   data_source_->Stop(callback);
 }

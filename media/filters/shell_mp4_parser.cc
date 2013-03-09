@@ -145,8 +145,10 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
         !audio_map_->GetTimestamp(audio_sample_, timestamp_ticks)) {
       // determine if EOS or error
       if (audio_map_->IsEOS(audio_sample_)) {
-        return ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO);
+        return ShellAU::CreateEndOfStreamAU(DemuxerStream::AUDIO,
+                                            audio_track_duration_);
       } else {
+        DLOG(ERROR) << "parsed bad audio AU";
         return NULL;
       }
     }
@@ -185,8 +187,10 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
         !video_map_->GetTimestamp(video_sample_, timestamp_ticks) ||
         !video_map_->GetIsKeyframe(video_sample_, is_keyframe)) {
       if (video_map_->IsEOS(video_sample_)) {
-        return ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO);
+        return ShellAU::CreateEndOfStreamAU(DemuxerStream::VIDEO,
+                                            video_track_duration_);
       } else {
+        DLOG(ERROR) << "parsed bad video AU";
         return NULL;
       }
     }
@@ -550,10 +554,12 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   if (current_trak_time_scale_ > 0 && current_trak_is_video_) {
     video_time_scale_hz_ = current_trak_time_scale_;
     current_trak_time_scale_ = 0;
+    video_track_duration_ = current_trak_duration_;
   }
   if (current_trak_time_scale_ > 0 && current_trak_is_audio_) {
     audio_time_scale_hz_ = current_trak_time_scale_;
     current_trak_time_scale_ = 0;
+    audio_track_duration_ = current_trak_duration_;
   }
   // skip rest of atom
   atom_offset_ += atom_data_size;
@@ -573,22 +579,25 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
       LB::Platform::load_uint32_big_endian(mdhd + 16);
   base::TimeDelta track_duration = TicksToTime(track_duration_ticks,
                                                time_scale);
-  if (track_duration < duration_) {
+  if (track_duration > duration_) {
     DLOG(WARNING) << base::StringPrintf(
-        "mdhd has shorter duration: %"PRId64" ms than old value: %"PRId64" ms.",
+        "mdhd has longer duration: %"PRId64" ms than old value: %"PRId64" ms.",
         track_duration.InMilliseconds(), duration_.InMilliseconds());
     duration_ = track_duration;
   }
   if (current_trak_is_video_) {
     video_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
+    video_track_duration_ = track_duration;
   } else if (current_trak_is_audio_) {
     audio_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
+    audio_track_duration_ = track_duration;
   } else {
     // it's possible we will encounter the mdhd before we encounter the hdlr,
     // in that event we save the time scale value until we know.
     current_trak_time_scale_ = time_scale;
+    current_trak_duration_ = track_duration;
   }
   atom_offset_ += atom_data_size;
   return true;

@@ -103,6 +103,9 @@ class ShellFLVParser : public ShellAVCParser {
   // in both audio and video AU queues.
   bool at_end_of_file_;
 
+  base::TimeDelta audio_track_duration_;
+  base::TimeDelta video_track_duration_;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellFLVParser);
 };
 

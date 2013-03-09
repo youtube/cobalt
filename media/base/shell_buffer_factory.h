@@ -84,6 +84,7 @@ class ShellBuffer : public Buffer {
   // Create a ShellBuffer indicating we've reached end of stream or an error.
   // GetData() and GetWritableData() return NULL and GetDataSize() returns 0.
   static scoped_refptr<ShellBuffer> CreateEOSBuffer(
+      base::TimeDelta timestamp,
       scoped_refptr<ShellFilterGraphLog> filter_graph_log);
 
   // Buffer implementation.
