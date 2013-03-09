@@ -39,7 +39,8 @@ static const int kAnnexBPrependMaxSize = 1024;
 // while leaving the rest for its children.
 class ShellAVCParser : public ShellParser {
  public:
-  ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader);
+  ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
+                 scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual ~ShellAVCParser();
 
   // GetNextAU we must pass on to FLV or MP4 children.
