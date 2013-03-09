@@ -18,6 +18,7 @@
 
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
 #include "lb_platform.h"
 #include <inttypes.h>
 
@@ -66,7 +67,8 @@ static const uint32 kMapTableEntryCacheEntries = 2048;
 scoped_refptr<ShellParser> ShellMP4Parser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
     const uint8 *construction_header,
-    const PipelineStatusCB &status_cb) {
+    const PipelineStatusCB &status_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
   // detect mp4 stream by looking for ftyp atom at top of file
   uint32 ftyp = LB::Platform::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
@@ -83,22 +85,28 @@ scoped_refptr<ShellParser> ShellMP4Parser::Construct(
   }
 
   // construct and return new mp4 parser
-  return scoped_refptr<ShellParser>(new ShellMP4Parser(reader, ftyp_atom_size));
+  return scoped_refptr<ShellParser>(new ShellMP4Parser(reader,
+                                                       ftyp_atom_size,
+                                                       filter_graph_log));
 }
 
-ShellMP4Parser::ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                               uint32 ftyp_atom_size)
-    : ShellAVCParser(reader)
+ShellMP4Parser::ShellMP4Parser(
+    scoped_refptr<ShellDataSourceReader> reader,
+    uint32 ftyp_atom_size,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    : ShellAVCParser(reader, filter_graph_log)
     , atom_offset_(ftyp_atom_size)  // start at next atom, skipping over ftyp
     , current_trak_is_video_(false)
     , current_trak_is_audio_(false)
     , current_trak_time_scale_(0)
     , video_time_scale_hz_(0)
     , audio_time_scale_hz_(0)
-    , audio_map_(new ShellMP4Map(reader))
-    , video_map_(new ShellMP4Map(reader))
+    , audio_map_(new ShellMP4Map(reader, filter_graph_log))
+    , video_map_(new ShellMP4Map(reader, filter_graph_log))
     , audio_sample_(0)
-    , video_sample_(0) {
+    , video_sample_(0)
+    , first_audio_hole_ticks_(0)
+    , first_audio_hole_(base::TimeDelta::FromSeconds(0)) {
 }
 
 ShellMP4Parser::~ShellMP4Parser() {
@@ -128,7 +136,8 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
   uint64 offset = 0;
   bool is_keyframe = false;
   bool is_eos = false;
-  uint32 time_scale_hz = 0;
+  base::TimeDelta timestamp;
+  base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
     if (!audio_map_->GetSize(audio_sample_, size)                 ||
         !audio_map_->GetOffset(audio_sample_, offset)             ||
@@ -143,8 +152,32 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
     }
     // all aac frames are random-access, so all are keyframes
     is_keyframe = true;
-    time_scale_hz = audio_time_scale_hz_;
     audio_sample_++;
+    timestamp = TicksToTime(timestamp_ticks, audio_time_scale_hz_);
+    duration = TicksToTime(duration_ticks, audio_time_scale_hz_);
+    // It would be very unusual to encounter non-contiguous audio
+    // in an mp4, but you never know. Make sure this timestamp is
+    // contiguous in ticks from the last one
+    if (first_audio_hole_ticks_ == timestamp_ticks) {
+      // Much of the audio stack assumes that audio timestamps are
+      // contiguous. While the timestamps coming out of the map are
+      // normally continuous, they are on a different time scale. Due
+      // to roundoff error in conversion the timestamps produced may
+      // be discontinuous. To correct this we correct the timestamp
+      // to the one the system is expecting for continuity, then modify
+      // the duration by the negative of that same (small) value,
+      // so as to not accumulate roundoff error over time.
+      base::TimeDelta time_difference = timestamp - first_audio_hole_;
+      timestamp = first_audio_hole_;
+      duration += time_difference;
+      first_audio_hole_ = timestamp + duration;
+      first_audio_hole_ticks_ += duration_ticks;
+    } else {
+      DLOG(WARNING) << "parsed non-contiguous mp4 audio timestamp";
+      // reset hole tracking past gap
+      first_audio_hole_ticks_ = timestamp_ticks + duration_ticks;
+      first_audio_hole_ = timestamp + duration;
+    }
   } else if (type == DemuxerStream::VIDEO) {
     if (!video_map_->GetSize(video_sample_, size)                 ||
         !video_map_->GetOffset(video_sample_, offset)             ||
@@ -164,14 +197,14 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
     // the AU and skip past downloading it.
     offset += nal_header_size_;
     size -= nal_header_size_;
-    time_scale_hz = video_time_scale_hz_;
+    timestamp = TicksToTime(timestamp_ticks, video_time_scale_hz_);
+    duration = TicksToTime(duration_ticks, video_time_scale_hz_);
   } else {
     NOTREACHED() << "unsupported stream type";
     return NULL;
   }
 
   size_t prepend_size = CalculatePrependSize(type, is_keyframe);
-  DCHECK(time_scale_hz);
 
   scoped_refptr<ShellAU> au = new ShellAU(
       type,
@@ -179,8 +212,8 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       size,
       prepend_size,
       is_keyframe,
-      TicksToTime(timestamp_ticks, time_scale_hz),
-      TicksToTime(duration_ticks, time_scale_hz));
+      timestamp,
+      duration);
   return au;
 }
 
@@ -361,7 +394,8 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
                                     uint64 atom_offset) {
   // download entire atom into buffer
   scoped_refptr<ShellScopedArray> scoped_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(atom_size);
+      ShellBufferFactory::Instance()->AllocateArray(atom_size,
+                                                    filter_graph_log_);
   uint8* buffer = scoped_buffer->Get();
   int bytes_read = reader_->BlockingRead(atom_offset,
                                          atom_size,
@@ -425,7 +459,8 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   }
   // we'll need to download entire esds, allocate buffer for it
   scoped_refptr<ShellScopedArray> esds_storage =
-      ShellBufferFactory::Instance()->AllocateArray(atom_data_size);
+      ShellBufferFactory::Instance()->AllocateArray(atom_data_size,
+                                                    filter_graph_log_);
   uint8* esds = NULL;
   if (!esds_storage || !(esds = esds_storage->Get())) {
     DLOG(WARNING) << base::StringPrintf(
