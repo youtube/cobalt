@@ -560,6 +560,7 @@
         'conditions': [
           ['OS=="lb_shell"', {
             'sources': [
+              'base_paths_shell.cc',
               'message_pump_shell.cc',
               'message_pump_shell.h',
               'synchronization/condition_variable_shell.cc',
