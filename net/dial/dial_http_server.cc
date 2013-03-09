@@ -143,8 +143,9 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
 
 bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
                                            const HttpServerRequestInfo& info) {
+  std::string handler_path;
   DialServiceHandler* handler =
-      DialService::GetInstance()->GetHandler(info.path);
+      DialService::GetInstance()->GetHandler(info.path, &handler_path);
   if (handler == NULL) {
     return false;
   }
@@ -152,10 +153,6 @@ bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
   DLOG(INFO) << "Dispatching request to DialServiceHandler: " << info.path;
   HttpServerResponseInfo* response = new HttpServerResponseInfo();
 
-  DCHECK_EQ(0, info.path.find("/apps/" + handler->service_name()));
-  const std::string handler_path =
-      info.path.substr(("/apps/" + handler->service_name()).length());
-  DCHECK(handler_path.empty() || handler_path[0] == '/');
   bool ret = handler->handleRequest(handler_path, info, response,
       base::Bind(&DialHttpServer::AsyncReceivedResponse, this, conn_id,
                  response));
