@@ -35,12 +35,6 @@ namespace media {
 class DecoderBuffer;
 class ShellDemuxer;
 
-// Due to round-off error in calculation of timestamps and durations
-// not computed in SI time units it's possible contiguous timetamps
-// may not be exactly equal. We accept buffers that are within + or -
-// this time range.
-static const uint64_t kBufferTimeEpsilonMicroseconds = 100;
-
 class ShellDemuxerStream : public DemuxerStream {
  public:
   ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
@@ -58,19 +52,29 @@ class ShellDemuxerStream : public DemuxerStream {
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
   void FlushBuffers();
   void Stop();
-  // returns the timestamp of the first buffer in buffer_queue_,
-  // or kNoTimestamp() if the queue is empty.
-  base::TimeDelta OldestEnqueuedTimestamp();
   void SetBuffering(bool buffering);
+  // returns the start time first gap in the enqueued data, or
+  // kNoTimestamp() if no data enqueued.
+  base::TimeDelta GetEndOfContiguousEnqueuedRange();
 
  private:
+  // The Ranges object doesn't offer a complement object so we rebuild
+  // enqueued ranges from the union of all of the buffers in the queue.
+  // Call me whenever _removing_ data from buffer_queue_.
+  void RebuildEnqueuedRanges_Locked();
   // non-owning pointer to avoid circular reference
   ShellDemuxer* demuxer_;
   Type type_;
 
   // Used to protect everything below.
   mutable base::Lock lock_;
+  // Keeps track of all time ranges this object has seen since creation.
+  // The demuxer uses these ranges to update the pipeline about what data
+  // it has demuxed.
   Ranges<base::TimeDelta> buffered_ranges_;
+  // Keeps track of only what time ranges are currently enqueued. The demuxer
+  // uses these ranges to decide what to prioritize downloading.
+  Ranges<base::TimeDelta> enqueued_ranges_;
   bool stopped_;
   // If true we store all read callbacks regardless of our ability
   // to service them.
@@ -138,8 +142,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // internally and propagate error to DemuxerHost.
   void OnDataSourceReaderError();
 
-  bool WithinEpsilon(const base::TimeDelta& a, const base::TimeDelta& b);
-
   // methods that perform blocking I/O, and are therefore run on the
   // blocking_thread_
   // download enough of the stream to parse the configuration. returns
@@ -169,15 +171,8 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<ShellParser> parser_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
-  base::TimeDelta next_audio_unit_;
-  base::TimeDelta next_video_unit_;
-  base::TimeDelta highest_video_unit_;
-  base::TimeDelta epsilon_;
   base::TimeDelta preload_;
-  int video_out_of_order_frames_;
-
-  typedef std::list<scoped_refptr<ShellAU> > AUList;
-  AUList active_aus_;
+  scoped_refptr<ShellAU> requested_au_;
 };
 
 }  // namespace media

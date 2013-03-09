@@ -17,6 +17,7 @@
 
 #include "base/stringprintf.h"
 #include "lb_platform.h"
+#include "media/base/shell_filter_graph_log.h"
 
 namespace media {
 
@@ -67,7 +68,8 @@ static const int kAMF0NumberLength = 9;
 scoped_refptr<ShellParser> ShellFLVParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
     const uint8 *construction_header,
-    const PipelineStatusCB &status_cb) {
+    const PipelineStatusCB &status_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
   // look for "FLV" string at top of file, mask off LSB
   uint32 FLV = LB::Platform::load_uint32_big_endian(construction_header) >> 8;
   if (FLV != kFLV) {
@@ -85,12 +87,16 @@ scoped_refptr<ShellParser> ShellFLVParser::Construct(
   // add four bytes to skip over PreviousTagSize0
   data_offset += 4;
   // construct and return an FLV parser
-  return scoped_refptr<ShellParser>(new ShellFLVParser(reader, data_offset));
+  return scoped_refptr<ShellParser>(new ShellFLVParser(reader,
+                                                       data_offset,
+                                                       filter_graph_log));
 }
 
-ShellFLVParser::ShellFLVParser(scoped_refptr<ShellDataSourceReader> reader,
-                               uint32 tag_start_offset)
-    : ShellAVCParser(reader)
+ShellFLVParser::ShellFLVParser(
+    scoped_refptr<ShellDataSourceReader> reader,
+    uint32 tag_start_offset,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    : ShellAVCParser(reader, filter_graph_log)
     , tag_offset_(tag_start_offset)
     , at_end_of_file_(false) {
 }
@@ -448,7 +454,7 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
                                               uint32 size,
                                               uint32 timestamp) {
   scoped_refptr<ShellScopedArray> script_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(size);
+      ShellBufferFactory::Instance()->AllocateArray(size, filter_graph_log_);
   if (!script_buffer || !script_buffer->Get()) {
     return false;
   }
