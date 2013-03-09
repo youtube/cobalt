@@ -133,6 +133,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
   void RequestTask(DemuxerStream::Type type);
   void DownloadTask(scoped_refptr<ShellBuffer> buffer);
+  void IssueNextRequestTask();
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
   // Carries out stopping the demuxer streams on the demuxer thread.
@@ -173,6 +174,8 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   base::TimeDelta preload_;
   scoped_refptr<ShellAU> requested_au_;
+  bool audio_reached_eos_;
+  bool video_reached_eos_;
 };
 
 }  // namespace media

@@ -84,7 +84,9 @@ void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
 }
 
 void ShellDataSourceReader::AbortPendingReadIfAny() {
-  last_bytes_read_ = kReadError;
+  last_bytes_read_ = 0;
+  // treat all subsequent reads as errors
+  read_has_failed_ = true;
   blocking_read_event_.Signal();
 }
 

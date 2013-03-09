@@ -324,7 +324,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
       return;
     }
     count = LB::Platform::load_uint32_big_endian(atom + 8);
-    highest_valid_sample_number_ = std::min(count,
+    highest_valid_sample_number_ = std::min(count - 1,
                                             highest_valid_sample_number_);
     table_offset += 4;
   } else {
@@ -840,7 +840,7 @@ bool ShellMP4Map::stts_AdvanceToSample(uint32 sample_number) {
       // We've gone beyond the range defined by the last entry in the stts.
       // this is an error.
       highest_valid_sample_number_ = std::min(highest_valid_sample_number_,
-                                              stts_first_sample_);
+                                              stts_first_sample_ -  1);
       return false;
     }
   }

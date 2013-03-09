@@ -34,7 +34,8 @@ class ShellFilterGraphLog;
 // media data.
 class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
  public:
-  static scoped_refptr<ShellAU> CreateEndOfStreamAU(DemuxerStream::Type type);
+  static scoped_refptr<ShellAU> CreateEndOfStreamAU(DemuxerStream::Type type,
+                                                    base::TimeDelta timestamp);
   ShellAU(DemuxerStream::Type type,
           uint64 offset,
           size_t size,
