@@ -48,9 +48,12 @@ ShellScopedArray::~ShellScopedArray() {
 
 // static
 scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer(
+    base::TimeDelta timestamp,
     scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-  return scoped_refptr<ShellBuffer>(
-      new ShellBuffer(NULL, 0, filter_graph_log));
+ scoped_refptr<ShellBuffer> eos = scoped_refptr<ShellBuffer>(
+    new ShellBuffer(NULL, 0, filter_graph_log));
+ eos->SetTimestamp(timestamp);
+ return eos;
 }
 
 ShellBuffer::ShellBuffer(uint8* reusable_buffer,

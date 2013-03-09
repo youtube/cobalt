@@ -101,8 +101,11 @@ class ShellMP4Parser : public ShellAVCParser {
   bool current_trak_is_video_;
   bool current_trak_is_audio_;
   uint32 current_trak_time_scale_;
+  base::TimeDelta current_trak_duration_;
   uint32 video_time_scale_hz_;
   uint32 audio_time_scale_hz_;
+  base::TimeDelta audio_track_duration_;
+  base::TimeDelta video_track_duration_;
   scoped_refptr<ShellMP4Map> audio_map_;
   scoped_refptr<ShellMP4Map> video_map_;
   uint32 audio_sample_;
