@@ -7,8 +7,9 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
-#include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/string_number_conversions.h"
+#include "base/string_util.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
 #include "net/base/tcp_listen_socket.h"
@@ -141,7 +142,18 @@ void HttpServer::DidRead(StreamListenSocket* socket,
       connection->Shift(pos);
       continue;
     }
-    // Request body is not supported. It is always empty.
+
+    if (request.method == "POST" || request.method == "PUT") {
+      // Get the remaining data.
+      size_t content_length = 0;
+      bool ret = base::StringToSizeT(
+          base::StringPiece(request.GetHeaderValue("Content-Length")),
+          &content_length);
+      if (content_length > 0 && pos < len) {
+        request.data = connection->recv_data_.substr(pos);
+      }
+    }
+
     delegate_->OnHttpRequest(connection->id(), request);
     connection->Shift(pos);
   }
