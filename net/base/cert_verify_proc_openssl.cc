@@ -20,10 +20,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
-#if defined(__LB_SHELL__)
-bool ConfirmCertificate(const unsigned char*);
-#endif
-
 namespace net {
 
 namespace {
@@ -211,19 +207,6 @@ int CertVerifyProcOpenSSL::VerifyInternal(X509Certificate* cert,
 
   GetCertChainInfo(ctx.get(), verify_result);
   AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
-
-#if defined(__LB_SHELL__)
-    // For leanback, we'd like to make sure that Google is in the cert chain.
-    const X509Certificate::OSCertHandles& certs =
-        cert->GetIntermediateCertificates();
-    for (int index = 0; index < certs.size(); ++index) {
-      if (ConfirmCertificate(certs[index]->sha1_hash)) {
-        // Confirm that this certification is safe for leanback.
-        verify_result->cert_status |= CERT_STATUS_CONFIRM_SAFE;
-        break;
-      }
-    }
-#endif
 
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
