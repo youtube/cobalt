@@ -164,9 +164,12 @@ void DialService::RemoveFromHandlerMap(const std::string& path,
   }
 }
 
-DialServiceHandler* DialService::GetHandler(const std::string& request_path) {
+DialServiceHandler* DialService::GetHandler(const std::string& request_path,
+                                            std::string* handler_path) {
 
   DCHECK(CurrentThreadIsValid());
+  DCHECK(handler_path != NULL);
+
   DLOG(INFO) << "Requesting Handler for path: " << request_path;
   base::StringPiece path(request_path);
 
@@ -175,18 +178,30 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path) {
   if (!path.starts_with(kUrlPrefix)) return NULL;
   path = path.substr(kUrlPrefix.size());
 
-  // find the next '/', and extract the remaining portion
+  // find the next '/', and extract the portion in between.
   size_t pos = path.find_first_of('/');
-  path = path.substr(0, pos);
+  std::string service_path = path.substr(0, pos).as_string();
 
   // sanity check further, then extract the data.
-  DCHECK_EQ(base::StringPiece::npos, path.find('/'));
-  if (path.empty()) return NULL;
-
-  ServiceHandlerMap::const_iterator it = handlers_.find(path.as_string());
+  DCHECK_EQ(std::string::npos, service_path.find('/'));
+  ServiceHandlerMap::const_iterator it = handlers_.find(service_path);
   if (it == handlers_.end()) {
     return NULL;
   }
+
+  // for the remaining portion, extract it out as the handler path.
+  *handler_path = path.substr(pos).as_string();
+
+  // If the |handler_path| is empty, that means the request is "/apps/Foo", the
+  // semantic equivalent of "/apps/Foo/". If we keep the |handler_path| empty,
+  // somehow the JS does not catch it. So for now forcing it to "/" instead.
+  // TODO: Figure out the reason and eliminate this logic.
+  if (handler_path->empty()) {
+    *handler_path = std::string("/");
+  }
+
+  // at this point, it gotta start with '/'
+  DCHECK_EQ('/', (*handler_path)[0]);
 
   // This should not be NULL at this point.
   DCHECK(it->second);
