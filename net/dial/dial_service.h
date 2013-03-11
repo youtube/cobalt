@@ -38,8 +38,8 @@ class NET_EXPORT DialService {
 
   void StartService();
   void StopService();
-  bool Register(const std::string& path, DialServiceHandler* handler);
-  bool Deregister(const std::string& path, DialServiceHandler* handler);
+  bool Register(DialServiceHandler* handler);
+  bool Deregister(DialServiceHandler* handler);
 
   DialServiceHandler* GetHandler(const std::string& service_name,
                                  std::string* remaining_handler);
@@ -49,8 +49,8 @@ class NET_EXPORT DialService {
  private:
   void SpinUpServices();
   void SpinDownServices();
-  void AddToHandlerMap(const std::string&, DialServiceHandler*);
-  void RemoveFromHandlerMap(const std::string&, DialServiceHandler*);
+  void AddToHandlerMap(DialServiceHandler*);
+  void RemoveFromHandlerMap(DialServiceHandler*);
 
   bool CurrentThreadIsValid() const {
     return MessageLoop::current() == thread_->message_loop();
