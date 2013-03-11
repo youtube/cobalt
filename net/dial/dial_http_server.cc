@@ -166,10 +166,11 @@ bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
 void DialHttpServer::AsyncReceivedResponse(int conn_id,
     HttpServerResponseInfo* response, bool ok) {
   // Should not be called from the same thread. Call ReceivedResponse instead.
-  DCHECK_NE(DialService::GetMessageLoop(), MessageLoop::current());
+  DCHECK_NE(DialService::GetInstance()->GetMessageLoop(),
+            MessageLoop::current());
 
   DLOG(INFO) << "Received response from JS.";
-  DialService::GetMessageLoop()->PostTask(FROM_HERE,
+  DialService::GetInstance()->GetMessageLoop()->PostTask(FROM_HERE,
       base::Bind(&DialHttpServer::ReceivedResponse, this, conn_id, response,
                  ok));
 }
@@ -177,7 +178,8 @@ void DialHttpServer::AsyncReceivedResponse(int conn_id,
 void DialHttpServer::ReceivedResponse(int conn_id,
     HttpServerResponseInfo* response, bool ok) {
   DCHECK(response);
-  DCHECK_EQ(DialService::GetMessageLoop(), MessageLoop::current());
+  DCHECK_EQ(DialService::GetInstance()->GetMessageLoop(),
+            MessageLoop::current());
 
   if (!ok) {
     http_server_->Send404(conn_id);
