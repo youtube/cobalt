@@ -109,19 +109,20 @@ void DialService::SpinDownServices() {
   DCHECK(http_ret == udp_ret);
 }
 
-bool DialService::Register(const std::string& path,
-                           DialServiceHandler* handler) {
+bool DialService::Register(DialServiceHandler* handler) {
+  const std::string& path = handler->service_name();
   if (path.empty() || handler == NULL) {
     return false;
   }
   GetMessageLoop()->PostTask(FROM_HERE,
-      base::Bind(&DialService::AddToHandlerMap, base::Unretained(this), path,
+      base::Bind(&DialService::AddToHandlerMap, base::Unretained(this),
                  base::Unretained(handler)));
   return true;
 }
 
-void DialService::AddToHandlerMap(const std::string& path,
-                                  DialServiceHandler* handler) {
+void DialService::AddToHandlerMap(DialServiceHandler* handler) {
+  const std::string& path = handler->service_name();
+
   DCHECK(CurrentThreadIsValid());
   DCHECK(!path.empty());
   DCHECK(handler);
@@ -137,19 +138,20 @@ void DialService::AddToHandlerMap(const std::string& path,
   }
 }
 
-bool DialService::Deregister(const std::string& path,
-                             DialServiceHandler* handler) {
+bool DialService::Deregister(DialServiceHandler* handler) {
+  const std::string& path = handler->service_name();
   if (path.empty() || handler == NULL) {
     return false;
   }
   GetMessageLoop()->PostTask(FROM_HERE,
       base::Bind(&DialService::RemoveFromHandlerMap, base::Unretained(this),
-                 path, base::Unretained(handler)));
+                 base::Unretained(handler)));
   return true;
 }
 
-void DialService::RemoveFromHandlerMap(const std::string& path,
-                                       DialServiceHandler* handler) {
+void DialService::RemoveFromHandlerMap(DialServiceHandler* handler) {
+  const std::string& path = handler->service_name();
+
   DCHECK(CurrentThreadIsValid());
   DCHECK(!path.empty());
   DCHECK(handler);
