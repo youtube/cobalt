@@ -1780,7 +1780,7 @@ inline int ChDir(const char* dir) { return chdir(dir); }
 inline FILE* FOpen(const char* path, const char* mode) {
   return fopen(path, mode);
 }
-#if !GTEST_OS_WINDOWS_MOBILE
+#if !GTEST_OS_WINDOWS_MOBILE && !defined(__LB_SHELL__)
 inline FILE *FReopen(const char* path, const char* mode, FILE* stream) {
   return freopen(path, mode, stream);
 }
