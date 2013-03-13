@@ -103,6 +103,7 @@ class ShellMP4Parser : public ShellAVCParser {
   uint32 current_trak_time_scale_;
   base::TimeDelta current_trak_duration_;
   uint32 video_time_scale_hz_;
+  base::TimeDelta one_video_tick_;
   uint32 audio_time_scale_hz_;
   base::TimeDelta audio_track_duration_;
   base::TimeDelta video_track_duration_;
@@ -110,7 +111,7 @@ class ShellMP4Parser : public ShellAVCParser {
   scoped_refptr<ShellMP4Map> video_map_;
   uint32 audio_sample_;
   uint32 video_sample_;
-  // for keeping audio buffers contiguous across time scales
+  // for keeping buffers contin across time scales
   uint64 first_audio_hole_ticks_;
   base::TimeDelta first_audio_hole_;
 };
