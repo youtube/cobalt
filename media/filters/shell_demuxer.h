@@ -136,8 +136,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void IssueNextRequestTask();
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
-  // Carries out stopping the demuxer streams on the demuxer thread.
-  void StopTask(const base::Closure& callback);
+  void DataSourceStopped(const base::Closure& callback);
 
   // callback from DataSourceReader on read error from DataSource. We handle
   // internally and propagate error to DemuxerHost.
@@ -166,6 +165,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   PipelineStatusCB seek_cb_;
 
   bool read_has_failed_;
+  bool stopped_;
 
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
