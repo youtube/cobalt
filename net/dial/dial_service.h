@@ -20,6 +20,8 @@
 #include <map>
 #include <string>
 
+#include "base/gtest_prod_util.h"
+#include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread.h"
 #include "net/dial/dial_http_server.h"
@@ -31,9 +33,7 @@ namespace net {
 class NET_EXPORT DialService {
  public:
   static DialService* GetInstance();
-  static MessageLoop* GetMessageLoop();
 
-  DialService();
   virtual ~DialService();
 
   void StartService();
@@ -46,7 +46,19 @@ class NET_EXPORT DialService {
 
   bool is_running() const { return is_running_; }
 
+  MessageLoop* GetMessageLoop();
+
+  int GetLocalAddress(IPEndPoint* addr) {
+    DCHECK(is_running());
+    return http_server_->GetLocalAddress(addr);
+  }
+
  private:
+  FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
+
+  friend struct base::DefaultLazyInstanceTraits<DialService>;
+  DialService();
+
   void SpinUpServices();
   void SpinDownServices();
   void AddToHandlerMap(DialServiceHandler*);
