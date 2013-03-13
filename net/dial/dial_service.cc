@@ -17,7 +17,6 @@
 #include "dial_service.h"
 
 #include "base/bind.h"
-#include "base/lazy_instance.h"
 #include "base/stringprintf.h"
 #include "base/string_piece.h"
 #include "net/server/http_server_request_info.h"
@@ -37,13 +36,6 @@ DialService* DialService::GetInstance() {
   return g_instance.Pointer();
 }
 
-// static
-MessageLoop* DialService::GetMessageLoop() {
-  DialService* service = DialService::GetInstance();
-  DCHECK(service->thread_->IsRunning());
-  return service->thread_->message_loop();
-}
-
 DialService::DialService()
     : thread_(new base::Thread("dial_service"))
     , http_server_(new DialHttpServer())
@@ -52,10 +44,20 @@ DialService::DialService()
   // DialService is lazy, so we can start in the constructor
   // and always have a messageloop.
   thread_->StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  DLOG(WARNING) << "Starting dial_service with thread-ID : "
+                << thread_->thread_handle();
 }
 
 DialService::~DialService() {
   DCHECK(!is_running());
+
+  DLOG(WARNING) << "Stopping dial_service with thread-ID : "
+                << thread_->thread_handle();
+}
+
+MessageLoop* DialService::GetMessageLoop() {
+  DCHECK(thread_->IsRunning());
+  return thread_->message_loop();
 }
 
 void DialService::StartService() {
