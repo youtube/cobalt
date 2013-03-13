@@ -32,7 +32,7 @@
 
 namespace media {
 
-static const uint64 kDemuxerPreloadTimeMilliseconds = 2000;
+static const uint64 kDemuxerPreloadTimeMilliseconds = 5000;
 
 ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
                                        Type type)
@@ -238,9 +238,10 @@ ShellDemuxer::ShellDemuxer(
     const scoped_refptr<DataSource>& data_source)
     : message_loop_(message_loop)
     , host_(NULL)
-    , blocking_thread_("ShellDemuxer")
+    , blocking_thread_("ShellDemuxerBlockingThread")
     , data_source_(data_source)
     , read_has_failed_(false)
+    , stopped_(false)
     , audio_reached_eos_(false)
     , video_reached_eos_(false) {
   DCHECK(data_source_);
@@ -259,8 +260,10 @@ ShellDemuxer::~ShellDemuxer() {
 }
 
 void ShellDemuxer::OnDataSourceReaderError() {
-  DLOG(ERROR) << "fatal data source read error!";
-  host_->OnDemuxerError(PIPELINE_ERROR_READ);
+  if (!stopped_) {
+    DLOG(ERROR) << "fatal data source read error!";
+    host_->OnDemuxerError(PIPELINE_ERROR_READ);
+  }
 }
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
@@ -358,8 +361,10 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
   if (!au || !au->IsValid()) {
-    DLOG(ERROR) << "got back bad AU from parser";
-    host_->OnDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
+    if (!stopped_) {
+      DLOG(ERROR) << "got back bad AU from parser";
+      host_->OnDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
+    }
     return;
   }
 
@@ -491,6 +496,10 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
 
 void ShellDemuxer::IssueNextRequestTask() {
   DCHECK(!requested_au_);
+  // if we're stopped don't download anymore
+  if (stopped_) {
+    return;
+  }
   // if we have eos in one or both buffers the decision is easy
   if (audio_reached_eos_ || video_reached_eos_) {
     if (audio_reached_eos_) {
@@ -532,24 +541,26 @@ void ShellDemuxer::IssueNextRequestTask() {
 }
 
 void ShellDemuxer::Stop(const base::Closure &callback) {
-  // Post a task to notify the streams to stop as well.
-  message_loop_->PostTask(FROM_HERE,
-                          base::Bind(&ShellDemuxer::StopTask, this, callback));
+  DCHECK(MessageLoopBelongsToCurrentThread());
+  // set our internal stop flag, to not treat read failures as
+  // errors anymore but as a natural part of stopping
+  stopped_ = true;
+  // stop the reader, which will stop the datasource and call back
+  reader_->Stop(BindToCurrentLoop(base::Bind(
+      &ShellDemuxer::DataSourceStopped, this, BindToCurrentLoop(callback))));
 }
 
-void ShellDemuxer::StopTask(const base::Closure& callback) {
+void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
   DCHECK(MessageLoopBelongsToCurrentThread());
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventStop);
+  // stop the download thread
+  blocking_thread_.Stop();
+
   // tell downstream we've stopped
   if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
   if (video_demuxer_stream_) video_demuxer_stream_->Stop();
-  // terminate both streams
-  audio_reached_eos_ = true;
-  video_reached_eos_ = true;
-  // Wake up the thread from reading, if needed
-  reader_->AbortPendingReadIfAny();
-  // tell upstream we've stopped and let them callback when finished
-  data_source_->Stop(callback);
+
+  callback.Run();
 }
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {

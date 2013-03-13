@@ -51,8 +51,8 @@ class ShellDataSourceReader
   // retry getting file size on subsequent calls to FileSize().
   virtual int64 FileSize();
 
-  // callable from any thread
-  virtual void AbortPendingReadIfAny();
+  // abort any pending read, then stop the data source
+  virtual void Stop(const base::Closure& callback);
 
  protected:
   friend class base::RefCountedThreadSafe<ShellDataSourceReader>;

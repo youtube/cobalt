@@ -32,7 +32,6 @@ ShellDataSourceReader::ShellDataSourceReader()
 }
 
 ShellDataSourceReader::~ShellDataSourceReader() {
-  AbortPendingReadIfAny();
 }
 
 void ShellDataSourceReader::SetDataSource(
@@ -48,7 +47,7 @@ void ShellDataSourceReader::SetErrorCallback(base::Closure read_error_closure) {
 int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
   // read failures are unrecoverable, all subsequent reads will also fail
   if (read_has_failed_) {
-    return -1;
+    return kReadError;
   }
 
   // check bounds of read at or past EOF
@@ -77,16 +76,19 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
   return last_bytes_read_;
 }
 
+void ShellDataSourceReader::Stop(const base::Closure& callback) {
+  // 0 signals EOS or stop on unblock
+  last_bytes_read_ = 0;
+  blocking_read_event_.Signal();
+  // subsequent reads should report as failure
+  read_has_failed_ = true;
+  // stop the data source, it can call the callback
+  data_source_->Stop(callback);
+}
+
 void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
   last_bytes_read_ = bytes_read;
   // wake up blocked thread
-  blocking_read_event_.Signal();
-}
-
-void ShellDataSourceReader::AbortPendingReadIfAny() {
-  last_bytes_read_ = 0;
-  // treat all subsequent reads as errors
-  read_has_failed_ = true;
   blocking_read_event_.Signal();
 }
 
