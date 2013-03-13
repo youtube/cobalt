@@ -203,6 +203,12 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
     size -= nal_header_size_;
     timestamp = TicksToTime(timestamp_ticks, video_time_scale_hz_);
     duration = TicksToTime(duration_ticks, video_time_scale_hz_);
+    // due to b-frames it's much more likely we'll encounter discontinuous
+    // video buffers. As a result we add a small duration to each video
+    // buffer, equal in value to one full tick at the video timescale. The
+    // showing of video frames is actually keyed on the audio clock, so this
+    // shouldn't create too much jitter in the output.
+    duration += one_video_tick_;
   } else {
     NOTREACHED() << "unsupported stream type";
     return NULL;
@@ -555,6 +561,8 @@ bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
     video_time_scale_hz_ = current_trak_time_scale_;
     current_trak_time_scale_ = 0;
     video_track_duration_ = current_trak_duration_;
+    one_video_tick_ = base::TimeDelta::FromMicroseconds(
+        1000000 / video_time_scale_hz_);
   }
   if (current_trak_time_scale_ > 0 && current_trak_is_audio_) {
     audio_time_scale_hz_ = current_trak_time_scale_;
@@ -589,6 +597,8 @@ bool ShellMP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
     video_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
     video_track_duration_ = track_duration;
+    one_video_tick_ = base::TimeDelta::FromMicroseconds(
+        1000000 / video_time_scale_hz_);
   } else if (current_trak_is_audio_) {
     audio_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
