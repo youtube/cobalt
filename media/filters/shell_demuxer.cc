@@ -416,8 +416,10 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
 
 // callback from ShellBufferAllocated, post a task to the blocking thread
 void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
-  blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
+  if (!stopped_) {
+    blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
+        base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
+  }
 }
 
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
