@@ -317,6 +317,11 @@ TEST_F(FileUtilProxyTest, WriteAndFlush) {
   MessageLoop::current()->Run();
   EXPECT_EQ(PLATFORM_FILE_OK, error_);
 
+#if defined(__LB_WIIU__)
+  // Wii U cannot open a handle for reading if one is already open for writing
+  ClosePlatformFile(file);
+#endif
+
   // Verify the written data.
   char buffer[10];
   EXPECT_EQ(data_bytes, file_util::ReadFile(test_path(), buffer, data_bytes));
@@ -325,11 +330,12 @@ TEST_F(FileUtilProxyTest, WriteAndFlush) {
   }
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
 // FileUtilProxy::Touch creates a platform file and passes its descriptor to
 // base::TouchPlatformFile().
 // Unfortunately, PS3 only implements utime, not futime, which means it
 // can only touch a file path, not a file descriptor.
+// Wii U does not support either
 
 TEST_F(FileUtilProxyTest, Touch) {
   Time last_accessed_time = Time::Now() - TimeDelta::FromDays(12345);
@@ -378,6 +384,12 @@ TEST_F(FileUtilProxyTest, Truncate_Shrink) {
   file_util::GetFileInfo(test_path(), &info);
   ASSERT_EQ(7, info.size);
 
+#if defined(__LB_WIIU__)
+  // If the platform file is already created, GetTestPlatformFile will return
+  // the platform file, so the flags are irrelevant.
+  ClosePlatformFile(GetTestPlatformFile(0));
+#endif
+
   char buffer[7];
   EXPECT_EQ(7, file_util::ReadFile(test_path(), buffer, 7));
   int i = 0;
@@ -404,6 +416,12 @@ TEST_F(FileUtilProxyTest, Truncate_Expand) {
   // Verify.
   file_util::GetFileInfo(test_path(), &info);
   ASSERT_EQ(53, info.size);
+
+#if defined(__LB_WIIU__)
+  // If the platform file is already created, GetTestPlatformFile will return
+  // the platform file, so the flags are irrelevant.
+  ClosePlatformFile(GetTestPlatformFile(0));
+#endif
 
   char buffer[53];
   EXPECT_EQ(53, file_util::ReadFile(test_path(), buffer, 53));
