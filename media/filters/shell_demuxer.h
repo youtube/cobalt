@@ -94,7 +94,8 @@ class ShellDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-               const scoped_refptr<DataSource>& data_source);
+               const scoped_refptr<DataSource>& data_source,
+               const scoped_refptr<ShellFilterGraphLog>& filter_graph_log);
   virtual ~ShellDemuxer();
 
   // Demuxer implementation.
