@@ -139,10 +139,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
   void DataSourceStopped(const base::Closure& callback);
 
-  // callback from DataSourceReader on read error from DataSource. We handle
-  // internally and propagate error to DemuxerHost.
-  void OnDataSourceReaderError();
-
   // methods that perform blocking I/O, and are therefore run on the
   // blocking_thread_
   // download enough of the stream to parse the configuration. returns

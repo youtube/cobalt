@@ -253,19 +253,10 @@ ShellDemuxer::ShellDemuxer(
   preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
-  reader_->SetErrorCallback(
-      base::Bind(&ShellDemuxer::OnDataSourceReaderError, this));
 }
 
 ShellDemuxer::~ShellDemuxer() {
   NOTIMPLEMENTED();
-}
-
-void ShellDemuxer::OnDataSourceReaderError() {
-  if (!stopped_) {
-    DLOG(ERROR) << "fatal data source read error!";
-    host_->OnDemuxerError(PIPELINE_ERROR_READ);
-  }
 }
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
