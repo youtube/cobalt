@@ -235,18 +235,20 @@ void ShellDemuxerStream::Stop() {
 //
 ShellDemuxer::ShellDemuxer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const scoped_refptr<DataSource>& data_source)
+    const scoped_refptr<DataSource>& data_source,
+    const scoped_refptr<ShellFilterGraphLog>& filter_graph_log)
     : message_loop_(message_loop)
     , host_(NULL)
     , blocking_thread_("ShellDemuxerBlockingThread")
     , data_source_(data_source)
     , read_has_failed_(false)
     , stopped_(false)
+    , filter_graph_log_(filter_graph_log)
     , audio_reached_eos_(false)
     , video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
-  filter_graph_log_ = new ShellFilterGraphLog("graph.log");
+  DCHECK(filter_graph_log_);
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventConstructor);
   preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
