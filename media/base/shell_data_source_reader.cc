@@ -39,10 +39,6 @@ void ShellDataSourceReader::SetDataSource(
   data_source_ = data_source;
 }
 
-void ShellDataSourceReader::SetErrorCallback(base::Closure read_error_closure) {
-  read_error_closure_ = read_error_closure;
-}
-
 // currently only single-threaded reads supported
 int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
   // read failures are unrecoverable, all subsequent reads will also fail
@@ -66,10 +62,6 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
   if (last_bytes_read_ == DataSource::kReadError) {
     // make all future reads fail
     read_has_failed_ = true;
-    // run canned callback error Closure
-    if (!read_error_closure_.is_null()) {
-      read_error_closure_.Run();
-    }
     return kReadError;
   }
 
@@ -82,6 +74,7 @@ void ShellDataSourceReader::Stop(const base::Closure& callback) {
   blocking_read_event_.Signal();
   // subsequent reads should report as failure
   read_has_failed_ = true;
+  blocking_read_cb_.Reset();
   // stop the data source, it can call the callback
   data_source_->Stop(callback);
 }

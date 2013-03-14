@@ -40,7 +40,6 @@ class ShellDataSourceReader
 
   ShellDataSourceReader();
   virtual void SetDataSource(scoped_refptr<DataSource> data_source);
-  virtual void SetErrorCallback(base::Closure read_error_closure);
 
   // Block the calling thread's message loop until read is complete.
   // returns number of bytes read or kReadError on error.
@@ -62,7 +61,6 @@ class ShellDataSourceReader
 
   scoped_refptr<DataSource> data_source_;
   base::WaitableEvent blocking_read_event_;
-  base::Closure read_error_closure_;
   int64 file_size_;
   bool read_has_failed_;
   DataSource::ReadCB blocking_read_cb_;
