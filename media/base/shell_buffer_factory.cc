@@ -284,7 +284,7 @@ uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
   // and also within our shared buffer overall
   DCHECK_LE(best_fit_size, largest_free_space_) <<
       "found a free block larger than largest_free_space";
-  DCHECK_LT(best_fit + aligned_size - buffer_, kShellBufferSpaceSize);
+  DCHECK_LE(best_fit + aligned_size - buffer_, kShellBufferSpaceSize);
   // save this new allocation in the map
   allocs_[best_fit] = aligned_size;
   // if we broke up the largest free space, recalculate it
