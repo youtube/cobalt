@@ -3789,7 +3789,7 @@ TEST(HttpCache, RangeGET_FastFlakyServer2) {
   RemoveMockTransaction(&transaction);
 }
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
+#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON) && !defined(__LB_SHELL__FORCE_LOGGING__)
 // This test hits a NOTREACHED so it is a release mode only test.
 TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   MockHttpCache cache;
