@@ -92,6 +92,9 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
   // Return the completed name including TID, only valid after Start().
   std::string name() { return name_; }
 
+  // The native thread handle.
+  PlatformThreadHandle thread_handle() { return thread_; }
+
   // Return the thread id, only valid after Start().
   PlatformThreadId tid() { return tid_; }
 
