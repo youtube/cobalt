@@ -20,6 +20,7 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#include "media/base/decrypt_config.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
 
@@ -42,6 +43,10 @@ ShellScopedArray::~ShellScopedArray() {
                                 kEventArrayAllocationReclaim);
     ShellBufferFactory::Instance()->Reclaim(array_);
   }
+}
+
+scoped_refptr<ShellFilterGraphLog> ShellScopedArray::filter_graph_log() {
+  return filter_graph_log_;
 }
 
 // ==== ShellBuffer ============================================================
@@ -78,6 +83,20 @@ ShellBuffer::~ShellBuffer() {
                                 kEventBufferAllocationReclaim);
     ShellBufferFactory::Instance()->Reclaim(buffer_);
   }
+}
+
+scoped_refptr<ShellFilterGraphLog> ShellBuffer::filter_graph_log() {
+  return filter_graph_log_;
+}
+
+const DecryptConfig* ShellBuffer::GetDecryptConfig() const {
+  DCHECK(!IsEndOfStream());
+  return decrypt_config_.get();
+}
+
+void ShellBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
+  DCHECK(!IsEndOfStream());
+  decrypt_config_ = decrypt_config.Pass();
 }
 
 // ==== ShellBufferFactory =====================================================

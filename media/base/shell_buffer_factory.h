@@ -48,6 +48,7 @@ static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
 static const size_t kShellMaxBufferSize = kShellBufferSpaceSize / 4;
 static const size_t kShellMaxArraySize = 1024 * 1024;
 
+class DecryptConfig;
 class ShellFilterGraphLog;
 
 // A simple scoped array class designed to re-use the memory allocated by
@@ -56,9 +57,7 @@ class ShellScopedArray : public base::RefCountedThreadSafe<ShellScopedArray> {
  public:
   uint8* Get() { return array_; }
   size_t Size() { return size_; }
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log() {
-    return filter_graph_log_;
-  }
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
 
  private:
   friend class base::RefCountedThreadSafe<ShellScopedArray>;
@@ -99,9 +98,10 @@ class ShellBuffer : public Buffer {
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData() { return buffer_; }
 
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log() {
-    return filter_graph_log_;
-  }
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
+
+  const DecryptConfig* GetDecryptConfig() const;
+  void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
 
  protected:
   friend class ShellBufferFactory;
@@ -120,6 +120,7 @@ class ShellBuffer : public Buffer {
   size_t size_;
   size_t allocated_size_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+  scoped_ptr<DecryptConfig> decrypt_config_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellBuffer);
 };
