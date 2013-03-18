@@ -20,6 +20,7 @@
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
+#include "media/filters/shell_au.h"
 #include "media/filters/shell_rbsp_stream.h"
 #include "media/mp4/aac.h"
 
@@ -27,10 +28,6 @@ namespace media {
 
 // what's the smallest meaningful AVC config we can parse?
 static const int kAVCConfigMinSize = 8;
-
-// AnnexB start code is 4 bytes 0x00000001 big-endian
-static const int kAnnexBStartCodeSize = 4;
-static const uint32 kAnnexBStartCode = 0x00000001;
 
 ShellAVCParser::ShellAVCParser(
     scoped_refptr<ShellDataSourceReader> reader,
@@ -51,16 +48,13 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     return false;
   }
   uint8* prepend_buffer = buffer->GetWritableData();
-  if (!prepend_buffer || buffer->GetDataSize() < au->GetPrependSize()) {
+  if (!prepend_buffer) {
     NOTREACHED() << "empty/undersized buffer to Prepend()";
     return false;
   }
   if (au->GetType() == DemuxerStream::VIDEO) {
-    if (au->IsKeyframe()) {
+    if (au->IsKeyframe())
       memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
-    } else {
-      LB::Platform::store_uint32_big_endian(kAnnexBStartCode, prepend_buffer);
-    }
   } else if (au->GetType() == DemuxerStream::AUDIO) {
     if (audio_prepend_.empty())  // valid ADTS header not available
       return false;
@@ -406,10 +400,9 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
                                         uint8* pps,
                                         uint32 pps_size) {
   // We will need to attach the sps and pps (if provided) to each keyframe
-  // video packet, with the AnnexB start code in front of each, followed by an
-  // additional start code for the data.  Start with sps size and start code
-  // plus data start code.
-  video_prepend_size_ = sps_size + (kAnnexBStartCodeSize * 2);
+  // video packet, with the AnnexB start code in front of each. Start with
+  // sps size and start code
+  video_prepend_size_ = sps_size + kAnnexBStartCodeSize;
   if (pps_size > 0) {
     // Add pps and pps start code size if needed.
     video_prepend_size_ += pps_size + kAnnexBStartCodeSize;
@@ -435,11 +428,8 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps,
     prepend_offset += pps_size;
   }
 
-  // finally followed by data start code
-  LB::Platform::store_uint32_big_endian(kAnnexBStartCode,
-                                        video_prepend_ + prepend_offset);
   // make sure we haven't wandered off into memory somewhere
-  DCHECK_EQ(prepend_offset + kAnnexBStartCodeSize, video_prepend_size_);
+  DCHECK_EQ(prepend_offset, video_prepend_size_);
   return true;
 }
 
@@ -470,11 +460,8 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
                                             bool is_keyframe) {
   size_t prepend_size = 0;
   if (type == DemuxerStream::VIDEO) {
-    if (is_keyframe) {
+    if (is_keyframe)
       prepend_size = video_prepend_size_;
-    } else {
-      prepend_size = kAnnexBStartCodeSize;
-    }
   } else if (type == DemuxerStream::AUDIO) {
     prepend_size = audio_prepend_.size();
   } else {

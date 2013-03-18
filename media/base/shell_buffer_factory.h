@@ -89,7 +89,12 @@ class ShellBuffer : public Buffer {
 
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE { return buffer_; }
+  // Data size can be less than allocated size after ShrinkTo is called.
   virtual int GetDataSize() const OVERRIDE { return size_; }
+  int GetAllocatedSize() const { return allocated_size_; }
+  // This is used for video AUs because we cannot know the exact size before
+  // read it in.
+  void ShrinkTo(int size);
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData() { return buffer_; }
@@ -113,6 +118,7 @@ class ShellBuffer : public Buffer {
   virtual ~ShellBuffer();
   uint8* buffer_;
   size_t size_;
+  size_t allocated_size_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellBuffer);

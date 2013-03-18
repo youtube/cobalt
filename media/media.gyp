@@ -315,6 +315,8 @@
         'filters/opus_audio_decoder.h',
         'filters/skcanvas_video_renderer.cc',
         'filters/skcanvas_video_renderer.h',
+        'filters/shell_au.cc',
+        'filters/shell_au.h',
         'filters/shell_audio_decoder.h',
         'filters/shell_audio_renderer.h',
         'filters/shell_avc_parser.cc',
