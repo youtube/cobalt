@@ -16,7 +16,7 @@
       'SQLITE_ENABLE_ICU',
       'SQLITE_ENABLE_MEMORY_MANAGEMENT',
       'SQLITE_SECURE_DELETE',
-      'THREADSAFE',
+      'THREADSAFE=1',
       '_HAS_EXCEPTIONS=0',
     ],
   },
