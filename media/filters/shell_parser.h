@@ -24,59 +24,11 @@
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_data_source_reader.h"
 #include "media/base/video_decoder_config.h"
+#include "media/filters/shell_au.h"
 
 namespace media {
 
 class ShellFilterGraphLog;
-
-// The basic unit of currency between ShellDemuxer and ShellParser, the ShellAU
-// defines all needed information for a given AccessUnit (Frame) of encoded
-// media data.
-class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
- public:
-  static scoped_refptr<ShellAU> CreateEndOfStreamAU(DemuxerStream::Type type,
-                                                    base::TimeDelta timestamp);
-  ShellAU(DemuxerStream::Type type,
-          uint64 offset,
-          size_t size,
-          size_t prepend_size,
-          bool is_keyframe,
-          base::TimeDelta timestamp,
-          base::TimeDelta duration);
-
-  bool IsEndOfStream();
-  bool IsValid();
-
-  // read-only access methods
-  DemuxerStream::Type GetType() const { return type_; }
-  uint64 GetOffset() const { return offset_; }
-  size_t GetSize() const { return size_; }
-  size_t GetPrependSize() const { return prepend_size_; }
-  size_t GetTotalSize() const { return size_ + prepend_size_; }
-  bool IsKeyframe() const { return is_keyframe_; }
-  base::TimeDelta GetTimestamp() const { return timestamp_; }
-  base::TimeDelta GetDuration() const { return duration_; }
-
-  // set methods, add as needed
-  void SetDuration(base::TimeDelta duration) {
-    duration_ = duration;
-  }
-  void SetTimestamp(base::TimeDelta timestamp) {
-    timestamp_ = timestamp;
-  }
-
- protected:
-  friend class base::RefCountedThreadSafe<ShellAU>;
-  ~ShellAU();
-  DemuxerStream::Type type_;
-  uint64 offset_;
-  size_t size_;
-  size_t prepend_size_;
-  bool is_keyframe_;
-  base::TimeDelta timestamp_;
-  base::TimeDelta duration_;
-  bool is_eos_;
-};
 
 // abstract base class to define a stream parser interface used by ShellDemuxer.
 class ShellParser : public base::RefCountedThreadSafe<ShellParser> {

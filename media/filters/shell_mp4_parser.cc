@@ -195,12 +195,6 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
       }
     }
     video_sample_++;
-    // The individual NALUs within the mdat atom include a size
-    // at the front of each describing the size of the NALU. This
-    // breaks the conversion to AnnexB, so we omit the size from
-    // the AU and skip past downloading it.
-    offset += nal_header_size_;
-    size -= nal_header_size_;
     timestamp = TicksToTime(timestamp_ticks, video_time_scale_hz_);
     duration = TicksToTime(duration_ticks, video_time_scale_hz_);
     // due to b-frames it's much more likely we'll encounter discontinuous
@@ -216,15 +210,11 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
 
   size_t prepend_size = CalculatePrependSize(type, is_keyframe);
 
-  scoped_refptr<ShellAU> au = new ShellAU(
-      type,
-      offset,
-      size,
-      prepend_size,
-      is_keyframe,
-      timestamp,
-      duration);
-  return au;
+  if (type == DemuxerStream::AUDIO)
+    return ShellAU::CreateAudioAU(offset, size, prepend_size, is_keyframe,
+                                  timestamp, duration, this);
+  return ShellAU::CreateVideoAU(offset, size, prepend_size, nal_header_size_,
+                                is_keyframe, timestamp, duration, this);
 }
 
 // parse the atom starting at atom_offset_, update appropriate internal state,
