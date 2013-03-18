@@ -56,12 +56,18 @@ scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer(
  return eos;
 }
 
+void ShellBuffer::ShrinkTo(int size) {
+  CHECK_LE(size, GetAllocatedSize());
+  size_ = size;
+}
+
 ShellBuffer::ShellBuffer(uint8* reusable_buffer,
                          size_t size,
                          scoped_refptr<ShellFilterGraphLog> filter_graph_log)
     : Buffer(kNoTimestamp(), kInfiniteDuration())
     , buffer_(reusable_buffer)
     , size_(size)
+    , allocated_size_(size)
     , filter_graph_log_(filter_graph_log) {
 }
 
@@ -236,7 +242,7 @@ void ShellBufferFactory::Reclaim(uint8* p) {
     }
     // Try to process any enqueued allocs in FIFO order until we run out of room
     while (service_buffers && pending_allocs_.size()) {
-      size_t size = pending_allocs_.front().second->GetDataSize();
+      size_t size = pending_allocs_.front().second->GetAllocatedSize();
       size_t aligned_size = SizeAlign(size);
       uint8* bytes = AllocateLockAcquired(aligned_size);
       if (bytes) {
