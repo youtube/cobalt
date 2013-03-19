@@ -22,54 +22,6 @@
 
 namespace media {
 
-// ==== ShellAU ================================================================
-
-// static
-scoped_refptr<ShellAU> ShellAU::CreateEndOfStreamAU(
-    DemuxerStream::Type type,
-    base::TimeDelta timestamp) {
-  scoped_refptr<ShellAU> eos = new ShellAU(type,
-    0, 0, 0, false, timestamp, kInfiniteDuration());
-  eos->is_eos_ = true;
-  return eos;
-}
-
-bool ShellAU::IsEndOfStream() {
-  return is_eos_;
-}
-
-bool ShellAU::IsValid() {
-  if (is_eos_) {
-    return true;
-  } else if (offset_ == 0                 ||
-           size_ == 0                     ||
-           timestamp_ == kNoTimestamp()) {
-    return false;
-  }
-  return true;
-}
-
-ShellAU::ShellAU(DemuxerStream::Type type,
-                 uint64 offset,
-                 size_t size,
-                 size_t prepend_size,
-                 bool is_keyframe,
-                 base::TimeDelta timestamp,
-                 base::TimeDelta duration)
-    : type_(type)
-    , offset_(offset)
-    , size_(size)
-    , prepend_size_(prepend_size)
-    , is_keyframe_(is_keyframe)
-    , timestamp_(timestamp)
-    , duration_(duration)
-    , is_eos_(false) {
-}
-
-ShellAU::~ShellAU() {
-}
-
-
 // ==== ShellParser ============================================================
 
 // how many bytes to download of the file to determine type?
