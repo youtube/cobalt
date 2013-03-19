@@ -328,14 +328,9 @@ bool ShellFLVParser::ParseAudioDataTag(uint8* tag,
     }
     // build the AU
     size_t prepend_size = CalculatePrependSize(DemuxerStream::AUDIO, true);
-    scoped_refptr<ShellAU> au = new ShellAU(
-        DemuxerStream::AUDIO,
-        tag_offset_ + kTagSize + kAudioTagSize,
-        size - kAudioTagSize,
-        prepend_size,
-        true,
-        ts,
-        kInfiniteDuration());
+    scoped_refptr<ShellAU> au = ShellAU::CreateAudioAU(
+        tag_offset_ + kTagSize + kAudioTagSize, size - kAudioTagSize,
+        prepend_size, true, ts, kInfiniteDuration(), this);
     next_audio_aus_.push_back(au);
   }
 
@@ -393,64 +388,26 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
     // nal_header_size_ bytes long followed by the NALU of that size.
     uint32 avc_data_size = size - kVideoTagSize;
     uint32 avc_tag_offset = 0;
-    while (avc_tag_offset + nal_header_size_ < avc_data_size) {
-      uint8 size_buffer[4];
-      // download size of next NALU, at most 4 bytes
-      int bytes_read = reader_->BlockingRead(
-          tag_offset_ + kTagSize + kVideoTagSize + avc_tag_offset,
-          nal_header_size_,
-          size_buffer);
-      if (bytes_read < nal_header_size_) {
-        return false;
-      }
-      // extract size of NALU from downloaded data
-      uint32 nal_size = 0;
-      switch (nal_header_size_) {
-        case 1:
-          nal_size = size_buffer[0];
-          break;
-
-        case 2:
-          nal_size = LB::Platform::load_uint16_big_endian(size_buffer);
-          break;
-
-        case 4:
-          nal_size = LB::Platform::load_uint32_big_endian(size_buffer);
-          break;
-
-        default:
-          NOTREACHED();
-          return false;
-      }
-      // advance tag offset past size
-      avc_tag_offset += nal_header_size_;
-      // this is video data, build the timestamp
-      base::TimeDelta ts = base::TimeDelta::FromMilliseconds(pts);
-      if (ts > video_track_duration_) {
-        video_track_duration_ = ts;
-      }
-
-      size_t prepend_size = CalculatePrependSize(DemuxerStream::VIDEO,
-                                                 is_keyframe);
-      scoped_refptr<ShellAU> au = new ShellAU(
-          DemuxerStream::VIDEO,
-          tag_offset_ + kTagSize + kVideoTagSize + avc_tag_offset,
-          nal_size,
-          prepend_size,
-          is_keyframe,
-          ts,
-          kInfiniteDuration());
-      // now advance past the NALU data
-      avc_tag_offset += nal_size;
-      // sanity-check size against remaining data in tag
-      if (avc_tag_offset > avc_data_size) {
-        return false;
-      }
-      // enqueue data tag
-      next_video_aus_.push_back(au);
-      // save presentation timestamp in sorted set for duration calculations
-      video_timestamps_.insert(pts);
+    base::TimeDelta ts = base::TimeDelta::FromMilliseconds(pts);
+    if (ts > video_track_duration_) {
+      video_track_duration_ = ts;
     }
+
+    size_t prepend_size = CalculatePrependSize(DemuxerStream::VIDEO,
+                                               is_keyframe);
+    scoped_refptr<ShellAU> au = ShellAU::CreateVideoAU(
+        tag_offset_ + kTagSize + kVideoTagSize + avc_tag_offset,
+        avc_data_size,
+        prepend_size,
+        nal_header_size_,
+        is_keyframe,
+        ts,
+        kInfiniteDuration(),
+        this);
+    // enqueue data tag
+    next_video_aus_.push_back(au);
+    // save presentation timestamp in sorted set for duration calculations
+    video_timestamps_.insert(pts);
   }
   return true;
 }

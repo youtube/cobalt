@@ -386,7 +386,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // signal that the seeking has completed
   if ((!seek_cb_.is_null()) &&
       (!ShellBufferFactory::Instance()->HasRoomForBufferNow(
-          au->GetTotalSize()))) {
+          au->GetMaxSize()))) {
     DLOG(INFO) << "demuxer filled buffer, finishing seek";
     video_demuxer_stream_->SetBuffering(false);
     audio_demuxer_stream_->SetBuffering(false);
@@ -399,7 +399,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // AllocateBuffer will return false if the requested size is larger
   // than the maximum limit for a single buffer.
   if (!ShellBufferFactory::Instance()->AllocateBuffer(
-      au->GetTotalSize(),
+      au->GetMaxSize(),
       base::Bind(&ShellDemuxer::BufferAllocated, this),
       filter_graph_log_)) {
     host_->OnDemuxerError(PIPELINE_ERROR_COULD_NOT_RENDER);
@@ -420,27 +420,8 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   DCHECK(requested_au_);
   filter_graph_log_->LogDemuxerDownloadEvent(requested_au_->GetType());
 
-  DCHECK_LE(requested_au_->GetSize() + requested_au_->GetPrependSize(),
-            buffer->GetDataSize());
-
-  // download data into the buffer
-  int bytes_read = reader_->BlockingRead(
-      requested_au_->GetOffset(),
-      requested_au_->GetSize(),
-      buffer->GetWritableData() + requested_au_->GetPrependSize());
-  if (bytes_read < requested_au_->GetSize()) {
-    // 0 or under-sized download could mean normal termination of video,
-    // check for error
-    if (bytes_read == DataSource::kReadError) {
-      DLOG(ERROR) << "unable to download AU";
-      host_->OnDemuxerError(PIPELINE_ERROR_READ);
-    }
-    return;
-  }
-
-  // copy in relevant prepend
-  if (!parser_->Prepend(requested_au_, buffer)) {
-    DLOG(ERROR) << "prepend failed";
+  if (!requested_au_->Read(reader_, buffer)) {
+    DLOG(ERROR) << "au read failed";
     host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
