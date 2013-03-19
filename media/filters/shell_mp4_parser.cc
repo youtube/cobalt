@@ -35,6 +35,9 @@ static const int kSkipBytes_avc1 = 78;
 // what's the smallest meaningful mp4 atom size?
 static const int kAtomMinSize = 8;
 
+// Full Box has a one byte version and three bytes flags after the header
+static const int kFullBoxHeaderAndFlagSize = 4;
+
 // how much to download of an hdlr to get the trak type?
 static const int kDesiredBytes_hdlr = 12;
 static const uint32 kAudioSubtype_hdlr_soun = 0x736f756e;
@@ -449,25 +452,33 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
 #endif
 
 bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
+  if (atom_data_size < kFullBoxHeaderAndFlagSize) {
+    DLOG(WARNING) << base::StringPrintf(
+        "esds box should at least be %d bytes but now it is %"PRId64" bytes",
+        kFullBoxHeaderAndFlagSize, atom_data_size);
+    return false;
+  }
+
+  uint64 esds_offset = atom_offset_ + kFullBoxHeaderAndFlagSize;
+  uint64 esds_size = atom_data_size - kFullBoxHeaderAndFlagSize;
   // we'll need to download entire esds, allocate buffer for it
   scoped_refptr<ShellScopedArray> esds_storage =
-      ShellBufferFactory::Instance()->AllocateArray(atom_data_size,
+      ShellBufferFactory::Instance()->AllocateArray(esds_size,
                                                     filter_graph_log_);
   uint8* esds = NULL;
   if (!esds_storage || !(esds = esds_storage->Get())) {
     DLOG(WARNING) << base::StringPrintf(
-        "unable to allocate esds temp array of %"PRId64" bytes",
-        atom_data_size);
+        "unable to allocate esds temp array of %"PRId64" bytes", esds_size);
     return false;
   }
   // download esds
-  int bytes_read = reader_->BlockingRead(atom_offset_, atom_data_size, esds);
-  if (bytes_read < atom_data_size) {
+  int bytes_read = reader_->BlockingRead(esds_offset, esds_size, esds);
+  if (bytes_read < esds_size) {
     DLOG(WARNING) << "failed to download esds";
     return false;
   }
   mp4::ESDescriptor es_descriptor;
-  std::vector<uint8> data(esds, esds + atom_data_size);
+  std::vector<uint8> data(esds, esds + esds_size);
   if (es_descriptor.Parse(data)) {
     const std::vector<uint8>& dsi = es_descriptor.decoder_specific_info();
     if (dsi.size() >= 2) {
