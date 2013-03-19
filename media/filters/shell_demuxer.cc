@@ -191,6 +191,10 @@ void ShellDemuxerStream::SetBuffering(bool buffering) {
       read_cb.Run(DemuxerStream::kOk, buffer);
     }
     RebuildEnqueuedRanges_Locked();
+  } else if (!buffering_ && buffering) {
+    // if we're turning on buffering, we shouldn't have any pending reads
+    DCHECK(read_queue_.empty()) <<
+        "attempting to turn on buffering with pending reads!";
   }
   buffering_ = buffering;
   filter_graph_log_->LogDemuxerStreamStateQueues(
@@ -198,7 +202,6 @@ void ShellDemuxerStream::SetBuffering(bool buffering) {
 }
 
 void ShellDemuxerStream::FlushBuffers() {
-  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   filter_graph_log_->LogDemuxerStreamEvent(type_, kEventFlush);
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
@@ -241,11 +244,13 @@ ShellDemuxer::ShellDemuxer(
     , data_source_(data_source)
     , read_has_failed_(false)
     , stopped_(false)
+    , flushing_(false)
     , audio_reached_eos_(false)
     , video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
-  preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
+  buffer_timestamp_ =
+      base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
 }
@@ -329,12 +334,11 @@ void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
     return;
   }
 
-  // OK, initialization is complete, but defer telling the pipeline
-  // we are ready until we have done seek prebuffering.
-  audio_demuxer_stream_->SetBuffering(true);
-  video_demuxer_stream_->SetBuffering(true);
-  seek_cb_ = status_cb;
+  // start buffering data
+  SetBuffering(true);
   Request(DemuxerStream::AUDIO);
+
+  status_cb.Run(PIPELINE_OK);
 }
 
 void ShellDemuxer::Request(DemuxerStream::Type type) {
@@ -346,6 +350,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   DCHECK(!requested_au_) << "overlapping requests not supported!";
   filter_graph_log_->LogDemuxerRequestEvent(type);
+  flushing_ = false;
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
@@ -378,15 +383,13 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
     return;
   }
 
-  // If we're seeking and we've filled the demux buffer then we can
-  // signal that the seeking has completed
-  if ((!seek_cb_.is_null()) &&
+  // If we're buffering and we've filled the demux buffer then we can
+  // signal that the buffering has completed
+  if (buffering_ &&
       (!ShellBufferFactory::Instance()->HasRoomForBufferNow(
           au->GetMaxSize()))) {
-    DLOG(INFO) << "demuxer filled buffer, finishing seek";
-    video_demuxer_stream_->SetBuffering(false);
-    audio_demuxer_stream_->SetBuffering(false);
-    base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+    DLOG(INFO) << "demuxer filled buffer, finished buffering";
+    SetBuffering(false);
   }
 
   // enqueue the request
@@ -412,9 +415,23 @@ void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
 }
 
 void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
-  // We need a requested_au_ for this call to make sense
+  // We need a requested_au_ or to have canceled this request and
+  // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
   filter_graph_log_->LogDemuxerDownloadEvent(requested_au_->GetType());
+
+  // do nothing if stopped
+  if (stopped_) {
+    return;
+  }
+
+  // Flushing is a signal to restart the request->download cycle with
+  // a new request. Drop current request and issue a new one.
+  if (flushing_) {
+    requested_au_ = NULL;
+    IssueNextRequestTask();
+    return;
+  }
 
   if (!requested_au_->Read(reader_, buffer)) {
     DLOG(ERROR) << "au read failed";
@@ -447,20 +464,19 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
      host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
   }
 
-  // If we are waiting to prebuffer before finishing a seek, check to
-  // see if we've gotten enough data downloaded we can start.
-  if (!seek_cb_.is_null()) {
+  // if we are buffering see if we've bufferered enough data to continue
+  if (buffering_) {
     base::TimeDelta audio_buffered =
         audio_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
     if (audio_buffered != kNoTimestamp()) {
       // If we've buffered enough audio to start playing, proceed
       // TODO: make this a function of data bitrate and download speed
-      if (audio_buffered >= preload_) {
+      if (audio_buffered >= buffer_timestamp_) {
         DLOG(INFO) << "demuxer got preload time, finishing seek";
-        video_demuxer_stream_->SetBuffering(false);
-        audio_demuxer_stream_->SetBuffering(false);
-        base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+        SetBuffering(false);
       }
+    } else {
+      DLOG(INFO) << "buffering but no audio buffered!";
     }
   }
   IssueNextRequestTask();
@@ -536,26 +552,30 @@ void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
 }
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
-  message_loop_->PostTask(FROM_HERE,
+  blocking_thread_.message_loop()->PostTask(FROM_HERE,
                           base::Bind(&ShellDemuxer::SeekTask, this, time, cb));
 }
 
+// runs on blocking thread
 void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
-  DCHECK(MessageLoopBelongsToCurrentThread());
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventSeek);
-  // flush audio and video buffers
-//  if (audio_demuxer_stream_) audio_demuxer_stream_->FlushBuffers();
-//  if (video_demuxer_stream_) video_demuxer_stream_->FlushBuffers();
-
-  // seek the demuxer itself
-  NOTIMPLEMENTED();
-
-  // no overlapping seeks, please
-  DCHECK(seek_cb_.is_null());
-  // save seek callback to signal when we've prebufferd sufficiently
-  seek_cb_ = cb;
-  // kick off a request for fresh data
-  Request(DemuxerStream::AUDIO);
+  DLOG(INFO) << base::StringPrintf(
+      "seek to: %"PRId64" ms", time.InMilliseconds());
+  // clear any enqueued buffers on demuxer streams
+  audio_demuxer_stream_->FlushBuffers();
+  video_demuxer_stream_->FlushBuffers();
+  // advance parser to new timestamp
+  if (!parser_->SeekTo(time)) {
+    DLOG(ERROR) << "parser seek failed.";
+    cb.Run(PIPELINE_ERROR_READ);
+    return;
+  }
+  // buffer out to the seek timestamp + preset preload buffer time
+  SetBuffering(true);
+  buffer_timestamp_ = time +
+      base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
+  flushing_ = true;
+  cb.Run(PIPELINE_OK);
 }
 
 void ShellDemuxer::OnAudioRendererDisabled() {
@@ -602,6 +622,12 @@ void ShellDemuxer::SetFilterGraphLog(
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxer::filter_graph_log() {
   return filter_graph_log_;
+}
+
+void ShellDemuxer::SetBuffering(bool enable) {
+  buffering_ = enable;
+  audio_demuxer_stream_->SetBuffering(enable);
+  video_demuxer_stream_->SetBuffering(enable);
 }
 
 }  // namespace media

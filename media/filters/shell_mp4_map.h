@@ -89,15 +89,19 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // from the starting_cache_index.
   bool stsc_SlipCacheToSample(uint32 sample_number, int starting_cache_index);
 
-  // bool stss_FindNearestSample(uint32 sample_number);
+  void stss_Init();
+  // step through table by one table entry, return false on error
+  bool stss_AdvanceStep();
+  // search for nearest keyframe, update state to contain it
+  bool stss_FindNearestKeyframe(uint32 sample_number);
 
   void stts_Init();
   bool stts_AdvanceToSample(uint32 sample_number);
   bool stts_SlipCacheToSample(uint32 sample_number, int starting_cache_index);
-  /*
   bool stts_AdvanceToTime(uint64 timestamp);
   bool stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index);
-  */
+  // step through the stts table by one table entry, return false on error
+  bool stts_IntegrateStep();
 
   // TableCache manages the caching of each atom table in a separate instance.
   // As each atom has a different per-entry byte size, and may want different
@@ -177,11 +181,15 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   uint32 stsc_samples_per_chunk_;  // current samples-per-chunk in this range
   uint32 stsc_next_first_chunk_;  // the chunk number the next region begins in
   uint32 stsc_next_first_chunk_sample_;  // sample number next region begins in
-  uint32 stsc_table_index_;  // the index in the table of the current
+  uint32 stsc_table_index_;  // the index in the table of the current range
   std::vector<uint32> stsc_sample_sums_;  // saved sums of cache segments
 
   // ==== stss - list of keyframe sample numbers
   scoped_refptr<TableCache> stss_;
+  uint32 stss_last_keyframe_;
+  uint32 stss_next_keyframe_;
+  uint32 stss_table_index_;  // index of stss_next_keyframe_ in table
+  std::vector<uint32> stss_keyframes_;
 
   // ==== stts - run-length sample number to time duration
   scoped_refptr<TableCache> stts_;
@@ -189,6 +197,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   uint64 stts_first_sample_time_;  // sum of all durations of previous ranges
   uint32 stts_sample_duration_;  // current duration of samples in this range
   uint32 stts_next_first_sample_;  // first sample number of next range
+  uint64 stts_next_first_sample_time_;  // first timestamp of next range
   uint32 stts_table_index_;  // index in the table of the next entry
   std::vector<uint32> stts_samples_;
   std::vector<uint64> stts_timestamps_;

@@ -17,6 +17,7 @@
 #include "media/filters/shell_mp4_map.h"
 
 #include <algorithm>  // for std::min
+#include <set>
 
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
@@ -110,6 +111,33 @@ static const uint32 kTestTableEntries_stsc =
 static const uint64 kTestTableOffset_stsc = 20000000;
 static const uint32 kComputedFirstSamples_stsc[] = {
   0, 364, 376, 740, 752, 1116, 1128, 1466
+};
+
+static const uint8 kTestTable_stss[] = {
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x3d, 0x00, 0x00,
+  0x00, 0x78, 0x00, 0x00, 0x00, 0x9d, 0x00, 0x00, 0x00, 0xc6, 0x00, 0x00, 0x00,
+  0xf0, 0x00, 0x00, 0x01, 0x1b, 0x00, 0x00, 0x01, 0x45, 0x00, 0x00, 0x01, 0x6b,
+  0x00, 0x00, 0x01, 0x78, 0x00, 0x00, 0x01, 0xb4, 0x00, 0x00, 0x01, 0xea, 0x00,
+  0x00, 0x02, 0x1c, 0x00, 0x00, 0x02, 0x50, 0x00, 0x00, 0x02, 0x72, 0x00, 0x00,
+  0x02, 0xae, 0x00, 0x00, 0x02, 0xea, 0x00, 0x00, 0x02, 0xef, 0x00, 0x00, 0x03,
+  0x2b, 0x00, 0x00, 0x03, 0x67, 0x00, 0x00, 0x03, 0x9d, 0x00, 0x00, 0x03, 0xd3,
+  0x00, 0x00, 0x04, 0x0f, 0x00, 0x00, 0x04, 0x44, 0x00, 0x00, 0x04, 0x66, 0x00,
+  0x00, 0x04, 0x99, 0x00, 0x00, 0x04, 0xd5, 0x00, 0x00, 0x05, 0x0d, 0x00, 0x00,
+  0x05, 0x39, 0x00, 0x00, 0x05, 0x75, 0x00, 0x00, 0x05, 0xb1
+};
+static const uint32 kTestTableEntries_stss =
+    sizeof(kTestTable_stss) / kEntrySize_stss;
+static const uint64 kTestTableOffset_stss = 30000000;
+static const uint32 kComputedKeyframes_stss[] = {
+  0x000, 0x03c, 0x077, 0x09c, 0x0c5, 0x0ef, 0x11a, 0x144, 0x16a, 0x177, 0x1b3,
+  0x1e9, 0x21b, 0x24f, 0x271, 0x2ad, 0x2e9, 0x2ee, 0x32a, 0x366, 0x39c, 0x3d2,
+  0x40e, 0x443, 0x465, 0x498, 0x4d4, 0x50c, 0x538, 0x574, 0x5b0
+};
+static const uint64 kComputedKeyframeTimestamps_stss[] = {
+  0x0000, 0x09c4, 0x135e, 0x1964, 0x2010, 0x26e6, 0x2de6, 0x34bc, 0x3aeb,
+  0x3d19, 0x46dd, 0x4fa7, 0x57ca, 0x6041, 0x65ca, 0x6f8e, 0x7952, 0x7a31,
+  0x83f5, 0x8db9, 0x9683, 0x9f4d, 0xa911, 0xb1b1, 0xb74a, 0xbf97, 0xc95b,
+  0xd278, 0xd9a2, 0xe366, 0xed2a
 };
 
 static const uint8 kTestTable_stsz[] = {
@@ -571,7 +599,7 @@ static const uint8 kTestTable_stsz[] = {
 };
 static const uint32 kTestTableEntries_stsz =
     sizeof(kTestTable_stsz) / kEntrySize_stsz;
-static const uint64 kTestTableOffset_stsz = 30000000;
+static const uint64 kTestTableOffset_stsz = 40000000;
 
 static const uint8 kTestTable_stts[] = {
   0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2a, 0x00, 0x00,
@@ -1186,7 +1214,7 @@ static const uint8 kTestTable_stts[] = {
 };
 static const uint32 kTestTableEntries_stts =
     sizeof(kTestTable_stts) / kEntrySize_stts;
-static const uint64 kTestTableOffset_stts = 40000000;
+static const uint64 kTestTableOffset_stts = 50000000;
 
 class ShellMP4MapTest : public testing::Test {
  public:
@@ -1206,6 +1234,15 @@ class ShellMP4MapTest : public testing::Test {
               kTestTableOffset_stsc + sizeof(kTestTable_stsc));
     uint32 offset = position - kTestTableOffset_stsc - 8;
     memcpy(data, kTestTable_stsc + offset, size);
+    return size;
+  }
+
+  int MockBlockingRead_stss(int64 position, int size, uint8* data) {
+    DCHECK_GE(position - 8, kTestTableOffset_stss);
+    DCHECK_LE(position - 8 + size,
+              kTestTableOffset_stss + sizeof(kTestTable_stss));
+    uint32 offset = position - kTestTableOffset_stss - 8;
+    memcpy(data, kTestTable_stss + offset, size);
     return size;
   }
 
@@ -1263,6 +1300,13 @@ class ShellMP4MapTest : public testing::Test {
         .WillByDefault(Invoke(this, &ShellMP4MapTest::MockBlockingRead_stsc));
   }
 
+  void SetDefaultBlockingReads_stss() {
+    ON_CALL(*reader_, BlockingRead(AllOf(Ge(kTestTableOffset_stss + 8),
+                                         Lt(kTestTableOffset_stss + 8 +
+                                            sizeof(kTestTable_stss))), _, _))
+        .WillByDefault(Invoke(this, &ShellMP4MapTest::MockBlockingRead_stss));
+  }
+
   void SetDefaultBlockingReads_stsz() {
     ON_CALL(*reader_, BlockingRead(AllOf(Ge(kTestTableOffset_stsz + 12),
                                          Lt(kTestTableOffset_stsz + 12 +
@@ -1295,6 +1339,16 @@ class ShellMP4MapTest : public testing::Test {
                  sizeof(kTestTable_stsc),
                  kTestTable_stsc,
                  kTestTableOffset_stsc);
+  }
+
+  void SetTestTable_stss(uint32 cache_size_entries) {
+    SetTestTable(kAtomType_stss,
+                 cache_size_entries,
+                 kEntrySize_stss,
+                 kTestTableEntries_stss,
+                 sizeof(kTestTable_stss),
+                 kTestTable_stss,
+                 kTestTableOffset_stss);
   }
 
   void SetTestTable_stts(uint32 cache_size_entries) {
@@ -1927,6 +1981,203 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccess) {
 
 // ==== GetIsKeyframe() Tests ==================================================
 
+// the map should consider every valid sample number a keyframe without an stss
+TEST_F(ShellMP4MapTest, GetIsKeyframeNoKeyframeTable) {
+  bool is_keyframe_out = false;
+  ASSERT_TRUE(map_->GetIsKeyframe(100, is_keyframe_out));
+  ASSERT_TRUE(is_keyframe_out);
 
+  is_keyframe_out = false;
+  ASSERT_TRUE(map_->GetIsKeyframe(5, is_keyframe_out));
+  ASSERT_TRUE(is_keyframe_out);
+
+  for (int i = 17; i < 174; i += 3) {
+    is_keyframe_out = false;
+    ASSERT_TRUE(map_->GetIsKeyframe(i, is_keyframe_out));
+    ASSERT_TRUE(is_keyframe_out);
+  }
+}
+
+TEST_F(ShellMP4MapTest, GetIsKeyframeIteration) {
+  SetDefaultBlockingReads_stss();
+  EXPECT_CALL(*reader_, BlockingRead(_, _, _)).Times(AnyNumber());
+  SetTestTable_stss(7);
+
+  int keyframe_table_index = 0;
+  uint32 next_keyframe = kComputedKeyframes_stss[0];
+  for (uint32 i = 0; i < kTestTableEntries_stsz; ++i) {
+    bool map_is_keyframe_out = false;
+    ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+    bool is_really_keyframe = false;
+    if (i == next_keyframe) {
+      is_really_keyframe = true;
+      keyframe_table_index++;
+      if (keyframe_table_index < kTestTableEntries_stss) {
+        next_keyframe = kComputedKeyframes_stss[keyframe_table_index];
+      } else {
+        next_keyframe = UINT32_MAX;
+      }
+    }
+    ASSERT_EQ(map_is_keyframe_out, is_really_keyframe);
+  }
+  // should have reached end of keyframe list
+  ASSERT_EQ(keyframe_table_index, kTestTableEntries_stss);
+}
+
+TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
+  SetDefaultBlockingReads_stss();
+  EXPECT_CALL(*reader_, BlockingRead(_, _, _)).Times(AnyNumber());
+  SetTestTable_stss(3);
+
+  // pick a keyframe about halfway
+  uint32 sample_number = kComputedKeyframes_stss[kTestTableEntries_stss / 2];
+  // sample one past it should not be a keyframe
+  bool map_is_keyframe_out = false;
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, map_is_keyframe_out));
+  ASSERT_FALSE(map_is_keyframe_out);
+  // sample one before keyframe should not be a keyframe either
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number - 1, map_is_keyframe_out));
+  ASSERT_FALSE(map_is_keyframe_out);
+  // however it should be a keyframe
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
+  ASSERT_TRUE(map_is_keyframe_out);
+
+  // first keyframe
+  sample_number = kComputedKeyframes_stss[0];
+  // next sample should not be a keyframe
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, map_is_keyframe_out));
+  ASSERT_FALSE(map_is_keyframe_out);
+  // but it should be
+  ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
+  ASSERT_TRUE(map_is_keyframe_out);
+
+  // build set of known keyframes for simplicity of membership testing
+  std::set<uint32> known_keyframes;
+  for (int i = 0; i < kTestTableEntries_stss; ++i) {
+    known_keyframes.insert(kComputedKeyframes_stss[i]);
+  }
+
+  // iterate backwards from end of file to beginning
+  for (int i = kTestTableEntries_stsz - 1; i >= 0; --i) {
+    ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+    if (known_keyframes.find(i) != known_keyframes.end()) {
+      ASSERT_TRUE(map_is_keyframe_out);
+    } else {
+      ASSERT_FALSE(map_is_keyframe_out);
+    }
+  }
+
+  // iterate backwards through keyframes only
+  for (int i = kTestTableEntries_stss - 1; i >= 0; --i) {
+    map_is_keyframe_out = false;
+    ASSERT_TRUE(map_->GetIsKeyframe(kComputedKeyframes_stss[i],
+                                    map_is_keyframe_out));
+    ASSERT_TRUE(map_is_keyframe_out);
+  }
+
+  // iterate forwards but skip all keyframes
+  for (int i = 0; i < kTestTableEntries_stsz; ++i) {
+    if (known_keyframes.find(i) != known_keyframes.end()) {
+      continue;
+    }
+    map_is_keyframe_out = true;
+    ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
+    ASSERT_FALSE(map_is_keyframe_out);
+  }
+}
+
+// ==== GetKeyframe() Tests ====================================================
+
+// every frame should be returned as a keyframe. This tests if our computation
+// of timestamps => sample numbers is equivalent to sample numbers => timestamps
+TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableIteration) {
+  SetDefaultBlockingReads_stts();
+  EXPECT_CALL(*reader_, BlockingRead(_, _, _)).Times(AnyNumber());
+  SetTestTable_stts(7);
+
+  for (int i = 0; i < kTestTableEntries_stsz; ++i) {
+    // get actual timestamp and duration of this sample
+    uint64 sample_timestamp = GetTestSamplePTS(i);
+    uint32 sample_duration = GetTestSampleDuration(i);
+    // add a bit of time to sample timestamp, but keep time within this frame
+    sample_timestamp += i % sample_duration;
+    uint32 map_keyframe = 0;
+    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, map_keyframe));
+    ASSERT_EQ(map_keyframe, i);
+  }
+}
+
+TEST_F(ShellMP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
+  SetDefaultBlockingReads_stts();
+  EXPECT_CALL(*reader_, BlockingRead(_, _, _)).Times(AnyNumber());
+  SetTestTable_stts(5);
+
+  // backwards through the middle third of samples
+  for (int i = (kTestTableEntries_stsz * 2) / 3;
+       i >= kTestTableEntries_stsz / 3; --i) {
+    uint64 sample_timestamp = GetTestSamplePTS(i);
+    uint32 sample_duration = GetTestSampleDuration(i);
+    sample_timestamp += sample_duration - 1 - (i % sample_duration);
+    uint32 map_keyframe = 0;
+    ASSERT_TRUE(map_->GetKeyframe(sample_timestamp, map_keyframe));
+    ASSERT_EQ(map_keyframe, i);
+  }
+
+  // highest valid timestamp in file
+  uint64 highest_timestamp = GetTestSamplePTS(kTestTableEntries_stsz - 1);
+  highest_timestamp += GetTestSampleDuration(kTestTableEntries_stsz - 1) - 1;
+  uint32 map_keyframe = 0;
+  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, map_keyframe));
+  ASSERT_EQ(map_keyframe, kTestTableEntries_stsz - 1);
+
+  // lowest valid timestamp in file
+  ASSERT_TRUE(map_->GetKeyframe(0, map_keyframe));
+  ASSERT_EQ(map_keyframe, 0);
+
+  // should fail on higher timestamps
+  ASSERT_FALSE(map_->GetKeyframe(highest_timestamp + 1, map_keyframe));
+}
+
+// GetKeyframe is not normally called iteratively, so we test random access
+TEST_F(ShellMP4MapTest, GetKeyframe) {
+  SetDefaultBlockingReads_stss();
+  SetDefaultBlockingReads_stts();
+  EXPECT_CALL(*reader_, BlockingRead(_, _, _)).Times(AnyNumber());
+  SetTestTable_stss(3);
+  SetTestTable_stts(7);
+
+  // find first keyframe in file, should be first frame
+  uint32 map_keyframe = 0;
+  ASSERT_TRUE(map_->GetKeyframe(0, map_keyframe));
+  ASSERT_EQ(map_keyframe, 0);
+
+  // find a first quarter keyframe in file
+  uint32 qtr_keyframe = kComputedKeyframes_stss[kTestTableEntries_stss / 4];
+  // midway between this keyframe and the next one
+  uint32 next_keyframe =
+      kComputedKeyframes_stss[(kTestTableEntries_stss / 4) + 1];
+  uint32 test_frame = qtr_keyframe + ((next_keyframe - qtr_keyframe) / 2);
+  // get time for this frame
+  uint64 test_frame_timestamp = GetTestSamplePTS(test_frame);
+  // get duration for this frame
+  uint32 test_frame_duration = GetTestSampleDuration(test_frame);
+  // midway through this frame
+  test_frame_timestamp += test_frame_duration / 2;
+  // find lower bound keyframe, should be qtr_keyframe
+  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, map_keyframe));
+  ASSERT_EQ(map_keyframe, qtr_keyframe);
+
+  // timestamp one tick before qtr_keyframe should find previous keyframe
+  test_frame_timestamp = GetTestSamplePTS(qtr_keyframe) - 1;
+  ASSERT_TRUE(map_->GetKeyframe(test_frame_timestamp, map_keyframe));
+  ASSERT_EQ(map_keyframe,
+            kComputedKeyframes_stss[(kTestTableEntries_stss) / 4 - 1]);
+
+  // very highest timestamp in file should return last keyframe
+  uint64 highest_timestamp = GetTestSamplePTS(kTestTableEntries_stsz - 1);
+  highest_timestamp += GetTestSampleDuration(kTestTableEntries_stsz - 1) - 1;
+  ASSERT_TRUE(map_->GetKeyframe(highest_timestamp, map_keyframe));
+  ASSERT_EQ(map_keyframe, kComputedKeyframes_stss[kTestTableEntries_stss - 1]);
+}
 
 }  // namespace media
