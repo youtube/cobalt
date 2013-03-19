@@ -19,6 +19,7 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
+#include "media/mp4/es_descriptor.h"
 #include "lb_platform.h"
 #include <inttypes.h>
 
@@ -33,9 +34,6 @@ static const int kSkipBytes_avc1 = 78;
 
 // what's the smallest meaningful mp4 atom size?
 static const int kAtomMinSize = 8;
-
-// what's the smallest meaningful esds we can use?
-static const int kMinSize_esds = 23;
 
 // how much to download of an hdlr to get the trak type?
 static const int kDesiredBytes_hdlr = 12;
@@ -451,12 +449,6 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
 #endif
 
 bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
-  // sanity check for minimum size
-  if (atom_data_size < kMinSize_esds) {
-    DLOG(WARNING) << base::StringPrintf("bad size %"PRId64" on esds.",
-      atom_data_size);
-    return false;
-  }
   // we'll need to download entire esds, allocate buffer for it
   scoped_refptr<ShellScopedArray> esds_storage =
       ShellBufferFactory::Instance()->AllocateArray(atom_data_size,
@@ -474,61 +466,21 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
     DLOG(WARNING) << "failed to download esds";
     return false;
   }
-  // esds has variable layout thanks to optional inclusion of several
-  // "extended descriptor type strings" which means we must work our way
-  // through it. for details see:
-  // http://xhelmboyx.tripod.com/formats/mp4-layout.txt
-  // first four bytes are version number, following byte is es descriptor type
-  uint32 offset = 5;
-  // parse next 3 bytes to see if they are extended descriptor type strings
-  uint32 edts = LB::Platform::load_uint32_big_endian(esds + offset) >> 8;
-  // three bytes of 0x80 or 0xfe should be skipped
-  if (edts == 0x00808080 || edts == 0x00fefefe) {
-    offset += 3;
-  }
-  // skip descriptor type length, es ID, stream priority, decoder config
-  // descriptor type tag
-  offset += 5;
-  if (offset + 3 > atom_data_size) {
-    DLOG(WARNING) << "parsed incomplete esds";
-    return false;
-  }
-  // parse next 3 bytes to see if they are extended descriptor type strings
-  edts = LB::Platform::load_uint32_big_endian(esds + offset) >> 8;
-  // three bytes of 0x80 or 0xfe should be skipped
-  if (edts == 0x00808080 || edts == 0x00fefefe) {
-    offset += 3;
-  }
-  // skip descriptor type length, object type ID, stream type, buffer size,
-  // max and min bit rates, and decoder specific descriptor type tag
-  offset += 15;
-  if (offset + 3 > atom_data_size) {
-    DLOG(WARNING) << "parsed incomplete esds";
-    return false;
-  }
-  edts = LB::Platform::load_uint32_big_endian(esds + offset) >> 8;
-  // three bytes of 0x80 or 0xfe should be skipped
-  if (edts == 0x00808080 || edts == 0x00fefefe) {
-    offset += 3;
-  }
-  // min size check should have made sure we didn't run out of buffer by now
-  // but adding up to 9 bytes to length may have run us out
-  if (offset + 3 > atom_data_size) {
-    DLOG(WARNING) << "parsed incomplete esds";
-    return false;
-  }
-  // this byte describes the length in bytes of the audio specific config.
-  // we need at least 2 bytes
-  uint8 config_length = esds[offset];
-  offset++;
-  if (config_length >= 2) {
-    ParseAudioSpecificConfig(esds[offset], esds[offset + 1]);
-  } else {
+  mp4::ESDescriptor es_descriptor;
+  std::vector<uint8> data(esds, esds + atom_data_size);
+  if (es_descriptor.Parse(data)) {
+    const std::vector<uint8>& dsi = es_descriptor.decoder_specific_info();
+    if (dsi.size() >= 2) {
+      ParseAudioSpecificConfig(dsi[0], dsi[1]);
+      atom_offset_ += atom_data_size;
+      return true;
+    }
     DLOG(WARNING) << "esds audio specific config shorter than 2 bytes";
-    return false;
+  } else {
+    DLOG(WARNING) << "error in parse esds box";
   }
-  atom_offset_ += atom_data_size;
-  return true;
+
+  return false;
 }
 
 bool ShellMP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
