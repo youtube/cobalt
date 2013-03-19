@@ -15,6 +15,8 @@
  */
 #include "media/filters/shell_flv_parser.h"
 
+#include <inttypes.h>
+
 #include "base/stringprintf.h"
 #include "lb_platform.h"
 #include "media/base/shell_filter_graph_log.h"
@@ -27,7 +29,7 @@ static const uint32 kFLV = 0x00464c56;
 // FLV configuration, such as the AVCConfigRecord and the AudioSpecificConfig,
 // should proceed any actual encoded data, and should be in the top of the file.
 // This constant describes how far into the file we're willing to traverse
-// without encountering metadata or encoded data, before giving up.
+// without encountering metadata or encoded video keyframe data before giving up.
 static const uint64 kMetadataMaxBytes = 4 * 1024 * 1024;
 
 static const uint8 kAudioTagType = 8;
@@ -106,24 +108,15 @@ ShellFLVParser::~ShellFLVParser() {
 
 bool ShellFLVParser::ParseConfig() {
   // traverse file until we either reach the limit of bytes we're willing to
-  // parse of config info or we've encountered actual audio or video data.
+  // parse of config info or we've encountered actual keyframe video data.
   while (tag_offset_ < kMetadataMaxBytes &&
-         next_video_aus_.empty() &&
-         next_audio_aus_.empty()) {
+         time_to_byte_map_.size() == 0) {
      if (!ParseNextTag()) {
        return false;
      }
   }
 
-  // If we weren't able to parse a duration from the SCRIPTOBJECT tag we'll
-  // need to download and parse the metadata to get that information
-  if (duration_ == kInfiniteDuration()) {
-    if (!GetTimeToByteManifest()) {
-      return false;
-    }
-  }
-
-  // We should have a valid duration by now and the reader may know the
+  // We may have a valid duration by now and the reader may know the
   // length of the file in bytes, see if we can extrapolate a bitrate from
   // this.
   if (duration_ != kInfiniteDuration() && reader_->FileSize() > 0) {
@@ -143,6 +136,71 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAU(DemuxerStream::Type type) {
     NOTREACHED();
   }
   return NULL;
+}
+
+// seeking an flv:
+// 1) finding nearest video keyframe before timestamp:
+//  a) If we are seeking in to an area we have already parsed then we
+//      will find the bounding keyframe.
+//  b) If not, we parse the FLV until a) is true.
+// 2) set tag_offset_ to the byte offset of the keyframe found in 1)
+bool ShellFLVParser::SeekTo(base::TimeDelta timestamp) {
+  // convert timestamp to millisecond FLV timestamp
+  uint32 timestamp_flv = (uint32)timestamp.InMilliseconds();
+  bool found_upper_bound = false;
+  uint64 seek_byte_offset = tag_offset_;
+  uint32 seek_timestamp = 0;
+  // upper_bound returns iterator of first element in container with key > arg
+  TimeToByteMap::iterator keyframe_in_map =
+      time_to_byte_map_.upper_bound(timestamp_flv);
+  // this is case 1a), or keyframe is last keyframe before EOS,
+  // or map is empty (error state)
+  if (keyframe_in_map == time_to_byte_map_.end()) {
+    // is map empty? This is an error case, we should always have found a
+    // keyframe during ParseConfig()
+    if (time_to_byte_map_.size() == 0) {
+      NOTREACHED() << "empty time to byte map on FLV seek";
+      return false;
+    } else {
+      // start at last keyframe in the map and parse from there
+      seek_byte_offset = time_to_byte_map_.rbegin()->second;
+    }
+  } else {
+    found_upper_bound = true;
+    // it's possible timestamp <= first keyframe in map, in which case we
+    // use the first keyframe in map.
+    if (keyframe_in_map != time_to_byte_map_.begin()) {
+      keyframe_in_map--;
+    }
+    seek_byte_offset = keyframe_in_map->second;
+    seek_timestamp = keyframe_in_map->first;
+  }
+  // if seek has changed our position in the file jump there now
+  if (seek_byte_offset != tag_offset_) {
+    JumpParserTo(seek_byte_offset);
+  }
+  // if found_upper_bound is still false we are in case 1b), parse ahead until
+  // we encounter an upper bound or an eof
+  while (!found_upper_bound && !at_end_of_file_) {
+    // save highest keyframe in file in case it becomes the one we want
+    seek_byte_offset = time_to_byte_map_.rbegin()->second;
+    seek_timestamp = time_to_byte_map_.rbegin()->first;
+    // parse next tag in the file
+    if (!ParseNextTag()) {
+      return false;
+    }
+    // check last keyframe timestamp, if it's greater than our target timestamp
+    // we can stop
+    found_upper_bound = (time_to_byte_map_.rbegin()->first > timestamp_flv);
+  }
+  // make sure we have done step 2), jump parser to new keyframe
+  if (seek_byte_offset != tag_offset_) {
+    JumpParserTo(seek_byte_offset);
+  }
+  DLOG(INFO) << base::StringPrintf(
+      "flv parser seeking to timestamp: %"PRId64" chose keyframe at %d",
+      timestamp.InMilliseconds(), seek_timestamp);
+  return true;
 }
 
 scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
@@ -495,9 +553,12 @@ bool ShellFLVParser::ExtractAMF0Number(scoped_refptr<ShellScopedArray> amf0,
   return false;
 }
 
-bool ShellFLVParser::GetTimeToByteManifest() {
-  NOTIMPLEMENTED();
-  return true;
+void ShellFLVParser::JumpParserTo(uint64 byte_offset) {
+  next_video_aus_.clear();
+  next_audio_aus_.clear();
+  video_timestamps_.clear();
+  at_end_of_file_ = false;
+  tag_offset_ = byte_offset;
 }
 
 }  // namespace media
