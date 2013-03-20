@@ -18,8 +18,16 @@
 
 namespace media {
 
+// static
 ShellDecryptorFactory::DecryptorRegistry ShellDecryptorFactory::registry_;
 
+// static
+bool ShellDecryptorFactory::Supports(const std::string& key_system) {
+  DecryptorRegistry::iterator it = registry_.find(key_system);
+  return it != registry_.end();
+}
+
+// static
 Decryptor *ShellDecryptorFactory::Create(const std::string& key_system,
                                          DecryptorClient *client) {
   DecryptorRegistry::iterator it = registry_.find(key_system);
@@ -29,6 +37,7 @@ Decryptor *ShellDecryptorFactory::Create(const std::string& key_system,
   return it->second.Run(client);
 }
 
+// static
 void ShellDecryptorFactory::RegisterDecryptor(const std::string& key_system,
                                               const CreateCB& create_cb) {
   registry_[key_system] = create_cb;
