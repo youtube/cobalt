@@ -33,6 +33,8 @@ class ShellDecryptorFactory {
   // Creates a decryptor.  Returns NULL on failure.
   typedef base::Callback<Decryptor *(DecryptorClient *)> CreateCB;
 
+  static bool Supports(const std::string& key_system);
+
   static Decryptor *Create(const std::string& key_system,
                            DecryptorClient *client);
 
