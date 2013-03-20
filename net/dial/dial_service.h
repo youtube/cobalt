@@ -45,13 +45,15 @@ class NET_EXPORT DialService {
                                  std::string* remaining_handler);
 
   bool is_running() const { return is_running_; }
+  std::string GetHttpHostAddress() const;
 
   MessageLoop* GetMessageLoop();
 
-  int GetLocalAddress(IPEndPoint* addr) {
+  int GetLocalAddress(IPEndPoint* addr) const {
     DCHECK(is_running());
     return http_server_->GetLocalAddress(addr);
   }
+
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
