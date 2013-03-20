@@ -227,6 +227,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
 #if defined(__LB_SHELL__)
+  void SetFilterGraphLog(scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
 #endif
 
@@ -262,6 +263,10 @@ class ChunkDemuxerStream : public DemuxerStream {
   Type type_;
 
   scoped_ptr<SourceBufferStream> stream_;
+
+#if defined(__LB_SHELL__)
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+#endif
 
   mutable base::Lock lock_;
   State state_;
@@ -577,8 +582,13 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
 }
 
 #if defined(__LB_SHELL__)
+void ChunkDemuxerStream::SetFilterGraphLog(
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  filter_graph_log_ = filter_graph_log;
+}
+
 scoped_refptr<ShellFilterGraphLog> ChunkDemuxerStream::filter_graph_log() {
-  return NULL;
+  return filter_graph_log_;
 }
 #endif
 
@@ -596,6 +606,9 @@ ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
 
 void ChunkDemuxer::Initialize(DemuxerHost* host, const PipelineStatusCB& cb) {
   DVLOG(1) << "Init()";
+#if defined(__LB_SHELL__)
+  DCHECK(filter_graph_log_);
+#endif
 
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, WAITING_FOR_INIT);
@@ -1139,6 +1152,9 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     } else {
       audio_ = new ChunkDemuxerStream(audio_config, log_cb_);
     }
+#if defined(__LB_SHELL__)
+    audio_->SetFilterGraphLog(filter_graph_log_);
+#endif
   }
 
   if (video_config.IsValidConfig()) {
@@ -1147,6 +1163,9 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     } else {
       video_ = new ChunkDemuxerStream(video_config, log_cb_);
     }
+#if defined(__LB_SHELL__)
+    video_->SetFilterGraphLog(filter_graph_log_);
+#endif
   }
 
   DVLOG(1) << "OnNewConfigs() : success " << success;
@@ -1282,5 +1301,13 @@ Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges() const {
     return video_->GetBufferedRanges(duration_);
   return ComputeIntersection();
 }
+
+#if defined(__LB_SHELL__)
+void ChunkDemuxer::SetFilterGraphLog(
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  DCHECK_EQ(state_, WAITING_FOR_INIT);
+  filter_graph_log_ = filter_graph_log;
+}
+#endif
 
 }  // namespace media
