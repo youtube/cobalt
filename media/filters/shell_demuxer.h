@@ -40,13 +40,13 @@ class ShellDemuxerStream : public DemuxerStream {
   ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
-  virtual void Read(const ReadCB& read_cb);
-  virtual const AudioDecoderConfig& audio_decoder_config();
-  virtual const VideoDecoderConfig& video_decoder_config();
-  virtual Ranges<base::TimeDelta> GetBufferedRanges();
-  virtual Type type();
-  virtual void EnableBitstreamConverter();
-  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log();
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
+  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
+  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
+  virtual Type type() OVERRIDE;
+  virtual void EnableBitstreamConverter() OVERRIDE;
+  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
 
   // Functions used by ShellDemuxer
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
@@ -85,8 +85,7 @@ class ShellDemuxerStream : public DemuxerStream {
 
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
-  // non-own ptr to avoid circular reference
-  ShellFilterGraphLog* filter_graph_log_;
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };
@@ -94,8 +93,7 @@ class ShellDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT ShellDemuxer : public Demuxer {
  public:
   ShellDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
-               const scoped_refptr<DataSource>& data_source,
-               const scoped_refptr<ShellFilterGraphLog>& filter_graph_log);
+               const scoped_refptr<DataSource>& data_source);
   virtual ~ShellDemuxer();
 
   // Demuxer implementation.
@@ -125,8 +123,11 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Callback from ShellBufferFactory
   void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
 
-  // exposes the filter graph log for re-use by downstream graph objects
+#if defined(__LB_SHELL__)
+  virtual void SetFilterGraphLog(
+      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log();
+#endif
 
  private:
   // Carries out initialization on the demuxer thread.
