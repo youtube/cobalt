@@ -28,7 +28,9 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
+
 #if defined(__LB_SHELL__)
+  void SetFilterGraphLog(scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
 #endif
 
@@ -39,6 +41,10 @@ class DummyDemuxerStream : public DemuxerStream {
   Type type_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
+
+#if defined(__LB_SHELL__)
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxerStream);
 };
@@ -54,11 +60,20 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
+#if defined(__LB_SHELL__)
+  virtual void SetFilterGraphLog(
+      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
+#endif
+
  protected:
   virtual ~DummyDemuxer();
 
  private:
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
+
+#if defined(__LB_SHELL__)
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);
 };

@@ -46,8 +46,7 @@ ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
 }
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxerStream::filter_graph_log() {
-  DCHECK(demuxer_);
-  return demuxer_->filter_graph_log();
+  return filter_graph_log_;
 }
 
 void ShellDemuxerStream::Read(const ReadCB& read_cb) {
@@ -235,21 +234,17 @@ void ShellDemuxerStream::Stop() {
 //
 ShellDemuxer::ShellDemuxer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    const scoped_refptr<DataSource>& data_source,
-    const scoped_refptr<ShellFilterGraphLog>& filter_graph_log)
+    const scoped_refptr<DataSource>& data_source)
     : message_loop_(message_loop)
     , host_(NULL)
     , blocking_thread_("ShellDemuxerBlockingThread")
     , data_source_(data_source)
     , read_has_failed_(false)
     , stopped_(false)
-    , filter_graph_log_(filter_graph_log)
     , audio_reached_eos_(false)
     , video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
-  DCHECK(filter_graph_log_);
-  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventConstructor);
   preload_ = base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
@@ -261,6 +256,7 @@ ShellDemuxer::~ShellDemuxer() {
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& status_cb) {
+  DCHECK(filter_graph_log_);
   message_loop_->PostTask(FROM_HERE, base::Bind(&ShellDemuxer::InitializeTask,
                                                 this,
                                                 host,
@@ -597,6 +593,11 @@ const VideoDecoderConfig& ShellDemuxer::VideoConfig() {
 
 bool ShellDemuxer::MessageLoopBelongsToCurrentThread() const {
   return message_loop_->BelongsToCurrentThread();
+}
+
+void ShellDemuxer::SetFilterGraphLog(
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  filter_graph_log_ = filter_graph_log;
 }
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxer::filter_graph_log() {
