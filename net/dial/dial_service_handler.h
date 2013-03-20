@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
@@ -33,6 +34,7 @@ class HttpServerResponseInfo {
   int response_code;
   std::string mime_type;
   std::string body;
+  std::vector<std::string> headers;
 };
 
 class DialServiceHandler {
