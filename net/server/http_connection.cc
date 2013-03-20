@@ -44,6 +44,9 @@ void HttpConnection::Send(HttpStatusCode status_code,
     case HTTP_OK:
       status_message = "OK";
       break;
+    case HTTP_CREATED:
+      status_message = "CREATED";
+      break;
     case HTTP_NOT_FOUND:
       status_message = "Not Found";
       break;
