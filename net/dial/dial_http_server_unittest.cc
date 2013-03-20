@@ -7,6 +7,7 @@
 
 #include "base/message_loop.h"
 #include "base/run_loop.h"
+#include "base/string_split.h"
 #include "net/base/load_flags.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/io_buffer.h"
@@ -47,6 +48,7 @@ class DialHttpServerTest : public testing::Test {
   std::string response_body_;
   std::string mime_type_;
   int response_code_;
+  std::vector<std::string> headers_;
   bool succeeded_;
 
   void StartHttpServer() {
@@ -114,6 +116,7 @@ class DialHttpServerTest : public testing::Test {
     response->body = response_body_;
     response->mime_type = mime_type_;
     response->response_code = response_code_;
+    response->headers = headers_;
 
     gtest_message_loop_->PostTask(FROM_HERE,
                                   base::Bind(on_completion, succeeded_));
@@ -122,6 +125,15 @@ class DialHttpServerTest : public testing::Test {
 
   void DoResponseCheck(const HttpResponseInfo* resp, bool has_contents) {
     EXPECT_EQ(response_code_, resp->headers->response_code());
+
+    for (std::vector<std::string>::const_iterator it = headers_.begin();
+         it != headers_.end();
+         ++it) {
+      std::vector<std::string> result;
+      base::SplitString(*it, ':', &result);
+      ASSERT_EQ(2, result.size());
+      EXPECT_TRUE(resp->headers->HasHeaderValue(result[0], result[1]));
+    }
 
     int64 content_length = resp->headers->GetContentLength();
     if (!has_contents) {
@@ -197,6 +209,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   this->response_body_ = "App Test";
   this->mime_type_ = "text/plain; charset=\"utf-8\"";
   this->response_code_ = HTTP_OK;
+  this->headers_.push_back("X-Test-Header: Baz");
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
   EXPECT_CALL(foo_handler, handleRequest(Eq("/bar"), _, _, _)).WillOnce(
