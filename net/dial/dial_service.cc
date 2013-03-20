@@ -60,6 +60,12 @@ MessageLoop* DialService::GetMessageLoop() {
   return thread_->message_loop();
 }
 
+std::string DialService::GetHttpHostAddress() const {
+  IPEndPoint addr;
+  ignore_result(GetLocalAddress(&addr));
+  return addr.ToString();
+}
+
 void DialService::StartService() {
   if (is_running_) {
     return; // Already running
