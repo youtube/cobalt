@@ -187,7 +187,8 @@ void DialHttpServer::ReceivedResponse(int conn_id,
     http_server_->Send(conn_id,
                        static_cast<HttpStatusCode>(response->response_code),
                        response->body,
-                       response->mime_type);
+                       response->mime_type,
+                       response->headers);
   }
   delete response;
 }
