@@ -21,6 +21,7 @@
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/mock_shell_data_source_reader.h"
+#include "media/base/mock_shell_filter_graph_log.h"
 #include "media/filters/shell_mp4_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1235,8 +1236,9 @@ class ShellMP4MapTest : public testing::Test {
     ShellBufferFactory::Initialize();
     // make a new mock reader
     reader_ = new ::testing::NiceMock<MockShellDataSourceReader>();
+    filter_graph_log_ = new ::testing::NiceMock<MockShellFilterGraphLog>();
     // make a new map with a mock reader.
-    map_ = new ShellMP4Map(reader_);
+    map_ = new ShellMP4Map(reader_, filter_graph_log_);
   }
 
   virtual ~ShellMP4MapTest() {
@@ -1509,6 +1511,7 @@ class ShellMP4MapTest : public testing::Test {
   // ==== Test Fixture Members
   scoped_refptr<ShellMP4Map> map_;
   scoped_refptr<MockShellDataSourceReader> reader_;
+  scoped_refptr<MockShellFilterGraphLog> filter_graph_log_;
 };
 
 // ==== SetAtom() Tests ========================================================
