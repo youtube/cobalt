@@ -30,6 +30,11 @@
 #include "media/base/video_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_filter_graph_log.h"
+#endif
+
 namespace media {
 
 // Use this template to test for object destruction by setting expectations on
@@ -65,6 +70,9 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
   MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
+#if defined(__LB_SHELL__)
+  MOCK_METHOD1(SetFilterGraphLog, void(scoped_refptr<ShellFilterGraphLog>));
+#endif
 
  protected:
   virtual ~MockDemuxer();
@@ -83,6 +91,9 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
+#if defined(__LB_SHELL__)
+  MOCK_METHOD0(filter_graph_log, scoped_refptr<ShellFilterGraphLog>());
+#endif
 
  protected:
   virtual ~MockDemuxerStream();
@@ -210,9 +221,15 @@ class MockDecryptor : public Decryptor {
                                       const std::string& session_id));
   MOCK_METHOD2(RegisterKeyAddedCB, void(StreamType stream_type,
                                         const KeyAddedCB& key_added_cb));
+#if defined(__LB_SHELL__)
+  MOCK_METHOD3(Decrypt, void(StreamType stream_type,
+                             const scoped_refptr<ShellBuffer>& encrypted,
+                             const DecryptCB& decrypt_cb));
+#else
   MOCK_METHOD3(Decrypt, void(StreamType stream_type,
                              const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
+#endif
   MOCK_METHOD1(CancelDecrypt, void(StreamType stream_type));
   // TODO(xhwang): The following two methods are workarounds of the issue that
   // move-only parameters are not supported in mocked methods. Remove when the
@@ -223,12 +240,21 @@ class MockDecryptor : public Decryptor {
   MOCK_METHOD2(InitializeVideoDecoderMock,
                void(const VideoDecoderConfig& config,
                     const DecoderInitCB& init_cb));
+#if defined(__LB_SHELL__)
+  MOCK_METHOD2(DecryptAndDecodeAudio,
+               void(const scoped_refptr<media::ShellBuffer>& encrypted,
+                    const AudioDecodeCB& audio_decode_cb));
+  MOCK_METHOD2(DecryptAndDecodeVideo,
+               void(const scoped_refptr<media::ShellBuffer>& encrypted,
+                    const VideoDecodeCB& video_decode_cb));
+#else
   MOCK_METHOD2(DecryptAndDecodeAudio,
                void(const scoped_refptr<media::DecoderBuffer>& encrypted,
                     const AudioDecodeCB& audio_decode_cb));
   MOCK_METHOD2(DecryptAndDecodeVideo,
                void(const scoped_refptr<media::DecoderBuffer>& encrypted,
                     const VideoDecodeCB& video_decode_cb));
+#endif
   MOCK_METHOD1(ResetDecoder, void(StreamType stream_type));
   MOCK_METHOD1(DeinitializeDecoder, void(StreamType stream_type));
 
