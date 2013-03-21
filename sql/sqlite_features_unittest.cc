@@ -43,12 +43,8 @@ class SQLiteFeaturesTest : public testing::Test {
   SQLiteFeaturesTest() : error_(SQLITE_OK) {}
 
   void SetUp() {
-#if defined(__LB_SHELL__)
-    ASSERT_TRUE(db_.OpenInMemory());
-#else
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
-#endif
 
     // The error delegate will set |error_| and |sql_text_| when any sqlite
     // statement operation returns an error code.
