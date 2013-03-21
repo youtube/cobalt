@@ -43,12 +43,12 @@ class ShellDemuxerStream : public DemuxerStream {
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
 
   // Functions used by ShellDemuxer
+  Ranges<base::TimeDelta> GetBufferedRanges();
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
   void FlushBuffers();
   void Stop();
