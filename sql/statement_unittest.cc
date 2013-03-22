@@ -111,6 +111,7 @@ TEST_F(SQLStatementTest, Run) {
   EXPECT_TRUE(s.Step());
   EXPECT_TRUE(s.Succeeded());
   EXPECT_EQ(12, s.ColumnInt(0));
+  EXPECT_EQ("b", s.ColumnName(0));
   EXPECT_FALSE(s.Step());
   EXPECT_TRUE(s.Succeeded());
 }
@@ -139,12 +140,14 @@ TEST_F(SQLStatementTest, Reset) {
   s.BindInt(0, 3);
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
+  EXPECT_EQ("b", s.ColumnName(0));
   ASSERT_FALSE(s.Step());
 
   s.Reset(false);
   // Verify that we can get all rows again.
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
+  EXPECT_EQ("b", s.ColumnName(0));
   EXPECT_FALSE(s.Step());
 
   s.Reset(true);
