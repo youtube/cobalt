@@ -68,6 +68,7 @@ TEST_F(SQLConnectionTest, CachedStatement) {
 
     ASSERT_TRUE(s.Step());
     EXPECT_EQ(12, s.ColumnInt(0));
+    EXPECT_EQ("a", s.ColumnName(0));
   }
 
   // The statement should be cached still.
@@ -81,6 +82,7 @@ TEST_F(SQLConnectionTest, CachedStatement) {
 
     ASSERT_TRUE(s.Step());
     EXPECT_EQ(12, s.ColumnInt(0));
+    EXPECT_EQ("a", s.ColumnName(0));
   }
 
   // Make sure other statements aren't marked as cached.
@@ -124,6 +126,7 @@ TEST_F(SQLConnectionTest, GetLastInsertRowId) {
   s.BindInt64(0, row);
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
+  EXPECT_EQ("value", s.ColumnName(0));
 }
 
 TEST_F(SQLConnectionTest, Rollback) {
@@ -282,6 +285,32 @@ TEST_F(SQLConnectionTest, RazeLocked) {
   ASSERT_TRUE(db().Raze());
 }
 #endif
+
+// Test that sql::Connection::CloneFrom() results in a database
+// that is identical to the original database.
+TEST_F(SQLConnectionTest, CloneFrom) {
+  // Wipe out the db.
+  ASSERT_TRUE(db().Raze());
+
+  // Create another db and insert data into it.
+  sql::Connection other_db;
+  ASSERT_TRUE(other_db.OpenInMemory());
+  const char* kCreateSql = "CREATE TABLE foo (id INTEGER PRIMARY KEY, value)";
+  ASSERT_TRUE(other_db.Execute(kCreateSql));
+  ASSERT_TRUE(other_db.Execute("INSERT INTO foo (value) VALUES (12)"));
+
+  // Clone the other db into the empty one.
+  ASSERT_TRUE(db().CloneFrom(&other_db));
+
+  const char *kQuery = "SELECT id, value FROM foo";
+  sql::Statement s(db().GetUniqueStatement(kQuery));
+
+  ASSERT_TRUE(s.Step());
+  ASSERT_EQ(1, s.ColumnInt(0));
+  ASSERT_EQ("id", s.ColumnName(0));
+  ASSERT_EQ(12, s.ColumnInt(1));
+  ASSERT_EQ("value", s.ColumnName(1));
+}
 
 #if defined(OS_ANDROID)
 TEST_F(SQLConnectionTest, SetTempDirForSQL) {
