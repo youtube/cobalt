@@ -221,6 +221,9 @@ TEST_F(SQLConnectionTest, RazePageSize) {
   ASSERT_EQ(kPageSize, s.ColumnInt(0));
 }
 
+// RazeMultiple and RazeLocked both rely on specific locking and journaling
+// semantics which are not available in lbshell.
+#if !defined(__LB_SHELL__)
 // Test that Raze() results are seen in other connections.
 TEST_F(SQLConnectionTest, RazeMultiple) {
   const char* kCreateSql = "CREATE TABLE foo (id INTEGER PRIMARY KEY, value)";
@@ -278,6 +281,7 @@ TEST_F(SQLConnectionTest, RazeLocked) {
   ASSERT_FALSE(s.Step());
   ASSERT_TRUE(db().Raze());
 }
+#endif
 
 #if defined(OS_ANDROID)
 TEST_F(SQLConnectionTest, SetTempDirForSQL) {
