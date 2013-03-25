@@ -64,6 +64,8 @@ static const int kSkipBytes_stsd = 8;
 // For now use the same size of table for each mp4 map atom. Later we can
 // collect data on individual optimizations and make more granularly sized
 // tables.
+// TODO: b/8411351, workaround for streamer bug, turn back down once that
+// has been resolved.
 static const uint32 kMapTableEntryCacheEntries = 2048 * 2048;
 
 // static

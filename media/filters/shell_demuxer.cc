@@ -368,6 +368,10 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
     filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventEndOfStreamSent);
+    // turn off buffering if we were doing that
+    if (buffering_) {
+      SetBuffering(false);
+    }
     // enqueue EOS buffer with correct stream
     scoped_refptr<ShellBuffer> eos_buffer =
         ShellBuffer::CreateEOSBuffer(au->GetTimestamp(),
@@ -427,6 +431,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
 
   // Flushing is a signal to restart the request->download cycle with
   // a new request. Drop current request and issue a new one.
+  // flushing_ will be reset by the next call to RequestTask()
   if (flushing_) {
     requested_au_ = NULL;
     IssueNextRequestTask();
@@ -472,7 +477,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
       // If we've buffered enough audio to start playing, proceed
       // TODO: make this a function of data bitrate and download speed
       if (audio_buffered >= buffer_timestamp_) {
-        DLOG(INFO) << "demuxer got preload time, finishing seek";
+        DLOG(INFO) << "demuxer finished buffering.";
         SetBuffering(false);
       }
     } else {
@@ -553,7 +558,7 @@ void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   blocking_thread_.message_loop()->PostTask(FROM_HERE,
-                          base::Bind(&ShellDemuxer::SeekTask, this, time, cb));
+      base::Bind(&ShellDemuxer::SeekTask, this, time, cb));
 }
 
 // runs on blocking thread
