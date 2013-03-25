@@ -18,6 +18,9 @@
 #include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#if defined(__LB_SHELL__)
+#include "media/base/mock_shell_filter_graph_log.h"
+#endif
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -50,6 +53,11 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::OnPaint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
+#if defined(__LB_SHELL__)
+    filter_graph_log_ = new MockShellFilterGraphLog();
+    EXPECT_CALL(*demuxer_stream_, filter_graph_log())
+        .WillRepeatedly(Return(filter_graph_log_));
+#endif
 
     EXPECT_CALL(*demuxer_stream_, type())
         .WillRepeatedly(Return(DemuxerStream::VIDEO));
@@ -293,6 +301,9 @@ class VideoRendererBaseTest : public ::testing::Test {
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   scoped_refptr<MockDemuxerStream> demuxer_stream_;
+#if defined(__LB_SHELL__)
+  scoped_refptr<MockShellFilterGraphLog> filter_graph_log_;
+#endif
   MockStatisticsCB statistics_cb_object_;
 
  private:

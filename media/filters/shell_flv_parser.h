@@ -44,6 +44,7 @@ class ShellFLVParser : public ShellAVCParser {
   // === ShellParser Implementation
   virtual bool ParseConfig() OVERRIDE;
   virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) OVERRIDE;
+  virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
 
  protected:
    scoped_refptr<ShellAU> GetNextAudioAU();
@@ -64,9 +65,8 @@ class ShellFLVParser : public ShellAVCParser {
                          const char* name,
                          double* number_out);
 
-  // Download and parse the time-to-byte manifest, populating time_to_byte_map_
-  // and duration_ members.
-  bool GetTimeToByteManifest();
+  // flush internal parsing state and move tag_offset_ to the provided argument.
+  void JumpParserTo(uint64 byte_offset);
 
   // The byte position in the stream of the tag parser. Between calls to
   // ParseNextTag() should point at the start of the next FLV tag in the file.
@@ -76,11 +76,8 @@ class ShellFLVParser : public ShellAVCParser {
   // peak keyframe rates of 1 per second of video, and 16 bytes per entry
   // this map will consume approximately 1 MB of memory for 18 hours
   // of video worst-case. We build the data structure while traversing the
-  // FLV tag-to-tag until the user conducts a forward seek, in which case
-  // we download the time-to-byte manifest from the server, parse it and
-  // save the entire thing into the map. The stream positions point at the
-  // the start of the FLV tag just like the entry conditions for tag_offset_
-  // in ParseNextTag().
+  // FLV tag-to-tag. The stream positions point at the start of the FLV tag
+  // just like the entry conditions for tag_offset_ in ParseNextTag().
   typedef std::map<uint32, uint64> TimeToByteMap;
   TimeToByteMap time_to_byte_map_;
 

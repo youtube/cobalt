@@ -54,8 +54,6 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
       entry_number >= cache_first_entry_number_ + cache_entry_count_) {
     // calculate first entry in table keeping cache size alignment in table
     cache_entry_count_ = cache_size_entries_;
-    // save old first entry number for callback
-    uint32 old_first_entry = cache_first_entry_number_;
     cache_first_entry_number_ = (entry_number / cache_entry_count_) *
         cache_entry_count_;
     // see if we have exceeded our table bounds
@@ -120,11 +118,15 @@ ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader,
     , stsc_next_first_chunk_(0)
     , stsc_next_first_chunk_sample_(0)
     , stsc_table_index_(0)
+    , stss_last_keyframe_(0)
+    , stss_next_keyframe_(0)
+    , stss_table_index_(0)
     , stsz_default_size_(0)
     , stts_first_sample_(0)
     , stts_first_sample_time_(0)
     , stts_sample_duration_(0)
     , stts_next_first_sample_(0)
+    , stts_next_first_sample_time_(0)
     , stts_table_index_(0) {
 }
 
@@ -280,10 +282,38 @@ bool ShellMP4Map::GetIsKeyframe(uint32 sample_number, bool& is_keyframe_out) {
     return false;
   }
 
-  // This will not work for seeking but for simple playback all that this means
-  // is that the full AnnexB prepend will be attached to every video frame, a
-  // bit wasteful but otherwise harmless.
-  is_keyframe_out = true;
+  // no stts means every frame is a keyframe
+  if (!stss_) {
+    is_keyframe_out = true;
+    return true;
+  }
+
+  // check for keyframe match on either range value
+  if (sample_number == stss_next_keyframe_) {
+    is_keyframe_out = true;
+    return stss_AdvanceStep();
+  } else if (sample_number == stss_last_keyframe_) {
+    is_keyframe_out = true;
+    return true;
+  }
+
+  // this could be for a much earlier sample number, check if we are within
+  // current range of sample numbers
+  if (sample_number < stss_last_keyframe_ ||
+      sample_number > stss_next_keyframe_) {
+    // search for containing entry
+    if (!stss_FindNearestKeyframe(sample_number)) {
+      return false;
+    }
+  }
+  // sample number must be in range of keyframe states
+  DCHECK_GE(sample_number, stss_last_keyframe_);
+  DCHECK_LT(sample_number, stss_next_keyframe_);
+  // stss_FindNearestKeyframe returns exact matches to
+  // sample_number in the stss_last_keyframe_ variable, so
+  // we check that for equality
+  is_keyframe_out = (sample_number == stss_last_keyframe_);
+
   return true;
 }
 
@@ -296,8 +326,32 @@ bool ShellMP4Map::IsEOS(uint32 sample_number) {
 // timestamps through the stts. Then do a binary search on the stss to find the
 // keyframe nearest that sample number.
 bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32& sample_out) {
-  NOTIMPLEMENTED();
-  return false;
+  // Advance stts to the provided timestamp range
+  if (!stts_AdvanceToTime(timestamp)) {
+    return false;
+  }
+  // ensure we got the correct sample duration range
+  DCHECK_LT(timestamp, stts_next_first_sample_time_);
+  DCHECK_GE(timestamp, stts_first_sample_time_);
+  // calculate sample number containing this timestamp
+  uint64 time_offset_within_range = timestamp - stts_first_sample_time_;
+  uint32 sample_number = stts_first_sample_ +
+      (time_offset_within_range / stts_sample_duration_);
+
+  // TODO: ctts?
+
+  // binary search on stts to find nearest keyframe beneath this sample number
+  if (stss_) {
+    if (!stss_FindNearestKeyframe(sample_number)) {
+      return false;
+    }
+    sample_out = stss_last_keyframe_;
+  } else {
+    // an absent stts means every frame is a key frame, we can provide sample
+    // directly.
+    sample_out = sample_number;
+  }
+  return true;
 }
 
 // Set up map state and load first part of table, or entire table if it is small
@@ -379,15 +433,13 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
       break;
 
     case kAtomType_stss:
-      // idea: to reduce cache trash on stss loads perhaps we could save the
-      // ranges of each cache segment, then do a binary search on those segments
-      // first..
       stss_ = new TableCache(table_offset,
                              count,
                              kEntrySize_stss,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
+      stss_Init();
       break;
 
     case kAtomType_stts:
@@ -750,6 +802,170 @@ bool ShellMP4Map::stsc_SlipCacheToSample(uint32 sample_number,
   return true;
 }
 
+// stss is a list of sample numbers that are keyframes.
+void ShellMP4Map::stss_Init() {
+  int cache_segments = (stss_->GetEntryCount() /
+                        stss_->GetCacheSizeEntries()) + 1;
+  stss_keyframes_.reserve(cache_segments);
+  // empty stss means every frame is a keyframe, same as not
+  // providing one
+  if (stss_->GetEntryCount() > 0) {
+    // identify first keyframe from first entry in stss
+    uint8* stss_entry = stss_->GetBytesAtEntry(0);
+    if (!stss_entry) {
+      stss_ = NULL;
+      return;
+    }
+    stss_last_keyframe_ =
+        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+    stss_keyframes_.push_back(stss_last_keyframe_);
+    stss_next_keyframe_ = stss_last_keyframe_;
+    stss_table_index_ = 0;
+  } else {
+    stss_ = NULL;
+  }
+}
+
+// advance by one table entry through stss, updating cache if necessary
+bool ShellMP4Map::stss_AdvanceStep() {
+  DCHECK(stss_);
+  stss_last_keyframe_ = stss_next_keyframe_;
+  stss_table_index_++;
+  if (stss_table_index_ < stss_->GetEntryCount()) {
+    uint8* stss_entry = stss_->GetBytesAtEntry(stss_table_index_);
+    if (!stss_entry) {
+      return false;
+    }
+    stss_next_keyframe_ = LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+    if (!(stss_table_index_ % stss_->GetCacheSizeEntries())) {
+      int cache_index = stss_table_index_ / stss_->GetCacheSizeEntries();
+      // only add if this is the first time we've encountered this number
+      if (cache_index == stss_keyframes_.size()) {
+        stss_keyframes_.push_back(stss_next_keyframe_);
+      }
+      DCHECK_EQ(stss_next_keyframe_, stss_keyframes_[cache_index]);
+    }
+  } else {
+    stss_next_keyframe_ = UINT32_MAX;
+  }
+  return true;
+}
+
+bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
+  DCHECK(stss_);
+  // it is assumed that there's at least one cache entry created by
+  // stss_Init();
+  DCHECK_GT(stss_keyframes_.size(), 0);
+  int cache_entry_number = stss_keyframes_.size() - 1;
+  // if the sample number resides within the range of cached entries
+  // we search those to find right table cache entry to load
+  if (sample_number < stss_keyframes_[cache_entry_number]) {
+    int lower_bound = 0;
+    int upper_bound = stss_keyframes_.size();
+    // binary search to find range
+    while (lower_bound <= upper_bound) {
+      cache_entry_number = lower_bound + ((upper_bound - lower_bound) / 2);
+      if (sample_number < stss_keyframes_[cache_entry_number]) {
+        upper_bound = cache_entry_number - 1;
+      } else {  // sample_number >= stss_keyframes_[cache_entry_number]
+        // if we are at end of list or next cache entry is higher than sample
+        // number we consider it a match
+        if (cache_entry_number == stss_keyframes_.size() - 1 ||
+            sample_number < stss_keyframes_[cache_entry_number + 1]) {
+          break;
+        }
+        lower_bound = cache_entry_number + 1;
+      }
+    }
+  }
+  // We've gotten as close as we can using the cached values and must handle
+  // two cases. (a) is that we know that sample_number is contained in the
+  // cache_entry_number, because we know that:
+  // stts_keyframes_[cache_entry_number] <= sample_number <
+  //                              stts_keyframes_[cache_entry_number + 1]
+  // (b) is that we only know:
+  // stts_keyframes_[stts_keyframes_.size() - 1] <= sample_number
+  // because we have not cached an upper bound to sample_number.
+  // First step is to make (b) in to (a) by advancing through cache entries
+  // until last table entry in cache > sample_number or until we arrive
+  // at the cache entry in the table.
+  int total_complete_cache_entries =
+      (stss_->GetEntryCount() / stss_->GetCacheSizeEntries());
+  while ((cache_entry_number == stss_keyframes_.size() - 1) &&
+         cache_entry_number < total_complete_cache_entries) {
+    // check last entry in table we've ever cached
+    int last_cached_entry_number =
+      ((cache_entry_number + 1) * stss_->GetCacheSizeEntries()) - 1;
+    uint8* stss_entry = stss_->GetBytesAtEntry(last_cached_entry_number);
+    if (!stss_entry) {
+      return false;
+    }
+    uint32 last_cached_keyframe =
+        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+    // if this keyframe is higher than our sample number we're in the right
+    // table, stop
+    if (sample_number <= last_cached_keyframe) {
+      break;
+    }
+    // ok, we need to look in to the next cache entry, advance
+    cache_entry_number++;
+    int first_table_entry_number =
+        cache_entry_number * stss_->GetCacheSizeEntries();
+    stss_entry = stss_->GetBytesAtEntry(first_table_entry_number);
+    if (!stss_entry) {
+      return false;
+    }
+    uint32 first_keyframe_in_cache_entry =
+        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+    // save first entry in keyframe cache
+    stss_keyframes_.push_back(first_keyframe_in_cache_entry);
+  }
+  // ok, now we assume we are in state (a), and that we're either
+  // at the end of the table or within the cache entry bounds for our
+  // sample number
+  DCHECK(stss_keyframes_[cache_entry_number] <= sample_number &&
+         (cache_entry_number == total_complete_cache_entries ||
+          sample_number < stss_keyframes_[cache_entry_number + 1]));
+  // binary search within stss cache entry for keyframes bounding sample_number
+  int lower_bound = cache_entry_number * stss_->GetCacheSizeEntries();
+  int upper_bound = std::min(lower_bound + stss_->GetCacheSizeEntries(),
+                             stss_->GetEntryCount());
+
+  while (lower_bound <= upper_bound) {
+    stss_table_index_ = lower_bound + ((upper_bound - lower_bound) / 2);
+    uint8* stss_entry = stss_->GetBytesAtEntry(stss_table_index_);
+    if (!stss_entry) {
+      return false;
+    }
+    stss_last_keyframe_ =
+        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+    if (sample_number < stss_last_keyframe_) {
+      upper_bound = stss_table_index_ - 1;
+    } else  {  // sample_number >= last_keyframe
+      lower_bound = stss_table_index_ + 1;
+      // if this is the last entry in the table, we can stop here.
+      if (lower_bound == stss_->GetEntryCount()) {
+        stss_next_keyframe_ = UINT32_MAX;
+        break;
+      }
+      // load next entry in table, see if we actually found the upper bound
+      stss_entry = stss_->GetBytesAtEntry(lower_bound);
+      if (!stss_entry) {
+        return false;
+      }
+      stss_next_keyframe_ =
+          LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+      if (sample_number < stss_next_keyframe_) {
+        stss_table_index_ = lower_bound;
+        break;
+      }
+    }
+  }
+  DCHECK_GE(sample_number, stss_last_keyframe_);
+  DCHECK_LT(sample_number, stss_next_keyframe_);
+  return true;
+}
+
 // The stts table has the following per-entry layout:
 // uint32 sample count - number of sequential samples with this duration
 // uint32 sample duration - duration in ticks of this sample range
@@ -773,6 +989,8 @@ void ShellMP4Map::stts_Init() {
     stts_next_first_sample_ = LB::Platform::load_uint32_big_endian(stts_entry);
     stts_sample_duration_ =
         LB::Platform::load_uint32_big_endian(stts_entry + 4);
+    stts_next_first_sample_time_ =
+        stts_next_first_sample_ * stts_sample_duration_;
     stts_table_index_ = 0;
   } else {
     stts_ = NULL;
@@ -803,44 +1021,7 @@ bool ShellMP4Map::stts_AdvanceToSample(uint32 sample_number) {
 
   // integrate through the stts until sample_number is within current range
   while (stts_next_first_sample_ <= sample_number) {
-    // advance time to next sample range
-    uint32 range_size = stts_next_first_sample_ - stts_first_sample_;
-    stts_first_sample_time_ += (range_size * stts_sample_duration_);
-    // advance sample counter to next range
-    stts_first_sample_ = stts_next_first_sample_;
-    // bump table counter to next entry
-    stts_table_index_++;
-    // see if we just crossed a cache boundary and should cache results
-    if (!(stts_table_index_ % stts_->GetCacheSizeEntries())) {
-      int cache_index = stts_table_index_ / stts_->GetCacheSizeEntries();
-      // check that this is our first time with these data
-      if (cache_index == stts_samples_.size()) {
-        // both tables should always grow together
-        DCHECK_EQ(stts_samples_.size(), stts_timestamps_.size());
-        stts_samples_.push_back(stts_first_sample_);
-        stts_timestamps_.push_back(stts_first_sample_time_);
-      }
-      // our integration at this point should always match any stored record
-      DCHECK_EQ(stts_first_sample_, stts_samples_[cache_index]);
-      DCHECK_EQ(stts_first_sample_time_, stts_timestamps_[cache_index]);
-    }
-    if (stts_table_index_ < stts_->GetEntryCount()) {
-      // load next entry data
-      uint8* stts_entry = stts_->GetBytesAtEntry(stts_table_index_);
-      if (!stts_entry) {
-        return false;
-      }
-      uint32 sample_count = LB::Platform::load_uint32_big_endian(stts_entry);
-      // calculate next sample number from range size
-      stts_next_first_sample_ = stts_first_sample_ + sample_count;
-      // and load duration of this sample range
-      stts_sample_duration_ =
-          LB::Platform::load_uint32_big_endian(stts_entry + 4);
-    } else {
-      // We've gone beyond the range defined by the last entry in the stts.
-      // this is an error.
-      highest_valid_sample_number_ = std::min(highest_valid_sample_number_,
-                                              stts_first_sample_ -  1);
+    if (!stts_IntegrateStep()) {
       return false;
     }
   }
@@ -870,6 +1051,107 @@ bool ShellMP4Map::stts_SlipCacheToSample(uint32 sample_number,
   uint32 sample_count = LB::Platform::load_uint32_big_endian(stts_entry);
   stts_next_first_sample_ = stts_first_sample_ + sample_count;
   stts_sample_duration_ = LB::Platform::load_uint32_big_endian(stts_entry + 4);
+  stts_next_first_sample_time_ = stts_first_sample_time_ +
+      (sample_count * stts_sample_duration_);
+  return true;
+}
+
+bool ShellMP4Map::stts_AdvanceToTime(uint64 timestamp) {
+  DCHECK(stts_);
+
+  if (timestamp < stts_first_sample_time_) {
+    if (!stts_SlipCacheToTime(timestamp, 0)) {
+      return false;
+    }
+  }
+
+  // sample number could also be well ahead of this cache segment, if we've
+  // previously calculated summations ahead let's skip to the correct one
+  int next_cache_index = (stts_table_index_ /
+                          stts_->GetCacheSizeEntries()) + 1;
+  if ((next_cache_index < stts_timestamps_.size()) &&
+      (timestamp >= stts_timestamps_[next_cache_index])) {
+    if (!stts_SlipCacheToTime(timestamp, next_cache_index)) {
+      return false;
+    }
+  }
+
+  // integrate through the stts until sample_number is within current range
+  while (stts_next_first_sample_time_ <= timestamp) {
+    if (!stts_IntegrateStep()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ShellMP4Map::stts_IntegrateStep() {
+  // advance time to next sample range
+  uint32 range_size = stts_next_first_sample_ - stts_first_sample_;
+  stts_first_sample_time_ += (range_size * stts_sample_duration_);
+  // advance sample counter to next range
+  stts_first_sample_ = stts_next_first_sample_;
+  // bump table counter to next entry
+  stts_table_index_++;
+  // see if we just crossed a cache boundary and should cache results
+  if (!(stts_table_index_ % stts_->GetCacheSizeEntries())) {
+    int cache_index = stts_table_index_ / stts_->GetCacheSizeEntries();
+    // check that this is our first time with these data
+    if (cache_index == stts_samples_.size()) {
+      // both tables should always grow together
+      DCHECK_EQ(stts_samples_.size(), stts_timestamps_.size());
+      stts_samples_.push_back(stts_first_sample_);
+      stts_timestamps_.push_back(stts_first_sample_time_);
+    }
+    // our integration at this point should always match any stored record
+    DCHECK_EQ(stts_first_sample_, stts_samples_[cache_index]);
+    DCHECK_EQ(stts_first_sample_time_, stts_timestamps_[cache_index]);
+  }
+  if (stts_table_index_ < stts_->GetEntryCount()) {
+    // load next entry data
+    uint8* stts_entry = stts_->GetBytesAtEntry(stts_table_index_);
+    if (!stts_entry) {
+      return false;
+    }
+    uint32 sample_count = LB::Platform::load_uint32_big_endian(stts_entry);
+    // calculate next sample number from range size
+    stts_next_first_sample_ = stts_first_sample_ + sample_count;
+    // and load duration of this sample range
+    stts_sample_duration_ =
+        LB::Platform::load_uint32_big_endian(stts_entry + 4);
+    stts_next_first_sample_time_ = stts_first_sample_time_ +
+        (sample_count * stts_sample_duration_);
+  } else {
+    // We've gone beyond the range defined by the last entry in the stts.
+    // this is an error.
+    highest_valid_sample_number_ = std::min(highest_valid_sample_number_,
+                                            stts_first_sample_ -  1);
+    return false;
+  }
+  return true;
+}
+
+bool ShellMP4Map::stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index) {
+  DCHECK_LT(starting_cache_index, stts_timestamps_.size());
+  int cache_index = starting_cache_index;
+  for (; cache_index + 1 < stts_timestamps_.size(); cache_index++) {
+    if (timestamp < stts_timestamps_[cache_index + 1]) {
+      break;
+    }
+  }
+  stts_first_sample_ = stts_samples_[cache_index];
+  stts_first_sample_time_ = stts_timestamps_[cache_index];
+  stts_table_index_ = cache_index * stts_->GetCacheSizeEntries();
+  // read sample count and duration to set next values
+  uint8* stts_entry = stts_->GetBytesAtEntry(stts_table_index_);
+  if (!stts_entry) {
+    return false;
+  }
+  uint32 sample_count = LB::Platform::load_uint32_big_endian(stts_entry);
+  stts_next_first_sample_ = stts_first_sample_ + sample_count;
+  stts_sample_duration_ = LB::Platform::load_uint32_big_endian(stts_entry + 4);
+  stts_next_first_sample_time_ = stts_first_sample_time_ +
+      (sample_count * stts_sample_duration_);
   return true;
 }
 
