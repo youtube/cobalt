@@ -17,6 +17,7 @@
 #include "media/filters/video_decoder_selector.h"
 
 #if defined(__LB_SHELL__)
+#include "base/stringprintf.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
 #endif
@@ -152,7 +153,7 @@ void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoDecoder, kEventPreroll);
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPreroll);
 #endif
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
@@ -530,6 +531,9 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     return;
   }
 
+  // __LB_SHELL__ renders pre-rolled video and audio before target timestamp
+  // to cut down on startup latency after a seek.
+#if !defined(__LB_SHELL__)
   // Discard frames until we reach our desired preroll timestamp.
   if (state_ == kPrerolling && !frame->IsEndOfStream() &&
       frame->GetTimestamp() <= preroll_timestamp_) {
@@ -537,6 +541,7 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     AttemptRead_Locked();
     return;
   }
+#endif
 
   if (prerolling_delayed_frame_) {
     DCHECK_EQ(state_, kPrerolling);

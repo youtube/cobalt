@@ -133,11 +133,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
-  void RequestTask(DemuxerStream::Type type);
-  void DownloadTask(scoped_refptr<ShellBuffer> buffer);
-  void IssueNextRequestTask();
-  // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
   void DataSourceStopped(const base::Closure& callback);
 
   // methods that perform blocking I/O, and are therefore run on the
@@ -145,6 +140,15 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // download enough of the stream to parse the configuration. returns
   // false on error.
   bool ParseConfigBlocking();
+  void RequestTask(DemuxerStream::Type type);
+  void DownloadTask(scoped_refptr<ShellBuffer> buffer);
+  void IssueNextRequestTask();
+  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
+
+  // callable on either blocking or pipeline thread, turns buffering on or
+  // off. When buffering the DemuxerStreams will not honor read requests, and
+  // will instead enqueue buffer data until told to stop buffering.
+  void SetBuffering(bool enable);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   DemuxerHost* host_;
@@ -154,23 +158,17 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<DataSource> data_source_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
-  // Even normal beginning-to-end playback results in one seek, to the
-  // start time of the media. Before signaling to the pipeline that we
-  // have completed seeking, we attempt to preload until we have either
-  // kDemuxPreloadTimeMs demuxed, or we have filled our fixed-size demux
-  // buffer. At that point we call the seek_cb_ to signal the pipeline
-  // that we are prepared to play.
-  PipelineStatusCB seek_cb_;
-
   bool read_has_failed_;
   bool stopped_;
+  bool flushing_;
+  bool buffering_;
 
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
-  base::TimeDelta preload_;
+  base::TimeDelta buffer_timestamp_;
   scoped_refptr<ShellAU> requested_au_;
   bool audio_reached_eos_;
   bool video_reached_eos_;

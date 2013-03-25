@@ -83,6 +83,7 @@ class ShellMP4Parser : public ShellAVCParser {
   // === ShellParser implementation
   virtual bool ParseConfig() OVERRIDE;
   virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) OVERRIDE;
+  virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
 
  private:
   bool ParseNextAtom();
@@ -92,6 +93,7 @@ class ShellMP4Parser : public ShellAVCParser {
   bool ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a);
   bool ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd);
   base::TimeDelta TicksToTime(uint64 ticks, uint32 time_scale_hz);
+  uint64 TimeToTicks(base::TimeDelta time, uint32 time_scale_hz);
 
 #if SHELL_MP4_PARSER_DUMP_ATOMS
   void DumpAtomToDisk(uint32 four_cc, uint32 atom_size, uint64 atom_offset);
@@ -111,7 +113,7 @@ class ShellMP4Parser : public ShellAVCParser {
   scoped_refptr<ShellMP4Map> video_map_;
   uint32 audio_sample_;
   uint32 video_sample_;
-  // for keeping buffers contin across time scales
+  // for keeping buffers continuous across time scales
   uint64 first_audio_hole_ticks_;
   base::TimeDelta first_audio_hole_;
 };

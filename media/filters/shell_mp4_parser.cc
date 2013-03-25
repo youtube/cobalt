@@ -16,14 +16,16 @@
 
 #include "media/filters/shell_mp4_parser.h"
 
+#include <inttypes.h>
+
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/mp4/es_descriptor.h"
 #include "lb_platform.h"
-#include <inttypes.h>
 
 #if SHELL_MP4_PARSER_DUMP_ATOMS
+#include <string>
 extern const std::string *global_game_content_path;
 #endif
 
@@ -62,7 +64,7 @@ static const int kSkipBytes_stsd = 8;
 // For now use the same size of table for each mp4 map atom. Later we can
 // collect data on individual optimizations and make more granularly sized
 // tables.
-static const uint32 kMapTableEntryCacheEntries = 2048;
+static const uint32 kMapTableEntryCacheEntries = 2048 * 2048;
 
 // static
 scoped_refptr<ShellParser> ShellMP4Parser::Construct(
@@ -216,6 +218,36 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
                                   timestamp, duration, this);
   return ShellAU::CreateVideoAU(offset, size, prepend_size, nal_header_size_,
                                 is_keyframe, timestamp, duration, this);
+}
+
+bool ShellMP4Parser::SeekTo(base::TimeDelta timestamp) {
+  // get video timestamp in video time units
+  uint64 video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
+  // find nearest keyframe from map, make it our next video sample
+  if (!video_map_->GetKeyframe(video_ticks, video_sample_)) {
+    return false;
+  }
+  // get the timestamp for this video keyframe
+  uint64 video_keyframe_time_ticks = 0;
+  if (!video_map_->GetTimestamp(video_sample_, video_keyframe_time_ticks)) {
+    return false;
+  }
+  base::TimeDelta video_keyframe_time =
+      TicksToTime(video_keyframe_time_ticks, video_time_scale_hz_);
+  // find the closest audio frame that bounds that timestamp
+  uint64 audio_ticks = TimeToTicks(video_keyframe_time, audio_time_scale_hz_);
+  if (!audio_map_->GetKeyframe(audio_ticks, audio_sample_)) {
+    return false;
+  }
+  DLOG(INFO) << base::StringPrintf(
+      "seeking to timestamp: %"PRId64", video sample: %d, audio sample: %d",
+      timestamp.InMilliseconds(), video_sample_, audio_sample_);
+  // cheat our buffer continuity system
+  if (!audio_map_->GetTimestamp(audio_sample_, first_audio_hole_ticks_)) {
+    return false;
+  }
+  first_audio_hole_ = TicksToTime(first_audio_hole_ticks_, audio_time_scale_hz_);
+  return true;
 }
 
 // parse the atom starting at atom_offset_, update appropriate internal state,
@@ -416,7 +448,7 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
       (char)(four_cc >> 8), (char)four_cc);
   // build path
   std::string path = base::StringPrintf("%s%s%s_%lld.txt",
-    *global_game_content_path.c_str(), av_prefix_file.c_str()
+    global_game_content_path->c_str(), av_prefix_file.c_str(),
     atom_name.c_str(), atom_offset);
   // get file for writing
   FILE* atom_file = fopen(path.c_str(), "w");
@@ -635,6 +667,12 @@ base::TimeDelta ShellMP4Parser::TicksToTime(uint64 ticks,
   DCHECK(time_scale_hz);
   return base::TimeDelta::FromMicroseconds((ticks * 1000000ULL) /
       time_scale_hz);
+}
+
+uint64 ShellMP4Parser::TimeToTicks(base::TimeDelta time,
+                                   uint32 time_scale_hz) {
+  DCHECK(time_scale_hz);
+  return (time.InMicroseconds() * time_scale_hz) / 1000000ULL;
 }
 
 }  // namespace media
