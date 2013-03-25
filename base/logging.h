@@ -449,7 +449,8 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // uses OFFICIAL_BUILD and other platforms use the branding flag when NDEBUG is
 // defined.
 #if ( defined(OS_WIN) && defined(OFFICIAL_BUILD)) || \
-    (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD))
+    (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD)) || \
+    defined(__LB_SHELL__FOR_RELEASE__)
 #define LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define LOGGING_IS_OFFICIAL_BUILD 0
@@ -953,10 +954,14 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 //   5 -- LOG(ERROR) at runtime, only once per call-site
 
 #ifndef NOTIMPLEMENTED_POLICY
-#if defined(OS_ANDROID) && defined(OFFICIAL_BUILD)
+#if (defined(OS_ANDROID) && defined(OFFICIAL_BUILD)) || \
+  defined(__LB_SHELL__FOR_RELEASE__)
 #define NOTIMPLEMENTED_POLICY 0
+#elif defined (__LB_SHELL__)
+  // Only print each message once.
+#define NOTIMPLEMENTED_POLICY 5
 #else
-// Select default policy: LOG(ERROR)
+  // Select default policy: LOG(ERROR)
 #define NOTIMPLEMENTED_POLICY 4
 #endif
 #endif
@@ -984,7 +989,8 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 #define NOTIMPLEMENTED() do {\
   static int count = 0;\
   LOG_IF(ERROR, 0 == count++) << NOTIMPLEMENTED_MSG;\
-} while(0)
+} while(0);\
+EAT_STREAM_PARAMETERS
 #endif
 
 #endif  // BASE_LOGGING_H_
