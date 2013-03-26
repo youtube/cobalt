@@ -446,6 +446,12 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
     return;
   }
 
+  // Clear the length, it is 13 bits and stored as ******LL LLLLLLLL LLL*****
+  // in bytes 3 to 5.
+  audio_prepend_[3] &= 0xfc;
+  audio_prepend_[4] = 0;
+  audio_prepend_[5] &= 0x1f;
+
   audio_config_.Initialize(kCodecAAC,
                            16,   // AAC is always 16 bit
                            aac.channel_layout(),
