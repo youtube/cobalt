@@ -28,6 +28,8 @@ namespace media {
 
 // what's the smallest meaningful AVC config we can parse?
 static const int kAVCConfigMinSize = 8;
+// lower five bits of first byte in SPS should be 7
+static const uint8 kSPSNALType = 7;
 
 ShellAVCParser::ShellAVCParser(
     scoped_refptr<ShellDataSourceReader> reader,
@@ -99,10 +101,203 @@ bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
   return ParseAVCConfigRecord(record_buffer->Get(), size);
 }
 
+// static
+bool ShellAVCParser::ParseSPS(const uint8* sps,
+                              size_t sps_size,
+                              ShellSPSRecord* record_out) {
+  DCHECK(sps) << "no sps provided";
+  DCHECK(record_out) << "no output structure provided";
+  // first byte is NAL type id, check that it is SPS
+  if ((*sps & 0x1f) != kSPSNALType) {
+    DLOG(ERROR) << "bad NAL type on SPS";
+    return false;
+  }
+  // convert SPS NALU to RBSP stream
+  ShellRBSPStream sps_rbsp(sps + 1, sps_size - 1);
+  uint8 profile_idc = 0;
+  if (!sps_rbsp.ReadByte(profile_idc)) {
+    DLOG(ERROR) << "failure reading profile_idc from sps RBSP";
+    return false;
+  }
+  // skip 3 constraint flags, 5 reserved bits, and level_idc (16 bits)
+  sps_rbsp.SkipBytes(2);
+  // ReadUEV/ReadSEV require a value to be passed by reference but
+  // there are many times in which we ignore this value.
+  uint32 disposable_uev = 0;
+  int32 disposable_sev = 0;
+  // seq_parameter_set_id
+  sps_rbsp.ReadUEV(disposable_uev);
+  // skip profile-specific encoding information if there
+  if (profile_idc == 100 || profile_idc == 103 ||
+      profile_idc == 110 || profile_idc == 122 ||
+      profile_idc == 244 || profile_idc == 44 ||
+      profile_idc == 83 || profile_idc == 86 ||
+      profile_idc == 118) {
+    uint32 chroma_format_idc = 0;
+    if (!sps_rbsp.ReadUEV(chroma_format_idc)) {
+      DLOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
+      return false;
+    }
+    if (chroma_format_idc == 3) {
+      // separate_color_plane_flag
+      sps_rbsp.SkipBits(1);
+    }
+    // bit_depth_luma_minus8
+    sps_rbsp.ReadUEV(disposable_uev);
+    // bit_depth_chroma_minus8
+    sps_rbsp.ReadUEV(disposable_uev);
+    // qpprime_y_zero_transform_bypass_flag
+    sps_rbsp.SkipBits(1);
+    // seq_scaling_matrix_present_flag
+    uint8 seq_scaling_matrix_present_flag = 0;
+    if (!sps_rbsp.ReadBit(seq_scaling_matrix_present_flag)) {
+      DLOG(ERROR) <<
+          "failure reading seq_scaling_matrix_present_flag from sps RBSP";
+      return false;
+    }
+    if (seq_scaling_matrix_present_flag) {
+      // seq_scaling_list_present_flag[]
+      sps_rbsp.SkipBits(chroma_format_idc != 3 ? 8 : 12);
+    }
+  }
+  // log2_max_frame_num_minus4
+  sps_rbsp.ReadUEV(disposable_uev);
+  // pic_order_cnt_type
+  uint32 pic_order_cnt_type = 0;
+  if (!sps_rbsp.ReadUEV(pic_order_cnt_type)) {
+    DLOG(ERROR) << "failure reading pic_order_cnt_type from sps RBSP";
+    return false;
+  }
+  if (pic_order_cnt_type == 0) {
+    // log2_max_pic_order_cnt_lsb_minus4
+    sps_rbsp.ReadUEV(disposable_uev);
+  } else if (pic_order_cnt_type == 1) {
+    // delta_pic_order_always_zero_flag
+    sps_rbsp.SkipBits(1);
+    // offset_for_non_ref_pic
+    sps_rbsp.ReadSEV(disposable_sev);
+    // offset_for_top_to_bottom_field
+    sps_rbsp.ReadSEV(disposable_sev);
+    // num_ref_frames_in_pic_order_cnt_cycle
+    uint32 num_ref_frames_in_pic_order_cnt_cycle = 0;
+    if (!sps_rbsp.ReadUEV(num_ref_frames_in_pic_order_cnt_cycle)) {
+      DLOG(ERROR) <<
+          "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
+      return false;
+    }
+    for (uint32 i = 0;
+         i < num_ref_frames_in_pic_order_cnt_cycle; ++i) {
+      sps_rbsp.ReadSEV(disposable_sev);
+    }
+  }
+  // number of reference frames used to decode
+  uint32 num_ref_frames = 0;
+  if (!sps_rbsp.ReadUEV(num_ref_frames)) {
+    DLOG(ERROR) << "failure reading number of ref frames from sps RBSP";
+    return false;
+  }
+  // gaps_in_frame_num_value_allowed_flag
+  sps_rbsp.SkipBits(1);
+  // width is calculated from pic_width_in_mbs_minus1
+  uint32 pic_width_in_mbs_minus1 = 0;
+  if (!sps_rbsp.ReadUEV(pic_width_in_mbs_minus1)) {
+    DLOG(WARNING) << "failure reading image width from sps RBSP";
+    return false;
+  }
+  // 16 pxs per macroblock
+  uint32 width = (pic_width_in_mbs_minus1 + 1) * 16;
+  // pic_height_in_map_units_minus1
+  uint32 pic_height_in_map_units_minus1 = 0;
+  if (!sps_rbsp.ReadUEV(pic_height_in_map_units_minus1)) {
+    DLOG(ERROR) <<
+        "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
+    return false;
+  }
+  uint8 frame_mbs_only_flag = 0;
+  if (!sps_rbsp.ReadBit(frame_mbs_only_flag)) {
+    DLOG(ERROR) << "failure reading frame_mbs_only_flag from sps RBSP";
+    return false;
+  }
+  uint32 height = (2 - (uint32)frame_mbs_only_flag)
+                  * (pic_height_in_map_units_minus1 + 1)
+                  * 16;
+  if (!frame_mbs_only_flag) {
+    sps_rbsp.SkipBits(1);
+  }
+  // direct_8x8_inference_flag
+  sps_rbsp.SkipBits(1);
+  // frame cropping flag
+  uint8 frame_cropping_flag = 0;
+  if (!sps_rbsp.ReadBit(frame_cropping_flag)) {
+    DLOG(ERROR) << "failure reading frame_cropping_flag from sps RBSP";
+    return false;
+  }
+  // distance in pixels from the associated edge of the media:
+  //
+  // <---coded_size---width--------------------->
+  //
+  // +------------------------------------------+   ^
+  // |                 ^                        |   |
+  // |                 |                        |   |
+  // |              crop_top                    |   |
+  // |                 |                        |   |
+  // |                 v                        | height
+  // |               +---------+                |   |
+  // |<--crop_left-->| visible |                |   |
+  // |               |   rect  |<--crop_right-->|   |
+  // |               +---------+                |   |
+  // |                  ^                       |   |
+  // |                  |                       |   |
+  // |              crop_bottom                 |   |
+  // |                  |                       |   |
+  // |                  v                       |   |
+  // +------------------------------------------+   v
+  //
+  uint32 crop_left = 0;
+  uint32 crop_right = 0;
+  uint32 crop_top = 0;
+  uint32 crop_bottom = 0;
+  // cropping values are stored divided by two
+  if (frame_cropping_flag) {
+    if (!sps_rbsp.ReadUEV(crop_left)) {
+      DLOG(ERROR) << "failure reading crop_left from sps RBSP";
+      return false;
+    }
+    if (!sps_rbsp.ReadUEV(crop_right)) {
+      DLOG(ERROR) << "failure reading crop_right from sps RBSP";
+      return false;
+    }
+    if (!sps_rbsp.ReadUEV(crop_top)) {
+      DLOG(ERROR) << "failure reading crop_top from sps RBSP";
+      return false;
+    }
+    if (!sps_rbsp.ReadUEV(crop_bottom)) {
+      DLOG(ERROR) << "failure reading crop_bottom from sps RBSP";
+      return false;
+    }
+    crop_left *= 2;
+    crop_right *= 2;
+    crop_top *= 2;
+    crop_bottom *= 2;
+  }
+  // remainder of SPS are values we can safely ignore, everything
+  // checks out, write output structure
+  int visible_width = width - (crop_left + crop_right);
+  int visible_height = height - (crop_top + crop_bottom);
+  record_out->coded_size = gfx::Size(width, height),
+  record_out->visible_rect =  gfx::Rect(crop_left,
+                                        crop_top,
+                                        visible_width,
+                                        visible_height),
+  record_out->natural_size = gfx::Size(visible_width, visible_height);
+  record_out->num_ref_frames = num_ref_frames;
+  return true;
+}
+
 bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   if (size < kAVCConfigMinSize) {
-    DLOG(WARNING) << base::StringPrintf(
-        "FLV AVCVIDEODATA configuration packet bad size: %d",
+    DLOG(ERROR) << base::StringPrintf(
+        "AVC config record bad size: %d",
         size);
     return false;
   }
@@ -198,192 +393,21 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     }
   }
   // now we parse the valid SPS we extracted from byte stream earlier.
-  // first convert SPS NALU to RBSP stream
-  ShellRBSPStream s(buffer + usable_sps_offset, usable_sps_size);
-  uint8 profile_idc = 0;
-  if (!s.ReadByte(profile_idc)) {
-    DLOG(WARNING) << "failure reading profile_idc from sps RBSP";
+  ShellSPSRecord sps_record;
+  if (!ParseSPS(buffer + usable_sps_offset, usable_sps_size, &sps_record)) {
+    DLOG(WARNING) << "error parsing SPS";
     return false;
   }
-  // skip 3 constraint flags, 5 reserved bits, and level_idc (16 bits)
-  s.SkipBytes(2);
-  // ReadUEV/ReadSEV require a value to be passed by reference but
-  // there are many times in which we ignore this value.
-  uint32 disposable_uev = 0;
-  int32 disposable_sev = 0;
-  // seq_parameter_set_id
-  s.ReadUEV(disposable_uev);
-  // skip profile-specific encoding information if there
-  if (profile_idc == 100 || profile_idc == 103 ||
-      profile_idc == 110 || profile_idc == 122 ||
-      profile_idc == 244 || profile_idc == 44 ||
-      profile_idc == 83 || profile_idc == 86 ||
-      profile_idc == 118) {
-    uint32 chroma_format_idc = 0;
-    if (!s.ReadUEV(chroma_format_idc)) {
-      DLOG(WARNING) << "failure reading chroma_format_idc from sps RBSP";
-      return false;
-    }
-    if (chroma_format_idc == 3) {
-      // separate_color_plane_flag
-      s.SkipBits(1);
-    }
-    // bit_depth_luma_minus8
-    s.ReadUEV(disposable_uev);
-    // bit_depth_chroma_minus8
-    s.ReadUEV(disposable_uev);
-    // qpprime_y_zero_transform_bypass_flag
-    s.SkipBits(1);
-    // seq_scaling_matrix_present_flag
-    uint8 seq_scaling_matrix_present_flag = 0;
-    if (!s.ReadBit(seq_scaling_matrix_present_flag)) {
-      DLOG(WARNING) <<
-          "failure reading seq_scaling_matrix_present_flag from sps RBSP";
-      return false;
-    }
-    if (seq_scaling_matrix_present_flag) {
-      // seq_scaling_list_present_flag[]
-      s.SkipBits(chroma_format_idc != 3 ? 8 : 12);
-    }
-  }
-  // log2_max_frame_num_minus4
-  s.ReadUEV(disposable_uev);
-  // pic_order_cnt_type
-  uint32 pic_order_cnt_type = 0;
-  if (!s.ReadUEV(pic_order_cnt_type)) {
-    DLOG(WARNING) << "failure reading pic_order_cnt_type from sps RBSP";
-    return false;
-  }
-  if (pic_order_cnt_type == 0) {
-    // log2_max_pic_order_cnt_lsb_minus4
-    s.ReadUEV(disposable_uev);
-  } else if (pic_order_cnt_type == 1) {
-    // delta_pic_order_always_zero_flag
-    s.SkipBits(1);
-    // offset_for_non_ref_pic
-    s.ReadSEV(disposable_sev);
-    // offset_for_top_to_bottom_field
-    s.ReadSEV(disposable_sev);
-    // num_ref_frames_in_pic_order_cnt_cycle
-    uint32 num_ref_frames_in_pic_order_cnt_cycle = 0;
-    if (!s.ReadUEV(num_ref_frames_in_pic_order_cnt_cycle)) {
-      DLOG(WARNING) <<
-          "failure reading num_ref_frames_in_pic_order_cnt_cycle from sps";
-      return false;
-    }
-    for (uint32 i = 0;
-         i < num_ref_frames_in_pic_order_cnt_cycle; ++i) {
-      s.ReadSEV(disposable_sev);
-    }
-  }
-  // number of reference frames used to decode
-  num_ref_frames_ = 0;
-  if (!s.ReadUEV(num_ref_frames_)) {
-    DLOG(WARNING) << "failure reading number of ref frames from sps RBSP";
-    return false;
-  }
-  // gaps_in_frame_num_value_allowed_flag
-  s.SkipBits(1);
-  // width is calculated from pic_width_in_mbs_minus1
-  uint32 pic_width_in_mbs_minus1 = 0;
-  if (!s.ReadUEV(pic_width_in_mbs_minus1)) {
-    DLOG(WARNING) << "failure reading image width from sps RBSP";
-    return false;
-  }
-  // 16 pxs per macroblock
-  uint32 width = (pic_width_in_mbs_minus1 + 1) * 16;
-  // pic_height_in_map_units_minus1
-  uint32 pic_height_in_map_units_minus1 = 0;
-  if (!s.ReadUEV(pic_height_in_map_units_minus1)) {
-    DLOG(WARNING) <<
-        "failure reading pic_height_in_map_uints_minus1 from sps RBSP";
-    return false;
-  }
-  uint8 frame_mbs_only_flag = 0;
-  if (!s.ReadBit(frame_mbs_only_flag)) {
-    DLOG(WARNING) << "failure reading frame_mbs_only_flag from sps RBSP";
-    return false;
-  }
-  uint32 height = (2 - (uint32)frame_mbs_only_flag)
-                  * (pic_height_in_map_units_minus1 + 1)
-                  * 16;
-  if (!frame_mbs_only_flag) {
-    s.SkipBits(1);
-  }
-  // direct_8x8_inference_flag
-  s.SkipBits(1);
-  // frame cropping flag
-  uint8 frame_cropping_flag = 0;
-  if (!s.ReadBit(frame_cropping_flag)) {
-    DLOG(WARNING) << "failure reading frame_cropping_flag from sps RBSP";
-    return false;
-  }
-  // distance in pixels from the associated edge of the media:
-  //
-  // <---coded_size---width--------------------->
-  //
-  // +------------------------------------------+   ^
-  // |                 ^                        |   |
-  // |                 |                        |   |
-  // |              crop_top                    |   |
-  // |                 |                        |   |
-  // |                 v                        | height
-  // |               +---------+                |   |
-  // |<--crop_left-->| visible |                |   |
-  // |               |   rect  |<--crop_right-->|   |
-  // |               +---------+                |   |
-  // |                  ^                       |   |
-  // |                  |                       |   |
-  // |              crop_bottom                 |   |
-  // |                  |                       |   |
-  // |                  v                       |   |
-  // +------------------------------------------+   v
-  //
-  uint32 crop_left = 0;
-  uint32 crop_right = 0;
-  uint32 crop_top = 0;
-  uint32 crop_bottom = 0;
-  // cropping values are stored divided by two
-  if (frame_cropping_flag) {
-    if (!s.ReadUEV(crop_left)) {
-      DLOG(WARNING) << "failure reading crop_left from sps RBSP";
-      return false;
-    }
-    if (!s.ReadUEV(crop_right)) {
-      DLOG(WARNING) << "failure reading crop_right from sps RBSP";
-      return false;
-    }
-    if (!s.ReadUEV(crop_top)) {
-      DLOG(WARNING) << "failure reading crop_top from sps RBSP";
-      return false;
-    }
-    if (!s.ReadUEV(crop_bottom)) {
-      DLOG(WARNING) << "failure reading crop_bottom from sps RBSP";
-      return false;
-    }
-    crop_left *= 2;
-    crop_right *= 2;
-    crop_top *= 2;
-    crop_bottom *= 2;
-  }
-  // remainder of SPS are values we can safely ignore
-
-  // populate extra data structure for copying into config
-  AVCExtraData extra_data;
-  extra_data.num_ref_frames = num_ref_frames_;
-
-  int visible_width = width - (crop_left + crop_right);
-  int visible_height = height - (crop_top + crop_bottom);
   // we can now initialize our video decoder config
   video_config_.Initialize(
       kCodecH264,
       H264PROFILE_MAIN,             // profile is ignored currently
       VideoFrame::NATIVE_TEXTURE,   // we always decode directly to texture
-      gfx::Size(width, height),
-      gfx::Rect(crop_left, crop_top, visible_width, visible_height),
-      gfx::Size(visible_width, visible_height),
-      // attach our extra data structure
-      (const uint8*)&extra_data, sizeof(AVCExtraData),
+      sps_record.coded_size,
+      sps_record.visible_rect,
+      sps_record.natural_size,
+      // no extra data needed
+      NULL, 0,
       // is not currently encrypted
       false,
       // ignore stats for now

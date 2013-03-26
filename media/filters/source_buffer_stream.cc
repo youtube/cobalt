@@ -11,6 +11,10 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_filter_graph_log.h"
+#endif
+
 namespace media {
 
 // Helper class representing a range of buffered data. All buffers in a
@@ -29,9 +33,16 @@ class SourceBufferRange {
   // empty and the front of |new_buffers| must be a keyframe.
   // |media_segment_start_time| refers to the starting timestamp for the media
   // segment to which these buffers belong.
+#if defined(__LB_SHELL__)
+  SourceBufferRange(const BufferQueue& new_buffers,
+                    base::TimeDelta media_segment_start_time,
+                    const InterbufferDistanceCB& interbuffer_distance_cb,
+                    scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+#else
   SourceBufferRange(const BufferQueue& new_buffers,
                     base::TimeDelta media_segment_start_time,
                     const InterbufferDistanceCB& interbuffer_distance_cb);
+#endif
 
   // Appends |buffers| to the end of the range and updates |keyframe_map_| as
   // it encounters new keyframes. Assumes |buffers| belongs at the end of the
@@ -238,6 +249,10 @@ class SourceBufferRange {
   // Stores the amount of memory taken up by the data in |buffers_|.
   int size_in_bytes_;
 
+#if defined(__LB_SHELL__)
+  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+#endif
+
   DISALLOW_COPY_AND_ASSIGN(SourceBufferRange);
 };
 
@@ -291,6 +306,53 @@ static int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
 
 namespace media {
 
+#if defined(__LB_SHELL__)
+SourceBufferStream::SourceBufferStream(
+    const AudioDecoderConfig& audio_config,
+    const LogCB& log_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    : log_cb_(log_cb),
+      current_config_index_(0),
+      append_config_index_(0),
+      seek_pending_(false),
+      seek_buffer_timestamp_(kNoTimestamp()),
+      selected_range_(NULL),
+      media_segment_start_time_(kNoTimestamp()),
+      range_for_next_append_(ranges_.end()),
+      new_media_segment_(false),
+      last_buffer_timestamp_(kNoTimestamp()),
+      max_interbuffer_distance_(kNoTimestamp()),
+      memory_limit_(kDefaultAudioMemoryLimit),
+      config_change_pending_(false),
+      filter_graph_log_(filter_graph_log) {
+  DCHECK(audio_config.IsValidConfig());
+  audio_configs_.push_back(new AudioDecoderConfig());
+  audio_configs_.back()->CopyFrom(audio_config);
+}
+
+SourceBufferStream::SourceBufferStream(
+    const VideoDecoderConfig& video_config,
+    const LogCB& log_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    : log_cb_(log_cb),
+      current_config_index_(0),
+      append_config_index_(0),
+      seek_pending_(false),
+      seek_buffer_timestamp_(kNoTimestamp()),
+      selected_range_(NULL),
+      media_segment_start_time_(kNoTimestamp()),
+      range_for_next_append_(ranges_.end()),
+      new_media_segment_(false),
+      last_buffer_timestamp_(kNoTimestamp()),
+      max_interbuffer_distance_(kNoTimestamp()),
+      memory_limit_(kDefaultVideoMemoryLimit),
+      config_change_pending_(false),
+      filter_graph_log_(filter_graph_log) {
+  DCHECK(video_config.IsValidConfig());
+  video_configs_.push_back(new VideoDecoderConfig());
+  video_configs_.back()->CopyFrom(video_config);
+}
+#else
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
                                        const LogCB& log_cb)
     : log_cb_(log_cb),
@@ -330,6 +392,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
   video_configs_.push_back(new VideoDecoderConfig());
   video_configs_.back()->CopyFrom(video_config);
 }
+#endif
 
 SourceBufferStream::~SourceBufferStream() {
   while (!ranges_.empty()) {
@@ -402,11 +465,19 @@ bool SourceBufferStream::Append(
                             &deleted_next_buffer, &deleted_buffers);
   } else {
     DCHECK(new_media_segment_);
+#if defined(__LB_SHELL__)
+    range_for_new_buffers =
+        AddToRanges(new SourceBufferRange(
+            buffers, media_segment_start_time_,
+            base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
+                       base::Unretained(this)), filter_graph_log_));
+#else
     range_for_new_buffers =
         AddToRanges(new SourceBufferRange(
             buffers, media_segment_start_time_,
             base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
                        base::Unretained(this))));
+#endif
   }
 
   range_for_next_append_ = range_for_new_buffers;
@@ -587,10 +658,17 @@ int SourceBufferStream::FreeBuffers(int total_bytes_to_free,
       DCHECK(last_buffer_timestamp_ != kNoTimestamp());
       DCHECK(!new_range_for_append);
       // Create a new range containing these buffers.
+#if defined(__LB_SHELL__)
+      new_range_for_append = new SourceBufferRange(
+            buffers, kNoTimestamp(),
+            base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
+                       base::Unretained(this)), filter_graph_log_);
+#else
       new_range_for_append = new SourceBufferRange(
             buffers, kNoTimestamp(),
             base::Bind(&SourceBufferStream::GetMaxInterbufferDistance,
                        base::Unretained(this)));
+#endif
       range_for_next_append_ = ranges_.end();
     } else {
       bytes_to_free -= bytes_deleted;
@@ -1133,6 +1211,25 @@ void SourceBufferStream::CompleteConfigChange() {
     current_config_index_ = selected_range_->GetNextConfigId();
 }
 
+#if defined(__LB_SHELL__)
+SourceBufferRange::SourceBufferRange(
+    const BufferQueue& new_buffers, base::TimeDelta media_segment_start_time,
+    const InterbufferDistanceCB& interbuffer_distance_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    : keyframe_map_index_base_(0),
+      next_buffer_index_(-1),
+      waiting_for_keyframe_(false),
+      next_keyframe_timestamp_(kNoTimestamp()),
+      media_segment_start_time_(media_segment_start_time),
+      interbuffer_distance_cb_(interbuffer_distance_cb),
+      size_in_bytes_(0),
+      filter_graph_log_(filter_graph_log) {
+  DCHECK(!new_buffers.empty());
+  DCHECK(new_buffers.front()->IsKeyframe());
+  DCHECK(!interbuffer_distance_cb.is_null());
+  AppendBuffersToEnd(new_buffers);
+}
+#else
 SourceBufferRange::SourceBufferRange(
     const BufferQueue& new_buffers, base::TimeDelta media_segment_start_time,
     const InterbufferDistanceCB& interbuffer_distance_cb)
@@ -1148,6 +1245,7 @@ SourceBufferRange::SourceBufferRange(
   DCHECK(!interbuffer_distance_cb.is_null());
   AppendBuffersToEnd(new_buffers);
 }
+#endif
 
 void SourceBufferRange::AppendBuffersToEnd(const BufferQueue& new_buffers) {
   for (BufferQueue::const_iterator itr = new_buffers.begin();
@@ -1237,9 +1335,16 @@ SourceBufferRange* SourceBufferRange::SplitRange(
   FreeBufferRange(starting_point, buffers_.end());
 
   // Create a new range with |removed_buffers|.
+#if defined(__LB_SHELL__)
+  SourceBufferRange* split_range =
+      new SourceBufferRange(
+          removed_buffers, kNoTimestamp(), interbuffer_distance_cb_,
+          filter_graph_log_);
+#else
   SourceBufferRange* split_range =
       new SourceBufferRange(
           removed_buffers, kNoTimestamp(), interbuffer_distance_cb_);
+#endif
 
   // If the next buffer position is now in |split_range|, update the state of
   // this range and |split_range| accordingly.
@@ -1260,8 +1365,13 @@ SourceBufferRange::BufferQueue::iterator SourceBufferRange::GetBufferItrAt(
     base::TimeDelta timestamp, bool skip_given_timestamp) {
   // Need to make a dummy buffer with timestamp |timestamp| in order to search
   // the |buffers_| container.
+#if defined(__LB_SHELL__)
+  scoped_refptr<StreamParserBuffer> dummy_buffer =
+      StreamParserBuffer::CopyFrom(NULL, 0, false, filter_graph_log_);
+#else
   scoped_refptr<StreamParserBuffer> dummy_buffer =
       StreamParserBuffer::CopyFrom(NULL, 0, false);
+#endif
   dummy_buffer->SetDecodeTimestamp(timestamp);
 
   if (skip_given_timestamp) {

@@ -887,7 +887,7 @@
             'base/simd/convert_rgb_to_yuv_unittest.cc',
           ],
         }],
-        ['proprietary_codecs==1 or branding=="Chrome"', {
+        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell"', {
           'sources': [
             'mp4/aac_unittest.cc',
             'mp4/avc_unittest.cc',

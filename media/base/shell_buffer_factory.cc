@@ -165,6 +165,19 @@ bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
   return (SizeAlign(size) <= largest_free_space_);
 }
 
+uint8* ShellBufferFactory::AllocateNow(size_t size) {
+  size_t aligned_size = SizeAlign(size);
+  uint8* bytes = NULL;
+  // we skip to the head of the line for these allocations, if there's
+  // room we allocate it.
+  base::AutoLock lock(lock_);
+  if (aligned_size <= largest_free_space_) {
+    bytes = AllocateLockAcquired(aligned_size);
+    DCHECK(bytes);
+  }
+  return bytes;
+}
+
 scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(
     size_t size,
     scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
