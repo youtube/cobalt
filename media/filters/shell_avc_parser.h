@@ -21,14 +21,6 @@
 
 namespace media {
 
-// audio and video decoder configs are supplied with these structures as
-// extra data, allowing downstream decoders to supply the hardware with the
-// necessary information.
-struct AVCExtraData {
- public:
-  uint32 num_ref_frames;
-};
-
 // Typical size of an annexB prepend will be around 60 bytes. We make more room
 // to ensure that only a very few videos will fail to play for lack of room
 // in the prepend.
@@ -42,6 +34,16 @@ class ShellAVCParser : public ShellParser {
   ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
                  scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual ~ShellAVCParser();
+
+  struct ShellSPSRecord {
+    gfx::Size coded_size;
+    gfx::Rect visible_rect;
+    gfx::Size natural_size;
+    uint32 num_ref_frames;
+  };
+  static bool ParseSPS(const uint8* sps,
+                       size_t sps_size,
+                       ShellSPSRecord* record_out);
 
   // GetNextAU we must pass on to FLV or MP4 children.
   virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) = 0;

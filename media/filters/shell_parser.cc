@@ -69,8 +69,7 @@ ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader,
     : reader_(reader)
     , filter_graph_log_(filter_graph_log)
     , duration_(kInfiniteDuration())
-    , bits_per_second_(0)
-    , num_ref_frames_(0) {
+    , bits_per_second_(0) {
 }
 
 ShellParser::~ShellParser() {
