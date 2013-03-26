@@ -28,10 +28,6 @@ ShellRBSPStream::ShellRBSPStream(const uint8* nalu_buffer,
     , current_nalu_byte_(0)
     , number_consecutive_zeros_(0)
     , rbsp_bit_offset_(0) {
-  // Consume first byte, it's a NALU header. However it may be 0, and if
-  // so should be counted as a potential leading zero for 00 00 03 pattern
-  // match.
-  ConsumeNALUByte();
 }
 
 // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1

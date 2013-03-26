@@ -274,6 +274,8 @@ void ShellDemuxer::InitializeTask(DemuxerHost *host,
   DCHECK(reader_);
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventInitialize);
 
+  DLOG(INFO) << "this is a PROGRESSIVE playback.";
+
   host_ = host;
   data_source_->set_host(host);
 

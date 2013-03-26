@@ -87,9 +87,6 @@ class ShellRBSPStreamTest : public testing::Test {
     // start by building a list of bytes, so we can add the
     // 00 00 => 00 00 03 sequence bytes
     std::list<uint8> bytelist;
-    // NALU headers consume the first byte of the RBSP stream, add
-    // a byte of padding to ours
-    bytelist.push_back(0);
     uint8 push_byte = 0;
     uint32 bit_counter = 0;
     for (std::list<bool>::const_iterator it = bitlist.begin();
@@ -269,8 +266,6 @@ TEST_F(ShellRBSPStreamTest, ReadSEV) {
 }
 
 static const uint8 kTestRBSPExpGolombTooBig[] = {
-  // one leading byte, the NALU header, is ignored
-     0x00,
   // 15 leading zeros, should be fine
   // 0000000000000001010101010101010
   //  = 2^15 - 1  + read_bits(010101010101010)

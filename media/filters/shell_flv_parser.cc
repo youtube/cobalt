@@ -230,39 +230,22 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
 }
 
 scoped_refptr<ShellAU> ShellFLVParser::GetNextVideoAU() {
-  // Video timestamps may not increase monotonically due to reference frames.
-  // We therefore need to enqueue the max number of reference frames for this
-  // file ahead of the AU in question, then sort by timestamp, in order to
-  // be confident that we are calculating our duration from the actual next
-  // presentation timestamp and not decode timestamp.
-  while (next_video_aus_.size() <= num_ref_frames_) {
+  while (next_video_aus_.size() <= 2) {
     if (!ParseNextTag()) {
       return NULL;
     }
   }
-  // size of AU queue should now be sufficient we can do the math
-  DCHECK_GT(next_video_aus_.size(), num_ref_frames_);
+  DCHECK_GT(next_video_aus_.size(), 2);
   // extract next video AU
   scoped_refptr<ShellAU> au(next_video_aus_.front());
   next_video_aus_.pop_front();
-  if (!au->IsEndOfStream()) {
-    // find this timestamp in the sorted timestamp set
-    TimeSet::iterator it = video_timestamps_.find(
-        au->GetTimestamp().InMilliseconds());
-    DCHECK(it != video_timestamps_.end());
-    // we may not have enough frames left in the movie to calculate a timestamp.
-    if (video_timestamps_.size() >= 2) {
-      // next timestamp should always be available since we have at least
-      // num_ref_frames_ + 1 timestamps
-      TimeSet::iterator next_it = it;
-      ++next_it;
-      DCHECK(next_it != video_timestamps_.end());
-      uint64 duration = *next_it - *it;
-      au->SetDuration(base::TimeDelta::FromMilliseconds(duration));
-      // remove this timestamp from the set
-    }
-    video_timestamps_.erase(it);
+  if (au->GetTimestamp() != kNoTimestamp() &&
+      next_video_aus_.front()->GetTimestamp() != kNoTimestamp() &&
+      au->GetTimestamp() <= next_video_aus_.front()->GetTimestamp()) {
+    au->SetDuration(next_video_aus_.front()->GetTimestamp() -
+                    au->GetTimestamp());
   }
+
   return au;
 }
 
@@ -464,8 +447,6 @@ bool ShellFLVParser::ParseVideoDataTag(uint8* tag,
         this);
     // enqueue data tag
     next_video_aus_.push_back(au);
-    // save presentation timestamp in sorted set for duration calculations
-    video_timestamps_.insert(pts);
   }
   return true;
 }
@@ -556,7 +537,6 @@ bool ShellFLVParser::ExtractAMF0Number(scoped_refptr<ShellScopedArray> amf0,
 void ShellFLVParser::JumpParserTo(uint64 byte_offset) {
   next_video_aus_.clear();
   next_audio_aus_.clear();
-  video_timestamps_.clear();
   at_end_of_file_ = false;
   tag_offset_ = byte_offset;
 }

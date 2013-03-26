@@ -17,6 +17,10 @@
 #include "media/mp4/es_descriptor.h"
 #include "media/mp4/rcheck.h"
 
+#if defined(__LB_SHELL__)
+#include "media/base/shell_filter_graph_log.h"
+#endif
+
 namespace media {
 namespace mp4 {
 
@@ -38,6 +42,18 @@ MP4StreamParser::MP4StreamParser(bool has_sbr)
 
 MP4StreamParser::~MP4StreamParser() {}
 
+#if defined(__LB_SHELL__)
+void MP4StreamParser::Init(
+    const InitCB& init_cb,
+    const NewConfigCB& config_cb,
+    const NewBuffersCB& audio_cb,
+    const NewBuffersCB& video_cb,
+    const NeedKeyCB& need_key_cb,
+    const NewMediaSegmentCB& new_segment_cb,
+    const base::Closure& end_of_segment_cb,
+    const LogCB& log_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+#else
 void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewConfigCB& config_cb,
                            const NewBuffersCB& audio_cb,
@@ -46,6 +62,7 @@ void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewMediaSegmentCB& new_segment_cb,
                            const base::Closure& end_of_segment_cb,
                            const LogCB& log_cb) {
+#endif
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -63,6 +80,9 @@ void MP4StreamParser::Init(const InitCB& init_cb,
   new_segment_cb_ = new_segment_cb;
   end_of_segment_cb_ = end_of_segment_cb;
   log_cb_ = log_cb;
+#if defined(__LB_SHELL__)
+  filter_graph_log_ = filter_graph_log;
+#endif
 }
 
 void MP4StreamParser::Reset() {
@@ -237,11 +257,26 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                                               entry.pixel_aspect.v_spacing);
       is_video_track_encrypted_ = entry.sinf.info.track_encryption.is_encrypted;
       DVLOG(1) << "is_video_track_encrypted_: " << is_video_track_encrypted_;
+#if defined(__LB_SHELL__)
+      video_config.Initialize(kCodecH264,
+                              H264PROFILE_MAIN,
+                              VideoFrame::NATIVE_TEXTURE,
+                              coded_size,
+                              visible_rect,
+                              natural_size,
+                              // No decoder-specific buffer needed for AVC;
+                              // SPS/PPS are embedded in the video stream
+                              NULL,
+                              0,
+                              is_video_track_encrypted_,
+                              true);
+#else
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
                               coded_size, visible_rect, natural_size,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
                               NULL, 0, is_video_track_encrypted_, true);
+#endif
       has_video_ = true;
       video_track_id_ = track->header.track_id;
     }
@@ -304,6 +339,17 @@ bool MP4StreamParser::PrepareAVCBuffer(
     const AVCDecoderConfigurationRecord& avc_config,
     std::vector<uint8>* frame_buf,
     std::vector<SubsampleEntry>* subsamples) const {
+#if defined(__LB_SHELL__)
+  // hardware AVC decoders tend to choke on NAL delimeter codes, so we elide
+  // this NAL from the packet if we find it.
+  if (frame_buf->size() >= 6) {
+    // first 4 bytes should be big-endian size, fifth byte will be the NAL
+    // type byte, lower 5 bits will be 9 on this kind of NAL
+    if (((*frame_buf)[4] & 0x1f) == 9) {
+      frame_buf->erase(frame_buf->begin(), frame_buf->begin() + 6);
+    }
+  }
+#endif
   // Convert the AVC NALU length fields to Annex B headers, as expected by
   // decoding libraries. Since this may enlarge the size of the buffer, we also
   // update the clear byte count for each subsample if encryption is used to
@@ -452,9 +498,23 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
         new DecryptConfig("1", "", 0, std::vector<SubsampleEntry>()));
   }
 
+#if defined(__LB_SHELL__)
+  scoped_refptr<StreamParserBuffer> stream_buf =
+    StreamParserBuffer::CopyFrom(&frame_buf[0],
+                                 frame_buf.size(),
+                                 runs_->is_keyframe(),
+                                 filter_graph_log_);
+
+  if (!stream_buf) {
+    MEDIA_LOG(log_cb_) << "Failed to allocate ShellBuffer";
+    *err = true;
+    return false;
+  }
+#else
   scoped_refptr<StreamParserBuffer> stream_buf =
     StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(),
                                  runs_->is_keyframe());
+#endif
 
   if (decrypt_config)
     stream_buf->SetDecryptConfig(decrypt_config.Pass());

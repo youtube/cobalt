@@ -73,9 +73,6 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   virtual const VideoDecoderConfig& VideoConfig() {
     return video_config_;
   }
-  virtual int NumRefFrames() {
-    return num_ref_frames_;
-  }
 
  protected:
   // only allow RefCountedThreadSafe to delete us
@@ -87,7 +84,6 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   VideoDecoderConfig video_config_;
   base::TimeDelta duration_;
   uint32 bits_per_second_;
-  uint32 num_ref_frames_;
 };
 
 }  // namespace media

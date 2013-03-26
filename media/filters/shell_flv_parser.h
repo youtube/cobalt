@@ -19,7 +19,6 @@
 
 #include <map>
 #include <list>
-#include <set>
 
 #include "media/base/shell_buffer_factory.h"
 #include "media/filters/shell_avc_parser.h"
@@ -86,15 +85,6 @@ class ShellFLVParser : public ShellAVCParser {
   typedef std::list<scoped_refptr<ShellAU> > AUList;
   AUList next_video_aus_;
   AUList next_audio_aus_;
-
-  // FLV doesn't support frame durations, so to provide that information we
-  // sort timestamps as they are parsed. To calculate the nth duration we will
-  // need n + num_ref_frames_ + 1 timestamps (to be sure we have all of the
-  // time sequence for out-of-order frames), and then calculate the duration
-  // as t(n + 1) - t(n). Of course FLV allows for duplicate timestamps so we
-  // must also allow for duplicate entries in our set.
-  typedef std::multiset<uint64> TimeSet;
-  TimeSet video_timestamps_;
 
   // When true, all subsequent reads to ParseNextTag() will enqueue EOS AUs
   // in both audio and video AU queues.
