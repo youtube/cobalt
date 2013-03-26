@@ -108,10 +108,10 @@ ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader,
     , next_chunk_sample_(0)
     , current_chunk_offset_(0)
     , highest_valid_sample_number_(UINT32_MAX)
-    , ctts_table_index_(0)
     , ctts_first_sample_(0)
     , ctts_sample_offset_(0)
     , ctts_next_first_sample_(0)
+    , ctts_table_index_(0)
     , stsc_first_chunk_(0)
     , stsc_first_chunk_sample_(0)
     , stsc_samples_per_chunk_(0)
@@ -121,13 +121,13 @@ ShellMP4Map::ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader,
     , stss_last_keyframe_(0)
     , stss_next_keyframe_(0)
     , stss_table_index_(0)
-    , stsz_default_size_(0)
     , stts_first_sample_(0)
     , stts_first_sample_time_(0)
     , stts_sample_duration_(0)
     , stts_next_first_sample_(0)
     , stts_next_first_sample_time_(0)
-    , stts_table_index_(0) {
+    , stts_table_index_(0)
+    , stsz_default_size_(0) {
 }
 
 bool ShellMP4Map::IsComplete() {
