@@ -225,12 +225,19 @@ TEST_F(LoggingTest, Dcheck) {
   SetLogReportHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
-#elif defined(NDEBUG) && (defined(DCHECK_ALWAYS_ON) || defined(__LB_SHELL__FORCE_LOGGING__))
+#elif defined(NDEBUG) && defined(DCHECK_ALWAYS_ON)
   // Unofficial release build with real DCHECKS.
   g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
   SetLogAssertHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
+#elif defined(NDEBUG) && defined(__LB_SHELL__FORCE_LOGGING__)
+  // Unofficial release build with real DCHECKS.
+  g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+  SetLogAssertHandler(&LogSink);
+  EXPECT_TRUE(DCHECK_IS_ON());
+  // FORCE_LOGGING implies DLOG is on.
+  EXPECT_TRUE(DLOG_IS_ON(DCHECK));
 #else
   // Unofficial debug build.
   SetLogAssertHandler(&LogSink);
