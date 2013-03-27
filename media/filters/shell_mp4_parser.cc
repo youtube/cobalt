@@ -140,7 +140,6 @@ scoped_refptr<ShellAU> ShellMP4Parser::GetNextAU(DemuxerStream::Type type) {
   uint64 timestamp_ticks = 0;
   uint64 offset = 0;
   bool is_keyframe = false;
-  bool is_eos = false;
   base::TimeDelta timestamp;
   base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
