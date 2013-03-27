@@ -532,7 +532,7 @@ bool ShellMP4Map::ctts_AdvanceToSample(uint32 sample_number) {
   // and if we can slip forward to them
   int next_cache_index = (ctts_table_index_ /
                           ctts_->GetCacheSizeEntries()) + 1;
-  if ((next_cache_index < ctts_samples_.size() < ctts_samples_.size()) &&
+  if ((next_cache_index < ctts_samples_.size()) &&
       (sample_number >= ctts_samples_[next_cache_index])) {
     if (!ctts_SlipCacheToSample(sample_number, next_cache_index)) {
       return false;
