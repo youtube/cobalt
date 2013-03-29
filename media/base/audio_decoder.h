@@ -13,6 +13,7 @@
 
 namespace media {
 
+class AudioBus;
 class Buffer;
 class DemuxerStream;
 
@@ -45,6 +46,19 @@ class MEDIA_EXPORT AudioDecoder
   // any more data to return.
   typedef base::Callback<void(Status, const scoped_refptr<Buffer>&)> ReadCB;
   virtual void Read(const ReadCB& read_cb) = 0;
+
+#if defined(__LB_WIIU__)
+  // Request samples to be decoded into the provided audio_bus. This call
+  // may block on decode. out_status will be set to the results of the decode,
+  // and buffer shall point to the demuxed AU, or an EOS buffer
+  //
+  // On successful decode the number of bytes decoded will be returned and
+  // out_status will be set to kOk
+  //
+  // When no data is yet available, 0 will be returned, out_status will be set
+  // to kOk, and buffer will be NULL
+  virtual void ReadInto(media::AudioBus* audio_bus, const ReadCB& read_cb) = 0;
+#endif
 
   // Reset decoder state, dropping any queued encoded data.
   virtual void Reset(const base::Closure& closure) = 0;
