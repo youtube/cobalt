@@ -22,26 +22,33 @@ namespace net {
 
 const static char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
 
+#if defined(NDEBUG)
+const int kDialHttpServerPort = 0; // Random Port.
+#else
+const int kDialHttpServerPort = 9100; // Fixed Port for easier debugging.
+#endif
+
+
 const static char* kDdXmlFormat =
     "<?xml version=\"1.0\"?>"
     "<root"
-    "  xmlns=\"urn:schemas-upnp-org:device-1-0\""
-    "  xmlns:r=\"urn:restful-tv-org:schemas:upnp-dd\">"
-    "  <specVersion>"
-    "    <major>1</major>"
-    "    <minor>0</minor>"
-    "  </specVersion>"
-    "  <device>"
-    "    <deviceType>urn:schemas-upnp-org:device:tvdevice:1</deviceType>"
-    "    <friendlyName>%s</friendlyName>"
-    "    <manufacturer>%s</manufacturer>"
-    "    <modelName>%s</modelName>"
-    "    <UDN>uuid:%s</UDN>"
-    "  </device>"
+     " xmlns=\"urn:schemas-upnp-org:device-1-0\""
+     " xmlns:r=\"urn:restful-tv-org:schemas:upnp-dd\">"
+      "<specVersion>"
+        "<major>1</major>"
+        "<minor>0</minor>"
+      "</specVersion>"
+      "<device>"
+        "<deviceType>urn:schemas-upnp-org:device:tvdevice:1</deviceType>"
+        "<friendlyName>%s</friendlyName>"
+        "<manufacturer>%s</manufacturer>"
+        "<modelName>%s</modelName>"
+        "<UDN>uuid:%s</UDN>"
+      "</device>"
     "</root>";
 
 DialHttpServer::DialHttpServer()
-    : factory_(new TCPListenSocketFactory("0.0.0.0", 0)) {
+    : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)) {
 
 }
 
@@ -133,7 +140,7 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
       system_config->friendly_name_,
       system_config->manufacturer_name_,
       system_config->model_name_,
-      system_config->model_uuid_);
+      system_config->model_uuid());
 
   std::vector<std::string> headers;
   headers.push_back(
@@ -150,7 +157,7 @@ bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
     return false;
   }
 
-  DLOG(INFO) << "Dispatching request to DialServiceHandler: " << info.path;
+  VLOG(1) << "Dispatching request to DialServiceHandler: " << info.path;
   HttpServerResponseInfo* response = new HttpServerResponseInfo();
 
   bool ret = handler->handleRequest(handler_path, info, response,
@@ -169,7 +176,7 @@ void DialHttpServer::AsyncReceivedResponse(int conn_id,
   DCHECK_NE(DialService::GetInstance()->GetMessageLoop(),
             MessageLoop::current());
 
-  DLOG(INFO) << "Received response from JS.";
+  VLOG(1) << "Received response from JS.";
   DialService::GetInstance()->GetMessageLoop()->PostTask(FROM_HERE,
       base::Bind(&DialHttpServer::ReceivedResponse, this, conn_id, response,
                  ok));

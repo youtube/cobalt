@@ -14,6 +14,7 @@
 #include "base/string_util.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
+#include "net/dial/dial_system_config.h"
 #include "net/dial/dial_udp_socket_factory.h"
 #include "net/server/http_server.h"
 #include "net/server/http_server_request_info.h"
@@ -21,8 +22,8 @@
 namespace net {
 
 namespace { // anonymous
-const std::string kDialStRequest =
-    "urn:dial-multiscreen-org:service:dial:1";
+
+const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
 
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
@@ -109,7 +110,11 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
     return false;
   }
 
-  DLOG(INFO) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
+  // The User-Agent header is supposed to be case-insensitive, but
+  // the map that holds it has a case-sensitive search.
+  // I could be more careful, but hey, it's a DVLOG anyway.
+  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("USER-AGENT");
+  DVLOG(1) << "Dial User-Agent: " << info.GetHeaderValue("User-Agent");
 
   return true;
 }
@@ -144,8 +149,12 @@ const std::string DialUdpServer::ConstructSearchResponse() const {
   ret.append("CACHE-CONTROL: max-age=1800\r\n");
   ret.append("EXT:\r\n");
   ret.append("BOOTID.UPNP.ORG: 1\r\n");
+  ret.append("CONFIGID.UPNP.ORG: 1\r\n");
   ret.append(base::StringPrintf("SERVER: %s\r\n", server_agent_.c_str()));
-  ret.append(base::StringPrintf("ST: %s\r\n", kDialStRequest.c_str()));
+  ret.append(base::StringPrintf("ST: %s\r\n", kDialStRequest));
+  ret.append(base::StringPrintf("USN: uuid:%s::%s\r\n",
+                                DialSystemConfig::GetInstance()->model_uuid(),
+                                kDialStRequest));
   ret.append("\r\n");
   return ret;
 }
