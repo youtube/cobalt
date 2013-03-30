@@ -45,7 +45,7 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
 
   // Return the formatted application URL
   std::string application_url() const {
-    return server_url_ + "apps";
+    return server_url_ + "apps/";
   }
 
   // Return the formatted location URL.

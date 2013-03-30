@@ -152,6 +152,7 @@ void HttpServer::DidRead(StreamListenSocket* socket,
       if (content_length > 0 && pos < len) {
         request.data = connection->recv_data_.substr(pos);
       }
+      pos += request.data.length();
     }
 
     delegate_->OnHttpRequest(connection->id(), request);
