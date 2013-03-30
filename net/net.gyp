@@ -349,6 +349,7 @@
         'dial/dial_service.cc',
         'dial/dial_service.h',
         'dial/dial_service_handler.h',
+        'dial/dial_system_config.cc',
         'dial/dial_system_config.h',
         'dial/dial_udp_server.cc',
         'dial/dial_udp_server.h',
@@ -963,6 +964,9 @@
           'dependencies': [
             '../../openssl/openssl.gyp:openssl',
             '../../openssl/openssl.gyp:openssl_includes'
+          ],
+          'include_dirs': [
+            '../../openssl/openssl/include/',
           ],
           'sources': [
             'base/file_stream_metrics_shell.cc',
