@@ -94,6 +94,11 @@
 /* Enable classes using zlib compression. */
 #define HAVE_ZLIB 1
 
+#if defined(__LB_SHELL__)
+#undef HAVE_HASH_MAP
+#undef HAVE_HASH_SET
+#endif
+
 /* Name of package */
 #define PACKAGE "protobuf"
 
