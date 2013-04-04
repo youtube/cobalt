@@ -2227,7 +2227,11 @@ int BackendImpl::MaxBuffersSize() {
   static bool done = false;
 
   if (!done) {
+#if defined (__LB_SHELL__)
+    const int kMaxBuffersSize = 256 * 1024;
+#else
     const int kMaxBuffersSize = 30 * 1024 * 1024;
+#endif
 
     // We want to use up to 2% of the computer's memory.
     total_memory = total_memory * 2 / 100;
