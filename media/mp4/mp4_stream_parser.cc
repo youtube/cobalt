@@ -339,6 +339,7 @@ bool MP4StreamParser::PrepareAVCBuffer(
     const AVCDecoderConfigurationRecord& avc_config,
     std::vector<uint8>* frame_buf,
     std::vector<SubsampleEntry>* subsamples) const {
+  int erased_header_size = 0;
 #if defined(__LB_SHELL__)
   // hardware AVC decoders tend to choke on NAL delimeter codes, so we elide
   // this NAL from the packet if we find it.
@@ -347,6 +348,7 @@ bool MP4StreamParser::PrepareAVCBuffer(
     // type byte, lower 5 bits will be 9 on this kind of NAL
     if (((*frame_buf)[4] & 0x1f) == 9) {
       frame_buf->erase(frame_buf->begin(), frame_buf->begin() + 6);
+      erased_header_size = 6;
     }
   }
 #endif
@@ -359,7 +361,7 @@ bool MP4StreamParser::PrepareAVCBuffer(
   if (!subsamples->empty()) {
     const int nalu_size_diff = 4 - avc_config.length_size;
     size_t expected_size = runs_->sample_size() +
-        subsamples->size() * nalu_size_diff;
+        subsamples->size() * nalu_size_diff - erased_header_size;
     RCHECK(frame_buf->size() == expected_size);
     for (size_t i = 0; i < subsamples->size(); i++)
       (*subsamples)[i].clear_bytes += nalu_size_diff;
