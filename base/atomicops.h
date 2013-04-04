@@ -135,7 +135,9 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #elif defined(OS_MACOSX)
 #include "base/atomicops_internals_mac.h"
 #elif defined(__LB_SHELL__)
-#include "chromium/base/atomicops_internals_shell.h"  // from the platform lib
+#define SHELL_BEGIN_ATOMICOPS_NAMESPACES namespace base { namespace subtle {
+#define SHELL_END_ATOMICOPS_NAMESPACES } }
+#include "atomicops_internals_shell.h"  // from the platform lib
 #elif (defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)) || \
        defined(OS_NACL)
 #include "base/atomicops_internals_gcc.h"
