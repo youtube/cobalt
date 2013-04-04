@@ -172,6 +172,12 @@ GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #elif defined(GOOGLE_PROTOBUF_OS_APPLE)
 #include <google/protobuf/stubs/atomicops_internals_macosx.h>
 
+// LB shell (other than Linux or the host system).
+#elif defined(__LB_SHELL__) && !defined(__LB_LINUX__) && !defined(__LB_HOST__)
+#define SHELL_BEGIN_ATOMICOPS_NAMESPACES namespace google { namespace protobuf { namespace internal {
+#define SHELL_END_ATOMICOPS_NAMESPACES } } }
+#include "atomicops_internals_shell.h"  // from the platform lib
+
 // GCC.
 #elif defined(__GNUC__)
 #if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
