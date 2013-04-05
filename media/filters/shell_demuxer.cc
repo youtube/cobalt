@@ -32,14 +32,11 @@
 
 namespace media {
 
-static const uint64 kDemuxerPreloadTimeMilliseconds = 5000;
-
 ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
                                        Type type)
     : demuxer_(demuxer)
     , type_(type)
-    , stopped_(false)
-    , buffering_(true) {
+    , stopped_(false) {
   DCHECK(demuxer_);
   filter_graph_log_ = demuxer->filter_graph_log();
   filter_graph_log_->LogDemuxerStreamEvent(type_, kEventConstructor);
@@ -69,7 +66,7 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   // Buffers are only queued when there are no pending reads.
   DCHECK(buffer_queue_.empty() || read_queue_.empty());
 
-  if (!buffering_ && !buffer_queue_.empty()) {
+  if (!buffer_queue_.empty()) {
     // Send the oldest buffer back.
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
@@ -79,8 +76,6 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     }
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
-    // Ask the demuxer to issue a request for data of our type next,
-    // giving this priority over its normal latency logic.
     filter_graph_log_->LogDemuxerStreamEvent(type_, kEventRequestInterrupt);
     read_queue_.push_back(read_cb);
   }
@@ -137,7 +132,7 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
   }
 
   // Check for any already waiting reads, service oldest read if there
-  if (!buffering_ && read_queue_.size()) {
+  if (read_queue_.size()) {
     // assumption here is that buffer queue is empty
     DCHECK_EQ(buffer_queue_.size(), 0);
     ReadCB read_cb(read_queue_.front());
@@ -169,36 +164,12 @@ void ShellDemuxerStream::RebuildEnqueuedRanges_Locked() {
   }
 }
 
-base::TimeDelta ShellDemuxerStream::GetEndOfContiguousEnqueuedRange() {
+base::TimeDelta ShellDemuxerStream::GetEnqueuedRange() {
   base::AutoLock auto_lock(lock_);
   if (enqueued_ranges_.size()) {
     return enqueued_ranges_.end(0);
   }
   return kNoTimestamp();
-}
-
-void ShellDemuxerStream::SetBuffering(bool buffering) {
-  filter_graph_log_->LogDemuxerStreamStateBuffering(type_, buffering);
-  base::AutoLock auto_lock(lock_);
-  // if transitioning from buffering to not, service any pending
-  // reads we have accumulated
-  if (buffering_ && !buffering) {
-    while (buffer_queue_.size() && read_queue_.size()) {
-      scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
-      buffer_queue_.pop_front();
-      ReadCB read_cb(read_queue_.front());
-      read_queue_.pop_front();
-      read_cb.Run(DemuxerStream::kOk, buffer);
-    }
-    RebuildEnqueuedRanges_Locked();
-  } else if (!buffering_ && buffering) {
-    // if we're turning on buffering, we shouldn't have any pending reads
-    DCHECK(read_queue_.empty()) <<
-        "attempting to turn on buffering with pending reads!";
-  }
-  buffering_ = buffering;
-  filter_graph_log_->LogDemuxerStreamStateQueues(
-      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 void ShellDemuxerStream::FlushBuffers() {
@@ -249,8 +220,6 @@ ShellDemuxer::ShellDemuxer(
     , video_reached_eos_(false) {
   DCHECK(data_source_);
   DCHECK(message_loop_);
-  buffer_timestamp_ =
-      base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   reader_ = new ShellDataSourceReader();
   reader_->SetDataSource(data_source_);
 }
@@ -336,8 +305,7 @@ void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
     return;
   }
 
-  // start buffering data
-  SetBuffering(true);
+  // start downloading data
   Request(DemuxerStream::AUDIO);
 
   status_cb.Run(PIPELINE_OK);
@@ -370,10 +338,6 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
     filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventEndOfStreamSent);
-    // turn off buffering if we were doing that
-    if (buffering_) {
-      SetBuffering(false);
-    }
     // enqueue EOS buffer with correct stream
     scoped_refptr<ShellBuffer> eos_buffer =
         ShellBuffer::CreateEOSBuffer(au->GetTimestamp(),
@@ -387,15 +351,6 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
     }
     IssueNextRequestTask();
     return;
-  }
-
-  // If we're buffering and we've filled the demux buffer then we can
-  // signal that the buffering has completed
-  if (buffering_ &&
-      (!ShellBufferFactory::Instance()->HasRoomForBufferNow(
-          au->GetMaxSize()))) {
-    DLOG(INFO) << "demuxer filled buffer, finished buffering";
-    SetBuffering(false);
   }
 
   // enqueue the request
@@ -471,21 +426,6 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
      host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
   }
 
-  // if we are buffering see if we've bufferered enough data to continue
-  if (buffering_) {
-    base::TimeDelta audio_buffered =
-        audio_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
-    if (audio_buffered != kNoTimestamp()) {
-      // If we've buffered enough audio to start playing, proceed
-      // TODO: make this a function of data bitrate and download speed
-      if (audio_buffered >= buffer_timestamp_) {
-        DLOG(INFO) << "demuxer finished buffering.";
-        SetBuffering(false);
-      }
-    } else {
-      DLOG(INFO) << "buffering but no audio buffered!";
-    }
-  }
   IssueNextRequestTask();
 }
 
@@ -513,20 +453,18 @@ void ShellDemuxer::IssueNextRequestTask() {
   }
 
   // priority order for figuring out what to download next
-  base::TimeDelta next_audio_hole =
-      audio_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
+  base::TimeDelta audio_range = audio_demuxer_stream_->GetEnqueuedRange();
   // if the audio demuxer stream is empty, always fill it first
-  if (next_audio_hole == kNoTimestamp()) {
+  if (audio_range == kNoTimestamp()) {
     Request(DemuxerStream::AUDIO);
   } else {
-    base::TimeDelta next_video_hole =
-        video_demuxer_stream_->GetEndOfContiguousEnqueuedRange();
+    base::TimeDelta video_range = video_demuxer_stream_->GetEnqueuedRange();
     // if the video demuxer stream is empty, we need data for it
-    if (next_video_hole == kNoTimestamp()) {
+    if (video_range == kNoTimestamp()) {
       Request(DemuxerStream::VIDEO);
     } else {
-      // alright, fill the earlier hole in the enqueued ranges
-      if (next_video_hole < next_audio_hole) {
+      // alright, fill the shortest range queue next
+      if (video_range < audio_range) {
         Request(DemuxerStream::VIDEO);
       } else {
         Request(DemuxerStream::AUDIO);
@@ -577,10 +515,6 @@ void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
     cb.Run(PIPELINE_ERROR_READ);
     return;
   }
-  // buffer out to the seek timestamp + preset preload buffer time
-  SetBuffering(true);
-  buffer_timestamp_ = time +
-      base::TimeDelta::FromMilliseconds(kDemuxerPreloadTimeMilliseconds);
   flushing_ = true;
   cb.Run(PIPELINE_OK);
 }
@@ -629,12 +563,6 @@ void ShellDemuxer::SetFilterGraphLog(
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxer::filter_graph_log() {
   return filter_graph_log_;
-}
-
-void ShellDemuxer::SetBuffering(bool enable) {
-  buffering_ = enable;
-  audio_demuxer_stream_->SetBuffering(enable);
-  video_demuxer_stream_->SetBuffering(enable);
 }
 
 }  // namespace media

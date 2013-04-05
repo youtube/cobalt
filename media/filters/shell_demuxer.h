@@ -52,10 +52,9 @@ class ShellDemuxerStream : public DemuxerStream {
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
   void FlushBuffers();
   void Stop();
-  void SetBuffering(bool buffering);
-  // returns the start time first gap in the enqueued data, or
+  // returns the timestamp of the end of the first range of enqueued data, or
   // kNoTimestamp() if no data enqueued.
-  base::TimeDelta GetEndOfContiguousEnqueuedRange();
+  base::TimeDelta GetEnqueuedRange();
 
  private:
   // The Ranges object doesn't offer a complement object so we rebuild
@@ -76,9 +75,6 @@ class ShellDemuxerStream : public DemuxerStream {
   // uses these ranges to decide what to prioritize downloading.
   Ranges<base::TimeDelta> enqueued_ranges_;
   bool stopped_;
-  // If true we store all read callbacks regardless of our ability
-  // to service them.
-  bool buffering_;
 
   typedef std::deque<scoped_refptr<ShellBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
@@ -145,11 +141,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void IssueNextRequestTask();
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
-  // callable on either blocking or pipeline thread, turns buffering on or
-  // off. When buffering the DemuxerStreams will not honor read requests, and
-  // will instead enqueue buffer data until told to stop buffering.
-  void SetBuffering(bool enable);
-
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   DemuxerHost* host_;
 
@@ -161,14 +152,12 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   bool read_has_failed_;
   bool stopped_;
   bool flushing_;
-  bool buffering_;
 
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
-  base::TimeDelta buffer_timestamp_;
   scoped_refptr<ShellAU> requested_au_;
   bool audio_reached_eos_;
   bool video_reached_eos_;
