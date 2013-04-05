@@ -21,9 +21,15 @@ class AudioParameters;
 // AudioBus instead routes requests for channel data to the wrapped object.
 class MEDIA_EXPORT AudioBus {
  public:
+#if defined(__LB_PS3__)
+  // We interleave our data already, but all data is floats, so we require that
+  // no frame be smaller than 4 bytes.
+  enum { kChannelAlignment = 4 };
+#else
   // Guaranteed alignment of each channel's data; use 16-byte alignment for easy
   // SSE optimizations.
   enum { kChannelAlignment = 16 };
+#endif
 
   // Creates a new AudioBus and allocates |channels| of length |frames|.  Uses
   // channels() and frames_per_buffer() from AudioParameters if given.
