@@ -283,6 +283,7 @@ static const char* const common_media_types[] = {
 #else
   // currently lbshell supports flv and mp4
   "video/mp4",
+  "audio/mp4",
   "video/x-flv",
 #endif
 };
