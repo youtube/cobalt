@@ -142,6 +142,8 @@ bool ShellBufferFactory::AllocateBuffer(
       DCHECK(!instant_buffer->IsEndOfStream());
     } else {
       // Alright, we have to wait, enqueue the buffer and size.
+      DLOG(INFO) << base::StringPrintf(
+          "deferred allocation of %d bytes", size);
       filter_graph_log->LogEvent(kObjectIdBufferFactory,
                                  kEventBufferAllocationDeferred);
       pending_allocs_.push_back(

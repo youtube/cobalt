@@ -35,6 +35,12 @@ class AudioRendererSink
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
 
+#if defined(__LB_SHELL__)
+    // Callback from the sink to the renderer to indicate that it is currently
+    // full and will not be requesting additional data until some is consumed.
+    virtual void SinkFull() = 0;
+#endif
+
    protected:
     virtual ~RenderCallback() {}
   };
@@ -70,6 +76,14 @@ class AudioRendererSink
   // Sets the playback volume, with range [0.0, 1.0] inclusive.
   // Returns |true| on success.
   virtual bool SetVolume(double volume) = 0;
+
+#if defined(__LB_SHELL__)
+  // To avoid duplication of audio data and additional copies our Sink
+  // implementation is responsible for buffering rendered audio. As a
+  // result the renderer relays the message to buffer more audio back
+  // to the Sink.
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) = 0;
+#endif
 
  protected:
   friend class base::RefCountedThreadSafe<AudioRendererSink>;

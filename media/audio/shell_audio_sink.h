@@ -37,6 +37,7 @@ class MEDIA_EXPORT ShellAudioSink
   virtual void Play() = 0;
   virtual void SetPlaybackRate(float rate) = 0;
   virtual bool SetVolume(double volume) = 0;
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) = 0;
 };
 
 }  // namespace media

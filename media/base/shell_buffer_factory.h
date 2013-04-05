@@ -34,7 +34,7 @@ namespace media {
 // pool from which all ShellBuffers are allocated.
 #if defined(__LB_PS3__)
 static const int kShellBufferAlignment = 128;
-static const size_t kShellBufferSpaceSize = 52 * 1024 * 1024;
+static const size_t kShellBufferSpaceSize = 64 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
 static const int kShellBufferAlignment = 4;
 static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
@@ -156,7 +156,7 @@ class MEDIA_EXPORT ShellBufferFactory
   // Returns true if a ShellBuffer of this size could be allocated without
   // waiting for some other buffer to be released.
   bool HasRoomForBufferNow(size_t size);
-  // Returns a newly allocated ShellBuffer if there's room for it, or NULL if
+  // Returns a newly allocated byte field if there's room for it, or NULL if
   // there isn't.
   uint8* AllocateNow(size_t size);
   // BLOCKS THE CALLING THREAD until an array of size is available and can be
