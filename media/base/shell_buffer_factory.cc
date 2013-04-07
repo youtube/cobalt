@@ -175,6 +175,11 @@ uint8* ShellBufferFactory::AllocateNow(size_t size) {
     bytes = AllocateLockAcquired(aligned_size);
     DCHECK(bytes);
   }
+
+  if (!bytes) {
+    DLOG(ERROR) << base::StringPrintf("Failed to allocate %d bytes!", size);
+  }
+
   return bytes;
 }
 
