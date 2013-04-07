@@ -133,7 +133,8 @@ bool ShellBufferFactory::AllocateBuffer(
     // We only service requests directly if there's no callbacks pending and
     // we can accommodate a buffer of the requested size
     uint8* shell_buffer_bytes;
-    if (pending_allocs_.size() == 0 && aligned_size <= largest_free_space_) {
+    if (pending_allocs_.size() == 0 &&
+        aligned_size <= LargestFreeSpace_Locked()) {
       instant_buffer = new ShellBuffer(AllocateLockAcquired(aligned_size),
                                        size,
                                        filter_graph_log);
@@ -164,7 +165,7 @@ bool ShellBufferFactory::AllocateBuffer(
 
 bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
   base::AutoLock lock(lock_);
-  return (SizeAlign(size) <= largest_free_space_);
+  return (SizeAlign(size) <= LargestFreeSpace_Locked());
 }
 
 uint8* ShellBufferFactory::AllocateNow(size_t size) {
@@ -173,7 +174,7 @@ uint8* ShellBufferFactory::AllocateNow(size_t size) {
   // we skip to the head of the line for these allocations, if there's
   // room we allocate it.
   base::AutoLock lock(lock_);
-  if (aligned_size <= largest_free_space_) {
+  if (aligned_size <= LargestFreeSpace_Locked()) {
     bytes = AllocateLockAcquired(aligned_size);
     DCHECK(bytes);
   }
@@ -261,10 +262,63 @@ void ShellBufferFactory::Reclaim(uint8* p) {
     // scribble recycled memory in debug builds with 0xef
     memset(p, 0xef, p_it->second);
 #endif
-    // remove from the map
+    // We need to remove this address,size pair from the alloc map, but before
+    // doing so, we examine to the left (lower address) and right (higher addy)
+    // to see if there are holes there that can be merged into this hole.
+    AllocMap::iterator alloc_left = p_it;
+    uint8* hole_addr = NULL;
+    size_t left_hole_size = 0;
+    if (alloc_left != allocs_.begin()) {
+      // decrement to point to the previous alloc in the alloc map
+      alloc_left--;
+      // if there is a hole before this alloc we are freeing, it will start at
+      // the end of the left allocation and will end at the freed alloc
+      hole_addr = alloc_left->first + alloc_left->second;
+      left_hole_size = p - hole_addr;
+    } else {
+      // this was the first alloc in the map, so if there's a hole it will start
+      // at buffer_ and will have size as distance of this alloc from buffer_
+      hole_addr = buffer_;
+      left_hole_size = p - buffer_;
+    }
+    // if there was a hole to our left we must find the size,addr pair with
+    // value of the address of that hole, to replace it with an expanded hole
+    // welded to the memory we are reclaiming.
+    if (left_hole_size) {
+      FillHole_Locked(left_hole_size, hole_addr);
+    } else {
+      // in the case of a contiguous allocation to the left, meaning no hole,
+      // hole_addr should point at the buffer being freed
+      DCHECK_EQ(hole_addr, p);
+    }
+    // now we check the allocation to our right, to see if there was a hole there
+    // that we could also erase
+    AllocMap::iterator alloc_right = p_it;
+    alloc_right++;
+    size_t right_hole_size = 0;
+    uint8* right_hole_addr = p_it->first + p_it->second;
+    // this could have been the last allocation in the map
+    if (alloc_right != allocs_.end()) {
+      // size of right hole is distance between start of the next alloc and
+      // end of this alloc.
+      right_hole_size = alloc_right->first - right_hole_addr;
+    } else {
+      // size of right hole is distance between end of the whole buffer_ and
+      // the end of this alloc
+      right_hole_size = buffer_ + kShellBufferSpaceSize - right_hole_addr;
+    }
+    // if there was a hole to our right we remove it from the map and add its
+    // size to the final hole
+    if (right_hole_size) {
+      FillHole_Locked(right_hole_size, right_hole_addr);
+    }
+    // create a hole potentially merging left and right holes if there
+    holes_.insert(
+        std::make_pair(left_hole_size + p_it->second + right_hole_size,
+                       hole_addr));
+    // finally remove freed buffer from the allocs map
     allocs_.erase(p_it);
-    // update memory block info
-    RecalculateLargestFreeSpaceLockAcquired();
+
     // Try to service a blocking array request if there is one, and it hasn't
     // already been serviced. If we can't service it then we won't allocate any
     // additional ShellBuffers as arrays get priority treatment.
@@ -305,56 +359,58 @@ void ShellBufferFactory::Reclaim(uint8* p) {
   }
 }
 
+void ShellBufferFactory::FillHole_Locked(size_t size, uint8* address) {
+  lock_.AssertAcquired();
+  // do the linear search for holes of this size
+  std::pair<HoleMap::iterator, HoleMap::iterator> hole_range;
+  hole_range = holes_.equal_range(size);
+  HoleMap::iterator hole = hole_range.first;
+  for (; hole != hole_range.second; ++hole) {
+    if (hole->second == address) {
+      break;
+    }
+  }
+  DCHECK_EQ(hole->second, address);
+  holes_.erase(hole);
+}
+
+size_t ShellBufferFactory::LargestFreeSpace_Locked() const {
+  // should have acquired the lock already
+  lock_.AssertAcquired();
+  return holes_.rbegin()->first;
+}
+
 uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
   // should have acquired the lock already
   lock_.AssertAcquired();
   // and should have aligned the size already
   DCHECK_EQ(aligned_size % kShellBufferAlignment, 0);
   // Quick check that we have a reasonable expectation of fitting this size.
-  if (aligned_size > largest_free_space_) {
+  if (aligned_size > LargestFreeSpace_Locked()) {
     return NULL;
   }
-  // find the best fit for this buffer
-  uint8* best_fit = buffer_;
-  size_t best_fit_size = kShellBufferSpaceSize;
-  uint8* last_alloc_end = buffer_;
-  for (AllocMap::iterator it = allocs_.begin(); it != allocs_.end(); it++) {
-    size_t free_block_size = it->first - last_alloc_end;
-    if (free_block_size >= aligned_size && free_block_size < best_fit_size) {
-      best_fit_size = free_block_size;
-      best_fit = last_alloc_end;
-    }
-    last_alloc_end = it->first + it->second;
+  // lower_bound() will return the first element >= aligned_size
+  HoleMap::iterator best_fit_hole = holes_.lower_bound(aligned_size);
+  // since we already checked that there is a hole that this can fit in, this
+  // search should have returned a result
+  if (best_fit_hole == holes_.end()) {
+    NOTREACHED();
+    return NULL;
   }
-  // should have found a block that fits within at least the largest free space
-  // and also within our shared buffer overall
-  DCHECK_LE(best_fit_size, largest_free_space_) <<
-      "found a free block larger than largest_free_space";
-  DCHECK_LE(best_fit + aligned_size - buffer_, kShellBufferSpaceSize);
-  // save this new allocation in the map
-  allocs_[best_fit] = aligned_size;
-  // if we broke up the largest free space, recalculate it
-  if (best_fit_size == largest_free_space_) {
-    RecalculateLargestFreeSpaceLockAcquired();
+  // copy out values from iterator
+  uint8* best_fit_ptr = best_fit_hole->second;
+  size_t best_fit_size = best_fit_hole->first;
+  // erase hole from map
+  holes_.erase(best_fit_hole);
+  // if allocating this will create a smaller hole, insert it in to the map
+  if (best_fit_size > aligned_size) {
+    holes_.insert(
+        std::make_pair(best_fit_size - aligned_size,
+                       best_fit_ptr + aligned_size));
   }
-  return best_fit;
-}
-
-void ShellBufferFactory::RecalculateLargestFreeSpaceLockAcquired() {
-  // should have already acquired the lock
-  lock_.AssertAcquired();
-  // recalculate largest free space after allocation or release
-  largest_free_space_ = 0;
-  uint8* last_alloc_end = buffer_;
-  for (AllocMap::iterator it = allocs_.begin(); it != allocs_.end(); it++) {
-    // last_alloc_end describes the lowest byte-aligned value past the size of
-    // the last alloc, which is the lowest address that a new alloc could be
-    // created at. We compare this to the starting offset of this alloc in the
-    // shared memory space, as this defines the byte range of free space.
-    largest_free_space_ = std::max(largest_free_space_,
-                                   (size_t)(it->first - last_alloc_end));
-    last_alloc_end = it->first + it->second;
-  }
+  // add this allocation to our map
+  allocs_.insert(std::make_pair(best_fit_ptr, aligned_size));
+  return best_fit_ptr;
 }
 
 // static
@@ -363,29 +419,26 @@ void ShellBufferFactory::Terminate() {
 }
 
 ShellBufferFactory::ShellBufferFactory()
-    : largest_free_space_(kShellBufferSpaceSize)
-    , array_allocation_event_(false, false)
+    : array_allocation_event_(false, false)
     , array_requested_size_(0)
     , array_allocation_(NULL) {
   buffer_ = (uint8*)memalign(kShellBufferAlignment, kShellBufferSpaceSize);
-  // we insert a guard alloc at the first byte after the end of the buffer
-  // space, to simplify the logic surrounding free space calculations
-  allocs_[buffer_ + kShellBufferSpaceSize] = 0;
+  // save the entirety of the available memory as a hole
+  holes_.insert(std::make_pair(kShellBufferSpaceSize, buffer_));
 }
 
 // Will be called when all ShellBuffers have been deleted AND instance_ has
 // been set to NULL.
 ShellBufferFactory::~ShellBufferFactory() {
-  // should be nothing but the guard alloc remaining in the alloc_ map
-  if (allocs_.size() > 1) {
+  // should be nothing remaining in the alloc_ map
+  if (allocs_.size()) {
     DLOG(WARNING) << base::StringPrintf(
         "%d unfreed allocs on termination now pointing at invalid memory!",
-        static_cast<int>(allocs_.size()) - 1);
+        static_cast<int>(allocs_.size()));
   }
   // and no outstanding array requests
   DCHECK_EQ(array_requested_size_, 0);
   free(buffer_);
 }
-
 
 }  // namespace media

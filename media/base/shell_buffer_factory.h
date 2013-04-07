@@ -178,23 +178,30 @@ class MEDIA_EXPORT ShellBufferFactory
   friend class base::RefCountedThreadSafe<ShellBufferFactory>;
   ShellBufferFactory();
   ~ShellBufferFactory();
-
   uint8* AllocateLockAcquired(size_t aligned_size);
-  void RecalculateLargestFreeSpaceLockAcquired();
+  size_t LargestFreeSpace_Locked() const;
+  // given a size and an address, search the holes_ map for the specific
+  // instance of this pair and remove it from the map.
+  void FillHole_Locked(size_t size, uint8* address);
 
   static scoped_refptr<ShellBufferFactory> instance_;
   uint8* buffer_;
 
   // protects all following members.
   base::Lock lock_;
+
   // sorted map of pointers within buffer_ to sizes occupied at that offset.
   typedef std::map<uint8*, size_t> AllocMap;
   AllocMap allocs_;
+  // sorted map of size of free spaces => pointer to that space. As there
+  // can be multiple instances of holes of the same size, it's a multimap.
+  typedef std::multimap<size_t, uint8*> HoleMap;
+  HoleMap holes_;
+
   // queue of pending buffer allocation requests and their sizes
   typedef std::list<std::pair<AllocCB,
                               scoped_refptr<ShellBuffer> > > AllocList;
   AllocList pending_allocs_;
-  size_t largest_free_space_;
 
   // event used for blocking calls for array allocation
   base::WaitableEvent array_allocation_event_;
