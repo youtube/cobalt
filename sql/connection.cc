@@ -150,7 +150,13 @@ void Connection::Close() {
   // sqlite3_close() needs all prepared statements to be finalized.
   // Release all cached statements, then assert that the client has
   // released all statements.
+#if defined(__LB_SHELL__)
+  statement_cache_lock_.Acquire();
+#endif
   statement_cache_.clear();
+#if defined(__LB_SHELL__)
+  statement_cache_lock_.Release();
+#endif
   DCHECK(open_statements_.empty());
 
   // Additionally clear the prepared statements, because they contain
@@ -406,12 +412,18 @@ bool Connection::ExecuteWithTimeout(const char* sql, base::TimeDelta timeout) {
 }
 
 bool Connection::HasCachedStatement(const StatementID& id) const {
+#if defined(__LB_SHELL__)
+  base::AutoLock lock(statement_cache_lock_);
+#endif
   return statement_cache_.find(id) != statement_cache_.end();
 }
 
 scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
     const StatementID& id,
     const char* sql) {
+#if defined(__LB_SHELL__)
+  base::AutoLock lock(statement_cache_lock_);
+#endif
   CachedStatementMap::iterator i = statement_cache_.find(id);
   if (i != statement_cache_.end()) {
     // Statement is in the cache. It should still be active (we're the only
@@ -645,11 +657,17 @@ void Connection::DoRollback() {
 }
 
 void Connection::StatementRefCreated(StatementRef* ref) {
+#if defined(__LB_SHELL__)
+  base::AutoLock lock(open_statements_lock_);
+#endif
   DCHECK(open_statements_.find(ref) == open_statements_.end());
   open_statements_.insert(ref);
 }
 
 void Connection::StatementRefDeleted(StatementRef* ref) {
+#if defined(__LB_SHELL__)
+  base::AutoLock lock(open_statements_lock_);
+#endif
   StatementRefSet::iterator i = open_statements_.find(ref);
   if (i == open_statements_.end())
     DLOG(FATAL) << "Could not find statement";
@@ -658,14 +676,25 @@ void Connection::StatementRefDeleted(StatementRef* ref) {
 }
 
 void Connection::ClearCache() {
+#if defined(__LB_SHELL__)
+  statement_cache_lock_.Acquire();
+#endif
   statement_cache_.clear();
-
+#if defined(__LB_SHELL__)
+  statement_cache_lock_.Release();
+#endif
   // The cache clear will get most statements. There may be still be references
   // to some statements that are held by others (including one-shot statements).
   // This will deactivate them so they can't be used again.
+#if defined(__LB_SHELL__)
+  open_statements_lock_.Acquire();
+#endif
   for (StatementRefSet::iterator i = open_statements_.begin();
        i != open_statements_.end(); ++i)
     (*i)->Close();
+#if defined(__LB_SHELL__)
+  open_statements_lock_.Release();
+#endif
 }
 
 int Connection::OnSqliteError(int err, sql::Statement *stmt) {
