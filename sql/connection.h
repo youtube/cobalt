@@ -13,6 +13,9 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#if defined(__LB_SHELL__)
+#include "base/synchronization/lock.h"
+#endif
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "sql/sql_export.h"
@@ -462,6 +465,15 @@ class SQL_EXPORT Connection {
   // This object handles errors resulting from all forms of executing sqlite
   // commands or statements. It can be null which means default handling.
   scoped_ptr<ErrorDelegate> error_delegate_;
+
+
+#if defined(__LB_SHELL__)
+  // In lb shell this object is used in multiple threads, and STL objects are
+  // not thread safe by themselves. These locks are used to protect
+  // statement_cache_ and open_statements_.
+  mutable base::Lock statement_cache_lock_;
+  base::Lock open_statements_lock_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(Connection);
 };
