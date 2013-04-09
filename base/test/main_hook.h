@@ -11,6 +11,7 @@ class MainHook {
  public:
   typedef int (*MainType)(int, char*[]);
   MainHook(MainType main_func, int argc, char* argv[]);
+  ~MainHook();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MainHook);
