@@ -75,8 +75,10 @@ void ShellDataSourceReader::Stop(const base::Closure& callback) {
   // subsequent reads should report as failure
   read_has_failed_ = true;
   blocking_read_cb_.Reset();
-  // stop the data source, it can call the callback
-  data_source_->Stop(callback);
+  if (data_source_) {
+    // stop the data source, it can call the callback
+    data_source_->Stop(callback);
+  }
 }
 
 void ShellDataSourceReader::BlockingReadCompleted(int bytes_read) {
