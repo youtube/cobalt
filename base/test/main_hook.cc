@@ -15,9 +15,13 @@
 
 #if defined(__LB_SHELL__)
 MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
-  LBShellPlatformDelegate::Init();
   LB::SetStackSize();
+  LBShellPlatformDelegate::Init();
+}
+MainHook::~MainHook() {
+  LBShellPlatformDelegate::Teardown();
 }
 #elif !defined(OS_IOS)
 MainHook::MainHook(MainType main_func, int argc, char* argv[]) {}
+MainHook::~MainHook() {}
 #endif
