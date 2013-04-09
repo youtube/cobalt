@@ -1280,7 +1280,16 @@ class ShellMP4MapTest : public testing::Test {
 
   virtual ~ShellMP4MapTest() {
     // wipe out the map or ShellBufferFactory may complain of unfreed allocs
+    DCHECK(map_->HasOneRef());
     map_ = NULL;
+
+    DCHECK(filter_graph_log_->HasOneRef());
+    filter_graph_log_ = NULL;
+
+    reader_->Stop(base::Closure());
+    DCHECK(reader_->HasOneRef());
+    reader_ = NULL;
+
     ShellBufferFactory::Terminate();
   }
 
