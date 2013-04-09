@@ -372,14 +372,15 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
       return;
     }
     stsz_default_size_ = LB::Platform::load_uint32_big_endian(atom + 4);
+    count = LB::Platform::load_uint32_big_endian(atom + 8);
+    highest_valid_sample_number_ = std::min(count - 1,
+                                            highest_valid_sample_number_);
     // if a non-zero default size is provided don't bother loading the table
     if (stsz_default_size_) {
       stsz_ = NULL;
       return;
     }
-    count = LB::Platform::load_uint32_big_endian(atom + 8);
-    highest_valid_sample_number_ = std::min(count - 1,
-                                            highest_valid_sample_number_);
+
     table_offset += 4;
   } else {
     if (size < 8) {
