@@ -65,8 +65,8 @@ static const int kSkipBytes_stsd = 8;
 // collect data on individual optimizations and make more granularly sized
 // tables.
 // TODO: b/8411351, workaround for streamer bug, turn back down once that
-// has been resolved.
-static const uint32 kMapTableEntryCacheEntries = 2048 * 2048;
+// has been resolved. Set to 0 for now to force entire atom to cache.
+static const uint32 kMapTableEntryCacheEntries = 0;
 
 // static
 scoped_refptr<ShellParser> ShellMP4Parser::Construct(

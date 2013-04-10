@@ -65,6 +65,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // Returns the keyframe sample number nearest the provided timestamp
   bool GetKeyframe(uint64 timestamp, uint32& sample_out);
 
+  // pass 0 as cache_size_entries to force caching of the entire map.
   void SetAtom(uint32 four_cc, // fourCC code ascii code as big-endian uint32
                uint64 offset,  // offset of atom body in file
                uint64 size,    // total size of atom in bytes
