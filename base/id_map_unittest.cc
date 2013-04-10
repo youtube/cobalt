@@ -189,6 +189,11 @@ TEST(IDMapTest, AssignIterator) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
+// This test relies on specific ordering of items in a hash map to expect a
+// given ID at a given iteration point.  This is a bad expectation for a
+// hash_map, and one that does not hold on lbshell platforms.  This test
+// should be rewritten.
+#if !defined(__LB_SHELL__)
 TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   IDMap<TestObject> map;
 
@@ -224,6 +229,7 @@ TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
 }
+#endif
 
 TEST(IDMapTest, OwningPointersDeletesThemOnRemove) {
   const int kCount = 3;

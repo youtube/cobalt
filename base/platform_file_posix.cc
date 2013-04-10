@@ -287,7 +287,14 @@ int WritePlatformFileCurPosNoBestEffort(PlatformFile file,
 
 bool TruncatePlatformFile(PlatformFile file, int64 length) {
   base::ThreadRestrictions::AssertIOAllowed();
+#if defined(__LB_PS3__)
+  // On PS3, when writing specifically to the temp partition, you must sync
+  // file contents to disk after truncating if you want the truncation
+  // reflected in subsequent file operations.
+  return ((file >= 0) && !HANDLE_EINTR(ftruncate(file, length)) && !fsync(file));
+#else
   return ((file >= 0) && !HANDLE_EINTR(ftruncate(file, length)));
+#endif
 }
 
 bool FlushPlatformFile(PlatformFile file) {

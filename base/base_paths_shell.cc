@@ -30,6 +30,7 @@ namespace base {
 bool PathProviderShell(int key, FilePath* result) {
   switch (key) {
     case base::DIR_EXE:
+    case base::DIR_MODULE:
       *result = FilePath(*global_game_content_path);
       return true;
 
