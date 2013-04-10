@@ -28,7 +28,7 @@ SocketDescriptor GetSocketBoundToRandomPort() {
   src_addr.addr_storage.sin_port = htons(0);
   src_addr.addr_storage.sin_addr.s_addr = INADDR_ANY;
   ::bind(s, src_addr.addr, src_addr.addr_len);
-
+  SetNonBlocking(s);
   return s;
 }
 
