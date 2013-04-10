@@ -389,7 +389,10 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
     count = LB::Platform::load_uint32_big_endian(atom + 4);
   }
 
-  // TODO: size sanity-checking against per-entry size
+  // if cache_size_entries is 0 we are to cache the entire table
+  if (cache_size_entries == 0) {
+    cache_size_entries = count;
+  }
 
   // initialize the appropriate table cache dependent on table type
   switch (four_cc) {
@@ -858,75 +861,80 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
   // stss_Init();
   DCHECK_GT(stss_keyframes_.size(), 0);
   int cache_entry_number = stss_keyframes_.size() - 1;
-  // if the sample number resides within the range of cached entries
-  // we search those to find right table cache entry to load
-  if (sample_number < stss_keyframes_[cache_entry_number]) {
-    int lower_bound = 0;
-    int upper_bound = stss_keyframes_.size();
-    // binary search to find range
-    while (lower_bound <= upper_bound) {
-      cache_entry_number = lower_bound + ((upper_bound - lower_bound) / 2);
-      if (sample_number < stss_keyframes_[cache_entry_number]) {
-        upper_bound = cache_entry_number - 1;
-      } else {  // sample_number >= stss_keyframes_[cache_entry_number]
-        // if we are at end of list or next cache entry is higher than sample
-        // number we consider it a match
-        if (cache_entry_number == stss_keyframes_.size() - 1 ||
-            sample_number < stss_keyframes_[cache_entry_number + 1]) {
-          break;
-        }
-        lower_bound = cache_entry_number + 1;
-      }
-    }
-  }
-  // We've gotten as close as we can using the cached values and must handle
-  // two cases. (a) is that we know that sample_number is contained in the
-  // cache_entry_number, because we know that:
-  // stts_keyframes_[cache_entry_number] <= sample_number <
-  //                              stts_keyframes_[cache_entry_number + 1]
-  // (b) is that we only know:
-  // stts_keyframes_[stts_keyframes_.size() - 1] <= sample_number
-  // because we have not cached an upper bound to sample_number.
-  // First step is to make (b) in to (a) by advancing through cache entries
-  // until last table entry in cache > sample_number or until we arrive
-  // at the cache entry in the table.
   int total_complete_cache_entries =
       (stss_->GetEntryCount() / stss_->GetCacheSizeEntries());
-  while ((cache_entry_number == stss_keyframes_.size() - 1) &&
-         cache_entry_number < total_complete_cache_entries) {
-    // check last entry in table we've ever cached
-    int last_cached_entry_number =
-      ((cache_entry_number + 1) * stss_->GetCacheSizeEntries()) - 1;
-    uint8* stss_entry = stss_->GetBytesAtEntry(last_cached_entry_number);
-    if (!stss_entry) {
-      return false;
+  // if there's more than one cache entry we can search the cached
+  // entries for the entry containing our keyframe, otherwise we skip
+  // directly to the binary search of the single cached entry
+  if (total_complete_cache_entries > 1) {
+    // if the sample number resides within the range of cached entries
+    // we search those to find right table cache entry to load
+    if (sample_number < stss_keyframes_[cache_entry_number]) {
+      int lower_bound = 0;
+      int upper_bound = stss_keyframes_.size();
+      // binary search to find range
+      while (lower_bound <= upper_bound) {
+        cache_entry_number = lower_bound + ((upper_bound - lower_bound) / 2);
+        if (sample_number < stss_keyframes_[cache_entry_number]) {
+          upper_bound = cache_entry_number - 1;
+        } else {  // sample_number >= stss_keyframes_[cache_entry_number]
+          // if we are at end of list or next cache entry is higher than sample
+          // number we consider it a match
+          if (cache_entry_number == stss_keyframes_.size() - 1 ||
+              sample_number < stss_keyframes_[cache_entry_number + 1]) {
+            break;
+          }
+          lower_bound = cache_entry_number + 1;
+        }
+      }
     }
-    uint32 last_cached_keyframe =
-        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
-    // if this keyframe is higher than our sample number we're in the right
-    // table, stop
-    if (sample_number <= last_cached_keyframe) {
-      break;
+    // We've gotten as close as we can using the cached values and must handle
+    // two cases. (a) is that we know that sample_number is contained in the
+    // cache_entry_number, because we know that:
+    // stts_keyframes_[cache_entry_number] <= sample_number <
+    //                              stts_keyframes_[cache_entry_number + 1]
+    // (b) is that we only know:
+    // stts_keyframes_[stts_keyframes_.size() - 1] <= sample_number
+    // because we have not cached an upper bound to sample_number.
+    // First step is to make (b) in to (a) by advancing through cache entries
+    // until last table entry in cache > sample_number or until we arrive
+    // at the cache entry in the table.
+    while ((cache_entry_number == stss_keyframes_.size() - 1) &&
+            cache_entry_number < total_complete_cache_entries) {
+      // check last entry in table we've ever cached
+      int last_cached_entry_number =
+        ((cache_entry_number + 1) * stss_->GetCacheSizeEntries()) - 1;
+      uint8* stss_entry = stss_->GetBytesAtEntry(last_cached_entry_number);
+      if (!stss_entry) {
+        return false;
+      }
+      uint32 last_cached_keyframe =
+          LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+      // if this keyframe is higher than our sample number we're in the right
+      // table, stop
+      if (sample_number <= last_cached_keyframe) {
+        break;
+      }
+      // ok, we need to look in to the next cache entry, advance
+      cache_entry_number++;
+      int first_table_entry_number =
+          cache_entry_number * stss_->GetCacheSizeEntries();
+      stss_entry = stss_->GetBytesAtEntry(first_table_entry_number);
+      if (!stss_entry) {
+        return false;
+      }
+      uint32 first_keyframe_in_cache_entry =
+          LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+      // save first entry in keyframe cache
+      stss_keyframes_.push_back(first_keyframe_in_cache_entry);
     }
-    // ok, we need to look in to the next cache entry, advance
-    cache_entry_number++;
-    int first_table_entry_number =
-        cache_entry_number * stss_->GetCacheSizeEntries();
-    stss_entry = stss_->GetBytesAtEntry(first_table_entry_number);
-    if (!stss_entry) {
-      return false;
-    }
-    uint32 first_keyframe_in_cache_entry =
-        LB::Platform::load_uint32_big_endian(stss_entry) - 1;
-    // save first entry in keyframe cache
-    stss_keyframes_.push_back(first_keyframe_in_cache_entry);
+    // ok, now we assume we are in state (a), and that we're either
+    // at the end of the table or within the cache entry bounds for our
+    // sample number
+    DCHECK(stss_keyframes_[cache_entry_number] <= sample_number &&
+           (cache_entry_number == total_complete_cache_entries ||
+            sample_number < stss_keyframes_[cache_entry_number + 1]));
   }
-  // ok, now we assume we are in state (a), and that we're either
-  // at the end of the table or within the cache entry bounds for our
-  // sample number
-  DCHECK(stss_keyframes_[cache_entry_number] <= sample_number &&
-         (cache_entry_number == total_complete_cache_entries ||
-          sample_number < stss_keyframes_[cache_entry_number + 1]));
   // binary search within stss cache entry for keyframes bounding sample_number
   int lower_bound = cache_entry_number * stss_->GetCacheSizeEntries();
   int upper_bound = std::min(lower_bound + stss_->GetCacheSizeEntries(),
