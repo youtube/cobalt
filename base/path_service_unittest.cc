@@ -99,8 +99,10 @@ TEST_F(PathServiceTest, Get) {
     if (key == base::DIR_USER_DESKTOP)
       continue;  // iOS doesn't implement DIR_USER_DESKTOP;
 #elif defined(__LB_SHELL__)
-    if (key == base::FILE_MODULE || key == base::FILE_EXE || key == base::DIR_USER_DESKTOP)
-      continue;  // lb_shell doesn't implement FILE_MODULE, FILE_EXE and DIR_USER_DESKTOP;
+    if (key == base::FILE_MODULE || key == base::FILE_EXE ||
+        key == base::DIR_USER_DESKTOP)
+      continue;  // lb_shell doesn't implement FILE_MODULE, FILE_EXE and
+                 // DIR_USER_DESKTOP;
 #endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }

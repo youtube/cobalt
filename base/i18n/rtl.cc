@@ -120,11 +120,24 @@ bool ICUIsRTL() {
 }
 
 TextDirection GetTextDirectionForLocale(const char* locale_name) {
+#if defined(__LB_SHELL__)
+  // lbshell does not have the icu tables needed to determine RTL-ness.
+  // Rather than beef up our icu tables, hard-code the list of RTL languages
+  // that Chrome supports.  RTL layout is implemented by other components,
+  // so this does not affect our ability to do RTL layout nor RTL text.
+  return (!strncmp(locale_name, "he", 2) ||
+          !strncmp(locale_name, "ar", 2) ||
+          !strncmp(locale_name, "iw", 2) ||
+          !strncmp(locale_name, "fa", 2) ||
+          !strncmp(locale_name, "ur", 2))
+         ? RIGHT_TO_LEFT : LEFT_TO_RIGHT;
+#else
   UErrorCode status = U_ZERO_ERROR;
   ULayoutType layout_dir = uloc_getCharacterOrientation(locale_name, &status);
   DCHECK(U_SUCCESS(status));
   // Treat anything other than RTL as LTR.
   return (layout_dir != ULOC_LAYOUT_RTL) ? LEFT_TO_RIGHT : RIGHT_TO_LEFT;
+#endif
 }
 
 TextDirection GetFirstStrongCharacterDirection(const string16& text) {
