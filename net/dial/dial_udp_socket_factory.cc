@@ -33,7 +33,6 @@ bool NativeBind(const SocketDescriptor s, const IPEndPoint& address) {
   }
   return true;
 }
-
 #endif
 
 } // anonymous namespace
@@ -64,6 +63,7 @@ void DialUdpSocketFactory::SetupSocketAfterCreate(SocketDescriptor s) {
 #else
   NOTIMPLEMENTED() << "Cannot SO_REUSEADDR on this platform.";
 #endif
+  SetNonBlocking(s);
 }
 
 // Enable Multicast and join group if multicast is enabled.
