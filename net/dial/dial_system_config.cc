@@ -23,16 +23,6 @@ namespace { // anonymous
 static const char* kSecret = "v=8FpigqfcvlM";
 static char* g_dial_uuid = NULL;
 
-std::string GetIpAddressLiteral() {
-  SockaddrStorage sock_addr;
-  LB::Platform::GetLocalIpAddress(&sock_addr.addr_storage.sin_addr);
-  sock_addr.addr_storage.sin_family = AF_INET;
-
-  IPEndPoint addr;
-  ignore_result(addr.FromSockAddr(sock_addr.addr, sock_addr.addr_len));
-  return addr.ToStringWithoutPort();
-}
-
 } // namespace anonymous
 
 DialSystemConfig* DialSystemConfig::GetInstance() {
@@ -62,13 +52,10 @@ void DialSystemConfig::CreateDialUuid() {
   std::string platform_uuid = GeneratePlatformUuid();
   DCHECK_NE(0, platform_uuid.size());
 
-  std::string ip_addr = GetIpAddressLiteral();
-
   EVP_MD_CTX* mdctx;
   mdctx = EVP_MD_CTX_create();
   EVP_DigestInit_ex(mdctx, EVP_sha1(), NULL);
   EVP_DigestUpdate(mdctx, kSecret, strlen(kSecret));
-  EVP_DigestUpdate(mdctx, ip_addr.data(), ip_addr.size());
   EVP_DigestUpdate(mdctx, platform_uuid.data(), platform_uuid.size());
   EVP_DigestFinal_ex(mdctx, md_value, &md_len);
   EVP_MD_CTX_destroy(mdctx);
