@@ -114,6 +114,7 @@ DEFINE_STRING_HASH(string16);
 #endif  // COMPILER
 
 namespace base {
+using BASE_HASH_NAMESPACE::hash;
 using BASE_HASH_NAMESPACE::hash_map;
 using BASE_HASH_NAMESPACE::hash_multimap;
 using BASE_HASH_NAMESPACE::hash_multiset;
