@@ -362,6 +362,7 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
       au->GetMaxSize(),
       base::Bind(&ShellDemuxer::BufferAllocated, this),
       filter_graph_log_)) {
+    DLOG(ERROR) << "buffer allocation failed.";
     host_->OnDemuxerError(PIPELINE_ERROR_COULD_NOT_RENDER);
     return;
   }
@@ -383,6 +384,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
 
   // do nothing if stopped
   if (stopped_) {
+    DLOG(INFO) << "aborting download task, stopped";
     return;
   }
 
@@ -390,6 +392,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   // a new request. Drop current request and issue a new one.
   // flushing_ will be reset by the next call to RequestTask()
   if (flushing_) {
+    DLOG(INFO) << "skipped AU download due to flush";
     requested_au_ = NULL;
     IssueNextRequestTask();
     return;
@@ -433,6 +436,7 @@ void ShellDemuxer::IssueNextRequestTask() {
   DCHECK(!requested_au_);
   // if we're stopped don't download anymore
   if (stopped_) {
+    DLOG(INFO) << "stopped so request loop is stopping";
     return;
   }
   // if we have eos in one or both buffers the decision is easy
@@ -440,6 +444,7 @@ void ShellDemuxer::IssueNextRequestTask() {
     if (audio_reached_eos_) {
       if (video_reached_eos_) {
         // both are true, issue no more requests!
+        DLOG(INFO) << "both streams at EOS, request loop stopping";
         return;
       } else {
         // audio is at eos, video isn't, get more video
@@ -498,7 +503,7 @@ void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   blocking_thread_.message_loop()->PostTask(FROM_HERE,
-      base::Bind(&ShellDemuxer::SeekTask, this, time, cb));
+      base::Bind(&ShellDemuxer::SeekTask, this, time, BindToCurrentLoop(cb)));
 }
 
 // runs on blocking thread
@@ -515,6 +520,13 @@ void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
     cb.Run(PIPELINE_ERROR_READ);
     return;
   }
+  // if both streams had finished downloading, we need to restart the request
+  if (audio_reached_eos_ && video_reached_eos_) {
+    DLOG(INFO) << "restarting stopped request loop";
+    Request(DemuxerStream::AUDIO);
+  }
+  audio_reached_eos_ = false;
+  video_reached_eos_ = false;
   flushing_ = true;
   cb.Run(PIPELINE_OK);
 }
