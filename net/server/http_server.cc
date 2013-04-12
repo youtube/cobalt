@@ -71,6 +71,14 @@ void HttpServer::Send200(int connection_id,
   Send(connection_id, HTTP_OK, data, content_type);
 }
 
+void HttpServer::Send302(int connection_id,
+                         const std::string& location) {
+  HttpConnection* connection = FindConnection(connection_id);
+  if (connection == NULL)
+    return;
+  connection->SendRedirect(location);
+}
+
 void HttpServer::Send404(int connection_id) {
   Send(connection_id, HTTP_NOT_FOUND, "", "text/html");
 }
