@@ -33,6 +33,8 @@ class HttpConnection {
             const std::string& content_type,
             const std::vector<std::string>& headers);
 
+  void SendRedirect(const std::string& location);
+
   void Shift(int num_bytes);
 
   const std::string& recv_data() const { return recv_data_; }

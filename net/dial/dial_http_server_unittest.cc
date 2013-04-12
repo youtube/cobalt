@@ -169,7 +169,7 @@ TEST_F(DialHttpServerTest, SendManifest) {
   EXPECT_EQ("utf-8", store);
 
   EXPECT_TRUE(resp->headers->HasHeaderValue("APPLICATION-URL",
-      "http://" + addr_.ToString() + "/apps"));
+      "http://" + addr_.ToString() + "/apps/"));
 
   int64 content_length = resp->headers->GetContentLength();
   ASSERT_NE(0, content_length); // if failed, no point continuing.
@@ -182,6 +182,23 @@ TEST_F(DialHttpServerTest, SendManifest) {
   base::RunLoop().RunUntilIdle();
 
   EXPECT_EQ(content_length, rv);
+}
+
+TEST_F(DialHttpServerTest, CurrentRunningAppRedirect) {
+  HttpRequestInfo req = CreateRequest("GET", "/apps/");
+  const HttpResponseInfo* resp = GetResponse(req);
+
+  std::string store;
+  EXPECT_EQ(HTTP_FOUND, resp->headers->response_code());
+
+  EXPECT_FALSE(resp->headers->GetMimeType(&store));
+  EXPECT_FALSE(resp->headers->GetCharset(&store));
+
+  EXPECT_TRUE(resp->headers->HasHeaderValue("Location",
+      "http://" + addr_.ToString() + "/apps/YouTube"));
+
+  int64 content_length = resp->headers->GetContentLength();
+  EXPECT_EQ(0, content_length);
 }
 
 TEST_F(DialHttpServerTest, AllOtherRequests) {
