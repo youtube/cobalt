@@ -78,6 +78,15 @@ void HttpConnection::Send(HttpStatusCode status_code,
   socket_->Send(data);
 }
 
+void HttpConnection::SendRedirect(const std::string& location) {
+  socket_->Send(base::StringPrintf(
+      "HTTP/1.1 %d %s\r\n"
+      "Location: %s\r\n"
+      "Content-Length: 0\r\n"
+      "\r\n",
+      HTTP_FOUND, "Found", location.c_str()));
+}
+
 HttpConnection::HttpConnection(HttpServer* server, StreamListenSocket* sock)
     : server_(server),
       socket_(sock) {

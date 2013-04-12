@@ -44,15 +44,10 @@ DialService::DialService()
   // DialService is lazy, so we can start in the constructor
   // and always have a messageloop.
   thread_->StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
-  DLOG(WARNING) << "Starting dial_service with thread-ID : "
-                << thread_->thread_handle();
 }
 
 DialService::~DialService() {
   DCHECK(!is_running());
-
-  DLOG(WARNING) << "Stopping dial_service with thread-ID : "
-                << thread_->thread_handle();
 }
 
 MessageLoop* DialService::GetMessageLoop() {
@@ -96,7 +91,7 @@ void DialService::SpinUpServices() {
     return;
   }
 
-  DLOG(INFO) << "Dial Servers up n running.";
+  DLOG(INFO) << "Dial Server is now running.";
   is_running_ = true;
 }
 
@@ -106,7 +101,7 @@ void DialService::SpinDownServices() {
   // Do nothing
   if (!is_running_) return;
 
-  DLOG(INFO) << "Dial Servers shutting down.";
+  DLOG(INFO) << "Dial Server is shutting down.";
   bool http_ret = http_server_->Stop();
   bool udp_ret = udp_server_->Stop();
 
@@ -138,7 +133,7 @@ void DialService::AddToHandlerMap(DialServiceHandler* handler) {
   // Don't replace.
   std::pair<ServiceHandlerMap::iterator, bool> it =
       handlers_.insert(std::make_pair(path, handler));
-  DLOG(INFO) << "Attempt to insert handler for path: " << path
+  VLOG(1) << "Attempt to insert handler for path: " << path
              << (it.second ? " succeeded" : " failed");
 
   if (it.second && !is_running()) {
@@ -180,7 +175,7 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path,
   DCHECK(CurrentThreadIsValid());
   DCHECK(handler_path != NULL);
 
-  DLOG(INFO) << "Requesting Handler for path: " << request_path;
+  VLOG(1) << "Requesting Handler for path: " << request_path;
   base::StringPiece path(request_path);
 
   // remove '/apps/'

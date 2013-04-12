@@ -58,6 +58,8 @@ class HttpServer : public StreamListenSocket::Delegate,
   void Send200(int connection_id,
                const std::string& data,
                const std::string& mime_type);
+  void Send302(int connection_id,
+               const std::string& location);
   void Send404(int connection_id);
   void Send500(int connection_id, const std::string& message);
 

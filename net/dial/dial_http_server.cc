@@ -22,13 +22,6 @@ namespace net {
 
 const static char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
 
-#if defined(NDEBUG)
-const int kDialHttpServerPort = 0; // Random Port.
-#else
-const int kDialHttpServerPort = 9100; // Fixed Port for easier debugging.
-#endif
-
-
 const static char* kDdXmlFormat =
     "<?xml version=\"1.0\"?>"
     "<root"
@@ -46,6 +39,10 @@ const static char* kDdXmlFormat =
         "<UDN>uuid:%s</UDN>"
       "</device>"
     "</root>";
+
+const static std::string kAppsPrefix = "/apps/";
+
+const int kDialHttpServerPort = 0; // Random Port.
 
 DialHttpServer::DialHttpServer()
     : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)) {
@@ -106,15 +103,25 @@ void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
   DLOG(INFO) << "Http Request: "
              << info.method << " " << info.path << " HTTP/1.1";
-  if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
-    SendDeviceDescriptionManifest(conn_id);
-  } else {
-    bool callback_registered = false;
-    if (StartsWithASCII(info.path, std::string("/apps/"), true))
-      callback_registered = CallbackJsHttpRequest(conn_id, info);
 
-    if (!callback_registered)
+  if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
+    // If dd.xml request
+    SendDeviceDescriptionManifest(conn_id);
+
+  } else if (StartsWithASCII(info.path, kAppsPrefix, true)) {
+
+    if (info.method == "GET" && info.path.length() == kAppsPrefix.length()) {
+      // If /apps/ request, send 302 to current application.
+      // TODO: Remove hardcoded YouTube by remembering the running application.
+      http_server_->Send302(conn_id, application_url() + "YouTube");
+
+    } else if (!CallbackJsHttpRequest(conn_id, info)) {
+      // If handled by Js, let it pass. Otherwise, send 404.
       http_server_->Send404(conn_id);
+    }
+  } else {
+    // For all other cases, send 404.
+    http_server_->Send404(conn_id);
   }
 }
 
