@@ -114,7 +114,9 @@ DEFINE_STRING_HASH(string16);
 #endif  // COMPILER
 
 namespace base {
+#if defined(__LB_LINUX__)
 using BASE_HASH_NAMESPACE::hash;
+#endif
 using BASE_HASH_NAMESPACE::hash_map;
 using BASE_HASH_NAMESPACE::hash_multimap;
 using BASE_HASH_NAMESPACE::hash_multiset;
