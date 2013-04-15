@@ -20,6 +20,9 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#if defined(__LB_WIIU__)
+#include "lb_shell/lb_unsegmented_alloc.h"
+#endif
 #include "media/base/decrypt_config.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
@@ -422,7 +425,12 @@ ShellBufferFactory::ShellBufferFactory()
     : array_allocation_event_(false, false)
     , array_requested_size_(0)
     , array_allocation_(NULL) {
+#if defined(__LB_WIIU__)
+  buffer_ = (uint8*)LB::acquire_unsegmented_memory(kShellBufferAlignment,
+                                                   kShellBufferSpaceSize);
+#else
   buffer_ = (uint8*)memalign(kShellBufferAlignment, kShellBufferSpaceSize);
+#endif
   // save the entirety of the available memory as a hole
   holes_.insert(std::make_pair(kShellBufferSpaceSize, buffer_));
 }
@@ -438,7 +446,11 @@ ShellBufferFactory::~ShellBufferFactory() {
   }
   // and no outstanding array requests
   DCHECK_EQ(array_requested_size_, 0);
+#if defined(__LB_WIIU__)
+  LB::release_unsegmented_memory(buffer_);
+#else
   free(buffer_);
+#endif
 }
 
 }  // namespace media

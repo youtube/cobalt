@@ -24,6 +24,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "lb_shell/lb_shell_constants.h"
 #include "media/base/buffers.h"
 
 namespace media {
@@ -40,7 +41,7 @@ static const int kShellBufferAlignment = 4;
 static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
 static const int kShellBufferAlignment = 64;
-static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
+static const int kShellBufferSpaceSize = kUnmappedMemorySize;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif
