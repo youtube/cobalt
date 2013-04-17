@@ -102,7 +102,9 @@ void TestSuite::PreInitialize(int argc, char** argv,
   base::EnableTerminationOnHeapCorruption();
   initialized_command_line_ = CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
-#if defined(OS_LINUX) && defined(USE_AURA)
+#if defined (__LB_LINUX__)
+  setlocale(LC_ALL, "");
+#elif defined(OS_LINUX) && defined(USE_AURA)
   // When calling native char conversion functions (e.g wrctomb) we need to
   // have the locale set. In the absence of such a call the "C" locale is the
   // default. In the gtk code (below) gtk_init() implicitly sets a locale.
