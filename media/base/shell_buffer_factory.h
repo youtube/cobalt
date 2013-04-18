@@ -40,8 +40,8 @@ static const size_t kShellBufferSpaceSize = 64 * 1024 * 1024;
 static const int kShellBufferAlignment = 4;
 static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
-static const int kShellBufferAlignment = 64;
-static const int kShellBufferSpaceSize = kUnmappedMemorySize;
+static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
+static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif
