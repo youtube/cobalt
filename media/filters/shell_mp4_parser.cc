@@ -304,6 +304,8 @@ bool ShellMP4Parser::ParseNextAtom() {
   // adjust size of body of atom from size of header
   uint64 atom_data_size = atom_size - atom_body;
 
+  bool atom_parse_success = true;
+
   // now take appropriate action based on atom type
   switch (four_cc) {
     // avc1 atoms are contained within stsd atoms and carry their own
@@ -315,11 +317,10 @@ bool ShellMP4Parser::ParseNextAtom() {
 
     // avcC atoms contain the AVCConfigRecord, our video configuration info
     case kAtomType_avcC:
-      if (!DownloadAndParseAVCConfigRecord(atom_offset_,
-                                           atom_data_size)) {
-        return false;
-      }
-      atom_offset_ += atom_data_size;
+      atom_parse_success = DownloadAndParseAVCConfigRecord(atom_offset_,
+                                                           atom_data_size);
+      if (atom_parse_success)
+        atom_offset_ += atom_data_size;
       break;
 
     // esds atoms contain actually usable audio configuration info for AAC.
@@ -370,17 +371,17 @@ bool ShellMP4Parser::ParseNextAtom() {
     case kAtomType_stss:
     case kAtomType_stsz:
       if (current_trak_is_video_) {
-        video_map_->SetAtom(four_cc,
-                            atom_offset_,
-                            atom_data_size,
-                            kMapTableEntryCacheEntries,
-                            atom + atom_body);
+        atom_parse_success = video_map_->SetAtom(four_cc,
+                                                 atom_offset_,
+                                                 atom_data_size,
+                                                 kMapTableEntryCacheEntries,
+                                                 atom + atom_body);
       } else if (current_trak_is_audio_) {
-        audio_map_->SetAtom(four_cc,
-                            atom_offset_,
-                            atom_data_size,
-                            kMapTableEntryCacheEntries,
-                            atom + atom_body);
+        atom_parse_success = audio_map_->SetAtom(four_cc,
+                                                 atom_offset_,
+                                                 atom_data_size,
+                                                 kMapTableEntryCacheEntries,
+                                                 atom + atom_body);
       }
       atom_offset_ += atom_data_size;
       break;
@@ -418,7 +419,12 @@ bool ShellMP4Parser::ParseNextAtom() {
       break;
   }
 
-  return true;
+  if (!atom_parse_success) {
+    DLOG(ERROR) << base::StringPrintf(
+        "Unable to parse MP4 atom: %c%c%c%c",
+        atom[4], atom[5], atom[6], atom[7]);
+  }
+  return atom_parse_success;
 }
 
 #if SHELL_MP4_PARSER_DUMP_ATOMS
