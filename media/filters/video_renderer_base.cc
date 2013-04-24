@@ -531,9 +531,6 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     return;
   }
 
-  // __LB_SHELL__ renders pre-rolled video and audio before target timestamp
-  // to cut down on startup latency after a seek.
-#if !defined(__LB_SHELL__)
   // Discard frames until we reach our desired preroll timestamp.
   if (state_ == kPrerolling && !frame->IsEndOfStream() &&
       frame->GetTimestamp() <= preroll_timestamp_) {
@@ -541,7 +538,6 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     AttemptRead_Locked();
     return;
   }
-#endif
 
   if (prerolling_delayed_frame_) {
     DCHECK_EQ(state_, kPrerolling);
