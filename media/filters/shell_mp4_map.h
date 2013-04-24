@@ -66,23 +66,23 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   bool GetKeyframe(uint64 timestamp, uint32& sample_out);
 
   // pass 0 as cache_size_entries to force caching of the entire map.
-  void SetAtom(uint32 four_cc, // fourCC code ascii code as big-endian uint32
+  bool SetAtom(uint32 four_cc, // fourCC code ascii code as big-endian uint32
                uint64 offset,  // offset of atom body in file
                uint64 size,    // total size of atom in bytes
                uint32 cache_size_entries,  // num of entries to cache in memory
                const uint8* atom);         // pointer to atom body start
 
  private:
-  void co64_Init();
+  bool co64_Init();
 
-  void ctts_Init();
+  bool ctts_Init();
   // advance the ctts cache and integration state to contain sample number.
   bool ctts_AdvanceToSample(uint32 sample_number);
   bool ctts_SlipCacheToSample(uint32 sample_number, int starting_cache_index);
 
-  void stco_Init();
+  bool stco_Init();
 
-  void stsc_Init();
+  bool stsc_Init();
   // advance the stsc cache and integration state to contain sample number.
   bool stsc_AdvanceToSample(uint32 sample_number);
   // re-use previously calculated sums to jump through the table to get to the
@@ -90,13 +90,13 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // from the starting_cache_index.
   bool stsc_SlipCacheToSample(uint32 sample_number, int starting_cache_index);
 
-  void stss_Init();
+  bool stss_Init();
   // step through table by one table entry, return false on error
   bool stss_AdvanceStep();
   // search for nearest keyframe, update state to contain it
   bool stss_FindNearestKeyframe(uint32 sample_number);
 
-  void stts_Init();
+  bool stts_Init();
   bool stts_AdvanceToSample(uint32 sample_number);
   bool stts_SlipCacheToSample(uint32 sample_number, int starting_cache_index);
   bool stts_AdvanceToTime(uint64 timestamp);
