@@ -356,7 +356,7 @@ bool ShellMP4Map::GetKeyframe(uint64 timestamp, uint32& sample_out) {
 
 // Set up map state and load first part of table, or entire table if it is small
 // enough, for each of the supporated atoms.
-void ShellMP4Map::SetAtom(uint32 four_cc,
+bool ShellMP4Map::SetAtom(uint32 four_cc,
                           uint64 offset,
                           uint64 size,
                           uint32 cache_size_entries,
@@ -369,7 +369,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
   uint64 table_offset = offset + 8;
   if (four_cc == kAtomType_stsz) {
     if (size < 12) {
-      return;
+      return false;
     }
     stsz_default_size_ = LB::Platform::load_uint32_big_endian(atom + 4);
     count = LB::Platform::load_uint32_big_endian(atom + 8);
@@ -378,13 +378,13 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
     // if a non-zero default size is provided don't bother loading the table
     if (stsz_default_size_) {
       stsz_ = NULL;
-      return;
+      return true;
     }
 
     table_offset += 4;
   } else {
     if (size < 8) {
-      return;
+      return false;
     }
     count = LB::Platform::load_uint32_big_endian(atom + 4);
   }
@@ -394,6 +394,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
     cache_size_entries = count;
   }
 
+  bool atom_init = false;
   // initialize the appropriate table cache dependent on table type
   switch (four_cc) {
     case kAtomType_co64:
@@ -403,7 +404,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      co64_Init();
+      atom_init = co64_Init();
       break;
 
     case kAtomType_ctts:
@@ -413,7 +414,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      ctts_Init();
+      atom_init = ctts_Init();
       break;
 
     case kAtomType_stco:
@@ -423,7 +424,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      stco_Init();
+      atom_init = stco_Init();
       break;
 
     case kAtomType_stsc:
@@ -433,7 +434,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      stsc_Init();
+      atom_init = stsc_Init();
       break;
 
     case kAtomType_stss:
@@ -443,7 +444,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      stss_Init();
+      atom_init = stss_Init();
       break;
 
     case kAtomType_stts:
@@ -453,7 +454,7 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      stts_Init();
+      atom_init = stts_Init();
       break;
 
     case kAtomType_stsz:
@@ -463,15 +464,18 @@ void ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
+      atom_init = true;
       break;
 
     default:
       NOTREACHED() << "unknown atom type provided to mp4 map";
       break;
   }
+
+  return atom_init;
 }
 
-void ShellMP4Map::co64_Init() {
+bool ShellMP4Map::co64_Init() {
   DCHECK(co64_);
   // load offset of first chunk into current_chunk_offset_
   if (co64_->GetEntryCount() > 0) {
@@ -483,13 +487,15 @@ void ShellMP4Map::co64_Init() {
   } else {
     stco_ = NULL;
   }
+
+  return true;
 }
 
 // The ctts table has the following per-entry layout:
 // uint32 sample count
 // uint32 composition offset in ticks
 //
-void ShellMP4Map::ctts_Init() {
+bool ShellMP4Map::ctts_Init() {
   DCHECK(ctts_);
   // get cache segment vector to reserve table entries in advance
   int cache_segments = (ctts_->GetEntryCount() /
@@ -502,7 +508,7 @@ void ShellMP4Map::ctts_Init() {
     uint8* ctts_entry = ctts_->GetBytesAtEntry(0);
     if (!ctts_entry) {
       NOTREACHED();
-      return;
+      return false;
     }
     ctts_table_index_ = 0;
     ctts_first_sample_ = 0;
@@ -512,6 +518,8 @@ void ShellMP4Map::ctts_Init() {
     // drop empty ctts_ table
     ctts_ = NULL;
   }
+
+  return true;
 }
 
 // To find the composition offset of a given sample number we must integrate
@@ -612,7 +620,7 @@ bool ShellMP4Map::ctts_SlipCacheToSample(uint32 sample_number,
   return true;
 }
 
-void ShellMP4Map::stco_Init() {
+bool ShellMP4Map::stco_Init() {
   DCHECK(stco_);
   // load offset of first chunk into current_chunk_offset_
   if (stco_->GetEntryCount() > 0) {
@@ -621,13 +629,15 @@ void ShellMP4Map::stco_Init() {
   } else {
     stco_ = NULL;
   }
+
+  return true;
 }
 
 // The stsc table has the following per-entry layout:
 // uint32 first chunk number with this sample count
 // uint32 samples-per-chunk
 // uint32 sample description id (unused)
-void ShellMP4Map::stsc_Init() {
+bool ShellMP4Map::stsc_Init() {
   DCHECK(stsc_);
   // set up vector to correct final size
   int cache_segments = (stsc_->GetEntryCount() /
@@ -644,7 +654,7 @@ void ShellMP4Map::stsc_Init() {
       NOTREACHED();
       // invalidate table
       stsc_ = NULL;
-      return;
+      return false;
     }
     // initialize integration step variables
     stsc_samples_per_chunk_ =
@@ -655,7 +665,7 @@ void ShellMP4Map::stsc_Init() {
       if (!stsc_entry) {
         NOTREACHED();
         stsc_ = NULL;
-        return;
+        return false;
       }
       stsc_next_first_chunk_ =
           LB::Platform::load_uint32_big_endian(stsc_entry) - 1;
@@ -675,6 +685,8 @@ void ShellMP4Map::stsc_Init() {
   } else {
     stsc_ = NULL;
   }
+
+  return true;
 }
 
 // To find the chunk number of an abritrary sample we have to sum the
@@ -807,7 +819,7 @@ bool ShellMP4Map::stsc_SlipCacheToSample(uint32 sample_number,
 }
 
 // stss is a list of sample numbers that are keyframes.
-void ShellMP4Map::stss_Init() {
+bool ShellMP4Map::stss_Init() {
   int cache_segments = (stss_->GetEntryCount() /
                         stss_->GetCacheSizeEntries()) + 1;
   stss_keyframes_.reserve(cache_segments);
@@ -818,7 +830,7 @@ void ShellMP4Map::stss_Init() {
     uint8* stss_entry = stss_->GetBytesAtEntry(0);
     if (!stss_entry) {
       stss_ = NULL;
-      return;
+      return false;
     }
     stss_last_keyframe_ =
         LB::Platform::load_uint32_big_endian(stss_entry) - 1;
@@ -828,6 +840,8 @@ void ShellMP4Map::stss_Init() {
   } else {
     stss_ = NULL;
   }
+
+  return true;
 }
 
 // advance by one table entry through stss, updating cache if necessary
@@ -978,7 +992,7 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
 // The stts table has the following per-entry layout:
 // uint32 sample count - number of sequential samples with this duration
 // uint32 sample duration - duration in ticks of this sample range
-void ShellMP4Map::stts_Init() {
+bool ShellMP4Map::stts_Init() {
   int cache_segments = (stts_->GetEntryCount() /
                         stts_->GetCacheSizeEntries()) + 1;
   stts_samples_.reserve(cache_segments);
@@ -991,7 +1005,7 @@ void ShellMP4Map::stts_Init() {
     uint8* stts_entry = stts_->GetBytesAtEntry(0);
     if (!stts_entry) {
       stts_ = NULL;
-      return;
+      return false;
     }
     stts_first_sample_ = 0;
     stts_first_sample_time_ = 0;
@@ -1004,6 +1018,8 @@ void ShellMP4Map::stts_Init() {
   } else {
     stts_ = NULL;
   }
+
+  return true;
 }
 
 bool ShellMP4Map::stts_AdvanceToSample(uint32 sample_number) {
