@@ -299,9 +299,9 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
   return base::TimeDelta::FromMilliseconds(1000);
 }
 #if defined(__LB_PS3__)
-// We only have room for a maximum of 16 MB of buffering.
+// We only have room for a maximum of 11 MB of buffering.
 static int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 15 * 1024 * 1024;
+static int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
