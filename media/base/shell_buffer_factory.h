@@ -35,7 +35,7 @@ namespace media {
 // pool from which all ShellBuffers are allocated.
 #if defined(__LB_PS3__)
 static const int kShellBufferAlignment = 128;
-static const size_t kShellBufferSpaceSize = 64 * 1024 * 1024;
+static const size_t kShellBufferSpaceSize = 48 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
 static const int kShellBufferAlignment = 4;
 static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
