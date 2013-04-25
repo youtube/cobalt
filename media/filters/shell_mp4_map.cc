@@ -404,7 +404,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = co64_Init();
+      if (co64_)
+        atom_init = co64_Init();
       break;
 
     case kAtomType_ctts:
@@ -414,7 +415,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = ctts_Init();
+      if (ctts_)
+        atom_init = ctts_Init();
       break;
 
     case kAtomType_stco:
@@ -424,7 +426,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = stco_Init();
+      if (stco_)
+        atom_init = stco_Init();
       break;
 
     case kAtomType_stsc:
@@ -434,7 +437,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = stsc_Init();
+      if (stsc_)
+        atom_init = stsc_Init();
       break;
 
     case kAtomType_stss:
@@ -444,7 +448,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = stss_Init();
+      if (stss_)
+        atom_init = stss_Init();
       break;
 
     case kAtomType_stts:
@@ -454,7 +459,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = stts_Init();
+      if (stts_)
+        atom_init = stts_Init();
       break;
 
     case kAtomType_stsz:
@@ -464,7 +470,8 @@ bool ShellMP4Map::SetAtom(uint32 four_cc,
                              cache_size_entries,
                              reader_,
                              filter_graph_log_);
-      atom_init = true;
+      if (stsz_)
+        atom_init = true;
       break;
 
     default:
