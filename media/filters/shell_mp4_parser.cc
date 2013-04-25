@@ -61,12 +61,15 @@ static const int kDesiredBytes_mvhd = 20;
 // how many bytes to skip within an stsd before the config atoms start?
 static const int kSkipBytes_stsd = 8;
 
-// For now use the same size of table for each mp4 map atom. Later we can
-// collect data on individual optimizations and make more granularly sized
-// tables.
-// TODO: b/8411351, workaround for streamer bug, turn back down once that
-// has been resolved. Set to 0 for now to force entire atom to cache.
-static const uint32 kMapTableEntryCacheEntries = 0;
+// use average values of mp4 metadata tables plus 2 standard deviations to
+// hold most metadata atoms entirely in memory.
+static const int kMapTableAtomCacheEntries_stsz = 260591 / kEntrySize_stsz;
+static const int kMapTableAtomCacheEntries_stco = 22859  / kEntrySize_stco;
+static const int kMapTableAtomCacheEntries_stss = 3786   / kEntrySize_stss;
+static const int kMapTableAtomCacheEntries_stts = 164915 / kEntrySize_stts;
+static const int kMapTableAtomCacheEntries_stsc = 32199  / kEntrySize_stsc;
+static const int kMapTableAtomCacheEntries_co64 = 740212 / kEntrySize_co64;
+static const int kMapTableAtomCacheEntries_ctts = 51543  / kEntrySize_ctts;
 
 // static
 scoped_refptr<ShellParser> ShellMP4Parser::Construct(
@@ -306,6 +309,11 @@ bool ShellMP4Parser::ParseNextAtom() {
 
   bool atom_parse_success = true;
 
+  // We use 95% certainty intervals for video metadata atom sizes. The map
+  // is written to handle larger atom sizes but having to recache metadata
+  // increases latencies on things like seeks.
+  int map_table_atom_cache_entries = 0;
+
   // now take appropriate action based on atom type
   switch (four_cc) {
     // avc1 atoms are contained within stsd atoms and carry their own
@@ -364,26 +372,31 @@ bool ShellMP4Parser::ParseNextAtom() {
     // if one of the stbl subatoms add it to the appropriate audio or video map
     // and then advance past it.
     case kAtomType_co64:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_co64;
+      break;
+
     case kAtomType_ctts:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_ctts;
+      break;
+
     case kAtomType_stco:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_stco;
+      break;
+
     case kAtomType_stts:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_stts;
+      break;
+
     case kAtomType_stsc:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_stsc;
+      break;
+
     case kAtomType_stss:
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_stss;
+      break;
+
     case kAtomType_stsz:
-      if (current_trak_is_video_) {
-        atom_parse_success = video_map_->SetAtom(four_cc,
-                                                 atom_offset_,
-                                                 atom_data_size,
-                                                 kMapTableEntryCacheEntries,
-                                                 atom + atom_body);
-      } else if (current_trak_is_audio_) {
-        atom_parse_success = audio_map_->SetAtom(four_cc,
-                                                 atom_offset_,
-                                                 atom_data_size,
-                                                 kMapTableEntryCacheEntries,
-                                                 atom + atom_body);
-      }
-      atom_offset_ += atom_data_size;
+      map_table_atom_cache_entries = kMapTableAtomCacheEntries_stsz;
       break;
 
     // these are container atoms, so we dont want to advance past the header
@@ -419,11 +432,29 @@ bool ShellMP4Parser::ParseNextAtom() {
       break;
   }
 
+  if (map_table_atom_cache_entries > 0) {
+    if (current_trak_is_video_) {
+      atom_parse_success = video_map_->SetAtom(four_cc,
+                                               atom_offset_,
+                                               atom_data_size,
+                                               map_table_atom_cache_entries,
+                                               atom + atom_body);
+    } else if (current_trak_is_audio_) {
+      atom_parse_success = audio_map_->SetAtom(four_cc,
+                                               atom_offset_,
+                                               atom_data_size,
+                                               map_table_atom_cache_entries,
+                                               atom + atom_body);
+    }
+    atom_offset_ += atom_data_size;
+  }
+
   if (!atom_parse_success) {
     DLOG(ERROR) << base::StringPrintf(
         "Unable to parse MP4 atom: %c%c%c%c",
         atom[4], atom[5], atom[6], atom[7]);
   }
+
   return atom_parse_success;
 }
 
