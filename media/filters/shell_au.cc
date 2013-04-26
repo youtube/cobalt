@@ -52,6 +52,10 @@ class ShellEndOfStreamAU : public media::ShellAU {
     NOTREACHED();
     return false;
   }
+  virtual bool AddPrepend() const OVERRIDE {
+    NOTREACHED();
+    return false;
+  }
   virtual size_t GetSize() const OVERRIDE { return 0; }
   virtual size_t GetMaxSize() const OVERRIDE { return 0; }
   virtual TimeDelta GetTimestamp() const OVERRIDE {
@@ -89,6 +93,7 @@ class ShellAudioAU : public media::ShellAU {
                     ShellBuffer* buffer) OVERRIDE;
   virtual Type GetType() const OVERRIDE { return media::DemuxerStream::AUDIO; }
   virtual bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
+  virtual bool AddPrepend() const OVERRIDE { return true; }
   virtual size_t GetSize() const OVERRIDE { return size_; }
   virtual size_t GetMaxSize() const OVERRIDE {
     return size_ + prepend_size_;
@@ -152,6 +157,11 @@ class ShellVideoAU : public media::ShellAU {
                     ShellBuffer* buffer) OVERRIDE;
   virtual Type GetType() const OVERRIDE { return media::DemuxerStream::VIDEO; }
   virtual bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
+#if defined(__LB_WIIU__)
+  virtual bool AddPrepend() const OVERRIDE { return true; }
+#else
+  virtual bool AddPrepend() const OVERRIDE { return is_keyframe_; }
+#endif
   virtual size_t GetSize() const OVERRIDE { return size_; }
   virtual size_t GetMaxSize() const OVERRIDE {
     // TODO(***REMOVED***) : This code is a proof of concept. It should be fixed

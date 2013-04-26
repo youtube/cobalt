@@ -55,6 +55,7 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
   virtual bool Read(ShellDataSourceReader* reader, ShellBuffer* buffer) = 0;
   virtual Type GetType() const = 0;
   virtual bool IsKeyframe() const = 0;
+  virtual bool AddPrepend() const = 0;
   // Get the size of this AU, it is always no larger than its max size.
   virtual size_t GetSize() const = 0;
   // Get the max required buffer of this AU
