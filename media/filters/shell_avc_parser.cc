@@ -55,7 +55,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     return false;
   }
   if (au->GetType() == DemuxerStream::VIDEO) {
-    if (au->IsKeyframe())
+    if (au->AddPrepend())
       memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
   } else if (au->GetType() == DemuxerStream::AUDIO) {
     if (audio_prepend_.empty())  // valid ADTS header not available
@@ -490,7 +490,12 @@ size_t ShellAVCParser::CalculatePrependSize(DemuxerStream::Type type,
                                             bool is_keyframe) {
   size_t prepend_size = 0;
   if (type == DemuxerStream::VIDEO) {
-    if (is_keyframe)
+#if defined(__LB_WIIU__)
+    bool needs_prepend = true;
+#else
+    bool needs_prepend = is_keyframe;
+#endif
+    if (needs_prepend)
       prepend_size = video_prepend_size_;
   } else if (type == DemuxerStream::AUDIO) {
     prepend_size = audio_prepend_.size();
