@@ -613,7 +613,7 @@ bool ShellMP4Map::ctts_SlipCacheToSample(uint32 sample_number,
       break;
     }
   }
-  ctts_first_sample_ = stts_samples_[cache_index];
+  ctts_first_sample_ = ctts_samples_[cache_index];
   ctts_table_index_ = cache_index * ctts_->GetCacheSizeEntries();
   // read sample count and duration to set next values
   uint8* ctts_entry = ctts_->GetBytesAtEntry(ctts_table_index_);
@@ -623,7 +623,6 @@ bool ShellMP4Map::ctts_SlipCacheToSample(uint32 sample_number,
   uint32 sample_count = LB::Platform::load_uint32_big_endian(ctts_entry);
   ctts_next_first_sample_ = ctts_first_sample_ + sample_count;
   ctts_sample_offset_ = LB::Platform::load_uint32_big_endian(ctts_entry + 4);
-  ctts_table_index_++;
   return true;
 }
 
