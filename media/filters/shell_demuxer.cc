@@ -230,17 +230,9 @@ ShellDemuxer::~ShellDemuxer() {
 
 void ShellDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& status_cb) {
-  DCHECK(filter_graph_log_);
-  message_loop_->PostTask(FROM_HERE, base::Bind(&ShellDemuxer::InitializeTask,
-                                                this,
-                                                host,
-                                                status_cb));
-}
-
-void ShellDemuxer::InitializeTask(DemuxerHost *host,
-                                  const PipelineStatusCB &status_cb) {
   DCHECK(MessageLoopBelongsToCurrentThread());
   DCHECK(reader_);
+  DCHECK(filter_graph_log_);
   filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventInitialize);
 
   DLOG(INFO) << "this is a PROGRESSIVE playback.";
