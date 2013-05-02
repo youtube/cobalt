@@ -126,8 +126,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 #endif
 
  private:
-  // Carries out initialization on the demuxer thread.
-  void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
   void DataSourceStopped(const base::Closure& callback);
 
