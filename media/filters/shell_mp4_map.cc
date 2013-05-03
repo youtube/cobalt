@@ -52,10 +52,12 @@ uint8* ShellMP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
   // this query within valid range for the current cache table?
   if (entry_number < cache_first_entry_number_ ||
       entry_number >= cache_first_entry_number_ + cache_entry_count_) {
-    // calculate first entry in table keeping cache size alignment in table
-    cache_entry_count_ = cache_size_entries_;
-    cache_first_entry_number_ = (entry_number / cache_entry_count_) *
-        cache_entry_count_;
+    // Calculate first entry in table keeping cache size alignment in table.
+    // Always cache one more entry as in stss we need to use the first entry
+    // of the next cache slot as an upper bound.
+    cache_entry_count_ = cache_size_entries_ + 1;
+    cache_first_entry_number_ = (entry_number / cache_size_entries_) *
+        cache_size_entries_;
     // see if we have exceeded our table bounds
     if (cache_first_entry_number_ + cache_entry_count_ > entry_count_) {
       cache_entry_count_ = entry_count_ - cache_first_entry_number_;
@@ -882,7 +884,8 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
   DCHECK_GT(stss_keyframes_.size(), 0);
   int cache_entry_number = stss_keyframes_.size() - 1;
   int total_complete_cache_entries =
-      (stss_->GetEntryCount() / stss_->GetCacheSizeEntries());
+      (stss_->GetEntryCount() + stss_->GetCacheSizeEntries() - 1)
+      / stss_->GetCacheSizeEntries() - 1;
   // if there's more than one cache entry we can search the cached
   // entries for the entry containing our keyframe, otherwise we skip
   // directly to the binary search of the single cached entry
@@ -921,18 +924,18 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
     // at the cache entry in the table.
     while ((cache_entry_number == stss_keyframes_.size() - 1) &&
             cache_entry_number < total_complete_cache_entries) {
-      // check last entry in table we've ever cached
-      int last_cached_entry_number =
-        ((cache_entry_number + 1) * stss_->GetCacheSizeEntries()) - 1;
-      uint8* stss_entry = stss_->GetBytesAtEntry(last_cached_entry_number);
+      // Use the first key frame in next cache as upper bound.
+      int next_cached_entry_number =
+          (cache_entry_number + 1) * stss_->GetCacheSizeEntries();
+      uint8* stss_entry = stss_->GetBytesAtEntry(next_cached_entry_number);
       if (!stss_entry) {
         return false;
       }
-      uint32 last_cached_keyframe =
+      uint32 next_cached_keyframe =
           LB::Platform::load_uint32_big_endian(stss_entry) - 1;
       // if this keyframe is higher than our sample number we're in the right
       // table, stop
-      if (sample_number <= last_cached_keyframe) {
+      if (sample_number < next_cached_keyframe) {
         break;
       }
       // ok, we need to look in to the next cache entry, advance
@@ -947,6 +950,17 @@ bool ShellMP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
           LB::Platform::load_uint32_big_endian(stss_entry) - 1;
       // save first entry in keyframe cache
       stss_keyframes_.push_back(first_keyframe_in_cache_entry);
+    }
+    // make sure we have an upper bound
+    if (cache_entry_number != total_complete_cache_entries &&
+        cache_entry_number == stss_keyframes_.size() - 1) {
+      int next_cached_entry_number =
+        ((cache_entry_number + 1) * stss_->GetCacheSizeEntries());
+      uint8* stss_entry = stss_->GetBytesAtEntry(next_cached_entry_number);
+      DCHECK(stss_entry);
+      uint32 next_cached_keyframe =
+          LB::Platform::load_uint32_big_endian(stss_entry) - 1;
+      stss_keyframes_.push_back(next_cached_keyframe);
     }
     // ok, now we assume we are in state (a), and that we're either
     // at the end of the table or within the cache entry bounds for our
