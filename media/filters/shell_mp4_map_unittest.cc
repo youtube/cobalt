@@ -16,7 +16,7 @@
 
 #include "media/filters/shell_mp4_map.h"
 
-#include <stdlib.h>  // for random and srandom
+#include <stdlib.h>  // for rand and srand
 
 #include <algorithm>  // for std::min
 #include <set>
@@ -67,7 +67,7 @@ using ::testing::SetArrayArgument;
 namespace {
 
 int RandomRange(int min, int max) {
-  return min + random() % (max - min + 1);
+  return min + rand() % (max - min + 1);
 }
 
 // Data structure represent a sample inside stbl. It has redundant data for
@@ -81,6 +81,8 @@ struct Sample {
   int dts;
   int cts;
 };
+
+typedef std::vector<Sample> SampleVector;
 
 class SampleTable {
  public:
@@ -118,7 +120,7 @@ class SampleTable {
     for (int i = 0; i < num_of_samples; ++i) {
       samples_[i].size = RandomRange(min_sample_size, max_sample_size);
       samples_[i].offset =
-          i == 0 ? random() : samples_[i - 1].offset + samples_[i - 1].size;
+          i == 0 ? rand() : samples_[i - 1].offset + samples_[i - 1].size;
       samples_[i].dts =
           i == 0 ? 0 : samples_[i - 1].dts + samples_[i - 1].dts_duration;
       samples_[i].dts_duration =
@@ -237,7 +239,7 @@ class SampleTable {
   }
 
  private:
-  std::vector<Sample> samples_;
+  SampleVector samples_;
 
   int64 file_offset_;
   int64 stsz_offset_;
@@ -271,10 +273,11 @@ class SampleTable {
     bool all_ctts_offset_is_zero = true;
     bool all_sample_has_same_size = true;
 
-    for (auto& sample : samples_) {
-      if (!sample.is_key_frame) all_key_frames = false;
-      if (sample.dts != sample.cts) all_ctts_offset_is_zero = false;
-      if (sample.size != samples_[0].size) all_sample_has_same_size = false;
+    for (SampleVector::const_iterator iter = samples_.begin();
+         iter != samples_.end(); ++iter) {
+      if (!iter->is_key_frame) all_key_frames = false;
+      if (iter->dts != iter->cts) all_ctts_offset_is_zero = false;
+      if (iter->size != samples_[0].size) all_sample_has_same_size = false;
     }
 
     // populate the stsz box: 4 bytes flags + 4 bytes default size
@@ -288,8 +291,9 @@ class SampleTable {
 
       uint8_t* table_offset = &stsz_[12];
 
-      for (auto& sample : samples_) {
-        store_uint32_big_endian(sample.size, table_offset);
+      for (SampleVector::const_iterator iter = samples_.begin();
+           iter != samples_.end(); ++iter) {
+        store_uint32_big_endian(iter->size, table_offset);
         table_offset += kEntrySize_stsz;
       }
     }
@@ -305,9 +309,10 @@ class SampleTable {
     stsc_.resize(8);
     uint32 chunk_offset = samples_[0].offset;
     int current_chunk_index = -1;
-    for (auto& sample : samples_) {
-      if (current_chunk_index != sample.chunk_index) {
-        current_chunk_index = sample.chunk_index;
+    for (SampleVector::const_iterator iter = samples_.begin();
+           iter != samples_.end(); ++iter) {
+      if (current_chunk_index != iter->chunk_index) {
+        current_chunk_index = iter->chunk_index;
         stco_.resize(stco_.size() + kEntrySize_stco);
         store_uint32_big_endian(chunk_offset,
                                 &stco_[stco_.size() - kEntrySize_stco]);
@@ -319,7 +324,7 @@ class SampleTable {
                                 &stsc_[stsc_.size() - kEntrySize_stsc]);
       }
       inc_uint32_big_endian(&stsc_[stsc_.size() - kEntrySize_stsc + 4]);
-      chunk_offset += sample.size;
+      chunk_offset += iter->size;
     }
     store_uint32_big_endian((stco_.size() - 8) / kEntrySize_stco, &stco_[4]);
     store_uint32_big_endian((co64_.size() - 8) / kEntrySize_co64, &co64_[4]);
@@ -370,8 +375,10 @@ class SampleTable {
     }
 
     const int kGarbageSize = 1024;
-    std::vector<uint8_t> garbage(kGarbageSize);
-    for (auto& v : garbage) v = RandomRange(0xef, 0xfe);
+    std::vector<uint8_t> garbage;
+    garbage.reserve(kGarbageSize);
+    for (int i = 0; i < kGarbageSize; ++i)
+         garbage.push_back(RandomRange(0xef, 0xfe));
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
     combined_.insert(combined_.end(), stsz_.begin(), stsz_.end());
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
@@ -388,7 +395,7 @@ class SampleTable {
     combined_.insert(combined_.end(), stss_.begin(), stss_.end());
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
 
-    file_offset_ = abs(random());
+    file_offset_ = abs(rand());
     stsz_offset_ = file_offset_ + kGarbageSize;
     stco_offset_ = stsz_offset_ + stsz_.size() + kGarbageSize;
     co64_offset_ = stco_offset_ + stco_.size() + kGarbageSize;
@@ -667,7 +674,7 @@ TEST_F(ShellMP4MapTest, GetOffsetRandomAccessHugeCache) {
     SetTestTable(coindex ? kAtomType_stco : kAtomType_co64, 300);
 
     for (int i = 0; i < 1000; ++i) {
-      uint32 sample_number = random() % sample_table_->sample_count();
+      uint32 sample_number = rand() % sample_table_->sample_count();
       uint64 map_reported_offset = 0;
       ASSERT_TRUE(map_->GetOffset(sample_number, map_reported_offset));
       uint64 table_offset = GetTestSample(sample_number).offset;
@@ -908,7 +915,7 @@ TEST_F(ShellMP4MapTest, GetTimestampRandomAccess) {
     SetTestTable(kAtomType_stts, i);
 
     for (int j = 0; j < 100; ++j) {
-      uint32 sample_number = random() % sample_table_->sample_count();
+      uint32 sample_number = rand() % sample_table_->sample_count();
       uint64 map_reported_timestamp = 0;
       ASSERT_TRUE(map_->GetTimestamp(sample_number, map_reported_timestamp));
       uint64 table_timestamp = GetTestSample(sample_number).cts;
@@ -1018,7 +1025,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
 
   // random access
   for (int i = 0; i < 1000; ++i) {
-    sample_number = random() % sample_table_->sample_count();
+    sample_number = rand() % sample_table_->sample_count();
     ASSERT_TRUE(map_->GetIsKeyframe(sample_number, map_is_keyframe_out));
     ASSERT_EQ(map_is_keyframe_out, GetTestSample(sample_number).is_key_frame);
   }
