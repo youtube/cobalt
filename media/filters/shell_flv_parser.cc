@@ -230,21 +230,14 @@ scoped_refptr<ShellAU> ShellFLVParser::GetNextAudioAU() {
 }
 
 scoped_refptr<ShellAU> ShellFLVParser::GetNextVideoAU() {
-  while (next_video_aus_.size() <= 2) {
+  while (next_video_aus_.empty()) {
     if (!ParseNextTag()) {
       return NULL;
     }
   }
-  DCHECK_GT(next_video_aus_.size(), 2);
   // extract next video AU
   scoped_refptr<ShellAU> au(next_video_aus_.front());
   next_video_aus_.pop_front();
-  if (au->GetTimestamp() != kNoTimestamp() &&
-      next_video_aus_.front()->GetTimestamp() != kNoTimestamp() &&
-      au->GetTimestamp() <= next_video_aus_.front()->GetTimestamp()) {
-    au->SetDuration(next_video_aus_.front()->GetTimestamp() -
-                    au->GetTimestamp());
-  }
 
   return au;
 }

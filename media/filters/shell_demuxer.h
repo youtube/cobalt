@@ -52,9 +52,7 @@ class ShellDemuxerStream : public DemuxerStream {
   void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
   void FlushBuffers();
   void Stop();
-  // returns the timestamp of the end of the first range of enqueued data, or
-  // kNoTimestamp() if no data enqueued.
-  base::TimeDelta GetEnqueuedRange();
+  base::TimeDelta GetLastBufferTimestamp() const;
 
  private:
   // The Ranges object doesn't offer a complement object so we rebuild
@@ -71,9 +69,11 @@ class ShellDemuxerStream : public DemuxerStream {
   // The demuxer uses these ranges to update the pipeline about what data
   // it has demuxed.
   Ranges<base::TimeDelta> buffered_ranges_;
-  // Keeps track of only what time ranges are currently enqueued. The demuxer
-  // uses these ranges to decide what to prioritize downloading.
-  Ranges<base::TimeDelta> enqueued_ranges_;
+  // The last timestamp of buffer enqueued. This is used in two places:
+  //   1. Used with the timestamp of the current frame to calculate the
+  //      buffer range.
+  //   2. Used by the demuxer to deteminate what type of frame to get next.
+  base::TimeDelta last_buffer_timestamp_;
   bool stopped_;
 
   typedef std::deque<scoped_refptr<ShellBuffer> > BufferQueue;
