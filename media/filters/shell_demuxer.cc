@@ -36,6 +36,7 @@ ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
                                        Type type)
     : demuxer_(demuxer)
     , type_(type)
+    , last_buffer_timestamp_(kNoTimestamp())
     , stopped_(false) {
   DCHECK(demuxer_);
   filter_graph_log_ = demuxer->filter_graph_log();
@@ -70,7 +71,6 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     // Send the oldest buffer back.
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
-    RebuildEnqueuedRanges_Locked();
     if (buffer->IsEndOfStream()) {
       filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
     }
@@ -115,20 +115,17 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
     return;
   }
 
-  bool range_valid = true;
   if (buffer->IsEndOfStream()) {
     filter_graph_log_->LogDemuxerStreamEvent(type_,
                                              kEventEndOfStreamReceived);
-    range_valid = false;
-  } else {
-    if (buffer->GetTimestamp() != kNoTimestamp() &&
-        buffer->GetDuration() != kInfiniteDuration()) {
-      buffered_ranges_.Add(buffer->GetTimestamp(),
-                           buffer->GetTimestamp() + buffer->GetDuration());
-    } else {
-      DLOG(WARNING) << "bad timestamp or duration info on enqueued buffer.";
-      range_valid = false;
+  } else if (buffer->GetTimestamp() != kNoTimestamp()) {
+    if (last_buffer_timestamp_ != kNoTimestamp() &&
+        last_buffer_timestamp_ < buffer->GetTimestamp()) {
+      buffered_ranges_.Add(last_buffer_timestamp_, buffer->GetTimestamp());
     }
+    last_buffer_timestamp_ = buffer->GetTimestamp();
+  } else {
+    DLOG(WARNING) << "bad timestamp info on enqueued buffer.";
   }
 
   // Check for any already waiting reads, service oldest read if there
@@ -141,35 +138,14 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
-    if (range_valid) {
-      enqueued_ranges_.Add(buffer->GetTimestamp(),
-                           buffer->GetTimestamp() + buffer->GetDuration());
-    }
   }
   filter_graph_log_->LogDemuxerStreamStateQueues(
       type_, buffer_queue_.size(), read_queue_.size());
 }
 
-void ShellDemuxerStream::RebuildEnqueuedRanges_Locked() {
-  lock_.AssertAcquired();
-  enqueued_ranges_.clear();
-  for (BufferQueue::iterator it = buffer_queue_.begin();
-       it != buffer_queue_.end();
-       it++) {
-    if ((*it)->GetTimestamp() != kNoTimestamp() &&
-        (*it)->GetDuration() != kInfiniteDuration()) {
-      enqueued_ranges_.Add((*it)->GetTimestamp(),
-                           (*it)->GetTimestamp() + (*it)->GetDuration());
-    }
-  }
-}
-
-base::TimeDelta ShellDemuxerStream::GetEnqueuedRange() {
+base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
   base::AutoLock auto_lock(lock_);
-  if (enqueued_ranges_.size()) {
-    return enqueued_ranges_.end(0);
-  }
-  return kNoTimestamp();
+  return last_buffer_timestamp_;
 }
 
 void ShellDemuxerStream::FlushBuffers() {
@@ -177,7 +153,7 @@ void ShellDemuxerStream::FlushBuffers() {
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
-  enqueued_ranges_.clear();
+  last_buffer_timestamp_ = kNoTimestamp();
   filter_graph_log_->LogDemuxerStreamStateQueues(
       type_, buffer_queue_.size(), read_queue_.size());
 }
@@ -187,7 +163,7 @@ void ShellDemuxerStream::Stop() {
   filter_graph_log_->LogDemuxerStreamEvent(type_, kEventStop);
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
-  enqueued_ranges_.clear();
+  last_buffer_timestamp_ = kNoTimestamp();
   // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
@@ -450,23 +426,19 @@ void ShellDemuxer::IssueNextRequestTask() {
   }
 
   // priority order for figuring out what to download next
-  base::TimeDelta audio_range = audio_demuxer_stream_->GetEnqueuedRange();
+  base::TimeDelta audio_stamp = audio_demuxer_stream_->GetLastBufferTimestamp();
+  base::TimeDelta video_stamp = video_demuxer_stream_->GetLastBufferTimestamp();
   // if the audio demuxer stream is empty, always fill it first
-  if (audio_range == kNoTimestamp()) {
+  if (audio_stamp == kNoTimestamp()) {
     Request(DemuxerStream::AUDIO);
+  } else if (video_stamp == kNoTimestamp()) {
+    // the video demuxer stream is empty, we need data for it
+    Request(DemuxerStream::VIDEO);
+  } else if (video_stamp < audio_stamp) {
+    // video is earlier, fill it first
+    Request(DemuxerStream::VIDEO);
   } else {
-    base::TimeDelta video_range = video_demuxer_stream_->GetEnqueuedRange();
-    // if the video demuxer stream is empty, we need data for it
-    if (video_range == kNoTimestamp()) {
-      Request(DemuxerStream::VIDEO);
-    } else {
-      // alright, fill the shortest range queue next
-      if (video_range < audio_range) {
-        Request(DemuxerStream::VIDEO);
-      } else {
-        Request(DemuxerStream::AUDIO);
-      }
-    }
+    Request(DemuxerStream::AUDIO);
   }
 }
 
