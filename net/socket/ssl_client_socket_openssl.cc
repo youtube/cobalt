@@ -983,9 +983,15 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
 
 bool SSLClientSocketOpenSSL::DoTransportIO() {
   bool network_moved = false;
-  if (BufferSend() > 0)
-    network_moved = true;
-  if (!transport_recv_eof_ && BufferRecv() >= 0)
+  int rv;
+  // Read and write as much data as possible. The loop is necessary because
+  // Write() may return synchronously.
+  do {
+    rv = BufferSend();
+    if (rv != ERR_IO_PENDING && rv != 0)
+      network_moved = true;
+  } while (rv > 0);
+  if (!transport_recv_eof_ && BufferRecv() != ERR_IO_PENDING)
     network_moved = true;
   return network_moved;
 }
@@ -997,25 +1003,22 @@ int SSLClientSocketOpenSSL::BufferSend(void) {
   if (!send_buffer_) {
     // Get a fresh send buffer out of the send BIO.
     size_t max_read = BIO_ctrl_pending(transport_bio_);
-    if (max_read > 0) {
-      send_buffer_ = new DrainableIOBuffer(new IOBuffer(max_read), max_read);
-      int read_bytes = BIO_read(transport_bio_, send_buffer_->data(), max_read);
-      DCHECK_GT(read_bytes, 0);
-      CHECK_EQ(static_cast<int>(max_read), read_bytes);
-    }
+    if (!max_read)
+      return 0;  // Nothing pending in the OpenSSL write BIO.
+    send_buffer_ = new DrainableIOBuffer(new IOBuffer(max_read), max_read);
+    int read_bytes = BIO_read(transport_bio_, send_buffer_->data(), max_read);
+    DCHECK_GT(read_bytes, 0);
+    CHECK_EQ(static_cast<int>(max_read), read_bytes);
   }
 
-  int rv = 0;
-  while (send_buffer_) {
-    rv = transport_->socket()->Write(
+  int rv = transport_->socket()->Write(
         send_buffer_,
         send_buffer_->BytesRemaining(),
         base::Bind(&SSLClientSocketOpenSSL::BufferSendComplete,
                    base::Unretained(this)));
-    if (rv == ERR_IO_PENDING) {
-      transport_send_busy_ = true;
-      return rv;
-    }
+  if (rv == ERR_IO_PENDING) {
+    transport_send_busy_ = true;
+  } else {
     TransportWriteComplete(rv);
   }
   return rv;

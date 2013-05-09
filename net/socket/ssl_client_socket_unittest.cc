@@ -28,6 +28,290 @@
 
 const net::SSLConfig kDefaultSSLConfig;
 
+// WrappedStreamSocket is a base class that wraps an existing StreamSocket,
+// forwarding the Socket and StreamSocket interfaces to the underlying
+// transport.
+// This is to provide a common base class for subclasses to override specific
+// StreamSocket methods for testing, while still communicating with a 'real'
+// StreamSocket.
+class WrappedStreamSocket : public net::StreamSocket {
+ public:
+  explicit WrappedStreamSocket(scoped_ptr<net::StreamSocket> transport)
+      : transport_(transport.Pass()) {
+  }
+  virtual ~WrappedStreamSocket() {}
+
+  // StreamSocket implementation:
+  virtual int Connect(const net::CompletionCallback& callback) OVERRIDE {
+    return transport_->Connect(callback);
+  }
+  virtual void Disconnect() OVERRIDE {
+    transport_->Disconnect();
+  }
+  virtual bool IsConnected() const OVERRIDE {
+    return transport_->IsConnected();
+  }
+  virtual bool IsConnectedAndIdle() const OVERRIDE {
+    return transport_->IsConnectedAndIdle();
+  }
+  virtual int GetPeerAddress(net::IPEndPoint* address) const OVERRIDE {
+    return transport_->GetPeerAddress(address);
+  }
+  virtual int GetLocalAddress(net::IPEndPoint* address) const OVERRIDE {
+    return transport_->GetLocalAddress(address);
+  }
+  virtual const net::BoundNetLog& NetLog() const OVERRIDE {
+    return transport_->NetLog();
+  }
+  virtual void SetSubresourceSpeculation() OVERRIDE {
+    transport_->SetSubresourceSpeculation();
+  }
+  virtual void SetOmniboxSpeculation() OVERRIDE {
+    transport_->SetOmniboxSpeculation();
+  }
+  virtual bool WasEverUsed() const OVERRIDE {
+    return transport_->WasEverUsed();
+  }
+  virtual bool UsingTCPFastOpen() const OVERRIDE {
+    return transport_->UsingTCPFastOpen();
+  }
+  virtual bool WasNpnNegotiated() const OVERRIDE {
+    return transport_->WasNpnNegotiated();
+  }
+  virtual net::NextProto GetNegotiatedProtocol() const OVERRIDE {
+    return transport_->GetNegotiatedProtocol();
+  }
+  virtual bool GetSSLInfo(net::SSLInfo* ssl_info) OVERRIDE {
+    return transport_->GetSSLInfo(ssl_info);
+  }
+
+  // Socket implementation:
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE {
+    return transport_->Read(buf, buf_len, callback);
+  }
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE {
+    return transport_->Write(buf, buf_len, callback);
+  }
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE {
+    return transport_->SetReceiveBufferSize(size);
+  }
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE {
+    return transport_->SetSendBufferSize(size);
+  }
+
+ protected:
+  scoped_ptr<net::StreamSocket> transport_;
+};
+
+// ReadBufferingStreamSocket is a wrapper for an existing StreamSocket that
+// will ensure a certain amount of data is internally buffered before
+// satisfying a Read() request. It exists to mimic OS-level internal
+// buffering, but in a way to guarantee that X number of bytes will be
+// returned to callers of Read(), regardless of how quickly the OS receives
+// them from the TestServer.
+class ReadBufferingStreamSocket : public WrappedStreamSocket {
+ public:
+  explicit ReadBufferingStreamSocket(scoped_ptr<net::StreamSocket> transport);
+  virtual ~ReadBufferingStreamSocket() {}
+
+  // Socket implementation:
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
+
+  // Sets the internal buffer to |size|. This must not be greater than
+  // the largest value supplied to Read() - that is, it does not handle
+  // having "leftovers" at the end of Read().
+  // Each call to Read() will be prevented from completion until at least
+  // |size| data has been read.
+  // Set to 0 to turn off buffering, causing Read() to transparently
+  // read via the underlying transport.
+  void SetBufferSize(int size);
+
+ private:
+  enum State {
+    STATE_NONE,
+    STATE_READ,
+    STATE_READ_COMPLETE,
+  };
+
+  int DoLoop(int result);
+  int DoRead();
+  int DoReadComplete(int result);
+  void OnReadCompleted(int result);
+
+  State state_;
+  scoped_refptr<net::GrowableIOBuffer> read_buffer_;
+  int buffer_size_;
+
+  scoped_refptr<net::IOBuffer> user_read_buf_;
+  net::CompletionCallback user_read_callback_;
+};
+
+ReadBufferingStreamSocket::ReadBufferingStreamSocket(
+    scoped_ptr<net::StreamSocket> transport)
+    : WrappedStreamSocket(transport.Pass()),
+      read_buffer_(new net::GrowableIOBuffer()),
+      buffer_size_(0) {
+}
+
+void ReadBufferingStreamSocket::SetBufferSize(int size) {
+  DCHECK(!user_read_buf_);
+  buffer_size_ = size;
+  read_buffer_->SetCapacity(size);
+}
+
+int ReadBufferingStreamSocket::Read(net::IOBuffer* buf,
+                                    int buf_len,
+                                    const net::CompletionCallback& callback) {
+  if (buffer_size_ == 0)
+    return transport_->Read(buf, buf_len, callback);
+
+  if (buf_len < buffer_size_)
+    return net::ERR_UNEXPECTED;
+
+  state_ = STATE_READ;
+  user_read_buf_ = buf;
+  int result = DoLoop(net::OK);
+  if (result == net::ERR_IO_PENDING)
+    user_read_callback_ = callback;
+  else
+    user_read_buf_ = NULL;
+  return result;
+}
+
+int ReadBufferingStreamSocket::DoLoop(int result) {
+  int rv = result;
+  do {
+    State current_state = state_;
+    state_ = STATE_NONE;
+    switch (current_state) {
+      case STATE_READ:
+        rv = DoRead();
+        break;
+      case STATE_READ_COMPLETE:
+        rv = DoReadComplete(rv);
+        break;
+      case STATE_NONE:
+      default:
+        NOTREACHED() << "Unexpected state: " << current_state;
+        rv = net::ERR_UNEXPECTED;
+        break;
+    }
+  } while (rv != net::ERR_IO_PENDING && state_ != STATE_NONE);
+  return rv;
+}
+
+int ReadBufferingStreamSocket::DoRead() {
+  state_ = STATE_READ_COMPLETE;
+  int rv = transport_->Read(
+      read_buffer_,
+      read_buffer_->RemainingCapacity(),
+      base::Bind(&ReadBufferingStreamSocket::OnReadCompleted,
+                 base::Unretained(this)));
+  return rv;
+}
+
+int ReadBufferingStreamSocket::DoReadComplete(int result) {
+  state_ = STATE_NONE;
+  if (result <= 0)
+    return result;
+
+  read_buffer_->set_offset(read_buffer_->offset() + result);
+  if (read_buffer_->RemainingCapacity() > 0) {
+    state_ = STATE_READ;
+    return net::OK;
+  }
+
+  memcpy(user_read_buf_->data(), read_buffer_->StartOfBuffer(),
+         read_buffer_->capacity());
+  read_buffer_->set_offset(0);
+  return read_buffer_->capacity();
+}
+
+void ReadBufferingStreamSocket::OnReadCompleted(int result) {
+  result = DoLoop(result);
+  if (result == net::ERR_IO_PENDING)
+    return;
+
+  user_read_buf_ = NULL;
+  base::ResetAndReturn(&user_read_callback_).Run(result);
+}
+
+// Simulates synchronously receiving an error during Read() or Write()
+class SynchronousErrorStreamSocket : public WrappedStreamSocket {
+ public:
+  explicit SynchronousErrorStreamSocket(scoped_ptr<StreamSocket> transport);
+  virtual ~SynchronousErrorStreamSocket() {}
+
+  // Socket implementation:
+  virtual int Read(net::IOBuffer* buf, int buf_len,
+                   const net::CompletionCallback& callback) OVERRIDE;
+  virtual int Write(net::IOBuffer* buf, int buf_len,
+                    const net::CompletionCallback& callback) OVERRIDE;
+
+  // Sets the the next Read() call to return |error|.
+  // If there is already a pending asynchronous read, the configured error
+  // will not be returned until that asynchronous read has completed and Read()
+  // is called again.
+  void SetNextReadError(net::Error error) {
+    DCHECK_GE(0, error);
+    have_read_error_ = true;
+    pending_read_error_ = error;
+  }
+
+  // Sets the the next Write() call to return |error|.
+  // If there is already a pending asynchronous write, the configured error
+  // will not be returned until that asynchronous write has completed and
+  // Write() is called again.
+  void SetNextWriteError(net::Error error) {
+    DCHECK_GE(0, error);
+    have_write_error_ = true;
+    pending_write_error_ = error;
+  }
+
+ private:
+  bool have_read_error_;
+  int pending_read_error_;
+
+  bool have_write_error_;
+  int pending_write_error_;
+};
+
+SynchronousErrorStreamSocket::SynchronousErrorStreamSocket(
+    scoped_ptr<StreamSocket> transport)
+    : WrappedStreamSocket(transport.Pass()),
+      have_read_error_(false),
+      pending_read_error_(net::OK),
+      have_write_error_(false),
+      pending_write_error_(net::OK) {
+}
+
+int SynchronousErrorStreamSocket::Read(
+    net::IOBuffer* buf,
+    int buf_len,
+    const net::CompletionCallback& callback) {
+  if (have_read_error_) {
+    have_read_error_ = false;
+    return pending_read_error_;
+  }
+  return transport_->Read(buf, buf_len, callback);
+}
+
+int SynchronousErrorStreamSocket::Write(
+    net::IOBuffer* buf,
+    int buf_len,
+    const net::CompletionCallback& callback) {
+  if (have_write_error_) {
+    have_write_error_ = false;
+    return pending_write_error_;
+  }
+  return transport_->Write(buf, buf_len, callback);
+}
+
+}  // namespace
+
 class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
@@ -382,6 +666,65 @@ TEST_F(SSLClientSocketTest, Read) {
     if (rv <= 0)
       break;
   }
+}
+
+// Tests that the SSLClientSocket properly handles when the underlying transport
+// synchronously returns an error code - such as if an intermediary terminates
+// the socket connection uncleanly.
+// This is a regression test for http://crbug.com/238536
+TEST_F(SSLClientSocketTest, Read_WithSynchronousError) {
+  net::SpawnedTestServer test_server(net::SpawnedTestServer::TYPE_HTTPS,
+                                     net::SpawnedTestServer::kLocalhost,
+                                     base::FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  net::TestCompletionCallback callback;
+  scoped_ptr<net::StreamSocket> real_transport(new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source()));
+  SynchronousErrorStreamSocket* transport = new SynchronousErrorStreamSocket(
+      real_transport.Pass());
+  int rv = callback.GetResult(transport->Connect(callback.callback()));
+  EXPECT_EQ(net::OK, rv);
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
+
+  rv = callback.GetResult(sock->Connect(callback.callback()));
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_TRUE(sock->IsConnected());
+
+  const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
+  static const int kRequestTextSize =
+      static_cast<int>(arraysize(request_text) - 1);
+  scoped_refptr<net::IOBuffer> request_buffer(
+      new net::IOBuffer(kRequestTextSize));
+  memcpy(request_buffer->data(), request_text, kRequestTextSize);
+
+  rv = callback.GetResult(sock->Write(request_buffer, kRequestTextSize,
+                                      callback.callback()));
+  EXPECT_EQ(kRequestTextSize, rv);
+
+  // Simulate an unclean/forcible shutdown.
+  transport->SetNextReadError(net::ERR_CONNECTION_RESET);
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(4096));
+
+  // Note: This test will hang if this bug has regressed. Simply checking that
+  // rv != ERR_IO_PENDING is insufficient, as ERR_IO_PENDING is a legitimate
+  // result when using a dedicated task runner for NSS.
+  rv = callback.GetResult(sock->Read(buf, 4096, callback.callback()));
+
+#if !defined(USE_OPENSSL)
+  // NSS records the error exactly
+  EXPECT_EQ(net::ERR_CONNECTION_RESET, rv);
+#else
+  // OpenSSL treats any errors as a simple EOF.
+  EXPECT_EQ(0, rv);
+#endif
 }
 
 // Test the full duplex mode, with Read and Write pending at the same time.
