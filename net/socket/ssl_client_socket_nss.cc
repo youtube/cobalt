@@ -2086,10 +2086,10 @@ bool SSLClientSocketNSS::Core::DoTransportIO() {
     // because Write() may return synchronously.
     do {
       rv = BufferSend();
-      if (rv > 0)
+      if (rv != ERR_IO_PENDING && rv != 0)
         network_moved = true;
     } while (rv > 0);
-    if (!transport_recv_eof_ && BufferRecv() >= 0)
+    if (!transport_recv_eof_ && BufferRecv() != ERR_IO_PENDING)
       network_moved = true;
   }
   return network_moved;
@@ -2133,7 +2133,7 @@ int SSLClientSocketNSS::Core::BufferRecv() {
   return rv;
 }
 
-// Return 0 for EOF,
+// Return 0 if nss_bufs_ was empty,
 // > 0 for bytes transferred immediately,
 // < 0 for error (or the non-error ERR_IO_PENDING).
 int SSLClientSocketNSS::Core::BufferSend() {
