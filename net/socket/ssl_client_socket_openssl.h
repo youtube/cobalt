@@ -9,6 +9,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
@@ -131,6 +132,8 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   CompletionCallback user_connect_callback_;
   CompletionCallback user_read_callback_;
   CompletionCallback user_write_callback_;
+
+  base::WeakPtrFactory<SSLClientSocketOpenSSL> weak_factory_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

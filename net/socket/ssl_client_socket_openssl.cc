@@ -429,6 +429,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     : transport_send_busy_(false),
       transport_recv_busy_(false),
       transport_recv_eof_(false),
+      weak_factory_(this),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
@@ -1036,6 +1037,7 @@ void SSLClientSocketOpenSSL::TransportWriteComplete(int result) {
     // Got a socket write error; close the BIO to indicate this upward.
     DVLOG(1) << "TransportWriteComplete error " << result;
     (void)BIO_shutdown_wr(transport_bio_);
+    BIO_set_mem_eof_return(transport_bio_, 0);
     send_buffer_ = NULL;
   } else {
     DCHECK(send_buffer_);
@@ -1135,8 +1137,16 @@ void SSLClientSocketOpenSSL::OnSendComplete(int result) {
            (user_read_buf_ || user_write_buf_) &&
            network_moved);
 
+  // Performing the Read callback may cause |this| to be deleted. If this
+  // happens, the Write callback should not be invoked. Guard against this by
+  // holding a WeakPtr to |this| and ensuring it's still valid.
+  base::WeakPtr<SSLClientSocketOpenSSL> guard(weak_factory_.GetWeakPtr());
   if (user_read_buf_ && rv_read != ERR_IO_PENDING)
       DoReadCallback(rv_read);
+
+  if (!guard.get())
+    return;
+
   if (user_write_buf_ && rv_write != ERR_IO_PENDING)
       DoWriteCallback(rv_write);
 }
