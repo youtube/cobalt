@@ -2206,20 +2206,30 @@ void SSLClientSocketNSS::Core::OnSendComplete(int result) {
   int rv_write = ERR_IO_PENDING;
   bool network_moved;
   do {
-      if (user_read_buf_)
-          rv_read = DoPayloadRead();
-      if (user_write_buf_)
-          rv_write = DoPayloadWrite();
-      network_moved = DoTransportIO();
+    if (user_read_buf_)
+      rv_read = DoPayloadRead();
+    if (user_write_buf_)
+      rv_write = DoPayloadWrite();
+    network_moved = DoTransportIO();
   } while (rv_read == ERR_IO_PENDING &&
            rv_write == ERR_IO_PENDING &&
            (user_read_buf_ || user_write_buf_) &&
            network_moved);
 
+  // If the parent SSLClientSocketNSS is deleted during the processing of the
+  // Read callback and OnNSSTaskRunner() == OnNetworkTaskRunner(), then the Core
+  // will be detached (and possibly deleted). Guard against deletion by taking
+  // an extra reference, then check if the Core was detached before invoking the
+  // next callback.
+  scoped_refptr<Core> guard(this);
   if (user_read_buf_ && rv_read != ERR_IO_PENDING)
-      DoReadCallback(rv_read);
+    DoReadCallback(rv_read);
+
+  if (OnNetworkTaskRunner() && detached_)
+    return;
+
   if (user_write_buf_ && rv_write != ERR_IO_PENDING)
-      DoWriteCallback(rv_write);
+    DoWriteCallback(rv_write);
 }
 
 // As part of Connect(), the SSLClientSocketNSS object performs an SSL
