@@ -99,6 +99,11 @@ class ShellBuffer : public Buffer {
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData() { return buffer_; }
 
+  // Returns a flag indicating whether or not the buffer has been decrypted
+  // in-place.  If so, a CDM should avoid decrypting it again after a seek.
+  bool IsAlreadyDecrypted() { return is_decrypted_; }
+  void SetAlreadyDecrypted(bool value) { is_decrypted_ = value; }
+
   scoped_refptr<ShellFilterGraphLog> filter_graph_log();
 
   const DecryptConfig* GetDecryptConfig() const;
@@ -122,6 +127,7 @@ class ShellBuffer : public Buffer {
   size_t allocated_size_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   scoped_ptr<DecryptConfig> decrypt_config_;
+  bool is_decrypted_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellBuffer);
 };
