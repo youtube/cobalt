@@ -76,7 +76,8 @@ ShellBuffer::ShellBuffer(uint8* reusable_buffer,
     , buffer_(reusable_buffer)
     , size_(size)
     , allocated_size_(size)
-    , filter_graph_log_(filter_graph_log) {
+    , filter_graph_log_(filter_graph_log)
+    , is_decrypted_(false) {
 }
 
 ShellBuffer::~ShellBuffer() {
