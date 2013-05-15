@@ -442,7 +442,7 @@ scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
 }
 
 scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
-    const char* sql) {
+    const char* sql, bool must_succeed) {
   AssertIOAllowed();
 
   if (!db_)
@@ -451,11 +451,17 @@ scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
   sqlite3_stmt* stmt = NULL;
   int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
-    // This is evidence of a syntax error in the incoming SQL.
-    DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
+    // Most statements are hard-coded into the application and therefore must
+    // always compile and be valid.  These trigger fatal errors (both here and
+    // in OnSqliteError) to alert the developer during testing.  However, some
+    // statements which are used for one-off in-app debugging may safely fail.
+    if (must_succeed) {
+      // This is evidence of a syntax error in the incoming SQL.
+      DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
 
-    // It could also be database corruption.
-    OnSqliteError(rc, NULL);
+      // It could also be database corruption.
+      OnSqliteError(rc, NULL);
+    }
     return new StatementRef();
   }
   return new StatementRef(this, stmt);
