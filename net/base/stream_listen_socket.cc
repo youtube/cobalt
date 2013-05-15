@@ -122,10 +122,16 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
     if (sent == len_left) {  // A shortcut to avoid extraneous checks.
       break;
     }
-    if (sent == kSocketError) {
+    // __LB_SHELL__: In some consoles |sent| might return the actual error code,
+    // and so can be even lower than the native |kSocketError|.
+    COMPILE_ASSERT(kSocketError < 0, native_socket_error_should_be_negative);
+    if (sent <= kSocketError) {
 #if defined(OS_WIN)
       if (WSAGetLastError() != WSAEWOULDBLOCK) {
         LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
+#elif defined(__LB_SHELL__)
+      if (!LB::Platform::NetWouldBlock()) {
+        LOG(ERROR) << "send failed: errno==" << LB::Platform::net_errno();
 #elif defined(OS_POSIX)
       if (errno != EWOULDBLOCK && errno != EAGAIN) {
         LOG(ERROR) << "send failed: errno==" << errno;
@@ -134,17 +140,6 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
       }
       // Otherwise we would block, and now we have to wait for a retry.
       // Fall through to PlatformThread::YieldCurrentThread()
-#if defined(__LB_SHELL__)
-    } else if (sent < 0) {
-      // PS3 returns a negative error code for 'sent' instead of a simple -1.
-      // Thus, we must check it in this else case.
-      if (!LB::Platform::NetWouldBlock()) {
-        LOG(ERROR) << "send failed: sent==" << sent;
-        break;
-      }
-      // Otherwise we would block, and now we have to wait for a retry.
-      // Fall through to PlatformThread::YieldCurrentThread()
-#endif
     } else {
       // sent != len_left according to the shortcut above.
       // Shift the buffer start and send the remainder after a short while.
