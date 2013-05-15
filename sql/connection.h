@@ -292,7 +292,8 @@ class SQL_EXPORT Connection {
   // keeping a statement cached).
   //
   // See GetCachedStatement above for examples and error information.
-  scoped_refptr<StatementRef> GetUniqueStatement(const char* sql);
+  scoped_refptr<StatementRef> GetUniqueStatement(const char* sql,
+                                                 bool must_succeed = true);
 
   // Info querying -------------------------------------------------------------
 
