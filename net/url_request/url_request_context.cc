@@ -40,7 +40,9 @@ URLRequestContext::URLRequestContext()
 }
 
 URLRequestContext::~URLRequestContext() {
+#if !defined(__LB_SHELL__FOR_RELEASE__)
   AssertNoURLRequests();
+#endif
 }
 
 void URLRequestContext::CopyFrom(const URLRequestContext* other) {
