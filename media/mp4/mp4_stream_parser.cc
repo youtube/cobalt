@@ -366,8 +366,12 @@ bool MP4StreamParser::PrepareAVCBuffer(
     for (size_t i = 0; i < subsamples->size(); i++)
       (*subsamples)[i].clear_bytes += nalu_size_diff;
   }
-
-  if (runs_->is_keyframe()) {
+#if defined(__LB_WIIU__)
+  const bool prepend_header = true;
+#else
+  const bool prepend_header = runs_->is_keyframe();
+#endif
+  if (prepend_header) {
     // If this is a keyframe, we (re-)inject SPS and PPS headers at the start of
     // a frame. If subsample info is present, we also update the clear byte
     // count for that first subsample.
