@@ -39,6 +39,13 @@ class AudioRendererSink
     // Callback from the sink to the renderer to indicate that it is currently
     // full and will not be requesting additional data until some is consumed.
     virtual void SinkFull() = 0;
+
+#if defined(__LB_WIIU__)
+    // Callback from the sink to the renderer to indicate that it has not
+    // enough data to continue playback without playing past the end of
+    // buffered data.
+    virtual void SinkUnderflow() = 0;
+#endif
 #endif
 
    protected:
