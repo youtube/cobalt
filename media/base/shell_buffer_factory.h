@@ -37,8 +37,8 @@ namespace media {
 static const int kShellBufferAlignment = 128;
 static const size_t kShellBufferSpaceSize = 48 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
-static const int kShellBufferAlignment = 4;
-static const int kShellBufferSpaceSize = 16 * 1024 * 1024;
+static const int kShellBufferAlignment = 16;
+static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
 static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
 static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;

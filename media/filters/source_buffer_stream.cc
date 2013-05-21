@@ -306,6 +306,10 @@ static int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
 // We only have room for a maximum of 33 MB of buffering.
 static int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+#elif defined(__LB_LINUX__)
+// We only have room for a maximum of 33 MB of buffering.
+static int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.

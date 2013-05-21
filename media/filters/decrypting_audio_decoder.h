@@ -43,7 +43,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
-#if defined(__LB_WIIU__)
+#if defined(__LB_WIIU__) || defined(__LB_LINUX__)
   virtual void ReadInto(media::AudioBus* audio_bus,
                         const ReadCB& read_cb) OVERRIDE { NOTREACHED(); };
 #endif
