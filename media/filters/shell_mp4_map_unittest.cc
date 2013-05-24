@@ -200,6 +200,8 @@ class SampleTable {
   size_t sample_count() const { return samples_.size(); }
   const Sample& sample(int i) const { return samples_.at(i); }
 
+  size_t keyframe_count() const { return (stss_.size() - 8) / kEntrySize_stss; }
+
   int BlockingRead(int64 position, int size, uint8* data) {
     CHECK_GE(position, file_offset_);
     CHECK_LE(position + size, file_offset_ + combined_.size());
@@ -954,12 +956,12 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeIteration) {
                         5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   sample_table_->ClearReadStatistics();
-  SetTestTable(kAtomType_stss, 7);
+  SetTestTable(kAtomType_stss, sample_table_->keyframe_count() / 2 + 5);
 
   for (uint32 i = 0; i < sample_table_->sample_count(); ++i) {
     bool map_is_keyframe_out = false;
     ASSERT_TRUE(map_->GetIsKeyframe(i, map_is_keyframe_out));
-    bool table_is_keyframe= GetTestSample(i).is_key_frame;
+    bool table_is_keyframe = GetTestSample(i).is_key_frame;
     ASSERT_EQ(map_is_keyframe_out, table_is_keyframe);
   }
 }
@@ -969,7 +971,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
                         5, 10, 5, 10, 10, 20, 10, 20);
   ResetMap();
   sample_table_->ClearReadStatistics();
-  SetTestTable(kAtomType_stss, 3);
+  SetTestTable(kAtomType_stss, sample_table_->keyframe_count() / 2 + 5);
 
   // pick a keyframe about halfway
   uint32 sample_number = sample_table_->sample_count() / 2;
@@ -1021,7 +1023,7 @@ TEST_F(ShellMP4MapTest, GetIsKeyframeRandomAccess) {
 
   ResetMap();
   sample_table_->ClearReadStatistics();
-  SetTestTable(kAtomType_stss, 3);
+  SetTestTable(kAtomType_stss, 7);
 
   // random access
   for (int i = 0; i < 1000; ++i) {
