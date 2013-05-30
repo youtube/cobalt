@@ -87,5 +87,36 @@ TEST_F(DialServiceTest, GetHandler) {
   EXPECT_FALSE(service->is_running());
 }
 
+// Test the case where Deregister is called and immediately after the handler
+// is destroyed. This makes a call to the dial_service thread with a pointer
+// that is destroyed. Make sure that it handles appropriately.
+TEST_F(DialServiceTest, DestructedHandler) {
+  service.reset(new DialService());
+
+  MockServiceHandler* foo_handler = new MockServiceHandler();
+  ON_CALL(*foo_handler, service_name()).WillByDefault(Return("Foo"));
+
+  EXPECT_TRUE(service->Register(foo_handler));
+  WaitUntilIdle();
+  EXPECT_TRUE(service->is_running());
+
+  // Put a wait on the dial service thread.
+  service->GetMessageLoop()->PostTask(FROM_HERE,
+      base::Bind(&base::PlatformThread::Sleep,
+                 base::TimeDelta::FromMilliseconds(10)));
+
+  // Immediately delete foo_handler after calling Deregister.
+  EXPECT_TRUE(service->Deregister(foo_handler));
+  delete foo_handler;
+
+  // Make sure that the actual Deregister method has not kicked in.
+  EXPECT_TRUE(service->is_running());
+
+  // Let all tasks complete on the dial service thread.
+  WaitUntilIdle();
+
+  EXPECT_FALSE(service->is_running());
+}
+
 } // namespace net
 

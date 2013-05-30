@@ -142,10 +142,10 @@ void DialService::AddToHandlerMap(DialServiceHandler* handler) {
 }
 
 bool DialService::Deregister(DialServiceHandler* handler) {
-  const std::string& path = handler->service_name();
-  if (path.empty() || handler == NULL) {
+  if (handler == NULL || handler->service_name().empty()) {
     return false;
   }
+
   GetMessageLoop()->PostTask(FROM_HERE,
       base::Bind(&DialService::RemoveFromHandlerMap, base::Unretained(this),
                  base::Unretained(handler)));
@@ -153,15 +153,17 @@ bool DialService::Deregister(DialServiceHandler* handler) {
 }
 
 void DialService::RemoveFromHandlerMap(DialServiceHandler* handler) {
-  const std::string& path = handler->service_name();
-
+  // At this point, |handler| might already been deleted, so just remove the
+  // reference to it in |handlers_|.
   DCHECK(CurrentThreadIsValid());
-  DCHECK(!path.empty());
   DCHECK(handler);
 
-  ServiceHandlerMap::iterator it = handlers_.find(path);
-  if (it != handlers_.end() && it->second == handler) {
-    handlers_.erase(it);
+  for (ServiceHandlerMap::iterator it = handlers_.begin();
+      it != handlers_.end(); ++it) {
+    if (it->second == handler) {
+      handlers_.erase(it);
+      break;
+    }
   }
 
   if (handlers_.empty() && is_running()) {
