@@ -57,6 +57,7 @@ class NET_EXPORT DialService {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
+  FRIEND_TEST_ALL_PREFIXES(DialServiceTest, DestructedHandler);
 
   friend struct base::DefaultLazyInstanceTraits<DialService>;
   DialService();
