@@ -59,6 +59,8 @@ class ShellDemuxerStream : public DemuxerStream {
   // enqueued ranges from the union of all of the buffers in the queue.
   // Call me whenever _removing_ data from buffer_queue_.
   void RebuildEnqueuedRanges_Locked();
+  const uint32 GraphLogObjectId() const;
+
   // non-owning pointer to avoid circular reference
   ShellDemuxer* demuxer_;
   Type type_;
