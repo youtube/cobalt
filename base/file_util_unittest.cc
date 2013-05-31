@@ -1668,6 +1668,7 @@ TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
   EXPECT_FALSE(file_util::ContentsEqual(binary_file, binary_file_diff));
 }
 
+#if !defined(__LB_SHELL__)
 TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
@@ -1717,6 +1718,7 @@ TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
   EXPECT_TRUE(file_util::TextContentsEqual(blank_line_file,
                                            blank_line_crlf_file));
 }
+#endif // __LB_SHELL__
 
 // We don't need equivalent functionality outside of Windows.
 #if defined(OS_WIN)
