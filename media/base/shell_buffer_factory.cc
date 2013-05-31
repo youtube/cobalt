@@ -379,6 +379,9 @@ void ShellBufferFactory::FillHole_Locked(size_t size, uint8* address) {
 size_t ShellBufferFactory::LargestFreeSpace_Locked() const {
   // should have acquired the lock already
   lock_.AssertAcquired();
+  if (holes_.empty())
+    return NULL;
+
   return holes_.rbegin()->first;
 }
 
