@@ -111,6 +111,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   return true;
 }
 
+#if !defined(__LB_SHELL__)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
   std::ifstream file2(filename2.value().c_str(), std::ios::in);
@@ -150,6 +151,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
+#endif
 
 bool ReadFileToString(const FilePath& path, std::string* contents) {
   if (path.ReferencesParent())
