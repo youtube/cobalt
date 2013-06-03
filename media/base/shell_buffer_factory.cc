@@ -380,7 +380,7 @@ size_t ShellBufferFactory::LargestFreeSpace_Locked() const {
   // should have acquired the lock already
   lock_.AssertAcquired();
   if (holes_.empty())
-    return NULL;
+    return 0;
 
   return holes_.rbegin()->first;
 }
