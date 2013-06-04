@@ -84,7 +84,8 @@ ShellBuffer::~ShellBuffer() {
   // recycle our buffer
   if (buffer_) {
     filter_graph_log_->LogEvent(kObjectIdBufferFactory,
-                                kEventBufferAllocationReclaim);
+                                kEventBufferAllocationReclaim,
+                                GetTimestamp().InMilliseconds());
     ShellBufferFactory::Instance()->Reclaim(buffer_);
   }
 }

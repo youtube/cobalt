@@ -40,7 +40,7 @@ ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer,
     , stopped_(false) {
   DCHECK(demuxer_);
   filter_graph_log_ = demuxer->filter_graph_log();
-  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventConstructor);
+  filter_graph_log_->LogEvent(GraphLogObjectId(), kEventConstructor);
 }
 
 scoped_refptr<ShellFilterGraphLog> ShellDemuxerStream::filter_graph_log() {
@@ -49,14 +49,14 @@ scoped_refptr<ShellFilterGraphLog> ShellDemuxerStream::filter_graph_log() {
 
 void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
-  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventRead);
+  filter_graph_log_->LogEvent(GraphLogObjectId(), kEventRead);
 
   base::AutoLock auto_lock(lock_);
 
   // Don't accept any additional reads if we've been told to stop.
   // The demuxer_ may have been destroyed in the pipleine thread.
   if (stopped_) {
-    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
+    filter_graph_log_->LogEvent(GraphLogObjectId(), kEventEndOfStreamSent);
     read_cb.Run(DemuxerStream::kOk,
                 scoped_refptr<ShellBuffer>(
                     ShellBuffer::CreateEOSBuffer(kNoTimestamp(),
@@ -72,15 +72,13 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
     buffer_queue_.pop_front();
     if (buffer->IsEndOfStream()) {
-      filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
+      filter_graph_log_->LogEvent(GraphLogObjectId(), kEventEndOfStreamSent);
     }
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
-    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventRequestInterrupt);
+    filter_graph_log_->LogEvent(GraphLogObjectId(), kEventRequestInterrupt);
     read_queue_.push_back(read_cb);
   }
-  filter_graph_log_->LogDemuxerStreamStateQueues(
-      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 const AudioDecoderConfig& ShellDemuxerStream::audio_decoder_config() {
@@ -105,7 +103,9 @@ void ShellDemuxerStream::EnableBitstreamConverter() {
 }
 
 void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
-  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEnqueue);
+  filter_graph_log_->LogEvent(GraphLogObjectId(),
+                              kEventEnqueue,
+                              buffer->GetTimestamp().InMilliseconds());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     // it's possible due to pipelining both downstream and within the
@@ -116,8 +116,7 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
   }
 
   if (buffer->IsEndOfStream()) {
-    filter_graph_log_->LogDemuxerStreamEvent(type_,
-                                             kEventEndOfStreamReceived);
+    filter_graph_log_->LogEvent(GraphLogObjectId(), kEventEndOfStreamReceived);
   } else if (buffer->GetTimestamp() != kNoTimestamp()) {
     if (last_buffer_timestamp_ != kNoTimestamp() &&
         last_buffer_timestamp_ < buffer->GetTimestamp()) {
@@ -139,8 +138,6 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
   }
-  filter_graph_log_->LogDemuxerStreamStateQueues(
-      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
@@ -149,25 +146,23 @@ base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
 }
 
 void ShellDemuxerStream::FlushBuffers() {
-  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventFlush);
+  filter_graph_log_->LogEvent(GraphLogObjectId(), kEventFlush);
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   last_buffer_timestamp_ = kNoTimestamp();
-  filter_graph_log_->LogDemuxerStreamStateQueues(
-      type_, buffer_queue_.size(), read_queue_.size());
 }
 
 void ShellDemuxerStream::Stop() {
   DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
-  filter_graph_log_->LogDemuxerStreamEvent(type_, kEventStop);
+  filter_graph_log_->LogEvent(GraphLogObjectId(), kEventStop);
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   last_buffer_timestamp_ = kNoTimestamp();
   // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
-    filter_graph_log_->LogDemuxerStreamEvent(type_, kEventEndOfStreamSent);
+    filter_graph_log_->LogEvent(GraphLogObjectId(), kEventEndOfStreamSent);
     it->Run(DemuxerStream::kOk,
             scoped_refptr<ShellBuffer>(
                 ShellBuffer::CreateEOSBuffer(kNoTimestamp(),
@@ -175,8 +170,11 @@ void ShellDemuxerStream::Stop() {
   }
   read_queue_.clear();
   stopped_ = true;
-  filter_graph_log_->LogDemuxerStreamStateQueues(
-      type_, buffer_queue_.size(), read_queue_.size());
+}
+
+const uint32 ShellDemuxerStream::GraphLogObjectId() const {
+  return type_ == DemuxerStream::AUDIO ? kObjectIdAudioDemuxerStream :
+                                         kObjectIdVideoDemuxerStream;
 }
 
 //
@@ -287,7 +285,6 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   DCHECK(!requested_au_) << "overlapping requests not supported!";
-  filter_graph_log_->LogDemuxerRequestEvent(type);
   flushing_ = false;
   // Ask parser for next AU
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
@@ -302,6 +299,12 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
 
   // make sure we got back an AU of the correct type
   DCHECK(au->GetType() == type);
+
+  uint32 event_id = type == DemuxerStream::AUDIO ? kEventRequestAudio :
+                                                   kEventRequestVideo;
+  filter_graph_log_->LogEvent(kObjectIdDemuxer,
+                              event_id,
+                              au->GetTimestamp().InMilliseconds());
 
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
@@ -348,8 +351,12 @@ void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
   // We need a requested_au_ or to have canceled this request and
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
-  filter_graph_log_->LogDemuxerDownloadEvent(requested_au_->GetType());
 
+  uint32 event_id = requested_au_->GetType() == DemuxerStream::AUDIO ?
+      kEventDownloadAudio : kEventDownloadVideo;
+  filter_graph_log_->LogEvent(kObjectIdDemuxer,
+                              event_id,
+                              requested_au_->GetTimestamp().InMilliseconds());
   // do nothing if stopped
   if (stopped_) {
     DLOG(INFO) << "aborting download task, stopped";
@@ -472,7 +479,9 @@ void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
 
 // runs on blocking thread
 void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
-  filter_graph_log_->LogEvent(kObjectIdDemuxer, kEventSeek);
+  filter_graph_log_->LogEvent(kObjectIdDemuxer,
+                              kEventSeek,
+                              time.InMilliseconds());
   DLOG(INFO) << base::StringPrintf(
       "seek to: %"PRId64" ms", time.InMilliseconds());
   // clear any enqueued buffers on demuxer streams
