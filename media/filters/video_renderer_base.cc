@@ -153,7 +153,9 @@ void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPreroll);
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer,
+                              kEventPreroll,
+                              time.InMilliseconds());
 #endif
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
@@ -378,6 +380,12 @@ void VideoRendererBase::ThreadMain() {
           break;
 
         // Frame dropped: read again.
+#if defined(__LB_SHELL__)
+        filter_graph_log_->LogEvent(
+            kObjectIdVideoRenderer,
+            kEventDropFrame,
+            ready_frames_.front()->GetTimestamp().InMilliseconds());
+#endif
         ++frames_dropped;
         ready_frames_.pop_front();
         message_loop_->PostTask(FROM_HERE, base::Bind(
@@ -406,8 +414,10 @@ void VideoRendererBase::ThreadMain() {
 
 void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
 #if defined(__LB_SHELL__)
-  // sorta weird here - perhaps something different will do
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventRender);
+  filter_graph_log_->LogEvent(
+      kObjectIdVideoRenderer,
+      kEventRender,
+      ready_frames_.front()->GetTimestamp().InMilliseconds());
 #endif
   current_frame_ = ready_frames_.front();
   ready_frames_.pop_front();
@@ -602,6 +612,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
   } else if (frame->GetTimestamp() > duration) {
     frame->SetTimestamp(duration);
   }
+
+#if defined(__LB_SHELL__)
+  filter_graph_log_->LogEvent(kObjectIdVideoRenderer,
+                              kEventEnqueue,
+                              frame->GetTimestamp().InMilliseconds());
+#endif
 
   ready_frames_.push_back(frame);
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
