@@ -132,7 +132,6 @@
         ['OS=="lb_shell"', {
           'dependencies' : [
             '../../openssl/openssl.gyp:openssl',
-            '../../openssl/openssl.gyp:openssl_includes'
           ],
           'sources/': [
             ['exclude', '_nss.cc$'],
