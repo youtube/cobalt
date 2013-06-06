@@ -963,10 +963,6 @@
         ['OS=="lb_shell"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl',
-            '../../openssl/openssl.gyp:openssl_includes'
-          ],
-          'include_dirs': [
-            '../../openssl/openssl/include/',
           ],
           'sources': [
             'base/file_stream_metrics_shell.cc',
@@ -1872,9 +1868,9 @@
           ],
         }],
         ['OS=="lb_shell"', {
-          'include_dirs': [
-            '../../openssl/openssl/include',
-            ],
+          'dependencies': [
+            '../../openssl/openssl.gyp:openssl',
+          ],
         }],
       ],
     },
