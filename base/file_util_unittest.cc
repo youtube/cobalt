@@ -1619,6 +1619,7 @@ TEST_F(FileUtilTest, GetFileCreationLocalTime) {
 // to be a PlatformTest.
 typedef PlatformTest ReadOnlyFileUtilTest;
 
+#if !defined(__LB_WIIU__)
 TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
@@ -1667,6 +1668,7 @@ TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
   EXPECT_TRUE(file_util::ContentsEqual(binary_file, binary_file_same));
   EXPECT_FALSE(file_util::ContentsEqual(binary_file, binary_file_diff));
 }
+#endif
 
 #if !defined(__LB_SHELL__)
 TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
