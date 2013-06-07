@@ -82,8 +82,8 @@ static const uint32 kEventStart = 0x73747274;                     // 'strt'
 static const uint32 kEventStop = 0x73746f70;                      // 'stop'
 static const uint32 kEventTimeCallback = 0x74696d65;              // 'time'
 static const uint32 kEventUnderflow = 0x75666c77;                 // 'uflw'
-static const uint32 kEventWebKitCompositeBegin = 0x776b6362;      // 'wkcb'
-static const uint32 kEventWebKitCompositeEnd = 0x776b6365;        // 'wkce'
+static const uint32 kEventViewHostComposite = 0x76686365;         // 'vhce'
+static const uint32 kEventWebKitComposite = 0x776b6365;           // 'wkce'
 
 // instead of timestamp the following state flags log individual pipeline
 // state information.
