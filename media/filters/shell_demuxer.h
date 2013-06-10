@@ -121,11 +121,9 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Callback from ShellBufferFactory
   void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
 
-#if defined(__LB_SHELL__)
   virtual void SetFilterGraphLog(
       scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log();
-#endif
 
  private:
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
