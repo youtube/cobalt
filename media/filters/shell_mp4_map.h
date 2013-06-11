@@ -104,6 +104,8 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   // step through the stts table by one table entry, return false on error
   bool stts_IntegrateStep();
 
+  bool stsz_Init();
+
   // TableCache manages the caching of each atom table in a separate instance.
   // As each atom has a different per-entry byte size, and may want different
   // caching behavior based on consumption rate of entries and the overall size
@@ -122,6 +124,12 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
                uint32 cache_size_entries,  // number of entries to cache in mem
                scoped_refptr<ShellDataSourceReader> reader,  // reader to use
                scoped_refptr<ShellFilterGraphLog> filter_graph_log);  // logger
+
+    // The following Read* functions all read values in big endian.
+    bool ReadU32Entry(uint32 entry_number, uint32* entry);
+    bool ReadU32PairEntry(uint32 entry_number, uint32* first, uint32* second);
+    bool ReadU32EntryIntoU64(uint32 entry_number, uint64* entry);
+    bool ReadU64Entry(uint32 entry_number, uint64* entry);
 
     uint8* GetBytesAtEntry(uint32 entry_number);
 
