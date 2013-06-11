@@ -59,6 +59,19 @@ class BASE_EXPORT PlatformThread {
     virtual ~Delegate() {}
   };
 
+#if defined(__LB_SHELL__)
+  struct PlatformThreadOptions {
+    // 0 indicates default stack size
+    size_t stack_size;
+
+    // -1 indicates default priority
+    int priority;
+
+    // -1 indicates default affinity
+    int affinity;
+  };
+#endif
+
   // Gets the current thread id, which may be useful for logging purposes.
   static PlatformThreadId CurrentId();
 
@@ -100,6 +113,12 @@ class BASE_EXPORT PlatformThread {
   // cannot be Join()'d.  Therefore, it also does not output a
   // PlatformThreadHandle.
   static bool CreateNonJoinable(size_t stack_size, Delegate* delegate);
+
+#if defined(__LB_SHELL__)
+  static bool CreateWithOptions(const PlatformThreadOptions& options,
+                                Delegate* delegate,
+                                PlatformThreadHandle* thread_handle);
+#endif
 
   // Joins with a thread created via the Create function.  This function blocks
   // the caller until the designated thread exits.  This will invalidate

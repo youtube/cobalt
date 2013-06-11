@@ -30,9 +30,17 @@ namespace base {
 class BASE_EXPORT Thread : PlatformThread::Delegate {
  public:
   struct Options {
-    Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0) {}
+    Options() : message_loop_type(MessageLoop::TYPE_DEFAULT), stack_size(0)
+        , priority(-1), affinity(-1) {}
     Options(MessageLoop::Type type, size_t size)
-        : message_loop_type(type), stack_size(size) {}
+        : message_loop_type(type), stack_size(size), priority(-1)
+        , affinity(-1) {}
+    Options(MessageLoop::Type type, size_t size, int priority)
+        : message_loop_type(type), stack_size(size), priority(priority)
+        , affinity(-1) {}
+    Options(MessageLoop::Type type, size_t size, int priority, int affinity)
+        : message_loop_type(type), stack_size(size), priority(priority)
+        , affinity(affinity) {}
 
     // Specifies the type of message loop that will be allocated on the thread.
     MessageLoop::Type message_loop_type;
@@ -41,6 +49,12 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // This does not necessarily correspond to the thread's initial stack size.
     // A value of 0 indicates that the default maximum should be used.
     size_t stack_size;
+
+    // Specifies the initial thread priority. -1 means default priority.
+    int priority;
+
+    // Specifies the initial thread core affinity. -1 means default affinity.
+    int affinity;
   };
 
   // Constructor.
