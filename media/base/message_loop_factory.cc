@@ -5,6 +5,7 @@
 #include "media/base/message_loop_factory.h"
 
 #include "base/threading/thread.h"
+#include "lb_platform.h"
 
 namespace media {
 
@@ -40,7 +41,18 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
   }
 
   base::Thread* thread = new base::Thread(name);
+#if defined(__LB_WIIU__)
+  if (type == kPipeline) {
+    base::Thread::Options options;
+    options.affinity = LB::Platform::kMediaPipelineThreadAffinity;
+    CHECK(thread->StartWithOptions(options))
+        << "Failed to start thread: " << name;
+  } else {
+    CHECK(thread->Start()) << "Failed to start thread: " << name;
+  }
+#else
   CHECK(thread->Start()) << "Failed to start thread: " << name;
+#endif
   threads_.push_back(std::make_pair(type, thread));
   return thread;
 }

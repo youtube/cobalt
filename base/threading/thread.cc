@@ -88,7 +88,15 @@ bool Thread::StartWithOptions(const Options& options) {
   StartupData startup_data(options);
   startup_data_ = &startup_data;
 
+#if defined(__LB_SHELL__)
+  PlatformThread::PlatformThreadOptions platform_options;
+  platform_options.stack_size = options.stack_size;
+  platform_options.priority = options.priority;
+  platform_options.affinity = options.affinity;
+  if (!PlatformThread::CreateWithOptions(platform_options, this, &thread_)) {
+#else
   if (!PlatformThread::Create(options.stack_size, this, &thread_)) {
+#endif
     DLOG(ERROR) << "failed to create thread";
     startup_data_ = NULL;
     return false;
