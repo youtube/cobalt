@@ -59,7 +59,11 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
  public:
   class BASE_EXPORT Options {
    public:
-    Options() : stack_size_(0) { }
+    Options() : stack_size_(0), priority_(-1), affinity_(-1) { }
+    Options(size_t stack_size, int priority)
+        : stack_size_(stack_size), priority_(priority), affinity_(-1) { }
+    Options(size_t stack_size, int priority, int affinity)
+        : stack_size_(stack_size), priority_(priority), affinity_(affinity) { }
     ~Options() { }
 
     // We use the standard compiler-supplied copy constructor.
@@ -67,8 +71,18 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
     // A custom stack size, or 0 for the system default.
     void set_stack_size(size_t size) { stack_size_ = size; }
     size_t stack_size() const { return stack_size_; }
+
+    // Thread priority
+    void set_priority(size_t priority) { priority_ = priority; }
+    size_t priority() const { return priority_; }
+
+    // Core affinity
+    void set_affinity(size_t affinity) { affinity_ = affinity; }
+    size_t affinity() const { return affinity_; }
    private:
     size_t stack_size_;
+    int priority_;
+    int affinity_;
   };
 
   // Create a SimpleThread.  |options| should be used to manage any specific
