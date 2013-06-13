@@ -38,13 +38,18 @@ ShellScopedArray::ShellScopedArray(
     : array_(reusable_buffer)
     , size_(size)
     , filter_graph_log_(filter_graph_log) {
+  if (array_) {
+    // Retain a reference to the buffer factory, to ensure that we do not
+    // outlive it.
+    buffer_factory_ = ShellBufferFactory::Instance();
+  }
 }
 
 ShellScopedArray::~ShellScopedArray() {
   if (array_) {
     filter_graph_log_->LogEvent(kObjectIdBufferFactory,
                                 kEventArrayAllocationReclaim);
-    ShellBufferFactory::Instance()->Reclaim(array_);
+    buffer_factory_->Reclaim(array_);
   }
 }
 
@@ -78,6 +83,11 @@ ShellBuffer::ShellBuffer(uint8* reusable_buffer,
     , allocated_size_(size)
     , filter_graph_log_(filter_graph_log)
     , is_decrypted_(false) {
+  if (buffer_) {
+    // Retain a reference to the buffer factory, to ensure that we do not
+    // outlive it.
+    buffer_factory_ = ShellBufferFactory::Instance();
+  }
 }
 
 ShellBuffer::~ShellBuffer() {
@@ -86,7 +96,7 @@ ShellBuffer::~ShellBuffer() {
     filter_graph_log_->LogEvent(kObjectIdBufferFactory,
                                 kEventBufferAllocationReclaim,
                                 GetTimestamp().InMilliseconds());
-    ShellBufferFactory::Instance()->Reclaim(buffer_);
+    buffer_factory_->Reclaim(buffer_);
   }
 }
 
