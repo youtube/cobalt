@@ -51,6 +51,7 @@ static const size_t kShellMaxArraySize = 1024 * 1024;
 
 class DecryptConfig;
 class ShellFilterGraphLog;
+class ShellBufferFactory;
 
 // A simple scoped array class designed to re-use the memory allocated by
 // ShellBufferFactory. If needed would be trivial to make generic.
@@ -72,6 +73,7 @@ class ShellScopedArray : public base::RefCountedThreadSafe<ShellScopedArray> {
   uint8* array_;
   size_t size_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+  scoped_refptr<ShellBufferFactory> buffer_factory_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellScopedArray);
 };
@@ -126,6 +128,7 @@ class ShellBuffer : public Buffer {
   size_t size_;
   size_t allocated_size_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
+  scoped_refptr<ShellBufferFactory> buffer_factory_;
   scoped_ptr<DecryptConfig> decrypt_config_;
   bool is_decrypted_;
 
@@ -164,7 +167,10 @@ class MEDIA_EXPORT ShellBufferFactory
   // waiting for some other buffer to be released.
   bool HasRoomForBufferNow(size_t size);
   // Returns a newly allocated byte field if there's room for it, or NULL if
-  // there isn't.
+  // there isn't. Note that this raw allocation method provides no guarantee
+  // that ShellBufferFactory will still exist when the memory is to be freed.
+  // If that is important please retain a reference to the buffer factory
+  // (using Instance()) until the memory is to be reclaimed.
   uint8* AllocateNow(size_t size);
   // BLOCKS THE CALLING THREAD until an array of size is available and can be
   // allocated. We only allow one thread to block on an array allocation at a
