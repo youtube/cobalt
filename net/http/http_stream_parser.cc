@@ -803,9 +803,10 @@ int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
 
   response_->headers = headers;
   response_->vary_data.Init(*request_, *response_->headers);
-  DVLOG(1) << __FUNCTION__ << "()"
+  DVLOG(1) << __FUNCTION__ << "()\n"
+           << " url = " << request_->url << "\n"
            << " content_length = \""
-           << response_->headers->GetContentLength() << "\n\""
+           << response_->headers->GetContentLength() << "\"\n"
            << " headers = \"" << GetResponseHeaderLines(*response_->headers)
            << "\"";
   return OK;
