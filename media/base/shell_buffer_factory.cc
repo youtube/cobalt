@@ -93,6 +93,7 @@ ShellBuffer::ShellBuffer(uint8* reusable_buffer,
 ShellBuffer::~ShellBuffer() {
   // recycle our buffer
   if (buffer_) {
+    DCHECK_NE(buffer_factory_, (ShellBufferFactory*)NULL);
     filter_graph_log_->LogEvent(kObjectIdBufferFactory,
                                 kEventBufferAllocationReclaim,
                                 GetTimestamp().InMilliseconds());
@@ -112,6 +113,15 @@ const DecryptConfig* ShellBuffer::GetDecryptConfig() const {
 void ShellBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
   DCHECK(!IsEndOfStream());
   decrypt_config_ = decrypt_config.Pass();
+}
+
+void ShellBuffer::SetBuffer(uint8* reusable_buffer) {
+  buffer_ = reusable_buffer;
+  if (buffer_) {
+    // Retain a reference to the buffer factory, to ensure that we do not
+    // outlive it.
+    buffer_factory_ = ShellBufferFactory::Instance();
+  }
 }
 
 // ==== ShellBufferFactory =====================================================
