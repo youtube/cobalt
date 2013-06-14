@@ -121,7 +121,7 @@ class ShellBuffer : public Buffer {
   // For deferred allocation create a shell buffer with buffer_ NULL but a
   // non-zero size. Then we use the SetBuffer() method below to actually
   // set the reusable buffer pointer when it becomes available
-  void SetBuffer(uint8* reusable_buffer) { buffer_ = reusable_buffer; }
+  void SetBuffer(uint8* reusable_buffer);
 
   virtual ~ShellBuffer();
   uint8* buffer_;
