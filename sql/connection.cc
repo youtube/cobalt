@@ -707,7 +707,7 @@ int Connection::OnSqliteError(int err, sql::Statement *stmt) {
   if (error_delegate_.get())
     return error_delegate_->OnError(err, this, stmt);
   // The default handling is to assert on debug and to ignore on release.
-  DLOG(FATAL) << GetErrorMessage();
+  DLOG(ERROR) << GetErrorMessage();
   return err;
 }
 
