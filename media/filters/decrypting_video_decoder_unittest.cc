@@ -260,6 +260,13 @@ TEST_F(DecryptingVideoDecoderTest, Initialize_Normal) {
   Initialize();
 }
 
+TEST_F(DecryptingVideoDecoderTest, Initialize_NullDecryptor) {
+  EXPECT_CALL(*this, RequestDecryptorNotification(_))
+      .WillRepeatedly(RunCallbackIfNotNull(static_cast<Decryptor*>(NULL)));
+  InitializeAndExpectStatus(TestVideoConfig::NormalEncrypted(),
+                            DECODER_ERROR_NOT_SUPPORTED);
+}
+
 // Ensure that DecryptingVideoDecoder only accepts encrypted video.
 TEST_F(DecryptingVideoDecoderTest, Initialize_UnencryptedVideoConfig) {
   VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,

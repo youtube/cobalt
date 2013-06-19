@@ -270,6 +270,15 @@ TEST_F(DecryptingAudioDecoderTest, Initialize_UnsupportedAudioConfig) {
   InitializeAndExpectStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
+TEST_F(DecryptingAudioDecoderTest, Initialize_NullDecryptor) {
+  EXPECT_CALL(*this, RequestDecryptorNotification(_))
+      .WillRepeatedly(RunCallbackIfNotNull(static_cast<Decryptor*>(NULL)));
+
+  AudioDecoderConfig config(kCodecVorbis, kSampleFormatPlanarF32,
+                            CHANNEL_LAYOUT_STEREO, 44100, NULL, 0, true);
+  InitializeAndExpectStatus(config, DECODER_ERROR_NOT_SUPPORTED);
+}
+
 // Test normal decrypt and decode case.
 TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_Normal) {
   Initialize();

@@ -168,6 +168,14 @@ void DecryptingAudioDecoder::SetDecryptor(Decryptor* decryptor) {
   DCHECK(!set_decryptor_ready_cb_.is_null());
 
   set_decryptor_ready_cb_.Reset();
+
+  if (!decryptor) {
+    base::ResetAndReturn(&init_cb_).Run(DECODER_ERROR_NOT_SUPPORTED);
+    // TODO(xhwang): Add kError state. See http://crbug.com/251503
+    state_ = kDecodeFinished;
+    return;
+  }
+
   decryptor_ = decryptor;
 
   scoped_ptr<AudioDecoderConfig> scoped_config(new AudioDecoderConfig());
