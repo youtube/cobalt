@@ -161,6 +161,12 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
   DCHECK(!set_decryptor_ready_cb_.is_null());
   set_decryptor_ready_cb_.Reset();
 
+  if (!decryptor) {
+    base::ResetAndReturn(&init_cb_).Run(DECODER_ERROR_NOT_SUPPORTED);
+    state_ = kStopped;
+    return;
+  }
+
   decryptor_ = decryptor;
 
   scoped_ptr<VideoDecoderConfig> scoped_config(new VideoDecoderConfig());
