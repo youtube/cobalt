@@ -9,6 +9,7 @@
 #include "net/base/net_util.h"
 #include "net/base/ip_endpoint.h"
 #include "net/udp/udp_listen_socket.h"
+#include "lb_platform.h"
 
 namespace net {
 
@@ -71,7 +72,14 @@ void DialUdpSocketFactory::SetupSocketAfterBind(SocketDescriptor s) {
 #if defined(IP_ADD_MEMBERSHIP)
   struct ip_mreq imreq;
   imreq.imr_multiaddr.s_addr = ::inet_addr("239.255.255.250");
+#if defined(__LB_WIIU__)
+  // The WiiU INADDR_ANY is unreliable.
+  struct in_addr src_addr;
+  ignore_result(LB::Platform::GetLocalIpAddress(&src_addr));
+  imreq.imr_interface.s_addr = htonl(src_addr.s_addr);
+#else
   imreq.imr_interface.s_addr = INADDR_ANY;
+#endif
   if (::setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imreq, sizeof(imreq)) < 0) {
     LOG(WARNING) << "Failed to join multicast group on dial UDP socket.";
   }
