@@ -1,8 +1,10 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 //
-// This code is licensed under the same terms as WebM:
-//  Software License Agreement:  http://www.webmproject.org/license/software/
-//  Additional IP Rights Grant:  http://www.webmproject.org/license/additional/
+// Use of this source code is governed by a BSD-style license
+// that can be found in the COPYING file in the root of the source
+// tree. An additional intellectual property rights grant can be found
+// in the file PATENTS. All contributing project authors may
+// be found in the AUTHORS file in the root of the source tree.
 // -----------------------------------------------------------------------------
 //
 // functions for sample output.
@@ -111,7 +113,7 @@ static int EmitFancyRGB(const VP8Io* const io, WebPDecParams* const p) {
   const uint8_t* top_u = p->tmp_u;
   const uint8_t* top_v = p->tmp_v;
   int y = io->mb_y;
-  int y_end = io->mb_y + io->mb_h;
+  const int y_end = io->mb_y + io->mb_h;
   const int mb_w = io->mb_w;
   const int uv_w = (mb_w + 1) / 2;
 
@@ -150,7 +152,7 @@ static int EmitFancyRGB(const VP8Io* const io, WebPDecParams* const p) {
     // Process the very last row of even-sized picture
     if (!(y_end & 1)) {
       upsample(cur_y, NULL, cur_u, cur_v, cur_u, cur_v,
-              dst + buf->stride, NULL, mb_w);
+               dst + buf->stride, NULL, mb_w);
     }
   }
   return num_lines_out;
@@ -184,49 +186,60 @@ static int EmitAlphaYUV(const VP8Io* const io, WebPDecParams* const p) {
   return 0;
 }
 
+static int GetAlphaSourceRow(const VP8Io* const io,
+                             const uint8_t** alpha, int* const num_rows) {
+  int start_y = io->mb_y;
+  *num_rows = io->mb_h;
+
+  // Compensate for the 1-line delay of the fancy upscaler.
+  // This is similar to EmitFancyRGB().
+  if (io->fancy_upsampling) {
+    if (start_y == 0) {
+      // We don't process the last row yet. It'll be done during the next call.
+      --*num_rows;
+    } else {
+      --start_y;
+      // Fortunately, *alpha data is persistent, so we can go back
+      // one row and finish alpha blending, now that the fancy upscaler
+      // completed the YUV->RGB interpolation.
+      *alpha -= io->width;
+    }
+    if (io->crop_top + io->mb_y + io->mb_h == io->crop_bottom) {
+      // If it's the very last call, we process all the remaining rows!
+      *num_rows = io->crop_bottom - io->crop_top - start_y;
+    }
+  }
+  return start_y;
+}
+
 static int EmitAlphaRGB(const VP8Io* const io, WebPDecParams* const p) {
   const uint8_t* alpha = io->a;
   if (alpha != NULL) {
     const int mb_w = io->mb_w;
-    const int mb_h = io->mb_h;
-    int i, j;
     const WEBP_CSP_MODE colorspace = p->output->colorspace;
     const int alpha_first =
         (colorspace == MODE_ARGB || colorspace == MODE_Argb);
     const WebPRGBABuffer* const buf = &p->output->u.RGBA;
-    int start_y = io->mb_y;
-    int num_rows = mb_h;
+    int num_rows;
+    const int start_y = GetAlphaSourceRow(io, &alpha, &num_rows);
+    uint8_t* const base_rgba = buf->rgba + start_y * buf->stride;
+    uint8_t* dst = base_rgba + (alpha_first ? 0 : 3);
+    uint32_t alpha_mask = 0xff;
+    int i, j;
 
-    // We compensate for the 1-line delay of fancy upscaler.
-    // This is similar to EmitFancyRGB().
-    if (io->fancy_upsampling) {
-      if (start_y == 0) {
-        // We don't process the last row yet. It'll be done during next call.
-        --num_rows;
-      } else {
-        --start_y;
-        // Fortunately, *alpha data is persistent, so we can go back
-        // one row and finish alpha blending, now that the fancy upscaler
-        // completed the YUV->RGB interpolation.
-        alpha -= io->width;
+    for (j = 0; j < num_rows; ++j) {
+      for (i = 0; i < mb_w; ++i) {
+        const uint32_t alpha_value = alpha[i];
+        dst[4 * i] = alpha_value;
+        alpha_mask &= alpha_value;
       }
-      if (io->crop_top + io->mb_y + mb_h == io->crop_bottom) {
-        // If it's the very last call, we process all the remaing rows!
-        num_rows = io->crop_bottom - io->crop_top - start_y;
-      }
+      alpha += io->width;
+      dst += buf->stride;
     }
-    {
-      uint8_t* const base_rgba = buf->rgba + start_y * buf->stride;
-      uint8_t* dst = base_rgba + (alpha_first ? 0 : 3);
-      for (j = 0; j < num_rows; ++j) {
-        for (i = 0; i < mb_w; ++i) dst[4 * i] = alpha[i];
-        alpha += io->width;
-        dst += buf->stride;
-      }
-      if (WebPIsPremultipliedMode(colorspace)) {
-        WebPApplyAlphaMultiply(base_rgba, alpha_first,
-                               mb_w, num_rows, buf->stride);
-      }
+    // alpha_mask is < 0xff if there's non-trivial alpha to premultiply with.
+    if (alpha_mask != 0xff && WebPIsPremultipliedMode(colorspace)) {
+      WebPApplyAlphaMultiply(base_rgba, alpha_first,
+                             mb_w, num_rows, buf->stride);
     }
   }
   return 0;
@@ -236,22 +249,27 @@ static int EmitAlphaRGBA4444(const VP8Io* const io, WebPDecParams* const p) {
   const uint8_t* alpha = io->a;
   if (alpha != NULL) {
     const int mb_w = io->mb_w;
-    const int mb_h = io->mb_h;
-    int i, j;
+    const WEBP_CSP_MODE colorspace = p->output->colorspace;
     const WebPRGBABuffer* const buf = &p->output->u.RGBA;
-    uint8_t* const base_rgba = buf->rgba + io->mb_y * buf->stride;
+    int num_rows;
+    const int start_y = GetAlphaSourceRow(io, &alpha, &num_rows);
+    uint8_t* const base_rgba = buf->rgba + start_y * buf->stride;
     uint8_t* alpha_dst = base_rgba + 1;
-    for (j = 0; j < mb_h; ++j) {
+    uint32_t alpha_mask = 0x0f;
+    int i, j;
+
+    for (j = 0; j < num_rows; ++j) {
       for (i = 0; i < mb_w; ++i) {
         // Fill in the alpha value (converted to 4 bits).
-        const uint32_t alpha_val = VP8Clip4Bits(alpha[i]);
-        alpha_dst[2 * i] = (alpha_dst[2 * i] & 0xf0) | alpha_val;
+        const uint32_t alpha_value = alpha[i] >> 4;
+        alpha_dst[2 * i] = (alpha_dst[2 * i] & 0xf0) | alpha_value;
+        alpha_mask &= alpha_value;
       }
       alpha += io->width;
       alpha_dst += buf->stride;
     }
-    if (p->output->colorspace == MODE_rgbA_4444) {
-      WebPApplyAlphaMultiply4444(base_rgba, mb_w, mb_h, buf->stride);
+    if (alpha_mask != 0x0f && WebPIsPremultipliedMode(colorspace)) {
+      WebPApplyAlphaMultiply4444(base_rgba, mb_w, num_rows, buf->stride);
     }
   }
   return 0;
@@ -396,17 +414,22 @@ static int ExportAlpha(WebPDecParams* const p, int y_pos) {
   uint8_t* dst = base_rgba + (alpha_first ? 0 : 3);
   int num_lines_out = 0;
   const int is_premult_alpha = WebPIsPremultipliedMode(colorspace);
+  uint32_t alpha_mask = 0xff;
   const int width = p->scaler_a.dst_width;
 
   while (WebPRescalerHasPendingOutput(&p->scaler_a)) {
     int i;
     assert(p->last_y + y_pos + num_lines_out < p->output->height);
     WebPRescalerExportRow(&p->scaler_a);
-    for (i = 0; i < width; ++i) dst[4 * i] = p->scaler_a.dst[i];
+    for (i = 0; i < width; ++i) {
+      const uint32_t alpha_value = p->scaler_a.dst[i];
+      dst[4 * i] = alpha_value;
+      alpha_mask &= alpha_value;
+    }
     dst += buf->stride;
     ++num_lines_out;
   }
-  if (is_premult_alpha) {
+  if (is_premult_alpha && alpha_mask != 0xff) {
     WebPApplyAlphaMultiply(base_rgba, alpha_first,
                            width, num_lines_out, buf->stride);
   }
@@ -421,6 +444,7 @@ static int ExportAlphaRGBA4444(WebPDecParams* const p, int y_pos) {
   const WEBP_CSP_MODE colorspace = p->output->colorspace;
   const int width = p->scaler_a.dst_width;
   const int is_premult_alpha = WebPIsPremultipliedMode(colorspace);
+  uint32_t alpha_mask = 0x0f;
 
   while (WebPRescalerHasPendingOutput(&p->scaler_a)) {
     int i;
@@ -428,13 +452,14 @@ static int ExportAlphaRGBA4444(WebPDecParams* const p, int y_pos) {
     WebPRescalerExportRow(&p->scaler_a);
     for (i = 0; i < width; ++i) {
       // Fill in the alpha value (converted to 4 bits).
-      const uint32_t alpha_val = VP8Clip4Bits(p->scaler_a.dst[i]);
-      alpha_dst[2 * i] = (alpha_dst[2 * i] & 0xf0) | alpha_val;
+      const uint32_t alpha_value = p->scaler_a.dst[i] >> 4;
+      alpha_dst[2 * i] = (alpha_dst[2 * i] & 0xf0) | alpha_value;
+      alpha_mask &= alpha_value;
     }
     alpha_dst += buf->stride;
     ++num_lines_out;
   }
-  if (is_premult_alpha) {
+  if (is_premult_alpha && alpha_mask != 0x0f) {
     WebPApplyAlphaMultiply4444(base_rgba, width, num_lines_out, buf->stride);
   }
   return num_lines_out;
@@ -471,8 +496,7 @@ static int InitRGBRescaler(const VP8Io* const io, WebPDecParams* const p) {
     tmp_size1 += work_size;
     tmp_size2 += out_width;
   }
-  p->memory =
-      calloc(1, tmp_size1 * sizeof(*work) + tmp_size2 * sizeof(*tmp));
+  p->memory = calloc(1, tmp_size1 * sizeof(*work) + tmp_size2 * sizeof(*tmp));
   if (p->memory == NULL) {
     return 0;   // memory error
   }
@@ -569,7 +593,7 @@ static int CustomSetup(VP8Io* io) {
 //------------------------------------------------------------------------------
 
 static int CustomPut(const VP8Io* io) {
-  WebPDecParams* p = (WebPDecParams*)io->opaque;
+  WebPDecParams* const p = (WebPDecParams*)io->opaque;
   const int mb_w = io->mb_w;
   const int mb_h = io->mb_h;
   int num_lines_out;
