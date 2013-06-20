@@ -1,8 +1,10 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 //
-// This code is licensed under the same terms as WebM:
-//  Software License Agreement:  http://www.webmproject.org/license/software/
-//  Additional IP Rights Grant:  http://www.webmproject.org/license/additional/
+// Use of this source code is governed by a BSD-style license
+// that can be found in the COPYING file in the root of the source
+// tree. An additional intellectual property rights grant can be found
+// in the file PATENTS. All contributing project authors may
+// be found in the AUTHORS file in the root of the source tree.
 // -----------------------------------------------------------------------------
 //
 // YUV to RGB upsampling functions.
@@ -32,7 +34,7 @@ WebPUpsampleLinePairFunc WebPUpsamplers[MODE_LAST];
 //  ([3*a +   b + 9*c + 3*d      a + 3*b + 3*c + 9*d]   [8 8]) / 16
 
 // We process u and v together stashed into 32bit (16bit each).
-#define LOAD_UV(u,v) ((u) | ((v) << 16))
+#define LOAD_UV(u, v) ((u) | ((v) << 16))
 
 #define UPSAMPLE_FUNC(FUNC_NAME, FUNC, XSTEP)                                  \
 static void FUNC_NAME(const uint8_t* top_y, const uint8_t* bottom_y,           \
@@ -271,8 +273,7 @@ static void ApplyAlphaMultiply(uint8_t* rgba, int alpha_first,
 
 // rgbA4444
 
-#define MULTIPLIER(a)  ((a) * 0x11)
-#define PREMULTIPLY(x, m) (((x) * (m)) >> 12)
+#define MULTIPLIER(a)  ((a) * 0x1111)    // 0x1111 ~= (1 << 16) / 15
 
 static WEBP_INLINE uint8_t dither_hi(uint8_t x) {
   return (x & 0xf0) | (x >> 4);
@@ -282,24 +283,27 @@ static WEBP_INLINE uint8_t dither_lo(uint8_t x) {
   return (x & 0x0f) | (x << 4);
 }
 
+static WEBP_INLINE uint8_t multiply(uint8_t x, uint32_t m) {
+  return (x * m) >> 16;
+}
+
 static void ApplyAlphaMultiply4444(uint8_t* rgba4444,
                                    int w, int h, int stride) {
   while (h-- > 0) {
     int i;
     for (i = 0; i < w; ++i) {
-      const uint8_t a = dither_lo(rgba4444[2 * i + 1]);
+      const uint8_t a = (rgba4444[2 * i + 1] & 0x0f);
       const uint32_t mult = MULTIPLIER(a);
-      const uint8_t r = PREMULTIPLY(dither_hi(rgba4444[2 * i + 0]), mult);
-      const uint8_t g = PREMULTIPLY(dither_lo(rgba4444[2 * i + 0]), mult);
-      const uint8_t b = PREMULTIPLY(dither_hi(rgba4444[2 * i + 1]), mult);
-      rgba4444[2 * i + 0] = (r & 0xf0) | (g & 0x0f);
+      const uint8_t r = multiply(dither_hi(rgba4444[2 * i + 0]), mult);
+      const uint8_t g = multiply(dither_lo(rgba4444[2 * i + 0]), mult);
+      const uint8_t b = multiply(dither_hi(rgba4444[2 * i + 1]), mult);
+      rgba4444[2 * i + 0] = (r & 0xf0) | ((g >> 4) & 0x0f);
       rgba4444[2 * i + 1] = (b & 0xf0) | a;
     }
     rgba4444 += stride;
   }
 }
 #undef MULTIPLIER
-#undef PREMULTIPLY
 
 void (*WebPApplyAlphaMultiply)(uint8_t*, int, int, int, int)
     = ApplyAlphaMultiply;
@@ -326,6 +330,11 @@ void WebPInitUpsamplers(void) {
       WebPInitUpsamplersSSE2();
     }
 #endif
+#if defined(WEBP_USE_NEON)
+    if (VP8GetCPUInfo(kNEON)) {
+      WebPInitUpsamplersNEON();
+    }
+#endif
   }
 #endif  // FANCY_UPSAMPLING
 }
@@ -344,6 +353,11 @@ void WebPInitPremultiply(void) {
 #if defined(WEBP_USE_SSE2)
     if (VP8GetCPUInfo(kSSE2)) {
       WebPInitPremultiplySSE2();
+    }
+#endif
+#if defined(WEBP_USE_NEON)
+    if (VP8GetCPUInfo(kNEON)) {
+      WebPInitPremultiplyNEON();
     }
 #endif
   }

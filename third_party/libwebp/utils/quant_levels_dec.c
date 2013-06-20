@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc. All Rights Reserved.
+// Copyright 2013 Google Inc. All Rights Reserved.
 //
 // Use of this source code is governed by a BSD-style license
 // that can be found in the COPYING file in the root of the source
@@ -7,28 +7,21 @@
 // be found in the AUTHORS file in the root of the source tree.
 // -----------------------------------------------------------------------------
 //
-// Enhancement layer (for YUV444/422)
+// TODO(skal): implement gradient smoothing.
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include <assert.h>
-#include <stdlib.h>
-
-#include "./vp8i.h"
+#include "./quant_levels_dec.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-//------------------------------------------------------------------------------
-
-int VP8DecodeLayer(VP8Decoder* const dec) {
-  assert(dec);
-  assert(dec->layer_data_size_ > 0);
-  (void)dec;
-
-  // TODO: handle enhancement layer here.
-
+int DequantizeLevels(uint8_t* const data, int width, int height) {
+  if (data == NULL || width <= 0 || height <= 0) return 0;
+  (void)data;
+  (void)width;
+  (void)height;
   return 1;
 }
 
