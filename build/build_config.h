@@ -34,7 +34,7 @@
 #if !defined(TOOLKIT_VIEWS)
 #define TOOLKIT_GTK
 #endif
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__LB_SHELL__)
 #define OS_WIN 1
 #define TOOLKIT_VIEWS 1
 #elif defined(__FreeBSD__)
@@ -132,7 +132,7 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_WIIU__)
+#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_WIIU__) || defined(__LB_XB1__)
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \
