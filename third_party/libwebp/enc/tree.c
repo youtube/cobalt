@@ -1,8 +1,10 @@
 // Copyright 2011 Google Inc. All Rights Reserved.
 //
-// This code is licensed under the same terms as WebM:
-//  Software License Agreement:  http://www.webmproject.org/license/software/
-//  Additional IP Rights Grant:  http://www.webmproject.org/license/additional/
+// Use of this source code is governed by a BSD-style license
+// that can be found in the COPYING file in the root of the source
+// tree. An additional intellectual property rights grant can be found
+// in the file PATENTS. All contributing project authors may
+// be found in the AUTHORS file in the root of the source tree.
 // -----------------------------------------------------------------------------
 //
 // Token probabilities
@@ -158,9 +160,12 @@ const uint8_t
 
 void VP8DefaultProbas(VP8Encoder* const enc) {
   VP8Proba* const probas = &enc->proba_;
+  probas->use_skip_proba_ = 0;
   memset(probas->segments_, 255u, sizeof(probas->segments_));
   memcpy(probas->coeffs_, VP8CoeffsProba0, sizeof(VP8CoeffsProba0));
-  probas->use_skip_proba_ = 0;
+  // Note: we could hard-code the level_costs_ corresponding to VP8CoeffsProba0,
+  // but that's ~11k of static data. Better call VP8CalculateLevelCosts() later.
+  probas->dirty_ = 1;
 }
 
 // Paragraph 11.5.  900bytes.
