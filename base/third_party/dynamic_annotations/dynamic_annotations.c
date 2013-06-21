@@ -234,7 +234,7 @@ static int GetRunningOnValgrind(void) {
 #endif
 #if defined(__LB_SHELL__)
   return 0;
-#endif
+#else
 
 #ifndef _MSC_VER
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
@@ -255,6 +255,7 @@ static int GetRunningOnValgrind(void) {
     return 1;
 #endif
   return 0;
+#endif
 }
 
 /* See the comments in dynamic_annotations.h */
