@@ -227,7 +227,7 @@
 # define GTEST_OS_CYGWIN 1
 #elif defined __SYMBIAN32__
 # define GTEST_OS_SYMBIAN 1
-#elif defined _WIN32
+#elif defined(_WIN32) && !defined(__LB_SHELL__)
 # define GTEST_OS_WINDOWS 1
 # ifdef _WIN32_WCE
 #  define GTEST_OS_WINDOWS_MOBILE 1
@@ -740,7 +740,7 @@ using ::std::tuple_size;
 #ifndef GTEST_HAS_SEH
 // The user didn't tell us, so we need to figure it out.
 
-# if defined(_MSC_VER) || defined(__BORLANDC__)
+# if (defined(_MSC_VER) || defined(__BORLANDC__)) && !defined(__LB_SHELL__)
 // These two compilers are known to support SEH.
 #  define GTEST_HAS_SEH 1
 # else
