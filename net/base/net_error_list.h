@@ -524,6 +524,13 @@ NET_ERROR(CONTENT_LENGTH_MISMATCH, -354)
 // terminating zero-length chunk was never sent when the connection is closed.
 NET_ERROR(INCOMPLETE_CHUNKED_ENCODING, -355)
 
+#if defined(__LB_SHELL__)
+// HTTP status code 503
+// The server is currently unable to handle the request due to a temporary
+// overloading or maintenance of the server.
+NET_ERROR(SERVICE_UNAVAILABLE, -399)
+#endif
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
