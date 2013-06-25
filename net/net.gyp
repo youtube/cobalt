@@ -1002,7 +1002,17 @@
             ['exclude', 'base/dnsrr_resolver.cc'],
             # remove windows files
             ['exclude', '_win.cc$'],
-          ]
+          ],
+          'conditions': [
+            ['use_native_http_stack==1', {
+              'sources': [
+                'http/shell/http_stream_shell.cc',
+                'http/shell/http_stream_shell_loader.cc',
+                'http/shell/http_transaction_factory_shell.cc',
+                'http/shell/http_transaction_shell.cc',
+              ],
+            }],
+          ],
         }, { # os is not lb_shell
           'dependencies': [
             '../sdch/sdch.gyp:sdch',
