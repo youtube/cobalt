@@ -15,7 +15,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(COMPILER_MSVC)
 struct _EXCEPTION_POINTERS;
 #endif
 
@@ -40,7 +40,7 @@ class BASE_EXPORT StackTrace {
   // trimmed to |kMaxTraces|.
   StackTrace(const void* const* trace, size_t count);
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(COMPILER_MSVC)
   // Creates a stacktrace for an exception.
   // Note: this function will throw an import not found (StackWalk64) exception
   // on system without dbghelp 5.1.
