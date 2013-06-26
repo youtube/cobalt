@@ -100,7 +100,11 @@ void safe_strerror_r(int err, char *buf, size_t len) {
   // appropriate overloaded function based on the function type of strerror_r.
   // The other one will be elided from the translation unit since both are
   // static.
+#if defined(__LB_XB1__)
+  strerror_s(buf, len, err);
+#else
   wrap_posix_strerror_r(&strerror_r, err, buf, len);
+#endif
 }
 
 std::string safe_strerror(int err) {
