@@ -77,7 +77,7 @@
 #if defined(_WIN32) && defined(_MSC_VER)
 #undef XML_XML_DEFAULT_CATALOG
 static char XML_XML_DEFAULT_CATALOG[256] = "file:///etc/xml/catalog";
-#if defined(_WIN32_WCE)
+#if defined(_WIN32_WCE) || defined(__LB_XB1__)
 /* Windows CE don't have a A variant */
 #define GetModuleHandleA GetModuleHandle
 #define GetModuleFileNameA GetModuleFileName
