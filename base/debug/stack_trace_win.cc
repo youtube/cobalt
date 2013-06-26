@@ -149,6 +149,7 @@ class SymbolContext {
 
 }  // namespace
 
+#if !defined(__LB_XB1__)
 bool EnableInProcessStackDumping() {
   // Add stack dumping support on exception on windows. Similar to OS_POSIX
   // signal() handling in process_util_posix.cc.
@@ -156,6 +157,7 @@ bool EnableInProcessStackDumping() {
   RouteStdioToConsole();
   return true;
 }
+#endif
 
 // Disable optimizations for the StackTrace::StackTrace function. It is
 // important to disable at least frame pointer optimization ("y"), since
