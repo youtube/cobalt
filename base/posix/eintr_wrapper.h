@@ -12,7 +12,7 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) && !defined(__LB_WIIU__)
+#if defined(OS_POSIX) && !defined(__LB_WIIU__) && !defined(__LB_XB1__)
 
 #include <errno.h>
 
