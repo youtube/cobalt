@@ -164,7 +164,7 @@ class ShellVideoAU : public media::ShellAU {
 #endif
   virtual size_t GetSize() const OVERRIDE { return size_; }
   virtual size_t GetMaxSize() const OVERRIDE {
-    // TODO(***REMOVED***) : This code is a proof of concept. It should be fixed
+    // TODO : This code is a proof of concept. It should be fixed
     // with more reasonable value once we have enough data.
     return size_ + prepend_size_ + size_ / 1024 + 1024;
   }
