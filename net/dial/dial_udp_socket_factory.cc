@@ -73,7 +73,6 @@ void DialUdpSocketFactory::SetupSocketAfterBind(SocketDescriptor s) {
   struct ip_mreq imreq;
   imreq.imr_multiaddr.s_addr = ::inet_addr("239.255.255.250");
 #if defined(__LB_WIIU__)
-  // The WiiU INADDR_ANY is unreliable.
   struct in_addr src_addr;
   ignore_result(LB::Platform::GetLocalIpAddress(&src_addr));
   imreq.imr_interface.s_addr = htonl(src_addr.s_addr);
