@@ -37,6 +37,9 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
+#if __LB_ENABLE_NATIVE_HTTP_STACK__
+#include "net/http/shell/http_transaction_factory_shell.h"
+#endif
 
 namespace net {
 
@@ -250,7 +253,12 @@ HttpCache::HttpCache(const net::HttpNetworkSession::Params& params,
       backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      network_layer_(new HttpNetworkLayer(new HttpNetworkSession(params))) {
+#if __LB_ENABLE_NATIVE_HTTP_STACK__
+      network_layer_(new HttpTransactionFactoryShell(params))
+#else
+      network_layer_(new HttpNetworkLayer(new HttpNetworkSession(params)))
+#endif
+{
 }
 
 
