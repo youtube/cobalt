@@ -81,7 +81,7 @@
 #include <time.h>
 
 /* Implements the Unix localtime_r() function for windows */
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(__LB_XB1__)
 static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
