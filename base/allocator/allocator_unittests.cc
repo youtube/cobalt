@@ -394,16 +394,10 @@ TEST(Allocators, Calloc) {
 
   TestCalloc(kMaxSize, 2, false);
   TestCalloc(2, kMaxSize, false);
-  // TODO(__LB_WIIU__): WiiU calloc() has a bug to handle this case.
-  // It converts the call to malloc(kMaxSize * kMaxSize) aka malloc(1).
-  // We should fix it when we override memory functions.
   TestCalloc(kMaxSize, kMaxSize, false);
 
   TestCalloc(kMaxSignedSize, 3, false);
   TestCalloc(3, kMaxSignedSize, false);
-  // TODO(__LB_WIIU__): WiiU calloc() has a bug to handle this case.
-  // It converts the call to malloc(kMaxSignedSize * kMaxSignedSize)
-  // aka malloc(1). We should fix it when we override memory functions.
   TestCalloc(kMaxSignedSize, kMaxSignedSize, false);
 }
 
