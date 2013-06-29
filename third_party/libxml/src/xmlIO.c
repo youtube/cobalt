@@ -36,7 +36,8 @@
 #include <zlib.h>
 #endif
 
-#if defined(WIN32) || defined(_WIN32)
+#if (defined(WIN32) || defined(HAVE_WIN32)) && !defined(__LB_XB1__)
+#define HAVE_WIN32
 #include <windows.h>
 #endif
 
@@ -56,7 +57,7 @@
 #  endif
 #else
 #  ifdef HAVE__STAT
-#    if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#    if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
 #      define stat _stat
 #    endif
 #  endif
@@ -206,7 +207,7 @@ static const char *IOerr[] = {
     "unknown address familly",	/* EAFNOSUPPORT */
 };
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
 /**
  * __xmlIOWin32UTF8ToWChar:
  * @u8String:  uft-8 string
@@ -584,7 +585,7 @@ xmlCleanupOutputCallbacks(void)
  *									*
  ************************************************************************/
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
 
 /**
  *  xmlWrapOpenUtf8:
@@ -771,7 +772,7 @@ xmlCheckFilename (const char *path)
 		return(0);
 
 #ifdef HAVE_STAT
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     if (xmlWrapStat(path, &stat_buffer) == -1)
         return 0;
 #else
@@ -911,7 +912,7 @@ xmlFileOpen_real (const char *filename) {
     if (!xmlCheckFilename(path))
         return(NULL);
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapOpen(path, 0);
 #else
     fd = fopen(path, "r");
@@ -984,7 +985,7 @@ xmlFileOpenW (const char *filename) {
     if (path == NULL)
 	return(NULL);
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapOpen(path, 1);
 #else
  	   fd = fopen(path, "wb");
@@ -1169,7 +1170,7 @@ xmlGzfileOpen_real (const char *filename) {
     if (!xmlCheckFilename(path))
         return(NULL);
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapGzOpen(path, "rb");
 #else
     fd = gzopen(path, "rb");
@@ -1241,7 +1242,7 @@ xmlGzfileOpenW (const char *filename, int compression) {
     if (path == NULL)
 	return(NULL);
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     fd = xmlWrapGzOpen(path, mode);
 #else
     fd = gzopen(path, mode);
@@ -2171,7 +2172,7 @@ xmlRegisterDefaultInputCallbacks(void) {
     if (xmlInputCallbackInitialized)
 	return;
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     xmlInitPlatformSpecificIo();
 #endif
 
@@ -2205,7 +2206,7 @@ xmlRegisterDefaultOutputCallbacks (void) {
     if (xmlOutputCallbackInitialized)
 	return;
 
-#if defined(_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
+#if defined(HAVE_WIN32) || defined (__DJGPP__) && !defined (__CYGWIN__)
     xmlInitPlatformSpecificIo();
 #endif
 
