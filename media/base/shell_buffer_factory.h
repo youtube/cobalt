@@ -42,6 +42,11 @@ static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
 static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
 static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
+#elif defined(__LB_XB1__)
+// TODO (***REMOVED***) : Using the PS3 numbers as a starting point.
+//                   Need to confirm what Xbox One will need.
+static const int kShellBufferAlignment = 128;
+static const int kShellBufferSpaceSize = 48 * 1024 * 1024;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif
