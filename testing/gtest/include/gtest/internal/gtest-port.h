@@ -1728,6 +1728,10 @@ inline bool IsDir(const StatStruct& st) {
 #elif defined(__LB_SHELL__)
 typedef struct stat StatStruct;
 
+#if defined(__LB_XB1__)
+#define fileno _fileno
+#define strdup _strdup
+#endif
 inline int FileNo(FILE* file) { return fileno(file); }
 inline int IsATTY(int fd) { return 0; }
 inline int Stat(const char* path, StatStruct* buf) { return stat(path, buf); }
