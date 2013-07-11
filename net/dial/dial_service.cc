@@ -38,8 +38,8 @@ DialService* DialService::GetInstance() {
 
 DialService::DialService()
     : thread_(new base::Thread("dial_service"))
-    , http_server_(new DialHttpServer())
-    , udp_server_(new DialUdpServer())
+    , http_server_(NULL)
+    , udp_server_(NULL)
     , is_running_(false) {
   // DialService is lazy, so we can start in the constructor
   // and always have a messageloop.
@@ -47,7 +47,8 @@ DialService::DialService()
 }
 
 DialService::~DialService() {
-  DCHECK(!is_running());
+  DLOG_IF(FATAL, is_running()) << "Dial server is still running when "
+                                  "destroying the service.";
 }
 
 MessageLoop* DialService::GetMessageLoop() {
@@ -81,6 +82,12 @@ void DialService::SpinUpServices() {
   // Do nothing.
   if (is_running_) return;
 
+  DCHECK(!http_server_.get());
+  DCHECK(!udp_server_.get());
+
+  http_server_ = new DialHttpServer();
+  udp_server_.reset(new DialUdpServer());
+
   // Create servers
   if (!http_server_->Start())
     return;
@@ -107,6 +114,9 @@ void DialService::SpinDownServices() {
 
   // running is false when both Stops() return true;
   is_running_ = !(http_ret && udp_ret);
+
+  http_server_ = NULL;
+  udp_server_.reset();
 
   // Check that both are in same state.
   DCHECK(http_ret == udp_ret);
