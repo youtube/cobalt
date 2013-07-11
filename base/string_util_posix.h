@@ -18,7 +18,11 @@ namespace base {
 // Chromium code style is to not use malloc'd strings; this is only for use
 // for interaction with APIs that require it.
 inline char* strdup(const char* str) {
+#if defined(__LB_XB1__)
+  return ::_strdup(str);
+#else
   return ::strdup(str);
+#endif
 }
 
 inline int strcasecmp(const char* string1, const char* string2) {
