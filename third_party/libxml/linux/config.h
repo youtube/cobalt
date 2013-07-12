@@ -238,8 +238,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+#if !defined(__LB_XB1__)
 /* Whether va_copy() is available */
 #define HAVE_VA_COPY 1
+#endif
 
 /* Define to 1 if you have the `vfprintf' function. */
 #define HAVE_VFPRINTF 1
