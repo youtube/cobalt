@@ -571,6 +571,9 @@
             ['exclude', 'gfx/platform_font_pango'],
             ['exclude', 'gfx/screen'],
             ['exclude', 'gfx/render_text'],
+            ['exclude', 'gfx/codec'],
+            ['exclude', 'gfx/color_analysis'],
+            ['exclude', 'gfx/image/image_util'],
           ],
         }, { # OS != "lb_shell"
           'dependencies': [
