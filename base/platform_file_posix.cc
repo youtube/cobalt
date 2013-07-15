@@ -27,7 +27,7 @@ COMPILE_ASSERT(PLATFORM_FILE_FROM_BEGIN   == SEEK_SET &&
                PLATFORM_FILE_FROM_END     == SEEK_END, whence_matches_system);
 
 #if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_WIIU__) || \
-    defined(__LB_PS3__)
+    defined(__LB_PS3__) || defined(__LB_XB1__)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -302,7 +302,7 @@ bool FlushPlatformFile(PlatformFile file) {
   return !HANDLE_EINTR(fsync(file));
 }
 
-#if !defined(__LB_WIIU__) && !defined(__LB_PS3__)
+#if !defined(__LB_WIIU__) && !defined(__LB_PS3__) && !defined(__LB_XB1__)
 bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
                        const base::Time& last_modified_time) {
   base::ThreadRestrictions::AssertIOAllowed();
