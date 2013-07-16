@@ -41,7 +41,9 @@ Error MapSystemError(int os_error) {
     case ECONNREFUSED:
       return ERR_CONNECTION_REFUSED;
     case EHOSTUNREACH:
+#if !defined(__LB_XB1__)
     case EHOSTDOWN:
+#endif
     case ENETUNREACH:
     case EAFNOSUPPORT:
       return ERR_ADDRESS_UNREACHABLE;
