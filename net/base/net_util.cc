@@ -361,7 +361,7 @@ bool IsIDNComponentSafe(const char16* str,
   DCHECK(U_SUCCESS(status));
   icu::RegexMatcher dangerous_patterns(icu::UnicodeString(
       // Lone katakana no, so, or n
-      "[^\\p{Katakana}][\\u30ce\\u30f3\u30bd][^\\p{Katakana}]"
+      "[^\\p{Katakana}][\\u30ce\\u30f3\\u30bd][^\\p{Katakana}]"
       // Repeating Japanese accent characters
       "|[\\u3099\\u309a\\u309b\\u309c][\\u3099\\u309a\\u309b\\u309c]"),
       0, status);
