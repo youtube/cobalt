@@ -19,7 +19,7 @@
 namespace base {
 
 namespace {
-#if defined(OS_WIN) || defined(__LB_XB1__)
+#if defined(OS_WIN)
 inline bool isnan(double num) { return !!_isnan(num); }
 #endif
 }
