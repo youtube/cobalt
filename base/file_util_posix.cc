@@ -527,7 +527,6 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
 }
-#endif
 
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
   int fd = CreateAndOpenFdForTemporaryFile(dir, path);
@@ -539,6 +538,7 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
     ignore_result(HANDLE_EINTR(close(fd)));
   return file;
 }
+#endif
 
 bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to close().
