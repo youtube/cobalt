@@ -527,7 +527,9 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
 }
+#endif
 
+#if !defined(__LB_XB1__)
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
   int fd = CreateAndOpenFdForTemporaryFile(dir, path);
   if (fd < 0)
