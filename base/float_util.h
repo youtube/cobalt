@@ -13,9 +13,7 @@
 namespace base {
 
 inline bool IsFinite(const double& number) {
-#if defined(__LB_XB1__)
-  return _finite(number) != 0;
-#elif defined(__LB_SHELL__)
+#if defined(__LB_SHELL__)
   return fpclassify(number) != FP_INFINITE;
 #elif defined(OS_ANDROID)
   // isfinite isn't available on Android: http://b.android.com/34793

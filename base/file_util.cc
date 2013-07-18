@@ -248,11 +248,7 @@ bool TruncateFile(FILE* file) {
   if (_chsize(fd, current_offset) != 0)
     return false;
 #else
-#if defined(__LB_XB1__)
-  int fd = _fileno(file);
-#else
   int fd = fileno(file);
-#endif
   if (ftruncate(fd, current_offset) != 0)
     return false;
 #endif
