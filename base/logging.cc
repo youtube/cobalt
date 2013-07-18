@@ -174,8 +174,6 @@ void CloseFile(FileHandle log) {
 void DeleteFilePath(const PathString& log_name) {
 #if defined(OS_WIN)
   DeleteFile(log_name.c_str());
-#elif defined(__LB_XB1__)
-  _unlink(log_name.c_str());
 #else
   unlink(log_name.c_str());
 #endif
