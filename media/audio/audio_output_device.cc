@@ -211,6 +211,8 @@ void AudioOutputDevice::OnStreamCreated(
 #if defined(OS_WIN)
   DCHECK(handle);
   DCHECK(socket_handle);
+#elif defined(__LB_SHELL__)
+  DCHECK(handle.get());
 #else
   DCHECK_GE(handle.fd, 0);
   DCHECK_GE(socket_handle, 0);
