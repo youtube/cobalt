@@ -7,7 +7,17 @@
 #ifndef BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 #define BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 
-#include <windows.h>
+#if defined(__LB_XB1__)
+# include <interlockedapi.h>
+// These are normally defined by windows.h:
+typedef long LONG;
+typedef long long LONGLONG;
+// These will adversely affect the rest of the build if left defined:
+# undef NO_ERROR
+# undef WIN32
+#else
+# include <windows.h>
+#endif
 
 namespace base {
 namespace subtle {
