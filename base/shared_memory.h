@@ -9,7 +9,7 @@
 
 #include <string>
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
 #include <stdio.h>
 #include <sys/types.h>
 #include <semaphore.h>
@@ -19,7 +19,13 @@
 #include "base/basictypes.h"
 #include "base/process.h"
 
-#if defined(OS_POSIX)
+#if defined(__LB_SHELL__)
+#include <stdlib.h>
+#include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
+#endif
+
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
 #include "base/file_descriptor_posix.h"
 #endif
 
@@ -32,7 +38,7 @@ namespace base {
 #if defined(OS_WIN)
 typedef HANDLE SharedMemoryHandle;
 typedef HANDLE SharedMemoryLock;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_SHELL__)
 // A SharedMemoryId is sufficient to identify a given shared memory segment on a
 // system, but insufficient to map it.
 typedef FileDescriptor SharedMemoryHandle;
@@ -40,6 +46,29 @@ typedef ino_t SharedMemoryId;
 // On POSIX, the lock is implemented as a lockf() on the mapped file,
 // so no additional member (or definition of SharedMemoryLock) is
 // needed.
+#elif defined(__LB_SHELL__)
+
+// For LB_SHELL, we will only ever have one process, and so we use
+// standard heap memory for this.
+class RefCountedMem : public base::RefCountedThreadSafe<RefCountedMem> {
+ public:
+  RefCountedMem(size_t size) {
+    size_ = size;
+    memory_ = malloc(size);
+  }
+  ~RefCountedMem() {
+    free(memory_);
+  }
+
+  void* GetMemory() const { return memory_; }
+  size_t GetSize() const { return size_; }
+  Lock& lock() { return lock_; }
+private:
+  size_t size_;
+  void* memory_;
+  Lock lock_;
+};
+typedef scoped_refptr<RefCountedMem> SharedMemoryHandle;
 #endif
 
 // Options for creating a shared memory object.
@@ -171,7 +200,7 @@ class BASE_EXPORT SharedMemory {
   // identifier is not portable.
   SharedMemoryHandle handle() const;
 
-#if defined(OS_POSIX) && !defined(OS_NACL)
+#if defined(OS_POSIX) && !defined(OS_NACL) && !defined(__LB_SHELL__)
   // Returns a unique identifier for this shared memory segment. Inode numbers
   // are technically only unique to a single filesystem. However, we always
   // allocate shared memory backing files from the same directory, so will end
@@ -225,7 +254,7 @@ class BASE_EXPORT SharedMemory {
   void Unlock();
 
  private:
-#if defined(OS_POSIX) && !defined(OS_NACL)
+#if defined(OS_POSIX) && !defined(OS_NACL) && !defined(__LB_SHELL__)
   bool PrepareMapFile(FILE *fp);
   bool FilePathForMemoryName(const std::string& mem_name, FilePath* path);
   void LockOrUnlockCommon(int function);
@@ -237,10 +266,12 @@ class BASE_EXPORT SharedMemory {
 #if defined(OS_WIN)
   std::wstring       name_;
   HANDLE             mapped_file_;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(__LB_SHELL__)
   int                mapped_file_;
   size_t             mapped_size_;
   ino_t              inode_;
+#elif defined(__LB_SHELL__)
+  scoped_refptr<RefCountedMem> handle_;
 #endif
   void*              memory_;
   bool               read_only_;

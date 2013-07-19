@@ -64,7 +64,7 @@ class BASE_EXPORT AtExitManager {
   DISALLOW_COPY_AND_ASSIGN(AtExitManager);
 };
 
-#if defined(UNIT_TEST)
+#if defined(__LB_SHELL__) || defined(UNIT_TEST)
 class ShadowingAtExitManager : public AtExitManager {
  public:
   ShadowingAtExitManager() : AtExitManager(true) {}

@@ -563,6 +563,8 @@
               'base_paths_shell.cc',
               'message_pump_shell.cc',
               'message_pump_shell.h',
+              'shared_memory_shell.cc',  # Stub implementation
+              'native_library_shell.cc',  # Stub implementation
               'synchronization/condition_variable_shell.cc',
               'synchronization/lock_impl_shell.cc',
               'synchronization/waitable_event_shell.cc',
