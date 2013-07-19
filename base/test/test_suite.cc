@@ -115,7 +115,11 @@ void TestSuite::PreInitialize(int argc, char** argv,
 
   // On Android, AtExitManager is created in
   // testing/android/native_test_wrapper.cc before main() is called.
-#if !defined(OS_ANDROID)
+#if defined(__LB_SHELL__)
+  if (create_at_exit_manager) {
+    at_exit_manager_.reset(new base::ShadowingAtExitManager);
+  }
+#elif !defined(OS_ANDROID)
   if (create_at_exit_manager)
     at_exit_manager_.reset(new base::AtExitManager);
 #endif
