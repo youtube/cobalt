@@ -144,7 +144,7 @@
 #  define WINDOWS
 #endif
 #if defined(_WIN32) || defined(_WIN32_WCE) || defined(__WIN32__)
-#  ifndef WIN32
+#  if !defined(WIN32) && !defined(__LB_XB1__)
 #    define WIN32
 #  endif
 #endif
@@ -183,7 +183,7 @@
 #if !defined(STDC) && (defined(__GNUC__) || defined(__BORLANDC__))
 #  define STDC
 #endif
-#if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32))
+#if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32) || defined(__LB_XB1__))
 #  define STDC
 #endif
 #if !defined(STDC) && (defined(OS2) || defined(__HOS_AIX__))
