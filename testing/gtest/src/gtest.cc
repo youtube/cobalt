@@ -102,7 +102,8 @@
 # include <windows.h>  // NOLINT
 
 #elif __LB_XB1__
-#include <sysinfoapi.h>
+# include <sysinfoapi.h>
+# include <timezoneapi.h>
 #else
 
 // Assume other platforms have gettimeofday().
