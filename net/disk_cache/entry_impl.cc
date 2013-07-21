@@ -17,10 +17,6 @@
 #include "net/disk_cache/net_log_parameters.h"
 #include "net/disk_cache/sparse_control.h"
 
-#if defined(__LB_SHELL__)
-#include "base/shell_allocator.h"
-#endif
-
 using base::Time;
 using base::TimeDelta;
 using base::TimeTicks;
@@ -81,67 +77,11 @@ void SyncCallback::Discard() {
   OnFileIOComplete(0);
 }
 
-#if defined(__LB_SHELL__)
-// In lb_shell app this number is consistent to kMaxBuffersSize
-// in BackendImpl::MaxBuffersSize()
-const int kMaxBufferSize = 256 * 1024;  // 256 KB.
-#else
 const int kMaxBufferSize = 1024 * 1024;  // 1 MB.
-#endif
 
 }  // namespace
 
 namespace disk_cache {
-
-#if defined(__LB_SHELL__)
-// Reuse memory block for cache buffer vectors. Different sizes are
-// grouped into three categories to simplify the logic. In current
-// lb_shell app the max number of 16k buffer is about 32, which is 512k;
-// We preallocate 16 blocks (256k). The max number of 256k buffer is 1
-// (for video data).
-static const int kMaxUserBufferReuseListCount = 2;
-class UserBufferReuseList :
-      public base::ShellAllocatorBufferList<kMaxUserBufferReuseListCount> {
-public:
-    UserBufferReuseList()  {
-      for (int i = 0; i < kMaxUserBufferReuseListCount; ++i)
-        init_list(i, array_size_levels_[i],
-                  kPreservedBufferSize / array_size_levels_[i],
-                  preserved_buffer[i]);
-    }
-    static UserBufferReuseList* get_instance();
-
-    static int get_list_index(int array_size) {
-      // array_size should only be one of array size levels
-      for (int index = 0; index < kMaxUserBufferReuseListCount; ++index)
-        if (array_size == array_size_levels_[index])
-          return index;
-      NOTREACHED();
-      return -1;
-    }
-
-    static int get_adjusted_array_size(int array_size) {
-      // Normalize array-size
-      for (int index = 0; index < kMaxUserBufferReuseListCount; ++index)
-        if (array_size <= array_size_levels_[index])
-          return array_size_levels_[index];
-      NOTREACHED();
-      return -1;
-    }
-private:
-    static const int kPreservedBufferSize = 256 * 1024;
-    static int array_size_levels_[kMaxUserBufferReuseListCount];
-    char preserved_buffer[kMaxUserBufferReuseListCount][kPreservedBufferSize];
-};
-
-// We have two levels only: 16k and max size.
-int UserBufferReuseList::array_size_levels_[kMaxUserBufferReuseListCount] =
-    {16 * 1024, kMaxBufferSize};
-static UserBufferReuseList s_user_buffer_reuse_list;
-UserBufferReuseList* UserBufferReuseList::get_instance() {
-    return &s_user_buffer_reuse_list;
-}
-#endif
 
 // This class handles individual memory buffers that store data before it is
 // sent to disk. The buffer can start at any offset, but if we try to write to
@@ -152,13 +92,7 @@ class EntryImpl::UserBuffer {
  public:
   explicit UserBuffer(BackendImpl* backend)
       : backend_(backend->GetWeakPtr()), offset_(0), grow_allowed_(true) {
-#if defined(__LB_SHELL__)
-    size_t adjusted =
-        UserBufferReuseList::get_adjusted_array_size(kMaxBlockSize);
-    buffer_.reserve(adjusted);
-#else
     buffer_.reserve(kMaxBlockSize);
-#endif
   }
   ~UserBuffer() {
     if (backend_)
@@ -197,11 +131,7 @@ class EntryImpl::UserBuffer {
 
   base::WeakPtr<BackendImpl> backend_;
   int offset_;
-#if defined(__LB_SHELL__)
-  std::vector<char, base::ShellAllocator<char,  UserBufferReuseList> > buffer_;
-#else
   std::vector<char> buffer_;
-#endif
   bool grow_allowed_;
   DISALLOW_COPY_AND_ASSIGN(UserBuffer);
 };
@@ -225,12 +155,7 @@ bool EntryImpl::UserBuffer::PreWrite(int offset, int len) {
     return GrowBuffer(len, kMaxBufferSize);
 
   int required = offset - offset_ + len;
-#if defined(__LB_SHELL__)
-  // Simpler limit so it's easier to manage
-  return GrowBuffer(required, kMaxBufferSize);
-#else
   return GrowBuffer(required, kMaxBufferSize * 6 / 5);
-#endif
 }
 
 void EntryImpl::UserBuffer::Truncate(int offset) {
@@ -330,12 +255,9 @@ void EntryImpl::UserBuffer::Reset() {
     if (backend_)
       backend_->BufferDeleted(capacity() - kMaxBlockSize);
     grow_allowed_ = true;
-#if !defined(__LB_SHELL__)
-    // Dont swap in lb_shell app to avoid malloc
     std::vector<char> tmp;
     buffer_.swap(tmp);
     buffer_.reserve(kMaxBlockSize);
-#endif
   }
   offset_ = 0;
   buffer_.clear();
@@ -353,13 +275,9 @@ bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
   if (!backend_)
     return false;
 
-#if defined(__LB_SHELL__)
-  required = UserBufferReuseList::get_adjusted_array_size(required);
-#else
   int to_add = std::max(required - current_size, kMaxBlockSize * 4);
   to_add = std::max(current_size, to_add);
   required = std::min(current_size + to_add, limit);
-#endif
 
   grow_allowed_ = backend_->IsAllocAllowed(current_size, required);
   if (!grow_allowed_)
