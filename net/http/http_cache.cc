@@ -63,9 +63,15 @@ HttpCache::BackendFactory* HttpCache::DefaultBackend::InMemory(int max_bytes) {
 int HttpCache::DefaultBackend::CreateBackend(
     NetLog* net_log, disk_cache::Backend** backend,
     const CompletionCallback& callback) {
+#if defined(__LB_SHELL__)
+  // Disk cache is turned off in lb_shell and backend object shouldn't be
+  // created.
+  return ERR_FAILED;
+#else
   DCHECK_GE(max_bytes_, 0);
   return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
                                         thread_, net_log, backend, callback);
+#endif
 }
 
 //-----------------------------------------------------------------------------
