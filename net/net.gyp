@@ -1002,6 +1002,8 @@
             ['exclude', 'base/dnsrr_resolver.cc'],
             # remove windows files
             ['exclude', '_win.cc$'],
+            # no support for disk_cache
+            ['exclude', 'disk_cache/']
           ],
           'conditions': [
             ['use_native_http_stack==1', {
