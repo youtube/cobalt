@@ -40,6 +40,7 @@ class NET_EXPORT DialService {
   void StopService();
   bool Register(DialServiceHandler* handler);
   bool Deregister(DialServiceHandler* handler);
+  void Terminate();
 
   DialServiceHandler* GetHandler(const std::string& service_name,
                                  std::string* remaining_handler);
