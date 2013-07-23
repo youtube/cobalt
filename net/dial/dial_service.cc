@@ -76,6 +76,29 @@ void DialService::StopService() {
       base::Bind(&DialService::SpinDownServices, base::Unretained(this)));
 }
 
+// Syncrhonized call to stop the service.
+void DialService::Terminate() {
+  // Should be called from a different thread.
+  DCHECK(!CurrentThreadIsValid());
+
+  if (thread_) {
+    thread_->Stop();
+    thread_.reset();
+  }
+
+  DLOG_IF(WARNING, http_server_ || udp_server_)
+      << "Force Terminating Dial Server.";
+
+  if (http_server_.get()) {
+    http_server_->Stop();
+    http_server_ = NULL;
+  }
+  if (udp_server_.get()) {
+    udp_server_->Stop();
+    udp_server_.reset();
+  }
+}
+
 void DialService::SpinUpServices() {
   DCHECK(CurrentThreadIsValid());
 
