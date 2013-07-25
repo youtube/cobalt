@@ -27,6 +27,7 @@
 
 namespace {
 
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
 net::ClientSocketPoolManager* CreateSocketPoolManager(
     net::HttpNetworkSession::SocketPoolType pool_type,
     const net::HttpNetworkSession::Params& params) {
@@ -46,6 +47,7 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
       params.ssl_config_service,
       pool_type);
 }
+#endif
 
 }  // unnamed namespace
 
@@ -83,6 +85,7 @@ HttpNetworkSession::Params::Params()
       origin_port_to_force_quic_on(0) {
 }
 
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
     : net_log_(params.net_log),
@@ -204,5 +207,5 @@ ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
   }
   return NULL;
 }
-
+#endif
 }  //  namespace net
