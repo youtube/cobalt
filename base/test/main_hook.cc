@@ -5,6 +5,7 @@
 #include "base/test/main_hook.h"
 
 #if defined(__LB_SHELL__)
+#include "base/command_line.h"
 #include "lb_shell_platform_delegate.h"
 #include "lb_stack.h"
 #endif
@@ -16,6 +17,7 @@
 #if defined(__LB_SHELL__)
 MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
   LB::SetStackSize();
+  CommandLine::Init(argc, argv);
   LBShellPlatformDelegate::Init();
 }
 MainHook::~MainHook() {
