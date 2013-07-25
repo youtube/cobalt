@@ -1291,6 +1291,8 @@ int SetNonBlocking(int fd) {
 #elif defined(__LB_PS3__) || defined(__LB_WIIU__)
   int val = 1;
   return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
+#elif defined(__LB_XB1__)
+  return -1;
 #elif defined(OS_POSIX)
   int flags = fcntl(fd, F_GETFL, 0);
   if (-1 == flags)
