@@ -74,10 +74,10 @@
 #define XML_SGML_DEFAULT_CATALOG "file:///etc/sgml/catalog"
 #endif
 
-#if defined(_WIN32) && defined(_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER) && !defined(__LB_XB1__)
 #undef XML_XML_DEFAULT_CATALOG
 static char XML_XML_DEFAULT_CATALOG[256] = "file:///etc/xml/catalog";
-#if defined(_WIN32_WCE) || defined(__LB_XB1__)
+#if defined(_WIN32_WCE)
 /* Windows CE don't have a A variant */
 #define GetModuleHandleA GetModuleHandle
 #define GetModuleFileNameA GetModuleFileName
@@ -3119,7 +3119,7 @@ xmlInitializeCatalog(void) {
 
 	catalogs = (const char *) getenv("XML_CATALOG_FILES");
 	if (catalogs == NULL)
-#if defined(_WIN32) && defined(_MSC_VER)
+#if defined(_WIN32) && defined(_MSC_VER) && !defined(__LB_XB1__)
     {
 		void* hmodule;
 		hmodule = GetModuleHandleA("libxml2.dll");
