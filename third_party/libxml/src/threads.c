@@ -146,11 +146,7 @@ struct _xmlRMutex {
 static pthread_key_t globalkey;
 static pthread_t mainthread;
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;
-#if defined(__LB_WIIU__)
-pthread_mutex_t global_init_lock = LB_SHELL_PTHREAD_MUTEX_INITIALIZER;
-#else
 static pthread_mutex_t global_init_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
 #elif defined HAVE_WIN32_THREADS
 #if defined(HAVE_COMPILER_TLS)
 static __declspec(thread) xmlGlobalState tlstate;
