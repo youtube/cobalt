@@ -68,6 +68,12 @@ typedef pthread_mutex_t* MutexHandle;
 #include <android/log.h>
 #endif
 
+#ifdef __LB_XB1__
+#undef MAX_PATH
+#include <Windows.h>
+#undef MAX_PATH
+#endif
+
 namespace logging {
 
 DcheckState g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
@@ -589,7 +595,7 @@ LogMessage::~LogMessage() {
 
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(__LB_XB1__)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_ANDROID)
     android_LogPriority priority = ANDROID_LOG_UNKNOWN;
