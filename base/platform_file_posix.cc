@@ -163,6 +163,10 @@ PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
 
 bool ClosePlatformFile(PlatformFile file) {
   base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0) {
+    errno = EINVAL;
+    return false;
+  }
   return !HANDLE_EINTR(close(file));
 }
 
