@@ -143,6 +143,31 @@
 const char *LB_URL = "";
 #endif
 
+#if defined(__LB_XB1__) && !defined(__LB_SHELL_FOR_RELEASE__)
+// PrettyPrinter prints test output to stdout. Redirect to OutputDebugStringA.
+#include <debugapi.h>
+
+static size_t __debug_vprintf(const char* format, va_list args) {
+  char buffer[4096];
+  size_t ret = vsnprintf(buffer, sizeof(buffer), format, args);
+  ret = std::min(ret, sizeof(buffer) - 1);
+  buffer[ret] = '\0';
+  OutputDebugStringA(buffer);
+  return ret;
+}
+
+static size_t __debug_printf(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  size_t ret = __debug_vprintf(format, args);
+  va_end(args);
+  return ret;
+}
+
+#define printf __debug_printf
+#define vprintf __debug_vprintf
+#endif // defined(__LB_XB1__) && !defined(__LB_SHELL_FOR_RELEASE__)
+
 namespace testing {
 
 using internal::CountIf;
@@ -2446,7 +2471,7 @@ static void PrintTestPartResult(const TestPartResult& test_part_result) {
   // following statements add the test part result message to the Output
   // window such that the user can double-click on it to jump to the
   // corresponding source code location; otherwise they do nothing.
-#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MOBILE) || defined(__LB_XB1__)
+#if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MOBILE
   // We don't call OutputDebugString*() on Windows Mobile, as printing
   // to stdout is done by OutputDebugString() there already - we don't
   // want the same message printed twice.
