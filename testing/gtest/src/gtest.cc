@@ -103,6 +103,7 @@
 
 #elif __LB_XB1__
 # include <windows.h>
+# include "printf_override.h"
 #else
 
 // Assume other platforms have gettimeofday().
@@ -142,31 +143,6 @@
 #if defined(__LB_SHELL__)
 const char *LB_URL = "";
 #endif
-
-#if defined(__LB_XB1__) && !defined(__LB_SHELL_FOR_RELEASE__)
-// PrettyPrinter prints test output to stdout. Redirect to OutputDebugStringA.
-#include <debugapi.h>
-
-static size_t __debug_vprintf(const char* format, va_list args) {
-  char buffer[4096];
-  size_t ret = vsnprintf(buffer, sizeof(buffer), format, args);
-  ret = std::min(ret, sizeof(buffer) - 1);
-  buffer[ret] = '\0';
-  OutputDebugStringA(buffer);
-  return ret;
-}
-
-static size_t __debug_printf(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  size_t ret = __debug_vprintf(format, args);
-  va_end(args);
-  return ret;
-}
-
-#define printf __debug_printf
-#define vprintf __debug_vprintf
-#endif // defined(__LB_XB1__) && !defined(__LB_SHELL_FOR_RELEASE__)
 
 namespace testing {
 
