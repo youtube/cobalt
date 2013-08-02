@@ -321,7 +321,7 @@ bool TouchPlatformFile(PlatformFile file, const base::Time& last_access_time,
 #endif
 
 bool GetPlatformFileInfo(PlatformFile file, PlatformFileInfo* info) {
-  if (!info)
+  if (!info || file < 0)
     return false;
 
   stat_wrapper_t file_info;
