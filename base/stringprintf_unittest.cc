@@ -145,7 +145,7 @@ TEST(StringPrintfTest, GrowBoundary) {
 }
 
 // TODO(evanm): what's the proper cross-platform test here?
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(__LB_XB1__)
 // sprintf in Visual Studio fails when given U+FFFF. This tests that the
 // failure case is gracefuly handled.
 TEST(StringPrintfTest, Invalid) {
