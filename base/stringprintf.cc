@@ -13,6 +13,13 @@ namespace base {
 
 namespace {
 
+#if defined(__LB_SHELL__)
+// Emperically derived lowest number required to pass unit tests.
+const int kMaxStringPrintfBufferSize = 8 * 1024; // 8kB
+#else
+const int kMaxStringPrintfBufferSize = 32 * 1024 * 1024; // 32MB
+#endif
+
 // Overloaded wrappers around vsnprintf and vswprintf. The buf_size parameter
 // is the size of the buffer. These return the number of characters in the
 // formatted string excluding the NUL terminator. If the buffer is not
@@ -65,7 +72,10 @@ static void StringAppendVT(StringType* dst,
   int mem_length = arraysize(stack_buf);
   while (true) {
     if (result < 0) {
-#if !defined(OS_WIN)
+#if defined(__LB_XB1__)
+      // On XB1, we get a -1 with ERANGE when the buffer is not big enough.
+      if (result != -1 || (errno != 0 && errno != ERANGE))
+#elif !defined(OS_WIN)
       // On Windows, vsnprintfT always returns the number of characters in a
       // fully-formatted string, so if we reach this point, something else is
       // wrong and no amount of buffer-doubling is going to fix it.
@@ -83,7 +93,7 @@ static void StringAppendVT(StringType* dst,
       mem_length = result + 1;
     }
 
-    if (mem_length > 32 * 1024 * 1024) {
+    if (mem_length > kMaxStringPrintfBufferSize) {
       // That should be plenty, don't try anything larger.  This protects
       // against huge allocations when using vsnprintfT implementations that
       // return -1 for reasons other than overflow without setting errno.
