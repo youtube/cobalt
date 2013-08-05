@@ -7,17 +7,22 @@
 #include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
+
+#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/ssl_server_socket.h"
 #include "net/spdy/spdy_session.h"
+#endif
 
 #if defined(OS_ANDROID)
 #include "base/android/jni_android.h"
 #include "net/android/net_jni_registrar.h"
 #endif
 
+#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
 using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
+#endif
 
 int main(int argc, char** argv) {
   MainHook hook(main, argc, argv);
@@ -32,16 +37,19 @@ int main(int argc, char** argv) {
 #endif
 
   NetTestSuite test_suite(argc, argv);
+#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
-
+#endif
 #if defined(OS_WIN)
   // We want to be sure to init NSPR on the main thread.
   crypto::EnsureNSPRInit();
 #endif
 
+#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
   // Enable support for SSL server sockets, which must be done while
   // single-threaded.
   net::EnableSSLServerSockets();
+#endif
 
   return test_suite.Run();
 }
