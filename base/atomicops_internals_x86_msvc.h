@@ -7,7 +7,7 @@
 #ifndef BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 #define BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 
-#if defined(__LB_XB1__)
+#if defined(__LB_XB1__) && !defined(WIN32)
 # include <intrin.h>
 // These are normally defined by windows.h:
 typedef long LONG;
