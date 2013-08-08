@@ -41,6 +41,11 @@
 #define lseek lseek64
 #endif
 
+#if defined(__LB_XB1__)
+#define off_t __int64
+#define lseek _lseeki64
+#endif
+
 namespace net {
 
 // We cast back and forth, so make sure it's the size we're expecting.
