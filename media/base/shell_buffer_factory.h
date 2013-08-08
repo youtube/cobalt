@@ -60,7 +60,8 @@ class ShellBufferFactory;
 
 // A simple scoped array class designed to re-use the memory allocated by
 // ShellBufferFactory. If needed would be trivial to make generic.
-class ShellScopedArray : public base::RefCountedThreadSafe<ShellScopedArray> {
+class MEDIA_EXPORT ShellScopedArray :
+    public base::RefCountedThreadSafe<ShellScopedArray> {
  public:
   uint8* Get() { return array_; }
   size_t Size() { return size_; }
@@ -86,7 +87,7 @@ class ShellScopedArray : public base::RefCountedThreadSafe<ShellScopedArray> {
 
 // A media buffer object designed to use the recycled memory allocated
 // by ShellBufferFactory.
-class ShellBuffer : public Buffer {
+class MEDIA_EXPORT ShellBuffer : public Buffer {
  public:
   // Create a ShellBuffer indicating we've reached end of stream or an error.
   // GetData() and GetWritableData() return NULL and GetDataSize() returns 0.

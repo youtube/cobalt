@@ -192,6 +192,9 @@ void URLRequestContextBuilder::set_proxy_config_service(
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 URLRequestContext* URLRequestContextBuilder::Build() {
+#if __LB_ENABLE_NATIVE_HTTP_STACK__
+  return NULL;
+#else
   BasicURLRequestContext* context = new BasicURLRequestContext;
   URLRequestContextStorage* storage = context->storage();
 
@@ -204,10 +207,12 @@ URLRequestContext* URLRequestContextBuilder::Build() {
 
   storage->set_host_resolver(net::HostResolver::CreateDefaultResolver(NULL));
 
+#if !DISABLE_FTP_SUPPORT
   if (ftp_enabled_) {
     storage->set_ftp_transaction_factory(
         new FtpNetworkLayer(context->host_resolver()));
   }
+#endif
 
   context->StartFileThread();
 
@@ -293,6 +298,7 @@ URLRequestContext* URLRequestContextBuilder::Build() {
   // TODO(willchan): Support sdch.
 
   return context;
+#endif
 }
 
 }  // namespace net

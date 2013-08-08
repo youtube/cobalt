@@ -8,8 +8,9 @@
 // Define MEDIA_EXPORT so that functionality implemented by the Media module
 // can be exported to consumers.
 
-#if defined(COMPONENT_BUILD)
-#if defined(WIN32)
+// Note: for LB_SHELL, we always link media as static.
+#if defined(COMPONENT_BUILD) && !defined(__LB_SHELL__)
+#if defined(_MSC_VER)
 
 #if defined(MEDIA_IMPLEMENTATION)
 #define MEDIA_EXPORT __declspec(dllexport)

@@ -23,7 +23,9 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_pool_manager_impl.h"
 #include "net/socket/next_proto.h"
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
 #include "net/spdy/spdy_session_pool.h"
+#endif
 
 namespace {
 
@@ -207,5 +209,60 @@ ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
   }
   return NULL;
 }
+#elif defined(COMPONENT_BUILD)
+HttpNetworkSession::~HttpNetworkSession() {
+  NOTIMPLEMENTED();
+}
+
+void HttpNetworkSession::CloseAllConnections() {
+  NOTIMPLEMENTED();
+}
+
+void HttpNetworkSession::CloseIdleConnections() {
+  NOTIMPLEMENTED();
+}
+
+void HttpNetworkSession::AddResponseDrainer(HttpResponseBodyDrainer* drainer) {
+  NOTIMPLEMENTED();
+}
+
+void HttpNetworkSession::RemoveResponseDrainer(
+    HttpResponseBodyDrainer* drainer) {
+  NOTIMPLEMENTED();
+}
+
+TransportClientSocketPool* HttpNetworkSession::GetTransportSocketPool(
+    SocketPoolType pool_type) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+HttpProxyClientSocketPool* HttpNetworkSession::GetSocketPoolForHTTPProxy(
+    SocketPoolType pool_type,
+    const HostPortPair& http_proxy) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+SSLClientSocketPool* HttpNetworkSession::GetSSLSocketPool(
+    SocketPoolType pool_type) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+SOCKSClientSocketPool* HttpNetworkSession::GetSocketPoolForSOCKSProxy(
+    SocketPoolType pool_type,
+    const HostPortPair& socks_proxy) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+SSLClientSocketPool* HttpNetworkSession::GetSocketPoolForSSLWithProxy(
+    SocketPoolType pool_type,
+    const HostPortPair& proxy_server) {
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
 #endif
 }  //  namespace net

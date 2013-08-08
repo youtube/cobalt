@@ -2025,7 +2025,7 @@
             ],
           }],
           # TODO(darin): Unfortunately, some third_party code depends on base.
-          [ 'OS=="win" and component=="shared_library"', {
+          [ '(OS=="win" or target_arch=="xb1") and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
             ],
@@ -2072,7 +2072,7 @@
               },
             },
           }],
-          ['OS=="win" and component=="shared_library"', {
+          ['(OS == "win" or target_arch=="xb1") and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
             ],

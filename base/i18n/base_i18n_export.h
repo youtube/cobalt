@@ -6,7 +6,7 @@
 #define BASE_I18N_BASE_I18N_EXPORT_H_
 
 #if defined(COMPONENT_BUILD)
-#if defined(WIN32)
+#if defined(_MSC_VER)
 
 #if defined(BASE_I18N_IMPLEMENTATION)
 #define BASE_I18N_EXPORT __declspec(dllexport)

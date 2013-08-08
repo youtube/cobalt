@@ -10,7 +10,7 @@
 // access features not intended to be used directly by real consumers.
 
 #if defined(COMPONENT_BUILD)
-#if defined(WIN32)
+#if defined(_MSC_VER)
 
 #if defined(NET_IMPLEMENTATION)
 #define NET_EXPORT __declspec(dllexport)

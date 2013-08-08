@@ -13,6 +13,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
+#include "net/http/shell/http_stream_shell_loader.h"
 
 // This is a special HttpStream implementation designed to work with
 // HttpStreamShellLoader and different HTTP libraries. Most functions
@@ -22,7 +23,6 @@
 
 namespace net {
 
-class HttpStreamShellLoader;
 class ProxyInfo;
 // Represents a single HTTP transaction (i.e., a single request/response pair).
 // HTTP redirects are not followed and authentication challenges are not

@@ -132,6 +132,7 @@
         ['OS=="lb_shell"', {
           'dependencies' : [
             '../../openssl/openssl.gyp:openssl',
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'sources/': [
             ['exclude', '_nss.cc$'],
