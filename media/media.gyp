@@ -444,6 +444,18 @@
           ],
         }],
         ['OS == "lb_shell"', {
+          # HACK: force static library regardless of <(component).
+          # There are too many interdependencies between lb_shell and media.
+          # This allows media lib calls into lb_shell code.
+          'type': 'static_library',
+          'include_dirs': [
+            '<(DEPTH)/../..', # for our explicit external/ inclusion of headers
+            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
+            '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
+          ],
+          'sources': [
+            '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
+          ],
           'sources/': [
           # media is not excluding windows sources automatically.
           # forcibly exclude them.
@@ -1018,6 +1030,11 @@
           ],
           'sources': [
             '<@(shared_memory_support_sources)',
+          ],
+          'conditions': [
+            ['OS == "lb_shell"', {
+              'type': 'static_library',
+            }],
           ],
         },
         {

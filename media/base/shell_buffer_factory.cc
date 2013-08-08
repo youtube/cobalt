@@ -21,7 +21,7 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #if defined(__LB_WIIU__)
-#include "lb_shell/lb_unsegmented_alloc.h"
+#include "lb_unsegmented_alloc.h"
 #endif
 #include "media/base/decrypt_config.h"
 #include "media/base/shell_filter_graph_log.h"

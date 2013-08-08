@@ -568,6 +568,9 @@
               'synchronization/condition_variable_shell.cc',
               'synchronization/lock_impl_shell.cc',
               'synchronization/waitable_event_shell.cc',
+              '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/base -type f)',
+               '<(lbshell_root)/src/object_watcher_shell.cc',
+               '<(lbshell_root)/src/object_watcher_shell.h',
             ],
             'sources!': [
               'sys_info_posix.cc',
@@ -588,7 +591,6 @@
               'metrics/stats_table.cc',
               'rand_util_posix.cc',
               'threading/platform_thread_posix.cc',
-              'metrics/stats_counters.cc',
               'metrics/stats_table.cc',
               'metrics/stats_table.h',
               'native_library_posix.cc',

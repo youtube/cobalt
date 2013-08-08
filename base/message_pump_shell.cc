@@ -116,6 +116,14 @@ void MessagePumpShell::RemoveObserver(Observer* observer) {
   NOTREACHED();
 }
 
+void MessagePumpShell::AddIOObserver(IOObserver* observer) {
+  NOTREACHED();
+}
+
+void MessagePumpShell::RemoveIOObserver(IOObserver* observer) {
+  NOTREACHED();
+}
+
 bool MessagePumpShell::WatchSocket(int s,
                                    bool persistent,
                                    int mode,

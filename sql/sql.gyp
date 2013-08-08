@@ -29,6 +29,13 @@
         'transaction.cc',
         'transaction.h',
       ],
+      'conditions': [
+        ['OS=="lb_shell"', {
+          'dependencies': [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'sql_unittests',

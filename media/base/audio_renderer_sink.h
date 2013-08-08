@@ -22,10 +22,10 @@ class ShellFilterGraphLog;
 // rendered audio.  An implementation is expected to
 // periodically call Render() on a callback object.
 
-class AudioRendererSink
+class MEDIA_EXPORT AudioRendererSink
     : public base::RefCountedThreadSafe<media::AudioRendererSink> {
  public:
-  class RenderCallback {
+  class MEDIA_EXPORT RenderCallback {
    public:
     // Attempts to completely fill all channels of |dest|, returns actual
     // number of frames filled.

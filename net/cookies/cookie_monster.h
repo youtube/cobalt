@@ -696,7 +696,7 @@ class CookieMonster::Delegate
 typedef base::RefCountedThreadSafe<CookieMonster::PersistentCookieStore>
     RefcountedPersistentCookieStore;
 
-class CookieMonster::PersistentCookieStore
+class NET_EXPORT CookieMonster::PersistentCookieStore
     : public RefcountedPersistentCookieStore {
  public:
   typedef base::Callback<void(const std::vector<CanonicalCookie*>&)>

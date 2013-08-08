@@ -50,7 +50,7 @@ class NET_EXPORT UDPListenSocket
 #endif
 
  public:
-  class Delegate {
+  class NET_EXPORT Delegate {
    public:
     virtual void DidRead(UDPListenSocket* server,
                          const char* data,

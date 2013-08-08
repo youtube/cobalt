@@ -26,7 +26,7 @@ URLRequestJob* FileProtocolHandler::MaybeCreateJob(
       !network_delegate->CanAccessFile(*request, file_path)) {
     return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
-
+#if !defined (__LB_SHELL__) // LB_SHELL doesn't support URLRequestFileDirJob
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
   // filesystem, we only look at the path string here.
@@ -38,7 +38,7 @@ URLRequestJob* FileProtocolHandler::MaybeCreateJob(
       file_path.IsAbsolute()) {
     return new URLRequestFileDirJob(request, network_delegate, file_path);
   }
-
+#endif
   // Use a regular file request job for all non-directories (including invalid
   // file names).
   return new URLRequestFileJob(request, network_delegate, file_path);
