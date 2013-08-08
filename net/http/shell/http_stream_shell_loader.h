@@ -21,9 +21,9 @@ class ProxyInfo;
 // from external classes. These function needs to be implemented on
 // different platforms to create the right type of loader (derived from
 // HttpStreamShellLoader) used in application.
-void HttpStreamShellLoaderGlobalInit();
-void HttpStreamShellLoaderGlobalDeinit();
-HttpStreamShellLoader* CreateHttpStreamShellLoader();
+NET_EXPORT_PRIVATE void HttpStreamShellLoaderGlobalInit();
+NET_EXPORT_PRIVATE void HttpStreamShellLoaderGlobalDeinit();
+NET_EXPORT_PRIVATE HttpStreamShellLoader* CreateHttpStreamShellLoader();
 
 // Represents a single HTTP transaction (i.e., a single request/response pair).
 // HTTP redirects are not followed and authentication challenges are not

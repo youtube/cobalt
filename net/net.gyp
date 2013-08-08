@@ -963,6 +963,10 @@
         ['OS=="lb_shell"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl',
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+          'include_dirs': [
+            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
           ],
           'sources': [
             'base/file_stream_metrics_shell.cc',
@@ -973,6 +977,9 @@
             'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
             'dns/address_sorter_shell.cc',
+            '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/net -type f)',
+            '<(lbshell_root)/src/tcp_client_socket_shell.cc',
+            '<(lbshell_root)/src/tcp_client_socket_shell.h',
           ],
           'sources/': [
             # we don't use file tree access
@@ -1013,12 +1020,20 @@
                 'http/shell/http_transaction_factory_shell.cc',
                 'http/shell/http_transaction_shell.cc',
               ],
+            }],
+            # Exclude things we don't need when using native http stack.
+            # Note that for shared_library, we require implementations
+            # of a lot more functions.
+            # TODO: Really prune out everything we don't need.
+            ['use_native_http_stack==1 and component=="static_library"', {
               'sources/': [
                 ['exclude', 'base/host_resolver'],
                 ['exclude', 'base/keygen'],
                 ['exclude', 'dial/'],
                 ['exclude', 'http/http_cache'],
-                ['exclude', 'http/http_stream'],
+                # Note: don't exclude http_stream_shell_* from lbshell.
+                ['exclude', 'http/http_stream_factory'],
+                ['exclude', 'http/http_stream_parser'],
                 ['exclude', 'proxy/dhcp'],
                 ['exclude', 'socket/'],
                 ['exclude', 'spdy/'],
@@ -1066,6 +1081,13 @@
                 'proxy/sync_host_resolver_bridge.cc',
                 'proxy/sync_host_resolver_bridge.h',
               ]
+            }],
+            ['use_native_http_stack==1 and component=="shared_library"', {
+              'sources/': [
+                ['exclude', 'dial/'],
+                ['exclude', 'udp/'],
+                ['exclude', 'websockets/'],
+              ],
             }],
           ],
         }, { # os is not lb_shell

@@ -213,6 +213,16 @@
           'dependencies!': [
             '../third_party/libevent/libevent.gyp:libevent',
           ],
+          'conditions': [
+            # toolset can be host or target.
+            # (host in the case of e.g. protobuf compiler.)
+            # We only want posix_emulation for target builds.
+            ['_toolset == "target"', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }],
+          ],
           'sources': [
             'debug/debugger_shell.cc',
             'debug/stack_trace_shell.cc',

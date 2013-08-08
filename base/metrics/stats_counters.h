@@ -9,7 +9,9 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#if !defined (__LB_SHELL__)
 #include "base/metrics/stats_table.h"
+#endif
 #include "base/time.h"
 
 namespace base {
@@ -46,6 +48,11 @@ namespace base {
 // as the implementation varies, or depending on compile options.
 //------------------------------------------------------------------------------
 // First provide generic macros, which exist in production as well as debug.
+#if defined(__LB_SHELL__)
+#define STATS_COUNTER(name, delta)
+#define SIMPLE_STATS_COUNTER(name)
+#define RATE_COUNTER(name, duration)
+#else
 #define STATS_COUNTER(name, delta) do { \
   base::StatsCounter counter(name); \
   counter.Add(delta); \
@@ -57,6 +64,7 @@ namespace base {
   base::StatsRate hit_count(name); \
   hit_count.AddTime(duration); \
 } while (0)
+#endif
 
 // Define Debug vs non-debug flavors of macros.
 #ifndef NDEBUG
@@ -78,12 +86,8 @@ namespace base {
 class BASE_EXPORT StatsCounter {
  public:
   // Create a StatsCounter object.
-#if !defined(__LB_SHELL__)
   explicit StatsCounter(const std::string& name);
   virtual ~StatsCounter();
-#else
-  explicit StatsCounter(const std::string& name) {}
-#endif
 
   // Sets the counter to a specific value.
   void Set(int value);
@@ -93,11 +97,7 @@ class BASE_EXPORT StatsCounter {
     Add(1);
   }
 
-#if !defined(__LB_SHELL__)
   virtual void Add(int value);
-#else
-  virtual void Add(int value) {}
-#endif
 
   // Decrements the counter.
   void Decrement() {

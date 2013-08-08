@@ -25,7 +25,7 @@
 #include "net/base/winsock_init.h"
 
 #if defined(__LB_SHELL__)
-#include "lb_platform.h"
+#include "lb_network_helpers.h"
 #endif
 
 using std::string;

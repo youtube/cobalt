@@ -9,7 +9,7 @@
 #include "net/base/net_util.h"
 #include "net/base/ip_endpoint.h"
 #include "net/udp/udp_listen_socket.h"
-#include "lb_platform.h"
+#include "lb_network_helpers.h"
 
 namespace net {
 

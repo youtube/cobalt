@@ -39,7 +39,7 @@
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
-extern std::string *global_game_content_path;
+LB_BASE_EXTERN std::string *global_game_content_path;
 
 #if defined(OS_WIN)
 #include "base/win/shortcut.h"
