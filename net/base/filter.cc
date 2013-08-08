@@ -9,7 +9,14 @@
 #include "net/base/gzip_filter.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mime_util.h"
+
+#if !defined (__LB_SHELL__)
 #include "net/base/sdch_filter.h"
+#else
+// LB_SHELL doesn't use SDCH. But sdch_filter includes
+// gurl.h which we do use.
+#include "googleurl/src/gurl.h"
+#endif
 
 namespace {
 

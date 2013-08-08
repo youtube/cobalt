@@ -20,7 +20,7 @@
 #include <KHR/khrplatform.h>
 
 #if defined(COMPONENT_BUILD)
-#if defined(WIN32)
+#if defined(_MSC_VER)
 #if defined(GLES2_C_LIB_IMPLEMENTATION)
 #define GL_APICALL __declspec(dllexport)
 #else
