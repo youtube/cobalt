@@ -6,7 +6,7 @@
 #define CONTENT_COMMON_CONTENT_EXPORT_H_
 
 #if defined(COMPONENT_BUILD) && !defined(COMPILE_CONTENT_STATICALLY)
-#if defined(WIN32)
+#if defined(_MSC_VER)
 
 #if defined(CONTENT_IMPLEMENTATION)
 #define CONTENT_EXPORT __declspec(dllexport)

@@ -10,7 +10,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(__LB_SHELL__)
-#include "lb_shell/lb_mutex.h"
+#include "lb_mutex.h"
 #elif defined(OS_POSIX)
 #include <pthread.h>
 #endif

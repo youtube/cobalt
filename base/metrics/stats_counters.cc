@@ -4,7 +4,63 @@
 
 #include "base/metrics/stats_counters.h"
 
+#include "base/logging.h"
+
 namespace base {
+#if defined (__LB_SHELL__)
+// Unused, but the linker likes to have the stubs available.
+StatsCounter::StatsCounter() {
+  NOTREACHED();
+}
+StatsCounter::StatsCounter(const std::string& name) {
+  NOTREACHED();
+}
+StatsCounter::~StatsCounter() {
+  NOTREACHED();
+}
+void StatsCounter::Set(int value) {
+  NOTREACHED();
+}
+void StatsCounter::Add(int value) {
+  NOTREACHED();
+}
+int* StatsCounter::GetPtr() {
+  NOTREACHED();
+  return NULL;
+}
+StatsCounterTimer::StatsCounterTimer(const std::string& name) {
+  NOTREACHED();
+}
+StatsCounterTimer::~StatsCounterTimer() {
+  NOTREACHED();
+}
+void StatsCounterTimer::Start() {
+  NOTREACHED();
+}
+void StatsCounterTimer::Stop() {
+  NOTREACHED();
+}
+bool StatsCounterTimer::Running() {
+  NOTREACHED();
+  return false;
+}
+void StatsCounterTimer::AddTime(TimeDelta time) {
+  NOTREACHED();
+}
+void StatsCounterTimer::Record() {
+  NOTREACHED();
+}
+StatsRate::StatsRate(const std::string& name) :
+    StatsCounterTimer(name), counter_(name), largest_add_("") {
+  NOTREACHED();
+}
+StatsRate::~StatsRate() {
+  NOTREACHED();
+}
+void StatsRate::Add(int value) {
+  NOTREACHED();
+}
+#else
 
 StatsCounter::StatsCounter(const std::string& name)
     : counter_id_(-1) {
@@ -121,5 +177,5 @@ void StatsRate::Add(int value) {
   if (value > largest_add_.value())
     largest_add_.Set(value);
 }
-
+#endif
 }  // namespace base

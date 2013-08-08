@@ -545,6 +545,12 @@
       ],
       'conditions': [
         ['OS == "lb_shell"', {
+          'include_dirs': [
+            '<(lbshell_root)/src', # lb_memory_manager.h
+          ],
+          'sources': [
+            '<(lbshell_root)/src/data_pack_shell.cc',
+          ],
           'sources/': [
             # data_pack.cc uses memory-mapped files
             ['exclude', 'base/accessibility'],
@@ -562,18 +568,29 @@
             ['exclude', 'base/touch'],
             ['exclude', '_win.cc$'],
             ['exclude', 'gfx/blit'],
-            ['exclude', 'gfx/canvas_skia'],
-            ['exclude', 'gfx/font'],
-            ['exclude', 'gfx/font_list'],
-            ['exclude', 'gfx/path'],
-            ['exclude', 'gfx/pango_util'],
             ['exclude', 'gfx/canvas'],
-            ['exclude', 'gfx/platform_font_pango'],
-            ['exclude', 'gfx/screen'],
-            ['exclude', 'gfx/render_text'],
+            ['exclude', 'gfx/canvas_skia'],
             ['exclude', 'gfx/codec'],
             ['exclude', 'gfx/color_analysis'],
+            ['exclude', 'gfx/font'],
+            ['exclude', 'gfx/font_list'],
+            ['exclude', 'gfx/image/canvas_image_source'],
+            ['exclude', 'gfx/image/image_skia_operations'],
             ['exclude', 'gfx/image/image_util'],
+            ['exclude', 'gfx/interpolated_transform'],
+            ['exclude', 'gfx/pango_util'],
+            ['exclude', 'gfx/path'],
+            ['exclude', 'gfx/platform_font_pango'],
+            ['exclude', 'gfx/render_text'],
+            ['exclude', 'gfx/screen'],
+            ['exclude', 'gfx/selection_model'],
+          ],
+          'conditions': [
+            ['target_arch=="linux"', {
+              'sources': [
+                '<(lbshell_root)/src/platform/linux/chromium/ui/base/keycodes/keyboard_code_conversion_shell.cc',
+              ],
+            }],
           ],
         }, { # OS != "lb_shell"
           'dependencies': [
@@ -581,9 +598,13 @@
           ]
         }],
         ['OS!="ios"', {
-          'includes': [
-            'base/ime/ime.gypi',
-          ],
+           'conditions': [
+              ['OS != "lb_shell"', {
+                'includes': [
+                  'base/ime/ime.gypi',
+                ]},
+              ],
+            ],
           'dependencies': [
             '<(libjpeg_gyp_path):libjpeg',
           ],
