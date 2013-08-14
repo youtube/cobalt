@@ -209,6 +209,14 @@ bool TouchFile(const FilePath& path,
                const base::Time& last_modified) {
   int flags = base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_WRITE_ATTRIBUTES;
 
+#if defined(__LB_XB1__)
+  // Windows passes FILE_WRITE_ATTRIBUTES to CreateFile when it wants to open
+  // a file to just change the attributes.  But there is no way to get that
+  // attribute to CreateFile when using open on XBox One.  That attribute gets
+  // dropped when calling through the CRT.
+  flags |= base::PLATFORM_FILE_WRITE;
+#endif // __LB_XB1__
+
 #if defined(OS_WIN)
   // On Windows, FILE_FLAG_BACKUP_SEMANTICS is needed to open a directory.
   if (DirectoryExists(path))
