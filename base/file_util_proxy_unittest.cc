@@ -177,7 +177,10 @@ TEST_F(FileUtilProxyTest, Close) {
       file,
       Bind(&FileUtilProxyTest::DidFinish, weak_factory_.GetWeakPtr()));
   MessageLoop::current()->Run();
-  EXPECT_EQ(PLATFORM_FILE_OK, error_);
+  ASSERT_EQ(PLATFORM_FILE_OK, error_);
+
+  // file_ has been closed by FileUtilProxy::Close
+  file_ = kInvalidPlatformFileValue;
 
   // Now it should pass on all platforms.
   EXPECT_TRUE(file_util::Move(test_path(), test_dir_path().AppendASCII("new")));
