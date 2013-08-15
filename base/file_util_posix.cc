@@ -388,6 +388,7 @@ bool PathIsWritable(const FilePath& path) {
   return access(path.value().c_str(), W_OK) == 0;
 }
 
+#if !defined(__LB_XB1__)
 bool DirectoryExists(const FilePath& path) {
   base::ThreadRestrictions::AssertIOAllowed();
   stat_wrapper_t file_info;
@@ -395,6 +396,7 @@ bool DirectoryExists(const FilePath& path) {
     return S_ISDIR(file_info.st_mode);
   return false;
 }
+#endif
 
 // TODO(erikkay): implement
 #if 0
@@ -584,6 +586,7 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   return CreateTemporaryDirInDirImpl(tmpdir, TempFileName(), new_temp_path);
 }
 
+#if !defined(__LB_XB1__)
 bool CreateDirectory(const FilePath& full_path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to mkdir().
   std::vector<FilePath> subpaths;
@@ -613,6 +616,7 @@ bool CreateDirectory(const FilePath& full_path) {
   }
   return true;
 }
+#endif
 
 // TODO(rkc): Refactor GetFileInfo and FileEnumerator to handle symlinks
 // correctly. http://code.google.com/p/chromium-os/issues/detail?id=15948
