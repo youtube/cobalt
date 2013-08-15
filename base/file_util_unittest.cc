@@ -1989,6 +1989,8 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c2_non_recursive.HasFile(dir2));
   EXPECT_EQ(c2_non_recursive.size(), 2);
 
+#if !defined(__LB_XB1__)
+// As all file access is absolute, this is not an issue
   // Only enumerate directories, non-recursively, including "..".
   file_util::FileEnumerator f2_dotdot(temp_dir_.path(), false,
       file_util::FileEnumerator::DIRECTORIES |
@@ -1999,6 +2001,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c2_dotdot.HasFile(
       temp_dir_.path().Append(FILE_PATH_LITERAL(".."))));
   EXPECT_EQ(c2_dotdot.size(), 3);
+#endif
 
   // Enumerate files and directories.
   file_util::FileEnumerator f3(temp_dir_.path(), true, FILES_AND_DIRECTORIES);
