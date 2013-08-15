@@ -1011,9 +1011,17 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
     // (or even have glyphs for <uppercase eszett>)
     { { FPL("\u00DF"),                       FPL("\u00DF") },               0},
     { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
+// CompareIgnoreCase is tertiary.  These glyphs don't exist and on the
+// XBox One this comparison shows up in the opposite direction.
+#if defined (__LB_XB1__)
+    { { FPL("\u00DF"),                       FPL("\u1E9E") },               1},
+    { { FPL("SS"),                           FPL("\u00DF") },              -1},
+    { { FPL("SS"),                           FPL("\u1E9E") },               1},
+#else
     { { FPL("\u00DF"),                       FPL("\u1E9E") },              -1},
     { { FPL("SS"),                           FPL("\u00DF") },              -1},
     { { FPL("SS"),                           FPL("\u1E9E") },              -1},
+#endif
 #if defined(OS_WIN) || defined(OS_MACOSX)
     // Umlauts A, O, U: direct comparison, and upper case vs. lower case
     { { FPL("\u00E4\u00F6\u00FC"),           FPL("\u00E4\u00F6\u00FC") },   0},
