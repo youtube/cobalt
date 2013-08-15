@@ -30,7 +30,7 @@
         'enable_built_in_dns%': 0,
       }],
       ['OS=="lb_shell"', {
-         'enable_websockets%' : 1,
+         'enable_websockets%' : 0,
          'use_v8_in_net%' : 0,
          'enable_built_in_dns%' : 1,
       }],
@@ -1021,11 +1021,9 @@
                 ['exclude', 'http/http_stream'],
                 ['exclude', 'proxy/dhcp'],
                 ['exclude', 'socket/'],
-                ['exclude', 'socket_stream/'],
                 ['exclude', 'spdy/'],
                 ['exclude', 'quic/'],
                 ['exclude', 'udp/'],
-                ['exclude', 'websockets/'],
               ],
               'sources!': [
                 'dns/address_sorter.h',
