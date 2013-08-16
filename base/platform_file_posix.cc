@@ -118,9 +118,11 @@ PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
       (flags & (PLATFORM_FILE_CREATE_ALWAYS | PLATFORM_FILE_CREATE)))
     *created = true;
 
+#if !defined (__LB_SHELL__)
   if ((descriptor >= 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
     unlink(name.value().c_str());
   }
+#endif
 
   if (error) {
     if (descriptor >= 0)

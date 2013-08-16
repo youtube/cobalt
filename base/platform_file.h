@@ -46,8 +46,9 @@ enum PlatformFileFlags {
   PLATFORM_FILE_ASYNC = 1 << 9,
   PLATFORM_FILE_TEMPORARY = 1 << 10,       // Used on Windows only
   PLATFORM_FILE_HIDDEN = 1 << 11,          // Used on Windows only
+#if !defined(__LB_SHELL__)
   PLATFORM_FILE_DELETE_ON_CLOSE = 1 << 12,
-
+#endif
   PLATFORM_FILE_WRITE_ATTRIBUTES = 1 << 13,  // Used on Windows only
   PLATFORM_FILE_ENUMERATE = 1 << 14,         // May enumerate directory
 
