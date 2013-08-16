@@ -77,6 +77,7 @@ TEST(PlatformFile, CreatePlatformFile) {
   EXPECT_EQ(base::PLATFORM_FILE_OK, error_code);
   base::ClosePlatformFile(file);
 
+#if !defined(__LB_SHELL__)
   // Create a delete-on-close file.
   created = false;
   file_path = temp_dir.path().AppendASCII("create_file_2");
@@ -92,6 +93,7 @@ TEST(PlatformFile, CreatePlatformFile) {
 
   EXPECT_TRUE(base::ClosePlatformFile(file));
   EXPECT_FALSE(file_util::PathExists(file_path));
+#endif
 }
 
 TEST(PlatformFile, DeleteOpenFile) {
@@ -112,6 +114,7 @@ TEST(PlatformFile, DeleteOpenFile) {
   EXPECT_TRUE(created);
   EXPECT_EQ(base::PLATFORM_FILE_OK, error_code);
 
+#if !defined(__LB_SHELL__)
   // Open an existing file and mark it as delete on close.
   created = false;
   base::PlatformFile same_file = base::CreatePlatformFile(
@@ -128,6 +131,7 @@ TEST(PlatformFile, DeleteOpenFile) {
   base::ClosePlatformFile(file);
   base::ClosePlatformFile(same_file);
   EXPECT_FALSE(file_util::PathExists(file_path));
+#endif
 }
 
 TEST(PlatformFile, ReadWritePlatformFile) {
