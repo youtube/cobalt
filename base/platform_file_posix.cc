@@ -85,7 +85,9 @@ PlatformFile CreatePlatformFileUnsafe(const FilePath& name,
     NOTREACHED();
   }
 
-#ifndef __LB_XB1__
+#if defined(__LB_XB1__)
+  open_flags |= O_BINARY;
+#else
   if (flags & PLATFORM_FILE_TERMINAL_DEVICE)
     open_flags |= O_NOCTTY | O_NDELAY;
 #endif
