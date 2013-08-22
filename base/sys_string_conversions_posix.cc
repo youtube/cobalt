@@ -24,7 +24,7 @@ std::wstring SysUTF8ToWide(const StringPiece& utf8) {
   return out;
 }
 
-#if defined(OS_CHROMEOS) || defined(OS_ANDROID)
+#if defined(OS_CHROMEOS) || defined(OS_ANDROID) || defined(__LB_SHELL__)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 
