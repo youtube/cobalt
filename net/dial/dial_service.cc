@@ -123,10 +123,13 @@ void DialService::SpinDownServices() {
 }
 
 bool DialService::Register(DialServiceHandler* handler) {
-  const std::string& path = handler->service_name();
-  if (path.empty() || handler == NULL) {
+  if (!handler)
     return false;
-  }
+
+  const std::string& path = handler->service_name();
+  if (path.empty())
+    return false;
+
   GetMessageLoop()->PostTask(FROM_HERE,
       base::Bind(&DialService::AddToHandlerMap, base::Unretained(this),
                  base::Unretained(handler)));
