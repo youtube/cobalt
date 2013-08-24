@@ -48,8 +48,8 @@ bool HasInternetZoneIdentifier(const FilePath& full_path);
 // In general it's not reliable to convert a FilePath to a wstring and we use
 // string16 elsewhere for Unicode strings, but in tests it is frequently
 // convenient to be able to compare paths to literals like L"foobar".
-std::wstring FilePathAsWString(const FilePath& path);
-FilePath WStringAsFilePath(const std::wstring& path);
+BASE_EXPORT std::wstring FilePathAsWString(const FilePath& path);
+BASE_EXPORT FilePath WStringAsFilePath(const std::wstring& path);
 
 // For testing, make the file unreadable or unwritable.
 // In POSIX, this does not apply to the root user.
