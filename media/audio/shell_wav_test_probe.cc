@@ -25,7 +25,7 @@
 // don't include me in release builds please
 #if !defined(__LB_SHELL__FOR_RELEASE__)
 
-extern const std::string *global_game_content_path;
+LB_BASE_EXTERN std::string *global_game_content_path;
 
 static const uint16 kWavFormatCodePCM = 0x0001;
 static const uint16 kWavFormatCodeIEEEFloat = 0x0003;
