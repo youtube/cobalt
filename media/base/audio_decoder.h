@@ -73,6 +73,7 @@ class MEDIA_EXPORT AudioDecoder
   virtual ~AudioDecoder();
   AudioDecoder();
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(AudioDecoder);
 };
 
