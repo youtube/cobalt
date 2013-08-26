@@ -74,6 +74,7 @@ class MEDIA_EXPORT VideoDecoder
   virtual ~VideoDecoder();
   VideoDecoder();
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(VideoDecoder);
 };
 

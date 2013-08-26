@@ -270,8 +270,6 @@
         'base/video_util.h',
         'crypto/aes_decryptor.cc',
         'crypto/aes_decryptor.h',
-        'crypto/shell_decryptor_factory.cc',
-        'crypto/shell_decryptor_factory.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
         'filters/audio_decoder_selector.cc',
@@ -444,14 +442,13 @@
           ],
         }],
         ['OS == "lb_shell"', {
-          # HACK: force static library regardless of <(component).
-          # There are too many interdependencies between lb_shell and media.
-          # This allows media lib calls into lb_shell code.
-          'type': 'static_library',
           'include_dirs': [
             '<(DEPTH)/../..', # for our explicit external/ inclusion of headers
             '<(lbshell_root)/src/platform/<(target_arch)/chromium',
             '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
+          ],
+          'dependencies': [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'sources': [
             '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
@@ -463,6 +460,8 @@
           ['exclude', 'audio/audio_device_thread'],
           ['exclude', 'audio/audio_input_stream_impl'],
           ['exclude', 'audio/audio_io.h'],
+          ['exclude', 'audio/audio_input_controller'],
+          ['exclude', 'audio/audio_input_device'],
           ['exclude', 'audio/audio_manager'],
           ['exclude', 'audio/audio_manager_base'],
           ['exclude', 'audio/audio_output_controller'],
@@ -525,6 +524,7 @@
           ['exclude', 'filters/gpu'],
           # avc/aac only (for now)
           ['exclude', 'filters/opus'],
+          ['exclude', 'video/capture/fake_video_capture_device'],
          ],
         }, { # OS != lb_shell
           'dependencies': [
