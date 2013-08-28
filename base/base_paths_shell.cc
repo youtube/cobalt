@@ -18,25 +18,23 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-
-LB_BASE_EXTERN std::string *global_dir_source_root;
-LB_BASE_EXTERN std::string *global_game_content_path;
-LB_BASE_EXTERN std::string *global_tmp_path;
+#include "lb_globals.h"
 
 namespace base {
 
 // this is where we can control the path for placement
 // of a lot of file resources for lbshell.
 bool PathProviderShell(int key, FilePath* result) {
+  const global_values_t* global_values = GetGlobalsPtr();
   switch (key) {
     case base::DIR_EXE:
     case base::DIR_MODULE:
-      *result = FilePath(*global_game_content_path);
+      *result = FilePath(global_values->game_content_path);
       return true;
 
     case base::DIR_SOURCE_ROOT:
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-      *result = FilePath(*global_dir_source_root);
+      *result = FilePath(global_values->dir_source_root);
       return true;
 #else
       DLOG(ERROR) << "DIR_SOURCE_ROOT unsupported";
@@ -44,7 +42,7 @@ bool PathProviderShell(int key, FilePath* result) {
 #endif
 
     case base::DIR_CACHE:
-      *result = FilePath(*global_tmp_path).Append("cache");
+      *result = FilePath(global_values->tmp_path).Append("cache");
       return true;
   }
 
