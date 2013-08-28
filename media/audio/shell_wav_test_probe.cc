@@ -19,13 +19,12 @@
 #include <string>
 
 #include "base/logging.h"
+#include "lb_globals.h"
 #include "lb_platform.h"
 #include "media/filters/shell_demuxer.h"
 
 // don't include me in release builds please
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-
-LB_BASE_EXTERN std::string *global_game_content_path;
 
 static const uint16 kWavFormatCodePCM = 0x0001;
 static const uint16 kWavFormatCodeIEEEFloat = 0x0003;
@@ -58,7 +57,8 @@ void ShellWavTestProbe::Initialize(const char* file_name,
                                    int bits_per_sample,
                                    bool use_floats) {
   // try to open file first
-  std::string path = *global_game_content_path + "/" + std::string(file_name);
+  const std::string game_content_path(GetGlobalsPtr()->game_content_path);
+  std::string path = game_content_path + "/" + std::string(file_name);
   wav_file_ = fopen(path.c_str(), "wb");
   DCHECK(wav_file_);
   closed_ = false;
