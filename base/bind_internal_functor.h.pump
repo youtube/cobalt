@@ -1,0 +1,74 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$$ See comment for MAX_ARITY in base/bind.h.pump.
+$var MAX_ARITY = 7
+$range ARITY 0..MAX_ARITY
+
+// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef BASE_BIND_INTERNAL_FUNCTOR_H_
+#define BASE_BIND_INTERNAL_FUNCTOR_H_
+
+namespace base {
+namespace internal {
+
+// The RunnableAdapterFunctor<> template is used in a template specialization
+// for RunnableAdapter<> which enables support for functor objects, including
+// C++11 lambdas. The functor signature is deduced from the type of the
+// operator() method using decltype().
+//
+// All supported functors are assumed to have a const qualifier in their
+// operator() method.
+
+template <typename Functor>
+class RunnableAdapter;
+
+template <typename Functor, typename Sig>
+class RunnableAdapterFunctor;
+
+template <typename Functor>
+class RunnableAdapter
+    : public RunnableAdapterFunctor<Functor, decltype(&Functor::operator())> {
+ public:
+  typedef RunnableAdapterFunctor<Functor,
+      decltype(&Functor::operator())> BaseType;
+
+  explicit RunnableAdapter(Functor functor)
+      : BaseType(functor) {}
+};
+
+$for ARITY [[
+$range ARG 1..ARITY
+
+// Functor: Arity $(ARITY).
+template <typename F, typename T, typename R[[]]
+$if ARITY > 0[[, ]] $for ARG , [[typename A$(ARG)]]>
+class RunnableAdapterFunctor<F, R(T::*)($for ARG , [[A$(ARG)]]) const> {
+ public:
+  typedef R (RunType)($for ARG , [[A$(ARG)]]);
+
+  explicit RunnableAdapterFunctor(F functor)
+      : functor_(functor) {
+  }
+
+  R Run($for ARG , [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
+    return functor_($for ARG , [[CallbackForward(a$(ARG))]]);
+  }
+
+ private:
+  F functor_;
+};
+
+]]  $$ for ARITY
+
+}  // namespace internal
+}  // namespace base
+
+#endif  // BASE_BIND_INTERNAL_FUNCTOR_H_

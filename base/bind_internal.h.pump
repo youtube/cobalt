@@ -23,6 +23,13 @@ $range ARITY 0..MAX_ARITY
 #include "base/template_util.h"
 #include "build/build_config.h"
 
+#if defined(__LB_SHELL__)
+// Check for C++11 support
+#if (_MSC_VER >=  1700) || (__cplusplus > 199711L)
+#include "base/bind_internal_functor.h"
+#endif
+#endif
+
 #if defined(OS_WIN)
 #include "base/bind_internal_win.h"
 #endif
