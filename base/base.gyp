@@ -307,6 +307,11 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
+        ['OS=="lb_shell"', {
+          'dependencies': [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+        }],
       ],
       'export_dependent_settings': [
         'base',
