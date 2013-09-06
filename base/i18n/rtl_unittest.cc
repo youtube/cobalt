@@ -162,11 +162,11 @@ TEST_F(RTLTest, WrapString) {
   const wchar_t* cases[] = {
     L" . ",
     L"abc",
-    L"a"L"\x5d0\x5d1",
-    L"a"L"\x5d1"L"b",
+    L"a" L"\x5d0\x5d1",
+    L"a" L"\x5d1" L"b",
     L"\x5d0\x5d1\x5d2",
-    L"\x5d0\x5d1"L"a",
-    L"\x5d0"L"a"L"\x5d1",
+    L"\x5d0\x5d1" L"a",
+    L"\x5d0" L"a" L"\x5d1",
   };
 
   const bool was_rtl = IsRTL();
@@ -210,8 +210,8 @@ TEST_F(RTLTest, GetDisplayStringInLTRDirectionality) {
     { L"test.html",              false, true },
     { L"\x05d0\x05d1\x05d2",     true,  true },
     { L"\x05d0\x05d1\x05d2.txt", true,  true },
-    { L"\x05d0"L"abc",           true,  true },
-    { L"\x05d0"L"abc.txt",       true,  true },
+    { L"\x05d0" L"abc",           true,  true },
+    { L"\x05d0" L"abc.txt",       true,  true },
     { L"abc\x05d0\x05d1",        false, true },
     { L"abc\x05d0\x05d1.jpg",    false, true },
   };

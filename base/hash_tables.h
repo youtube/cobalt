@@ -32,7 +32,7 @@
 #define BASE_HASH_NAMESPACE stdext
 
 #elif defined(COMPILER_GCC)
-#if defined(OS_ANDROID) || defined(__LB_PS3__) || defined(__LB_WIIU__)
+#if defined(OS_ANDROID) || (defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 #define BASE_HASH_NAMESPACE std
 #else
 #define BASE_HASH_NAMESPACE __gnu_cxx
@@ -46,7 +46,7 @@
 #undef __DEPRECATED
 #endif
 
-#if defined(OS_ANDROID) || defined(__LB_PS3__) || defined(__LB_WIIU__)
+#if defined(OS_ANDROID) || (defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 #include <hash_map>
 #include <hash_set>
 #else
@@ -63,7 +63,7 @@
 
 namespace BASE_HASH_NAMESPACE {
 
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__) && !defined(__LB_WIIU__)
+#if !defined(OS_ANDROID) && !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 // The GNU C++ library provides identity hash functions for many integral types,
 // but not for |long long|.  This hash function will truncate if |size_t| is
 // narrower than |long long|.  This is probably good enough for what we will
@@ -81,9 +81,9 @@ DEFINE_TRIVIAL_HASH(long long);
 DEFINE_TRIVIAL_HASH(unsigned long long);
 
 #undef DEFINE_TRIVIAL_HASH
-#endif // !defined(OS_ANDROID) && !defined(__LB_PS3__) && !defined(__LB_WIIU__)
+#endif // !defined(OS_ANDROID) && !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 
-#if !defined(__LB_PS3__) && !defined(__LB_WIIU__)
+#if !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 // Implement string hash functions so that strings of various flavors can
 // be used as keys in STL maps and sets.  The hash algorithm comes from the
 // GNU C++ library, in <tr1/functional>.  It is duplicated here because GCC

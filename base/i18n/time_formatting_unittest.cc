@@ -90,7 +90,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayJP) {
 
   Time time(Time::FromLocalExploded(kTestDateTimeExploded));
   string16 clock24h(ASCIIToUTF16("15:42"));
-  string16 clock12h_pm(WideToUTF16(L"\x5348\x5f8c"L"3:42"));
+  string16 clock12h_pm(WideToUTF16(L"\x5348\x5f8c" L"3:42"));
   string16 clock12h(ASCIIToUTF16("3:42"));
 
   // The default is 24h clock.
