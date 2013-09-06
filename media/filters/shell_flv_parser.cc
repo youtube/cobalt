@@ -198,7 +198,7 @@ bool ShellFLVParser::SeekTo(base::TimeDelta timestamp) {
     JumpParserTo(seek_byte_offset);
   }
   DLOG(INFO) << base::StringPrintf(
-      "flv parser seeking to timestamp: %"PRId64" chose keyframe at %d",
+      "flv parser seeking to timestamp: %" PRId64" chose keyframe at %d",
       timestamp.InMilliseconds(), seek_timestamp);
   return true;
 }

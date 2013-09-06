@@ -48,6 +48,10 @@ static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 //                   Decrease it if memory becomes and issue later.
 static const int kShellBufferAlignment = 128;
 static const int kShellBufferSpaceSize = 64 * 1024 * 1024;
+#elif defined(__LB_PS4__)
+// TODO: Determine more appropriate values for the PS4
+static const int kShellBufferAlignment = 128;
+static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif

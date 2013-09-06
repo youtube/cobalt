@@ -483,7 +483,7 @@ void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
                               kEventSeek,
                               time.InMilliseconds());
   DLOG(INFO) << base::StringPrintf(
-      "seek to: %"PRId64" ms", time.InMilliseconds());
+      "seek to: %" PRId64" ms", time.InMilliseconds());
   // clear any enqueued buffers on demuxer streams
   audio_demuxer_stream_->FlushBuffers();
   video_demuxer_stream_->FlushBuffers();
