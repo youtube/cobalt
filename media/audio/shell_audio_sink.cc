@@ -241,7 +241,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     rebuffering_ = false;
   }
 
-#if defined(__LB_PS3__) || defined(__LB_XB1__)
+#if defined(__LB_PS3__) || defined(__LB_XB1__) || defined(__LB_PS4__)
   rebuffering_ = true;
   *offset_in_frame =
       output_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
@@ -249,7 +249,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     return false;
   }
   return true;
-#else  // defined(__LB_PS3__) || defined(__LB_XB1__)
+#else  // defined(__LB_PS3__) || defined(__LB_XB1__) || defined(__LB_PS4__)
   if (*total_frames < config.underflow_threshold) {
     if (!rebuffering_) {
       rebuffering_ = true;
