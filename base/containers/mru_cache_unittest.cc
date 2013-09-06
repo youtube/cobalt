@@ -19,7 +19,7 @@ struct CachedItem {
     cached_item_live_count++;
   }
 
-  explicit CachedItem(const CachedItem& other) : value(other.value) {
+  CachedItem(const CachedItem& other) : value(other.value) {
     cached_item_live_count++;
   }
 

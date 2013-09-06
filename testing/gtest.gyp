@@ -159,6 +159,12 @@
                   '_POSIX_PATH_MAX=255',
                   '_VARIADIC_MAX=10',
                 ],
+              }],
+              ['target_arch=="ps4"', {
+                'gtest_defines' : [
+                  'GTEST_HAS_POSIX_RE=0',
+                  '_POSIX_PATH_MAX=255',
+                ],
               },
               {
                 'gtest_defines' : [

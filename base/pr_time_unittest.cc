@@ -56,6 +56,9 @@ TEST_F(PRTimeTest, ParseTimeTest1) {
 #if defined(OS_WIN)
   localtime_s(&local_time, &current_time);
   asctime_s(time_buf, arraysize(time_buf), &local_time);
+#elif defined(__STDC_LIB_EXT1__)
+  localtime_s(&current_time, &local_time);
+  asctime_s(time_buf, arraysize(time_buf), &local_time);
 #elif defined(OS_POSIX)
   localtime_r(&current_time, &local_time);
   asctime_r(&local_time, time_buf);
