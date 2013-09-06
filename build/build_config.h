@@ -34,7 +34,9 @@
 #if !defined(TOOLKIT_VIEWS)
 #define TOOLKIT_GTK
 #endif
-#elif defined(_WIN32) && !defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__)
+// NO toolkit!
+#elif defined(_WIN32)
 #define OS_WIN 1
 #define TOOLKIT_VIEWS 1
 #elif defined(__FreeBSD__)
@@ -46,8 +48,6 @@
 #elif defined(__sun)
 #define OS_SOLARIS 1
 #define TOOLKIT_GTK
-#elif defined(__LB_SHELL__)
-// NO toolkit!
 #else
 #error Please add support for your platform in build/build_config.h
 #endif
@@ -132,7 +132,7 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_WIIU__) || defined(__LB_XB1__)
+#if defined(OS_WIN) || (defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \
