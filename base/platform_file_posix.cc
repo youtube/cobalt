@@ -27,7 +27,7 @@ COMPILE_ASSERT(PLATFORM_FILE_FROM_BEGIN   == SEEK_SET &&
                PLATFORM_FILE_FROM_END     == SEEK_END, whence_matches_system);
 
 #if defined(OS_BSD) || defined(OS_MACOSX) || defined(__LB_WIIU__) || \
-    defined(__LB_PS3__) || defined(__LB_XB1__)
+    defined(__LB_PS3__) || defined(__LB_XB1__) || defined(__LB_PS4__)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
