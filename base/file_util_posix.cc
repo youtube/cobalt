@@ -84,6 +84,7 @@ static int CallLstat(const char *path, stat_wrapper_t *sb) {
 }
 #endif
 
+#if !defined(__LB_PS4__)
 // Helper for NormalizeFilePath(), defined below.
 bool RealPath(const FilePath& path, FilePath* real_path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
@@ -94,6 +95,7 @@ bool RealPath(const FilePath& path, FilePath* real_path) {
   *real_path = FilePath(buf);
   return true;
 }
+#endif
 
 // Helper for VerifyPathControlledByUser.
 bool VerifySpecificPathControlledByUser(const FilePath& path,
@@ -148,6 +150,7 @@ static std::string TempFileName() {
 #endif
 }
 
+#if !defined(__LB_PS4__)
 bool AbsolutePath(FilePath* path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
   char full_path[PATH_MAX];
@@ -156,6 +159,7 @@ bool AbsolutePath(FilePath* path) {
   *path = FilePath(full_path);
   return true;
 }
+#endif
 
 int CountFilesCreatedAfter(const FilePath& path,
                            const base::Time& comparison_time) {
