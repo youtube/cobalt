@@ -152,25 +152,23 @@
         }],
         ['OS=="lb_shell"', {
           'variables': {
+            'gtest_defines' : [
+              'GTEST_USE_OWN_TR1_TUPLE=1',
+              'GTEST_HAS_POSIX_RE=0',
+              '_POSIX_PATH_MAX=255',
+            ],
             'conditions' : [
               ['target_arch=="xb1"', {
                 'gtest_defines' : [
-                  'GTEST_HAS_POSIX_RE=0',
-                  '_POSIX_PATH_MAX=255',
                   '_VARIADIC_MAX=10',
+                ],
+                'gtest_defines!' : [
+                  'GTEST_USE_OWN_TR1_TUPLE=1',
                 ],
               }],
               ['target_arch=="ps4"', {
-                'gtest_defines' : [
-                  'GTEST_HAS_POSIX_RE=0',
-                  '_POSIX_PATH_MAX=255',
-                ],
-              },
-              {
-                'gtest_defines' : [
+                'gtest_defines!' : [
                   'GTEST_USE_OWN_TR1_TUPLE=1',
-                  'GTEST_HAS_POSIX_RE=0',
-                  '_POSIX_PATH_MAX=255',
                 ],
               }],
             ],
