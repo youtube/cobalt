@@ -527,7 +527,19 @@
           # avc/aac only (for now)
           ['exclude', 'filters/opus'],
           ['exclude', 'video/capture/fake_video_capture_device'],
-         ],
+        ],
+        'conditions': [
+          ['target_arch=="xb1"', {
+            'dependencies' : [
+              '../third_party/modp_b64/modp_b64.gyp:modp_b64'
+            ],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'ComponentExtensions': 'true'
+              },
+            },
+          }],
+        ],
         }, { # OS != lb_shell
           'dependencies': [
             'yuv_convert',
