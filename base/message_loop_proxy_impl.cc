@@ -48,14 +48,15 @@ void MessageLoopProxyImpl::OnDestruct() const {
   // may be deleted by ~AtExitManager when a WorkerPool thread calls this
   // function.
   // http://crbug.com/63678
-  base::ThreadRestrictions::ScopedAllowSingleton allow_singleton;
   bool delete_later = false;
   {
     AutoLock lock(message_loop_lock_);
-    if (target_message_loop_ &&
-        (MessageLoop::current() != target_message_loop_)) {
-      target_message_loop_->DeleteSoon(FROM_HERE, this);
-      delete_later = true;
+    if (target_message_loop_) {
+      base::ThreadRestrictions::ScopedAllowSingleton allow_singleton;
+      if (MessageLoop::current() != target_message_loop_) {
+        target_message_loop_->DeleteSoon(FROM_HERE, this);
+        delete_later = true;
+      }
     }
   }
   if (!delete_later)
