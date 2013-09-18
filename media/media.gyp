@@ -270,6 +270,8 @@
         'base/video_util.h',
         'crypto/aes_decryptor.cc',
         'crypto/aes_decryptor.h',
+        'crypto/shell_decryptor_factory.cc',
+        'crypto/shell_decryptor_factory.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
         'filters/audio_decoder_selector.cc',
