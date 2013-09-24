@@ -45,6 +45,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
 #if defined(__LB_SHELL__)
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+  virtual bool StreamWasEncrypted() const OVERRIDE;
 #endif
 
  protected:

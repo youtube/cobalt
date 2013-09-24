@@ -47,6 +47,16 @@ scoped_refptr<ShellFilterGraphLog> ShellDemuxerStream::filter_graph_log() {
   return filter_graph_log_;
 }
 
+bool ShellDemuxerStream::StreamWasEncrypted() const {
+  if (type_ == VIDEO)
+    return demuxer_->VideoConfig().is_encrypted();
+  else if (type_ == AUDIO)
+    return demuxer_->AudioConfig().is_encrypted();
+
+  NOTREACHED();
+  return false;
+}
+
 void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
   filter_graph_log_->LogEvent(GraphLogObjectId(), kEventRead);
