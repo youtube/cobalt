@@ -32,6 +32,9 @@ class DummyDemuxerStream : public DemuxerStream {
 #if defined(__LB_SHELL__)
   void SetFilterGraphLog(scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+  bool StreamWasEncrypted() const OVERRIDE {
+    return video_config_.is_encrypted();
+  }
 #endif
 
  protected:
