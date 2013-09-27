@@ -42,7 +42,7 @@ const size_t kMaxPayloadSize =
 class HttpStreamShellLoaderLiveTest : public PlatformTest {
  public:
   HttpStreamShellLoaderLiveTest() : io_thread_("IOThread"),
-                                    event_(true, false),
+                                    event_(false, false),
                                     using_proxy_(false) {}
 
   virtual void SetUp() {
@@ -57,21 +57,44 @@ class HttpStreamShellLoaderLiveTest : public PlatformTest {
     net::HttpStreamShellLoaderGlobalDeinit();
   }
 
-  // Open/close connection
-  bool OpenConnection() {
+  void ExecOpenConnection() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     loader_ = net::CreateHttpStreamShellLoader();
     if (loader_) {
-      return loader_->Open(&request_info_, net_log_);
+      res_ = loader_->Open(&request_info_, net_log_);
+    } else {
+      res_ = ERR_UNEXPECTED;
     }
-    return ERR_UNEXPECTED;
+    event_.Signal();
+  }
+
+  // Open/close connection
+  bool OpenConnection() {
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&HttpStreamShellLoaderLiveTest::ExecOpenConnection,
+                   base::Unretained(this)));
+    event_.Wait();
+    return res_;
+  }
+
+  void ExecCloseConnection() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    loader_->Close(true);
+    event_.Signal();
   }
 
   void CloseConnection() {
-    loader_->Close(true);
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&HttpStreamShellLoaderLiveTest::ExecCloseConnection,
+                   base::Unretained(this)));
+    event_.Wait();
     loader_ = NULL;
   }
 
   void ExecProxyResolver() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     // Use the system proxy settings.
     scoped_ptr<net::ProxyConfigService> proxy_config_service(
         net::ProxyService::CreateSystemProxyConfigService(
@@ -89,11 +112,13 @@ class HttpStreamShellLoaderLiveTest : public PlatformTest {
   }
 
   void OnCompletion(int result) {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     EXPECT_EQ(OK, result);
     event_.Signal();
   }
 
   int ResolveProxy() {
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     if (request_info_.load_flags & LOAD_BYPASS_PROXY) {
       proxy_info_.UseDirect();
       return OK;
@@ -123,51 +148,101 @@ class HttpStreamShellLoaderLiveTest : public PlatformTest {
     return OK;
   }
 
-  // Send a request and wait for the result
+  void OnCallbackReceived(int result) {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    res_ = result;
+    event_.Signal();
+  }
+
+  void ExecSendRequest() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    CompletionCallback callback(
+        base::Bind(&HttpStreamShellLoaderLiveTest::OnCallbackReceived,
+                   base::Unretained(this)));
+    res_ = loader_->SendRequest(request_line_,
+        request_headers_, &response_, callback);
+    if (res_ != ERR_IO_PENDING) {
+      event_.Signal();
+    }
+  }
+
   int SendRequest() {
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     DCHECK(loader_);
-    TestCompletionCallback callback;
-    int res = loader_->SendRequest(request_line_,
-        request_headers_, &response_, callback.callback());
-    if (res == ERR_IO_PENDING) {
-      // Wait for result
-      res = callback.WaitForResult();
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&HttpStreamShellLoaderLiveTest::ExecSendRequest,
+                   base::Unretained(this)));
+    event_.Wait();
+    if (res_ != OK) {
+      io_thread_.message_loop()->PostTask(FROM_HERE,
+          base::Bind(&HttpStreamShellLoaderLiveTest::ExecCloseConnection,
+                     base::Unretained(this)));
+      event_.Wait();
     }
-    if (res != OK) {
-      loader_->Close(true);
+    return res_;
+  }
+
+  void ExecReadResponseHeaders() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    CompletionCallback callback(
+        base::Bind(&HttpStreamShellLoaderLiveTest::OnCallbackReceived,
+                   base::Unretained(this)));
+    res_ = loader_->ReadResponseHeaders(callback);
+    if (res_ != ERR_IO_PENDING) {
+      event_.Signal();
     }
-    return res;
   }
 
   // Read response headers and wait for the result
   int ReadResponseHeaders() {
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     DCHECK(loader_);
-    TestCompletionCallback callback;
-    int res = loader_->ReadResponseHeaders(callback.callback());
-    if (res == ERR_IO_PENDING) {
-      // Wait for result
-      res = callback.WaitForResult();
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&HttpStreamShellLoaderLiveTest::ExecReadResponseHeaders,
+                   base::Unretained(this)));
+    event_.Wait();
+    if (res_ != OK) {
+      io_thread_.message_loop()->PostTask(FROM_HERE,
+          base::Bind(&HttpStreamShellLoaderLiveTest::ExecCloseConnection,
+                     base::Unretained(this)));
+      event_.Wait();
     }
-    if (res != OK) {
-      loader_->Close(true);
+    return res_;
+  }
+
+  void ExecReadResponseBody(scoped_refptr<IOBuffer> buf, size_t read_len) {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    CompletionCallback callback(
+        base::Bind(&HttpStreamShellLoaderLiveTest::OnCallbackReceived,
+                   base::Unretained(this)));
+    res_ = loader_->ReadResponseBody(buf, read_len, callback);
+    if (res_ != ERR_IO_PENDING) {
+      event_.Signal();
     }
-    return res;
+  }
+
+  void CheckResponseBodyComplete() {
+    DCHECK(io_thread_.message_loop_proxy()->BelongsToCurrentThread());
+    EXPECT_TRUE(loader_->IsResponseBodyComplete());
+    event_.Signal();
   }
 
   // Read data and wait for result
-  int ReadResponseBody(IOBuffer* buf, size_t read_len) {
+  int ReadResponseBody(scoped_refptr<IOBuffer> buf, size_t read_len) {
+    DCHECK(!io_thread_.message_loop_proxy()->BelongsToCurrentThread());
     DCHECK(loader_);
-    TestCompletionCallback callback;
-    int res = loader_->ReadResponseBody(buf, read_len, callback.callback());
-
-    if (res == ERR_IO_PENDING) {
-      // Wait for result
-      res = callback.WaitForResult();
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&HttpStreamShellLoaderLiveTest::ExecReadResponseBody,
+                   base::Unretained(this), buf, read_len));
+    event_.Wait();
+    EXPECT_GE(res_, 0);
+    if (res_ == OK) {
+      io_thread_.message_loop()->PostTask(FROM_HERE,
+          base::Bind(&HttpStreamShellLoaderLiveTest::CheckResponseBodyComplete,
+                     base::Unretained(this)));
+      event_.Wait();
     }
-    EXPECT_GE(res, 0);
-    if (res == OK)
-      EXPECT_TRUE(loader_->IsResponseBodyComplete());
-    return res;
+    return res_;
   }
 
   // Generate request_info_, request_line_ and request_headers_.
@@ -207,6 +282,8 @@ class HttpStreamShellLoaderLiveTest : public PlatformTest {
   HttpRequestInfo request_info_;
   HttpRequestHeaders request_headers_;
   std::string request_line_;
+
+  int res_;
 };
 
 TEST_F(HttpStreamShellLoaderLiveTest, TestHttpConnection) {
