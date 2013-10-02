@@ -467,6 +467,37 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelUnexpectedClose) {
   EXPECT_FALSE(handle_.socket());
 }
 
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, Tunnel1xxResponse) {
+  // Tests that 1xx responses are rejected for a CONNECT request.
+  if (GetParam() == SPDY) {
+    // SPDY doesn't have 1xx responses.
+    return;
+  }
+
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0,
+              "CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, 1, "HTTP/1.1 100 Continue\r\n\r\n"),
+    MockRead(ASYNC, 2, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
+             NULL, 0, NULL, 0);
+
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_FALSE(handle_.is_initialized());
+  EXPECT_FALSE(handle_.socket());
+
+  data_->RunFor(2);
+  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, callback_.WaitForResult());
+}
+
 TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelSetupError) {
   MockWrite writes[] = {
     MockWrite(ASYNC, 0,

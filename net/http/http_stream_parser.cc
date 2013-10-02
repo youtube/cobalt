@@ -78,7 +78,7 @@ namespace net {
 // Example:
 //
 // scoped_refptr<SeekableIOBuffer> buf = new SeekableIOBuffer(1024);
-// // capacity() == 1024. size() == BytesRemaining == BytesConsumed() == 0.
+// // capacity() == 1024. size() == BytesRemaining() == BytesConsumed() == 0.
 // // data() points to the beginning of the buffer.
 //
 // // Read() takes an IOBuffer.
@@ -93,7 +93,7 @@ namespace net {
 //   buf->DidConsume(bytes_written);
 // }
 // // BytesRemaining() == 0. BytesConsumed() == size().
-// // data() points to the end of the comsumed bytes (exclusive).
+// // data() points to the end of the consumed bytes (exclusive).
 //
 // // If you want to reuse the buffer, be sure to clear the buffer.
 // buf->Clear();
@@ -160,7 +160,7 @@ class HttpStreamParser::SeekableIOBuffer : public net::IOBuffer {
   }
 
   char* real_data_;
-  int capacity_;
+  const int capacity_;
   int size_;
   int used_;
 };
@@ -293,6 +293,7 @@ int HttpStreamParser::ReadResponseHeaders(const CompletionCallback& callback) {
   DCHECK(io_state_ == STATE_REQUEST_SENT || io_state_ == STATE_DONE);
   DCHECK(callback_.is_null());
   DCHECK(!callback.is_null());
+  DCHECK_EQ(0, read_buf_unused_offset_);
 
   // This function can be called with io_state_ == STATE_DONE if the
   // connection is closed after seeing just a 1xx response code.
@@ -304,8 +305,8 @@ int HttpStreamParser::ReadResponseHeaders(const CompletionCallback& callback) {
 
   if (read_buf_->offset() > 0) {
     // Simulate the state where the data was just read from the socket.
-    result = read_buf_->offset() - read_buf_unused_offset_;
-    read_buf_->set_offset(read_buf_unused_offset_);
+    result = read_buf_->offset();
+    read_buf_->set_offset(0);
   }
   if (result > 0)
     io_state_ = STATE_READ_HEADERS_COMPLETE;
@@ -519,6 +520,8 @@ int HttpStreamParser::DoReadHeaders() {
 }
 
 int HttpStreamParser::DoReadHeadersComplete(int result) {
+  DCHECK_EQ(0, read_buf_unused_offset_);
+
   if (result == 0)
     result = ERR_CONNECTION_CLOSED;
 
@@ -577,41 +580,43 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
   if (end_of_header_offset == -1) {
     io_state_ = STATE_READ_HEADERS;
     // Prevent growing the headers buffer indefinitely.
-    if (read_buf_->offset() - read_buf_unused_offset_ >= kMaxHeaderBufSize) {
+    if (read_buf_->offset() >= kMaxHeaderBufSize) {
       io_state_ = STATE_DONE;
       return ERR_RESPONSE_HEADERS_TOO_BIG;
     }
   } else {
+    CalculateResponseBodySize();
+    // If the body is zero length, the caller may not call ReadResponseBody,
+    // which is where any extra data is copied to read_buf_, so we move the
+    // data here.
+    if (response_body_length_ == 0) {
+      int extra_bytes = read_buf_->offset() - end_of_header_offset;
+      if (extra_bytes) {
+        CHECK_GT(extra_bytes, 0);
+        memmove(read_buf_->StartOfBuffer(),
+                read_buf_->StartOfBuffer() + end_of_header_offset,
+                extra_bytes);
+      }
+      read_buf_->SetCapacity(extra_bytes);
+      if (response_->headers->response_code() / 100 == 1) {
+        // After processing a 1xx response, the caller will ask for the next
+        // header, so reset state to support that. We don't completely ignore a
+        // 1xx response because it cannot be returned in reply to a CONNECT
+        // request so we return OK here, which lets the caller inspect the
+        // response and reject it in the event that we're setting up a CONNECT
+        // tunnel.
+        response_header_start_offset_ = -1;
+        response_body_length_ = -1;
+        io_state_ = STATE_REQUEST_SENT;
+      } else {
+        io_state_ = STATE_DONE;
+      }
+      return OK;
+    }
+
     // Note where the headers stop.
     read_buf_unused_offset_ = end_of_header_offset;
-
-    if (response_->headers->response_code() / 100 == 1) {
-      // After processing a 1xx response, the caller will ask for the next
-      // header, so reset state to support that.  We don't just skip these
-      // completely because 1xx codes aren't acceptable when establishing a
-      // tunnel.
-      io_state_ = STATE_REQUEST_SENT;
-      response_header_start_offset_ = -1;
-    } else {
-      io_state_ = STATE_BODY_PENDING;
-      CalculateResponseBodySize();
-      // If the body is 0, the caller may not call ReadResponseBody, which
-      // is where any extra data is copied to read_buf_, so we move the
-      // data here and transition to DONE.
-      if (response_body_length_ == 0) {
-        io_state_ = STATE_DONE;
-        int extra_bytes = read_buf_->offset() - read_buf_unused_offset_;
-        if (extra_bytes) {
-          CHECK_GT(extra_bytes, 0);
-          memmove(read_buf_->StartOfBuffer(),
-                  read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-                  extra_bytes);
-        }
-        read_buf_->SetCapacity(extra_bytes);
-        read_buf_unused_offset_ = 0;
-        return OK;
-      }
-    }
+    io_state_ = STATE_BODY_PENDING;
   }
   return result;
 }
@@ -748,20 +753,19 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
 
 int HttpStreamParser::ParseResponseHeaders() {
   int end_offset = -1;
+  DCHECK_EQ(0, read_buf_unused_offset_);
 
   // Look for the start of the status line, if it hasn't been found yet.
   if (response_header_start_offset_ < 0) {
     response_header_start_offset_ = HttpUtil::LocateStartOfStatusLine(
-        read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-        read_buf_->offset() - read_buf_unused_offset_);
+        read_buf_->StartOfBuffer(), read_buf_->offset());
   }
 
   if (response_header_start_offset_ >= 0) {
-    end_offset = HttpUtil::LocateEndOfHeaders(
-        read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-        read_buf_->offset() - read_buf_unused_offset_,
-        response_header_start_offset_);
-  } else if (read_buf_->offset() - read_buf_unused_offset_ >= 8) {
+    end_offset = HttpUtil::LocateEndOfHeaders(read_buf_->StartOfBuffer(),
+                                              read_buf_->offset(),
+                                              response_header_start_offset_);
+  } else if (read_buf_->offset() >= 8) {
     // Enough data to decide that this is an HTTP/0.9 response.
     // 8 bytes = (4 bytes of junk) + "http".length()
     end_offset = 0;
@@ -773,14 +777,16 @@ int HttpStreamParser::ParseResponseHeaders() {
   int rv = DoParseResponseHeaders(end_offset);
   if (rv < 0)
     return rv;
-  return end_offset + read_buf_unused_offset_;
+  return end_offset;
 }
 
 int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
   scoped_refptr<HttpResponseHeaders> headers;
+  DCHECK_EQ(0, read_buf_unused_offset_);
+
   if (response_header_start_offset_ >= 0) {
     headers = new HttpResponseHeaders(HttpUtil::AssembleRawHeaders(
-        read_buf_->StartOfBuffer() + read_buf_unused_offset_, end_offset));
+        read_buf_->StartOfBuffer(), end_offset));
   } else {
     // Enough data was read -- there is no status line.
     headers = new HttpResponseHeaders(std::string("HTTP/0.9 200 OK"));
@@ -826,13 +832,16 @@ void HttpStreamParser::CalculateResponseBodySize() {
   // (informational), 204 (no content), and 304 (not modified) responses
   // MUST NOT include a message-body. All other responses do include a
   // message-body, although it MAY be of zero length.
-  switch (response_->headers->response_code()) {
-    // Note that 1xx was already handled earlier.
-    case 204:  // No Content
-    case 205:  // Reset Content
-    case 304:  // Not Modified
-      response_body_length_ = 0;
-      break;
+  if (response_->headers->response_code() / 100 == 1) {
+    response_body_length_ = 0;
+  } else {
+    switch (response_->headers->response_code()) {
+      case 204:  // No Content
+      case 205:  // Reset Content
+      case 304:  // Not Modified
+        response_body_length_ = 0;
+        break;
+    }
   }
   if (request_->method == "HEAD")
     response_body_length_ = 0;
