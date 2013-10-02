@@ -178,7 +178,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
   // Offset of the first unused byte in |read_buf_|.  May be nonzero due to
-  // a 1xx header, or body data in the same packet as header data.
+  // body data in the same packet as header data but is zero when reading
+  // headers.
   int read_buf_unused_offset_;
 
   // The amount beyond |read_buf_unused_offset_| where the status line starts;
