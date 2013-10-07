@@ -103,7 +103,6 @@
 
 #elif __LB_XB1__
 # include <windows.h>
-# include "printf_override.h"
 #else
 
 // Assume other platforms have gettimeofday().
