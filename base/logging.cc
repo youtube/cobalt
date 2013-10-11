@@ -595,7 +595,7 @@ LogMessage::~LogMessage() {
 
   if (logging_destination == LOG_ONLY_TO_SYSTEM_DEBUG_LOG ||
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
-#if defined(OS_WIN) || defined(__LB_XB1__)
+#if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_ANDROID)
     android_LogPriority priority = ANDROID_LOG_UNKNOWN;
