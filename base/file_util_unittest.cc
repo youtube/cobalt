@@ -1875,8 +1875,8 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_FALSE(file_util::PathExists(test_root));
   EXPECT_FALSE(file_util::PathExists(test_path));
 
-#if !defined(__LB_PS3__)
-  // kCurrentDirectory is ".", and PS3 does NOT support relative paths.
+#if !defined(__LB_PS3__) && !defined(__LB_PS4__)
+  // kCurrentDirectory is ".", and PS3&4 does NOT support relative paths.
 
   // Verify assumptions made by the Windows implementation:
   // 1. The current directory always exists.
@@ -1893,8 +1893,11 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 
   // Given these assumptions hold, it should be safe to
   // test that "creating" these directories succeeds.
+#if !defined(__LB_PS4__)
   EXPECT_TRUE(file_util::CreateDirectory(
       FilePath(FilePath::kCurrentDirectory)));
+#endif
+
   EXPECT_TRUE(file_util::CreateDirectory(top_level));
 
 #if defined(OS_WIN)
