@@ -43,10 +43,7 @@ static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
 static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 #elif defined(__LB_XB1__)
-// TODO (***REMOVED***) : We are going to support 1080p on XB1. Using 64 MB as a
-//                   starting point and it should be more than enough.
-//                   Decrease it if memory becomes and issue later.
-static const int kShellBufferAlignment = 128;
+static const int kShellBufferAlignment = 16;
 static const int kShellBufferSpaceSize = 64 * 1024 * 1024;
 #elif defined(__LB_PS4__)
 // TODO: Determine more appropriate values for the PS4
