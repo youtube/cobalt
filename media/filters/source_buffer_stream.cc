@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <map>
 
+#include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 
 #if defined(__LB_SHELL__)
+#include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
 #endif
 
@@ -300,27 +302,36 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
 }
 #if defined(__LB_PS3__)
 // We only have room for a maximum of 11 MB of buffering.
-static int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
+static const int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
 // We only have room for a maximum of 33 MB of buffering.
-static int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
 // We only have room for a maximum of 33 MB of buffering.
-static int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #elif defined(__LB_XB1__)
 // We only have room for a maximum of 51 MB of buffering.
-static int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 48 * 1024 * 1024;
+static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 48 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
 // 150MB: approximately 5 minutes of 4Mbps content.
-static int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
-static int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
+static const int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
 #endif
+
+// The SourceBufferStream caches sample data up to the memory limits defined
+// above. These sample data is stored using ShellBuffer. So we have to ensure
+// that the combined limit of SourceBufferStream is less than or equal to the
+// limit of ShellBuffer.
+static const int kCombinedMemoryLimit =
+    kDefaultAudioMemoryLimit + kDefaultVideoMemoryLimit;
+COMPILE_ASSERT(kCombinedMemoryLimit <= media::kShellBufferSpaceSize,
+    SourceBufferStream_limit_has_to_be_less_than_or_equal_to_ShellBuffer_size);
 
 namespace media {
 
