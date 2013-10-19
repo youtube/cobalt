@@ -4,6 +4,8 @@
 
 #include "media/base/audio_decoder_config.h"
 
+#include <sstream>
+
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "media/audio/sample_rates.h"
@@ -99,6 +101,18 @@ bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
           (!extra_data() || !memcmp(extra_data(), config.extra_data(),
                                     extra_data_size())) &&
           (is_encrypted() == config.is_encrypted()));
+}
+
+std::string AudioDecoderConfig::AsHumanReadableString() const {
+  std::ostringstream s;
+  s << "codec: " << codec()
+    << " bits per channel: " << bits_per_channel()
+    << " channel layout: " << channel_layout()
+    << " samples per second: " << samples_per_second()
+    << " bytes per frame: " << bytes_per_frame()
+    << " has extra data? " << (extra_data() ? "true" : "false")
+    << " encrypted? " << (is_encrypted() ? "true" : "false");
+  return s.str();
 }
 
 void AudioDecoderConfig::CopyFrom(const AudioDecoderConfig& audio_config) {

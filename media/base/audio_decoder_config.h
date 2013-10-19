@@ -5,6 +5,8 @@
 #ifndef MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 #define MEDIA_BASE_AUDIO_DECODER_CONFIG_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/channel_layout.h"
@@ -72,6 +74,10 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Returns true if all fields in |config| match this config.
   // Note: The contents of |extra_data_| are compared not the raw pointers.
   bool Matches(const AudioDecoderConfig& config) const;
+
+  // Returns a human-readable string describing |*this|.  For debugging & test
+  // output only.
+  std::string AsHumanReadableString() const;
 
   AudioCodec codec() const;
   int bits_per_channel() const;
