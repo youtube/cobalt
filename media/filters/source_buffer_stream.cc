@@ -305,17 +305,21 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
 static const int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
-// We only have room for a maximum of 33 MB of buffering.
+// We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
-// We only have room for a maximum of 33 MB of buffering.
+// We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #elif defined(__LB_XB1__)
-// We only have room for a maximum of 51 MB of buffering.
+// We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 48 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+#elif defined(__LB_PS4__)
+// We only need a maximum of 33 MB of buffering for 1080p.
+static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
