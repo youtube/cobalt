@@ -20,6 +20,7 @@ namespace debug {
 
 namespace {
 
+#if !defined(__LB_XB1__)
 // Previous unhandled filter. Will be called if not NULL when we intercept an
 // exception. Only used in unit tests.
 LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
@@ -32,6 +33,7 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
     return g_previous_filter(info);
   return EXCEPTION_CONTINUE_SEARCH;
 }
+#endif  // !defined(__LB_XB1__)
 
 // SymbolContext is a threadsafe singleton that wraps the DbgHelp Sym* family
 // of functions.  The Sym* family of functions may only be invoked by one
@@ -178,6 +180,12 @@ StackTrace::StackTrace() {
 #endif
 
 StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
+  // StackWalk64 requires symbol information to be loaded. The following
+  // will make sure that SymbolContext singleton is initialized which will
+  // load the required symbols.
+  static volatile SymbolContext* context = SymbolContext::GetInstance();
+  (void)context;
+
   // When walking an exception stack, we need to use StackWalk64().
   count_ = 0;
   // Initialize stack walking.
