@@ -1290,7 +1290,8 @@ void SourceBufferRange::AppendBuffersToEnd(const BufferQueue& new_buffers) {
     if ((*itr)->IsKeyframe()) {
       keyframe_map_.insert(
           std::make_pair((*itr)->GetDecodeTimestamp(),
-                         buffers_.size() - 1 + keyframe_map_index_base_));
+                         static_cast<int>(buffers_.size()) - 1 +
+                                          keyframe_map_index_base_));
 
       if (waiting_for_keyframe_ &&
           (*itr)->GetDecodeTimestamp() >= next_keyframe_timestamp_) {
