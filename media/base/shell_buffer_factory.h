@@ -44,7 +44,7 @@ static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
 static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 #elif defined(__LB_XB1__)
 static const int kShellBufferAlignment = 16;
-static const int kShellBufferSpaceSize = 64 * 1024 * 1024;
+static const int kShellBufferSpaceSize = 33 * 1024 * 1024;
 #elif defined(__LB_PS4__)
 // TODO: Determine more appropriate values for the PS4
 static const int kShellBufferAlignment = 128;

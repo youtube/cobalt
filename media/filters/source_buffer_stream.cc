@@ -313,9 +313,9 @@ static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 #elif defined(__LB_XB1__)
-// We only need a maximum of 33 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+// We only need a maximum of 18 MB of buffering for 1080p.
+static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
 #elif defined(__LB_PS4__)
 // We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
