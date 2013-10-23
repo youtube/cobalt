@@ -108,13 +108,13 @@ class NET_EXPORT StreamListenSocket
   void WatchSocket(WaitState state);
   void UnwatchSocket();
 
+  virtual void SendInternal(const char* bytes, int len);
+
   Delegate* const socket_delegate_;
 
  private:
   friend class base::RefCountedThreadSafe<StreamListenSocket>;
   friend class TransportClientSocketTest;
-
-  void SendInternal(const char* bytes, int len);
 
 #if defined(OS_WIN)
   // ObjectWatcher delegate.
