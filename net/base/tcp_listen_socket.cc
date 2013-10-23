@@ -128,9 +128,12 @@ TCPListenSocketFactory::TCPListenSocketFactory(const string& ip, int port)
 
 TCPListenSocketFactory::~TCPListenSocketFactory() {}
 
+#if !defined(__LB_XB1__)
+// This symbol is implemented differently for XB1, in XB1's private sources.
 scoped_refptr<StreamListenSocket> TCPListenSocketFactory::CreateAndListen(
     StreamListenSocket::Delegate* delegate) const {
   return TCPListenSocket::CreateAndListen(ip_, port_, delegate);
 }
+#endif
 
 }  // namespace net
