@@ -63,7 +63,7 @@ void TestURLRequestContext::Init() {
   DCHECK(!initialized_);
   initialized_ = true;
 
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
   if (!host_resolver())
     context_storage_.set_host_resolver(
         scoped_ptr<HostResolver>(new MockCachingHostResolver()));
@@ -104,7 +104,7 @@ void TestURLRequestContext::Init() {
   params.http_server_properties = http_server_properties();
   params.net_log = net_log();
 
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
   if (!http_transaction_factory()) {
     context_storage_.set_http_transaction_factory(new HttpCache(
         new HttpNetworkSession(params),
