@@ -6,7 +6,7 @@
 
 #include "base/message_loop.h"
 #include "net/base/network_change_notifier.h"
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
 #include "net/http/http_stream_factory.h"
 #include "net/spdy/spdy_session.h"
 #endif
@@ -18,7 +18,7 @@
 
 class StaticReset : public ::testing::EmptyTestEventListener {
   virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
     net::HttpStreamFactory::ResetStaticSettingsToInit();
 #endif
   }
