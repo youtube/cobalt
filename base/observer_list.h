@@ -175,7 +175,10 @@ class ObserverListBase
   int notify_depth_;
   NotificationType type_;
 
+#if !defined(__LB_SHELL__)
+  // friend is not needed for nested classes in modern compilers.
   friend class ObserverListBase::Iterator;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(ObserverListBase);
 };
