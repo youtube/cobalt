@@ -232,7 +232,12 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
                               aac.GetOutputSamplesPerSecond(has_sbr_),
-                              NULL, 0, is_audio_track_encrypted_, false);
+#if defined(__LB_XB1__)
+                              aac.raw_data().data(), aac.raw_data().size(),
+#else  // defined(__LB_XB1__)
+                              NULL, 0,
+#endif  // defined(__LB_XB1__)
+                              is_audio_track_encrypted_, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }
@@ -375,6 +380,7 @@ bool MP4StreamParser::PrepareAVCBuffer(
 bool MP4StreamParser::PrepareAACBuffer(
     const AAC& aac_config, std::vector<uint8>* frame_buf,
     std::vector<SubsampleEntry>* subsamples) const {
+#if !defined(__LB_XB1__)
   // Append an ADTS header to every audio sample.
   RCHECK(aac_config.ConvertEsdsToADTS(frame_buf));
 
@@ -388,6 +394,7 @@ bool MP4StreamParser::PrepareAACBuffer(
   } else {
     (*subsamples)[0].clear_bytes += AAC::kADTSHeaderSize;
   }
+#endif  // !defined(__LB_XB1__)
   return true;
 }
 

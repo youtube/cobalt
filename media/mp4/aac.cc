@@ -55,7 +55,9 @@ AAC::~AAC() {
 bool AAC::Parse(const std::vector<uint8>& data) {
   if (data.empty())
     return false;
-
+#if defined(__LB_XB1__)
+  raw_data_ = data;
+#endif  // defined(__LB_XB1__)
   BitReader reader(&data[0], data.size());
   uint8 extension_type = 0;
   bool ps_present = false;
