@@ -605,6 +605,11 @@
               'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
           }],
+          [ 'OS=="lb_shell" and target_arch=="android"', {
+            'sources!': [
+              'process_util.cc',
+            ],
+          }],
         ],
         'target_conditions': [
           ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
