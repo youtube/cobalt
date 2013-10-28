@@ -132,7 +132,9 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || (defined(__LB_SHELL__) && !defined(__LB_LINUX__))
+#if defined(OS_WIN) || \
+    (defined(__LB_SHELL__) && \
+        !(defined(__LB_LINUX__) || defined(__LB_ANDROID__)))
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \
