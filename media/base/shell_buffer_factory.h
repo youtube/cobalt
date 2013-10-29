@@ -33,11 +33,19 @@ namespace media {
 // have specific byte-alignment for buffers. They also have limited memory,
 // so we define a per-platform limit to the total size of the media buffering
 // pool from which all ShellBuffers are allocated.
-#if defined(__LB_PS3__)
-static const int kShellBufferAlignment = 128;
-static const size_t kShellBufferSpaceSize = 48 * 1024 * 1024;
+#if defined(__LB_ANDROID__)
+// TODO: Determine more appropriate values for Android
+static const int kShellBufferAlignment = 16;
+static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
 static const int kShellBufferAlignment = 16;
+static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
+#elif defined(__LB_PS3__)
+static const int kShellBufferAlignment = 128;
+static const size_t kShellBufferSpaceSize = 48 * 1024 * 1024;
+#elif defined(__LB_PS4__)
+// TODO: Determine more appropriate values for the PS4
+static const int kShellBufferAlignment = 128;
 static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #elif defined(__LB_WIIU__)
 static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
@@ -45,10 +53,6 @@ static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 #elif defined(__LB_XB1__)
 static const int kShellBufferAlignment = 16;
 static const int kShellBufferSpaceSize = 33 * 1024 * 1024;
-#elif defined(__LB_PS4__)
-// TODO: Determine more appropriate values for the PS4
-static const int kShellBufferAlignment = 128;
-static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif
