@@ -524,7 +524,7 @@ bool LowerCaseEqualsASCII(string16::const_iterator a_begin,
 #endif
 
 // TODO(port): Resolve wchar_t/iterator issues that require OS_ANDROID here.
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
 bool LowerCaseEqualsASCII(const char* a_begin,
                           const char* a_end,
                           const char* b) {
@@ -545,7 +545,7 @@ bool LowerCaseEqualsASCII(const char16* a_begin,
 }
 #endif
 
-#endif  // !defined(OS_ANDROID)
+#endif  // !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
 
 bool EqualsASCII(const string16& a, const base::StringPiece& b) {
   if (a.length() != b.length())
