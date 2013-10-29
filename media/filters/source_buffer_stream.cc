@@ -300,11 +300,7 @@ static int kDefaultBufferDurationInMs = 125;
 static base::TimeDelta kSeekToStartFudgeRoom() {
   return base::TimeDelta::FromMilliseconds(1000);
 }
-#if defined(__LB_PS3__)
-// We only have room for a maximum of 11 MB of buffering.
-static const int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
-#elif defined(__LB_WIIU__)
+#if defined(__LB_ANDROID__)
 // We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
@@ -312,14 +308,22 @@ static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 // We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
-#elif defined(__LB_XB1__)
-// We only need a maximum of 18 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
+#elif defined(__LB_PS3__)
+// We only have room for a maximum of 11 MB of buffering.
+static const int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
 #elif defined(__LB_PS4__)
 // We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+#elif defined(__LB_WIIU__)
+// We only need a maximum of 33 MB of buffering for 1080p.
+static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+#elif defined(__LB_XB1__)
+// We only need a maximum of 18 MB of buffering for 1080p.
+static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
