@@ -231,7 +231,9 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   } else {
     // We don't need new data from the renderer, but this will ping the
     // renderer and update the timer
-//  render_callback_->Render(NULL, buffered_time);  // TODO(***REMOVED***)
+#if defined(__LB_WIIU__)
+    render_callback_->Render(NULL, buffered_time);  // TODO(***REMOVED***)
+#endif
   }
 
   bool buffer_full = free_frames < config.renderer_request_frames;
