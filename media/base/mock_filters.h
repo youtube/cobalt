@@ -93,6 +93,7 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(EnableBitstreamConverter, void());
 #if defined(__LB_SHELL__)
   MOCK_METHOD0(filter_graph_log, scoped_refptr<ShellFilterGraphLog>());
+  MOCK_CONST_METHOD0(StreamWasEncrypted, bool());
 #endif
 
  protected:

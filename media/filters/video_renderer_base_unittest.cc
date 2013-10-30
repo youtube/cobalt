@@ -57,6 +57,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     filter_graph_log_ = new MockShellFilterGraphLog();
     EXPECT_CALL(*demuxer_stream_, filter_graph_log())
         .WillRepeatedly(Return(filter_graph_log_));
+    EXPECT_CALL(*demuxer_stream_, StreamWasEncrypted())
+        .WillRepeatedly(Return(false));
 #endif
 
     EXPECT_CALL(*demuxer_stream_, type())
