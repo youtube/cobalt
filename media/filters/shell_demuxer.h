@@ -46,6 +46,7 @@ class ShellDemuxerStream : public DemuxerStream {
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+  virtual bool StreamWasEncrypted() const OVERRIDE;
 
   // Functions used by ShellDemuxer
   Ranges<base::TimeDelta> GetBufferedRanges();

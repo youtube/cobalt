@@ -81,6 +81,9 @@ class MEDIA_EXPORT DemuxerStream
 
 #if defined(__LB_SHELL__)
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() = 0;
+
+  // Returns true if the content was encrypted at some point
+  virtual bool StreamWasEncrypted() const = 0;
 #endif
 
  protected:
