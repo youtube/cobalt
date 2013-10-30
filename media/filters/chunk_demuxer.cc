@@ -237,6 +237,8 @@ class ChunkDemuxerStream : public DemuxerStream {
 
 #if defined(__LB_SHELL__)
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
+
+  bool StreamWasEncrypted() const OVERRIDE;
 #endif
 
  protected:
@@ -636,6 +638,18 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
 scoped_refptr<ShellFilterGraphLog> ChunkDemuxerStream::filter_graph_log() {
   return filter_graph_log_;
 }
+
+bool ChunkDemuxerStream::StreamWasEncrypted() const {
+  base::AutoLock auto_lock(lock_);
+  if (type_ == VIDEO)
+    return stream_->GetCurrentVideoDecoderConfig().is_encrypted();
+  else if (type_ == AUDIO)
+    return stream_->GetCurrentAudioDecoderConfig().is_encrypted();
+
+  NOTREACHED();
+  return false;
+}
+
 #endif
 
 ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
