@@ -6,6 +6,7 @@
 #define NET_HTTP_HTTP_TRANSACTION_SHELL_H_
 
 #include "base/basictypes.h"
+#include "base/message_loop.h"
 #include "base/string_number_conversions.h"
 #include "net/http/http_network_session.h"  // net::HttpNetworkSession::Params
 #include "net/http/http_transaction.h"
@@ -128,6 +129,9 @@ class NET_EXPORT_PRIVATE HttpTransactionShell : public HttpTransaction {
 
   // Proxy info
   ProxyInfo proxy_info_;
+
+  // For checking that we're on the correct thread
+  scoped_refptr<base::MessageLoopProxy> current_message_loop_;
 };
 
 }  // namespace net
