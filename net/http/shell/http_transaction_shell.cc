@@ -46,6 +46,7 @@ HttpTransactionShell::HttpTransactionShell(
           request_(NULL),
           params_(params) {
   DCHECK(stream_);
+  current_message_loop_ = base::MessageLoopProxy::current();
 }
 
 // Starts the HTTP transaction (i.e., sends the HTTP request).
@@ -381,8 +382,8 @@ void HttpTransactionShell::BuildRequestHeaders() {
 void HttpTransactionShell::SetFailed(int result) {
   // Real Error happens
   state_ = STATE_FAILED;
-  DoCallback(result);
   CloseStream();
+  DoCallback(result);
 }
 
 void HttpTransactionShell::CloseStream() {
@@ -392,12 +393,13 @@ void HttpTransactionShell::CloseStream() {
 
 void HttpTransactionShell::DoCallback(int result) {
   if (pending_callback_) {
+    DCHECK(current_message_loop_->BelongsToCurrentThread());
+
     DCHECK(!callback_.is_null());
     CompletionCallback c = callback_;
     callback_.Reset();
     pending_callback_ = false;
-    MessageLoop::current()->PostTask(FROM_HERE,
-        base::Bind(c, result));
+    c.Run(result);
   }
 }
 
