@@ -396,6 +396,11 @@ scoped_refptr<ShellFilterGraphLog>
   }
   return NULL;
 }
+
+bool DecryptingDemuxerStream::StreamWasEncrypted() const {
+  DCHECK(demuxer_stream_->StreamWasEncrypted());
+  return true;
+}
 #endif
 
 }  // namespace media
