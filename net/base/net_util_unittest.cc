@@ -2396,10 +2396,12 @@ TEST(NetUtilTest, FormatUrl) {
      // GURL doesn't assume an email address's domain part as a host name.
      L"mailto:foo@xn--l8jvb1ey91xtjb.jp", 7},
 
+#if !defined (__LB_SHELL__)
     {"file: with Japanese IDN",
      "file://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
      UnescapeRule::NORMAL,
      L"file://\x671d\x65e5\x3042\x3055\x3072.jp/config.sys", 7},
+#endif // file is not a StandardURLScheme in LB_SHELL
 
     {"ftp: with Japanese IDN",
      "ftp://xn--l8jvb1ey91xtjb.jp/config.sys", "ja", default_format_type,
@@ -2499,9 +2501,12 @@ TEST(NetUtilTest, FormatUrl) {
     {"omit slash for nonstandard URLs",
      "data:/", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"data:/", 5},
+
+#if !defined(__LB_SHELL__)
     {"omit slash for file URLs",
      "file:///", "en", kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"file:///", 7},
+#endif // file is not a StandardURLScheme in LB_SHELL
 
     // -------- view-source: --------
     {"view-source",
@@ -2531,7 +2536,7 @@ TEST(NetUtilTest, FormatUrl) {
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    size_t prefix_len;
+    size_t prefix_len = 0;
     string16 formatted = FormatUrl(
         GURL(tests[i].input), tests[i].languages, tests[i].format_types,
         tests[i].escape_rules, NULL, &prefix_len, NULL);
@@ -3264,6 +3269,7 @@ TEST(NetUtilTest, IsLocalhost) {
 #endif
 }
 
+#if !defined(__LB_SHELL__) // lbshell doesn't support ifaddrs
 // Verify GetNetworkList().
 TEST(NetUtilTest, GetNetworkList) {
   NetworkInterfaceList list;
@@ -3288,5 +3294,6 @@ TEST(NetUtilTest, GetNetworkList) {
     EXPECT_FALSE(all_zeroes);
   }
 }
+#endif
 
 }  // namespace net
