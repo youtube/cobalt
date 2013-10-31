@@ -82,6 +82,7 @@ TEST(FilterTest, ApacheGzip) {
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
 }
 
+#if !defined(__LB_SHELL__)  // SDCH not supported in LB_SHELL
 TEST(FilterTest, SdchEncoding) {
   // Handle content encodings including SDCH.
   const std::string kTextHtmlMime("text/html");
@@ -118,6 +119,7 @@ TEST(FilterTest, SdchEncoding) {
   EXPECT_EQ(Filter::FILTER_TYPE_SDCH, encoding_types[0]);
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP_HELPING_SDCH, encoding_types[1]);
 }
+#endif
 
 #if !defined(__LB_SHELL__)  // SDCH not supported
 TEST(FilterTest, MissingSdchEncoding) {
