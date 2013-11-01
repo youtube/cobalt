@@ -27,7 +27,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 // Android's bionic libc only supports the LFS transitional API.
 #define off_t off64_t
 #define lseek lseek64
