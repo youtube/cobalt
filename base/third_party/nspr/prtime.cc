@@ -71,7 +71,7 @@
 #include <windows.h>
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
-#elif defined(OS_ANDROID)
+#elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include <ctype.h>
 #include "base/os_compat_android.h"  // For timegm()
 #elif defined(OS_NACL)
