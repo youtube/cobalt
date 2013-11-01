@@ -970,6 +970,8 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 // On Linux, with GCC, we can use __PRETTY_FUNCTION__ to get the demangled name
 // of the current function in the NOTIMPLEMENTED message.
 #define NOTIMPLEMENTED_MSG "Not implemented reached in " << __PRETTY_FUNCTION__
+#elif defined(__LB_SHELL__)
+#define NOTIMPLEMENTED_MSG "Not implemented reached in " << __FUNCTION__
 #else
 #define NOTIMPLEMENTED_MSG "NOT IMPLEMENTED"
 #endif
