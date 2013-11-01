@@ -35,16 +35,16 @@
         ['exclude', '(^|/)linux/'],
       ],
     }],
-    ['OS=="lb_shell" and "<(target_arch)"=="linux"', {
-      'sources/': [
-        # Re-include things in lbshell
-        ['include', 'lbshell/src/platform/linux/'],
-      ],
-    }],
     ['OS!="android"', {
       'sources/': [
         ['exclude', '_android(_unittest)?\\.cc$'],
         ['exclude', '(^|/)android/'],
+      ],
+    }],
+    ['OS=="lb_shell"', {
+      'sources/': [
+        # Re-include things in lbshell
+        ['include', 'lbshell/src/platform/<(target_arch)'],
       ],
     }],
     ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell"', {
