@@ -1290,7 +1290,7 @@ int SetNonBlocking(int fd) {
   return ioctlsocket(fd, FIONBIO, &no_block);
 #elif defined(__LB_XB1__)
   return -1;
-#elif defined(__LB_SHELL__) && !defined(__LB_LINUX__)
+#elif defined(__LB_SHELL__) && !(defined(__LB_ANDROID__) || defined(__LB_LINUX__))
   int val = 1;
   return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
 #elif defined(OS_POSIX)
