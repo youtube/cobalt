@@ -16,7 +16,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include "base/os_compat_android.h"
 #elif defined(OS_NACL)
 #include "base/os_compat_nacl.h"
