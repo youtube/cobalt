@@ -66,7 +66,7 @@
     {
       'target_name': 'libwebp_dsp_neon',
       'conditions': [
-        ['target_arch == "arm" and arm_version >= 7', {
+        ['(target_arch == "arm" and arm_version >= 7) or (OS == "lb_shell" and target_arch == "android")', {
           'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
