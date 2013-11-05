@@ -571,9 +571,10 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
   if (state_ != RETURNING_DATA_FOR_READS)
     return;
 
-  DemuxerStream::Status status;
+  DemuxerStream::Status status = kOk;
   scoped_refptr<StreamParserBuffer> buffer;
-  while (!read_cbs_.empty()) {
+  // When the status is kConfigChanged, we should stop the loop.
+  while (!read_cbs_.empty() && status != kConfigChanged) {
     if (!GetNextBuffer_Locked(&status, &buffer))
       return;
     closures->push_back(base::Bind(read_cbs_.front(),
