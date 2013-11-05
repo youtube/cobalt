@@ -600,7 +600,7 @@
               ['include', 'sys_string_conversions_linux.cc'],
             ],
           }],
-          [ 'OS=="lb_shell" and target_arch!="linux"', {
+          [ 'OS=="lb_shell" and target_arch!="linux" and target_arch!="android"', {
             'sources!': [
               'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
