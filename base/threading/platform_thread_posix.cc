@@ -158,7 +158,7 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if defined(OS_LINUX)
   return syscall(__NR_gettid);
-#elif defined(OS_ANDROID)
+#elif defined(OS_ANDROID) || defined(__LB_ANDROID__)
   return gettid();
 #elif defined(OS_SOLARIS)
   return pthread_self();
