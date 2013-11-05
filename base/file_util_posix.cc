@@ -84,7 +84,7 @@ static int CallLstat(const char *path, stat_wrapper_t *sb) {
 }
 #endif
 
-#if !defined(__LB_PS4__)
+#if !defined(__LB_PS4__) && !defined(__LB_ANDROID__)
 // Helper for NormalizeFilePath(), defined below.
 bool RealPath(const FilePath& path, FilePath* real_path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
@@ -150,7 +150,7 @@ static std::string TempFileName() {
 #endif
 }
 
-#if !defined(__LB_PS4__)
+#if !defined(__LB_PS4__) && !defined(__LB_ANDROID__)
 bool AbsolutePath(FilePath* path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
   char full_path[PATH_MAX];
