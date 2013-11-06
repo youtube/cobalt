@@ -43,8 +43,8 @@ TEST(AlignedMemoryTest, StackAlignment) {
   EXPECT_ALIGNED(raw16.void_data(), 16);
   EXPECT_ALIGNED(raw256.void_data(), 256);
 
-  // TODO(ios): This test hits an armv7 bug in clang. crbug.com/138066
-#if !(defined(OS_IOS) && defined(ARCH_CPU_ARM_FAMILY))
+  // TODO: This test hits an armv7 bug in clang. crbug.com/138066
+#if !defined(ARCH_CPU_ARM_FAMILY)
   AlignedMemory<8, 4096> raw4096;
   EXPECT_EQ(4096u, ALIGNOF(raw4096));
   EXPECT_ALIGNED(raw4096.void_data(), 4096);
