@@ -58,6 +58,11 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     if (au->AddPrepend())
       memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
   } else if (au->GetType() == DemuxerStream::AUDIO) {
+#if defined(__LB_XB1__)
+    // We use raw AAC instead of ADTS on XB1.
+    DCHECK(audio_prepend_.empty());
+    return true;
+#endif  // defined(__LB_XB1__)
     if (audio_prepend_.empty())  // valid ADTS header not available
       return false;
     // audio, need to copy ADTS header and then add buffer size
@@ -475,6 +480,11 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_[3] &= 0xfc;
   audio_prepend_[4] = 0;
   audio_prepend_[5] &= 0x1f;
+
+#if defined(__LB_XB1__)
+  // We use raw AAC instead of ADTS on XB1.
+  audio_prepend_.clear();
+#endif  // defined(__LB_XB1__)
 
   audio_config_.Initialize(kCodecAAC,
                            16,   // AAC is always 16 bit
