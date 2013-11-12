@@ -4,7 +4,7 @@
 
 {
   'conditions': [
-    ['OS=="android"', {
+    ['OS=="android" or (OS=="lb_shell" and target_arch=="android")', {
       'targets': [
         {
           'target_name': 'native_test_apk',
