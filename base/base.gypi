@@ -725,7 +725,7 @@
               'sources/': [ ['exclude', '^win/'] ],
             },
           ],
-          ['OS != "android" or >(nacl_untrusted_build)==1', {
+          ['(OS != "android" or >(nacl_untrusted_build)==1) and (OS != "lb_shell" or "<(target_arch)" != "android")', {
               'sources/': [ ['exclude', '^android/'] ],
             },
           ],

@@ -1068,7 +1068,7 @@
           }],
         ],
       }],  # OS=="ios"
-      ['OS=="android"', {
+      ['OS=="android" or (OS=="lb_shell" and target_arch=="android")', {
         # Location of Android NDK.
         'variables': {
           'variables': {
@@ -1081,7 +1081,7 @@
                 'android_app_abi%': 'x86',
                 'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-x86',
               }],
-              ['target_arch=="arm"', {
+              ['target_arch=="arm" or (OS=="lb_shell" and target_arch=="android")', {
                 'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-arm',
                 'conditions': [
                   ['armv7==0', {
@@ -1288,7 +1288,11 @@
         'use_openssl': 1,
         'use_cups': 0,
         'input_speech': 0,
-        'gtest_target_type': 'static_library',
+        'conditions': [
+          ['target_arch!="android"', {
+            'gtest_target_type': 'static_library',
+          }],
+        ],
       }],
       # Native Client glibc toolchain is enabled by default except on arm.
       ['target_arch=="arm"', {
