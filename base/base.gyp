@@ -81,7 +81,7 @@
               ['exclude', '_nss\\.cc$'],
             ],
         }],
-        ['OS == "android" and _toolset == "host"', {
+        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "host"', {
           # Base for host support is the minimum required to run the
           # ssl false start blacklist tool. It requires further changes
           # to generically support host builds (and tests).
@@ -113,7 +113,7 @@
             }],
           ],
         }],
-        ['OS == "android" and _toolset == "target"', {
+        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target"', {
           'conditions': [
             ['target_arch == "ia32"', {
               'sources/': [
@@ -141,11 +141,15 @@
           'sources!': [
             'debug/stack_trace_posix.cc',
           ],
-          'includes': [
-            '../build/android/cpufeatures.gypi',
+          'conditions' : [
+            ['target_arch != "android"', {
+              'includes': [
+                '../build/android/cpufeatures.gypi',
+              ],
+            }],
           ],
         }],
-        ['OS == "android" and _toolset == "target" and android_build_type == 0', {
+        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target" and android_build_type == 0', {
           'dependencies': [
             'base_java',
           ],
@@ -1011,7 +1015,7 @@
         },
       ],
     }],
-    ['os_posix==1 and OS!="mac" and OS!="ios" and OS!="lb_shell"', {
+    ['os_posix==1 and OS!="mac" and OS!="ios" and (OS!="lb_shell" or target_arch=="android")', {
       'targets': [
         {
           'target_name': 'symbolize',
@@ -1079,7 +1083,7 @@
         },
       ],
     }],
-    ['OS == "android"', {
+    ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
       'targets': [
         {
           'target_name': 'base_jni_headers',
@@ -1143,7 +1147,7 @@
     # in the gyp make generator.  What is the correct way to extract
     # this path from gyp and into 'raw' for input to antfiles?
     # Hard-coding in the gypfile seems a poor choice.
-    ['OS == "android" and gtest_target_type == "shared_library"', {
+    ['(OS == "android" and gtest_target_type == "shared_library") or (OS == "lb_shell" and target_arch == "android")', {
       'targets': [
         {
           'target_name': 'base_unittests_apk',
