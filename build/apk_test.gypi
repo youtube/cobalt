@@ -19,13 +19,22 @@
 #
 
 {
+  'variables' : {
+    'conditions' : [
+      ['OS == "lb_shell" and target_arch == "android"', {
+        'chromium_src_dir' : '<(PRODUCT_DIR)/../../../../external/chromium',
+      },{
+        'chromium_src_dir' : '<(ant_build_out)/../..',
+      }],
+    ],
+  },
   'dependencies': [
     '<(DEPTH)/base/base.gyp:base_java',
   ],
   'target_conditions': [
     ['_toolset == "target"', {
       'conditions': [
-        ['OS == "android" and gtest_target_type == "shared_library"', {
+        ['((OS == "android" and gtest_target_type == "shared_library") or (OS == "lb_shell" and target_arch == "android"))', {
           'actions': [{
             'action_name': 'apk_<(test_suite_name)',
             'message': 'Building <(test_suite_name) test apk.',
@@ -60,7 +69,7 @@
               '--ant-args',
               '-DANDROID_GDBSERVER=<(android_gdbserver)',
               '--ant-args',
-              '-DCHROMIUM_SRC=<(ant_build_out)/../..',
+              '-DCHROMIUM_SRC=<(chromium_src_dir)',
               '--ant-args',
               '-DINPUT_JARS_PATHS=>(input_jars_paths)',
             ],

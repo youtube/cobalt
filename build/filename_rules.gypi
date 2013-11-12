@@ -35,7 +35,7 @@
         ['exclude', '(^|/)linux/'],
       ],
     }],
-    ['OS!="android"', {
+    ['OS!="android" and (OS!="lb_shell" or "<(target_arch)"!="android")', {
       'sources/': [
         ['exclude', '_android(_unittest)?\\.cc$'],
         ['exclude', '(^|/)android/'],
@@ -45,12 +45,6 @@
       'sources/': [
         # Re-include things in lbshell
         ['include', 'lbshell/src/platform/<(target_arch)'],
-      ],
-    }],
-    # Temporary include some required android files
-    ['OS=="lb_shell" and "<(target_arch)"=="android"', {
-      'sources/': [
-        ['include', 'os_compat_android.cc'],
       ],
     }],
     ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell"', {
