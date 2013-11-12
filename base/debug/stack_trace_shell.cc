@@ -18,7 +18,8 @@
 // EnableInProcessStackDumping is implemented in stack_trace_xb1.cc
 
 #elif defined(__LB_ANDROID__) && !defined(__LB_SHELL__FOR_RELEASE__)
-#include "stack_trace_android.cc"
+// already included via base.gypi
+//#include "stack_trace_android.cc"
 #else
 #include "stack_trace_posix.cc"
 
