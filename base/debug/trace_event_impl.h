@@ -208,7 +208,7 @@ class BASE_EXPORT TraceLog {
   void SetEnabled(bool enabled);
   bool IsEnabled() { return enabled_; }
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   static void InitATrace();
 #endif
 
@@ -351,7 +351,7 @@ class BASE_EXPORT TraceLog {
   const unsigned char* GetCategoryEnabledInternal(const char* name);
   void AddThreadNameMetadataEvents();
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   void SendToATrace(char phase,
                     const char* category,
                     const char* name,
