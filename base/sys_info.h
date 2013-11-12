@@ -93,7 +93,7 @@ class BASE_EXPORT SysInfo {
   static FilePath GetLsbReleaseFilePath();
 #endif  // defined(OS_CHROMEOS)
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   // Returns the Android build's codename.
   static std::string GetAndroidBuildCodename();
 
