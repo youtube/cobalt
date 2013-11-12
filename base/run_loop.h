@@ -11,7 +11,7 @@
 #include "base/message_loop.h"
 
 namespace base {
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 class MessagePumpForUI;
 #endif
 
@@ -27,12 +27,12 @@ class MessagePumpUIApplication;
 class BASE_EXPORT RunLoop {
  public:
   RunLoop();
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
   explicit RunLoop(MessageLoop::Dispatcher* dispatcher);
 #endif
   ~RunLoop();
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
   void set_dispatcher(MessageLoop::Dispatcher* dispatcher) {
     dispatcher_ = dispatcher;
   }
@@ -74,7 +74,7 @@ class BASE_EXPORT RunLoop {
 
  private:
   friend class ::MessageLoop;
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   // Android doesn't support the blocking MessageLoop::Run, so it calls
   // BeforeRun and AfterRun directly.
   friend class base::MessagePumpForUI;
@@ -98,7 +98,7 @@ class BASE_EXPORT RunLoop {
   // Parent RunLoop or NULL if this is the top-most RunLoop.
   RunLoop* previous_run_loop_;
 
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
   MessageLoop::Dispatcher* dispatcher_;
 #endif
 

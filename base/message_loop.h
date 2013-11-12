@@ -26,13 +26,13 @@
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
 // really just eliminate.
 #include "base/message_pump_win.h"
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "base/message_pump_shell.h"
 #elif defined(OS_IOS)
 #include "base/message_pump_io_ios.h"
 #elif defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
 
 #if defined(USE_AURA) && defined(USE_X11) && !defined(OS_NACL)
 #include "base/message_pump_aurax11.h"
@@ -47,7 +47,7 @@ namespace base {
 class Histogram;
 class RunLoop;
 class ThreadTaskRunnerHandle;
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 class MessagePumpForUI;
 #endif
 }  // namespace base
@@ -85,10 +85,10 @@ class MessagePumpForUI;
 //
 class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   typedef base::MessagePumpShell::Dispatcher Dispatcher;
   typedef base::MessagePumpShell::Observer Observer;
-#elif !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#elif !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
   typedef base::MessagePumpDispatcher Dispatcher;
   typedef base::MessagePumpObserver Observer;
 #endif
@@ -128,7 +128,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // MessagePump implementation for 'TYPE_UI'.
   static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   inline int Size() const { return work_queue_.size() + delayed_work_queue_.size() + deferred_non_nestable_work_queue_.size() + incoming_queue_.size(); }
 #endif
 
@@ -577,7 +577,7 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   void Attach();
 #endif
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined (__LB_ANDROID__)
   // On Android, the UI message loop is handled by Java side. So Run() should
   // never be called. Instead use Start(), which will forward all the native UI
   // events to the Java message loop.
@@ -626,7 +626,7 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   typedef base::MessagePumpForIO::IOHandler IOHandler;
   typedef base::MessagePumpForIO::IOContext IOContext;
   typedef base::MessagePumpForIO::IOObserver IOObserver;
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   typedef base::MessagePumpShell::Watcher Watcher;
   typedef base::MessagePumpShell::FileDescriptorWatcher FileDescriptorWatcher;
   typedef base::MessagePumpShell::IOObserver IOObserver;
@@ -691,7 +691,7 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
     return static_cast<base::MessagePumpForIO*>(pump_.get());
   }
 
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   bool WatchSocket(int sock,
                    bool persistent,
                    Mode mode,
