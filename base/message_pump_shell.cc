@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#if !defined(__LB_ANDROID__)
 #include "message_pump_shell.h"
 #include "base/logging.h"
 
@@ -146,3 +146,4 @@ void MessagePumpShell::Watcher::OnFileCanWriteWithoutBlocking(int fd)
 
 
 } // namespace base
+#endif
