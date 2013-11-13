@@ -47,7 +47,7 @@ namespace base {
 class Histogram;
 class RunLoop;
 class ThreadTaskRunnerHandle;
-#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
+#if defined(OS_ANDROID)
 class MessagePumpForUI;
 #endif
 }  // namespace base
