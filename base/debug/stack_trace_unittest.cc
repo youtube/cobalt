@@ -130,7 +130,7 @@ TEST_F(StackTraceTest, DebugPrintBacktrace) {
   StackTrace().PrintBacktrace();
 }
 
-#if defined(OS_POSIX) && !defined(OS_ANDROID)
+#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)
 #if !defined(OS_IOS) && !defined(__LB_SHELL__)
 MULTIPROCESS_TEST_MAIN(MismatchedMallocChildProcess) {
   char* pointer = new char[10];
