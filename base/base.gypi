@@ -576,6 +576,7 @@
             'sources!': [
               'environment.cc',
               'file_descriptor_shuffle.cc',
+              'file_util_android.cc',
               'file_util_posix.cc',
               'files/file_path_watcher.cc',
               'files/file_path_watcher_kqueue.cc',
