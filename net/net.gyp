@@ -1018,6 +1018,9 @@
             ['exclude', 'disk_cache/']
           ],
           'conditions': [
+            ['"<(target_arch)"=="android"', {
+              'dependencies': ['net_jni_headers',],
+            }],
             ['use_native_http_stack==1', {
               'sources': [
                 'http/shell/http_stream_shell.cc',
@@ -2457,7 +2460,7 @@
         },
       ]
     }],
-    ['OS=="android"', {
+    ['OS=="android" or (OS=="lb_shell" and "<(target_arch)"=="android")', {
       'targets': [
         {
           'target_name': 'net_jni_headers',
