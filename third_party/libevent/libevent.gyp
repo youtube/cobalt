@@ -47,7 +47,7 @@
                 ],
               },
             }],
-            [ 'OS == "android" and _toolset == "target"', {
+            [ '(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target"', {
               # On android, epoll_create(), epoll_ctl(), epoll_wait() and
               # clock_gettime() are all in libc.so, so no need to add
               # epoll_sub.c and link librt.
