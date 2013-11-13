@@ -872,7 +872,7 @@
             'base/x/events_x.cc',
           ],
         }],
-        ['OS=="android"', {
+        ['OS=="android" or (OS=="lb_shell" and "<(target_arch)"=="android")', {
           'sources!': [
             'base/dragdrop/drag_utils.cc',
             'base/dragdrop/drag_utils.h',
@@ -925,7 +925,7 @@
         'ui_unittests.gypi',
       ]},
     ],
-    ['OS=="android"' , {
+    ['OS=="android" or (OS=="lb_shell" and "<(target_arch)"=="android")', {
        'targets': [
          {
            'target_name': 'ui_jni_headers',
