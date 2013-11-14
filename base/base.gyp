@@ -214,8 +214,12 @@
           ],
         }],
         ['OS=="lb_shell"', {
-          'dependencies!': [
-            '../third_party/libevent/libevent.gyp:libevent',
+          'conditions' : [
+            ['target_arch != "android"', {
+              'dependencies!': [
+                '../third_party/libevent/libevent.gyp:libevent'
+              ],
+            }],
           ],
           'conditions': [
             # toolset can be host or target.
@@ -772,8 +776,12 @@
           ],
         }],
         ['OS == "lb_shell"', {
-          'dependencies!': [
-            '../third_party/libevent/libevent.gyp:libevent'
+          'conditions' : [
+            ['target_arch != "android"', {
+              'dependencies!': [
+                '../third_party/libevent/libevent.gyp:libevent'
+              ],
+            }],
           ],
           'sources!': [
             'message_pump_libevent_unittest.cc',

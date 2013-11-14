@@ -607,8 +607,14 @@
             ],
           }],
           [ 'OS=="lb_shell" and target_arch=="android"', {
-            'sources!': [
-              'process_util.cc',
+            'sources/' : [
+              ['exclude', 'message_pump_shell.cc'],
+              ['exclude', 'message_pump_shell.h'],
+              ['exclude', 'process_util.cc'],
+              ['exclude', '<(lbshell_root)/src/object_watcher_shell.cc'],
+              ['exclude', '<(lbshell_root)/src/object_watcher_shell.h'],
+              ['include', 'message_pump_libevent.cc'],
+              ['include', 'message_pump_libevent.h'],
             ],
           }],
         ],
