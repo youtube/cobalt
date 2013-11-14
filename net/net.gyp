@@ -15,7 +15,7 @@
       }, {  # chromeos == 0
         'use_kerberos%': 1,
       }],
-      ['OS=="android"', {
+      ['OS=="android" or (OS=="lb_shell" and target_arch=="android")', {
         # The way the cache uses mmap() is inefficient on some Android devices.
         # If this flag is set, we hackily avoid using mmap() in the disk cache.
         'posix_avoid_mmap%': 1,
@@ -1018,13 +1018,14 @@
             ['exclude', 'disk_cache/']
           ],
           'conditions': [
-            ['"<(target_arch)"=="android"', {
-              'dependencies': ['net_jni_headers',],
+            ['target_arch=="android"', {
               'sources!': [
                 '<(lbshell_root)/src/tcp_client_socket_shell.cc',
                 '<(lbshell_root)/src/tcp_client_socket_shell.h',
               ],
               'sources/': [
+                ['exclude', 'dial/'],
+                ['exclude', 'udp/'],
                 ['include', 'libevent'],
               ],
             }],
@@ -1397,14 +1398,13 @@
             },
           },
         ],
-        ['OS=="android" and _toolset=="target" and android_build_type == 0', {
+        ['OS=="android" or (OS=="lb_shell" and target_arch=="android") and _toolset=="target" and android_build_type == 0', {
           'dependencies': [
              'net_java',
           ],
         }],
-        [ 'OS == "android"', {
+        [ 'OS == "android" or (OS=="lb_shell" and target_arch=="android")', {
             'dependencies': [
-              '../third_party/openssl/openssl.gyp:openssl',
               'net_jni_headers',
             ],
             'sources!': [
@@ -1417,6 +1417,12 @@
             'defines': [
               # These are the features Android doesn't support.
               'ENABLE_MEDIA_CODEC_THEORA',
+            ],
+          },
+        ],
+        [ 'OS == "android"', {
+            'dependencies': [
+              '../third_party/openssl/openssl.gyp:openssl',
             ],
           },
         ],
@@ -1769,7 +1775,7 @@
             'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
-        [ 'OS == "android"', {
+        [ 'OS == "android" or (OS=="lb_shell" and target_arch=="android")', {
           'sources!': [
             # No res_ninit() et al on Android, so this doesn't make a lot of
             # sense.
@@ -1959,7 +1965,7 @@
             ],
           },
         ],
-        ['OS == "android" and gtest_target_type == "shared_library"', {
+        ['OS == "android" or (OS=="lb_shell" and target_arch=="android") and gtest_target_type == "shared_library"', {
           'dependencies': [
             '../testing/android/native_test.gyp:native_test_native_code',
           ]
@@ -1972,6 +1978,15 @@
         ['OS=="lb_shell"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl',
+          ],
+        }],
+        ['OS=="lb_shell" and target_arch=="android"', {
+          'sources!': [
+             'dns/dns_config_service_posix_unittest.cc',
+          ],
+          'sources/': [
+            ['exclude', 'dial/'],
+            ['exclude', 'udp/'],
           ],
         }],
       ],
@@ -2467,7 +2482,7 @@
         },
       ]
     }],
-    ['OS=="android" or (OS=="lb_shell" and "<(target_arch)"=="android")', {
+    ['OS=="android" or (OS=="lb_shell" and target_arch=="android")', {
       'targets': [
         {
           'target_name': 'net_jni_headers',
@@ -2549,7 +2564,7 @@
     # Special target to wrap a gtest_target_type==shared_library
     # net_unittests into an android apk for execution.
     # See base.gyp for TODO(jrg)s about this strategy.
-    ['OS == "android" and gtest_target_type == "shared_library"', {
+    ['OS == "android" or (OS=="lb_shell" and target_arch=="android") and gtest_target_type == "shared_library"', {
       'targets': [
         {
           'target_name': 'net_unittests_apk',
