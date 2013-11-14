@@ -232,7 +232,7 @@ void StreamListenSocket::WatchSocket(WaitState state) {
 #if defined(OS_WIN)
   WSAEventSelect(socket_, socket_event_, FD_ACCEPT | FD_CLOSE | FD_READ);
   watcher_.StartWatching(socket_event_, this);
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StartWatching(socket_, base::MessagePumpShell::WATCH_READ, this);
   wait_state_ = state;
 #elif defined(OS_POSIX)
@@ -246,7 +246,7 @@ void StreamListenSocket::WatchSocket(WaitState state) {
 void StreamListenSocket::UnwatchSocket() {
 #if defined(OS_WIN)
   watcher_.StopWatching();
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StopWatching();
 #elif defined(OS_POSIX)
   watcher_.StopWatchingFileDescriptor();
@@ -285,7 +285,7 @@ void StreamListenSocket::OnObjectSignaled(HANDLE object) {
     Close();
   }
 }
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 // MessageLoop watcher callback.
 void StreamListenSocket::OnObjectSignaled(int object) {
 

@@ -239,7 +239,8 @@ TEST_F(DnsConfigServiceTest, WatchFailure) {
   EXPECT_TRUE(last_config_.Equals(bad_config));
 }
 
-#if (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_WIN)
+#if (defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_ANDROID__)) || \
+    defined(OS_WIN)
 // TODO(szym): This is really an integration test and can time out if HOSTS is
 // huge. http://crbug.com/107810
 TEST_F(DnsConfigServiceTest, FLAKY_GetSystemConfig) {
