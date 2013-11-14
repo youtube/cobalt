@@ -24,7 +24,7 @@
 #include <string>
 #if defined(OS_WIN)
 #include "base/win/object_watcher.h"
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "object_watcher_shell.h"
 #elif defined(OS_POSIX)
 #include "base/message_loop.h"
@@ -49,7 +49,7 @@ class NET_EXPORT StreamListenSocket
     : public base::RefCountedThreadSafe<StreamListenSocket>,
 #if defined(OS_WIN)
       public base::win::ObjectWatcher::Delegate {
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
       public base::steel::ObjectWatcher::Delegate {
 #elif defined(OS_POSIX)
       public MessageLoopForIO::Watcher {
@@ -121,7 +121,7 @@ class NET_EXPORT StreamListenSocket
   virtual void OnObjectSignaled(HANDLE object);
   base::win::ObjectWatcher watcher_;
   HANDLE socket_event_;
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   virtual void OnObjectSignaled(int object);
   base::steel::ObjectWatcher watcher_;
   WaitState wait_state_;
