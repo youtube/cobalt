@@ -214,14 +214,12 @@
           ],
         }],
         ['OS=="lb_shell"', {
-          'conditions' : [
+          'conditions': [
             ['target_arch != "android"', {
               'dependencies!': [
                 '../third_party/libevent/libevent.gyp:libevent'
               ],
             }],
-          ],
-          'conditions': [
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
             # We only want posix_emulation for target builds.
@@ -775,13 +773,9 @@
             'win/win_util_unittest.cc',
           ],
         }],
-        ['OS == "lb_shell"', {
-          'conditions' : [
-            ['target_arch != "android"', {
-              'dependencies!': [
-                '../third_party/libevent/libevent.gyp:libevent'
-              ],
-            }],
+        ['OS == "lb_shell" and target_arch != "android"', {
+          'dependencies!': [
+            '../third_party/libevent/libevent.gyp:libevent'
           ],
           'sources!': [
             'message_pump_libevent_unittest.cc',
