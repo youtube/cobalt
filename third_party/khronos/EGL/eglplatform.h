@@ -83,6 +83,17 @@ typedef int   EGLNativeDisplayType;
 typedef void *EGLNativeWindowType;
 typedef void *EGLNativePixmapType;
 
+// From Android NDK.
+#elif defined(__ANDROID__) || defined(ANDROID)
+
+#include <android/native_window.h>
+
+struct egl_native_pixmap_t;
+
+typedef struct ANativeWindow*           EGLNativeWindowType;
+typedef struct egl_native_pixmap_t*     EGLNativePixmapType;
+typedef void*                           EGLNativeDisplayType;
+
 #elif defined(__unix__)
 
 /* X11 (tentative)  */
@@ -94,16 +105,17 @@ typedef Pixmap   EGLNativePixmapType;
 typedef Window   EGLNativeWindowType;
 
 #elif defined(__APPLE__)
-#ifdef __OBJC__
-@class NSView;
-#else
-struct NSView;
-#endif  // __OBJC__
 
 // TODO(gman): these are place holders.
 typedef void          *EGLNativeDisplayType;
 typedef int            EGLNativePixmapType;
+#ifdef __OBJC__
+@class NSView;
+typedef NSView *EGLNativeWindowType;
+#else
+struct NSView;
 typedef struct NSView *EGLNativeWindowType;
+#endif  // __OBJC__
 
 #else
 #error "Platform not recognized"
