@@ -401,7 +401,8 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   base::MessagePumpWin* pump_win() {
     return static_cast<base::MessagePumpWin*>(pump_.get());
   }
-#elif defined(OS_POSIX) && !defined(OS_IOS) && !defined(__LB_SHELL__)
+#elif defined(OS_POSIX) && !defined(OS_IOS) && \
+      (!defined(__LB_SHELL__) || defined(__LB_ANDROID__))
   base::MessagePumpLibevent* pump_libevent() {
     return static_cast<base::MessagePumpLibevent*>(pump_.get());
   }
