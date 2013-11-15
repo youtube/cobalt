@@ -91,9 +91,10 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 
   // Now get the IPAddress of the network card.
   SockaddrStorage sock_addr;
-  ret |= LB::Platform::GetLocalIpAddress(&sock_addr.addr_storage.sin_addr);
-  sock_addr.addr_storage.sin_family = AF_INET;
-  sock_addr.addr_storage.sin_port = htons(addr->port());
+  struct sockaddr_in *in = (struct sockaddr_in *)sock_addr.addr;
+  ret |= LB::Platform::GetLocalIpAddress(&in->sin_addr);
+  in->sin_family = AF_INET;
+  in->sin_port = htons(addr->port());
 
   return (ret == 0 && addr->FromSockAddr(sock_addr.addr, sock_addr.addr_len))
       ? OK : ERR_FAILED;
