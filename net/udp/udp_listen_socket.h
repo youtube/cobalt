@@ -27,13 +27,14 @@
 #include <list>
 #include <string>
 
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "object_watcher_shell.h"
 #endif
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/base/ip_endpoint.h"
 
@@ -44,11 +45,11 @@ typedef int SocketDescriptor;
 namespace net {
 
 class NET_EXPORT UDPListenSocket
-    : public base::RefCountedThreadSafe<UDPListenSocket>,
-#if defined(__LB_SHELL__)
-      public base::steel::ObjectWatcher::Delegate {
+    : public base::RefCountedThreadSafe<UDPListenSocket>
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+    , public base::steel::ObjectWatcher::Delegate
 #endif
-
+{
  public:
   class NET_EXPORT Delegate {
    public:
@@ -86,8 +87,8 @@ class NET_EXPORT UDPListenSocket
   bool send_error_;
   scoped_array<char> buffer_;
 
-#if defined(__LB_SHELL__)
-  virtual void OnObjectSignaled(int object);
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
+  virtual void OnObjectSignaled(int object) OVERRIDE;
   base::steel::ObjectWatcher watcher_;
 #endif
 

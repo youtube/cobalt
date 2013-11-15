@@ -131,13 +131,18 @@ void UDPListenSocket::Read() {
 }
 
 void UDPListenSocket::WatchSocket() {
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StartWatching(socket_, base::MessagePumpShell::WATCH_READ, this);
+#endif
 }
 
 void UDPListenSocket::UnwatchSocket() {
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   watcher_.StopWatching();
+#endif
 }
 
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 void UDPListenSocket::OnObjectSignaled(int object) {
   // Object watcher removes the object when it gets signaled, so start watching
   // again.
@@ -145,5 +150,6 @@ void UDPListenSocket::OnObjectSignaled(int object) {
 
   Read();
 }
+#endif
 
 } // namespace net

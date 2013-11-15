@@ -1025,7 +1025,6 @@
               ],
               'sources/': [
                 ['exclude', 'dial/'],
-                ['exclude', 'udp/'],
                 ['include', 'libevent'],
               ],
             }],
@@ -1986,7 +1985,6 @@
           ],
           'sources/': [
             ['exclude', 'dial/'],
-            ['exclude', 'udp/'],
           ],
         }],
       ],
