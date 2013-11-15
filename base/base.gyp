@@ -154,6 +154,14 @@
             'base_java',
           ],
         }],
+        ['OS == "lb_shell" and target_arch == "android"', {
+          'link_settings': {
+            'libraries': [
+              # for android_getCpuCount
+              '-lportable',
+            ],
+          },
+        }],
         ['os_bsd==1', {
           'include_dirs': [
             '/usr/local/include',
