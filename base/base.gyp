@@ -790,6 +790,11 @@
             'process_util_unittest.cc',
           ],
         }],
+        ['OS == "lb_shell" and target_arch == "android"', {
+          'sources!': [
+            'process_util_unittest.cc',
+          ],
+        }],
       ],  # conditions
       'target_conditions': [
         ['OS == "ios"', {
