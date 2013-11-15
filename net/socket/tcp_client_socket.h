@@ -10,7 +10,7 @@
 
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 #include "tcp_client_socket_shell.h"
 #elif defined(OS_POSIX)
 #include "net/socket/tcp_client_socket_libevent.h"
@@ -21,7 +21,7 @@ namespace net {
 // A client socket that uses TCP as the transport layer.
 #if defined(OS_WIN)
 typedef TCPClientSocketWin TCPClientSocket;
-#elif defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
 typedef TCPClientSocketShell TCPClientSocket;
 #elif defined(OS_POSIX)
 typedef TCPClientSocketLibevent TCPClientSocket;

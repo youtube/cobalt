@@ -27,7 +27,8 @@
 #if defined(OS_MACOSX)
 #include "base/message_pump_mac.h"
 #endif
-#if defined(OS_POSIX) && !defined(OS_IOS) && !defined(__LB_SHELL__)
+#if defined(OS_POSIX) && !defined(OS_IOS) && \
+    (!defined(__LB_SHELL__) || defined(__LB_ANDROID__))
 #include "base/message_pump_libevent.h"
 #endif
 #if defined(OS_ANDROID) || defined(__LB_ANDROID__)
@@ -815,7 +816,7 @@ bool MessageLoopForIO::WatchFileDescriptor(int fd,
       delegate);
 }
 
-#elif defined(OS_POSIX) && !defined(OS_NACL) && !defined(__LB_ANDROID__)
+#elif defined(OS_POSIX) && !defined(OS_NACL)
 
 bool MessageLoopForIO::WatchFileDescriptor(int fd,
                                            bool persistent,
