@@ -539,6 +539,7 @@ bool MockHttpCache::WriteResponseInfo(
 bool MockHttpCache::OpenBackendEntry(const std::string& key,
                                      disk_cache::Entry** entry) {
   net::TestCompletionCallback cb;
+  if (!disk_cache()) return false;
   int rv = disk_cache()->OpenEntry(key, entry, cb.callback());
   return (cb.GetResult(rv) == net::OK);
 }
@@ -547,6 +548,7 @@ bool MockHttpCache::CreateBackendEntry(const std::string& key,
                                        disk_cache::Entry** entry,
                                        net::NetLog* net_log) {
   net::TestCompletionCallback cb;
+  if (!disk_cache()) return false;
   int rv = disk_cache()->CreateEntry(key, entry, cb.callback());
   return (cb.GetResult(rv) == net::OK);
 }

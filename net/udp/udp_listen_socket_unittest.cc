@@ -4,6 +4,8 @@
 
 #include "net/udp/udp_listen_socket.h"
 
+#include <netinet/in.h>
+
 #include "base/message_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -24,9 +26,10 @@ using ::testing::StrEq;
 SocketDescriptor GetSocketBoundToRandomPort() {
   SocketDescriptor s = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   SockaddrStorage src_addr;
-  src_addr.addr_storage.sin_family = AF_INET;
-  src_addr.addr_storage.sin_port = htons(0);
-  src_addr.addr_storage.sin_addr.s_addr = INADDR_ANY;
+  struct sockaddr_in *in = (struct sockaddr_in *)src_addr.addr;
+  in->sin_family = AF_INET;
+  in->sin_port = htons(0);
+  in->sin_addr.s_addr = INADDR_ANY;
   ::bind(s, src_addr.addr, src_addr.addr_len);
   SetNonBlocking(s);
   return s;
