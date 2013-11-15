@@ -1020,6 +1020,13 @@
           'conditions': [
             ['"<(target_arch)"=="android"', {
               'dependencies': ['net_jni_headers',],
+              'sources!': [
+                '<(lbshell_root)/src/tcp_client_socket_shell.cc',
+                '<(lbshell_root)/src/tcp_client_socket_shell.h',
+              ],
+              'sources/': [
+                ['include', 'libevent'],
+              ],
             }],
             ['use_native_http_stack==1', {
               'sources': [
