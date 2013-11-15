@@ -13,9 +13,6 @@
 #elif defined(OS_POSIX)
 #include <sys/types.h>
 #include <sys/socket.h>
-#if defined (__LB_SHELL__)
-#include <netinet/in.h>
-#endif
 #endif
 
 #include <list>
@@ -113,7 +110,6 @@ NET_EXPORT std::string GetHostAndPort(const GURL& url);
 // if it is the default for the URL's scheme.
 NET_EXPORT_PRIVATE std::string GetHostAndOptionalPort(const GURL& url);
 
-#if !defined(__LB_SHELL__)
 // Convenience struct for when you need a |struct sockaddr|.
 struct SockaddrStorage {
   SockaddrStorage() : addr_len(sizeof(addr_storage)),
@@ -122,18 +118,6 @@ struct SockaddrStorage {
   socklen_t addr_len;
   struct sockaddr* const addr;
 };
-#else
-// socaddr_storage above is determined to have a size of 1. make the type
-// more explicit, as we only ever support ipv4 anyway
-struct SockaddrStorage {
-  SockaddrStorage() : addr_len(sizeof(sockaddr_in)),
-                      addr(reinterpret_cast<struct sockaddr*>(&addr_storage)) {}
-  struct sockaddr_in addr_storage;
-  socklen_t addr_len;
-  struct sockaddr* const addr;
-};
-#endif
-
 
 // Extracts the IP address and port portions of a sockaddr. |port| is optional,
 // and will not be filled in if NULL.
