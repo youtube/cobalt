@@ -28,9 +28,10 @@ const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   SockaddrStorage any_addr;
-  any_addr.addr_storage.sin_family = AF_INET;
-  any_addr.addr_storage.sin_port = htons(port);
-  any_addr.addr_storage.sin_addr.s_addr = INADDR_ANY;
+  struct sockaddr_in *in = (struct sockaddr_in *)any_addr.addr;
+  in->sin_family = AF_INET;
+  in->sin_port = htons(port);
+  in->sin_addr.s_addr = INADDR_ANY;
 
   IPEndPoint addr;
   ignore_result(addr.FromSockAddr(any_addr.addr, any_addr.addr_len));
