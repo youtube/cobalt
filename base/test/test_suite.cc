@@ -32,7 +32,7 @@
 #endif  // OS_IOS
 #endif  // OS_MACOSX
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include "base/test/test_support_android.h"
 #endif
 
@@ -259,7 +259,7 @@ void TestSuite::Initialize() {
   InitIOSTestMessageLoop();
 #endif  // OS_IOS
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   InitAndroidTest();
 #else
   // Initialize logging.

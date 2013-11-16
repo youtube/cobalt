@@ -14,7 +14,7 @@
 #include "net/spdy/spdy_session.h"
 #endif
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID)  || defined(__LB_ANDROID__)
 #include "base/android/jni_android.h"
 #include "net/android/net_jni_registrar.h"
 #endif
@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder::Initialize();
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   // Register JNI bindings for android. Doing it early as the test suite setup
   // may initiate a call to Java.
   net::android::RegisterJni(base::android::AttachCurrentThread());
