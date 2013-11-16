@@ -155,8 +155,10 @@ static void RunTests(JNIEnv* env,
                      jobject obj,
                      jstring jfiles_dir,
                      jobject app_context) {
+#if !defined(__LB_ANDROID__)
+  // Our MainHook creates this.
   base::AtExitManager exit_manager;
-
+#endif
   // Command line initialized basically, will be fully initialized later.
   static const char* const kInitialArgv[] = { "ChromeTestActivity" };
   CommandLine::Init(arraysize(kInitialArgv), kInitialArgv);
@@ -201,6 +203,8 @@ static void RunTests(JNIEnv* env,
     CreateFIFO(stdin_fifo_path.value().c_str());
   }
 
+// FIXME: This seems to be crashing for LB_ANDROID.
+#if !defined(__LB_ANDROID__)
   // Only redirect the streams after all fifos have been created.
   Redirect(stdout, fifo_path.value().c_str(), "w");
   if (!stdin_fifo_path.empty())
@@ -209,6 +213,7 @@ static void RunTests(JNIEnv* env,
     Redirect(stderr, stderr_fifo_path.value().c_str(), "w");
   else
     dup2(STDOUT_FILENO, STDERR_FILENO);
+#endif
 
   if (command_line.HasSwitch(switches::kWaitForDebugger)) {
     std::string msg = StringPrintf("Native test waiting for GDB because "
