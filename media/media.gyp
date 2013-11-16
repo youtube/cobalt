@@ -456,6 +456,7 @@
             '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
           ],
           'sources/': [
+          ['exclude', 'android'],
           # media is not excluding windows sources automatically.
           # forcibly exclude them.
           ['exclude', 'win'],
@@ -1063,7 +1064,7 @@
                 'yuv_convert_simd_x86',
               ],
             }],
-            [ 'target_arch == "arm" or target_arch == "mipsel"', {
+            [ 'target_arch == "arm" or target_arch == "mipsel" or (OS == "lb_shell" and target_arch == "android")', {
               'dependencies': [
                 'yuv_convert_simd_c',
               ],
