@@ -11,6 +11,13 @@
   -->
   <target name="Debug" depends="debug"/>
   <target name="Release" depends="release"/>
+  <!-- __LB_SHELL__
+    Map LbShell configurations into Android build system configurations
+  -->
+  <target name="Android_Debug" depends="debug"/>
+  <target name="Android_Devel" depends="debug"/>
+  <target name="Android_QA" depends="debug"/>
+  <target name="Android_Gold" depends="release"/>
   <target name="error">
     <fail message="CONFIGURATION_NAME should be passed as a target to ant."/>
   </target>
@@ -38,14 +45,18 @@
     semicolon-delimited while ADDITIONAL_RES_PACKAGES is space-delimited, hence
     the javascript task.
   -->
+
   <path id="project.library.res.folder.path">
     <filelist files="${ADDITIONAL_RES_DIRS}"/>
   </path>
+  <!-- __LB_SHELL__
+    javascript isn't supported in stock Apache Ant(TM) version 1.8.2
+    so we are going to disable this section for now.
   <script language="javascript">
     var before = project.getProperty("ADDITIONAL_RES_PACKAGES");
     project.setProperty("project.library.packages", before.replaceAll(" ", ";"));
   </script>
-
+  -->
   <property-value name="target.abi" value="${APP_ABI}"/>
   <property name="resource.absolute.dir" value="${RESOURCE_DIR}"/>
   <property-value name="gen.absolute.dir" value="${out.dir}/gen"/>
