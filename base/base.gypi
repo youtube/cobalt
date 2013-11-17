@@ -610,11 +610,13 @@
             'sources/' : [
               ['exclude', 'message_pump_shell.cc'],
               ['exclude', 'message_pump_shell.h'],
+              ['exclude', 'native_library_shell.cc'],
               ['exclude', 'process_util.cc'],
               ['exclude', '<(lbshell_root)/src/object_watcher_shell.cc'],
               ['exclude', '<(lbshell_root)/src/object_watcher_shell.h'],
               ['include', 'message_pump_libevent.cc'],
               ['include', 'message_pump_libevent.h'],
+              ['include', 'native_library_posix.cc'],
             ],
           }],
         ],
