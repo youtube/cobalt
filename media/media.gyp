@@ -1372,7 +1372,7 @@
         },
       ],
     }],
-    ['OS == "android"', {
+    ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
       'targets': [
          {
           'target_name': 'media_player_jni_headers',
