@@ -28,7 +28,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include "base/android/jni_android.h"
 #endif
 
@@ -63,7 +63,7 @@ void* ThreadFunc(void* params) {
     base::ThreadRestrictions::SetSingletonAllowed(false);
   delete thread_params;
   delegate->ThreadMain();
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   base::android::DetachFromVM();
 #endif
   return NULL;
