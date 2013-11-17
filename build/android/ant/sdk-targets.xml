@@ -130,7 +130,11 @@
   <property name="build.is.signing.debug" value="false"/>
 
   <!-- TODO(cjhopman): Remove this property when all gyp files define the CHROMIUM_SRC property. -->
-  <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../.." />
+  <!-- __LB_SHELL__
+    The path needs to be adjusted since LbShell is using a different directory
+    configuration.
+  -->
+  <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../../../external/chromium" />
 
   <property name="key.store" value="${CHROMIUM_SRC}/build/android/ant/chromium-debug.keystore"/>
   <property name="key.store.password" value="chromium"/>

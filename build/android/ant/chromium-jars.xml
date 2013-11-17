@@ -73,7 +73,14 @@
       ${javac_includes_message}
     </echo>
 
+    <!-- __LB_SHELL__
+      Android SDK build toolchain doesn't support Java 1.7 so we force
+      the source and target versions to 1.6. Failure to do will result
+      in .class files that can't be parsed by the dexer.
+    -->
     <javac
+        source="1.6"
+        target="1.6"
         srcdir="${javac.srcdir}"
         destdir="${dest.dir}"
         classpathref="javac.custom.classpath"

@@ -78,6 +78,13 @@
     'additional_res_dirs': [],
     'additional_res_packages': [],
     'is_test_apk%': 0,
+    'conditions' : [
+      ['OS == "lb_shell" and target_arch == "android"', {
+        'chromium_src_dir' : '<(ant_build_out)/../../../external/chromium',
+      },{
+        'chromium_src_dir' : '<(ant_build_out)/../..',
+      }],
+    ],
   },
   'sources': [
       '<@(native_libs_paths)'
@@ -153,7 +160,7 @@
         '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
         '-DANDROID_SDK_VERSION=<(android_sdk_version)',
         '-DANDROID_TOOLCHAIN=<(android_toolchain)',
-        '-DCHROMIUM_SRC=<(ant_build_out)/../..',
+        '-DCHROMIUM_SRC=<(chromium_src_dir)',
         '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '-DPRODUCT_DIR=<(ant_build_out)',
 
