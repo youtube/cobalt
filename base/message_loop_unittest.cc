@@ -849,7 +849,7 @@ void RunTest_RecursiveDenial3(MessageLoop::Type message_loop_type) {
   EXPECT_EQ(order.Get(5), TaskItem(RECURSIVE, 1, false));
   EXPECT_EQ(order.Get(6), TaskItem(ORDERED, 3, true));
   EXPECT_EQ(order.Get(7), TaskItem(ORDERED, 3, false));
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
   if (message_loop_type == MessageLoop::TYPE_DEFAULT) {
   // lbshell messagepump gives delayed tasks higher priority, which causes
   // the process order to be a bit different. the messagepump src code is in
@@ -860,7 +860,7 @@ void RunTest_RecursiveDenial3(MessageLoop::Type message_loop_type) {
     EXPECT_EQ(order.Get(9), TaskItem(RECURSIVE, 2, false));
     EXPECT_EQ(order.Get(10), TaskItem(QUITMESSAGELOOP, 4, true));
     EXPECT_EQ(order.Get(11), TaskItem(QUITMESSAGELOOP, 4, false));
-#if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__)  && !defined(__LB_ANDROID__)
   } else {
     EXPECT_EQ(order.Get(8), TaskItem(QUITMESSAGELOOP, 4, true));
     EXPECT_EQ(order.Get(9), TaskItem(QUITMESSAGELOOP, 4, false));
