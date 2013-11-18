@@ -191,6 +191,39 @@ bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
   return (SizeAlign(size) <= LargestFreeSpace_Locked());
 }
 
+scoped_refptr<ShellBuffer> ShellBufferFactory::AllocateBufferNow(
+    size_t size, scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+  filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                             kEventBufferAllocationRequest);
+  // Zero-size buffers are allocation error, allocate an EOS buffer explicity
+  // with the provided EOS method.
+  if (size == 0) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventBufferAllocationError);
+    return NULL;
+  }
+  size_t aligned_size = SizeAlign(size);
+  if (aligned_size > kShellMaxBufferSize) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventBufferAllocationError);
+    return NULL;
+  }
+  base::AutoLock lock(lock_);
+  if (aligned_size > LargestFreeSpace_Locked()) {
+    filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                               kEventBufferAllocationError);
+    return NULL;
+  }
+  scoped_refptr<ShellBuffer> buffer =
+      new ShellBuffer(AllocateLockAcquired(aligned_size),
+                      size, filter_graph_log);
+  filter_graph_log->LogEvent(kObjectIdBufferFactory,
+                             kEventBufferAllocationSuccess);
+  DCHECK(!buffer->IsEndOfStream());
+
+  return buffer;
+}
+
 uint8* ShellBufferFactory::AllocateNow(size_t size) {
   size_t aligned_size = SizeAlign(size);
   uint8* bytes = NULL;
