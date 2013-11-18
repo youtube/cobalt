@@ -232,11 +232,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
                               aac.GetOutputSamplesPerSecond(has_sbr_),
-#if defined(__LB_XB1__)
-                              aac.raw_data().data(), aac.raw_data().size(),
-#else  // defined(__LB_XB1__)
+#if defined(__LB_XB1__) || defined(__LB_ANDROID__)
+                              &aac.raw_data().front(), aac.raw_data().size(),
+#else  // defined(__LB_XB1__) || defined(__LB_ANDROID__)
                               NULL, 0,
-#endif  // defined(__LB_XB1__)
+#endif  // defined(__LB_XB1__) || defined(__LB_ANDROID__)
                               is_audio_track_encrypted_, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;

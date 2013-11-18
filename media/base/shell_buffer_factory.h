@@ -178,6 +178,12 @@ class MEDIA_EXPORT ShellBufferFactory
   // Returns true if a ShellBuffer of this size could be allocated without
   // waiting for some other buffer to be released.
   bool HasRoomForBufferNow(size_t size);
+  // This function tries to allocate a ShellBuffer immediately. It returns NULL
+  // on failure.
+  // Provide a filter_graph_log object for the factory to log creation and
+  // destruction of this buffer in.
+  scoped_refptr<ShellBuffer> AllocateBufferNow(
+      size_t size, scoped_refptr<ShellFilterGraphLog> filter_graph_log);
   // Returns a newly allocated byte field if there's room for it, or NULL if
   // there isn't. Note that this raw allocation method provides no guarantee
   // that ShellBufferFactory will still exist when the memory is to be freed.

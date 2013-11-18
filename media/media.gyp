@@ -1374,7 +1374,7 @@
     }],
     ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
       'targets': [
-         {
+        {
           'target_name': 'media_player_jni_headers',
           'type': 'none',
           'variables': {
@@ -1391,6 +1391,8 @@
             'media_player_jni_headers',
           ],
           'sources': [
+            'base/android/java/src/org/chromium/media/AudioTrackBridge.java',
+            'base/android/java/src/org/chromium/media/MediaCodecBridge.java',
             'base/android/java/src/org/chromium/media/MediaPlayerBridge.java',
             'base/android/java/src/org/chromium/media/MediaPlayerListener.java',
           ],
@@ -1403,6 +1405,10 @@
           'target_name': 'player_android',
           'type': 'static_library',
           'sources': [
+            'base/android/audio_track_bridge.cc',
+            'base/android/audio_track_bridge.h',
+            'base/android/media_codec_bridge.cc',
+            'base/android/media_codec_bridge.h',
             'base/android/media_jni_registrar.cc',
             'base/android/media_jni_registrar.h',
             'base/android/media_player_bridge.cc',
