@@ -81,7 +81,7 @@
               ['exclude', '_nss\\.cc$'],
             ],
         }],
-        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "host"', {
+        ['OS == "android" and _toolset == "host"', {
           # Base for host support is the minimum required to run the
           # ssl false start blacklist tool. It requires further changes
           # to generically support host builds (and tests).
