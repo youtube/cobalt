@@ -231,7 +231,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   } else {
     // We don't need new data from the renderer, but this will ping the
     // renderer and update the timer
-#if defined(__LB_WIIU__)
+#if defined(__LB_WIIU__) || defined(__LB_ANDROID__)
     render_callback_->Render(NULL, buffered_time);  // TODO(***REMOVED***)
 #endif
   }
@@ -243,7 +243,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     rebuffering_ = false;
   }
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__)
+#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_ANDROID__)
   if (*total_frames < config.underflow_threshold) {
     if (!rebuffering_) {
       rebuffering_ = true;
@@ -373,6 +373,12 @@ bool ShellAudioSink::CreateSinkAudioBus(uint32 target_frames_per_channel) {
 
   CopyAudioBus(&new_audio_bus);
   clock_bias_frames_ += output_frame_cursor_;
+  // TODO(***REMOVED***) : The decoder/renderer relies on that the size of the
+  // buffer passed to them is exactly 1024 frames to work properly. The
+  // following operation will break this as output_frame_cursor_ maybe not be
+  // exactly multiple times of 1024. This problem can be avoided by either fix
+  // the code or ensure that the audio bus begins with the maximum buffer size
+  // possible.
   render_frame_cursor_ -= output_frame_cursor_;
   output_frame_cursor_ = 0;
 
