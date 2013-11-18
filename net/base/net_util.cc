@@ -1788,7 +1788,7 @@ COMPILE_ASSERT(arraysize(kFinalStatusNames) == IPV6_SUPPORT_MAX + 1,
 // TODO(jar): The following is a simple estimate of IPv6 support.  We may need
 // to do a test resolution, and a test connection, to REALLY verify support.
 IPv6SupportResult TestIPv6SupportInternal() {
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_ANDROID__)
   // TODO: We should fully implement IPv6 probe once 'getifaddrs' API available;
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.
