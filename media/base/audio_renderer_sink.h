@@ -62,7 +62,7 @@ class MEDIA_EXPORT AudioRendererSink
   virtual void Initialize(const AudioParameters& params,
                           RenderCallback* callback,
                           ShellFilterGraphLog* filter_graph_log) = 0;
-#elif  // defined(__LB_SHELL__)
+#else  // defined(__LB_SHELL__)
   // Sets important information about the audio stream format.
   // It must be called before any of the other methods.
   virtual void Initialize(const AudioParameters& params,
