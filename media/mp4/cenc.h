@@ -21,8 +21,8 @@ struct FrameCENCInfo {
 
   FrameCENCInfo();
   ~FrameCENCInfo();
-  bool Parse(int iv_size, BufferReader* r);
-  size_t GetTotalSizeOfSubsamples() const;
+  bool Parse(int iv_size, BufferReader* r) WARN_UNUSED_RESULT;
+  bool GetTotalSizeOfSubsamples(size_t* total_size) const WARN_UNUSED_RESULT;
 };
 
 
