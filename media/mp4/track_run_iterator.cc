@@ -429,9 +429,10 @@ scoped_ptr<DecryptConfig> TrackRunIterator::GetDecryptConfig() {
   const FrameCENCInfo& cenc_info = cenc_info_[sample_idx];
   DCHECK(is_encrypted() && !AuxInfoNeedsToBeCached());
 
+  size_t total_size = 0;
   if (!cenc_info.subsamples.empty() &&
-      (cenc_info.GetTotalSizeOfSubsamples() !=
-       static_cast<size_t>(sample_size()))) {
+      (!cenc_info.GetTotalSizeOfSubsamples(&total_size) ||
+       total_size != static_cast<size_t>(sample_size()))) {
     MEDIA_LOG(log_cb_) << "Incorrect CENC subsample size.";
     return scoped_ptr<DecryptConfig>();
   }
