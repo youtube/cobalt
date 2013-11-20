@@ -3,15 +3,14 @@
 // found in the LICENSE file.
 
 // This class sets up the environment for running the native tests inside an
-// android application. It outputs (to a fifo) markers identifying the
-// START/PASSED/CRASH of the test suite, FAILURE/SUCCESS of individual tests,
-// etc.
+// android application. It outputs (to logcat) markers identifying the
+// START/END/CRASH of the test suite, FAILURE/SUCCESS of individual tests etc.
 // These markers are read by the test runner script to generate test results.
-// It installs signal handlers to detect crashes.
+// It injects an event listener in gtest to detect various test stages and
+// installs signal handlers to detect crashes.
 
 #include <android/log.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 
 #include "base/android/base_jni_registrar.h"
@@ -37,19 +36,8 @@ extern int main(int argc, char** argv);
 
 namespace {
 
-// These two command line flags are supported for DumpRenderTree, which needs
-// three fifos rather than a combined one: one for stderr, stdin and stdout.
-const char kSeparateStderrFifo[] = "separate-stderr-fifo";
-const char kCreateStdinFifo[] = "create-stdin-fifo";
-
-const char kLogTag[] = "chromium";
-const char kCrashedMarker[] = "[ CRASHED      ]\n";
-
-void AndroidLogError(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  __android_log_vprint(ANDROID_LOG_ERROR, kLogTag, format, args);
-  va_end(args);
+void log_write(int level, const char* msg) {
+  __android_log_write(level, "chromium", msg);
 }
 
 // The list of signals which are considered to be crashes.
@@ -60,14 +48,13 @@ const int kExceptionSignals[] = {
 struct sigaction g_old_sa[NSIG];
 
 // This function runs in a compromised context. It should not allocate memory.
-void SignalHandler(int sig, siginfo_t* info, void* reserved) {
+void SignalHandler(int sig, siginfo_t *info, void *reserved)
+{
   // Output the crash marker.
-  write(STDOUT_FILENO, kCrashedMarker, sizeof(kCrashedMarker));
+  log_write(ANDROID_LOG_ERROR, "[ CRASHED      ]");
   g_old_sa[sig].sa_sigaction(sig, info, reserved);
 }
 
-// TODO(nileshagrawal): now that we're using FIFO, test scripts can detect EOF.
-// Remove the signal handlers.
 void InstallHandlers() {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -116,36 +103,70 @@ int ArgsToArgv(const std::vector<std::string>& args,
   return argc;
 }
 
-void CreateFIFO(const char* fifo_path) {
-  unlink(fifo_path);
-  // Default permissions for mkfifo is ignored, chmod is required.
-  if (mkfifo(fifo_path, 0666) || chmod(fifo_path, 0666)) {
-    AndroidLogError("Failed to create fifo %s: %s\n",
-                    fifo_path, strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-}
-
-void Redirect(FILE* stream, const char* path, const char* mode) {
-  if (!freopen(path, mode, stream)) {
-    AndroidLogError("Failed to redirect stream to file: %s: %s\n",
-                    path, strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-}
-
-class ScopedMainEntryLogger {
+// As we are the native side of an Android app, we don't have any 'console', so
+// gtest's standard output goes nowhere.
+// Instead, we inject an "EventListener" in gtest and then we print the results
+// using LOG, which goes to adb logcat.
+class AndroidLogPrinter : public ::testing::EmptyTestEventListener {
  public:
-  ScopedMainEntryLogger() {
-    printf(">>ScopedMainEntryLogger\n");
-  }
+  void Init(int* argc, char** argv);
 
-  ~ScopedMainEntryLogger() {
-    printf("<<ScopedMainEntryLogger\n");
-    fflush(stdout);
-    fflush(stderr);
-  }
+  // EmptyTestEventListener
+  virtual void OnTestProgramStart(
+      const ::testing::UnitTest& unit_test) OVERRIDE;
+  virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE;
+  virtual void OnTestPartResult(
+      const ::testing::TestPartResult& test_part_result) OVERRIDE;
+  virtual void OnTestEnd(const ::testing::TestInfo& test_info) OVERRIDE;
+  virtual void OnTestProgramEnd(const ::testing::UnitTest& unit_test) OVERRIDE;
 };
+
+void AndroidLogPrinter::Init(int* argc, char** argv) {
+  // InitGoogleTest must be called befure we add ourselves as a listener.
+  ::testing::InitGoogleTest(argc, argv);
+  ::testing::TestEventListeners& listeners =
+      ::testing::UnitTest::GetInstance()->listeners();
+  // Adds a listener to the end.  Google Test takes the ownership.
+  listeners.Append(this);
+}
+
+void AndroidLogPrinter::OnTestProgramStart(
+    const ::testing::UnitTest& unit_test) {
+  std::string msg = StringPrintf("[ START      ] %d",
+                                 unit_test.test_to_run_count());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
+}
+
+void AndroidLogPrinter::OnTestStart(const ::testing::TestInfo& test_info) {
+  std::string msg = StringPrintf("[ RUN      ] %s.%s",
+                                 test_info.test_case_name(), test_info.name());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
+}
+
+void AndroidLogPrinter::OnTestPartResult(
+    const ::testing::TestPartResult& test_part_result) {
+  std::string msg = StringPrintf(
+      "%s in %s:%d\n%s\n",
+      test_part_result.failed() ? "*** Failure" : "Success",
+      test_part_result.file_name(),
+      test_part_result.line_number(),
+      test_part_result.summary());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
+}
+
+void AndroidLogPrinter::OnTestEnd(const ::testing::TestInfo& test_info) {
+  std::string msg = StringPrintf("%s %s.%s",
+      test_info.result()->Failed() ? "[  FAILED  ]" : "[       OK ]",
+      test_info.test_case_name(), test_info.name());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
+}
+
+void AndroidLogPrinter::OnTestProgramEnd(
+    const ::testing::UnitTest& unit_test) {
+  std::string msg = StringPrintf("[ END      ] %d",
+         unit_test.successful_test_count());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
+}
 
 }  // namespace
 
@@ -169,6 +190,12 @@ static void RunTests(JNIEnv* env,
   base::android::InitApplicationContext(scoped_context);
   base::android::RegisterJni(env);
 
+  FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
+  // A few options, such "--gtest_list_tests", will just use printf directly
+  // and won't use the "AndroidLogPrinter". Redirect stdout to a known file.
+  FilePath stdout_path(files_dir.Append(FilePath("stdout.txt")));
+  freopen(stdout_path.value().c_str(), "w", stdout);
+
   std::vector<std::string> args;
   ParseArgsFromCommandLineFile(&args);
 
@@ -176,54 +203,22 @@ static void RunTests(JNIEnv* env,
   std::vector<char*> argv;
   int argc = ArgsToArgv(args, &argv);
 
+  // This object is owned by gtest.
+  AndroidLogPrinter* log = new AndroidLogPrinter();
+  log->Init(&argc, &argv[0]);
+
   // Fully initialize command line with arguments.
   CommandLine::ForCurrentProcess()->AppendArguments(
       CommandLine(argc, &argv[0]), false);
   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
-
-  FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
-
-  // A few options, such "--gtest_list_tests", will just use printf directly
-  // Always redirect stdout to a known file.
-  FilePath fifo_path(files_dir.Append(FilePath("test.fifo")));
-  CreateFIFO(fifo_path.value().c_str());
-
-  FilePath stderr_fifo_path, stdin_fifo_path;
-
-  // DumpRenderTree needs a separate fifo for the stderr output. For all
-  // other tests, insert stderr content to the same fifo we use for stdout.
-  if (command_line.HasSwitch(kSeparateStderrFifo)) {
-    stderr_fifo_path = files_dir.Append(FilePath("stderr.fifo"));
-    CreateFIFO(stderr_fifo_path.value().c_str());
-  }
-
-  // DumpRenderTree uses stdin to receive input about which test to run.
-  if (command_line.HasSwitch(kCreateStdinFifo)) {
-    stdin_fifo_path = files_dir.Append(FilePath("stdin.fifo"));
-    CreateFIFO(stdin_fifo_path.value().c_str());
-  }
-
-// FIXME: This seems to be crashing for LB_ANDROID.
-#if !defined(__LB_ANDROID__)
-  // Only redirect the streams after all fifos have been created.
-  Redirect(stdout, fifo_path.value().c_str(), "w");
-  if (!stdin_fifo_path.empty())
-    Redirect(stdin, stdin_fifo_path.value().c_str(), "r");
-  if (!stderr_fifo_path.empty())
-    Redirect(stderr, stderr_fifo_path.value().c_str(), "w");
-  else
-    dup2(STDOUT_FILENO, STDERR_FILENO);
-#endif
-
   if (command_line.HasSwitch(switches::kWaitForDebugger)) {
     std::string msg = StringPrintf("Native test waiting for GDB because "
                                    "flag %s was supplied",
                                    switches::kWaitForDebugger);
-    __android_log_write(ANDROID_LOG_VERBOSE, kLogTag, msg.c_str());
+    log_write(ANDROID_LOG_VERBOSE, msg.c_str());
     base::debug::WaitForDebugger(24 * 60 * 60, false);
   }
 
-  ScopedMainEntryLogger scoped_main_entry_logger;
   main(argc, &argv[0]);
 }
 
