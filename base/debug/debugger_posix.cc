@@ -256,7 +256,8 @@ void BreakDebugger() {
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
   DEBUG_BREAK();
-#if defined(OS_ANDROID) && !defined(OFFICIAL_BUILD)
+#if (defined(OS_ANDROID) && !defined(OFFICIAL_BUILD)) || \
+    (defined(__LB_ANDROID__) && !defined(__LB_SHELL__FOR_RELEASE__))
   // For Android development we always build release (debug builds are
   // unmanageably large), so the unofficial build is used for debugging. It is
   // helpful to be able to insert BreakDebugger() statements in the source,
