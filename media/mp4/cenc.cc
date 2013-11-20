@@ -42,12 +42,16 @@ bool FrameCENCInfo::Parse(int iv_size, BufferReader* reader) {
   return true;
 }
 
-size_t FrameCENCInfo::GetTotalSizeOfSubsamples() const {
+bool FrameCENCInfo::GetTotalSizeOfSubsamples(size_t* total_size) const {
   size_t size = 0;
   for (size_t i = 0; i < subsamples.size(); i++) {
-    size += subsamples[i].clear_bytes + subsamples[i].cypher_bytes;
+    size += subsamples[i].clear_bytes;
+    RCHECK(size >= subsamples[i].clear_bytes);  // overflow
+    size += subsamples[i].cypher_bytes;
+    RCHECK(size >= subsamples[i].cypher_bytes);  // overflow
   }
-  return size;
+  *total_size = size;
+  return true;
 }
 
 }  // namespace mp4
