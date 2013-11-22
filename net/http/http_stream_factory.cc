@@ -79,10 +79,14 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   }
 
   if (protocol == ALTERNATE_PROTOCOL_BROKEN) {
+    // This warning is not important for LbShell so we are going to disable it
+    // since it produces considerable console spam
+#if !defined(__LB_SHELL__)
     // Currently, we only recognize the npn-spdy protocol.
     DLOG(WARNING) << kAlternateProtocolHeader
                   << " header has unrecognized protocol: "
                   << port_protocol_vector[1];
+#endif
     return;
   }
 
