@@ -135,11 +135,14 @@
     configuration.
   -->
   <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../../../external/chromium" />
-
-  <property name="key.store" value="${CHROMIUM_SRC}/build/android/ant/chromium-debug.keystore"/>
-  <property name="key.store.password" value="chromium"/>
-  <property name="key.alias" value="chromiumdebugkey"/>
-  <property name="key.alias.password" value="chromium"/>
+  <property name="LBSHELL_SRC" value="${PRODUCT_DIR}/../../../lbshell" />
+  <!-- __LB_SHELL__
+      Use our custom key for signing debug packages.
+  -->
+  <property name="key.store" value="${LBSHELL_SRC}/build/lbshell-debug.keystore"/>
+  <property name="key.store.password" value="lbshell"/>
+  <property name="key.alias" value="lbshelldebugkey"/>
+  <property name="key.alias.password" value="lbshell"/>
 
   <!-- SDK tools assume that out.packaged.file is signed and name it "...-unaligned" -->
   <property name="out.packaged.file"
