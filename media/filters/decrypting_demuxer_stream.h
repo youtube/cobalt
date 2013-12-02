@@ -46,6 +46,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
 #if defined(__LB_SHELL__)
   virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
   virtual bool StreamWasEncrypted() const OVERRIDE;
+  virtual Decryptor* GetDecryptor() const OVERRIDE { return decryptor_; }
 #endif
 
  protected:

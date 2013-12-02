@@ -14,6 +14,7 @@ namespace media {
 
 class AudioDecoderConfig;
 #if defined(__LB_SHELL__)
+class Decryptor;
 class ShellBuffer;
 class ShellFilterGraphLog;
 #else
@@ -84,6 +85,8 @@ class MEDIA_EXPORT DemuxerStream
 
   // Returns true if the content was encrypted at some point
   virtual bool StreamWasEncrypted() const = 0;
+
+  virtual Decryptor* GetDecryptor() const { return NULL; }
 #endif
 
  protected:
