@@ -8,6 +8,9 @@
 #include <list>
 #include <string>
 
+#if defined(__LB_ANDROID__)
+#include "base/android/scoped_java_ref.h"
+#endif
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -223,6 +226,12 @@ class MEDIA_EXPORT Decryptor {
   // After this operation, the decoder is set to an uninitialized state.
   // The decoder can be reinitialized after it is uninitialized.
   virtual void DeinitializeDecoder(StreamType stream_type) = 0;
+
+#if defined(__LB_ANDROID__)
+  virtual base::android::ScopedJavaLocalRef<jobject> GetMediaCrypto() {
+    return base::android::ScopedJavaLocalRef<jobject>();
+  }
+#endif
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Decryptor);
