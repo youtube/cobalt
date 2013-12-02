@@ -117,11 +117,11 @@ void ShellAudioSink::Stop() {
   filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventStop);
 
   if (audio_streamer_->HasStream(this)) {
+    audio_streamer_->RemoveStream(this);
     pause_requested_ = true;
     rebuffering_ = true;
     render_frame_cursor_ = 0;
     output_frame_cursor_ = 0;
-    audio_streamer_->RemoveStream(this);
   }
 }
 
