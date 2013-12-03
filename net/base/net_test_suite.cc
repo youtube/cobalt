@@ -60,7 +60,7 @@ void NetTestSuite::InitializeTestThread() {
 }
 
 void NetTestSuite::InitializeTestThreadNoNetworkChangeNotifier() {
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
   host_resolver_proc_ = new net::RuleBasedHostResolverProc(NULL);
   scoped_host_resolver_proc_.Init(host_resolver_proc_.get());
   // In case any attempts are made to resolve host names, force them all to
