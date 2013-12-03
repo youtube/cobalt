@@ -8,7 +8,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
 #include "net/base/mock_host_resolver.h"
 #endif
 class MessageLoop;
@@ -47,7 +47,7 @@ class NetTestSuite : public base::TestSuite {
  private:
   scoped_ptr<net::NetworkChangeNotifier> network_change_notifier_;
   scoped_ptr<MessageLoop> message_loop_;
-#if !defined(__LB_ENABLE_NATIVE_HTTP_STACK__)
+#if !__LB_ENABLE_NATIVE_HTTP_STACK__
   scoped_refptr<net::RuleBasedHostResolverProc> host_resolver_proc_;
   net::ScopedDefaultHostResolverProc scoped_host_resolver_proc_;
 #endif
