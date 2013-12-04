@@ -300,7 +300,7 @@ TEST_F(ShellRBSPStreamTest, ReadUEVTooLarge) {
   ASSERT_EQ(uev, 43689);
   // as should the second call
   ASSERT_TRUE(uev_too_big.ReadUEV(uev));
-  ASSERT_EQ(uev, 2147483648);
+  ASSERT_EQ(uev, 2147483648u);
   // third should fail
   ASSERT_FALSE(uev_too_big.ReadUEV(uev));
 }
