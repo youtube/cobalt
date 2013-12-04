@@ -20,8 +20,14 @@ bool WaitForDebugger(int wait_seconds, bool silent) {
 #endif
   for (int i = 0; i < wait_seconds * 10; ++i) {
     if (BeingDebugged()) {
-      if (!silent)
+      if (!silent) {
+#if defined(__LB_ANDROID__)
+        // Hack around a race condition where the debugger is still attaching
+        // and isn't ready to catch the trap thrown by BreakDebugger yet.
+        PlatformThread::Sleep(TimeDelta::FromSeconds(5));
+#endif
         BreakDebugger();
+      }
       return true;
     }
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
