@@ -136,7 +136,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
   MOCK_METHOD0(samples_per_second, int(void));
   MOCK_METHOD1(Reset, void(const base::Closure&));
-#if defined(__LB_WIIU__) || defined(__LB_LINUX__)
+#if defined(__LB_WIIU__) || defined(__LB_LINUX__) || defined(__LB_ANDROID__)
   MOCK_METHOD2(ReadInto, void(media::AudioBus*, const ReadCB&));
 #endif
 
