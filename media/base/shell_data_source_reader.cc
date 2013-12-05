@@ -51,21 +51,40 @@ int ShellDataSourceReader::BlockingRead(int64 position, int size, uint8 *data) {
     return 0;
   }
 
-  data_source_->Read(position,
-                     size,
-                     data,
-                     blocking_read_cb_);
+  int total_bytes_read = 0;
+  while (size > 0) {
+    data_source_->Read(position,
+                       size,
+                       data,
+                       blocking_read_cb_);
 
-  // wait for callback on read completion
-  blocking_read_event_.Wait();
+    // wait for callback on read completion
+    blocking_read_event_.Wait();
 
-  if (last_bytes_read_ == DataSource::kReadError) {
-    // make all future reads fail
-    read_has_failed_ = true;
-    return kReadError;
+    if (last_bytes_read_ == DataSource::kReadError) {
+      // make all future reads fail
+      read_has_failed_ = true;
+      return kReadError;
+    }
+
+    DCHECK_LE(last_bytes_read_, size);
+    if (last_bytes_read_ > size) {
+      // make all future reads fail
+      read_has_failed_ = true;
+      return kReadError;
+    }
+
+    // Avoid entering an endless loop here.
+    if (last_bytes_read_ == 0)
+      break;
+
+    total_bytes_read += last_bytes_read_;
+    position += last_bytes_read_;
+    size -= last_bytes_read_;
+    data += last_bytes_read_;
   }
 
-  return last_bytes_read_;
+  return total_bytes_read;
 }
 
 void ShellDataSourceReader::Stop(const base::Closure& callback) {
