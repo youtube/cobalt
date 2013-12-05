@@ -532,7 +532,8 @@
         'conditions': [
           ['target_arch=="xb1"', {
             'dependencies' : [
-              '../third_party/modp_b64/modp_b64.gyp:modp_b64'
+              '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+              '<(lbshell_root)/build/projects/shell_scheme_handler.gyp:shell_scheme_handler',
             ],
             'msvs_settings': {
               'VCCLCompilerTool': {
