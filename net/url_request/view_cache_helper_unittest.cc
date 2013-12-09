@@ -16,6 +16,21 @@ namespace net {
 
 namespace {
 
+// Disk cache is turned off in lb_shell (http_cache.cc:CreateBackend())
+// The following cases which are using backend cache should be disabled:
+// ListContents, DumpEntry, Prefix, and TruncatedFlag
+#if defined(__LB_SHELL__)
+#define MAYBE_ListContents DISABLED_ListContents
+#define MAYBE_DumpEntry DISABLED_DumpEntry
+#define MAYBE_Prefix DISABLED_Prefix
+#define MAYBE_TruncatedFlag DISABLED_TruncatedFlag
+#else
+#define MAYBE_ListContents ListContents
+#define MAYBE_DumpEntry DumpEntry
+#define MAYBE_Prefix Prefix
+#define MAYBE_TruncatedFlag TruncatedFlag
+#endif
+
 class TestURLRequestContext : public URLRequestContext {
  public:
   TestURLRequestContext();
@@ -112,7 +127,7 @@ TEST(ViewCacheHelper, EmptyCache) {
   EXPECT_FALSE(data.empty());
 }
 
-TEST(ViewCacheHelper, ListContents) {
+TEST(ViewCacheHelper, MAYBE_ListContents) {
   TestURLRequestContext context;
   ViewCacheHelper helper;
 
@@ -134,7 +149,7 @@ TEST(ViewCacheHelper, ListContents) {
   EXPECT_EQ(std::string::npos, data.find("thing"));
 }
 
-TEST(ViewCacheHelper, DumpEntry) {
+TEST(ViewCacheHelper, MAYBE_DumpEntry) {
   TestURLRequestContext context;
   ViewCacheHelper helper;
 
@@ -159,7 +174,7 @@ TEST(ViewCacheHelper, DumpEntry) {
 }
 
 // Makes sure the links are correct.
-TEST(ViewCacheHelper, Prefix) {
+TEST(ViewCacheHelper, MAYBE_Prefix) {
   TestURLRequestContext context;
   ViewCacheHelper helper;
 
@@ -178,7 +193,7 @@ TEST(ViewCacheHelper, Prefix) {
   EXPECT_NE(std::string::npos, data.find("<a href=\"prefix:third\">"));
 }
 
-TEST(ViewCacheHelper, TruncatedFlag) {
+TEST(ViewCacheHelper, MAYBE_TruncatedFlag) {
   TestURLRequestContext context;
   ViewCacheHelper helper;
 
