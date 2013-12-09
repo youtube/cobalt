@@ -36,6 +36,19 @@ using base::Time;
 
 namespace {
 
+// Disk cache is turned off in lb_shell (http_cache.cc:CreateBackend())
+// The following cases which are using backend cache should be disabled:
+// GetBackend, SimpleGET_DoomWithPending, and RangeGET_LargeValues
+#if defined(__LB_SHELL__)
+#define MAYBE_GetBackend DISABLED_GetBackend
+#define MAYBE_SimpleGET_DoomWithPending DISABLED_SimpleGET_DoomWithPending
+#define MAYBE_RangeGET_LargeValues DISABLED_RangeGET_LargeValues
+#else
+#define MAYBE_GetBackend GetBackend
+#define MAYBE_SimpleGET_DoomWithPending SimpleGET_DoomWithPending
+#define MAYBE_RangeGET_LargeValues RangeGET_LargeValues
+#endif
+
 class DeleteCacheCompletionCallback : public net::TestCompletionCallbackBase {
  public:
   explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
@@ -481,7 +494,7 @@ TEST(HttpCache, CreateThenDestroy) {
   ASSERT_TRUE(trans.get());
 }
 
-TEST(HttpCache, GetBackend) {
+TEST(HttpCache, MAYBE_GetBackend) {
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(0));
 
   disk_cache::Backend* backend;
@@ -1135,7 +1148,7 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
 // Tests that we can doom an entry with pending transactions and delete one of
 // the pending transactions before the first one completes.
 // See http://code.google.com/p/chromium/issues/detail?id=25588
-TEST(HttpCache, SimpleGET_DoomWithPending) {
+TEST(HttpCache, MAYBE_SimpleGET_DoomWithPending) {
   // We need simultaneous doomed / not_doomed entries so let's use a real cache.
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(1024 * 1024));
 
@@ -3654,7 +3667,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
 }
 
 // Tests that we handle large range values properly.
-TEST(HttpCache, RangeGET_LargeValues) {
+TEST(HttpCache, MAYBE_RangeGET_LargeValues) {
   // We need a real sparse cache for this test.
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(1024 * 1024));
   std::string headers;

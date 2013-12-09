@@ -10,6 +10,13 @@
 
 namespace net {
 
+// lbshell doesn't have mappings from mime to file extension
+#if defined(__LB_SHELL__)
+#define MAYBE_TestGetExtensionsForMimeType DISABLED_TestGetExtensionsForMimeType
+#else
+#define MAYBE_TestGetExtensionsForMimeType TestGetExtensionsForMimeType
+#endif
+
 TEST(MimeUtilTest, ExtensionTest) {
   const struct {
     const FilePath::CharType* extension;
@@ -233,7 +240,7 @@ TEST(MimeUtilTest, TestToIANAMediaType) {
   EXPECT_EQ("video", GetIANAMediaType("video/H261"));
 }
 
-TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
+TEST(MimeUtilTest, MAYBE_TestGetExtensionsForMimeType) {
   const struct {
     const char* mime_type;
     size_t min_expected_size;
