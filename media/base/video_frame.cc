@@ -137,9 +137,10 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(const gfx::Size& size) {
 
 #if defined(__LB_SHELL__)
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreatePunchOutFrame() {
+scoped_refptr<VideoFrame> VideoFrame::CreatePunchOutFrame(
+    const gfx::Size& size) {
   scoped_refptr<VideoFrame> frame(new VideoFrame(
-      VideoFrame::PUNCH_OUT, gfx::Size(), gfx::Rect(), gfx::Size(),
+      VideoFrame::PUNCH_OUT, gfx::Size(size), gfx::Rect(size), gfx::Size(size),
       base::TimeDelta()));
   return frame;
 }
