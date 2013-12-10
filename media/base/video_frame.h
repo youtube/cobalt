@@ -132,7 +132,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Allocates a punch out frame with all stats set to 0.
   // When rendered, the frame will cause a hole to be punched out discarding
   // everything that was rendered underneath it
-  static scoped_refptr<VideoFrame> CreatePunchOutFrame();
+  static scoped_refptr<VideoFrame> CreatePunchOutFrame(const gfx::Size& size);
 #endif
 
   Format format() const { return format_; }
