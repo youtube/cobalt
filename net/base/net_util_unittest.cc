@@ -25,6 +25,17 @@ namespace net {
 
 namespace {
 
+#if defined(__LB_SHELL__)
+// lbshell changes file scheme to local
+// url_canon_fileurl.cc:DoCanonicalizeFileURL()
+#define MAYBE_FileURLConversion DISABLED_FileURLConversion
+// lbshell doesn't have mappings from mime to file extension.
+#define MAYBE_GenerateSafeFileName DISABLED_GenerateSafeFileName
+#else
+#define MAYBE_FileURLConversion FileURLConversion
+#define MAYBE_GenerateSafeFileName GenerateSafeFileName
+#endif
+
 static const size_t kNpos = string16::npos;
 
 struct FileCase {
@@ -503,7 +514,7 @@ void RunGenerateFileNameTestCase(const GenerateFilenameCase* test_case,
 
 }  // anonymous namespace
 
-TEST(NetUtilTest, FileURLConversion) {
+TEST(NetUtilTest, MAYBE_FileURLConversion) {
   // a list of test file names and the corresponding URLs
   const FileCase round_trip_cases[] = {
 #if defined(OS_WIN)
@@ -824,7 +835,7 @@ TEST(NetUtilTest, StripWWW) {
 #define TAR_EXT L".tar"
 #endif
 
-TEST(NetUtilTest, GenerateSafeFileName) {
+TEST(NetUtilTest, MAYBE_GenerateSafeFileName) {
   const struct {
     const char* mime_type;
     const FilePath::CharType* filename;
