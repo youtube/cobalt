@@ -42,8 +42,6 @@
 #include "net/proxy/proxy_resolver_mac.h"
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
-#elif defined(__LB_SHELL__)
-#include "chromium/net/proxy/proxy_config_service_shell.h" // in the platform library
 #elif defined(OS_ANDROID)
 #include "net/proxy/proxy_config_service_android.h"
 #endif
@@ -1364,12 +1362,13 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
       static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;
-#elif defined(__LB_SHELL__)
-  return new ProxyConfigServiceShell();
 #elif defined(OS_ANDROID)
   return new ProxyConfigServiceAndroid(
       io_thread_task_runner,
       MessageLoop::current()->message_loop_proxy());
+#elif defined(__LB_SHELL__)
+  // Only reachable in unit tests.
+  return new ProxyConfigServiceDirect();
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
