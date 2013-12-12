@@ -301,9 +301,9 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
   return base::TimeDelta::FromMilliseconds(1000);
 }
 #if defined(__LB_ANDROID__)
-// We only need a maximum of 33 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
+// We only need a maximum of 66 MB of buffering for 4k.
+static const int kDefaultAudioMemoryLimit = 6 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 60 * 1024 * 1024;
 #elif defined(__LB_LINUX__)
 // We only need a maximum of 33 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
