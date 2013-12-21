@@ -803,7 +803,7 @@ TEST(P224, Addition) {
 
   p224::Negate(b, &minus_b);
   p224::Add(a, b, &sum);
-  EXPECT_TRUE(memcmp(&sum, &a, sizeof(sum) != 0));
+  EXPECT_TRUE(memcmp(&sum, &a, sizeof(sum)) != 0);
   p224::Add(minus_b, sum, &a_again);
   EXPECT_TRUE(a_again.ToString() == a.ToString());
 }
