@@ -1392,6 +1392,7 @@
             'media_player_jni_headers',
           ],
           'sources': [
+            'base/android/java/src/org/chromium/media/AudioFocusBridge.java',
             'base/android/java/src/org/chromium/media/AudioTrackBridge.java',
             'base/android/java/src/org/chromium/media/MediaCodecBridge.java',
             'base/android/java/src/org/chromium/media/MediaDrmBridge.java',
@@ -1407,6 +1408,8 @@
           'target_name': 'player_android',
           'type': 'static_library',
           'sources': [
+            'base/android/audio_focus_bridge.cc',
+            'base/android/audio_focus_bridge.h',
             'base/android/audio_track_bridge.cc',
             'base/android/audio_track_bridge.h',
             'base/android/media_codec_bridge.cc',
