@@ -942,6 +942,16 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 
+#if defined(__LB_SHELL__)
+#if defined(__cplusplus_winrt)
+// Support for logging C++/CX strings. This function must be inlined because
+// the Chromium library is not compiled with C++/CX extensions enabled.
+inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
+  return out << std::wstring(str->Begin(), str->End());
+}
+#endif
+#endif
+
 // The NOTIMPLEMENTED() macro annotates codepaths which have
 // not been implemented yet.
 //
