@@ -217,8 +217,8 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
 // Synchronous waiting on multiple objects.
 
 static bool  // StrictWeakOrdering
-cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
-             const std::pair<WaitableEvent*, unsigned> &b) {
+cmp_fst_addr(const std::pair<WaitableEvent*, size_t> &a,
+             const std::pair<WaitableEvent*, size_t> &b) {
   return a.first < b.first;
 }
 
