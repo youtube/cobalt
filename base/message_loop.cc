@@ -100,7 +100,7 @@ MessageLoop::MessagePumpFactory* message_pump_for_ui_factory_ = NULL;
 // with MessageLoop pointers on other processes.
 uint64 GetTaskTraceID(const PendingTask& task, MessageLoop* loop) {
   return (static_cast<uint64>(task.sequence_num) << 32) |
-         static_cast<uint64>(reinterpret_cast<intptr_t>(loop));
+         ((static_cast<uint64>(reinterpret_cast<intptr_t>(loop)) << 32) >> 32);
 }
 
 }  // namespace
