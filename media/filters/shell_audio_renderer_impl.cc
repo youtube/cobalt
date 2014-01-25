@@ -240,8 +240,8 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   int channels = ChannelLayoutToChannelCount(channel_layout);
   // TODO(***REMOVED***) : Find a proper way to check native channel support here,
   // including proper way to determinate if 5.1 or 7.1 is present.
-  if (channels != 1 && channels != 2) {
-    DLOG(WARNING) << "we only support 1 and 2 channel audio";
+  if (channels != 1 && channels != 2 && channels != 6) {
+    DLOG(WARNING) << "we only support 1, 2 and 6 channel audio";
     init_cb_.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
