@@ -332,6 +332,11 @@ static const char* const common_media_codecs[] = {
 
   "avc1",
   "mp4a",
+
+#if defined(__LB_PS4__)
+  "aac51",
+#endif  // defined(__LB_PS4__)
+
 #endif  // !defined(__LB_SHELL__)
 };
 
