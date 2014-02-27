@@ -330,8 +330,11 @@ LoadState HttpTransactionShell::GetLoadState() const {
 // Returns the upload progress in bytes.  If there is no upload data,
 // zero will be returned.  This does not include the request headers.
 UploadProgress HttpTransactionShell::GetUploadProgress() const {
-  NOTIMPLEMENTED();
-  return UploadProgress();
+  if (!request_->upload_data_stream)
+    return UploadProgress();
+
+  return UploadProgress(request_->upload_data_stream->position(),
+                        request_->upload_data_stream->size());
 }
 
 int HttpTransactionShell::ResolveProxy() {
