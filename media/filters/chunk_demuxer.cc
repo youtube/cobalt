@@ -19,9 +19,7 @@
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
 #include "media/mp4/mp4_stream_parser.h"
 #endif
-#if !defined(__LB_SHELL__)
 #include "media/webm/webm_stream_parser.h"
-#endif
 
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
@@ -46,12 +44,17 @@ struct SupportedTypeInfo {
   const CodecInfo** codecs;
 };
 
-#if !defined(__LB_SHELL__)
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
+#if defined(__LB_SHELL__)
+static const CodecInfo kVP9CodecInfo = { "vp9", DemuxerStream::VIDEO };
+#endif  // defined(__LB_SHELL__)
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
 
 static const CodecInfo* kVideoWebMCodecs[] = {
   &kVP8CodecInfo,
+#if defined(__LB_SHELL__)
+  &kVP9CodecInfo,
+#endif  // defined(__LB_SHELL__)
   &kVorbisCodecInfo,
   NULL
 };
@@ -64,7 +67,6 @@ static const CodecInfo* kAudioWebMCodecs[] = {
 static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
 }
-#endif
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
 static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
@@ -98,8 +100,8 @@ static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs) {
 #endif
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
-#if !defined(__LB_SHELL__)
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
+#if !defined(__LB_SHELL__)
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
 #endif
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)

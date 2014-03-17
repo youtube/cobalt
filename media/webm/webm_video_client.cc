@@ -163,4 +163,3 @@ bool WebMVideoClient::OnFloat(int id, double val) {
 }
 
 }  // namespace media
-
