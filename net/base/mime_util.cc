@@ -280,12 +280,18 @@ static const char* const common_media_types[] = {
   // Wav.
   "audio/wav",
   "audio/x-wav",
-#else
+#else  // !defined(__LB_SHELL__)
+
+#if defined(__LB_ANDROID__) || defined(__LB_PS4__)
+  // WebM.
+  "video/webm",
+#endif  // defined(__LB_ANDROID__) || defined(__LB_PS4__)
+
   // currently lbshell supports flv and mp4
   "video/mp4",
   "audio/mp4",
   "video/x-flv",
-#endif
+#endif  // !defined(__LB_SHELL__)
 };
 
 // List of proprietary types only supported by Google Chrome.
@@ -318,10 +324,15 @@ static const char* const common_media_codecs[] = {
   "vorbis",
   "vp8",
   "1"  // WAVE_FORMAT_PCM.
-#else
+#else  // !defined(__LB_SHELL__)
+
+#if defined(__LB_ANDROID__) || defined(__LB_PS4__)
+  "vp9",
+#endif  // defined(__LB_ANDROID__) || defined(__LB_PS4__)
+
   "avc1",
   "mp4a",
-#endif
+#endif  // !defined(__LB_SHELL__)
 };
 
 // List of proprietary codecs only supported by Google Chrome.
