@@ -129,4 +129,3 @@ bool WebMAudioClient::OnFloat(int id, double val) {
 }
 
 }  // namespace media
-
