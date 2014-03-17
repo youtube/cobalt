@@ -9,6 +9,9 @@
 #include "base/logging.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decrypt_config.h"
+#if defined(__LB_SHELL__)
+#include "media/base/shell_filter_graph_log.h"
+#endif
 #include "media/webm/webm_constants.h"
 
 namespace media {
@@ -23,11 +26,20 @@ static std::string GenerateCounterBlock(const uint8* iv, int iv_size) {
   return counter_block;
 }
 
+#if defined(__LB_SHELL__)
+WebMClusterParser::WebMClusterParser(
+    int64 timecode_scale, int audio_track_num, int video_track_num,
+    const std::string& audio_encryption_key_id,
+    const std::string& video_encryption_key_id,
+    const LogCB& log_cb,
+    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+#else
 WebMClusterParser::WebMClusterParser(
     int64 timecode_scale, int audio_track_num, int video_track_num,
     const std::string& audio_encryption_key_id,
     const std::string& video_encryption_key_id,
     const LogCB& log_cb)
+#endif
     : timecode_multiplier_(timecode_scale / 1000.0),
       audio_encryption_key_id_(audio_encryption_key_id),
       video_encryption_key_id_(video_encryption_key_id),
@@ -40,7 +52,12 @@ WebMClusterParser::WebMClusterParser(
       cluster_ended_(false),
       audio_(audio_track_num),
       video_(video_track_num),
+#if defined(__LB_SHELL__)
+      log_cb_(log_cb),
+      filter_graph_log_(filter_graph_log) {
+#else
       log_cb_(log_cb) {
+#endif
 }
 
 WebMClusterParser::~WebMClusterParser() {}
@@ -226,7 +243,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   // http://www.matroska.org/technical/specs/index.html
   bool is_keyframe = (flags & 0x80) != 0;
   scoped_refptr<StreamParserBuffer> buffer =
-      StreamParserBuffer::CopyFrom(data, size, is_keyframe);
+      StreamParserBuffer::CopyFrom(data, size, is_keyframe, filter_graph_log_);
 
   // Every encrypted Block has a signal byte and IV prepended to it. Current
   // encrypted WebM request for comments specification is here

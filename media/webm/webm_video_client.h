@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
-#define MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
+#ifndef MEDIA_WEBM_WEBM_VIDEO_CLIENT_H_
+#define MEDIA_WEBM_WEBM_VIDEO_CLIENT_H_
 
 #include <string>
 #include <vector>
@@ -58,5 +58,4 @@ class WebMVideoClient : public WebMParserClient {
 
 }  // namespace media
 
-#endif  // MEDIA_FORMATS_WEBM_WEBM_VIDEO_CLIENT_H_
-
+#endif  // MEDIA_WEBM_WEBM_VIDEO_CLIENT_H_

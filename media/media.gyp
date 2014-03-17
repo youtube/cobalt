@@ -449,10 +449,6 @@
             'filters/ffmpeg_h264_to_annex_b_bitstream_converter.h',
             'filters/ffmpeg_video_decoder.cc',
             'filters/ffmpeg_video_decoder.h',
-            'webm/webm_cluster_parser.cc',
-            'webm/webm_cluster_parser.h',
-            'webm/webm_stream_parser.cc',
-            'webm/webm_stream_parser.h',
           ],
         }],
         ['OS == "lb_shell"', {
