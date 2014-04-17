@@ -324,6 +324,10 @@ static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
 // We only need a maximum of 18 MB of buffering for 1080p.
 static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
+#elif defined(__LB_XB360__)
+// We only need a maximum of 18 MB of buffering for 1080p.
+static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
+static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
 #else
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.

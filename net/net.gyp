@@ -968,11 +968,6 @@
           'include_dirs': [
             '<(lbshell_root)/src/platform/<(target_arch)/chromium',
           ],
-          'msvs_settings': {
-            'VCCLCompilerTool': {
-              'ComponentExtensions': 'true'
-            },
-          },
           'sources': [
             'base/file_stream_metrics_shell.cc',
             'base/file_stream_context_shell.cc',
@@ -1027,6 +1022,13 @@
                 ['exclude', 'dial/'],
                 ['include', 'libevent'],
               ],
+            }],
+            ['target_arch=="xb1"', {
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'ComponentExtensions': 'true'
+                },
+              },
             }],
             ['use_native_http_stack==1', {
               'sources': [

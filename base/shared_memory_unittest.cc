@@ -343,7 +343,7 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   }
 }
 
-#if defined(OS_POSIX) && !defined(__LB_XB1__)
+#if defined(OS_POSIX) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
 // Create a shared memory object, mmap it, and mprotect it to PROT_EXEC.
 TEST(SharedMemoryTest, AnonymousExecutable) {
   const uint32 kTestSize = 1 << 16;

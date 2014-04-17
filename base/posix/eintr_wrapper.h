@@ -12,7 +12,8 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX) && !defined(__LB_WIIU__) && !defined(__LB_XB1__)
+#if defined(OS_POSIX) && !defined(__LB_WIIU__) && !defined(__LB_XB1__) && \
+    !defined(__LB_XB360__)
 
 #include <errno.h>
 

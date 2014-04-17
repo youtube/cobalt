@@ -30,7 +30,7 @@
 #ifndef BASE_THIRD_PARTY_NSPR_PRCPUCFG_H__
 #define BASE_THIRD_PARTY_NSPR_PRCPUCFG_H__
 
-#if defined(WIN32) || defined (__LB_XB1__)
+#if defined(WIN32) || defined (__LB_XB1__) || defined(__LB_XB360__)
 #include "base/third_party/nspr/prcpucfg_win.h"
 #elif defined(__APPLE__)
 #include "base/third_party/nspr/prcpucfg_mac.h"

@@ -53,6 +53,10 @@ static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
 #elif defined(__LB_XB1__)
 static const int kShellBufferAlignment = 16;
 static const int kShellBufferSpaceSize = 33 * 1024 * 1024;
+#elif defined(__LB_XB360__)
+// TODO(***REMOVED***): Determine more appropriate values for the Xbox 360
+static const int kShellBufferAlignment = 128;
+static const int kShellBufferSpaceSize = 48 * 1024 * 1024;
 #else
 #error please define ShellBuffer constants for your platform.
 #endif
