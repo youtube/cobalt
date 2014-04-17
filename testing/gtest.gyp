@@ -168,7 +168,7 @@
                   'GTEST_USE_OWN_TR1_TUPLE=1',
                 ],
               }],
-              ['target_arch=="xb1"', {
+              ['target_arch=="xb1" or target_arch=="xb360"', {
                 'gtest_defines' : [
                   '_VARIADIC_MAX=10',
                 ],

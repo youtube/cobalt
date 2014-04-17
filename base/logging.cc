@@ -68,7 +68,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include <android/log.h>
 #endif
 
-#ifdef __LB_XB1__
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
 #undef MAX_PATH
 #include <Windows.h>
 #undef MAX_PATH
