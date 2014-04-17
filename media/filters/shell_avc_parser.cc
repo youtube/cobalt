@@ -58,11 +58,11 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     if (au->AddPrepend())
       memcpy(prepend_buffer, video_prepend_, video_prepend_size_);
   } else if (au->GetType() == DemuxerStream::AUDIO) {
-#if defined(__LB_XB1__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
     // We use raw AAC instead of ADTS on XB1.
     DCHECK(audio_prepend_.empty());
     return true;
-#endif  // defined(__LB_XB1__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
     if (audio_prepend_.empty())  // valid ADTS header not available
       return false;
     // audio, need to copy ADTS header and then add buffer size
@@ -481,22 +481,22 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_[4] = 0;
   audio_prepend_[5] &= 0x1f;
 
-#if defined(__LB_XB1__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
   // We use raw AAC instead of ADTS on XB1.
   audio_prepend_.clear();
-#endif  // defined(__LB_XB1__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
 
   audio_config_.Initialize(kCodecAAC,
                            16,   // AAC is always 16 bit
                            aac.channel_layout(),
                            aac.GetOutputSamplesPerSecond(false),
-#if defined(__LB_XB1__) || defined(__LB_ANDROID__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
                            &aac.raw_data().front(),
                            aac.raw_data().size(),
-#else  // defined(__LB_XB1__) || defined(__LB_ANDROID__)
+#else  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
                            NULL,
                            0,
-#endif  // defined(__LB_XB1__) || defined(__LB_ANDROID__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
                            false,
                            false);
 }
