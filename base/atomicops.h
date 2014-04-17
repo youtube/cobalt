@@ -31,6 +31,13 @@
 #include "base/basictypes.h"
 #include "build/build_config.h"
 
+#if defined(__LB_XB360__)
+// TODO(iffy): See if there is a way to globally undef this. This is #defined in
+// ppcintrinsics.h, which is ultimately included from many of the
+// xbox-360-specific headers.
+#undef MemoryBarrier
+#endif
+
 namespace base {
 namespace subtle {
 

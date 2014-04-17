@@ -67,7 +67,7 @@
 #include "base/third_party/nspr/prtime.h"
 #include "build/build_config.h"
 
-#if defined(OS_WIN) || defined(__LB_XB1__)
+#if defined(OS_WIN) || defined(__LB_XB1__) || defined(__LB_XB360__)
 #include <windows.h>
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
@@ -103,7 +103,7 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     // This is important, we want to make sure multiplications are
     // done with the correct precision.
     static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
-#if defined(OS_WIN) || defined(__LB_XB1__)
+#if defined(OS_WIN) || defined(__LB_XB1__) || defined(__LB_XB360__)
    // Create the system struct representing our exploded time.
     SYSTEMTIME st = {0};
     FILETIME ft = {0};
