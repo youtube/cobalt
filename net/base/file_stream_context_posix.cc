@@ -41,7 +41,7 @@
 #define lseek lseek64
 #endif
 
-#if defined(__LB_XB1__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
 #define off_t __int64
 #define lseek _lseeki64
 #endif

@@ -24,7 +24,7 @@ int HexDigitsPrefix(const char* buf, int num_digits) {
   return 1;
 }
 
-#if defined(WIN32) || defined(__LB_XB1__)
+#if defined(WIN32) || defined(__LB_XB1__) || defined(__LB_XB360__)
 #define strtoull _strtoui64
 #endif
 

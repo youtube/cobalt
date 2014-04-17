@@ -392,7 +392,7 @@ bool PathIsWritable(const FilePath& path) {
   return access(path.value().c_str(), W_OK) == 0;
 }
 
-#if !defined(__LB_XB1__)
+#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
 bool DirectoryExists(const FilePath& path) {
   base::ThreadRestrictions::AssertIOAllowed();
   stat_wrapper_t file_info;
@@ -590,7 +590,7 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   return CreateTemporaryDirInDirImpl(tmpdir, TempFileName(), new_temp_path);
 }
 
-#if !defined(__LB_XB1__)
+#if !defined(__LB_XB1__) && !defined(__LB_XB360__)
 bool CreateDirectory(const FilePath& full_path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to mkdir().
   std::vector<FilePath> subpaths;
