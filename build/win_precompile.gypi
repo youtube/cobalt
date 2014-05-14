@@ -9,7 +9,8 @@
 
 {
   'conditions': [
-    ['OS=="win" and chromium_win_pch==1', {
+    ['(OS=="win" or (OS=="lb_shell" and target_arch=="xb360")) and \
+      chromium_win_pch==1', {
         'target_defaults': {
           'msvs_precompiled_header': '<(DEPTH)/build/precompile.h',
           'msvs_precompiled_source': '<(DEPTH)/build/precompile.cc',
