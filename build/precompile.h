@@ -20,6 +20,7 @@
 
 #define BUILD_PRECOMPILE_H_
 
+#if !defined(__LB_XB360__)
 // The Windows header needs to come before almost all the other
 // Windows-specific headers.
 #include <Windows.h>
@@ -27,7 +28,7 @@
 #include <shellapi.h>
 #include <wincrypt.h>  // 4
 #include <wtypes.h>  // 2
-
+#endif  // defined(__LB_XB360__)
 // Defines in atlbase.h cause conflicts; if we could figure out how
 // this family of headers can be included in the PCH, it might speed
 // up the build as several of them are used frequently.
