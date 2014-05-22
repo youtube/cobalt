@@ -781,18 +781,23 @@
             'win/win_util_unittest.cc',
           ],
         }],
-        ['OS == "lb_shell" and target_arch != "android"', {
-          'dependencies!': [
-            '../third_party/libevent/libevent.gyp:libevent'
-          ],
+        ['OS == "lb_shell"', {
           'sources!': [
-            'message_pump_libevent_unittest.cc',
+            'environment_unittest.cc',
+            'metrics/stats_table_unittest.cc',
             'process_util_unittest.cc',
+            'shared_memory_unittest.cc',
+            'synchronization/waitable_event_watcher_unittest.cc',
           ],
-        }],
-        ['OS == "lb_shell" and target_arch == "android"', {
-          'sources!': [
-            'process_util_unittest.cc',
+          'conditions': [
+            ['target_arch != "android"', {
+              'dependencies!': [
+                '../third_party/libevent/libevent.gyp:libevent'
+              ],
+              'sources!': [
+                'message_pump_libevent_unittest.cc',
+              ],
+            }],
           ],
         }],
       ],  # conditions

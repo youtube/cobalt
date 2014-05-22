@@ -10,7 +10,7 @@ found in the LICENSE file.
       android:versionCode="1"
       android:versionName="1.0">
 
-    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="14" />
+    <uses-sdk android:minSdkVersion="L" android:targetSdkVersion="L" />
 
     <application android:label="ChromeNativeTests">
         <activity android:name=".ChromeNativeTestActivity"
@@ -28,4 +28,4 @@ found in the LICENSE file.
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
-</manifest> 
+</manifest>
