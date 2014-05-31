@@ -562,6 +562,8 @@
           ['OS=="lb_shell"', {
             'sources': [
               'base_paths_shell.cc',
+              'circular_buffer_shell.h',
+              'circular_buffer_shell.cc',
               'message_pump_shell.cc',
               'message_pump_shell.h',
               'native_library_shell.cc',  # Stub implementation
