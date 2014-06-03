@@ -331,7 +331,7 @@ void DefaultPrintTo(IsNotContainer /* dummy */,
 #pragma diag_suppress=1053
 #endif
       *os << reinterpret_cast<const void*>(
-          reinterpret_cast<internal::UInt64>(p));
+          reinterpret_cast<uintptr_t>(p));
 #if defined(__SNC__) || defined (__ghs__)
 #pragma diag_pop  // Renable warnings
 #endif
