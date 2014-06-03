@@ -17,7 +17,7 @@
         '../..',
       ],
       'conditions': [
-        ['target_arch=="ps3" or target_arch=="wiiu"', {
+        ['target_arch=="ps3" or target_arch=="wiiu" or target_arch=="xb360"', {
           'defines': [
             'WORDS_BIGENDIAN'
           ]
