@@ -213,13 +213,17 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
     // When representing the most distant time in the future, add in an extra
     // 999ms to avoid the time being less than any other possible value that
     // this function can return.
+
+    // numeric_limits<int32_t>::min() and max() represent times well outside
+    // the range of results we expect from mktime().
+
     if (exploded.year < 1969) {
-      milliseconds = std::numeric_limits<SysTime>::min() *
-                     kMillisecondsPerSecond;
+      milliseconds = std::numeric_limits<int32_t>::min() *
+          kMillisecondsPerSecond;
     } else {
-      milliseconds = (std::numeric_limits<SysTime>::max() *
-                      kMillisecondsPerSecond) +
-                     kMillisecondsPerSecond - 1;
+      milliseconds = std::numeric_limits<int32_t>::max() *
+          kMillisecondsPerSecond;
+      milliseconds += (kMillisecondsPerSecond - 1);
     }
   } else {
     milliseconds = seconds * kMillisecondsPerSecond + exploded.millisecond;
