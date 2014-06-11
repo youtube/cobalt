@@ -16,6 +16,19 @@
 
 namespace base {
 
+// MSVC seems to automatically add the symbols for static const numerical types
+// appropriately, but the C++ standard requires we define all static const ints
+// in a CC file like this, which causes the symbols to be multiply defined. So
+// we only do the proper thing if we are not in the Microsoft C Compiler.
+#if !defined(_MSC_VER)
+const StateMachineShell::State StateMachineShell::kStateNone;
+const StateMachineShell::State StateMachineShell::kNotHandled;
+const StateMachineShell::State StateMachineShell::kStateTop;
+const StateMachineShell::Event StateMachineShell::kEventNone;
+const StateMachineShell::Event StateMachineShell::kEventEnter;
+const StateMachineShell::Event StateMachineShell::kEventExit;
+#endif
+
 StateMachineShell::StateMachineShell(const std::string &name)
     : name_(name),
       state_(kStateNone),
