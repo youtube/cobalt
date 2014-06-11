@@ -10,6 +10,8 @@
 #include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// Constant to represent no version for TestHsm::Expect.
+static const uint64_t kNoVersion = static_cast<uint64_t>(-1);
 
 // --- Test Subclass ---
 
@@ -105,7 +107,7 @@ class TestHsm : public base::StateMachineShell {
   // Consumes and validates a ResultEvent from the results list.
   void Expect(TestHsm::HsmEvent hsmEvent, State eventState = kStateNone,
               Event event = kEventNone, State currentState = kStateNone,
-              void *data = NULL, uint64_t version = _UI64_MAX) {
+              void *data = NULL, uint64_t version = kNoVersion) {
     DLOG(INFO) << __FUNCTION__ << ": hsmEvent=" << hsmEvent
                << ", eventState=" << GetStateString(eventState)
                << ", event=" << GetEventString(event)
@@ -132,7 +134,7 @@ class TestHsm : public base::StateMachineShell {
     }
     EXPECT_EQ(data, result.data);
 
-    if (version != _UI64_MAX) {
+    if (version != kNoVersion) {
       EXPECT_EQ(version, result.version);
     }
   }
@@ -215,7 +217,7 @@ class TestHsm : public base::StateMachineShell {
 
   virtual State HandleUserStateEvent(State state, Event event, void *data)
       OVERRIDE {
-    DLOG(INFO) << __FUNCTION__ "(" << GetStateString(state) << ", "
+    DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", "
                << GetEventString(event) << ", 0x" << std::hex << data << ");";
 
     if (event == kEventEnter) {
@@ -365,6 +367,23 @@ class TestHsm : public base::StateMachineShell {
   }
 };
 
+#if !defined(_MSC_VER)
+const base::StateMachineShell::State TestHsm::kStateS0;
+const base::StateMachineShell::State TestHsm::kStateS1;
+const base::StateMachineShell::State TestHsm::kStateS11;
+const base::StateMachineShell::State TestHsm::kStateS2;
+const base::StateMachineShell::State TestHsm::kStateS21;
+const base::StateMachineShell::State TestHsm::kStateS211;
+const base::StateMachineShell::Event TestHsm::kEventA;
+const base::StateMachineShell::Event TestHsm::kEventB;
+const base::StateMachineShell::Event TestHsm::kEventC;
+const base::StateMachineShell::Event TestHsm::kEventD;
+const base::StateMachineShell::Event TestHsm::kEventE;
+const base::StateMachineShell::Event TestHsm::kEventF;
+const base::StateMachineShell::Event TestHsm::kEventG;
+const base::StateMachineShell::Event TestHsm::kEventH;
+const base::StateMachineShell::Event TestHsm::kEventI;
+#endif
 
 // --- Test Definitions ---
 
