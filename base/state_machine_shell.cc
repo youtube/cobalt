@@ -8,38 +8,25 @@
 
 // --- Macros for common logging idioms ---
 
-#define SM_STATE(s) GetStateString(s) << "(" << (s) << ")"
-#define SM_EVENT(e) GetEventString(e) << "(" << (e) << ")"
+#define SM_STATE(s) GetStateString(s) << "(" << s << ")"
+#define SM_STATEN(s) \
+    GetStateString(s) << "(" << (s.is_null() ? 0 : s.value()) << ")"
+#define SM_EVENT(e) GetEventString(e) << "(" << e << ")"
 #define SM_PREFIX \
-    name_ << "-" << SM_STATE(state_) << "v" << version_ << ": "
+    name_ << "-" << SM_STATEN(state_) << "v" << version_ << ": "
 #define SM_DLOG(level) DLOG(level) << SM_PREFIX
 
 namespace base {
 
-// MSVC seems to automatically add the symbols for static const numerical types
-// appropriately, but the C++ standard requires we define all static const ints
-// in a CC file like this, which causes the symbols to be multiply defined. So
-// we only do the proper thing if we are not in the Microsoft C Compiler.
-#if !defined(_MSC_VER)
-const StateMachineShell::State StateMachineShell::kStateNone;
-const StateMachineShell::State StateMachineShell::kNotHandled;
-const StateMachineShell::State StateMachineShell::kStateTop;
-const StateMachineShell::Event StateMachineShell::kEventNone;
-const StateMachineShell::Event StateMachineShell::kEventEnter;
-const StateMachineShell::Event StateMachineShell::kEventExit;
-#endif
-
-StateMachineShell::StateMachineShell(const std::string &name)
+StateMachineBaseShell::StateMachineBaseShell(const std::string &name)
     : name_(name),
-      state_(kStateNone),
       version_(0),
       is_handling_(false),
-      is_external_(false),
       is_initialized_(false),
       should_log_(false) {
 }
 
-void StateMachineShell::Initialize() {
+void StateMachineBaseShell::Initialize() {
   if (is_initialized_) {
     return;
   }
@@ -47,15 +34,16 @@ void StateMachineShell::Initialize() {
   if (should_log_) {
     SM_DLOG(INFO) << "INITIALIZING";
   }
-  DCHECK_EQ(state_, kStateNone);
+  DCHECK(state_.is_null()) << SM_PREFIX;
+  DCHECK(GetParentState(GetUserInitialState()).is_null()) << SM_PREFIX;
   is_initialized_ = true;
   FollowInitialSubstates();
 }
 
-bool StateMachineShell::IsIn(State state) const {
-  State currentState = state_;
-  while (currentState != kStateNone) {
-    if (state == currentState) {
+bool StateMachineBaseShell::IsIn(State state) const {
+  StateN currentState = state_;
+  while (!currentState.is_null()) {
+    if (state == currentState.value()) {
       return true;
     }
 
@@ -65,43 +53,33 @@ bool StateMachineShell::IsIn(State state) const {
   return false;
 }
 
-const char *StateMachineShell::GetStateString(State state) const {
-  switch (state) {
-    case kStateTop:
-      return "TOP";
-    case kStateNone:
-      return "<none>";
-    case kNotHandled:
-      return "<notHandled>";
-    default: {
-      const char *user = GetUserStateString(state);
-      if (user) {
-        return user;
-      }
-      return "UNKNOWN_STATE";
-    }
+const char *StateMachineBaseShell::GetStateString(StateN state) const {
+  if (state.is_null()) {
+    return "<none>";
   }
+
+  const char *user = GetUserStateString(state.value());
+  if (user) {
+    return user;
+  }
+
+  return "UNKNOWN_STATE";
 }
 
-const char *StateMachineShell::GetEventString(Event event) const {
-  switch (event) {
-    case kEventEnter:
-      return "ENTER";
-    case kEventExit:
-      return "EXIT";
-    case kEventNone:
-      return "<none>";
-    default: {
-      const char *user = GetUserEventString(event);
-      if (user) {
-        return user;
-      }
-      return "UNKNOWN_EVENT";
-    }
+const char *StateMachineBaseShell::GetEventString(EventN event) const {
+  if (event.is_null()) {
+    return "<none>";
   }
+
+  const char *user = GetUserEventString(event.value());
+  if (user) {
+    return user;
+  }
+
+  return "UNKNOWN_EVENT";
 }
 
-void StateMachineShell::Handle(Event event, void *data) {
+void StateMachineBaseShell::Handle(Event event, void *data) {
   Initialize();
 
   if (is_handling_) {
@@ -109,7 +87,7 @@ void StateMachineShell::Handle(Event event, void *data) {
       SM_DLOG(INFO) << "QUEUEING " << SM_EVENT(event);
     }
 
-    event_queue_.push(Bind(&StateMachineShell::HandleOneEvent, Unretained(this),
+    event_queue_.push(Bind(&StateMachineBaseShell::HandleOneEvent, Unretained(this),
                            event, Unretained(data)));
     return;
   }
@@ -118,147 +96,124 @@ void StateMachineShell::Handle(Event event, void *data) {
   HandleQueuedEvents();
 }
 
-void StateMachineShell::MakeExternalTransition() {
-  if (!is_handling_) {
-    SM_DLOG(FATAL) << "Can only make an external transition while handling an "
-                   << "event.";
-    return;
+StateMachineBaseShell::StateN
+StateMachineBaseShell::GetParentState(StateN state) const {
+  if (state.is_null()) {
+    return StateN::Null();
   }
 
-  is_external_ = true;
+  return GetUserParentState(state.value());
 }
 
-StateMachineShell::State StateMachineShell::GetParentState(State state) const {
-  switch (state) {
-    case kStateTop:
-    case kStateNone:
-    case kNotHandled:
-      return kStateNone;
-    default:
-      return GetUserParentState(state);
-  }
-}
-
-StateMachineShell::State
-StateMachineShell::GetInitialSubstate(State state) const {
-  if (state == kStateNone) {
-    return kStateTop;
+StateMachineBaseShell::StateN
+StateMachineBaseShell::GetInitialSubstate(StateN state) const {
+  if (state.is_null()) {
+    return StateN::Null();
   }
 
-  return GetUserInitialSubstate(state);
+  return GetUserInitialSubstate(state.value());
 }
 
-void StateMachineShell::HandleQueuedEvents() {
+void StateMachineBaseShell::HandleQueuedEvents() {
   while (!event_queue_.empty()) {
     event_queue_.front().Run();
     event_queue_.pop();
   }
 }
 
-void StateMachineShell::HandleOneEvent(Event event, void *data) {
+void StateMachineBaseShell::HandleOneEvent(Event event, void *data) {
   if (should_log_) {
     SM_DLOG(INFO) << "HANDLING " << SM_EVENT(event);
   }
 
+  DCHECK(!is_handling_) << SM_PREFIX;
   is_handling_ = true;
 
   // Walk up the hierarchy from the simplest current state, looking for event
   // handlers, stopping at the first state that decides to handle the event.
-  State source = state_;
-  State target = kStateNone;
-  bool handled = false;
-  bool is_external = false;
-  while (source != kStateNone) {
-    is_external_ = false;
-    State result = HandleUserStateEvent(source, event, data);
-    if (result == kNotHandled) {
+  StateN source = state_;
+  Result result;
+  while (!source.is_null()) {
+    result = HandleUserStateEvent(source.value(), event, data);
+    if (!result.is_handled) {
       // Result was not handled, so we continue up the state chain.
       source = GetParentState(source);
       continue;
     }
 
-    is_external = is_external_;
-    target = result;
-    handled = true;
     break;
   }
 
   // Log that the event was completely unhandled, because that's kinda weird.
-  if (!handled) {
+  // It's better if the state machine handler explicitly consumes and ignores
+  // events that should be ignored.
+  if (!result.is_handled) {
     SM_DLOG(WARNING) << "Event " << SM_EVENT(event) << " was unhandled.";
   }
 
   // If a transition was triggered, execute it.
-  if (target != kStateNone) {
-    Transition(event, source, target, is_external);
+  if (result.is_transition) {
+    Transition(event, source.value(), result.target.value(),
+               result.is_external);
   }
 
   is_handling_ = false;
 }
 
-// Returns the index of |state| in |kStateNone|-terminated |path|, or -1 if not
-// found.
-static int IndexOf(StateMachineShell::State state,
-                   const StateMachineShell::State *path) {
+// Returns the index of |state| in |path|, or -1 if not found in |path_length|
+// elements. If |state| is null, then it will always return -1.
+static int IndexOf(StateMachineBaseShell::StateN state,
+                   const StateMachineBaseShell::State *path,
+                   size_t path_length) {
+  if (state.is_null()) {
+    return -1;
+  }
+
   int i;
-  for (i = 0; path[i] != state; ++i) {
-    if (path[i] == StateMachineShell::kStateNone) {
-      return -1;
-    }
-  }
-
-  return i;
+  for (i = 0; path[i] != state && i < path_length; ++i) { }
+  return (i == path_length ? -1 : i);
 }
 
-// Finds the least common ancestor between the two |kStateNone|-terminated state
-// paths. Since all states are expected to be children of a single TOP state,
-// these paths are required to each have at least the TOP state in them.
-static StateMachineShell::State FindLeastCommonAncestor(
-    const StateMachineShell::State *path_a,
-    const StateMachineShell::State *path_b) {
-  size_t i = 0;
-  while (true) {
-    if (path_a[i] != path_b[i] || path_a[i] == StateMachineShell::kStateNone ||
-        path_b[i] == StateMachineShell::kStateNone) {
-      DCHECK_GT(i, 0) << "All states must be children of kStateTop";
-      return path_a[i - 1];
-    }
-    ++i;
-  }
-
-  NOTREACHED();
+// Finds the least common ancestor between the two state paths. If there is no
+// common ancestor, returns null.
+static StateMachineBaseShell::StateN FindLeastCommonAncestor(
+    const StateMachineBaseShell::State *path_a,
+    size_t length_a,
+    const StateMachineBaseShell::State *path_b,
+    size_t length_b) {
+  size_t max = std::min(length_a, length_b);
+  size_t i;
+  for (i = 0; path_a[i] == path_b[i] && i < max; ++i) { }
+  return (i == 0 ? StateMachineBaseShell::StateN::Null() : path_a[i - 1]);
 }
 
-void StateMachineShell::GetPath(State state, size_t capacity, State *out_path,
-                                size_t *out_depth) const {
-  if (capacity == 0) {
-    SM_DLOG(FATAL) << "capacity must be > 0";
+void StateMachineBaseShell::GetPath(State state, size_t max_depth, State *out_path,
+                                    size_t *out_depth) const {
+  if (max_depth == 0) {
+    SM_DLOG(FATAL) << "max_depth must be > 0";
     if (out_depth) {
       *out_depth = 0;
     }
     return;
   }
 
-  size_t max_depth = capacity - 1;
   size_t depth = 0;
-  while (state != kStateNone && depth < max_depth) {
-    out_path[depth] = state;
+  StateN currentState = state;
+  while (!currentState.is_null() && depth < max_depth) {
+    out_path[depth] = currentState.value();
     ++depth;
-    state = GetParentState(state);
+    currentState = GetParentState(currentState);
   }
 
   // Reverse so the path is in ascending depth order.
   std::reverse(out_path, out_path + depth);
-
-  // Ensure proper termination
-  out_path[depth] = kStateNone;
   if (out_depth) {
     *out_depth = depth;
   }
 }
 
-void StateMachineShell::Transition(Event event, State source, State target,
-                                   bool is_external) {
+void StateMachineBaseShell::Transition(Event event, State source, State target,
+                                       bool is_external) {
   if (should_log_) {
     SM_DLOG(INFO) << SM_EVENT(event) << " caused " << SM_STATE(source) << " -> "
                   << SM_STATE(target) << (is_external ? " (external)" : "");
@@ -274,8 +229,9 @@ void StateMachineShell::Transition(Event event, State source, State target,
   State target_path[kMaxDepth];
   size_t target_depth;
   GetPath(target, kMaxDepth, target_path, &target_depth);
-  State least_common_ancestor =
-      FindLeastCommonAncestor(source_path, target_path);
+  StateN least_common_ancestor =
+      FindLeastCommonAncestor(source_path, source_depth, target_path,
+                              target_depth);
 
   // External transitions must exit the source state and enter the target
   // state, so if the LCA is one of the two, we need to go one level up.
@@ -285,44 +241,52 @@ void StateMachineShell::Transition(Event event, State source, State target,
   }
 
   // Unwind (exit) states up to the closest common ancestor.
-  while (state_ != kStateNone && state_ != least_common_ancestor) {
-    TransitionState(kEventExit);
-    state_ = GetParentState(state_);
+  while (!state_.is_null() && state_ != least_common_ancestor) {
+    ExitCurrentState();
   }
 
   // Update version before we wind down to the target.
   ++version_;
 
   // Wind (enter) states down to the target state.
-  size_t next_depth = IndexOf(state_, target_path) + 1;
+  size_t next_depth = IndexOf(state_, target_path, target_depth) + 1;
   DCHECK_LE(next_depth, target_depth);
   while (next_depth < target_depth) {
-    state_ = target_path[next_depth];
-    TransitionState(kEventEnter);
+    EnterState(target_path[next_depth]);
     ++next_depth;
   }
 
   FollowInitialSubstates();
 }
 
-void StateMachineShell::FollowInitialSubstates() {
+void StateMachineBaseShell::FollowInitialSubstates() {
   while (true) {
-    State substate = GetInitialSubstate(state_);
-    if (substate == kStateNone) {
+    StateN substate = (state_.is_null() ? GetUserInitialState() :
+                       GetInitialSubstate(state_));
+    if (substate.is_null()) {
       break;
     }
-    state_ = substate;
-    TransitionState(kEventEnter);
+    EnterState(substate.value());
   }
 }
 
-void StateMachineShell::TransitionState(Event event) {
+void StateMachineBaseShell::EnterState(State state) {
+  state_ = state;
+
   if (should_log_) {
-    SM_DLOG(INFO) << GetEventString(event);
+    SM_DLOG(INFO) << "ENTER";
   }
 
-  State result = HandleUserStateEvent(state_, event, NULL);
-  DCHECK(result == kStateNone || result == kNotHandled) << SM_PREFIX;
+  HandleUserStateEnter(state);
+}
+
+void StateMachineBaseShell::ExitCurrentState() {
+  if (should_log_) {
+    SM_DLOG(INFO) << "EXIT";
+  }
+
+  HandleUserStateExit(state_.value());
+  state_ = GetParentState(state_);
 }
 
 }  // namespace base
