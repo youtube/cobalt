@@ -17,6 +17,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
+#include "base/nullable_shell.h"
 
 namespace base {
 
@@ -43,13 +44,14 @@ namespace base {
 // single thread.
 //
 // Terse suggestions for using this class:
+//   * Use the templated StateMachineShell wrapper class instead of this class
+//     directly.
+//   * Define two enums, one for your states, and one for your events.
 //   * Subclass to define your state machine and event handlers.
-//   * Include in another class as a private by-value member.
-//   * Make sure your Event and State constants don't collide with the ones
-//     predefined by this class.
-//   * Synchronize access to the state machine.
 //   * Avoid directly exposing or passing around state machines (wrap instead).
 //     Handle() is not a great public interface.
+//   * Include your state machine in another class as a private by-value member.
+//   * Synchronize access to the state machine.
 //   * Prefer writing state machine event handlers over checking if the machine
 //     IsIn() a particular state.
 //   * Convert public methods into events, get into the state machine as quickly
@@ -59,43 +61,42 @@ namespace base {
 //   * Create a superstate when you have an event you want to handle the same
 //     way for a collection of states.
 //   * When managing resources, create a state or superstate that represents the
-//     acquisition of that resource, and release the resource in the kEventExit
+//     acquisition of that resource, and release the resource in the Exit
 //     handler.
+//
+// Some Definitions:
+//   Simple State      - A State with no substates. The state machine is always
+//                       left in exactly one Simple State.
+//   Composite State   - A State with at least one substate.
+//   Guard Condition   - An external condition on which an event handler
+//                       branches.
+//   Run-To-Completion - A property specifying that the state machine handles
+//                       one event at a time, and no events are handled until
+//                       the previous event is done being handled.
 //
 // See the unittests for this class for a contrived example state machine
 // implementation.
-class BASE_EXPORT StateMachineShell {
+class BASE_EXPORT StateMachineBaseShell {
  public:
+  // --- Nested Types and Constants ---
+
   typedef uint32_t State;
   typedef uint32_t Event;
 
-  // Representation of no specified state.
-  static const State kStateNone = UINT_MAX;
+  typedef Nullable<State> StateN;
+  typedef Nullable<Event> EventN;
 
-  // Not a real state, but a value that can be returned from an event handler to
-  // say that the event did not consume the event, and it should bubble up to
-  // the parent state, if any.
-  static const State kNotHandled = UINT_MAX - 1;
 
-  // Pre-defined TOP state which contains all the other states in the machine.
-  static const State kStateTop = UINT_MAX - 2;
-
-  // Representation of no specified event.
-  static const Event kEventNone = UINT_MAX;
-
-  // Pre-defined event for entering a state.
-  static const Event kEventEnter = UINT_MAX - 1;
-
-  // Pre-defined event for exiting a state.
-  static const Event kEventExit = UINT_MAX - 2;
+  // --- Public Methods ---
 
   // Constructor with name. The name is helpful for debugging.
-  explicit StateMachineShell(const std::string &name);
-  virtual ~StateMachineShell() { }
+  explicit StateMachineBaseShell(const std::string &name);
+  virtual ~StateMachineBaseShell() { }
 
-  // Enters |kStateTop| and follows the initial substates down to the first
-  // simple (childless) state found. Idempotent. Will happen automatically on
-  // the first |Handle()| call, if not done explicitly.
+  // Enters the initial state, as specified by |GetUserInitialState()| and
+  // follows the initial substates down to the first simple (childless) state
+  // found. Idempotent. Will happen automatically on the first |Handle()| call,
+  // if not done explicitly.
   void Initialize();
 
   // Gets the name of this state machine, for logging purposes.
@@ -115,8 +116,9 @@ class BASE_EXPORT StateMachineShell {
   }
 
   // Gets the simplest current state that this state machine is in. To check if
-  // the state machine is in a particular composite state, use |IsIn()|.
-  State state() const {
+  // the state machine is in a particular composite state, use |IsIn()|. Returns
+  // null if uninitialized.
+  StateN state() const {
     return state_;
   }
 
@@ -126,10 +128,10 @@ class BASE_EXPORT StateMachineShell {
   bool IsIn(State state) const;
 
   // Gets a printable string for the given state.
-  const char *GetStateString(State state) const;
+  const char *GetStateString(StateN state) const;
 
   // Gets a printable string for the given event.
-  const char *GetEventString(Event event) const;
+  const char *GetEventString(EventN event) const;
 
   // Handles the given event in the context of the state machine's current
   // state, executing the appropriate event handlers and performing any
@@ -143,48 +145,136 @@ class BASE_EXPORT StateMachineShell {
   // of whatever is passed in here.
   void Handle(Event event, void *data = NULL);
 
+
  protected:
-  // Abstract method for subclasses to define the state hierarchy. If a state
-  // has no other parent state, return |kStateTop|. Implementations do NOT need
-  // to handle |kStateTop| or |kStateNone|. All user-defined states must be
-  // descendents of |kStateTop|, or the behavior is undefined.
-  virtual State GetUserParentState(State state) const = 0;
+  // --- Protected Nested Types ---
+
+  // A type that can be returned from a state-event handler, which will be
+  // coerced into the appropriate Result structure.
+  enum HandledState {
+    // The event handler returns this to say that the handler consume the event,
+    // but caused no state transition.
+    kHandled,
+
+    // The event handler returns this to say that the handler did not consume
+    // the event, and it should bubble up to the parent state, if any.
+    kNotHandled,
+  };
+
+  // Structure that handlers return, allowing them to cause state transitions or
+  // prevent the event from bubbling. State-event handlers may just return a
+  // HandledState or a state to transition to, and it will be coerced into this
+  // structure.
+  struct Result {
+    // Default constructor is unhandled.
+    Result()
+        : is_transition(false),
+          is_external(false),
+          is_handled(false) { }
+
+    // The no-transition constructor. Non-explicit so that the implementor of
+    // |HandleUserStateEvent()| just needs to return a |HandledState| and it
+    // does the right thing.
+    Result(HandledState handled)
+        : is_transition(false),
+          is_external(false),
+          is_handled(handled == kHandled) { }
+
+    // The state transition constructor. This implies that the event was
+    // handled. Non-explicit so that the implementor of |HandleUserStateEvent()|
+    // just needs to return a State and it does a non-external transition.
+    Result(State transition_target, bool external = false)
+        : target(transition_target),
+          is_transition(true),
+          is_external(external),
+          is_handled(true) { }
+
+    Result &operator=(HandledState rhs) {
+      target.Clear();
+      is_transition = false;
+      is_external = false;
+      is_handled = (rhs == kHandled);
+      return *this;
+    }
+
+    Result &operator=(State transition_target) {
+      target = transition_target;
+      is_transition = true;
+      is_external = false;
+      is_handled = true;
+      return *this;
+    }
+
+    // State to transition to. Only valid if is_transition is true.
+    StateN target;
+
+    // Whether this result indicates a state transition.
+    bool is_transition;
+
+    // Whether the specified transition is external. Only meaningful if
+    // is_transition is true.
+    //
+    // For more on state transitions, see:
+    // http://en.wikipedia.org/wiki/UML_state_machine#Transition_execution_sequence
+    bool is_external;
+
+    // Whether the event was handled by the handler. If true, consumes the
+    // event, and prevents bubbling up to superstates. False propagates the
+    // event to superstates.
+    bool is_handled;
+  };
+
+
+  // --- Implementation Interface for Subclasses ---
+
+  // Abstract method for subclasses to define the state hierarchy. It is
+  // recommended that all user-defined states be descendents of a single "top"
+  // state.
+  virtual StateN GetUserParentState(State state) const = 0;
 
   // Abstract method for subclasses to define the initial substate of their
-  // states, which is required for all complex states. Subclasses must include a
-  // response for |kStateTop|, which will be followed upon initialization of the
-  // machine. If a state is a simple state (no substates), return |kStateNone|.
-  virtual State GetUserInitialSubstate(State state) const = 0;
+  // states, which is required for all complex states. If a state is a simple
+  // state (no substates), returns null.
+  virtual StateN GetUserInitialSubstate(State state) const = 0;
+
+  // Abstract method for subclasses to define the initial (top) state of their
+  // state machine. This must be a state that has no parent. This state will be
+  // entered upon calling |Initialize()|.
+  virtual State GetUserInitialState() const = 0;
 
   // Optional method for subclasses to define strings for their states, solely
-  // used for debugging purposes. Implementations do NOT need to handle
-  // |kStateTop| or |kStateNone| (or |kNotHandled| for that matter).
+  // used for debugging purposes.
   virtual const char *GetUserStateString(State state) const { return NULL; }
 
   // Optional method for subclasses to define strings for their events, solely
-  // used for debugging purposes. Implementations do NOT need to handle
-  // |kEventEnter| or |kEventExit|.
+  // used for debugging purposes.
   virtual const char *GetUserEventString(Event event) const { return NULL; }
 
   // Abstract method for subclasses to define handlers for events in given
-  // states (including |kStateTop|). This method must return either:
+  // states. This method must return either:
   //   a) a state to transition to, meaning the event was handled and caused
   //      a transition
-  //   b) |kStateNone| meaning the event was handled but no transition occurred
+  //   b) |kHandled| meaning the event was handled but no transition occurred
   //   c) |kNotHandled|, meaning the event should bubble up to the parent state
+  //   d) an explicit Result structure, mainly for external transitions.
   //
-  // When handling |kEventEnter| or |kEventExit|, the result must always be
-  // |kStateNone| or |kNotHandled|. Enter and Exit events cannot cause
-  // transitions.
-  //
-  // Implementations wishing to catch all unhandled events may do so in the
-  // |kStateTop| state.
+  // Implementations wishing to catch all unhandled events may do so in their
+  // top state.
   //
   // This method is generally implemented as a nested switch statement, with the
   // outer switch on |state| and the inner switch on |event|. You may want to
   // break this apart into per-state or per-state-event functions for
   // readability and maintainability.
-  virtual State HandleUserStateEvent(State state, Event event, void *data) = 0;
+  virtual Result HandleUserStateEvent(State state, Event event, void *data) = 0;
+
+  // Abstract method for subclasses to define state entry behaviors.
+  virtual void HandleUserStateEnter(State state) = 0;
+
+  // Abstract method for subclasses to define state exit behaviors.
+  virtual void HandleUserStateExit(State state) = 0;
+
+
+  // --- Helper Methods for Subclasses ---
 
   // Subclasses can call this method to turn on logging. Logging is opt-in,
   // because it can be very verbose, and is likely only useful during
@@ -193,23 +283,18 @@ class BASE_EXPORT StateMachineShell {
     should_log_ = true;
   }
 
-  // Method that subclasses can call inside HandleStateEvent to make the next
-  // transition an external transition. If the current event handler does not
-  // indicate a state transition, this method has no effect.
-  //
-  // For more on state transitions, see:
-  // http://en.wikipedia.org/wiki/UML_state_machine#Transition_execution_sequence
-  void MakeExternalTransition();
 
  private:
+  // --- Private Helper Methods ---
+
   // Gets the parent state of the given state.
-  State GetParentState(State state) const;
+  StateN GetParentState(StateN state) const;
 
   // Gets the initial substate of given state.
-  State GetInitialSubstate(State state) const;
+  StateN GetInitialSubstate(StateN state) const;
 
   // Handles all queued events until there are no more to run. Event handlers
-  // may queue more events by calling Handle(), and this method will also
+  // may queue more events by calling |Handle()|, and this method will also
   // process all precipitate events.
   void HandleQueuedEvents();
 
@@ -217,16 +302,16 @@ class BASE_EXPORT StateMachineShell {
   // binding the parameters to this method and queueing the resulting Closure.
   void HandleOneEvent(Event event, void *data);
 
-  // Gets the path from |kStateTop| to the given state, storing it in the given
-  // |out_path| array, up to |capacity| - 1 entries, with |out_depth| being set
-  // to the number of valid states that would fit in the given array, if
-  // specified. The entry at |out_depth| will always be set to |kStateNone|,
-  // much like a null-terminated string.
-  void GetPath(State state, size_t capacity, State *out_path,
+  // Gets the path from the Top state to the given |state|, storing it in the
+  // given |out_path| array, up to |max_depth| entries. If specified,
+  // |out_depth| will be set to the number of valid states that fit in the given
+  // array.
+  void GetPath(State state, size_t max_depth, State *out_path,
                size_t *out_depth) const;
 
   // Transitions between the given source and target states, assuming that the
-  // source state is in the current state path to TOP.
+  // source state is in the current state path to the Top state. The source
+  // state is the state whose handler generated the transition.
   //
   // See: http://en.wikipedia.org/wiki/UML_state_machine#Transition_execution_sequence
   void Transition(Event event, State source, State target, bool is_external);
@@ -235,17 +320,20 @@ class BASE_EXPORT StateMachineShell {
   // simple state.
   void FollowInitialSubstates();
 
-  // Invokes the enter or exit handler on the current state. In debug, also
-  // asserts that the return value matches the contract.
-  void TransitionState(Event event);
+  // Enters the given state.
+  void EnterState(State state);
 
-  // --- Member Fields ---
+  // Exits the current state to its parent.
+  void ExitCurrentState();
+
+
+  // --- Members ---
 
   // The name of this state machine, for debugging purposes.
   const std::string name_;
 
-  // The current state of this state machine.
-  State state_;
+  // The current state of this state machine. Null until initialized.
+  StateN state_;
 
   // The unique version of this state machine's state, updated on every
   // transition.
@@ -259,17 +347,207 @@ class BASE_EXPORT StateMachineShell {
   // reentrant calls to |Handle()|.
   bool is_handling_;
 
-  // Whether the next transition should be external. Can be set by handlers to
-  // cause their precipitate transition to be an external transition. Only
-  // meaningful while |is_handling_| is true.
-  bool is_external_;
-
   // Whether the state machine has been initialized into its initial state
   // yet. Used to make |Initialize()| idempotent.
   bool is_initialized_;
 
   // Whether the state machine should DLOG information about state transitions.
   bool should_log_;
+};
+
+
+// A convenience template wrapper for StateMachineBaseShell. See the above class
+// for complete documentation. Basically, you define your states and events as
+// two enums, and then pass them as template args to this template class. Your
+// state machine should then subclass this template class. It then does the work
+// of casting and converting back and forth from your enums to
+// StateMachineBaseShell's numeric State and Event definitions.
+//
+// All the methods in this class, protected and public, match the description
+// and behavioral contracts of the equivalently named method in
+// StateMachineBaseShell.
+template <typename StateEnum, typename EventEnum>
+class BASE_EXPORT StateMachineShell {
+ public:
+  // --- Nested Types and Constants ---
+
+  typedef Nullable<StateEnum> StateEnumN;
+  typedef Nullable<EventEnum> EventEnumN;
+
+  explicit StateMachineShell(const std::string &name)
+      : machine_(this, name) { }
+  virtual ~StateMachineShell() { }
+
+  void Initialize() {
+    machine_.Initialize();
+  }
+
+  const char *name() const {
+    return machine_.name();
+  }
+
+  uint64_t version() const {
+    return machine_.version();
+  }
+
+  StateEnumN state() const {
+    BaseStateN wrappedState = machine_.state();
+    return (wrappedState.is_null() ? StateEnumN::Null() :
+            static_cast<StateEnum>(wrappedState.value()));
+  }
+
+  bool IsIn(StateEnum state) const {
+    return machine_.IsIn(static_cast<BaseState>(state));
+  }
+
+  const char *GetStateString(StateEnumN state) const {
+    return machine_.GetStateString(state.is_null() ? BaseStateN::Null() :
+                                   static_cast<BaseState>(state.value()));
+  }
+
+  const char *GetEventString(EventEnumN event) const {
+    return machine_.GetEventString(event.is_null() ? BaseEventN::Null() :
+                                   static_cast<BaseEvent>(event.value()));
+  }
+
+  void Handle(EventEnum event, void *data = NULL) {
+    machine_.Handle(static_cast<BaseEvent>(event), data);
+  }
+
+ protected:
+  // See the other HandledState in StateMachineBaseShell.
+  enum HandledState {
+    kHandled,
+    kNotHandled,
+  };
+
+  // See the other Result in StateMachineBaseShell.
+  struct Result {
+    // Not explicit on purpose, please see the other Result for justification.
+    Result(HandledState handled)
+        : target(),
+          is_transition(false),
+          is_external(false),
+          is_handled(handled == kHandled) { }
+
+    // Not explicit on purpose, please see the other Result for justification.
+    Result(StateEnum transition_target, bool external = false)
+        : target(transition_target),
+          is_transition(true),
+          is_external(external),
+          is_handled(true) { }
+
+    Result &operator=(HandledState rhs) {
+      target.Clear();
+      is_transition = false;
+      is_external = false;
+      is_handled = (rhs == kHandled);
+      return *this;
+    }
+
+    Result &operator=(StateEnum transition_target) {
+      target = transition_target;
+      is_transition = true;
+      is_external = false;
+      is_handled = true;
+      return *this;
+    }
+
+    StateEnumN target;
+    bool is_transition;
+    bool is_external;
+    bool is_handled;
+  };
+
+  virtual StateEnumN GetUserParentState(StateEnum state) const = 0;
+  virtual StateEnumN GetUserInitialSubstate(StateEnum state) const = 0;
+  virtual StateEnum GetUserInitialState() const = 0;
+  virtual const char *GetUserStateString(StateEnum state) const { return NULL; }
+  virtual const char *GetUserEventString(EventEnum event) const { return NULL; }
+  virtual Result HandleUserStateEvent(StateEnum state,
+                                      EventEnum event,
+                                      void *data) = 0;
+  virtual void HandleUserStateEnter(StateEnum state) = 0;
+  virtual void HandleUserStateExit(StateEnum state) = 0;
+
+  void EnableLogging() {
+    machine_.EnableLoggingPublic();
+  }
+
+ private:
+  typedef StateMachineBaseShell::State BaseState;
+  typedef StateMachineBaseShell::Event BaseEvent;
+  typedef StateMachineBaseShell::StateN BaseStateN;
+  typedef StateMachineBaseShell::EventN BaseEventN;
+
+  // Private contained subclass that forwards and adapts all virtual methods
+  // into this class's equivalent virtual methods.
+  class WrappedMachine : public StateMachineBaseShell {
+   public:
+    WrappedMachine(StateMachineShell<StateEnum, EventEnum> *wrapper,
+                   const std::string &name)
+        : StateMachineBaseShell(name),
+          wrapper_(wrapper) {
+    }
+
+    StateN GetUserParentState(State state) const OVERRIDE {
+      StateEnumN result =
+          wrapper_->GetUserParentState(static_cast<StateEnum>(state));
+      return (result.is_null() ? StateN::Null() :
+              static_cast<State>(result.value()));
+    }
+
+    StateN GetUserInitialSubstate(State state) const OVERRIDE {
+      StateEnumN result =
+          wrapper_->GetUserInitialSubstate(static_cast<StateEnum>(state));
+      return (result.is_null() ? StateN::Null() :
+              static_cast<State>(result.value()));
+    }
+
+    State GetUserInitialState() const OVERRIDE {
+      return static_cast<State>(wrapper_->GetUserInitialState());
+    }
+
+    const char *GetUserStateString(State state) const OVERRIDE {
+      return wrapper_->GetUserStateString(static_cast<StateEnum>(state));
+    }
+
+    const char *GetUserEventString(Event event) const OVERRIDE {
+      return wrapper_->GetUserEventString(static_cast<EventEnum>(event));
+    }
+
+    Result HandleUserStateEvent(State state, Event event, void *data) OVERRIDE {
+      StateMachineShell<StateEnum, EventEnum>::Result result =
+          wrapper_->HandleUserStateEvent(static_cast<StateEnum>(state),
+                                         static_cast<EventEnum>(event),
+                                         data);
+      if (result.is_transition) {
+        return Result(static_cast<State>(result.target.value()),
+                      result.is_external);
+      }
+
+      return result.is_handled ? kHandled : kNotHandled;
+    }
+
+    void HandleUserStateEnter(State state) OVERRIDE {
+      wrapper_->HandleUserStateEnter(static_cast<StateEnum>(state));
+    }
+
+    void HandleUserStateExit(State state) OVERRIDE {
+      wrapper_->HandleUserStateExit(static_cast<StateEnum>(state));
+    }
+
+    // A public exposure of EnableLogging so the wrapper can access it. Since
+    // this class is private to the wrapper, it is the only one who can see it.
+    void EnableLoggingPublic() {
+      EnableLogging();
+    }
+
+   private:
+    StateMachineShell<StateEnum, EventEnum> *wrapper_;
+  };
+
+  WrappedMachine machine_;
 };
 
 }  // namespace base
