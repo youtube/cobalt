@@ -320,6 +320,8 @@
         'filters/shell_au.h',
         'filters/shell_audio_decoder.h',
         'filters/shell_audio_renderer.h',
+        'filters/shell_audio_renderer_impl.cc',
+        'filters/shell_audio_renderer_impl.h',
         'filters/shell_avc_parser.cc',
         'filters/shell_avc_parser.h',
         'filters/shell_demuxer.cc',
@@ -540,6 +542,12 @@
                   'ComponentExtensions': 'true'
                 },
               },
+            }],
+            ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
+              'sources/': [
+                # PS3 has its own audio renderer implementation.
+                ['exclude', 'filters/shell_audio_renderer_impl'],
+              ]
             }],
           ],
         }, { # OS != lb_shell
