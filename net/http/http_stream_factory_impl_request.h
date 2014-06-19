@@ -36,6 +36,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   // existing pipeline becomes available, this Request can be late bound to it.
   // Returns true if this is this key was new to the factory.
   bool SetHttpPipeliningKey(const HttpPipelinedHost::Key& http_pipelining_key);
+  bool HasSpdySessionKey() const;
 
   // Attaches |job| to this request. Does not mean that Request will use |job|,
   // but Request will own |job|.
