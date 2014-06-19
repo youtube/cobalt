@@ -693,7 +693,8 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     next_state_ = STATE_CREATE_STREAM;
     existing_spdy_session_ = spdy_session;
     return OK;
-  } else if (request_ && (using_ssl_ || ShouldForceSpdyWithoutSSL())) {
+  } else if (request_ && !request_->HasSpdySessionKey() &&
+             (using_ssl_ || ShouldForceSpdyWithoutSSL())) {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
   } else if (IsRequestEligibleForPipelining()) {
