@@ -496,7 +496,6 @@
             ['exclude', 'audio/mac/audio_output_mac'],
             ['exclude', 'audio/mac/audio_synchronized_mac'],
             ['exclude', 'audio/mac/audio_unified_mac'],
-            ['exclude', 'audio/null_audio_sink'],
             ['exclude', 'audio/openbsd/audio_manager_openbsd'],
             ['exclude', 'audio/pulse/pulse_output'],
             ['exclude', 'audio/scoped_loop_observer'],

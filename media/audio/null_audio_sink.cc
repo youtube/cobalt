@@ -20,7 +20,8 @@ NullAudioSink::NullAudioSink()
 }
 
 void NullAudioSink::Initialize(const AudioParameters& params,
-                               RenderCallback* callback) {
+                               RenderCallback* callback,
+                               ShellFilterGraphLog* filter_graph_log) {
   DCHECK(!initialized_);
   params_ = params;
 
