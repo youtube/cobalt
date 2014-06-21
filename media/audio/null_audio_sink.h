@@ -17,6 +17,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "media/base/audio_renderer_sink.h"
+#include "media/base/shell_filter_graph_log.h"
 
 namespace media {
 class AudioBus;
@@ -28,12 +29,14 @@ class MEDIA_EXPORT NullAudioSink
 
   // AudioRendererSink implementation.
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback) OVERRIDE;
+                          RenderCallback* callback,
+                          ShellFilterGraphLog* filter_graph_log) OVERRIDE;
   virtual void Start() OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Pause(bool flush) OVERRIDE;
   virtual void Play() OVERRIDE;
   virtual bool SetVolume(double volume) OVERRIDE;
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE {}
 
   // Enables audio frame hashing and reinitializes the MD5 context.  Must be
   // called prior to Initialize().
