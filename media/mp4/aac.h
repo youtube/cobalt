@@ -52,6 +52,7 @@ class MEDIA_EXPORT AAC {
 
   // Size in bytes of the ADTS header added by ConvertEsdsToADTS().
   static const size_t kADTSHeaderSize = 7;
+  static const size_t kSamplesPerFrame = 1024;
 
  private:
   bool SkipDecoderGASpecificConfig(BitReader* bit_reader) const;
