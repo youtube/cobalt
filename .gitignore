@@ -101,6 +101,7 @@ v8.log
 /chrome/tools/test/reference_build
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
+/cobalt
 /content/test/data/layout_tests/
 /content/test/data/plugin/
 /data
@@ -110,6 +111,7 @@ v8.log
 /gpu/gles2_conform_test
 /gyp-mac-tool
 /hideout
+/lbshell
 /llvm
 /media/test/data/content
 /media/test/data/security
@@ -165,6 +167,7 @@ v8.log
 /third_party/cros_system_api
 /third_party/cygwin
 /third_party/directxsdk
+/third_party/dlmalloc
 /third_party/drmemory
 /third_party/eyesfree/src
 /third_party/findbugs
@@ -265,8 +268,10 @@ v8.log
 /tools/gyp
 /tools/histograms
 /tools/json_schema_compiler/test/json_schema_compiler_tests.xml
+/tools/lbshell
 /tools/page_cycler/acid3
 /tools/perf/data
+/tools/repo-hooks
 /tools/swarm_client
 /tools/tryserver
 /tools/win/link_limiter/build
