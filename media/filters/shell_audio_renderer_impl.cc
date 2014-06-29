@@ -412,7 +412,7 @@ void ShellAudioRendererImpl::DecodedAudioReady(
 // On Android, this is normally called by the system audio thread, and must
 // not block or perform high-latency operations
 int ShellAudioRendererImpl::Render(AudioBus* dest,
-                                      int audio_delay_milliseconds) {
+                                   int audio_delay_milliseconds) {
   // Use the previous value for rendered_timestamp_ and audio_delay_milliseconds
   // to calculate the current playback time of the audio streamer
   const base::TimeDelta audio_delay =
