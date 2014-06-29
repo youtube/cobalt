@@ -34,7 +34,6 @@ class ShellAudioStream {
   // Get the AudioParameters for this stream
   virtual const AudioParameters& GetAudioParameters() const = 0;
   // Get the internal buffer of this audio stream as an AudioBus.
-  // This is useful when audio is being played from the buffer directly.
   virtual AudioBus* GetAudioBus() = 0;
 };
 
