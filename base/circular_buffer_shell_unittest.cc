@@ -5,20 +5,22 @@
 #include "external/chromium/base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace {
+
 // 100 characters, repeating every 16 characters.
-static const char kTestData[] = "0123456789ABCDEF01234567890ABCDEF"
+const char kTestData[] = "0123456789ABCDEF01234567890ABCDEF"
     "0123456789ABCDEF0123456789ABCDEF01234567890ABCDEF0123456789ABCDEF" "0123";
 
 // 100 characters, repeating every 17 characters.
 #define UNSET_DATA "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVW" \
     "GHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTUVWGHIJKLMNOPQRSTU"
 
-static const char kUnsetData[] = UNSET_DATA;
-static const size_t kUnsetSize = 1024;
+const char kUnsetData[] = UNSET_DATA;
+const size_t kUnsetSize = 1024;
 
 
 // Like memcmp, but reports which index and values failed.
-static bool is_same(const char *expected, const char *actual, size_t length) {
+bool IsSame(const char *expected, const char *actual, size_t length) {
   for (size_t i = 0; i < length; ++i) {
     if (expected[i] != actual[i]) {
       printf("Expected '%c' at %lu, but got '%c'\n", expected[i], i, actual[i]);
@@ -29,17 +31,17 @@ static bool is_same(const char *expected, const char *actual, size_t length) {
   return true;
 }
 
-static size_t read_pos = 0;
-static size_t write_pos = 0;
+size_t read_pos = 0;
+size_t write_pos = 0;
 
-// If the test uses testWrite and test_read, then it needs to call clear_pos to
+// If the test uses testWrite and TestRead, then it needs to call ClearPos to
 // avoid contamination from previous tests.
-static void clear_pos() {
+void ClearPos() {
   read_pos = 0;
   write_pos = 0;
 }
 
-static void test_write(base::CircularBufferShell *circular_buffer,
+void TestWrite(base::CircularBufferShell *circular_buffer,
                       size_t to_write) {
   size_t before_length = circular_buffer->GetLength();
   size_t bytes_written = kUnsetSize;
@@ -51,7 +53,7 @@ static void test_write(base::CircularBufferShell *circular_buffer,
   write_pos += to_write;
 }
 
-static void test_read(base::CircularBufferShell *circular_buffer,
+void TestRead(base::CircularBufferShell *circular_buffer,
                      size_t to_read) {
   size_t before_length = circular_buffer->GetLength();
   char data[] = UNSET_DATA UNSET_DATA;
@@ -60,100 +62,120 @@ static void test_read(base::CircularBufferShell *circular_buffer,
   circular_buffer->Read(buffer, to_read, &bytes_read);
   EXPECT_EQ(to_read, bytes_read);
   EXPECT_EQ(before_length - to_read, circular_buffer->GetLength());
-  EXPECT_TRUE(is_same(kTestData + read_pos, buffer, to_read));
-  EXPECT_TRUE(is_same(kUnsetData + to_read, buffer + to_read, to_read));
-  EXPECT_TRUE(is_same(kUnsetData + strlen(kUnsetData) - to_read,
+  EXPECT_TRUE(IsSame(kTestData + read_pos, buffer, to_read));
+  EXPECT_TRUE(IsSame(kUnsetData + to_read, buffer + to_read, to_read));
+  EXPECT_TRUE(IsSame(kUnsetData + strlen(kUnsetData) - to_read,
                           buffer - to_read, to_read));
   read_pos += to_read;
 }
 
+}  // namespace
+
 // --- Sunny Day Tests ---
 
 TEST(CircularBufferShellTest, Construct) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 }
 
 TEST(CircularBufferShellTest, SimpleWriteAndRead) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
-  test_write(circular_buffer.get(), 15);
-  test_read(circular_buffer.get(), 5);
-  test_read(circular_buffer.get(), 4);
-  test_read(circular_buffer.get(), 3);
-  test_read(circular_buffer.get(), 2);
-  test_read(circular_buffer.get(), 1);
+  TestWrite(circular_buffer.get(), 15);
+  TestRead(circular_buffer.get(), 5);
+  TestRead(circular_buffer.get(), 4);
+  TestRead(circular_buffer.get(), 3);
+  TestRead(circular_buffer.get(), 2);
+  TestRead(circular_buffer.get(), 1);
 }
 
 TEST(CircularBufferShellTest, ReadWriteOverBoundary) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
   // Fill the buffer.
-  test_write(circular_buffer.get(), 20);
+  TestWrite(circular_buffer.get(), 20);
 
   // Read half the data from the front.
-  test_read(circular_buffer.get(), 10);
+  TestRead(circular_buffer.get(), 10);
 
   // Fill the back half, making the data wrap around the end.
-  test_write(circular_buffer.get(), 10);
+  TestWrite(circular_buffer.get(), 10);
 
   // Read the whole thing, which should require two memcpys.
-  test_read(circular_buffer.get(), 20);
+  TestRead(circular_buffer.get(), 20);
 
   // Fill the buffer, again around the end, should require two memcpys.
-  test_write(circular_buffer.get(), 20);
+  TestWrite(circular_buffer.get(), 20);
 
   // Read the buffer to verify, should again require two memcpys.
-  test_read(circular_buffer.get(), 20);
+  TestRead(circular_buffer.get(), 20);
 }
 
 TEST(CircularBufferShellTest, ExpandWhileNotWrapped) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
   // Set the size with the first write.
-  test_write(circular_buffer.get(), 5);
+  TestWrite(circular_buffer.get(), 5);
 
   // Expand with the second write.
-  test_write(circular_buffer.get(), 5);
+  TestWrite(circular_buffer.get(), 5);
 
   // Read to verify the data is intact
-  test_read(circular_buffer.get(), 10);
+  TestRead(circular_buffer.get(), 10);
+}
 
+TEST(CircularBufferShellTest, ExpandWhileNotWrapped2) {
+  ClearPos();
+  scoped_ptr<base::CircularBufferShell> circular_buffer(
+      new base::CircularBufferShell(20));
+
+  // Set the size with the first write.
+  TestWrite(circular_buffer.get(), 5);
+
+  // Read a couple out so that the data doesn't start at the beginning of the
+  // buffer.
+  TestRead(circular_buffer.get(), 2);
+
+  // Expand with the second write.
+  TestWrite(circular_buffer.get(), 5);
+
+  // Read to verify the data is intact
+  TestRead(circular_buffer.get(), 8);
 }
 
 TEST(CircularBufferShellTest, ExpandWhileWrapped) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
   // Set the size with the first write.
-  test_write(circular_buffer.get(), 10);
+  TestWrite(circular_buffer.get(), 10);
 
   // Read front half.
-  test_read(circular_buffer.get(), 5);
+  TestRead(circular_buffer.get(), 5);
 
   // Wrap with second write
-  test_write(circular_buffer.get(), 5);
+  TestWrite(circular_buffer.get(), 5);
 
   // Write again to expand while wrapped.
-  test_write(circular_buffer.get(), 5);
+  TestWrite(circular_buffer.get(), 5);
 
   // Read to verify the data is intact
-  test_read(circular_buffer.get(), 15);
+  TestRead(circular_buffer.get(), 15);
 }
 
 
 // --- Rainy Day Tests ---
 
 TEST(CircularBufferShellTest, WriteTooMuch) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
@@ -167,7 +189,7 @@ TEST(CircularBufferShellTest, WriteTooMuch) {
 }
 
 TEST(CircularBufferShellTest, ReadEmpty) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
@@ -179,7 +201,7 @@ TEST(CircularBufferShellTest, ReadEmpty) {
     circular_buffer->Read(buffer, 0, &bytes_read);
     EXPECT_EQ(0, bytes_read);
     EXPECT_EQ(0, circular_buffer->GetLength());
-    EXPECT_TRUE(is_same(kUnsetData, buffer, 10));
+    EXPECT_TRUE(IsSame(kUnsetData, buffer, 10));
   }
 
   {
@@ -188,12 +210,12 @@ TEST(CircularBufferShellTest, ReadEmpty) {
     circular_buffer->Read(buffer, 10, &bytes_read);
     EXPECT_EQ(0, bytes_read);
     EXPECT_EQ(0, circular_buffer->GetLength());
-    EXPECT_TRUE(is_same(kUnsetData, buffer, 10));
+    EXPECT_TRUE(IsSame(kUnsetData, buffer, 10));
   }
 }
 
 TEST(CircularBufferShellTest, ReadToNull) {
-  clear_pos();
+  ClearPos();
   scoped_ptr<base::CircularBufferShell> circular_buffer(
       new base::CircularBufferShell(20));
 
