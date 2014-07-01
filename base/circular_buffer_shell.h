@@ -31,7 +31,7 @@ class BASE_EXPORT CircularBufferShell {
   bool Write(const void *source, size_t length, size_t *bytes_written);
 
   // Returns the length of the data left in the buffer to read.
-  size_t GetLength();
+  size_t GetLength() const;
 
  private:
   // Ensures that there is enough capacity to write length bytes to the
@@ -48,18 +48,20 @@ class BASE_EXPORT CircularBufferShell {
   void ReadUnchecked(void *destination, size_t length, size_t *bytes_read);
 
   // Gets a pointer to the current read position.
-  const void *GetReadPointer();
+  const void *GetReadPointer() const;
 
   // Gets a pointer to the current write position.
-  void *GetWritePointer();
+  void *GetWritePointer() const;
+
+  // Gets the current write position.
+  size_t GetWritePosition() const;
 
   const size_t max_capacity_;
   void *buffer_;
   size_t capacity_;
   size_t length_;
   size_t read_position_;
-  size_t write_position_;
-  base::Lock lock_;
+  mutable base::Lock lock_;
 };
 
 }  // namespace base

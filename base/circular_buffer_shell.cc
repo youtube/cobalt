@@ -4,6 +4,8 @@
 
 #include "base/circular_buffer_shell.h"
 
+#include <stdint.h>
+
 #include <algorithm>
 
 #include "base/logging.h"
@@ -23,8 +25,7 @@ CircularBufferShell::CircularBufferShell(size_t max_capacity)
       capacity_(0),
       length_(0),
       buffer_(NULL),
-      read_position_(0),
-      write_position_(0) {
+      read_position_(0) {
 }
 
 CircularBufferShell::~CircularBufferShell() {
@@ -41,7 +42,6 @@ void CircularBufferShell::Clear() {
   capacity_ = 0;
   length_ = 0;
   read_position_ = 0;
-  write_position_ = 0;
 }
 
 void CircularBufferShell::Read(void *destination, size_t length,
@@ -70,7 +70,7 @@ bool CircularBufferShell::Write(const void *source, size_t length,
     size_t remaining = length - produced;
 
     // In this pass, write up to the contiguous space left.
-    size_t to_write = std::min(remaining, capacity_ - write_position_);
+    size_t to_write = std::min(remaining, capacity_ - GetWritePosition());
     if (to_write == 0)
       break;
 
@@ -79,7 +79,6 @@ bool CircularBufferShell::Write(const void *source, size_t length,
     const void *src = add_to_pointer(source, produced);
     memcpy(destination, src, to_write);
     length_ += to_write;
-    write_position_ = (write_position_ + to_write) % capacity_;
     produced += to_write;
   }
 
@@ -88,7 +87,7 @@ bool CircularBufferShell::Write(const void *source, size_t length,
   return true;
 }
 
-size_t CircularBufferShell::GetLength() {
+size_t CircularBufferShell::GetLength() const {
   base::AutoLock l(lock_);
   return length_;
 }
@@ -118,12 +117,16 @@ void CircularBufferShell::ReadUnchecked(void *destination, size_t length,
     *bytes_read = consumed;
 }
 
-const void *CircularBufferShell::GetReadPointer() {
+const void *CircularBufferShell::GetReadPointer() const {
   return add_to_pointer(buffer_, read_position_);
 }
 
-void *CircularBufferShell::GetWritePointer() {
-  return add_to_pointer(buffer_, write_position_);
+void *CircularBufferShell::GetWritePointer() const {
+  return add_to_pointer(buffer_, GetWritePosition());
+}
+
+size_t CircularBufferShell::GetWritePosition() const {
+  return (read_position_ + length_) % capacity_;
 }
 
 bool CircularBufferShell::EnsureCapacityToWrite(size_t length) {
@@ -156,12 +159,6 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
     }
     capacity_ = capacity;
     buffer_ = result;
-
-    // Edge case for when write_position has wrapped to the old capacity. We
-    // can still realloc, but we have to pop the write position back to the end
-    // of the data.
-    if (write_position_ == 0)
-      write_position_ = length_;
     return true;
   }
 
@@ -179,7 +176,6 @@ bool CircularBufferShell::IncreaseCapacityTo(size_t capacity) {
   // Adjust the accounting.
   length_ = length;
   read_position_ = 0;
-  write_position_ = length_;
   capacity_ = capacity;
   free(buffer_);
   buffer_ = buffer;
