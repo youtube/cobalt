@@ -231,8 +231,10 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   } else {
     // We don't need new data from the renderer, but this will ping the
     // renderer and update the timer
-#if defined(__LB_WIIU__) || defined(__LB_ANDROID__)
-    render_callback_->Render(NULL, buffered_time);  // TODO(***REMOVED***)
+#if defined(__LB_WIIU__) || defined(__LB_ANDROID__) || defined(__LB_PS4__)
+    // TODO(***REMOVED***) : Either remove this or make it generic across all
+    // platforms.
+    render_callback_->Render(NULL, buffered_time);
 #endif
   }
 
@@ -243,7 +245,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     rebuffering_ = false;
   }
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_ANDROID__)
+#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || \
+    defined(__LB_ANDROID__) || defined(__LB_PS4__)
   if (*total_frames < config.underflow_threshold) {
     if (!rebuffering_) {
       rebuffering_ = true;
