@@ -7,7 +7,7 @@
 #if defined(__LB_SHELL__)
 #include "base/at_exit.h"
 #include "base/command_line.h"
-#include "lb_shell_platform_delegate.h"
+#include "cobalt/deprecated/platform_delegate.h"
 #endif
 
 #if defined(__LB_SHELL__FOR_RELEASE__)
@@ -18,12 +18,15 @@
 base::AtExitManager* platform_at_exit_manager_;
 
 MainHook::MainHook(MainType main_func, int argc, char* argv[]) {
+  // TODO(uzhilinsky): MainHooks should no longer be used and in fact this
+  // class was removed in the recent version of Chromium. Any required
+  // initialization logic in tests should be done in TestSuite::Initialize().
   CommandLine::Init(argc, argv);
   platform_at_exit_manager_ = new base::AtExitManager();
-  LBShellPlatformDelegate::Init();
+  cobalt::deprecated::PlatformDelegate::Init();
 }
 MainHook::~MainHook() {
-  LBShellPlatformDelegate::Teardown();
+  cobalt::deprecated::PlatformDelegate::Teardown();
   delete platform_at_exit_manager_;
 }
 #elif !defined(OS_IOS)
