@@ -575,8 +575,6 @@
               'synchronization/lock_impl_shell.cc',
               'synchronization/waitable_event_shell.cc',
               '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/base -type f)',
-              '<(lbshell_root)/src/object_watcher_shell.cc',
-              '<(lbshell_root)/src/object_watcher_shell.h',
             ],
             'sources!': [
               'environment.cc',

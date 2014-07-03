@@ -89,6 +89,7 @@
             }],
           ],
         },
+
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
         'use_aura%': '<(use_aura)',
@@ -565,6 +566,8 @@
           'notifications': 0,
           'disable_ftp_support': 1,
           'use_harfbuzz_ng': 1,
+          'cobalt%': 1,
+          'use_official_google_api_keys%': 0,
         }],
 
         ['OS=="android" or OS=="ios"', {
@@ -646,6 +649,9 @@
       'google_default_client_id%': '',
       'google_default_client_secret%': '',
     },
+
+    # Cobalt specific variables.
+    'cobalt%': '<(cobalt)',
 
     # Copy conditionally-set variables out one scope.
     'branding%': '<(branding)',
@@ -1288,11 +1294,6 @@
         'use_openssl': 1,
         'use_cups': 0,
         'input_speech': 0,
-        'conditions': [
-          ['target_arch!="android"', {
-            'gtest_target_type': 'static_library',
-          }],
-        ],
       }],
       # Native Client glibc toolchain is enabled by default except on arm.
       ['target_arch=="arm"', {
