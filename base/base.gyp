@@ -726,6 +726,21 @@
             },
           ],
         }],
+        ['cobalt==1', {
+          'actions': [
+            {
+              'action_name': 'copy_test_data',
+              'variables': {
+                'test_data_files': [
+                  'data/json/bom_feff.json',
+                  'data/file_util_unittest',
+                ],
+                'test_data_prefix': 'base',
+              },
+              'includes': [ '../cobalt/build/copy_test_data.gypi' ],
+            },
+          ],
+        }],
         ['use_glib==1', {
           'sources!': [
             'file_version_info_unittest.cc',
@@ -827,6 +842,14 @@
         'base',
       ],
       'conditions': [
+        ['cobalt==1', {
+          'dependencies': [
+            # Platform delegate is used to perform system specific
+            # initialization logic. This is a temporary solution and the code
+            # should eventually move into the chromium/base code.
+            '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
+          ],
+        }],
         ['toolkit_uses_gtk==1', {
           'dependencies': [
             # test_suite initializes GTK.
@@ -1158,6 +1181,21 @@
               'SubSystem': '2',         # Set /SUBSYSTEM:WINDOWS
             },
           },
+        },
+      ],
+    }],
+    ['cobalt==1', {
+      'targets': [
+        {
+          'target_name': 'base_unittests_deploy',
+          'type': 'none',
+          'dependencies': [
+            'base_unittests',
+          ],
+          'variables': {
+            'executable_name': 'base_unittests',
+          },
+          'includes': [ '../cobalt/build/deploy.gypi' ],
         },
       ],
     }],
