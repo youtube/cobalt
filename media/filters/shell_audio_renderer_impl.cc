@@ -33,9 +33,6 @@ const int AACDEC_PCM_SAMPLE_SIZE = 1024;
 
 namespace media {
 
-// we always output 16-bit signed integers
-static const int kAudioOutputBytesPerChannel = 2;
-
 // static
 ShellAudioRenderer* ShellAudioRenderer::Create(
     media::AudioRendererSink* sink,
@@ -250,8 +247,6 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   }
 
   decoder_ = selected_decoder;
-
-  DCHECK_EQ(decoder_->bits_per_channel(), kAudioOutputBytesPerChannel * 8);
 
   // construct audio parameters for the sink
   audio_parameters_ = AudioParameters(
@@ -477,7 +472,6 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
           DCHECK_EQ(AACDEC_PCM_SAMPLE_SIZE,
                     dest->frames() * sizeof(float)  // NOLINT(runtime/sizeof)
                     / bytes_per_sample / audio_parameters_.channels());
-          DCHECK_EQ(sizeof(int16_t), bytes_per_sample);
           // Write zeros (silence) to each channel
           if (dest->channels() == 1) {
             memset(dest->channel(0), 0,
