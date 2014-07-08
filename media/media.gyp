@@ -563,6 +563,15 @@
                 ['exclude', 'filters/shell_video_decoder_impl'],
               ]
             }],
+            ['use_widevine==1', {
+              'sources': [
+                'crypto/shell_widevine_decryptor.cc',
+                'crypto/shell_widevine_decryptor.h',
+              ],
+              'dependencies': [
+                'crypto/widevine.gyp:wvcdm_static',
+              ],
+            }],
           ],
         }, { # OS != lb_shell
           'dependencies': [
