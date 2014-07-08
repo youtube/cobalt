@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef WEBKIT_MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
-#define WEBKIT_MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
+#ifndef MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
+#define MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
 
 #include <map>
 #include <string>
@@ -48,4 +48,4 @@ class MEDIA_EXPORT ShellDecryptorFactory {
 
 }  // namespace media
 
-#endif  // WEBKIT_MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
+#endif  // MEDIA_CRYPTO_SHELL_DECRYPTOR_FACTORY_H_
