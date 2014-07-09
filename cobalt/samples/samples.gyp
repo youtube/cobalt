@@ -47,7 +47,10 @@
     # executable from (PRODUCT_DIR) was copied over.
     {
       'target_name': 'simple_example',
-      'type': 'executable',
+      # Using (final_executable_type) instead of executable allows us
+      # to compile the target into a library on platforms that package the
+      # native code into a bundle (ex. Android).
+      'type': '<(final_executable_type)',
       'sources': [
         'simple_example_main.cc',
       ],
@@ -76,7 +79,10 @@
     # This target will create a test for simple_example.
     {
       'target_name': 'simple_example_test',
-      'type': 'executable',
+      # Using (gtest_target_type) instead of executable allows us to compile
+      # the target into a library on platforms that package the native code
+      # into a bundle (ex. Android).
+      'type': '<(gtest_target_type)',
       'sources': [
         'simple_example_test.cc',
       ],
