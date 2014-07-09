@@ -295,6 +295,7 @@ void AudioBus::ToInterleavedPartial(int start_frame, int frames,
   }
 }
 
+#if defined(__LB_SHELL__)
 void AudioBus::FromInterleavedFloat(const float* source, int frames,
                                     int audio_bus_offset) {
   DCHECK_LE(frames + audio_bus_offset, this->frames());
@@ -321,6 +322,7 @@ void AudioBus::ToInterleavedFloat(
     --frames;
   }
 }
+#endif  // defined(__LB_SHELL__)
 
 void AudioBus::CopyTo(AudioBus* dest) const {
   CHECK_EQ(channels(), dest->channels());
