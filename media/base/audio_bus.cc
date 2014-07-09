@@ -295,6 +295,33 @@ void AudioBus::ToInterleavedPartial(int start_frame, int frames,
   }
 }
 
+void AudioBus::FromInterleavedFloat(const float* source, int frames,
+                                    int audio_bus_offset) {
+  DCHECK_LE(frames + audio_bus_offset, this->frames());
+
+  while (frames > 0) {
+    for (int channel = 0; channel < channels(); ++channel) {
+      this->channel(channel)[audio_bus_offset] = *source;
+      ++source;
+    }
+    ++audio_bus_offset;
+    --frames;
+  }
+}
+
+void AudioBus::ToInterleavedFloat(
+    int frames, int audio_bus_offset, float* dest) const {
+  DCHECK_LE(frames + audio_bus_offset, this->frames());
+  while (frames > 0) {
+    for (int channel = 0; channel < channels(); ++channel) {
+      *dest = this->channel(channel)[audio_bus_offset];
+      ++dest;
+    }
+    ++audio_bus_offset;
+    --frames;
+  }
+}
+
 void AudioBus::CopyTo(AudioBus* dest) const {
   CHECK_EQ(channels(), dest->channels());
   CHECK_EQ(frames(), dest->frames());
