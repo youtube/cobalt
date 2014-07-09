@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright 2014 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,19 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Initialization for the config package."""
 
-# This files contains all targets that should be created by gyp_cobalt by
-# default.
 
-{
-  'targets': [
-    {
-      'target_name': 'All',
-      'type': 'none',
-      'dependencies': [
-        '<(DEPTH)/cobalt/samples/samples.gyp:simple_example_deploy',
-        '<(DEPTH)/cobalt/samples/samples.gyp:simple_example_test_deploy',
-      ]
-    }
-  ],
-}
+from base import LoadPlatformConfig
+from base import VALID_BUILD_CONFIGS
+from base import VALID_PLATFORMS
