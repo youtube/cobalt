@@ -552,24 +552,6 @@
           'linux_use_gold_flags%': 0,
         }],
 
-        # Override some defaults for lb_shell
-        ['OS=="lb_shell"', {
-          'remoting': 0,
-          'p2p_apis': 0,
-          'safe_browsing': 0,
-          'toolkit_uses_gtk': 0,
-          'use_x11': 0,
-          'disable_sse2': 1,
-          'use_libjpeg_turbo': 0,
-          'enable_web_intents': 0,
-          'linux_use_gold_flags': 0,
-          'notifications': 0,
-          'disable_ftp_support': 1,
-          'use_harfbuzz_ng': 1,
-          'cobalt%': 1,
-          'use_official_google_api_keys%': 0,
-        }],
-
         ['OS=="android" or OS=="ios"', {
           'enable_captive_portal_detection%': 0,
         }, {
@@ -650,8 +632,10 @@
       'google_default_client_secret%': '',
     },
 
-    # Cobalt specific variables.
-    'cobalt%': '<(cobalt)',
+    # Make sure that cobalt is defined. This is needed in
+    # the case where the code is built using Chromium stock
+    # build tools.
+    'cobalt%': 0,
 
     # Copy conditionally-set variables out one scope.
     'branding%': '<(branding)',
@@ -1226,7 +1210,7 @@
           # chrome/app/theme/google_chrome/BRANDING, but is necessary to get
           # these names into the build system.
           ['OS!="lb_shell"', {
-            'default_configuration': 'Debug', # LBPS3 provides its own configurations
+            'default_configuration': 'Debug',
           }],
           ['branding=="Chrome"', {
             'mac_product_name%': 'Google Chrome',
@@ -1289,12 +1273,6 @@
         'use_cups%': 0,
       }],
 
-      ['OS=="lb_shell"', {
-        'disable_nacl': 1,
-        'use_openssl': 1,
-        'use_cups': 0,
-        'input_speech': 0,
-      }],
       # Native Client glibc toolchain is enabled by default except on arm.
       ['target_arch=="arm"', {
         'disable_glibc%': 1,
