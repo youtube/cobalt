@@ -73,6 +73,7 @@ class MEDIA_EXPORT AudioBus {
   void ToInterleavedPartial(int start_frame, int frames, int bytes_per_sample,
                             void* dest) const;
 
+#if defined(__LB_SHELL__)
   // The following two functions work on float samples instead of integer
   // samples.
   // FromInterleavedFloat fills the audio bus with interleaved samples. It is
@@ -87,6 +88,7 @@ class MEDIA_EXPORT AudioBus {
   // It is an error if the requested frame is larger than what the audio bus
   // can offer.
   void ToInterleavedFloat(int frames, int audio_bus_offset, float* dest) const;
+#endif  // defined(__LB_SHELL__)
 
   // Similar to FromInterleaved() above, but meant for streaming sources.  Does
   // not zero out remaining frames, the caller is responsible for doing so using
