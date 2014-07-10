@@ -17,7 +17,6 @@
 #include "cobalt/samples/simple_example.h"
 
 namespace cobalt {
-
 namespace samples {
 
 SimpleExample::SimpleExample(int multiplier)
@@ -30,5 +29,4 @@ int SimpleExample::MultiplyAdd(int a, int b) const {
 }
 
 }  // namespace samples
-
 }  // namespace cobalt
