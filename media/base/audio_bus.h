@@ -87,7 +87,11 @@ class MEDIA_EXPORT AudioBus {
   // "frames" indicates frame count per channel instead of the combined frames.
   // It is an error if the requested frame is larger than what the audio bus
   // can offer.
-  void ToInterleavedFloat(int frames, int audio_bus_offset, float* dest) const;
+  // "extra_channels" has to be greater than or equal to 0. A non-zero value
+  // indicates that there are more channels in the "dest" than in this audio bus
+  // and they will be filled with 0.
+  void ToInterleavedFloat(int frames, int audio_bus_offset, int extra_channels,
+                          float* dest) const;
 #endif  // defined(__LB_SHELL__)
 
   // Similar to FromInterleaved() above, but meant for streaming sources.  Does
