@@ -311,11 +311,17 @@ void AudioBus::FromInterleavedFloat(const float* source, int frames,
 }
 
 void AudioBus::ToInterleavedFloat(
-    int frames, int audio_bus_offset, float* dest) const {
+    int frames, int audio_bus_offset, int extra_channels, float* dest) const {
   DCHECK_LE(frames + audio_bus_offset, this->frames());
+  DCHECK_GE(extra_channels, 0);
+
   while (frames > 0) {
     for (int channel = 0; channel < channels(); ++channel) {
       *dest = this->channel(channel)[audio_bus_offset];
+      ++dest;
+    }
+    for (int channel = 0; channel < extra_channels; ++channel) {
+      *dest = 0.f;
       ++dest;
     }
     ++audio_bus_offset;
