@@ -24,7 +24,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-
 namespace samples {
 
 class SimpleExampleTest : public ::testing::Test {
@@ -132,5 +131,4 @@ TEST_F(SimpleExampleTest, PrintData) {
 }
 
 }  // namespace samples
-
 }  // namespace cobalt

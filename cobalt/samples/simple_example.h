@@ -18,7 +18,6 @@
 #define SAMPLES_SIMPLE_EXAMPLE_H_
 
 namespace cobalt {
-
 namespace samples {
 
 class SimpleExample {
@@ -38,7 +37,6 @@ class SimpleExample {
 };
 
 }  // namespace samples
-
 }  // namespace cobalt
 
 #endif  // SAMPLES_SIMPLE_EXAMPLE_H_
