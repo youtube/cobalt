@@ -319,6 +319,8 @@
         'filters/shell_au.cc',
         'filters/shell_au.h',
         'filters/shell_audio_decoder.h',
+        'filters/shell_audio_decoder_impl.cc',
+        'filters/shell_audio_decoder_impl.h',
         'filters/shell_audio_renderer.h',
         'filters/shell_audio_renderer_impl.cc',
         'filters/shell_audio_renderer_impl.h',
@@ -544,8 +546,15 @@
             }],
             ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
               'sources/': [
-                # PS3 has its own audio renderer implementation.
+                # These platforms have their own implementations.
+                ['exclude', 'filters/shell_audio_decoder_impl'],
                 ['exclude', 'filters/shell_audio_renderer_impl'],
+              ]
+            }],
+            ['target_arch=="wiiu"', {
+              'sources/': [
+                # Wii U has its own audio decoder implementations.
+                ['exclude', 'filters/shell_audio_decoder_impl'],
               ]
             }],
           ],
