@@ -100,11 +100,13 @@ def GitHash(repo_project):
 def _EnsureGomaRunning():
   """Ensure goma is running."""
 
-  cmd_line = ['goma_ctl.sh', 'ensure_start']
+  cmd_line = ['goma_ctl.py', 'ensure_start']
   try:
     subprocess.check_output(cmd_line, shell=True, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
-    logging.critical('goma failed to start.\n%s:\n%s', e.cmd, e.ouput)
+    logging.critical('goma failed to start.\n'
+                     'Command: %s\n%s',
+                     ' '.join(e.cmd), e.output)
     sys.exit(1)
 
 
