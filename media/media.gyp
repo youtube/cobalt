@@ -339,6 +339,8 @@
         'filters/shell_rbsp_stream.cc',
         'filters/shell_rbsp_stream.h',
         'filters/shell_video_decoder.h',
+        'filters/shell_video_decoder_impl.cc',
+        'filters/shell_video_decoder_impl.h',
         'filters/source_buffer_stream.cc',
         'filters/source_buffer_stream.h',
         'filters/video_decoder_selector.cc',
@@ -456,9 +458,6 @@
           'dependencies': [
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
-          'sources': [
-            '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
-          ],
           'sources/': [
             ['exclude', 'android'],
             # media is not excluding windows sources automatically.
@@ -544,17 +543,24 @@
                 },
               },
             }],
+            ['target_arch=="android" or target_arch=="ps3" or target_arch=="wiiu" or target_arch=="xb1" or target_arch=="xb360"', {
+              'sources': [
+                '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
+              ],
+            }],
             ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
               'sources/': [
                 # These platforms have their own implementations.
                 ['exclude', 'filters/shell_audio_decoder_impl'],
                 ['exclude', 'filters/shell_audio_renderer_impl'],
+                ['exclude', 'filters/shell_video_decoder_impl'],
               ]
             }],
             ['target_arch=="wiiu"', {
               'sources/': [
                 # Wii U has its own audio decoder implementations.
                 ['exclude', 'filters/shell_audio_decoder_impl'],
+                ['exclude', 'filters/shell_video_decoder_impl'],
               ]
             }],
           ],
