@@ -9,6 +9,7 @@
 *.rules
 *.sdf
 *.sln
+*.sublime-workspace
 *.suo
 *.targets
 *.user
