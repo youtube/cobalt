@@ -175,7 +175,9 @@ void ShellVideoDecoderImpl::BufferReady(
   }
 
   if (demuxer_status == DemuxerStream::kConfigChanged) {
-    DLOG(INFO) << "Configuration Changed";
+    std::string config_string =
+        demuxer_stream_->video_decoder_config().AsHumanReadableString();
+    DLOG(INFO) << "Configuration Changed: " << config_string;
     // One side effect of asking for the video configuration is that
     // the MediaSource demuxer stack uses that request to determine
     // that the video decoder has updated its configuration.
