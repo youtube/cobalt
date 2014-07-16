@@ -64,7 +64,7 @@
 
   'copies': [
     {
-      'destination': '<(PRODUCT_DIR)/content/icu',
+      'destination': '<(PRODUCT_DIR)/content/data/icu',
       'files': [ '<(inputs_icu)' ],
     },
   ],

@@ -103,29 +103,37 @@ def _EnsureGomaRunning():
   cmd_line = ['goma_ctl.py', 'ensure_start']
   try:
     subprocess.check_output(cmd_line, shell=True, stderr=subprocess.STDOUT)
+    return True
   except subprocess.CalledProcessError as e:
-    logging.critical('goma failed to start.\n'
-                     'Command: %s\n%s',
-                     ' '.join(e.cmd), e.output)
-    sys.exit(1)
+    logging.error('goma failed to start.\nCommand: %s\n%s',
+                  ' '.join(e.cmd), e.output)
+    return False
 
 
-def ShouldUseGoma(use_goma_default):
-  """Query if we should use goma for the build."""
+def FindAndInitGoma():
+  """Checks if goma is installed and makes sure that it's initialized.
+
+  Returns:
+    True if goma was found and correctly initialized.
+  """
+
+  # GOMA is only supported on Linux.
+  if not sys.platform.startswith('linux'):
+    return False
 
   # See if we can find gomacc somewhere the path.
   gomacc_path = Which('gomacc')
 
   if 'USE_GOMA' in os.environ:
     use_goma = int(os.environ['USE_GOMA'])
-    if use_goma == 1 and not gomacc_path:
+    if use_goma and not gomacc_path:
       logging.critical('goma was requested but gomacc not found in PATH.')
       sys.exit(1)
   else:
-    use_goma = (gomacc_path and use_goma_default)
+    use_goma = bool(gomacc_path)
 
   if use_goma:
-    _EnsureGomaRunning()
+    use_goma = _EnsureGomaRunning()
   return use_goma
 
 
