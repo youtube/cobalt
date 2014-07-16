@@ -51,6 +51,10 @@
       # to compile the target into a library on platforms that package the
       # native code into a bundle (ex. Android).
       'type': '<(final_executable_type)',
+      'variables': {
+        # Override the default main thread stack size and set it to 1MB.
+        'main_thread_stack_size': 1048576,
+      },
       'sources': [
         'simple_example_main.cc',
       ],
