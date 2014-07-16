@@ -31,8 +31,6 @@
     'final_executable_type%': 'executable',
     'posix_emulation_target_type%': 'static_library',
 
-    'main_thread_stack_size%': 0,
-
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
     'lb_shell_sha1%': '<(cobalt_sha1)',
