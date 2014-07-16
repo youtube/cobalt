@@ -27,6 +27,7 @@ enum VideoCodec {
   kCodecMPEG4,
   kCodecTheora,
   kCodecVP8,
+  kCodecVP9,
   // DO NOT ADD RANDOM VIDEO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
@@ -58,7 +59,10 @@ enum VideoCodecProfile {
   VP8PROFILE_MIN = 11,
   VP8PROFILE_MAIN = VP8PROFILE_MIN,
   VP8PROFILE_MAX = VP8PROFILE_MAIN,
-  VIDEO_CODEC_PROFILE_MAX = VP8PROFILE_MAX,
+  VP9PROFILE_MIN = 12,
+  VP9PROFILE_MAIN = VP9PROFILE_MIN,
+  VP9PROFILE_MAX = VP9PROFILE_MAIN,
+  VIDEO_CODEC_PROFILE_MAX = VP9PROFILE_MAX,
 };
 
 class MEDIA_EXPORT VideoDecoderConfig {

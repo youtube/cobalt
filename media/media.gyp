@@ -239,6 +239,8 @@
         'base/pipeline_status.h',
         'base/ranges.cc',
         'base/ranges.h',
+        'base/sample_format.cc',
+        'base/sample_format.h',
         'base/seekable_buffer.cc',
         'base/seekable_buffer.h',
         'base/serial_runner.cc',
@@ -383,6 +385,8 @@
         'video/picture.h',
         'video/video_decode_accelerator.cc',
         'video/video_decode_accelerator.h',
+        'webm/webm_audio_client.cc',
+        'webm/webm_audio_client.h',
         'webm/webm_cluster_parser.cc',
         'webm/webm_cluster_parser.h',
         'webm/webm_constants.h',
@@ -398,6 +402,8 @@
         'webm/webm_stream_parser.h',
         'webm/webm_tracks_parser.cc',
         'webm/webm_tracks_parser.h',
+        'webm/webm_video_client.cc',
+        'webm/webm_video_client.h',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
