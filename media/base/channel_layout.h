@@ -123,6 +123,10 @@ MEDIA_EXPORT int ChannelOrder(ChannelLayout layout, Channels channel);
 // Returns the number of channels in a given ChannelLayout.
 MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
 
+// Given the number of channels, return the best layout,
+// or return CHANNEL_LAYOUT_UNSUPPORTED if there is no good match.
+MEDIA_EXPORT ChannelLayout GuessChannelLayout(int channels);
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_CHANNEL_LAYOUT_H_
