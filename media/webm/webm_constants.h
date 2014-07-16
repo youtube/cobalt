@@ -13,6 +13,7 @@ namespace media {
 // This is a subset of the IDs in the Matroska spec.
 // http://www.matroska.org/technical/specs/index.html
 const int kWebMIdAESSettingsCipherMode = 0x47E8;
+const int kWebMIdAlphaMode = 0x53C0;
 const int kWebMIdAspectRatioType = 0x54B3;
 const int kWebMIdAttachedFile = 0x61A7;
 const int kWebMIdAttachmentLink = 0x7446;

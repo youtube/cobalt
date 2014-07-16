@@ -155,4 +155,29 @@ int ChannelOrder(ChannelLayout layout, Channels channel) {
   return kChannelOrderings[layout][channel];
 }
 
+// Converts a channel count into a channel layout.
+ChannelLayout GuessChannelLayout(int channels) {
+  switch (channels) {
+    case 1:
+      return CHANNEL_LAYOUT_MONO;
+    case 2:
+      return CHANNEL_LAYOUT_STEREO;
+    case 3:
+      return CHANNEL_LAYOUT_SURROUND;
+    case 4:
+      return CHANNEL_LAYOUT_QUAD;
+    case 5:
+      return CHANNEL_LAYOUT_5_0;
+    case 6:
+      return CHANNEL_LAYOUT_5_1;
+    case 7:
+      return CHANNEL_LAYOUT_6_1;
+    case 8:
+      return CHANNEL_LAYOUT_7_1;
+    default:
+      DVLOG(1) << "Unsupported channel count: " << channels;
+  }
+  return CHANNEL_LAYOUT_UNSUPPORTED;
+}
+
 }  // namespace media
