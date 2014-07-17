@@ -473,15 +473,11 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
                     dest->frames() * sizeof(float)  // NOLINT(runtime/sizeof)
                     / bytes_per_sample);
           // Write zeros (silence) to each channel
-          if (dest->channels() == 1) {
-            memset(dest->channel(0), 0,
-                dest->frames() * sizeof(float));  // NOLINT(runtime/sizeof)
-          } else {
-            for (int i = 0; i < dest->channels(); ++i) {
-              void* channel_data = dest->channel(i);
-              size_t num_bytes = dest->frames() * bytes_per_sample;
-              memset(channel_data, 0, num_bytes);
-            }
+          for (int i = 0; i < dest->channels(); ++i) {
+            void* channel_data = dest->channel(i);
+            size_t num_bytes =
+                dest->frames() * sizeof(float);  // NOLINT(runtime/sizeof)
+            memset(channel_data, 0, num_bytes);
           }
           frames_rendered = AACDEC_PCM_SAMPLE_SIZE;
           uint64_t silence_ms = AACDEC_PCM_SAMPLE_SIZE * 1000 /
