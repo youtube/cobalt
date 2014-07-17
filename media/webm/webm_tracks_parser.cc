@@ -32,9 +32,11 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
   track_type_ =-1;
   track_num_ = -1;
   audio_track_num_ = -1;
-  audio_decoder_config_.CopyFrom(AudioDecoderConfig());
+  AudioDecoderConfig invalid_audio_decoder_config;
+  audio_decoder_config_.CopyFrom(invalid_audio_decoder_config);
   video_track_num_ = -1;
-  video_decoder_config_.CopyFrom(VideoDecoderConfig());
+  VideoDecoderConfig invalid_video_decoder_config;
+  video_decoder_config_.CopyFrom(invalid_video_decoder_config);
 
   WebMListParser parser(kWebMIdTracks, this);
   int result = parser.Parse(buf, size);
