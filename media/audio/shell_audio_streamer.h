@@ -3,6 +3,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 
 namespace media {
 
@@ -42,21 +43,83 @@ class ShellAudioStream {
 // and provide implementations for the static functions.
 class ShellAudioStreamer {
  public:
-  struct Config {
+  class Config {
+   public:
+    enum StorageMode {
+      INTERLEAVED,
+      PLANAR
+    };
+    enum MonoDecodeMode {
+      DECODE_MONO_AS_MONO,
+      DECODE_MONO_AS_STEREO
+    };
+
+    Config() : valid_(false) {}
+
+    // Initialize the Config settings, see the comment on individual member
+    // below for more details.
+    Config(StorageMode storage_mode, MonoDecodeMode mono_decode_mode,
+           uint32 initial_rebuffering_frames_per_channel,
+           uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
+           uint32 renderer_request_frames)
+        : valid_(true),
+          interleaved_(storage_mode == INTERLEAVED),
+          decode_mono_as_stereo_(mono_decode_mode == DECODE_MONO_AS_STEREO),
+          initial_rebuffering_frames_per_channel_(
+              initial_rebuffering_frames_per_channel
+          ),
+          max_frames_per_channel_(max_frames_per_channel),
+          initial_frames_per_channel_(initial_frames_per_channel),
+          renderer_request_frames_(renderer_request_frames) {
+    }
+
+    bool interleaved() const {
+      AssertValid();
+      return interleaved_;
+    }
+    bool decode_mono_as_stereo() const {
+      AssertValid();
+      return decode_mono_as_stereo_;
+    }
+    uint32 initial_rebuffering_frames_per_channel() const {
+      AssertValid();
+      return initial_rebuffering_frames_per_channel_;
+    }
+    uint32 max_frames_per_channel() const {
+      AssertValid();
+      return max_frames_per_channel_;
+    }
+    uint32 initial_frames_per_channel() const {
+      AssertValid();
+      return initial_frames_per_channel_;
+    }
+    uint32 renderer_request_frames() const {
+      AssertValid();
+      return renderer_request_frames_;
+    }
+    uint32 underflow_threshold() const {
+      AssertValid();
+      return renderer_request_frames_ / 2;
+    }
+
+   private:
+    void AssertValid() const { DCHECK(valid_); }
+
+    bool valid_;
+
     // Is the data in audio bus interleaved and stored as one channel.
-    bool interleaved;
+    bool interleaved_;
     // Set to true when the platform needs two streams to decode mono audio
     // TODO(***REMOVED***) : The renderer should alter the audio param to reflect
     // this.
-    bool decode_mono_as_stereo;
+    bool decode_mono_as_stereo_;
     // These paramters control rebuffering.
     // See ShellAudioSink::ResumeAfterUnderflow for more details.
-    uint32 initial_rebuffering_frames_per_channel;
-    uint32 max_frames_per_channel;
-    uint32 initial_frames_per_channel;
+    uint32 initial_rebuffering_frames_per_channel_;
+    uint32 max_frames_per_channel_;
+    uint32 initial_frames_per_channel_;
     // amount of data we should request each time from the renderer
-    uint64 renderer_request_frames;
-    uint32 underflow_threshold;
+    uint32 renderer_request_frames_;
   };
 
   ShellAudioStreamer() {}
