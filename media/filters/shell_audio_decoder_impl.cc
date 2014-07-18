@@ -42,6 +42,8 @@ const int kAudioBytesPerSample = sizeof(int16);
 const int kAudioBytesPerSample = sizeof(float);
 #elif defined(__LB_PS4__)
 const int kAudioBytesPerSample = sizeof(float);
+#elif defined(__LB_WIIU__)
+const int kAudioBytesPerSample = sizeof(int16_t);
 #else
 #error kAudioBytesPerSample has to be specified!
 #endif
