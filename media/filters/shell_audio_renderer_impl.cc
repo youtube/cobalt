@@ -470,8 +470,8 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
         if (end_of_stream_state_ == kRenderedEOS) {
           const int bytes_per_sample = audio_parameters_.bits_per_sample() / 8;
           DCHECK_EQ(AACDEC_PCM_SAMPLE_SIZE,
-                    dest->frames() * sizeof(float)  // NOLINT(runtime/sizeof)
-                    / bytes_per_sample);
+                    dest->frames() * dest->channels() * sizeof(float) /
+                    bytes_per_sample / audio_parameters_.channels());
           // Write zeros (silence) to each channel
           for (int i = 0; i < dest->channels(); ++i) {
             void* channel_data = dest->channel(i);
