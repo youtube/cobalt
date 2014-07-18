@@ -138,6 +138,11 @@ void ShellAudioDecoderImpl::Initialize(
   pending_demuxer_read_ = false;
 
   raw_decoder_ = LB::LBAudioDecoder::Create(filter_graph_log_);
+  if (raw_decoder_ == NULL) {
+    status_cb.Run(PIPELINE_ERROR_DECODE);
+    return;
+  }
+
   raw_decoder_->SetDecryptor(demuxer_stream_->GetDecryptor());
   if (!raw_decoder_->UpdateConfig(config)) {
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
@@ -303,23 +308,12 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
   if (buffer->IsEndOfStream()) {
     filter_graph_log_->LogEvent(kObjectIdAudioDecoder,
                                 kEventEndOfStreamReceived);
-    shell_audio_decoder_status_ = kStopped;
-
     // Consume any additional EOS buffers that are queued up
     while (!queued_buffers_.empty()) {
       DCHECK(queued_buffers_.front().second->IsEndOfStream());
       queued_buffers_.pop_front();
     }
-
-    // pass EOS buffer down the chain
-    filter_graph_log_->LogEvent(kObjectIdAudioDecoder,
-                                kEventEndOfStreamSent);
-    base::ResetAndReturn(&read_cb_).Run(kOk, buffer);
-    return;
   }
-
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &ShellAudioDecoderImpl::RequestBuffer, this));
 
   scoped_refptr<ShellBuffer> decoded_buffer = raw_decoder_->Decode(buffer);
   if (!decoded_buffer) {
@@ -328,14 +322,35 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
     return;
   }
 
-  DCHECK_EQ(audio_bus->channels(), 1);
-  DCHECK_GE(audio_bus->frames() * sizeof(float),  // NOLINT(runtime/sizeof)
-            decoded_buffer->GetDataSize());
+  if (decoded_buffer->IsEndOfStream()) {
+    // Set to kStopped so that subsequent read requests will get EOS
+    shell_audio_decoder_status_ = kStopped;
+    // pass EOS buffer down the chain
+    filter_graph_log_->LogEvent(kObjectIdAudioDecoder,
+                                kEventEndOfStreamSent);
+    base::ResetAndReturn(&read_cb_).Run(kOk, decoded_buffer);
+    return;
+  }
+
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &ShellAudioDecoderImpl::RequestBuffer, this));
+
+  DCHECK_EQ(audio_bus->frames() * sizeof(float),  // NOLINT(runtime/sizeof)
+            decoded_buffer->GetDataSize() / audio_bus->channels());
   DCHECK_EQ(decoded_buffer->GetDataSize(),
             kPCMSamplePerAACFrame * bits_per_channel() / 8 * num_channels_);
 
-  memcpy(audio_bus->channel(0), decoded_buffer->GetData(),
-         decoded_buffer->GetDataSize());
+  // Here we assume that a non-interleaved audio_bus means that the decoder
+  // output is in planar form, where each channel follows the other in the
+  // decoded buffer.
+  const int kAudioBusFrameSize =
+      audio_bus->frames() * sizeof(float);  // NOLINT(runtime/sizeof)
+  for (int i = 0; i < audio_bus->channels(); ++i) {
+    const uint8_t* decoded_channel_data =
+        decoded_buffer->GetData() + (i * kAudioBusFrameSize);
+    memcpy(audio_bus->channel(i), decoded_channel_data,
+           kAudioBusFrameSize);
+  }
 
 #if __SAVE_DECODER_OUTPUT__
   test_probe_.AddData(pcmLR);
@@ -344,8 +359,8 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
   filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventDataDecoded);
   scoped_refptr<ShellDecodedBuffer> return_buffer =
       new ShellDecodedBuffer(
-          buffer->GetTimestamp(),
-          buffer->GetDuration(),
+          decoded_buffer->GetTimestamp(),
+          decoded_buffer->GetDuration(),
           audio_bus);
 
   base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, return_buffer);
