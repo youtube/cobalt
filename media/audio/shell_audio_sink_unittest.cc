@@ -24,6 +24,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+typedef media::ShellAudioStreamer::Config Config;
+
 namespace {
 
 using namespace testing;
@@ -88,7 +90,7 @@ class ShellAudioSinkTest : public testing::Test {
     media::ShellBufferFactory::Terminate();
   }
 
-  void Setup(const media::ShellAudioStreamer::Config& config) {
+  void Setup(const Config& config) {
     render_byte_ = 0;
     consumption_byte_ = 0;
     render_bytes_num_ = 0;
@@ -107,18 +109,18 @@ class ShellAudioSinkTest : public testing::Test {
   }
 
   void FillAudioBus(int frames_per_channel, media::AudioBus* audio_bus) {
-    media::ShellAudioStreamer::Config config = streamer_.GetConfig();
+    Config config = streamer_.GetConfig();
     media::AudioParameters params = sink_->GetAudioParameters();
     int bytes_per_channel = frames_per_channel * params.bits_per_sample() / 8;
     int channels = params.channels();
-    if (config.decode_mono_as_stereo && channels == 1)
+    if (config.decode_mono_as_stereo() && channels == 1)
       channels = 2;
-    if (config.interleaved) {
+    if (config.interleaved()) {
       bytes_per_channel *= channels;
     }
     ASSERT_LE(bytes_per_channel, audio_bus->frames() * sizeof(float));
 
-    if (config.interleaved) {
+    if (config.interleaved()) {
       ASSERT_EQ(audio_bus->channels(), 1);
       InterleavedFill(frames_per_channel, channels,
                       params.bits_per_sample() / 8,
@@ -142,14 +144,14 @@ class ShellAudioSinkTest : public testing::Test {
   }
 
   void Consume(int frames_per_channel) {
-    media::ShellAudioStreamer::Config config = streamer_.GetConfig();
+    Config config = streamer_.GetConfig();
     media::AudioParameters params = sink_->GetAudioParameters();
     media::AudioSinkSettings settings;
     media::AudioBus* audio_bus = sink_->GetAudioBus();
     int bytes_per_channel = frames_per_channel * params.bits_per_sample() / 8;
 
     settings.Reset(config, params);
-    if (config.interleaved) {
+    if (config.interleaved()) {
       bytes_per_channel *= settings.channels();
     }
     ASSERT_LE(bytes_per_channel, audio_bus->frames() * sizeof(float));
@@ -163,7 +165,7 @@ class ShellAudioSinkTest : public testing::Test {
     int frames_to_request =
         std::min<int>(frames_per_channel,
                       settings.per_channel_frames(audio_bus) - offset_in_frame);
-    if (config.interleaved) {
+    if (config.interleaved()) {
       ASSERT_EQ(audio_bus->channels(), 1);
       uint8* data = reinterpret_cast<uint8*>(audio_bus->channel(0)) +
           offset_in_frame * params.bits_per_sample() / 8 * settings.channels();
@@ -186,7 +188,7 @@ class ShellAudioSinkTest : public testing::Test {
 
     frames_to_request = frames_per_channel - frames_to_request;
     if (frames_to_request != 0) {
-      if (config.interleaved) {
+      if (config.interleaved()) {
         ASSERT_EQ(audio_bus->channels(), 1);
         uint8* data = reinterpret_cast<uint8*>(audio_bus->channel(0));
         InterleavedVerify(frames_to_request, settings.channels(),
@@ -242,9 +244,9 @@ ACTION_P3(VerifyAudioBusFrameCount, config, init_params, frames_per_channel) {
   media::AudioBus* audio_bus = arg0;
   int bytes_per_channel = frames_per_channel *
       init_params.bits_per_sample() / 8;
-  if (config.interleaved) {
+  if (config.interleaved()) {
     int channels = init_params.channels();
-    if (config.decode_mono_as_stereo && channels == 1)
+    if (config.decode_mono_as_stereo() && channels == 1)
       channels = 2;
     bytes_per_channel *= channels;
   }
@@ -278,24 +280,26 @@ TEST_F(ShellAudioSinkTest, Prerequisites) {
                         data, &render_byte);
         InterleavedVerify(frames_per_channel, channels, bytes_per_sample,
                           data, &consume_byte);
-	ASSERT_EQ(render_byte, consume_byte);
+        ASSERT_EQ(render_byte, consume_byte);
       }
     }
   }
 }
 
 TEST_F(ShellAudioSinkTest, Initialize) {
-  media::ShellAudioStreamer::Config config;
-
-  config.renderer_request_frames = 1024;
-  config.initial_rebuffering_frames_per_channel = 2048;
-  config.max_frames_per_channel = 8192;
-  config.initial_frames_per_channel = 4096;
+  const uint32 renderer_request_frames = 1024;
+  const uint32 initial_rebuffering_frames_per_channel = 2048;
+  const uint32 max_frames_per_channel = 8192;
+  const uint32 initial_frames_per_channel = 4096;
 
   // 4 configurations with different interleaved and decode_mono_as_stereo
   for (int i = 0; i < 4; ++i) {
-    config.interleaved = i / 2 != 0;
-    config.decode_mono_as_stereo = i % 2 != 0;
+    Config config(
+        i / 2 ? Config::INTERLEAVED : Config::PLANAR,
+        i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
+        initial_rebuffering_frames_per_channel, max_frames_per_channel,
+        initial_frames_per_channel, renderer_request_frames
+    );
 
     for (media::ChannelLayout layout = media::CHANNEL_LAYOUT_MONO;
          layout != media::CHANNEL_LAYOUT_MAX;
@@ -316,17 +320,17 @@ TEST_F(ShellAudioSinkTest, Initialize) {
         media::AudioBus* audio_bus = sink_->GetAudioBus();
         media::AudioParameters params = sink_->GetAudioParameters();
         int expected_channels = init_params.channels();
-        if (expected_channels == 1 && config.decode_mono_as_stereo)
+        if (expected_channels == 1 && config.decode_mono_as_stereo())
           expected_channels = 2;
-        if (config.interleaved) {
+        if (config.interleaved()) {
           EXPECT_EQ(audio_bus->channels(), 1);
           EXPECT_EQ(audio_bus->frames(),
-              config.initial_frames_per_channel * expected_channels *
+              config.initial_frames_per_channel() * expected_channels *
               bytes_per_sample / sizeof(float));
           EXPECT_EQ(params.channels(), init_params.channels());
         } else {
           EXPECT_EQ(audio_bus->channels(), expected_channels);
-          EXPECT_EQ(audio_bus->frames(), config.initial_frames_per_channel *
+          EXPECT_EQ(audio_bus->frames(), config.initial_frames_per_channel() *
               bytes_per_sample / sizeof(float));
           EXPECT_EQ(params.channels(), init_params.channels());
         }
@@ -339,14 +343,14 @@ TEST_F(ShellAudioSinkTest, Initialize) {
 }
 
 TEST_F(ShellAudioSinkTest, StartAndStop) {
-  media::ShellAudioStreamer::Config config;
+  const uint32 renderer_request_frames = 1024;
+  const uint32 initial_rebuffering_frames_per_channel = 2048;
+  const uint32 max_frames_per_channel = 8192;
+  const uint32 initial_frames_per_channel = 4096;
 
-  config.interleaved = true;
-  config.decode_mono_as_stereo = true;
-  config.renderer_request_frames = 1024;
-  config.initial_rebuffering_frames_per_channel = 2048;
-  config.max_frames_per_channel = 8192;
-  config.initial_frames_per_channel = 4096;
+  Config config(Config::INTERLEAVED, Config::DECODE_MONO_AS_STEREO,
+                initial_rebuffering_frames_per_channel, max_frames_per_channel,
+                initial_frames_per_channel, renderer_request_frames);
 
   media::AudioParameters init_params = media::AudioParameters(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -369,14 +373,14 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderNoFrames) {
-  media::ShellAudioStreamer::Config config;
+  const uint32 renderer_request_frames = 1024;
+  const uint32 initial_rebuffering_frames_per_channel = 2048;
+  const uint32 max_frames_per_channel = 8192;
+  const uint32 initial_frames_per_channel = 4096;
 
-  config.interleaved = true;
-  config.decode_mono_as_stereo = true;
-  config.renderer_request_frames = 1024;
-  config.initial_rebuffering_frames_per_channel = 2048;
-  config.max_frames_per_channel = 8192;
-  config.initial_frames_per_channel = 4096;
+  Config config(Config::INTERLEAVED, Config::DECODE_MONO_AS_STEREO,
+                initial_rebuffering_frames_per_channel, max_frames_per_channel,
+                initial_frames_per_channel, renderer_request_frames);
 
   Setup(config);
 
@@ -402,16 +406,18 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderFrames) {
-  media::ShellAudioStreamer::Config config;
-
-  config.renderer_request_frames = 1024;
-  config.initial_rebuffering_frames_per_channel = 2048;
-  config.max_frames_per_channel = 8192;
-  config.initial_frames_per_channel = 4096;
+  const uint32 renderer_request_frames = 1024;
+  const uint32 initial_rebuffering_frames_per_channel = 2048;
+  const uint32 max_frames_per_channel = 8192;
+  const uint32 initial_frames_per_channel = 4096;
 
   for (int i = 0; i < 4; ++i) {
-    config.interleaved = i / 2 != 0;
-    config.decode_mono_as_stereo = i % 2 != 0;
+    Config config(
+        i / 2 ? Config::INTERLEAVED : Config::PLANAR,
+        i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
+        initial_rebuffering_frames_per_channel, max_frames_per_channel,
+        initial_frames_per_channel, renderer_request_frames);
+
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
@@ -466,16 +472,17 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
-  media::ShellAudioStreamer::Config config;
-
-  config.renderer_request_frames = 64;
-  config.initial_rebuffering_frames_per_channel = 128;
-  config.max_frames_per_channel = 128;
-  config.initial_frames_per_channel = 128;
+  const uint32 renderer_request_frames = 64;
+  const uint32 initial_rebuffering_frames_per_channel = 128;
+  const uint32 max_frames_per_channel = 128;
+  const uint32 initial_frames_per_channel = 128;
 
   for (int i = 0; i < 4; ++i) {
-    config.interleaved = i / 2 != 0;
-    config.decode_mono_as_stereo = i % 2 != 0;
+    Config config(
+        i / 2 ? Config::INTERLEAVED : Config::PLANAR,
+        i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
+        initial_rebuffering_frames_per_channel, max_frames_per_channel,
+        initial_frames_per_channel, renderer_request_frames);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
@@ -496,7 +503,7 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
       // Try to get 64 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
           .WillOnce(VerifyAudioBusFrameCount(config, init_params,
-                                             config.renderer_request_frames));
+                                             config.renderer_request_frames()));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
       // Ok, now give it 64 frames
@@ -507,7 +514,7 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
       // Try to get another 64 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
           .WillOnce(VerifyAudioBusFrameCount(config, init_params,
-                                             config.renderer_request_frames));
+                                             config.renderer_request_frames()));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
       // Ok, now give it 48 frames
@@ -567,16 +574,17 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
-  media::ShellAudioStreamer::Config config;
-
-  config.renderer_request_frames = 64;
-  config.initial_rebuffering_frames_per_channel = 128;
-  config.max_frames_per_channel = 256;
-  config.initial_frames_per_channel = 128;
+  const uint32 renderer_request_frames = 64;
+  const uint32 initial_rebuffering_frames_per_channel = 128;
+  const uint32 max_frames_per_channel = 256;
+  const uint32 initial_frames_per_channel = 128;
 
   for (int i = 0; i < 4; ++i) {
-    config.interleaved = i / 2 != 0;
-    config.decode_mono_as_stereo = i % 2 != 0;
+    Config config(
+        i / 2 ? Config::INTERLEAVED : Config::PLANAR,
+        i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
+        initial_rebuffering_frames_per_channel, max_frames_per_channel,
+        initial_frames_per_channel, renderer_request_frames);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
