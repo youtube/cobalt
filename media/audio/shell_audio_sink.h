@@ -132,6 +132,7 @@ class MEDIA_EXPORT ShellAudioSink
 
   scoped_refptr<ShellBufferFactory> buffer_factory_;
   ShellAudioStreamer* audio_streamer_;
+  ShellAudioStreamer::Config streamer_config_;
 
   AudioSinkSettings settings_;
 };

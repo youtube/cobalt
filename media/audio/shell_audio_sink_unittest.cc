@@ -30,6 +30,8 @@ namespace {
 
 using namespace testing;
 
+const uint32 kMaxHardwareChannelsStereo = 2;
+
 bool operator ==(const media::AudioParameters& params1,
                  const media::AudioParameters& params2) {
   return params1.channels() == params2.channels() &&
@@ -298,7 +300,8 @@ TEST_F(ShellAudioSinkTest, Initialize) {
         i / 2 ? Config::INTERLEAVED : Config::PLANAR,
         i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames
+        initial_frames_per_channel, renderer_request_frames,
+        kMaxHardwareChannelsStereo
     );
 
     for (media::ChannelLayout layout = media::CHANNEL_LAYOUT_MONO;
@@ -350,7 +353,8 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
 
   Config config(Config::INTERLEAVED, Config::DECODE_MONO_AS_STEREO,
                 initial_rebuffering_frames_per_channel, max_frames_per_channel,
-                initial_frames_per_channel, renderer_request_frames);
+                initial_frames_per_channel, renderer_request_frames,
+                kMaxHardwareChannelsStereo);
 
   media::AudioParameters init_params = media::AudioParameters(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -380,7 +384,8 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
 
   Config config(Config::INTERLEAVED, Config::DECODE_MONO_AS_STEREO,
                 initial_rebuffering_frames_per_channel, max_frames_per_channel,
-                initial_frames_per_channel, renderer_request_frames);
+                initial_frames_per_channel, renderer_request_frames,
+                kMaxHardwareChannelsStereo);
 
   Setup(config);
 
@@ -416,7 +421,8 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
         i / 2 ? Config::INTERLEAVED : Config::PLANAR,
         i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames);
+        initial_frames_per_channel, renderer_request_frames,
+        kMaxHardwareChannelsStereo);
 
     Setup(config);
 
@@ -482,7 +488,8 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
         i / 2 ? Config::INTERLEAVED : Config::PLANAR,
         i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames);
+        initial_frames_per_channel, renderer_request_frames,
+        kMaxHardwareChannelsStereo);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
@@ -584,7 +591,8 @@ TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
         i / 2 ? Config::INTERLEAVED : Config::PLANAR,
         i % 2 ? Config::DECODE_MONO_AS_STEREO : Config::DECODE_MONO_AS_MONO,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames);
+        initial_frames_per_channel, renderer_request_frames,
+        kMaxHardwareChannelsStereo);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
