@@ -61,7 +61,7 @@ class ShellAudioStreamer {
     Config(StorageMode storage_mode, MonoDecodeMode mono_decode_mode,
            uint32 initial_rebuffering_frames_per_channel,
            uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
-           uint32 renderer_request_frames)
+           uint32 renderer_request_frames, uint32 max_hardware_channels)
         : valid_(true),
           interleaved_(storage_mode == INTERLEAVED),
           decode_mono_as_stereo_(mono_decode_mode == DECODE_MONO_AS_STEREO),
@@ -70,7 +70,8 @@ class ShellAudioStreamer {
           ),
           max_frames_per_channel_(max_frames_per_channel),
           initial_frames_per_channel_(initial_frames_per_channel),
-          renderer_request_frames_(renderer_request_frames) {
+          renderer_request_frames_(renderer_request_frames),
+          max_hardware_channels_(max_hardware_channels) {
     }
 
     bool interleaved() const {
@@ -101,6 +102,10 @@ class ShellAudioStreamer {
       AssertValid();
       return renderer_request_frames_ / 2;
     }
+    uint32 max_hardware_channels() const {
+      AssertValid();
+      return max_hardware_channels_;
+    }
 
    private:
     void AssertValid() const { DCHECK(valid_); }
@@ -118,8 +123,13 @@ class ShellAudioStreamer {
     uint32 initial_rebuffering_frames_per_channel_;
     uint32 max_frames_per_channel_;
     uint32 initial_frames_per_channel_;
-    // amount of data we should request each time from the renderer
+    // Amount of data we should request each time from the renderer
     uint32 renderer_request_frames_;
+    // Max channels the current audio hardware can render. This can be changed
+    // during the running of the application as the user can plug/unplug
+    // different devices. So it represent the current status on the time of
+    // query.
+    uint32 max_hardware_channels_;
   };
 
   ShellAudioStreamer() {}

@@ -88,17 +88,18 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
   render_callback_ = callback;
   audio_parameters_ = params;
 
-  ShellAudioStreamer::Config config = audio_streamer_->GetConfig();
-  settings_.Reset(audio_streamer_->GetConfig(), params);
+  streamer_config_ = audio_streamer_->GetConfig();
+  settings_.Reset(streamer_config_, params);
 
   // something is very wrong if we cannot create sink audio bus on creation
-  if (!CreateSinkAudioBus(config.initial_frames_per_channel())) {
+  if (!CreateSinkAudioBus(streamer_config_.initial_frames_per_channel())) {
     NOTREACHED() << "couldn't create sink buffer";
     render_callback_->OnRenderError();
     return;
   }
 
-  rebuffer_num_frames_ = config.initial_rebuffering_frames_per_channel();
+  rebuffer_num_frames_ =
+      streamer_config_.initial_rebuffering_frames_per_channel();
   renderer_audio_bus_ = AudioBus::CreateWrapper(audio_bus_->channels());
 }
 
@@ -204,14 +205,13 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   if (!offset_in_frame) offset_in_frame = &dummy_offset_in_frame;
   if (!total_frames) total_frames = &dummy_total_frames;
 
-  ShellAudioStreamer::Config config = audio_streamer_->GetConfig();
   *total_frames = render_frame_cursor_ - output_frame_cursor_;
   uint32 free_frames =
       settings_.per_channel_frames(audio_bus_.get()) - *total_frames;
   // Number of ms of buffered playback remaining
   uint32_t buffered_time =
       (*total_frames * 1000 / audio_parameters_.sample_rate());
-  if (free_frames >= config.renderer_request_frames()) {
+  if (free_frames >= streamer_config_.renderer_request_frames()) {
     SetupRenderAudioBus();
 
     int frames_rendered = render_callback_->Render(renderer_audio_bus_.get(),
@@ -223,7 +223,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
       // TODO(***REMOVED***) : We cannot guarantee this on PS3 because of the
       // resampler. Check if it is possible to move the resample into the
       // streamer.
-      // DCHECK_EQ(frames_rendered, config.renderer_request_frames());
+      // DCHECK_EQ(frames_rendered,
+      //           streamer_config_.renderer_request_frames());
       render_frame_cursor_ += frames_rendered;
       *total_frames += frames_rendered;
       free_frames -= frames_rendered;
@@ -238,7 +239,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 #endif
   }
 
-  bool buffer_full = free_frames < config.renderer_request_frames();
+  bool buffer_full = free_frames < streamer_config_.renderer_request_frames();
   bool rebuffer_threshold_reached = *total_frames >= rebuffer_num_frames_;
   if (rebuffering_ && (buffer_full || rebuffer_threshold_reached)) {
     render_callback_->SinkFull();
@@ -247,7 +248,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 
 #if defined(__LB_LINUX__) || defined(__LB_WIIU__) || \
     defined(__LB_ANDROID__) || defined(__LB_PS4__)
-  if (*total_frames < config.underflow_threshold()) {
+  if (*total_frames < streamer_config_.underflow_threshold()) {
     if (!rebuffering_) {
       rebuffering_ = true;
       render_callback_->SinkUnderflow();
@@ -301,10 +302,9 @@ void ShellAudioSink::CopyAudioBus(scoped_ptr<media::AudioBus>* target) {
   DCHECK_EQ(audio_bus_->channels(), (*target)->channels());
   DCHECK_LT(audio_bus_->frames(), (*target)->frames());
   // calculate how many frames were left in the buffer before underrun
-  ShellAudioStreamer::Config config = audio_streamer_->GetConfig();
   uint32 unplayed_frames = render_frame_cursor_ - output_frame_cursor_;
   uint32 frames_to_bytes = audio_parameters_.bits_per_sample() / 8;
-  if (config.interleaved()) {
+  if (streamer_config_.interleaved()) {
     frames_to_bytes *= settings_.channels();
   }
   // check to see if we need to copy frames from the old buffer
@@ -335,10 +335,8 @@ void ShellAudioSink::CopyAudioBus(scoped_ptr<media::AudioBus>* target) {
 }
 
 bool ShellAudioSink::CreateSinkAudioBus(uint32 target_frames_per_channel) {
-  ShellAudioStreamer::Config config = audio_streamer_->GetConfig();
-
-  if (target_frames_per_channel > config.max_frames_per_channel())
-    target_frames_per_channel = config.max_frames_per_channel();
+  if (target_frames_per_channel > streamer_config_.max_frames_per_channel())
+    target_frames_per_channel = streamer_config_.max_frames_per_channel();
 
   uint32 target_memory_size = audio_parameters_.bits_per_sample() / 8 *
       settings_.channels() * target_frames_per_channel;
@@ -357,7 +355,7 @@ bool ShellAudioSink::CreateSinkAudioBus(uint32 target_frames_per_channel) {
   // AudioBus treats everything in float so we have to convert.
   uint32 float_frame_per_channel = target_frames_per_channel *
       audio_parameters_.bits_per_sample() / 8 / sizeof(float);
-  if (config.interleaved()) {
+  if (streamer_config_.interleaved()) {
     new_audio_bus = AudioBus::WrapMemory(
         1, settings_.channels() * float_frame_per_channel, new_buffer);
   } else {
@@ -393,18 +391,17 @@ bool ShellAudioSink::CreateSinkAudioBus(uint32 target_frames_per_channel) {
 }
 
 void ShellAudioSink::SetupRenderAudioBus() {
-  ShellAudioStreamer::Config config = audio_streamer_->GetConfig();
   // check for buffer wraparound, hopefully rare
   int render_frame_position =
       render_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
-  int requested_frames = config.renderer_request_frames();
+  int requested_frames = streamer_config_.renderer_request_frames();
   if (render_frame_position + requested_frames >
       settings_.per_channel_frames(audio_bus_.get())) {
     requested_frames =
         settings_.per_channel_frames(audio_bus_.get()) - render_frame_position;
   }
   // calculate the offset into the buffer where we'd like to store these data
-  if (config.interleaved()) {
+  if (streamer_config_.interleaved()) {
     uint8* channel_data = reinterpret_cast<uint8*>(audio_bus_->channel(0));
     uint8* channel_offset = channel_data + render_frame_position *
         audio_parameters_.bits_per_sample() / 8 * settings_.channels();
