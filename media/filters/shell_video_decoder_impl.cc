@@ -82,7 +82,7 @@ void ShellVideoDecoderImpl::Initialize(
 
   decoder_config_.CopyFrom(demuxer_stream_->video_decoder_config());
 
-  raw_decoder_ = LB::LBVideoDecoder::Create();
+  raw_decoder_ = LB::LBVideoDecoder::Create(decoder_config_.codec());
   raw_decoder_->SetDecryptor(demuxer_stream_->GetDecryptor());
   if (!raw_decoder_->UpdateConfig(decoder_config_)) {
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
