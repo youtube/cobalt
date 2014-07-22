@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include "cobalt/samples/simple_example.h"
+
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
-#include "cobalt/samples/simple_example.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
