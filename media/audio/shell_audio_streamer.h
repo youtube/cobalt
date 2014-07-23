@@ -49,22 +49,16 @@ class ShellAudioStreamer {
       INTERLEAVED,
       PLANAR
     };
-    enum MonoDecodeMode {
-      DECODE_MONO_AS_MONO,
-      DECODE_MONO_AS_STEREO
-    };
 
     Config() : valid_(false) {}
 
     // Initialize the Config settings, see the comment on individual member
     // below for more details.
-    Config(StorageMode storage_mode, MonoDecodeMode mono_decode_mode,
+    Config(StorageMode storage_mode,
            uint32 initial_rebuffering_frames_per_channel,
            uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
            uint32 renderer_request_frames, uint32 max_hardware_channels)
         : valid_(true),
-          interleaved_(storage_mode == INTERLEAVED),
-          decode_mono_as_stereo_(mono_decode_mode == DECODE_MONO_AS_STEREO),
           initial_rebuffering_frames_per_channel_(
               initial_rebuffering_frames_per_channel
           ),
@@ -77,10 +71,6 @@ class ShellAudioStreamer {
     bool interleaved() const {
       AssertValid();
       return interleaved_;
-    }
-    bool decode_mono_as_stereo() const {
-      AssertValid();
-      return decode_mono_as_stereo_;
     }
     uint32 initial_rebuffering_frames_per_channel() const {
       AssertValid();
@@ -114,10 +104,6 @@ class ShellAudioStreamer {
 
     // Is the data in audio bus interleaved and stored as one channel.
     bool interleaved_;
-    // Set to true when the platform needs two streams to decode mono audio
-    // TODO(***REMOVED***) : The renderer should alter the audio param to reflect
-    // this.
-    bool decode_mono_as_stereo_;
     // These paramters control rebuffering.
     // See ShellAudioSink::ResumeAfterUnderflow for more details.
     uint32 initial_rebuffering_frames_per_channel_;
