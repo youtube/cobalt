@@ -39,10 +39,7 @@ const AudioParameters& AudioSinkSettings::audio_parameters() const {
 }
 
 int AudioSinkSettings::channels() const {
-  int channels = audio_parameters_.channels();
-  if (config_.decode_mono_as_stereo() && channels == 1)
-    channels = 2;
-  return channels;
+  return audio_parameters_.channels();
 }
 
 int AudioSinkSettings::per_channel_frames(AudioBus* audio_bus) const {
