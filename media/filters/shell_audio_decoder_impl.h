@@ -62,6 +62,17 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   virtual void Reset(const base::Closure& closure) OVERRIDE;
 
  private:
+  // There's a DemuxerStream::Status as well as an AudioDecoder::Status enum.
+  // We make our own to keep track of ShellAudioDecoderImpl specific state, and
+  // give it a lengthy name to disambiguate it from the others.
+  enum ShellAudioDecoderStatus {
+    kUninitialized,
+    kNormal,
+    kFlushing,
+    kStopped,
+    kShellDecodeError
+  };
+
   // initialization
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
                     const PipelineStatusCB& status_cb,
@@ -87,16 +98,6 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-  // There's a DemuxerStream::Status as well as an AudioDecoder::Status enum.
-  // We make our own to keep track of ShellAudioDecoderImpl specific state, and
-  // give it a lengthy name to disambiguate it from the others.
-  enum ShellAudioDecoderStatus {
-    kUninitialized,
-    kNormal,
-    kFlushing,
-    kStopped,
-    kShellDecodeError
-  };
   ShellAudioDecoderStatus shell_audio_decoder_status_;
 
 #if __SAVE_DECODER_OUTPUT__
@@ -104,7 +105,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
 #endif
 
   // cached stream info
-  int sample_per_second_;
+  int samples_per_second_;
   int num_channels_;
 
   LB::LBAudioDecoder* raw_decoder_;
