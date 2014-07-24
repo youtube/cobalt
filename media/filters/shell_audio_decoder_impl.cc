@@ -28,12 +28,11 @@
 #include "media/base/shell_filter_graph_log_constants.h"
 #include "media/base/video_frame.h"
 #include "media/filters/shell_avc_parser.h"
+#include "media/mp4/aac.h"
 
 using base::TimeDelta;
 
 namespace media {
-
-const int kPCMSamplePerAACFrame = 1024;
 
 // TODO(***REMOVED***) : These should be eventually get from the low level decoder.
 #if defined(__LB_ANDROID__)
@@ -94,7 +93,7 @@ ShellAudioDecoderImpl::ShellAudioDecoderImpl(
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : message_loop_(message_loop)
     , shell_audio_decoder_status_(kUninitialized)
-    , sample_per_second_(0)
+    , samples_per_second_(0)
     , num_channels_(0)
     , raw_decoder_(NULL)
     , pending_read_(NULL)
@@ -124,7 +123,7 @@ void ShellAudioDecoderImpl::Initialize(
     return;
   }
 
-  sample_per_second_= config.samples_per_second();
+  samples_per_second_= config.samples_per_second();
   num_channels_ = ChannelLayoutToChannelCount(config.channel_layout());
 
 #if __SAVE_DECODER_OUTPUT__
@@ -340,7 +339,8 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
   DCHECK_EQ(audio_bus->frames() * sizeof(float),  // NOLINT(runtime/sizeof)
             decoded_buffer->GetDataSize() / audio_bus->channels());
   DCHECK_EQ(decoded_buffer->GetDataSize(),
-            kPCMSamplePerAACFrame * bits_per_channel() / 8 * num_channels_);
+            mp4::AAC::kSamplesPerFrame * bits_per_channel() / 8 *
+                num_channels_);
 
   // Here we assume that a non-interleaved audio_bus means that the decoder
   // output is in planar form, where each channel follows the other in the
@@ -390,7 +390,7 @@ ChannelLayout ShellAudioDecoderImpl::channel_layout() {
 }
 
 int ShellAudioDecoderImpl::samples_per_second() {
-  return sample_per_second_;
+  return samples_per_second_;
 }
 
 void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
