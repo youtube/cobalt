@@ -33,7 +33,7 @@ namespace media {
 class AudioSinkSettings {
  public:
   AudioSinkSettings() {}
-  
+
   void Reset(const ShellAudioStreamer::Config& config,
              const AudioParameters& audio_parameters);
   const ShellAudioStreamer::Config& config() const;

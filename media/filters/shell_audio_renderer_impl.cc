@@ -24,12 +24,11 @@
 #include "media/base/bind_to_loop.h"
 #include "media/base/buffers.h"
 #include "media/base/demuxer_stream.h"
-#include "media/filters/audio_decoder_selector.h"
-#include "media/filters/decrypting_demuxer_stream.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
-
-const int AACDEC_PCM_SAMPLE_SIZE = 1024;
+#include "media/filters/audio_decoder_selector.h"
+#include "media/filters/decrypting_demuxer_stream.h"
+#include "media/mp4/aac.h"
 
 namespace media {
 
@@ -254,7 +253,7 @@ void ShellAudioRendererImpl::OnDecoderSelected(
       channel_layout,
       decoder_->samples_per_second(),
       decoder_->bits_per_channel(),
-      AACDEC_PCM_SAMPLE_SIZE);
+      mp4::AAC::kSamplesPerFrame);
 
   state_ = kPaused;
 
@@ -462,16 +461,16 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
         if (end_of_stream_state_ == kWaitingForEOS) {
           // Normal decode event
           rendered_timestamp_ = buffered_timestamp_;
-          frames_rendered = AACDEC_PCM_SAMPLE_SIZE;
+          frames_rendered = mp4::AAC::kSamplesPerFrame;
         }
         if (end_of_stream_state_ == kReceivedEOS) {
           end_of_stream_state_ = kRenderedEOS;
         }
         if (end_of_stream_state_ == kRenderedEOS) {
           const int bytes_per_sample = audio_parameters_.bits_per_sample() / 8;
-          DCHECK_EQ(AACDEC_PCM_SAMPLE_SIZE,
-                    dest->frames() * dest->channels() * sizeof(float) /
-                    bytes_per_sample / audio_parameters_.channels());
+          DCHECK_EQ(mp4::AAC::kSamplesPerFrame * bytes_per_sample *
+                        audio_parameters_.channels(),
+                    dest->frames() * dest->channels() * sizeof(float));
           // Write zeros (silence) to each channel
           for (int i = 0; i < dest->channels(); ++i) {
             void* channel_data = dest->channel(i);
@@ -479,8 +478,8 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
                 dest->frames() * sizeof(float);  // NOLINT(runtime/sizeof)
             memset(channel_data, 0, num_bytes);
           }
-          frames_rendered = AACDEC_PCM_SAMPLE_SIZE;
-          uint64_t silence_ms = AACDEC_PCM_SAMPLE_SIZE * 1000 /
+          frames_rendered = mp4::AAC::kSamplesPerFrame;
+          uint64_t silence_ms = mp4::AAC::kSamplesPerFrame * 1000 /
               audio_parameters_.sample_rate();
           silence_rendered_ += base::TimeDelta::FromMilliseconds(silence_ms);
         }
