@@ -106,6 +106,7 @@ void ShellAudioSink::Start() {
   if (!audio_streamer_->HasStream(this)) {
     pause_requested_ = true;
     rebuffering_ = true;
+    audio_streamer_->StopBackgroundMusic();
     audio_streamer_->AddStream(this);
     DCHECK(audio_streamer_->HasStream(this));
   }
