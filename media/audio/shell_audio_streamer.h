@@ -132,6 +132,9 @@ class ShellAudioStreamer {
   virtual void RemoveStream(ShellAudioStream* stream) = 0;
   virtual bool HasStream(ShellAudioStream* stream) const = 0;
   virtual bool SetVolume(ShellAudioStream* stream, double volume) = 0;
+  // Some consoles have background music tracks playing even when other apps
+  // are running. This function can be used to stop the background music.
+  virtual void StopBackgroundMusic() {}
 
   DISALLOW_COPY_AND_ASSIGN(ShellAudioStreamer);
 };
