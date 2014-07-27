@@ -59,6 +59,7 @@ class ShellAudioStreamer {
            uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
            uint32 renderer_request_frames, uint32 max_hardware_channels)
         : valid_(true),
+          interleaved_(storage_mode == INTERLEAVED),
           initial_rebuffering_frames_per_channel_(
               initial_rebuffering_frames_per_channel
           ),
