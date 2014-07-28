@@ -374,6 +374,18 @@ void ShellAudioRendererImpl::DecodedAudioReady(
           state_ = kPlaying;
           DoPlay();
         }
+      } else {
+        // Here we assume that a non-interleaved audio_bus means that the
+        // decoder output is in planar form, where each channel follows the
+        // other in the decoded buffer.
+        const int kAudioBusFrameSize =
+            decoded_audio_bus_->frames() * sizeof(float);
+        for (int i = 0; i < decoded_audio_bus_->channels(); ++i) {
+          const uint8_t* decoded_channel_data =
+              buffer->GetData() + (i * kAudioBusFrameSize);
+          memcpy(decoded_audio_bus_->channel(i), decoded_channel_data,
+                 kAudioBusFrameSize);
+        }
       }
       // This is read by the renderer thread in Render(), but will only be read
       // when decode_complete_ is set to true.
@@ -445,8 +457,7 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
       DCHECK_NE(dest, (media::AudioBus*)NULL);
       decode_complete_ = false;
       decoded_audio_bus_ = dest;
-      decoder_->ReadInto(
-          decoded_audio_bus_,
+      decoder_->Read(
           base::Bind(&ShellAudioRendererImpl::DecodedAudioReady, this));
     }
 

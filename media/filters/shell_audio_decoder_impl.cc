@@ -21,7 +21,6 @@
 #include "base/stringprintf.h"
 #include "lb_audio_decoder.h"
 #include "lb_memory_manager.h"
-#include "media/base/audio_bus.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
@@ -47,35 +46,6 @@ const int kAudioBytesPerSample = sizeof(int16_t);
 #error kAudioBytesPerSample has to be specified!
 #endif
 
-// Used as an argument to the ReadInto callback. It's just used for duration
-// and timing, and wraps the data for one channel.
-class ShellDecodedBuffer : public Buffer {
- public:
-  ShellDecodedBuffer(TimeDelta timestamp, TimeDelta duration,
-                     media::AudioBus* audio_bus);
-  virtual const uint8* GetData() const OVERRIDE;
-  virtual int GetDataSize() const OVERRIDE;
-
- protected:
-  size_t decoded_bytes_;
-  const void* channel_data_;
-};
-
-ShellDecodedBuffer::ShellDecodedBuffer(
-    TimeDelta timestamp, TimeDelta duration, media::AudioBus* audio_bus)
-    : Buffer(timestamp, duration) {
-  decoded_bytes_ = audio_bus->frames() * sizeof(float);
-  channel_data_ = audio_bus->channel(0);
-}
-
-const uint8* ShellDecodedBuffer::GetData() const {
-  return reinterpret_cast<const uint8*>(channel_data_);
-}
-
-int ShellDecodedBuffer::GetDataSize() const {
-  return decoded_bytes_;
-}
-
 //==============================================================================
 // Static ShellAudioDecoder Methods
 //
@@ -96,13 +66,13 @@ ShellAudioDecoderImpl::ShellAudioDecoderImpl(
     , samples_per_second_(0)
     , num_channels_(0)
     , raw_decoder_(NULL)
-    , pending_read_(NULL)
+    , pending_renderer_read_(false)
     , pending_demuxer_read_(false) {
 }
 
 ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
   delete raw_decoder_;
-  DCHECK_EQ(pending_read_, (media::AudioBus*)NULL);
+  DCHECK(!pending_renderer_read_);
   DCHECK(read_cb_.is_null());
   DCHECK(reset_cb_.is_null());
 }
@@ -135,7 +105,7 @@ void ShellAudioDecoderImpl::Initialize(
   test_probe_.CloseAfter(30 * 1000);
 #endif
 
-  pending_read_ = NULL;
+  pending_renderer_read_ = false;
   pending_demuxer_read_ = false;
 
   raw_decoder_ = LB::LBAudioDecoder::Create(filter_graph_log_);
@@ -179,7 +149,22 @@ bool ShellAudioDecoderImpl::ValidateConfig(const AudioDecoderConfig& config) {
 }
 
 void ShellAudioDecoderImpl::Read(const media::AudioDecoder::ReadCB& read_cb) {
-  NOTREACHED() << "ShellAudioDecoderImpl supports ReadInto only.";
+  // This may be called from another thread (H/W audio thread) so redirect
+  // this request to the decoder's message loop
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &ShellAudioDecoderImpl::Read, this, read_cb));
+    return;
+  }
+
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(!read_cb.is_null());
+  // Save the callback before posting the task
+  DCHECK(read_cb_.is_null());
+
+  // Save the callback and then process the task
+  read_cb_ = read_cb;
+  DoRead();
 }
 
 void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
@@ -194,11 +179,10 @@ void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
   pending_demuxer_read_ = false;
 
   queued_buffers_.push_back(std::make_pair(status, buffer));
-  if (pending_read_) {
+  if (pending_renderer_read_) {
     DCHECK(!read_cb_.is_null());
-    media::AudioBus* audio_bus = pending_read_;
-    pending_read_ = NULL;
-    DoDecodeBuffer(audio_bus);
+    pending_renderer_read_ = false;
+    DoDecodeBuffer();
   }
 
   if (status == DemuxerStream::kOk && !buffer->IsEndOfStream()) {
@@ -206,7 +190,7 @@ void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
         &ShellAudioDecoderImpl::RequestBuffer, this));
   }
 
-  if (shell_audio_decoder_status_ == kFlushing && pending_read_ == 0) {
+  if (shell_audio_decoder_status_ == kFlushing && !pending_renderer_read_) {
     // Reset was called, but there were pending reads.
     // Call the Reset callback now
     DCHECK(!reset_cb_.is_null());
@@ -228,35 +212,14 @@ void ShellAudioDecoderImpl::RequestBuffer() {
   }
 }
 
-void ShellAudioDecoderImpl::ReadInto(media::AudioBus* audio_bus,
-                                     const ReadCB& read_cb) {
-  // This may be called from another thread (H/W audio thread) so redirect
-  // this request to the decoder's message loop
-  if (!message_loop_->BelongsToCurrentThread()) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &ShellAudioDecoderImpl::ReadInto, this, audio_bus, read_cb));
-    return;
-  }
-
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK_NE(audio_bus, (media::AudioBus*)NULL);
-  DCHECK(!read_cb.is_null());
-  // Save the callback before posting the task
-  DCHECK(read_cb_.is_null());
-
-  // Save the callback and then process the task
-  read_cb_ = read_cb;
-  DoReadInto(audio_bus);
-}
-
-void ShellAudioDecoderImpl::DoReadInto(media::AudioBus* audio_bus) {
+void ShellAudioDecoderImpl::DoRead() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_NE(shell_audio_decoder_status_, kUninitialized);
   DCHECK(!read_cb_.is_null());
   filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventRead);
 
   if (shell_audio_decoder_status_ == kNormal) {
-    DoDecodeBuffer(audio_bus);
+    DoDecodeBuffer();
     RequestBuffer();
   } else if (shell_audio_decoder_status_ == kStopped) {
     filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventEndOfStreamSent);
@@ -270,9 +233,8 @@ void ShellAudioDecoderImpl::DoReadInto(media::AudioBus* audio_bus) {
   }
 }
 
-void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
+void ShellAudioDecoderImpl::DoDecodeBuffer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(audio_bus);
   DCHECK(!read_cb_.is_null());
   filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventDecode);
 
@@ -283,8 +245,8 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
 
   // No data is queued up, so save this for later
   if (queued_buffers_.empty()) {
-    DCHECK_EQ(pending_read_, (media::AudioBus*)NULL);
-    pending_read_ = audio_bus;
+    DCHECK(!pending_renderer_read_);
+    pending_renderer_read_ = true;
     return;
   }
 
@@ -318,8 +280,8 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
 
   scoped_refptr<ShellBuffer> decoded_buffer = raw_decoder_->Decode(buffer);
   if (!decoded_buffer) {
-    DCHECK_EQ(pending_read_, (media::AudioBus*)NULL);
-    pending_read_ = audio_bus;
+    DCHECK(!pending_renderer_read_);
+    pending_renderer_read_ = true;
     return;
   }
 
@@ -336,36 +298,17 @@ void ShellAudioDecoderImpl::DoDecodeBuffer(media::AudioBus* audio_bus) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &ShellAudioDecoderImpl::RequestBuffer, this));
 
-  DCHECK_EQ(audio_bus->frames() * sizeof(float),  // NOLINT(runtime/sizeof)
-            decoded_buffer->GetDataSize() / audio_bus->channels());
   DCHECK_EQ(decoded_buffer->GetDataSize(),
             mp4::AAC::kSamplesPerFrame * bits_per_channel() / 8 *
                 num_channels_);
 
-  // Here we assume that a non-interleaved audio_bus means that the decoder
-  // output is in planar form, where each channel follows the other in the
-  // decoded buffer.
-  const int kAudioBusFrameSize =
-      audio_bus->frames() * sizeof(float);  // NOLINT(runtime/sizeof)
-  for (int i = 0; i < audio_bus->channels(); ++i) {
-    const uint8_t* decoded_channel_data =
-        decoded_buffer->GetData() + (i * kAudioBusFrameSize);
-    memcpy(audio_bus->channel(i), decoded_channel_data,
-           kAudioBusFrameSize);
-  }
-
 #if __SAVE_DECODER_OUTPUT__
-  test_probe_.AddData(pcmLR);
+  test_probe_.AddData(decoded_buffer->GetData());
 #endif
 
   filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventDataDecoded);
-  scoped_refptr<ShellDecodedBuffer> return_buffer =
-      new ShellDecodedBuffer(
-          decoded_buffer->GetTimestamp(),
-          decoded_buffer->GetDuration(),
-          audio_bus);
 
-  base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, return_buffer);
+  base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, decoded_buffer);
 
   if (shell_audio_decoder_status_ == kFlushing) {
     // Reset was called, but there were pending reads.
@@ -421,7 +364,7 @@ void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
   // Sanity-check our assumption that there is no pending decode or in-flight
   // I/O requests
   DCHECK(read_cb_.is_null());
-  DCHECK_EQ(pending_read_, (media::AudioBus*)NULL);
+  DCHECK(!pending_renderer_read_);
   DCHECK(!pending_demuxer_read_);
   raw_decoder_->Flush();
   shell_audio_decoder_status_ = kNormal;
