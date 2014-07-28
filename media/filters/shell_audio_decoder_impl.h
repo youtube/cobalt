@@ -54,8 +54,6 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
                           const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) OVERRIDE;
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void ReadInto(media::AudioBus* audio_bus,
-                        const ReadCB& read_cb) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
@@ -79,14 +77,13 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
                     const StatisticsCB& statistics_cb);
   bool ValidateConfig(const AudioDecoderConfig& config);
 
-  void DoDecodeBuffer(media::AudioBus* audio_bus);
+  void DoDecodeBuffer();
   void DecodeBuffer(media::AudioBus* audio_bus,
                     DemuxerStream::Status status,
                     const scoped_refptr<ShellBuffer>& buffer);
 
-  void DoReadInto(media::AudioBus* audio_bus);
-  void DoDecodeBuffer(media::AudioBus* audio_bus,
-                      DemuxerStream::Status status,
+  void DoRead();
+  void DoDecodeBuffer(DemuxerStream::Status status,
                       const scoped_refptr<ShellBuffer>& buffer);
 
   void QueueBuffer(DemuxerStream::Status status,
@@ -111,7 +108,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   LB::LBAudioDecoder* raw_decoder_;
 
   // Callback on completion of a decode
-  media::AudioBus* pending_read_;
+  bool pending_renderer_read_;
   ReadCB read_cb_;
 
   static const int kMaxQueuedBuffers = 8;

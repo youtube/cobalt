@@ -136,9 +136,6 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
   MOCK_METHOD0(samples_per_second, int(void));
   MOCK_METHOD1(Reset, void(const base::Closure&));
-#if LB_ENABLE_AUDIO_DECODER_READ_INTO
-  MOCK_METHOD2(ReadInto, void(media::AudioBus*, const ReadCB&));
-#endif
 
  protected:
   virtual ~MockAudioDecoder();
