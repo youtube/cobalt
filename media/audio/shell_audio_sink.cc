@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "media/base/audio_bus.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_statistics.h"
 #include "media/filters/shell_audio_renderer.h"
 
 namespace media {
@@ -250,6 +251,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     if (!rebuffering_) {
       rebuffering_ = true;
       render_callback_->SinkUnderflow();
+      UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_UNDERFLOW, 0);
     }
   }
   *offset_in_frame =
