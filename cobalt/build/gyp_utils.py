@@ -14,12 +14,10 @@
 # limitations under the License.
 """Utilities for use by gyp_cobalt and other build tools."""
 
-import hashlib
 import importlib
 import logging
 import os
 import re
-import shutil
 import subprocess
 import sys
 
@@ -50,51 +48,34 @@ def GypDebugOptions():
   return debug_modes
 
 
+def GitHash(path_to_git_repo):
+  """Compute HEAD SHA1 of the git repo that contains the given path."""
+
+  full_path = os.path.join(_SOURCE_TREE_DIR, path_to_git_repo)
+  if not os.path.exists(full_path):
+    logging.error('Unable to query git hash. '
+                  'Path does not exist "%s".', full_path)
+    return '0'
+
+  current_dir = os.getcwd()
+  try:
+    os.chdir(full_path)
+    cmd_line = ('git log --pretty=format:%h -n 1')
+    sp = subprocess.check_output(cmd_line, shell=True)
+    return sp.strip()
+  except subprocess.CalledProcessError:
+    logging.error('Unable to query git hash.')
+    return '0'
+  finally:
+    os.chdir(current_dir)
+
+
 def Which(filename):
   for path in os.environ['PATH'].split(os.pathsep):
     full_name = os.path.join(path, filename)
     if os.path.exists(full_name) and os.path.isfile(full_name):
       return full_name
   return None
-
-
-def CheckAndInstallNinja():
-  """Verify our custom ninja is installed. Install if not found."""
-
-  if sys.platform in ['win32', 'cygwin']:
-    exe_name = 'ninja.exe'
-    source_exe = 'ninja-win.exe'
-  else:
-    exe_name = 'ninja'
-    source_exe = 'ninja-linux'
-
-  ninja_path = Which(exe_name)
-  if not ninja_path:
-    logging.critical('ninja not found. Make sure depot_tools is in your PATH.')
-    raise RuntimeError('ninja not found.')
-
-  # Install our custom ninja into wherever ninja was found.
-  source_path = os.path.join(_SCRIPT_DIR, 'ninja', source_exe)
-  dest_path = os.path.join(os.path.dirname(ninja_path), exe_name)
-  source_hash = hashlib.md5(open(source_path, 'rb').read()).digest()
-  dest_hash = hashlib.md5(open(dest_path, 'rb').read()).digest()
-
-  if source_hash != dest_hash:
-    logging.warning('Installing ninja: %s -> %s.', source_path, dest_path)
-    shutil.copy2(source_path, dest_path)
-
-
-def GitHash(repo_project):
-  """Compute latest git hash of the given repo project."""
-
-  cmd_line = ('repo forall {} -c \'git log --pretty=format:%h -n 1\' '
-              '2>/dev/null'.format(repo_project))
-  try:
-    sp = subprocess.check_output(cmd_line, shell=True)
-    return sp.strip()
-  except subprocess.CalledProcessError:
-    logging.error('Unable to query git hash for project "%s".', repo_project)
-    return '0'
 
 
 def _EnsureGomaRunning():
