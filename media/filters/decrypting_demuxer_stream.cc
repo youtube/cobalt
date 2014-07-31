@@ -19,6 +19,7 @@
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
+#include "media/base/shell_media_statistics.h"
 #endif
 
 namespace media {
@@ -239,6 +240,9 @@ void DecryptingDemuxerStream::DoDecryptBuffer(
 void DecryptingDemuxerStream::DecryptPendingBuffer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecrypt) << state_;
+#if defined(__LB_SHELL__)
+  decrypting_start_ = base::Time::Now();
+#endif  // defined(__LB_SHELL__)
   decryptor_->Decrypt(
       GetDecryptorStreamType(),
       pending_buffer_to_decrypt_,
@@ -254,6 +258,11 @@ void DecryptingDemuxerStream::DeliverBuffer(
     Decryptor::Status status,
     const scoped_refptr<DecoderBuffer>& decrypted_buffer) {
 #endif
+
+#if defined(__LB_SHELL__)
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_DECRYPT,
+      (base::Time::Now() - decrypting_start_).ToInternalValue());
+#endif  // defined(__LB_SHELL__)
   // We need to force task post here because the DecryptCB can be executed
   // synchronously in Reset(). Instead of using more complicated logic in
   // those function to fix it, why not force task post here to make everything
