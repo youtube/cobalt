@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright 2014 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -216,9 +216,6 @@ def main(argv):
 
   options = _ParseCommandLineArguments(argv)
   _SetupLogging(options)
-
-  # Check if the correct version of ninja is present. If not, install it.
-  gyp_utils.CheckAndInstallNinja()
 
   try:
     gyp_runner = _GypRunner(options)
