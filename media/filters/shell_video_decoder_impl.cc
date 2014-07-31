@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "lb_shell/lb_shell_constants.h"
@@ -28,6 +29,7 @@
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_statistics.h"
 #include "media/base/video_frame.h"
 
 namespace media {
@@ -88,6 +90,12 @@ void ShellVideoDecoderImpl::Initialize(
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
+
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_CODEC, decoder_config_.codec());
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_WIDTH,
+                          decoder_config_.natural_size().width());
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_HEIGHT,
+                          decoder_config_.natural_size().height());
 
   base::Thread::Options options;
 
@@ -192,6 +200,12 @@ void ShellVideoDecoderImpl::BufferReady(
 
     decoder_config_.CopyFrom(demuxer_stream_->video_decoder_config());
 
+    UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_CODEC, decoder_config_.codec());
+    UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_WIDTH,
+                            decoder_config_.natural_size().width());
+    UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_HEIGHT,
+                            decoder_config_.natural_size().height());
+
     // it's assumed ConfigChanged is not received during a reset
     DCHECK(reset_cb_.is_null());
     ReadFromDemuxerStream();
@@ -230,6 +244,9 @@ void ShellVideoDecoderImpl::BufferReady(
 
 void ShellVideoDecoderImpl::DecodeBuffer(
     const scoped_refptr<ShellBuffer>& buffer) {
+  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::DecodeBuffer()");
+  SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DECODE);
+
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);

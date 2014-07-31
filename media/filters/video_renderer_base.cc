@@ -20,6 +20,7 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_statistics.h"
 #endif
 
 namespace media {
@@ -283,6 +284,9 @@ void VideoRendererBase::ThreadMain() {
 
   for (;;) {
     if (frames_dropped > 0) {
+#if defined(__LB_SHELL__)
+      SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DROP);
+#endif  // defined(__LB_SHELL__)
       PipelineStatistics statistics;
       statistics.video_frames_dropped = frames_dropped;
       statistics_cb_.Run(statistics);
@@ -388,6 +392,10 @@ void VideoRendererBase::ThreadMain() {
 #endif
         ++frames_dropped;
         ready_frames_.pop_front();
+#if defined(__LB_SHELL__)
+        UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_RENDERER_BACKLOG,
+                                ready_frames_.size());
+#endif  // defined(__LB_SHELL__)
         message_loop_->PostTask(FROM_HERE, base::Bind(
             &VideoRendererBase::AttemptRead, this));
       }
@@ -421,6 +429,10 @@ void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
 #endif
   current_frame_ = ready_frames_.front();
   ready_frames_.pop_front();
+#if defined(__LB_SHELL__)
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_VIDEO_RENDERER_BACKLOG,
+                          ready_frames_.size());
+#endif  // defined(__LB_SHELL__)
 
   // Notify the pipeline of natural_size() changes.
   const gfx::Size& natural_size = current_frame_->natural_size();
@@ -618,6 +630,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
                               kEventEnqueue,
                               frame->GetTimestamp().InMilliseconds());
 #endif
+
+#if defined(__LB_SHELL__)
+  if (frame->GetTimestamp() < get_time_cb_.Run()) {
+    SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_LATE);
+  }
+#endif  // defined(__LB_SHELL__)
 
   ready_frames_.push_back(frame);
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);

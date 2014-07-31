@@ -25,6 +25,7 @@
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_statistics.h"
 #include "media/base/video_frame.h"
 #include "media/filters/shell_avc_parser.h"
 #include "media/mp4/aac.h"
@@ -108,6 +109,10 @@ void ShellAudioDecoderImpl::Initialize(
   pending_renderer_read_ = false;
   pending_demuxer_read_ = false;
 
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CODEC, config.codec());
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CHANNELS, num_channels_);
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_SAMPLE_PER_SECOND,
+                          samples_per_second_);
   raw_decoder_ = LB::LBAudioDecoder::Create(filter_graph_log_);
   if (raw_decoder_ == NULL) {
     status_cb.Run(PIPELINE_ERROR_DECODE);

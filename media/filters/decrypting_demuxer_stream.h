@@ -7,6 +7,9 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#if defined(__LB_SHELL__)
+#include "base/time.h"
+#endif  // defined(__LB_SHELL__)
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 
@@ -156,6 +159,10 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // If this variable is true and kNoKey is returned then we need to try
   // decrypting again in case the newly added key is the correct decryption key.
   bool key_added_while_decrypt_pending_;
+
+#if defined(__LB_SHELL__)
+  base::Time decrypting_start_;
+#endif  // defined(__LB_SHELL__)
 
   DISALLOW_COPY_AND_ASSIGN(DecryptingDemuxerStream);
 };
