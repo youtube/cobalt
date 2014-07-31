@@ -65,6 +65,9 @@
 
     # Disable a check that looks for an official google api key.
     'use_official_google_api_keys': 0,
+    # Prevents common.gypi from running a bash script which is not required
+    # to compile Cobalt.
+    'clang_use_chrome_plugins': 0,
     # Disables treat warnings as errors.
     'werror': '',
   },
@@ -80,6 +83,10 @@
       '-D__LB_HOST__'
     ],
     'ldflags_host': [ '<@(linker_flags_host)' ],
+
+    # Location of Cygwin which is used by the build system when running on a
+    # Windows platform.
+    'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
 
     # Allows any source file to include files relative to the source tree.
     'include_dirs': [ '<(DEPTH)' ],
