@@ -252,6 +252,8 @@
         'base/shell_filter_graph_log.cc',
         'base/shell_filter_graph_log.h',
         'base/shell_filter_graph_log_constants.h',
+        'base/shell_media_platform.cc',
+        'base/shell_media_platform.h',
         'base/shell_media_statistics.cc',
         'base/shell_media_statistics.h',
         'base/sinc_resampler.cc',

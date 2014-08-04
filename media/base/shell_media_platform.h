@@ -1,0 +1,77 @@
+/*
+ * Copyright 2012 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef MEDIA_BASE_SHELL_MEDIA_PLATFORM_H_
+#define MEDIA_BASE_SHELL_MEDIA_PLATFORM_H_
+
+#include "base/basictypes.h"
+#include "base/logging.h"
+#include "media/base/media_export.h"
+
+namespace media {
+
+// This class is meant to be the single point to attach platform specific media
+// classes and settings. Each platform should implement its own implementation
+// and provide it through ShellMediaPlatform::Instance.
+class MEDIA_EXPORT ShellMediaPlatform {
+ public:
+  ShellMediaPlatform() {}
+  virtual ~ShellMediaPlatform() {}
+
+  // Individual platforms should implement the following two functions to
+  // ensure that a valid ShellMediaPlatform instance is available during the
+  // life time of media stack
+  static void Initialize();
+  static void Terminate();
+
+  static ShellMediaPlatform* Instance();
+
+  // LBShell is designed to leverage hardware audio and video decoders, which
+  // have specific byte-alignment for buffers. They also have limited memory,
+  // so we define a per-platform limit to the total size of the media buffering
+  // pool from which all ShellBuffers are allocated.
+  // See implementation of ShellBufferFactory for more details.
+  virtual size_t GetShellBufferSpaceSize() const = 0;
+  virtual size_t GetShellBufferSpaceAlignment() const = 0;
+  virtual uint8* GetShellBufferSpace() const = 0;
+
+  // The maximum audio and video buffer size used by SourceBufferStream.
+  // See implementation of SourceBufferStream for more details.
+  virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
+  virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatform);
+
+ protected:
+  static void SetInstance(ShellMediaPlatform* shell_media_platform);
+};
+
+}  // namespace media
+
+#define REGISTER_SHELL_MEDIA_PLATFORM(ClassName) \
+    namespace media {                            \
+    void ShellMediaPlatform::Initialize() {      \
+      DCHECK(!Instance());                       \
+      SetInstance(new ClassName);                \
+    }                                            \
+    void ShellMediaPlatform::Terminate() {       \
+      DCHECK(Instance());                        \
+      delete Instance();                         \
+      SetInstance(NULL);                         \
+    }                                            \
+  }  // namespace media
+
+#endif  // MEDIA_BASE_SHELL_MEDIA_PLATFORM_H_

@@ -29,39 +29,6 @@
 
 namespace media {
 
-// LB_SHELL is designed to leverage hardware audio and video decoders, which
-// have specific byte-alignment for buffers. They also have limited memory,
-// so we define a per-platform limit to the total size of the media buffering
-// pool from which all ShellBuffers are allocated.
-#if defined(__LB_ANDROID__)
-// TODO: Determine more appropriate values for Android
-static const int kShellBufferAlignment = 16;
-static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
-#elif defined(__LB_LINUX__)
-static const int kShellBufferAlignment = 16;
-static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
-#elif defined(__LB_PS3__)
-static const int kShellBufferAlignment = 128;
-static const size_t kShellBufferSpaceSize = 48 * 1024 * 1024;
-#elif defined(__LB_PS4__)
-// TODO: Determine more appropriate values for the PS4
-static const int kShellBufferAlignment = 128;
-static const int kShellBufferSpaceSize = 128 * 1024 * 1024;
-#elif defined(__LB_WIIU__)
-static const int kShellBufferAlignment = kUnsegmentedMemoryAlignment;
-static const int kShellBufferSpaceSize = kUnsegmentedMemorySize;
-#elif defined(__LB_XB1__)
-static const int kShellBufferAlignment = 16;
-static const int kShellBufferSpaceSize = 33 * 1024 * 1024;
-#elif defined(__LB_XB360__)
-// TODO(***REMOVED***): Determine more appropriate values for the Xbox 360
-static const int kShellBufferAlignment = 128;
-static const int kShellBufferSpaceSize = 48 * 1024 * 1024;
-#else
-#error please define ShellBuffer constants for your platform.
-#endif
-
-static const size_t kShellMaxBufferSize = kShellBufferSpaceSize / 4;
 static const size_t kShellMaxArraySize = 1024 * 1024;
 
 class DecryptConfig;
@@ -163,11 +130,6 @@ class MEDIA_EXPORT ShellBufferFactory
   static void Initialize();
   static inline scoped_refptr<ShellBufferFactory> Instance() {
     return instance_;
-  }
-  // Returns the provided size aligned to kShellBufferAlignment.
-  static inline size_t SizeAlign(size_t size) {
-      return((size + kShellBufferAlignment - 1) / kShellBufferAlignment) *
-          kShellBufferAlignment;
   }
 
   typedef base::Callback<void(scoped_refptr<ShellBuffer>)> AllocCB;
