@@ -14,18 +14,27 @@
  * limitations under the License.
  */
 
-#include "shell_buffer_factory.h"
+#include "media/base/shell_buffer_factory.h"
 
 #include <malloc.h> // for memalign
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#if defined(__LB_WIIU__)
-#include "lb_unsegmented_alloc.h"
-#endif
 #include "media/base/decrypt_config.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_platform.h"
+
+namespace {
+
+// Returns the provided size aligned to kShellBufferAlignment.
+static inline size_t SizeAlign(size_t size) {
+  size_t align =
+      media::ShellMediaPlatform::Instance()->GetShellBufferSpaceAlignment();
+  return ((size + align - 1) / align) * align;
+}
+
+}  // namespace
 
 namespace media {
 
@@ -153,7 +162,8 @@ bool ShellBufferFactory::AllocateBuffer(
   // If we can allocate a buffer right now save a pointer to it so that we don't
   // run the callback while holding the memory lock, for safety's sake.
   scoped_refptr<ShellBuffer> instant_buffer = NULL;
-  if (aligned_size <= kShellMaxBufferSize) {
+
+  {
     base::AutoLock lock(lock_);
     // We only service requests directly if there's no callbacks pending and
     // we can accommodate a buffer of the requested size
@@ -173,12 +183,8 @@ bool ShellBufferFactory::AllocateBuffer(
       pending_allocs_.push_back(
           std::make_pair(cb, new ShellBuffer(NULL, size, filter_graph_log)));
     }
-  } else {
-    // allocation size request was too large, return failure
-    filter_graph_log->LogEvent(kObjectIdBufferFactory,
-                               kEventBufferAllocationError);
-    return false;
   }
+
   // If we managed to create a buffer run the callback after releasing the lock.
   if (instant_buffer) {
     cb.Run(instant_buffer);
@@ -203,11 +209,6 @@ scoped_refptr<ShellBuffer> ShellBufferFactory::AllocateBufferNow(
     return NULL;
   }
   size_t aligned_size = SizeAlign(size);
-  if (aligned_size > kShellMaxBufferSize) {
-    filter_graph_log->LogEvent(kObjectIdBufferFactory,
-                               kEventBufferAllocationError);
-    return NULL;
-  }
   base::AutoLock lock(lock_);
   if (aligned_size > LargestFreeSpace_Locked()) {
     filter_graph_log->LogEvent(kObjectIdBufferFactory,
@@ -361,7 +362,9 @@ void ShellBufferFactory::Reclaim(uint8* p) {
     } else {
       // size of right hole is distance between end of the whole buffer_ and
       // the end of this alloc
-      right_hole_size = buffer_ + kShellBufferSpaceSize - right_hole_addr;
+      right_hole_size = buffer_ +
+          ShellMediaPlatform::Instance()->GetShellBufferSpaceSize() -
+          right_hole_addr;
     }
     // if there was a hole to our right we remove it from the map and add its
     // size to the final hole
@@ -443,7 +446,8 @@ uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
   // should have acquired the lock already
   lock_.AssertAcquired();
   // and should have aligned the size already
-  DCHECK_EQ(aligned_size % kShellBufferAlignment, 0);
+  DCHECK_EQ(aligned_size %
+            ShellMediaPlatform::Instance()->GetShellBufferSpaceAlignment(), 0);
   // Quick check that we have a reasonable expectation of fitting this size.
   if (aligned_size > LargestFreeSpace_Locked()) {
     return NULL;
@@ -481,14 +485,10 @@ ShellBufferFactory::ShellBufferFactory()
     : array_allocation_event_(false, false)
     , array_requested_size_(0)
     , array_allocation_(NULL) {
-#if defined(__LB_WIIU__)
-  buffer_ = (uint8*)LB::acquire_unsegmented_memory(kShellBufferAlignment,
-                                                   kShellBufferSpaceSize);
-#else
-  buffer_ = (uint8*)memalign(kShellBufferAlignment, kShellBufferSpaceSize);
-#endif
+  buffer_ = ShellMediaPlatform::Instance()->GetShellBufferSpace();
   // save the entirety of the available memory as a hole
-  holes_.insert(std::make_pair(kShellBufferSpaceSize, buffer_));
+  holes_.insert(std::make_pair(
+      ShellMediaPlatform::Instance()->GetShellBufferSpaceSize(), buffer_));
 }
 
 // Will be called when all ShellBuffers have been deleted AND instance_ has
@@ -502,11 +502,6 @@ ShellBufferFactory::~ShellBufferFactory() {
   }
   // and no outstanding array requests
   DCHECK_EQ(array_requested_size_, 0);
-#if defined(__LB_WIIU__)
-  LB::release_unsegmented_memory(buffer_);
-#else
-  free(buffer_);
-#endif
 }
 
 }  // namespace media

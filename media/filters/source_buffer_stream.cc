@@ -13,8 +13,8 @@
 #include "base/stl_util.h"
 
 #if defined(__LB_SHELL__)
-#include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_filter_graph_log.h"
+#include "media/base/shell_media_platform.h"
 #endif
 
 namespace media {
@@ -300,50 +300,12 @@ static int kDefaultBufferDurationInMs = 125;
 static base::TimeDelta kSeekToStartFudgeRoom() {
   return base::TimeDelta::FromMilliseconds(1000);
 }
-#if defined(__LB_ANDROID__)
-// We only need a maximum of 66 MB of buffering for 4k.
-static const int kDefaultAudioMemoryLimit = 6 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 60 * 1024 * 1024;
-#elif defined(__LB_LINUX__)
-// We only need a maximum of 33 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
-#elif defined(__LB_PS3__)
-// We only have room for a maximum of 11 MB of buffering.
-static const int kDefaultAudioMemoryLimit = 1 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 10 * 1024 * 1024;
-#elif defined(__LB_PS4__)
-// We only need a maximum of 33 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
-#elif defined(__LB_WIIU__)
-// We only need a maximum of 33 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 3 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 30 * 1024 * 1024;
-#elif defined(__LB_XB1__)
-// We only need a maximum of 18 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
-#elif defined(__LB_XB360__)
-// We only need a maximum of 18 MB of buffering for 1080p.
-static const int kDefaultAudioMemoryLimit = 2 * 1024 * 1024;
-static const int kDefaultVideoMemoryLimit = 16 * 1024 * 1024;
-#else
+
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
 // 150MB: approximately 5 minutes of 4Mbps content.
 static const int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
-#endif
-
-// The SourceBufferStream caches sample data up to the memory limits defined
-// above. These sample data is stored using ShellBuffer. So we have to ensure
-// that the combined limit of SourceBufferStream is less than or equal to the
-// limit of ShellBuffer.
-static const int kCombinedMemoryLimit =
-    kDefaultAudioMemoryLimit + kDefaultVideoMemoryLimit;
-COMPILE_ASSERT(kCombinedMemoryLimit <= media::kShellBufferSpaceSize,
-    SourceBufferStream_limit_has_to_be_less_than_or_equal_to_ShellBuffer_size);
 
 namespace media {
 
@@ -363,7 +325,12 @@ SourceBufferStream::SourceBufferStream(
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
+#if defined(__LB_SHELL__)
+      memory_limit_(ShellMediaPlatform::Instance()->
+                        GetSourceBufferStreamAudioMemoryLimit()),
+#else  // defined(__LB_SHELL__)
       memory_limit_(kDefaultAudioMemoryLimit),
+#endif  // defined(__LB_SHELL__)
       config_change_pending_(false),
       filter_graph_log_(filter_graph_log) {
   DCHECK(audio_config.IsValidConfig());
@@ -386,9 +353,25 @@ SourceBufferStream::SourceBufferStream(
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
+#if defined(__LB_SHELL__)
+      memory_limit_(ShellMediaPlatform::Instance()->
+                        GetSourceBufferStreamVideoMemoryLimit()),
+#else  // defined(__LB_SHELL__)
       memory_limit_(kDefaultVideoMemoryLimit),
+#endif  // defined(__LB_SHELL__)
       config_change_pending_(false),
       filter_graph_log_(filter_graph_log) {
+#if defined(__LB_SHELL__)
+  // The SourceBufferStream caches sample data up to the memory limits
+  // defined above. These sample data is stored using ShellBuffer. So we
+  // have to ensure that the combined limit of SourceBufferStream is less
+  // than or equal to the limit of ShellBuffer.
+  ShellMediaPlatform* platform = ShellMediaPlatform::Instance();
+  const int combined_memory_limit =
+      platform->GetSourceBufferStreamAudioMemoryLimit() +
+      platform->GetSourceBufferStreamVideoMemoryLimit();
+  DCHECK_LE(combined_memory_limit, platform->GetShellBufferSpaceSize());
+#endif  // defined(__LB_SHELL__)
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(new VideoDecoderConfig());
   video_configs_.back()->CopyFrom(video_config);
