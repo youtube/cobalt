@@ -32,6 +32,8 @@
 #include "media/base/shell_media_statistics.h"
 #include "media/base/video_frame.h"
 
+using LB::LBVideoDecoder;
+
 namespace media {
 
 //==============================================================================
@@ -67,9 +69,9 @@ ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {
 }
 
 void ShellVideoDecoderImpl::Initialize(
-    const scoped_refptr<DemuxerStream> &stream,
-    const PipelineStatusCB &status_cb,
-    const StatisticsCB &statistics_cb) {
+    const scoped_refptr<DemuxerStream>& stream,
+    const PipelineStatusCB& status_cb,
+    const StatisticsCB& statistics_cb) {
   DCHECK(!decoder_thread_.IsRunning());
   DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
   // check for no already attached stream, valid input stream, and save it
@@ -79,15 +81,17 @@ void ShellVideoDecoderImpl::Initialize(
     return;
   }
   demuxer_stream_ = stream;
+  status_cb_ = status_cb;
   filter_graph_log_ = demuxer_stream_->filter_graph_log();
   filter_graph_log_->LogEvent(kObjectIdVideoDecoder, kEventInitialize);
 
   decoder_config_.CopyFrom(demuxer_stream_->video_decoder_config());
 
-  raw_decoder_ = LB::LBVideoDecoder::Create(decoder_config_.codec());
-  raw_decoder_->SetDecryptor(demuxer_stream_->GetDecryptor());
-  if (!raw_decoder_->UpdateConfig(decoder_config_)) {
-    status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
+  raw_decoder_ = LBVideoDecoder::Create(
+      decoder_config_, demuxer_stream_->GetDecryptor());
+
+  if (!raw_decoder_) {
+    status_cb_.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
@@ -105,9 +109,9 @@ void ShellVideoDecoderImpl::Initialize(
 
   if (decoder_thread_.StartWithOptions(options)) {
     state_ = kNormal;
-    status_cb.Run(PIPELINE_OK);
+    status_cb_.Run(PIPELINE_OK);
   } else {
-    status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb_.Run(PIPELINE_ERROR_DECODE);
   }
 }
 
@@ -267,9 +271,19 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     }
   }
 
-  scoped_refptr<VideoFrame> frame = raw_decoder_->Decode(buffer);
+  scoped_refptr<VideoFrame> frame;
 
-  if (!frame) {
+  LBVideoDecoder::DecodeStatus status =
+      raw_decoder_->Decode(buffer, &frame);
+
+  if (status == LBVideoDecoder::FRAME_DECODED) {
+    DCHECK(frame);
+    base::ResetAndReturn(&read_cb_).Run(kOk, frame);
+    return;
+  }
+
+  if (status == LBVideoDecoder::NEED_MORE_DATA) {
+    DCHECK(!frame);
     if (state_ == kFlushCodec) {
       state_ = kDecodeFinished;
       base::ResetAndReturn(&read_cb_).Run(kOk, VideoFrame::CreateEmptyFrame());
@@ -281,7 +295,11 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     return;
   }
 
-  base::ResetAndReturn(&read_cb_).Run(kOk, frame);
+  if (status == LBVideoDecoder::FATAL_ERROR) {
+    DecoderFatalError();
+  }
+
+  NOTREACHED();
 }
 
 void ShellVideoDecoderImpl::Reset(const base::Closure& closure) {
