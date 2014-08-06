@@ -81,6 +81,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   ReadCB read_cb_;
   base::Closure reset_cb_;
+  PipelineStatusCB status_cb_;
 
   LB::LBVideoDecoder* raw_decoder_;
   bool read_pending_;
