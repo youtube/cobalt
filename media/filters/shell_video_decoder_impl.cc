@@ -86,6 +86,8 @@ void ShellVideoDecoderImpl::Initialize(
   filter_graph_log_->LogEvent(kObjectIdVideoDecoder, kEventInitialize);
 
   decoder_config_.CopyFrom(demuxer_stream_->video_decoder_config());
+  DLOG(INFO) << "Configuration at Start: " <<
+      decoder_config_.AsHumanReadableString();
 
   raw_decoder_ = LBVideoDecoder::Create(
       decoder_config_, demuxer_stream_->GetDecryptor(),
@@ -188,9 +190,8 @@ void ShellVideoDecoderImpl::BufferReady(
   }
 
   if (demuxer_status == DemuxerStream::kConfigChanged) {
-    std::string config_string =
+    DLOG(INFO) << "Configuration Changed: " <<
         demuxer_stream_->video_decoder_config().AsHumanReadableString();
-    DLOG(INFO) << "Configuration Changed: " << config_string;
     // One side effect of asking for the video configuration is that
     // the MediaSource demuxer stack uses that request to determine
     // that the video decoder has updated its configuration.
