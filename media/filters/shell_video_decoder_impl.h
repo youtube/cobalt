@@ -54,8 +54,6 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   void BufferReady(DemuxerStream::Status status,
                    const scoped_refptr<ShellBuffer>& buffer);
 
-  void DoFrameDecodeComplete();
-
   // Carries out the reading operation scheduled by Read().
   void DoRead(const ReadCB& read_cb);
   // actually makes the call to the platform decoder to decode
@@ -74,6 +72,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
     kNormal,
     kFlushCodec,
     kDecodeFinished,
+    kShellDecodeError,
   };
   DecoderState state_;
   scoped_refptr<base::MessageLoopProxy> media_pipeline_message_loop_;
@@ -90,6 +89,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   //                   then remove this hack.
   scoped_refptr<ShellBuffer> eof_buffer_;
 
+  // All decoding tasks will be performed on this thread's message loop
   base::Thread decoder_thread_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellVideoDecoderImpl);

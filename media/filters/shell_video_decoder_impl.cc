@@ -137,6 +137,12 @@ void ShellVideoDecoderImpl::DoRead(const ReadCB& read_cb) {
   filter_graph_log_->LogEvent(kObjectIdVideoDecoder, kEventRead);
   read_cb_ = BindToLoop(media_pipeline_message_loop_, read_cb);
 
+  // if an error has occurred, return error
+  if (state_ == kShellDecodeError) {
+    base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+    return;
+  }
+
   // if decoding is done return empty frame
   if (state_ == kDecodeFinished) {
     base::ResetAndReturn(&read_cb_).Run(kOk, VideoFrame::CreateEmptyFrame());
@@ -164,7 +170,8 @@ void ShellVideoDecoderImpl::ReadFromDemuxerStream() {
 
   // only one read to demuxer stream at a time, and only if we have a free
   // buffer to decode into
-  if (!read_pending_) {
+  // TODO(***REMOVED***) : Check HasFreeTexture - can this be handled within the decoder?
+  if (!read_pending_ /* && HasFreeTexture() */) {
     read_pending_ = true;
     media_pipeline_message_loop_->PostTask(FROM_HERE, base::Bind(
         &ShellVideoDecoderImpl::ReadFromDemuxerStreamTask, this,
@@ -186,6 +193,11 @@ void ShellVideoDecoderImpl::BufferReady(
   if (state_ == kUninitialized) {
     // pending reads sometimes don't complete until after we're done.
     DLOG(WARNING) << "read returned but decoder is Uninitialized";
+    return;
+  }
+
+  if (state_ == kShellDecodeError) {
+    DLOG(WARNING) << "read returned but decoder is in error state";
     return;
   }
 
@@ -356,7 +368,7 @@ void ShellVideoDecoderImpl::DecoderFatalError() {
     base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
   }
   // terminate playback
-  state_ = kUninitialized;
+  state_ = kShellDecodeError;
 }
 
 void ShellVideoDecoderImpl::Stop(const base::Closure& closure) {
