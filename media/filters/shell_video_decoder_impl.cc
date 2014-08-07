@@ -88,7 +88,8 @@ void ShellVideoDecoderImpl::Initialize(
   decoder_config_.CopyFrom(demuxer_stream_->video_decoder_config());
 
   raw_decoder_ = LBVideoDecoder::Create(
-      decoder_config_, demuxer_stream_->GetDecryptor());
+      decoder_config_, demuxer_stream_->GetDecryptor(),
+      demuxer_stream_->StreamWasEncrypted());
 
   if (!raw_decoder_) {
     status_cb_.Run(DECODER_ERROR_NOT_SUPPORTED);
