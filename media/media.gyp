@@ -549,7 +549,7 @@
                 },
               },
             }],
-            ['target_arch=="android" or target_arch=="ps3" or target_arch=="wiiu" or target_arch=="xb1" or target_arch=="xb360"', {
+            ['target_arch=="android" or target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
               'sources': [
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
@@ -559,12 +559,6 @@
                 # These platforms have their own implementations.
                 ['exclude', 'filters/shell_audio_decoder_impl'],
                 ['exclude', 'filters/shell_audio_renderer_impl'],
-                ['exclude', 'filters/shell_video_decoder_impl'],
-              ]
-            }],
-            ['target_arch=="wiiu"', {
-              'sources/': [
-                # Wii U has its own audio decoder implementations.
                 ['exclude', 'filters/shell_video_decoder_impl'],
               ]
             }],

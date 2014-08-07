@@ -170,7 +170,7 @@ void ShellVideoDecoderImpl::ReadFromDemuxerStream() {
 
   // only one read to demuxer stream at a time, and only if we have a free
   // buffer to decode into
-  // TODO(***REMOVED***) : Check HasFreeTexture - can this be handled within the decoder?
+  // TODO(***REMOVED***) : Check if HasFreeTexture can be handled in the decoder?
   if (!read_pending_ /* && HasFreeTexture() */) {
     read_pending_ = true;
     media_pipeline_message_loop_->PostTask(FROM_HERE, base::Bind(
