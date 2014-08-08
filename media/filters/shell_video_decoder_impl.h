@@ -16,16 +16,12 @@
 #ifndef MEDIA_FILTERS_SHELL_VIDEO_DECODER_IMPL_H_
 #define MEDIA_FILTERS_SHELL_VIDEO_DECODER_IMPL_H_
 
-#include <list>
-#include <map>
-
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
+#include "base/threading/thread.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/video_decoder.h"
-#include "media/base/video_decoder_config.h"
-#include "media/filters/shell_demuxer.h"
 #include "media/filters/shell_video_decoder.h"
 
 namespace LB {
@@ -49,17 +45,19 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   virtual void Stop(const base::Closure& closure) OVERRIDE;
 
  private:
-  struct VideoTexture;
+  enum DecoderState {
+    kUninitialized,
+    kNormal,
+    kFlushCodec,
+    kDecodeFinished,
+    kShellDecodeError
+  };
 
   void BufferReady(DemuxerStream::Status status,
                    const scoped_refptr<ShellBuffer>& buffer);
 
-  // Carries out the reading operation scheduled by Read().
-  void DoRead(const ReadCB& read_cb);
   // actually makes the call to the platform decoder to decode
   void DecodeBuffer(const scoped_refptr<ShellBuffer>& buffer);
-  // Reads from the demuxer stream on the pipeline thread.
-  void ReadFromDemuxerStreamTask(const DemuxerStream::ReadCB& callback);
   // Posts a task to read from the demuxer stream.
   void ReadFromDemuxerStream();
   // Reset decoder and call |reset_cb_|.
@@ -67,24 +65,14 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   // called on decoder thread, fatal error on decode, we shut down decode
   void DecoderFatalError();
 
-  enum DecoderState {
-    kUninitialized,
-    kNormal,
-    kFlushCodec,
-    kDecodeFinished,
-    kShellDecodeError,
-  };
   DecoderState state_;
   scoped_refptr<base::MessageLoopProxy> media_pipeline_message_loop_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   ReadCB read_cb_;
   base::Closure reset_cb_;
-  PipelineStatusCB status_cb_;
 
-  LB::LBVideoDecoder* raw_decoder_;
-  bool read_pending_;
-  VideoDecoderConfig decoder_config_;
+  scoped_ptr<LB::LBVideoDecoder> raw_decoder_;
+
   // TODO(***REMOVED***) : ensure the demuxer can handle multiple EOS requests
   //                   then remove this hack.
   scoped_refptr<ShellBuffer> eof_buffer_;
