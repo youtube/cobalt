@@ -110,14 +110,21 @@ class ShellScopedMediaStat {
 
 }  // namespace media
 
+#if defined(__LB_SHELL__FOR_RELEASE__)
+#define UPDATE_MEDIA_STATISTICS(type, value) do {} while (false)
+
+// This macro reports a media stat with its duration
+#define SCOPED_MEDIA_STATISTICS(type)        do {} while (false)
+#else  // defined(__LB_SHELL__FOR_RELEASE__)
 // This macro reports a media stat with its new value
 #define UPDATE_MEDIA_STATISTICS(type, value)                 \
-  media::ShellMediaStatistics::Instance().record(              \
-      media::ShellMediaStatistics::type, value);
+  media::ShellMediaStatistics::Instance().record(            \
+      media::ShellMediaStatistics::type, value)
 
 // This macro reports a media stat with its duration
 #define SCOPED_MEDIA_STATISTICS(type)                        \
   media::ShellScopedMediaStat statistics_event(              \
-      media::ShellMediaStatistics::type);
+      media::ShellMediaStatistics::type)
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
 
 #endif  // MEDIA_BASE_SHELL_MEDIA_STATISTICS_H_
