@@ -53,10 +53,11 @@ class MEDIA_EXPORT ShellMediaPlatform {
   virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
   virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatform);
-
  protected:
   static void SetInstance(ShellMediaPlatform* shell_media_platform);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatform);
 };
 
 }  // namespace media
