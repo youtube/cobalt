@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "media/base/limits.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -52,6 +53,12 @@ class MEDIA_EXPORT ShellMediaPlatform {
   // See implementation of SourceBufferStream for more details.
   virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
   virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
+
+  // Total number of video frames which are populating in the pipeline.
+  // You can expect more memory usage and less jitter by increasing this.
+  virtual int GetMaxVideoFrames() const {
+    return limits::kMaxVideoFrames;
+  }
 
  protected:
   static void SetInstance(ShellMediaPlatform* shell_media_platform);
