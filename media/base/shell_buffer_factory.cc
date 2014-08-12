@@ -24,6 +24,7 @@
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
 #include "media/base/shell_media_platform.h"
+#include "media/base/shell_media_statistics.h"
 
 namespace {
 
@@ -473,6 +474,8 @@ uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
   }
   // add this allocation to our map
   allocs_.insert(std::make_pair(best_fit_ptr, aligned_size));
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_LARGEST_FREE_SHELL_BUFFER,
+                          LargestFreeSpace_Locked());
   return best_fit_ptr;
 }
 
