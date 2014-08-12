@@ -23,18 +23,11 @@
 namespace media {
 
 ShellMediaStatistics::ShellMediaStatistics() {
-  Reset();
+  Reset(true);  // reset all stats, include global stats.
 }
 
-void ShellMediaStatistics::Reset() {
-  start_ = base::Time::Now();
-  for (int i = 0; i < arraysize(stats_); ++i) {
-    // We deliberately not reset current_ so its value can be kept after reset.
-    stats_[i].times_ = 0;
-    stats_[i].total_ = 0;
-    stats_[i].min_ = std::numeric_limits<int64>::max();
-    stats_[i].max_ = std::numeric_limits<int64>::min();
-  }
+void ShellMediaStatistics::OnPlaybackBegin() {
+  Reset(false);  // reset non-global stats.
 }
 
 void ShellMediaStatistics::record(StatType type, int64 value) {
@@ -108,6 +101,19 @@ double ShellMediaStatistics::GetMaxDuration(StatType type) const {
 ShellMediaStatistics& ShellMediaStatistics::Instance() {
   static ShellMediaStatistics media_statistics;
   return media_statistics;
+}
+
+void ShellMediaStatistics::Reset(bool include_global_stats) {
+  start_ = base::Time::Now();
+  int items_to_reset = include_global_stats ? arraysize(stats_) :
+                                              STAT_TYPE_START_OF_GLOBAL_STAT;
+  for (int i = 0; i < items_to_reset; ++i) {
+    // We deliberately not reset current_ so its value can be kept after reset.
+    stats_[i].times_ = 0;
+    stats_[i].total_ = 0;
+    stats_[i].min_ = std::numeric_limits<int64>::max();
+    stats_[i].max_ = std::numeric_limits<int64>::min();
+  }
 }
 
 ShellScopedMediaStat::ShellScopedMediaStat(ShellMediaStatistics::StatType type)

@@ -47,6 +47,11 @@ class ShellMediaStatistics {
     STAT_TYPE_VIDEO_RENDERER_BACKLOG,
     // Time spend in decrypting a buffer
     STAT_TYPE_DECRYPT,
+    // The stat types after the following are global stats. i.e. their values
+    // will be preserved between playng back of different videos.
+    STAT_TYPE_START_OF_GLOBAL_STAT,
+    // The size of the largest free shell buffer block.
+    STAT_TYPE_LARGEST_FREE_SHELL_BUFFER,
     STAT_TYPE_MAX
   };
 
@@ -65,9 +70,8 @@ class ShellMediaStatistics {
   };
 
   ShellMediaStatistics();
-  // Reset all values to zero.
-  void Reset();
 
+  void OnPlaybackBegin();
   void record(StatType type, int64 value);
   void record(StatType type, const base::TimeDelta& duration);
 
@@ -94,6 +98,8 @@ class ShellMediaStatistics {
   static ShellMediaStatistics& Instance();
 
  private:
+  void Reset(bool include_global_stats);
+
   base::Time start_;
   Stat stats_[STAT_TYPE_MAX];
 };
