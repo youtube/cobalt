@@ -80,9 +80,11 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   if (!buffer_queue_.empty()) {
     // Send the oldest buffer back.
     scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
-    buffer_queue_.pop_front();
     if (buffer->IsEndOfStream()) {
       filter_graph_log_->LogEvent(GraphLogObjectId(), kEventEndOfStreamSent);
+    } else {
+      // Do not pop EOS buffers, so that subsequent read requests also get EOS
+      buffer_queue_.pop_front();
     }
     read_cb.Run(DemuxerStream::kOk, buffer);
   } else {
