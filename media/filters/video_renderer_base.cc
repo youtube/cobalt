@@ -20,6 +20,7 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_filter_graph_log.h"
 #include "media/base/shell_filter_graph_log_constants.h"
+#include "media/base/shell_media_platform.h"
 #include "media/base/shell_media_statistics.h"
 #endif
 
@@ -576,7 +577,12 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
   // purposes:
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
+#if defined(__LB_SHELL__)
+  if (NumFrames_Locked() < ShellMediaPlatform::Instance()->GetMaxVideoFrames()
+      && !frame->IsEndOfStream()) {
+#else  // defined(__LB_SHELL__)
   if (NumFrames_Locked() < limits::kMaxVideoFrames && !frame->IsEndOfStream()) {
+#endif  // defined(__LB_SHELL__)
     AttemptRead_Locked();
     return;
   }
@@ -638,7 +644,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
 #endif  // defined(__LB_SHELL__)
 
   ready_frames_.push_back(frame);
+#if defined(__LB_SHELL__)
+  DCHECK_LE(NumFrames_Locked(),
+            ShellMediaPlatform::Instance()->GetMaxVideoFrames());
+#else  // defined(__LB_SHELL__)
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
+#endif  // defined(__LB_SHELL__)
 
   base::TimeDelta max_clock_time =
       frame->IsEndOfStream() ? duration : frame->GetTimestamp();
@@ -661,7 +672,12 @@ void VideoRendererBase::AttemptRead_Locked() {
   lock_.AssertAcquired();
 
   if (pending_read_ ||
+#if defined(__LB_SHELL__)
+      NumFrames_Locked() ==
+          ShellMediaPlatform::Instance()->GetMaxVideoFrames() ||
+#else  // defined(__LB_SHELL__)
       NumFrames_Locked() == limits::kMaxVideoFrames ||
+#endif  // defined(__LB_SHELL__)
       (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream())) {
     return;
   }
