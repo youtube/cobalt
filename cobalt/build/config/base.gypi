@@ -24,6 +24,8 @@
     'cobalt_fastbuild%': 0,
     # Contains the sha1 of the cobalt git repo head.
     'cobalt_sha1%': 0,
+    # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
+    'host_os%': 'win',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).

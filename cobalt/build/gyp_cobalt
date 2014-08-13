@@ -23,7 +23,6 @@ import textwrap
 import config
 import gyp_utils
 
-gyp = gyp_utils.GetGyp()
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -37,9 +36,21 @@ VALID_PLATFORMS = config.VALID_PLATFORMS
 RETVAL_SUCCESS = 0
 RETVAL_ERROR = 1
 
-
 def _ListAsString(items):
   return ', '.join('"%s"' % x for x in items)
+
+
+def _GetHostOS():
+  """Returns the name of the hosting OS."""
+  host_os_names = {
+      'linux2': 'linux',
+      'win32': 'win',
+  }
+
+  if not sys.platform in host_os_names:
+    raise RuntimeError('Unsupported platform: %s' % sys.platform)
+
+  return host_os_names[sys.platform]
 
 
 def _ParseCommandLineArguments(argv):
@@ -156,6 +167,7 @@ class _GypRunner(object):
     # That target build file goes last.
     args.append(self.options.build_file)
 
+    gyp = gyp_utils.GetGyp()
     return gyp.main(args)
 
   def _MakeCommonArguments(self):
@@ -187,6 +199,7 @@ class _GypRunner(object):
         'OS': 'lb_shell',
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_sha1': gyp_utils.GitHash('cobalt'),
+        'host_os': _GetHostOS(),
     }
     _AppendVariables(variables, self.common_args)
 
