@@ -580,7 +580,7 @@ class NinjaWriter:
     elif self.flavor == 'win':
       return self.msvs_settings.IsRuleRunUnderCygwin(action)
     elif self.flavor in ['wiiu', 'ps3', 'xb1', 'xb360', 'ps4'] :
-      return action.get('msvs_cygwin_shell', 1) != 0
+      return str(action.get('msvs_cygwin_shell', 1)) != '0'
     return False
 
   def WriteActions(self, actions, extra_sources, prebuild,
