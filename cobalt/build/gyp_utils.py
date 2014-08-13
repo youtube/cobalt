@@ -29,6 +29,9 @@ _SOURCE_TREE_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir,
 
 def GetGyp():
   if 'gyp' not in sys.modules:
+    # Add directory to path to make sure that cygpath can be imported.
+    sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'lbshell', 'build',
+                                    'pylib'))
     sys.path.insert(0, os.path.join(_SOURCE_TREE_DIR, 'tools', 'gyp', 'pylib'))
     importlib.import_module('gyp')
   return sys.modules['gyp']
