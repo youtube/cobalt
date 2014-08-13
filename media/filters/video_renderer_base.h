@@ -27,10 +27,6 @@ namespace media {
 class DecryptingDemuxerStream;
 class VideoDecoderSelector;
 
-#if defined(__LB_SHELL__)
-class ShellFilterGraphLog;
-#endif
-
 // VideoRendererBase creates its own thread for the sole purpose of timing frame
 // presentation.  It handles reading from the decoder and stores the results in
 // a queue of decoded frames and executing a callback when a frame is ready for
@@ -282,11 +278,6 @@ class MEDIA_EXPORT VideoRendererBase
 
   // The last natural size |size_changed_cb_| was called with.
   gfx::Size last_natural_size_;
-
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };

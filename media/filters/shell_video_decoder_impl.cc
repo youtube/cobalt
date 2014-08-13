@@ -66,17 +66,17 @@ void ShellVideoDecoderImpl::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& status_cb,
     const StatisticsCB& statistics_cb) {
+  TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::Initialize()");
   DCHECK(!decoder_thread_.IsRunning());
   DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
   // check for no already attached stream, valid input stream, and save it
   DCHECK(!demuxer_stream_);
+
   if (!stream) {
     status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
   demuxer_stream_ = stream;
-
-  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::Initialize()");
 
   VideoDecoderConfig decoder_config;
   decoder_config.CopyFrom(demuxer_stream_->video_decoder_config());
@@ -113,6 +113,7 @@ void ShellVideoDecoderImpl::Initialize(
 }
 
 void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
+  TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::DoRead()");
   if (!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread()) {
     decoder_thread_.message_loop_proxy()->PostTask(
         FROM_HERE,
@@ -126,8 +127,6 @@ void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
   DCHECK(!read_cb.is_null());
   DCHECK(read_cb_.is_null()) << "overlapping reads not supported";
   DCHECK_NE(state_, kUninitialized);
-
-  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::DoRead()");
 
   read_cb_ = BindToLoop(media_pipeline_message_loop_, read_cb);
 
@@ -238,7 +237,7 @@ void ShellVideoDecoderImpl::BufferReady(
 
 void ShellVideoDecoderImpl::DecodeBuffer(
     const scoped_refptr<ShellBuffer>& buffer) {
-  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::DecodeBuffer()");
+  TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::DecodeBuffer()");
   SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DECODE);
 
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
@@ -256,9 +255,9 @@ void ShellVideoDecoderImpl::DecodeBuffer(
   // if we've encountered an EOS buffer then attempt no more reads from upstream
   // empty queue and prepare to transition to kDecodeFinished.
   if (buffer->IsEndOfStream()) {
+    TRACE_EVENT0("media_stack",
+                 "ShellVideoDecoderImpl::DecodeBuffer() EOS received");
     eof_buffer_ = buffer;
-    TRACE_EVENT0("lb_shell",
-                 "ShellVideoDecoderImpl::DecodeBuffer() EOS Received");
     // We pipeline reads, so it is possible that we will receive more than one
     // read callback with EOS after the first
     if (state_ == kNormal) {
@@ -271,6 +270,8 @@ void ShellVideoDecoderImpl::DecodeBuffer(
   LBVideoDecoder::DecodeStatus status = raw_decoder_->Decode(buffer, &frame);
 
   if (status == LBVideoDecoder::FRAME_DECODED) {
+    TRACE_EVENT1("media_stack", "ShellVideoDecoderImpl frame decoded",
+                 "timestamp", frame->GetTimestamp().InMicroseconds());
     DCHECK(frame);
     base::ResetAndReturn(&read_cb_).Run(kOk, frame);
     return;
@@ -302,6 +303,7 @@ void ShellVideoDecoderImpl::DecodeBuffer(
 }
 
 void ShellVideoDecoderImpl::Reset(const base::Closure& closure) {
+  TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::Reset()");
   if (!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread()) {
     decoder_thread_.message_loop_proxy()->PostTask(
         FROM_HERE,
@@ -312,7 +314,6 @@ void ShellVideoDecoderImpl::Reset(const base::Closure& closure) {
     return;
   }
 
-  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::Reset()");
   reset_cb_ = BindToLoop(media_pipeline_message_loop_, closure);
 
   // Defer the reset if a read is pending.
@@ -340,8 +341,8 @@ void ShellVideoDecoderImpl::DoReset() {
 }
 
 void ShellVideoDecoderImpl::DecoderFatalError() {
+  TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::DecoderFatalError()");
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
-  TRACE_EVENT0("lb_shell", "ShellVideoDecoderImpl::DecoderFatalError()");
   // fatal error within the decoder
   DLOG(ERROR) << "fatal video decoder error.";
   // service any read callbacks with error
