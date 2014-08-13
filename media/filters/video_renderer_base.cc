@@ -17,9 +17,8 @@
 #include "media/filters/video_decoder_selector.h"
 
 #if defined(__LB_SHELL__)
+#include "base/debug/trace_event.h"
 #include "base/stringprintf.h"
-#include "media/base/shell_filter_graph_log.h"
-#include "media/base/shell_filter_graph_log_constants.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_media_statistics.h"
 #endif
@@ -52,10 +51,10 @@ VideoRendererBase::VideoRendererBase(
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPlay);
+  TRACE_EVENT0("media_stack", "VideoRendererBase::Play()");
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPrerolled, state_);
   state_ = kPlaying;
@@ -63,10 +62,10 @@ void VideoRendererBase::Play(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Pause(const base::Closure& callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventPause);
+  TRACE_EVENT0("media_stack", "VideoRendererBase::Pause()");
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ != kUninitialized || state_ == kError);
   state_ = kPaused;
@@ -74,10 +73,10 @@ void VideoRendererBase::Pause(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Flush(const base::Closure& callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventFlush);
+  TRACE_EVENT0("media_stack", "VideoRendererBase::Flush()");
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kPaused);
   flush_cb_ = callback;
@@ -99,10 +98,10 @@ void VideoRendererBase::ResetDecoder() {
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventStop);
+  TRACE_EVENT0("media_stack", "VideoRendererBase::Stop()");
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   if (state_ == kUninitialized || state_ == kStopped) {
     callback.Run();
     return;
@@ -153,12 +152,11 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
 
 void VideoRendererBase::Preroll(base::TimeDelta time,
                                 const PipelineStatusCB& cb) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer,
-                              kEventPreroll,
-                              time.InMilliseconds());
+  TRACE_EVENT1("media_stack", "VideoRendererBase::Preroll()",
+               "timestamp", time.InMicroseconds());
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
   DCHECK(!cb.is_null());
@@ -181,6 +179,9 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                    const PipelineStatusCB& error_cb,
                                    const TimeDeltaCB& get_time_cb,
                                    const TimeDeltaCB& get_duration_cb) {
+#if defined(__LB_SHELL__)
+  TRACE_EVENT0("media_stack", "VideoRendererBase::Initialize()");
+#endif
   DCHECK(message_loop_->BelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   DCHECK(stream);
@@ -194,10 +195,6 @@ void VideoRendererBase::Initialize(const scoped_refptr<DemuxerStream>& stream,
   DCHECK(!get_time_cb.is_null());
   DCHECK(!get_duration_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
-#if defined(__LB_SHELL__)
-  filter_graph_log_ = stream->filter_graph_log();
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventInitialize);
-#endif
 
   init_cb_ = init_cb;
   statistics_cb_ = statistics_cb;
@@ -386,10 +383,9 @@ void VideoRendererBase::ThreadMain() {
 
         // Frame dropped: read again.
 #if defined(__LB_SHELL__)
-        filter_graph_log_->LogEvent(
-            kObjectIdVideoRenderer,
-            kEventDropFrame,
-            ready_frames_.front()->GetTimestamp().InMilliseconds());
+        TRACE_EVENT1("media_stack", "VideoRendererBase drop frame",
+                     "timestamp",
+                     ready_frames_.front()->GetTimestamp().InMicroseconds());
 #endif
         ++frames_dropped;
         ready_frames_.pop_front();
@@ -410,12 +406,18 @@ void VideoRendererBase::ThreadMain() {
     //
     // We can now safely update the current frame, request another frame, and
     // signal to the client that a new frame is available.
+#if defined(__LB_SHELL__)
+    TRACE_EVENT0("media_stack", "VideoRendererBase proceed to next frame");
+#endif
     DCHECK(!pending_paint_);
     DCHECK(!ready_frames_.empty());
     SetCurrentFrameToNextReadyFrame();
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &VideoRendererBase::AttemptRead, this));
 
+#if defined(__LB_SHELL__)
+    TRACE_EVENT0("media_stack", "VideoRendererBase paint_cb_");
+#endif
     base::AutoUnlock auto_unlock(lock_);
     paint_cb_.Run();
   }
@@ -423,10 +425,10 @@ void VideoRendererBase::ThreadMain() {
 
 void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(
-      kObjectIdVideoRenderer,
-      kEventRender,
-      ready_frames_.front()->GetTimestamp().InMilliseconds());
+  TRACE_EVENT1("media_stack",
+               "VideoRendererBase::SetCurrentFrameToNextReadyFrame()",
+               "timestamp",
+               ready_frames_.front()->GetTimestamp().InMicroseconds());
 #endif
   current_frame_ = ready_frames_.front();
   ready_frames_.pop_front();
@@ -453,6 +455,10 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
     return;
   }
 
+#if defined(__LB_SHELL__)
+  TRACE_EVENT0("media_stack", "VideoRendererBase::GetCurrentFrame()");
+#endif
+
   // We should have initialized and have the current frame.
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kStopped);
@@ -470,6 +476,10 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
 }
 
 void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
+#if defined(__LB_SHELL__)
+  TRACE_EVENT0("media_stack", "VideoRendererBase::PutCurrentFrame()");
+#endif
+
   base::AutoLock auto_lock(lock_);
 
   // Note that we do not claim |pending_paint_| when we return NULL frame, in
@@ -603,12 +613,19 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     DCHECK(!preroll_cb_.is_null());
     base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
 
+#if defined(__LB_SHELL__)
+    TRACE_EVENT0("media_stack", "VideoRendererBase paint_cb_");
+#endif
     base::AutoUnlock ul(lock_);
     paint_cb_.Run();
   }
 }
 
 void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
+#if defined(__LB_SHELL__)
+  TRACE_EVENT1("media_stack", "VideoRendererBase::AddReadyFrame()",
+               "timestamp", frame->GetTimestamp().InMicroseconds());
+#endif
   // Adjust the incoming frame if its rendering stop time is past the duration
   // of the video itself. This is typically the last frame of the video and
   // occurs if the container specifies a duration that isn't a multiple of the
@@ -630,12 +647,6 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
   } else if (frame->GetTimestamp() > duration) {
     frame->SetTimestamp(duration);
   }
-
-#if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer,
-                              kEventEnqueue,
-                              frame->GetTimestamp().InMilliseconds());
-#endif
 
 #if defined(__LB_SHELL__)
   if (frame->GetTimestamp() < get_time_cb_.Run()) {
@@ -665,10 +676,10 @@ void VideoRendererBase::AttemptRead() {
 }
 
 void VideoRendererBase::AttemptRead_Locked() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
 #if defined(__LB_SHELL__)
-  filter_graph_log_->LogEvent(kObjectIdVideoRenderer, kEventRead);
+  TRACE_EVENT0("media_stack", "VideoRendererBase::AttemptRead_Locked()");
 #endif
+  DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 
   if (pending_read_ ||
