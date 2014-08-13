@@ -323,8 +323,6 @@ void ShellVideoDecoderImpl::Reset(const base::Closure& closure) {
 }
 
 void ShellVideoDecoderImpl::DoReset() {
-  // any pending read must have been serviced before calling me
-  DCHECK(read_cb_.is_null());
   DCHECK(!reset_cb_.is_null());
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
 
