@@ -29,7 +29,11 @@ if "%GIT_BIN_DIR%" EQU "" (
 :: Full path to the git directory.
 set GIT_BIN_DIR=%DEPOT_TOOLS_DIR%%GIT_BIN_DIR%\bin\
 
+:: Convert back slashes into Unix-style forward slashes.
+set ARGS=%*
+set ARGS_UNIX=%ARGS:\=/%
+
 echo Running gyp_cobalt using git bash, Ctrl+C may not work well...
-%GIT_BIN_DIR%bash.exe -lc "python %SCRIPT_DIR_UNIX%gyp_cobalt %*"
+%GIT_BIN_DIR%bash.exe -lc "python %SCRIPT_DIR_UNIX%gyp_cobalt %ARGS_UNIX%"
 
 :EOF
