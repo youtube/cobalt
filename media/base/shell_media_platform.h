@@ -54,6 +54,12 @@ class MEDIA_EXPORT ShellMediaPlatform {
   virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
   virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
 
+  // Total number of video frames which are populating in the pipeline when
+  // prerolling.
+  // You can expect more start delay by increasing this.
+  virtual int GetMaxVideoPrerollFrames() const {
+    return limits::kMaxVideoFrames;
+  }
   // Total number of video frames which are populating in the pipeline.
   // You can expect more memory usage and less jitter by increasing this.
   virtual int GetMaxVideoFrames() const {
