@@ -588,8 +588,11 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
 #if defined(__LB_SHELL__)
-  if (NumFrames_Locked() < ShellMediaPlatform::Instance()->GetMaxVideoFrames()
-      && !frame->IsEndOfStream()) {
+  bool is_prerolling = state_ == kPrerolling;
+  int max_video_frames =
+      is_prerolling ? ShellMediaPlatform::Instance()->GetMaxVideoPrerollFrames()
+                    : ShellMediaPlatform::Instance()->GetMaxVideoFrames();
+  if (NumFrames_Locked() < max_video_frames && !frame->IsEndOfStream()) {
 #else  // defined(__LB_SHELL__)
   if (NumFrames_Locked() < limits::kMaxVideoFrames && !frame->IsEndOfStream()) {
 #endif  // defined(__LB_SHELL__)
