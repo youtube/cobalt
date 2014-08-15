@@ -27,7 +27,6 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/ranges.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_parser.h"
 
 namespace media {
@@ -45,7 +44,6 @@ class ShellDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
   virtual bool StreamWasEncrypted() const OVERRIDE;
 
   // Functions used by ShellDemuxer
@@ -60,7 +58,6 @@ class ShellDemuxerStream : public DemuxerStream {
   // enqueued ranges from the union of all of the buffers in the queue.
   // Call me whenever _removing_ data from buffer_queue_.
   void RebuildEnqueuedRanges_Locked();
-  const uint32 GraphLogObjectId() const;
 
   // non-owning pointer to avoid circular reference
   ShellDemuxer* demuxer_;
@@ -84,7 +81,6 @@ class ShellDemuxerStream : public DemuxerStream {
 
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };
@@ -122,10 +118,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // Callback from ShellBufferFactory
   void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
 
-  virtual void SetFilterGraphLog(
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
-
  private:
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
   void DataSourceStopped(const base::Closure& callback);
@@ -155,7 +147,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<ShellDemuxerStream> audio_demuxer_stream_;
   scoped_refptr<ShellDemuxerStream> video_demuxer_stream_;
   scoped_refptr<ShellParser> parser_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   scoped_refptr<ShellAU> requested_au_;
   bool audio_reached_eos_;

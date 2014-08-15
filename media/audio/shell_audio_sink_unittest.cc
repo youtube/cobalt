@@ -20,7 +20,6 @@
 
 #include "media/audio/mock_shell_audio_streamer.h"
 #include "media/base/mock_filters.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -101,7 +100,6 @@ class ShellAudioSinkTest : public testing::Test {
     consumption_frames_per_channel_ = 0;
 
     sink_ = media::ShellAudioSink::Create(&streamer_);
-    filter_graph_log_ = new media::ShellFilterGraphLog;
     EXPECT_CALL(streamer_, GetConfig()).WillRepeatedly(Return(config));
     EXPECT_CALL(streamer_,
                 HasStream(sink_.get())).WillRepeatedly(Return(false));
@@ -229,7 +227,6 @@ class ShellAudioSinkTest : public testing::Test {
   media::MockShellAudioStreamer streamer_;
   MockRenderCallback render_callback_;
   scoped_refptr<media::ShellAudioSink> sink_;
-  scoped_refptr<media::ShellFilterGraphLog> filter_graph_log_;
 
   uint8 render_byte_;
   uint8 consumption_byte_;
@@ -309,8 +306,7 @@ TEST_F(ShellAudioSinkTest, Initialize) {
         media::AudioParameters init_params = media::AudioParameters(
             media::AudioParameters::AUDIO_PCM_LOW_LATENCY, layout,
             48000, bytes_per_sample * 8, 1024);
-        sink_->Initialize(init_params, &render_callback_,
-                          filter_graph_log_.get());
+        sink_->Initialize(init_params, &render_callback_);
 
         EXPECT_TRUE(sink_->PauseRequested());
         EXPECT_TRUE(sink_->GetAudioBus());
@@ -355,7 +351,7 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
 
   Setup(config);
 
-  sink_->Initialize(init_params, &render_callback_, filter_graph_log_.get());
+  sink_->Initialize(init_params, &render_callback_);
 
   InSequence seq;
   EXPECT_CALL(streamer_, HasStream(sink_.get())).WillRepeatedly(Return(false));
@@ -386,7 +382,7 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
       media::CHANNEL_LAYOUT_MONO, 48000, 16, 1024);
 
-  sink_->Initialize(init_params, &render_callback_, filter_graph_log_.get());
+  sink_->Initialize(init_params, &render_callback_);
 
   InSequence seq;
   EXPECT_CALL(streamer_, HasStream(sink_.get())).WillRepeatedly(Return(false));
@@ -422,7 +418,7 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
         media::CHANNEL_LAYOUT_MONO, 48000, 16, 1024);
 
-    sink_->Initialize(init_params, &render_callback_, filter_graph_log_.get());
+    sink_->Initialize(init_params, &render_callback_);
 
     InSequence seq;
     EXPECT_CALL(streamer_, HasStream(sink_.get())).
@@ -487,7 +483,7 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
         media::CHANNEL_LAYOUT_MONO, 48000, 16, 1024);
 
-    sink_->Initialize(init_params, &render_callback_, filter_graph_log_.get());
+    sink_->Initialize(init_params, &render_callback_);
 
     InSequence seq;
     EXPECT_CALL(streamer_, HasStream(sink_.get())).
@@ -589,7 +585,7 @@ TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
         media::CHANNEL_LAYOUT_MONO, 48000, 16, 1024);
 
-    sink_->Initialize(init_params, &render_callback_, filter_graph_log_.get());
+    sink_->Initialize(init_params, &render_callback_);
 
     InSequence seq;
     EXPECT_CALL(streamer_, HasStream(sink_.get())).

@@ -35,16 +35,13 @@ static const int kEntrySize_stsc = 12;
 static const int kEntrySize_stss = 4;
 static const int kEntrySize_stsz = 4;
 
-class ShellFilterGraphLog;
-
 // Utility class to parse the various subatoms of the stbl mp4 atom and use
 // them to provide byte offsets, sizes, and timestamps of a mp4 atom while
 // reusing memory issued by ShellBufferFactory. The caching design benefits
 // from, but does not require, sequential access in sample numbers.
 class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
  public:
-  ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader,
-              scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  explicit ShellMP4Map(scoped_refptr<ShellDataSourceReader> reader);
 
   bool IsComplete();
 
@@ -122,8 +119,7 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
                uint32 entry_count,  // number of entries in table
                uint32 entry_size,   // size in bytes of each entry in table
                uint32 cache_size_entries,  // number of entries to cache in mem
-               scoped_refptr<ShellDataSourceReader> reader,  // reader to use
-               scoped_refptr<ShellFilterGraphLog> filter_graph_log);  // logger
+               scoped_refptr<ShellDataSourceReader> reader);  // reader to use
 
     // The following Read* functions all read values in big endian.
     bool ReadU32Entry(uint32 entry_number, uint32* entry);
@@ -145,7 +141,6 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
     uint32 cache_size_entries_;   // max number of entries to fit in memory
     uint64 table_offset_;         // offset of table in stream
     scoped_refptr<ShellDataSourceReader> reader_;  // means to read more table
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
     // current cache state
     scoped_refptr<ShellScopedArray> cache_;  // the cached part of the table
@@ -154,7 +149,6 @@ class ShellMP4Map : public base::RefCountedThreadSafe<ShellMP4Map> {
   };
 
   scoped_refptr<ShellDataSourceReader> reader_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   // current integration state for GetOffset(), we save the sum of sample sizes
   // within the current chunk.

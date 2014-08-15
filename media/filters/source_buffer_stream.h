@@ -26,9 +26,6 @@
 namespace media {
 
 class SourceBufferRange;
-#if defined(__LB_SHELL__)
-class ShellFilterGraphLog;
-#endif
 
 // See file-level comment for complete description.
 class MEDIA_EXPORT SourceBufferStream {
@@ -46,20 +43,10 @@ class MEDIA_EXPORT SourceBufferStream {
     kConfigChange,
   };
 
-#if defined(__LB_SHELL__)
-  SourceBufferStream(const AudioDecoderConfig& audio_config,
-                     const LogCB& log_cb,
-                     scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-  SourceBufferStream(const VideoDecoderConfig& video_config,
-                     const LogCB& log_cb,
-                     scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-
-#else
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      const LogCB& log_cb);
   SourceBufferStream(const VideoDecoderConfig& video_config,
                      const LogCB& log_cb);
-#endif
 
   ~SourceBufferStream();
 
@@ -316,10 +303,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // config. GetNextBuffer() must not be called again until
   // GetCurrentXXXDecoderConfig() has been called.
   bool config_change_pending_;
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };

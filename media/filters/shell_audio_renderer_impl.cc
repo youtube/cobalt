@@ -18,14 +18,13 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/buffers.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/shell_filter_graph_log.h"
-#include "media/base/shell_filter_graph_log_constants.h"
 #include "media/filters/audio_decoder_selector.h"
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "media/mp4/aac.h"
@@ -62,9 +61,9 @@ ShellAudioRendererImpl::~ShellAudioRendererImpl() {
 }
 
 void ShellAudioRendererImpl::Play(const base::Closure &callback) {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Play()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPaused);
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventPlay);
   state_ = kPlaying;
   callback.Run();
 
@@ -80,10 +79,10 @@ void ShellAudioRendererImpl::DoPlay() {
 }
 
 void ShellAudioRendererImpl::Pause(const base::Closure &callback) {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Pause()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(state_ == kPlaying || state_ == kUnderflow ||
          state_ == kRebuffering);
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventPause);
   sink_->Pause(false);
 
   state_ = kPaused;
@@ -95,10 +94,10 @@ void ShellAudioRendererImpl::Pause(const base::Closure &callback) {
 }
 
 void ShellAudioRendererImpl::Flush(const base::Closure &callback) {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Flush()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPaused);
   DCHECK_EQ(decoded_audio_bus_, (media::AudioBus*)NULL);
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventFlush);
 
   // Pause and flush the sink. Do this only if there is not a decode pending
   // because the sink expects that it will not be flushed while a read is
@@ -152,11 +151,11 @@ void ShellAudioRendererImpl::Stop(const base::Closure &callback) {
 }
 
 void ShellAudioRendererImpl::OnDecoderReset(const base::Closure& callback) {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::OnDecoderReset()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(state_ == kStopping || state_ == kUninitialized);
   DCHECK_EQ(decoded_audio_bus_, (media::AudioBus*)NULL);
   DCHECK(renderer_idle_cb_.is_null());
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventStop);
 
   decoder_ = NULL;
   if (state_ != kUninitialized && state_ != kStopped) {
@@ -194,9 +193,8 @@ void ShellAudioRendererImpl::Initialize(
     const base::Closure& ended_cb,
     const base::Closure& disabled_cb,
     const PipelineStatusCB& error_cb) {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::OnDecoderReset()");
   DCHECK(message_loop_->BelongsToCurrentThread());
-  filter_graph_log_ = stream->filter_graph_log();
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventInitialize);
   underflow_cb_ = underflow_cb;
   time_cb_ = time_cb;
   init_cb_ = init_cb;
@@ -259,7 +257,7 @@ void ShellAudioRendererImpl::OnDecoderSelected(
 
   DCHECK(sink_.get());
   // initialize and start the sink
-  sink_->Initialize(audio_parameters_, this, filter_graph_log_);
+  sink_->Initialize(audio_parameters_, this);
   sink_->Start();
 
   // run the startup callback, we're ready to go
@@ -285,12 +283,12 @@ void ShellAudioRendererImpl::DoPreroll(
 }
 
 void ShellAudioRendererImpl::DoUnderflow() {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::DoUnderflow()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   // don't reprocess if we've already set our state, or already got EOS
   if (state_ == kUnderflow || end_of_stream_state_ >= kReceivedEOS) {
     return;
   }
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventUnderflow);
   DLOG(WARNING) << "audio renderer registered underflow";
   // now set the state flag
   state_ = kUnderflow;
@@ -311,8 +309,9 @@ void ShellAudioRendererImpl::ResumeAfterUnderflow(bool buffer_more_audio) {
 }
 
 void ShellAudioRendererImpl::DoResumeAfterUnderflow(bool buffer_more_audio) {
+  TRACE_EVENT0("media_stack",
+               "ShellAudioRendererImpl::DoResumeAfterUnderflow()");
   DCHECK(message_loop_->BelongsToCurrentThread());
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventResume);
   if (state_ == kUnderflow) {
     state_ = kRebuffering;
     sink_->ResumeAfterUnderflow(buffer_more_audio);
@@ -325,8 +324,8 @@ void ShellAudioRendererImpl::SinkFull() {
 }
 
 void ShellAudioRendererImpl::DoSinkFull() {
+  TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::DoSinkFull()");
   DCHECK(message_loop_->BelongsToCurrentThread());
-  filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventOutputBufferFull);
   if (state_ == kPrerolling) {
     DCHECK(!preroll_cb_.is_null());
     // we transition from preroll to a pause
@@ -354,6 +353,8 @@ void ShellAudioRendererImpl::SetVolume(float volume) {
 void ShellAudioRendererImpl::DecodedAudioReady(
     AudioDecoder::Status status,
     const scoped_refptr<Buffer>& buffer) {
+  TRACE_EVENT1("media_stack", "ShellAudioRendererImpl::DecodedAudioReady()",
+               "status", status);
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!decode_complete_);
   DCHECK_NE(decoded_audio_bus_, (media::AudioBus*)NULL);
@@ -364,7 +365,6 @@ void ShellAudioRendererImpl::DecodedAudioReady(
     } else if (state_ == kStopped) {
       DLOG(WARNING) << "enqueue after stop.";
     } else {
-      filter_graph_log_->LogEvent(kObjectIdAudioRenderer, kEventDataDecoded);
       if (buffer->IsEndOfStream()) {
         if (end_of_stream_state_ == kWaitingForEOS)
           end_of_stream_state_ = kReceivedEOS;
@@ -515,11 +515,6 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
 void ShellAudioRendererImpl::OnRenderError() {
   state_ = kUninitialized;
   error_cb_.Run(PIPELINE_ERROR_COULD_NOT_RENDER);
-}
-
-scoped_refptr<ShellFilterGraphLog>
-ShellAudioRendererImpl::filter_graph_log() {
-  return filter_graph_log_;
 }
 
 bool ShellAudioRendererImpl::ShouldQueueRead(State state) {

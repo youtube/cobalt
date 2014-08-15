@@ -94,7 +94,6 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   ShellAudioDecoderStatus shell_audio_decoder_status_;
 
 #if __SAVE_DECODER_OUTPUT__

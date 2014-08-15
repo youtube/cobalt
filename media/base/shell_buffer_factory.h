@@ -32,7 +32,6 @@ namespace media {
 static const size_t kShellMaxArraySize = 1024 * 1024;
 
 class DecryptConfig;
-class ShellFilterGraphLog;
 class ShellBufferFactory;
 
 // A simple scoped array class designed to re-use the memory allocated by
@@ -42,20 +41,16 @@ class MEDIA_EXPORT ShellScopedArray :
  public:
   uint8* Get() { return array_; }
   size_t Size() { return size_; }
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
 
  private:
   friend class base::RefCountedThreadSafe<ShellScopedArray>;
   friend class ShellBufferFactory;
   // Should only be called by ShellBufferFactory, consumers should use
   // ShellBufferFactory::AllocateArray to allocate a ShellScopedArray
-  ShellScopedArray(uint8* resuable_buffer,
-                   size_t size,
-                   scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  ShellScopedArray(uint8* resuable_buffer, size_t size);
   virtual ~ShellScopedArray();
   uint8* array_;
   size_t size_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   scoped_refptr<ShellBufferFactory> buffer_factory_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellScopedArray);
@@ -69,8 +64,7 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   // Create a ShellBuffer indicating we've reached end of stream or an error.
   // GetData() and GetWritableData() return NULL and GetDataSize() returns 0.
   static scoped_refptr<ShellBuffer> CreateEOSBuffer(
-      base::TimeDelta timestamp,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+      base::TimeDelta timestamp);
 
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE { return buffer_; }
@@ -89,8 +83,6 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   bool IsAlreadyDecrypted() { return is_decrypted_; }
   void SetAlreadyDecrypted(bool value) { is_decrypted_ = value; }
 
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log();
-
   const DecryptConfig* GetDecryptConfig() const;
   void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
 
@@ -98,9 +90,7 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   friend class ShellBufferFactory;
   // Should only be called by ShellBufferFactory, consumers should use
   // ShellBufferFactory::AllocateBuffer to make a ShellBuffer.
-  explicit ShellBuffer(uint8* reusable_buffer,
-                       size_t size,
-                       scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  ShellBuffer(uint8* reusable_buffer, size_t size);
   // For deferred allocation create a shell buffer with buffer_ NULL but a
   // non-zero size. Then we use the SetBuffer() method below to actually
   // set the reusable buffer pointer when it becomes available
@@ -110,7 +100,6 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   uint8* buffer_;
   size_t size_;
   size_t allocated_size_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   scoped_refptr<ShellBufferFactory> buffer_factory_;
   scoped_ptr<DecryptConfig> decrypt_config_;
   bool is_decrypted_;
@@ -136,20 +125,13 @@ class MEDIA_EXPORT ShellBufferFactory
   // Returns false if the allocator will never be able to allocate a buffer
   // of the requested size. Note that if memory is currently available this
   // function will call the callback provided _before_ returning true.
-  // Provide a filter_graph_log object for the factory to log creation and
-  // destruction of this buffer in.
-  bool AllocateBuffer(size_t size,
-                      AllocCB cb,
-                      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  bool AllocateBuffer(size_t size, AllocCB cb);
   // Returns true if a ShellBuffer of this size could be allocated without
   // waiting for some other buffer to be released.
   bool HasRoomForBufferNow(size_t size);
   // This function tries to allocate a ShellBuffer immediately. It returns NULL
   // on failure.
-  // Provide a filter_graph_log object for the factory to log creation and
-  // destruction of this buffer in.
-  scoped_refptr<ShellBuffer> AllocateBufferNow(
-      size_t size, scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  scoped_refptr<ShellBuffer> AllocateBufferNow(size_t size);
   // Returns a newly allocated byte field if there's room for it, or NULL if
   // there isn't. Note that this raw allocation method provides no guarantee
   // that ShellBufferFactory will still exist when the memory is to be freed.
@@ -159,11 +141,8 @@ class MEDIA_EXPORT ShellBufferFactory
   // BLOCKS THE CALLING THREAD until an array of size is available and can be
   // allocated. We only allow one thread to block on an array allocation at a
   // time, all subsequents calls on other threads to AllocateArray will assert
-  // and return NULL.  Provide a filter_graph_log for the factory to log this
-  // array in.
-  scoped_refptr<ShellScopedArray> AllocateArray(
-      size_t size,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  // and return NULL.
+  scoped_refptr<ShellScopedArray> AllocateArray(size_t size);
 
   // Only called by ShellBuffer and ShellScopedArray, informs the factory that
   // these objects have gone out of scoped and we can reclaim the memory

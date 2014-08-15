@@ -23,7 +23,6 @@
 
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 #endif
 
 using base::TimeDelta;
@@ -184,19 +183,10 @@ class ChunkDemuxerStream : public DemuxerStream {
   typedef std::deque<ReadCB> ReadCBQueue;
   typedef std::deque<base::Closure> ClosureQueue;
 
-#if defined(__LB_SHELL__)
-  ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
-                     const LogCB& log_cb,
-                     scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-  ChunkDemuxerStream(const VideoDecoderConfig& video_config,
-                     const LogCB& log_cb,
-                     scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-#else
   ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
                      const LogCB& log_cb);
   ChunkDemuxerStream(const VideoDecoderConfig& video_config,
                      const LogCB& log_cb);
-#endif
 
   void StartWaitingForSeek();
   void Seek(TimeDelta time);
@@ -238,8 +228,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
 #if defined(__LB_SHELL__)
-  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
-
   bool StreamWasEncrypted() const OVERRIDE;
 #endif
 
@@ -276,10 +264,6 @@ class ChunkDemuxerStream : public DemuxerStream {
 
   scoped_ptr<SourceBufferStream> stream_;
 
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
-
   mutable base::Lock lock_;
   State state_;
   ReadCBQueue read_cbs_;
@@ -292,28 +276,21 @@ class ChunkDemuxerStream : public DemuxerStream {
 #if defined(__LB_SHELL__)
 ChunkDemuxerStream::ChunkDemuxerStream(
     const AudioDecoderConfig& audio_config,
-    const LogCB& log_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    const LogCB& log_cb)
     : type_(AUDIO),
       state_(RETURNING_DATA_FOR_READS),
-      end_of_stream_(false),
-      filter_graph_log_(filter_graph_log) {
+      end_of_stream_(false) {
   stream_.reset(new SourceBufferStream(audio_config,
-                                       log_cb,
-                                       filter_graph_log_));
+                                       log_cb));
 }
 
 ChunkDemuxerStream::ChunkDemuxerStream(
     const VideoDecoderConfig& video_config,
-    const LogCB& log_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+    const LogCB& log_cb)
     : type_(VIDEO),
       state_(RETURNING_DATA_FOR_READS),
-      end_of_stream_(false),
-      filter_graph_log_(filter_graph_log) {
-  stream_.reset(new SourceBufferStream(video_config,
-                                       log_cb,
-                                       filter_graph_log));
+      end_of_stream_(false) {
+  stream_.reset(new SourceBufferStream(video_config, log_cb));
 }
 #else
 ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config,
@@ -475,16 +452,10 @@ void ChunkDemuxerStream::Shutdown() {
     std::swap(read_cbs_, read_cbs);
   }
 
-#if defined(__LB_SHELL__)
-  for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
-    it->Run(DemuxerStream::kOk,
-            StreamParserBuffer::CreateEOSBuffer(filter_graph_log_));
-#else
   // Pass end of stream buffers to all callbacks to signal that no more data
   // will be sent.
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
     it->Run(DemuxerStream::kOk, StreamParserBuffer::CreateEOSBuffer());
-#endif
 }
 
 // Helper function that makes sure |read_cb| runs on |message_loop_proxy|.
@@ -599,11 +570,7 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
         case SourceBufferStream::kNeedBuffer:
           if (end_of_stream_) {
             *status = DemuxerStream::kOk;
-#if defined(__LB_SHELL__)
-            *buffer = StreamParserBuffer::CreateEOSBuffer(filter_graph_log_);
-#else
             *buffer = StreamParserBuffer::CreateEOSBuffer();
-#endif
             return true;
           }
           return false;
@@ -625,11 +592,7 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
     case SHUTDOWN:
       DCHECK(read_cbs_.empty());
       *status = DemuxerStream::kOk;
-#if defined(__LB_SHELL__)
-      *buffer = StreamParserBuffer::CreateEOSBuffer(filter_graph_log_);
-#else
       *buffer = StreamParserBuffer::CreateEOSBuffer();
-#endif
       return true;
   }
 
@@ -638,10 +601,6 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
 }
 
 #if defined(__LB_SHELL__)
-scoped_refptr<ShellFilterGraphLog> ChunkDemuxerStream::filter_graph_log() {
-  return filter_graph_log_;
-}
-
 bool ChunkDemuxerStream::StreamWasEncrypted() const {
   base::AutoLock auto_lock(lock_);
   if (type_ == VIDEO)
@@ -673,7 +632,6 @@ void ChunkDemuxer::Initialize(DemuxerHost* host, const PipelineStatusCB& cb) {
   DVLOG(1) << "Init()";
 
 #if defined(__LB_SHELL__)
-  DCHECK(filter_graph_log_);
   DLOG(INFO) << "this is a MEDIA SOURCE playback.";
 #endif
 
@@ -818,20 +776,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   scoped_ptr<StreamParser> stream_parser(factory_function(codecs));
   CHECK(stream_parser.get());
 
-#if defined(__LB_SHELL__)
-  stream_parser->Init(
-      base::Bind(&ChunkDemuxer::OnStreamParserInitDone, base::Unretained(this)),
-      base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this),
-                 has_audio, has_video),
-      audio_cb,
-      video_cb,
-      base::Bind(&ChunkDemuxer::OnNeedKey, base::Unretained(this)),
-      base::Bind(&ChunkDemuxer::OnNewMediaSegment, base::Unretained(this), id),
-      base::Bind(&ChunkDemuxer::OnEndOfMediaSegment,
-                 base::Unretained(this), id),
-      log_cb_,
-      filter_graph_log_);
-#else
   stream_parser->Init(
       base::Bind(&ChunkDemuxer::OnStreamParserInitDone, base::Unretained(this)),
       base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this),
@@ -843,7 +787,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
       base::Bind(&ChunkDemuxer::OnEndOfMediaSegment,
                  base::Unretained(this), id),
       log_cb_);
-#endif
 
   stream_parser_map_[id] = stream_parser.release();
   SourceInfo info = { base::TimeDelta(), true };
@@ -1280,13 +1223,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     if (audio_) {
       success &= audio_->UpdateAudioConfig(audio_config);
     } else {
-#if defined(__LB_SHELL__)
-      audio_ = new ChunkDemuxerStream(audio_config,
-                                      log_cb_,
-                                      filter_graph_log_);
-#else
       audio_ = new ChunkDemuxerStream(audio_config, log_cb_);
-#endif
     }
   }
 
@@ -1294,13 +1231,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
     if (video_) {
       success &= video_->UpdateVideoConfig(video_config);
     } else {
-#if defined(__LB_SHELL__)
-      video_ = new ChunkDemuxerStream(video_config,
-                                      log_cb_,
-                                      filter_graph_log_);
-#else
       video_ = new ChunkDemuxerStream(video_config, log_cb_);
-#endif
     }
   }
 
@@ -1438,13 +1369,5 @@ Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges() const {
     return video_->GetBufferedRanges(duration_);
   return ComputeIntersection();
 }
-
-#if defined(__LB_SHELL__)
-void ChunkDemuxer::SetFilterGraphLog(
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-  DCHECK_EQ(state_, WAITING_FOR_INIT);
-  filter_graph_log_ = filter_graph_log;
-}
-#endif
 
 }  // namespace media

@@ -33,11 +33,9 @@ class ShellFLVParser : public ShellAVCParser {
   static scoped_refptr<ShellParser> Construct(
       scoped_refptr<ShellDataSourceReader> reader,
       const uint8* construction_header,
-      const PipelineStatusCB& status_cb,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+      const PipelineStatusCB& status_cb);
   ShellFLVParser(scoped_refptr<ShellDataSourceReader> reader,
-                 uint32 tag_start_offset,
-                 scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+                 uint32 tag_start_offset);
   virtual ~ShellFLVParser();
 
   // === ShellParser Implementation

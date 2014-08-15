@@ -15,8 +15,6 @@
 namespace media {
 
 #if defined(__LB_SHELL__)
-class ShellFilterGraphLog;
-
 class MEDIA_EXPORT StreamParserBuffer : public ShellBuffer {
 #else
 class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
@@ -25,17 +23,10 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   // Value used to signal an invalid decoder config ID.
   enum { kInvalidConfigId = -1 };
 
-#if defined(__LB_SHELL__)
-  static scoped_refptr<StreamParserBuffer> CreateEOSBuffer(
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-  static scoped_refptr<StreamParserBuffer> CopyFrom(
-      const uint8* data, int data_size, bool is_keyframe,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-#else
   static scoped_refptr<StreamParserBuffer> CreateEOSBuffer();
   static scoped_refptr<StreamParserBuffer> CopyFrom(
       const uint8* data, int data_size, bool is_keyframe);
-#endif
+
   bool IsKeyframe() const { return is_keyframe_; }
 
   // Decode timestamp. If not explicitly set, or set to kNoTimestamp(), the
@@ -50,8 +41,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
 
  private:
 #if defined(__LB_SHELL__)
-  StreamParserBuffer(uint8* data, int data_size, bool is_keyframe,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  StreamParserBuffer(uint8* data, int data_size, bool is_keyframe);
 #else
   StreamParserBuffer(const uint8* data, int data_size, bool is_keyframe);
 #endif

@@ -17,10 +17,6 @@
 #include "media/mp4/es_descriptor.h"
 #include "media/mp4/rcheck.h"
 
-#if defined(__LB_SHELL__)
-#include "media/base/shell_filter_graph_log.h"
-#endif
-
 namespace media {
 namespace mp4 {
 
@@ -42,18 +38,6 @@ MP4StreamParser::MP4StreamParser(bool has_sbr)
 
 MP4StreamParser::~MP4StreamParser() {}
 
-#if defined(__LB_SHELL__)
-void MP4StreamParser::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& audio_cb,
-    const NewBuffersCB& video_cb,
-    const NeedKeyCB& need_key_cb,
-    const NewMediaSegmentCB& new_segment_cb,
-    const base::Closure& end_of_segment_cb,
-    const LogCB& log_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-#else
 void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewConfigCB& config_cb,
                            const NewBuffersCB& audio_cb,
@@ -62,7 +46,6 @@ void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewMediaSegmentCB& new_segment_cb,
                            const base::Closure& end_of_segment_cb,
                            const LogCB& log_cb) {
-#endif
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -80,9 +63,6 @@ void MP4StreamParser::Init(const InitCB& init_cb,
   new_segment_cb_ = new_segment_cb;
   end_of_segment_cb_ = end_of_segment_cb;
   log_cb_ = log_cb;
-#if defined(__LB_SHELL__)
-  filter_graph_log_ = filter_graph_log;
-#endif
 }
 
 void MP4StreamParser::Reset() {
@@ -502,8 +482,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   scoped_refptr<StreamParserBuffer> stream_buf =
     StreamParserBuffer::CopyFrom(&frame_buf[0],
                                  frame_buf.size(),
-                                 runs_->is_keyframe(),
-                                 filter_graph_log_);
+                                 runs_->is_keyframe());
 
   if (!stream_buf) {
     MEDIA_LOG(log_cb_) << "Failed to allocate ShellBuffer";
