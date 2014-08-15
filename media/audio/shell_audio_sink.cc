@@ -17,9 +17,9 @@
 #include "media/audio/shell_audio_sink.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "media/base/audio_bus.h"
-#include "media/base/shell_filter_graph_log_constants.h"
 #include "media/base/shell_media_statistics.h"
 #include "media/filters/shell_audio_renderer.h"
 
@@ -56,7 +56,6 @@ ShellAudioSink* ShellAudioSink::Create(ShellAudioStreamer* audio_streamer) {
 
 ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
     : render_callback_(NULL)
-    , filter_graph_log_(NULL)
     , sink_buffer_(NULL)
     , pause_requested_(true)
     , rebuffering_(true)
@@ -75,13 +74,10 @@ ShellAudioSink::~ShellAudioSink() {
 }
 
 void ShellAudioSink::Initialize(const AudioParameters& params,
-                                RenderCallback* callback,
-                                ShellFilterGraphLog* filter_graph_log) {
+                                RenderCallback* callback) {
+  TRACE_EVENT0("media_stack", "ShellAudioSink::Initialize()");
   DCHECK(!render_callback_);
   DCHECK(params.bits_per_sample() == 16 || params.bits_per_sample() == 32);
-  DCHECK(filter_graph_log);
-  filter_graph_log_ = filter_graph_log;
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventInitialize);
 
   render_callback_ = callback;
   audio_parameters_ = params;
@@ -102,7 +98,7 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
 }
 
 void ShellAudioSink::Start() {
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventStart);
+  TRACE_EVENT0("media_stack", "ShellAudioSink::Start()");
 
   if (!audio_streamer_->HasStream(this)) {
     pause_requested_ = true;
@@ -114,7 +110,7 @@ void ShellAudioSink::Start() {
 }
 
 void ShellAudioSink::Stop() {
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventStop);
+  TRACE_EVENT0("media_stack", "ShellAudioSink::Stop()");
 
   if (audio_streamer_->HasStream(this)) {
     audio_streamer_->RemoveStream(this);
@@ -126,13 +122,13 @@ void ShellAudioSink::Stop() {
 }
 
 void ShellAudioSink::Pause(bool flush) {
+  TRACE_EVENT0("media_stack", "ShellAudioSink::Pause()");
   // clear consumption of data on the mixer.
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventPause);
   pause_requested_ = true;
   if (flush) {
+    TRACE_EVENT0("media_stack", "ShellAudioSink::Pause() flushing.");
     // remove and re-add the stream to flush
     audio_streamer_->RemoveStream(this);
-    filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventFlush);
     rebuffering_ = true;
     render_frame_cursor_ = 0;
     output_frame_cursor_ = 0;
@@ -141,7 +137,7 @@ void ShellAudioSink::Pause(bool flush) {
 }
 
 void ShellAudioSink::Play() {
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventPlay);
+  TRACE_EVENT0("media_stack", "ShellAudioSink::Play()");
   // clear flag on mixer callback, will start to consume more data
   pause_requested_ = false;
 }
@@ -196,9 +192,9 @@ bool ShellAudioSink::PauseRequested() const {
 
 bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
                                 uint32_t* total_frames) {
+  TRACE_EVENT0("media_stack", "ShellAudioSink::PullFrame()");
   // with a valid render callback
   DCHECK(render_callback_);
-  filter_graph_log_->LogEvent(kObjectIdAudioSink, kEventRender);
 
   uint32_t dummy_offset_in_frame, dummy_total_frames;
   if (!offset_in_frame) offset_in_frame = &dummy_offset_in_frame;
@@ -269,15 +265,14 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 }
 
 void ShellAudioSink::ConsumeFrames(uint32_t frame_played) {
+  TRACE_EVENT1("media_stack", "ShellAudioSink::ConsumeFrames()", "audio_clock",
+               ((output_frame_cursor_ + clock_bias_frames_) * 1000) /
+                   audio_parameters_.sample_rate());
   // Called by the Streamer thread to indicate where the hardware renderer
   // is in playback
   if (frame_played > 0) {
     // advance our output cursor by the number of frames we're returning
     // update audio clock, used for jitter calculations
-    filter_graph_log_->LogEvent(
-        kObjectIdAudioSink, kEventAudioClock,
-        ((output_frame_cursor_ + clock_bias_frames_) * 1000) /
-         audio_parameters_.sample_rate());
     output_frame_cursor_ += frame_played;
     DCHECK_LE(output_frame_cursor_, render_frame_cursor_);
   }

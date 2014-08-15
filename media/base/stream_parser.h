@@ -20,9 +20,6 @@ namespace media {
 class AudioDecoderConfig;
 class StreamParserBuffer;
 class VideoDecoderConfig;
-#if defined(__LB_SHELL__)
-class ShellFilterGraphLog;
-#endif
 
 // Abstract interface for parsing media byte streams.
 class MEDIA_EXPORT StreamParser {
@@ -77,17 +74,6 @@ class MEDIA_EXPORT StreamParser {
   // data is passed to Parse(). |init_cb| will be called once enough data has
   // been parsed to determine the initial stream configurations, presentation
   // start time, and duration.
-#if defined(__LB_SHELL__)
-  virtual void Init(const InitCB& init_cb,
-                    const NewConfigCB& config_cb,
-                    const NewBuffersCB& audio_cb,
-                    const NewBuffersCB& video_cb,
-                    const NeedKeyCB& need_key_cb,
-                    const NewMediaSegmentCB& new_segment_cb,
-                    const base::Closure& end_of_segment_cb,
-                    const LogCB& log_cb,
-                    scoped_refptr<ShellFilterGraphLog> filter_graph_log) = 0;
-#else
   virtual void Init(const InitCB& init_cb,
                     const NewConfigCB& config_cb,
                     const NewBuffersCB& audio_cb,
@@ -96,7 +82,6 @@ class MEDIA_EXPORT StreamParser {
                     const NewMediaSegmentCB& new_segment_cb,
                     const base::Closure& end_of_segment_cb,
                     const LogCB& log_cb) = 0;
-#endif
 
   // Called when a seek occurs. This flushes the current parser state
   // and puts the parser in a state where it can receive data for the new seek

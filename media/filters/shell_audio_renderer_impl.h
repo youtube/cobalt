@@ -19,7 +19,6 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "media/base/audio_decoder.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_audio_renderer.h"
 
 namespace media {
@@ -106,9 +105,6 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   // virtual void Seek(base::TimeDelta time,
   //                   const PipelineStatusCB& callback) OVERRIDE;
 
-  // ======== ShellAudioRenderer Implementation
-  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
-
  protected:
   virtual ~ShellAudioRendererImpl();
 
@@ -162,7 +158,6 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   base::TimeDelta preroll_timestamp_;
   PipelineStatusCB init_cb_;
   PipelineStatusCB error_cb_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
 
   State state_;
 

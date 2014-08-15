@@ -27,18 +27,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   MP4StreamParser(bool has_sbr);
   virtual ~MP4StreamParser();
 
-#if defined(__LB_SHELL__)
-  virtual void Init(
-      const InitCB& init_cb,
-      const NewConfigCB& config_cb,
-      const NewBuffersCB& audio_cb,
-      const NewBuffersCB& video_cb,
-      const NeedKeyCB& need_key_cb,
-      const NewMediaSegmentCB& new_segment_cb,
-      const base::Closure& end_of_segment_cb,
-      const LogCB& log_cb,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
-#else
   virtual void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
@@ -46,7 +34,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
                     const NewMediaSegmentCB& new_segment_cb,
                     const base::Closure& end_of_segment_cb,
                     const LogCB& log_cb) OVERRIDE;
-#endif
   virtual void Flush() OVERRIDE;
   virtual bool Parse(const uint8* buf, int size) OVERRIDE;
 
@@ -123,10 +110,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool has_sbr_;
   bool is_audio_track_encrypted_;
   bool is_video_track_encrypted_;
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(MP4StreamParser);
 };

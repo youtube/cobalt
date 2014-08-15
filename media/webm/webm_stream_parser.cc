@@ -26,18 +26,6 @@ WebMStreamParser::WebMStreamParser()
 
 WebMStreamParser::~WebMStreamParser() {}
 
-#if defined(__LB_SHELL__)
-void WebMStreamParser::Init(
-    const InitCB& init_cb,
-    const NewConfigCB& config_cb,
-    const NewBuffersCB& audio_cb,
-    const NewBuffersCB& video_cb,
-    const NeedKeyCB& need_key_cb,
-    const NewMediaSegmentCB& new_segment_cb,
-    const base::Closure& end_of_segment_cb,
-    const LogCB& log_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-#else
 void WebMStreamParser::Init(const InitCB& init_cb,
                             const NewConfigCB& config_cb,
                             const NewBuffersCB& audio_cb,
@@ -46,7 +34,6 @@ void WebMStreamParser::Init(const InitCB& init_cb,
                             const NewMediaSegmentCB& new_segment_cb,
                             const base::Closure& end_of_segment_cb,
                             const LogCB& log_cb) {
-#endif
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -65,9 +52,6 @@ void WebMStreamParser::Init(const InitCB& init_cb,
   new_segment_cb_ = new_segment_cb;
   end_of_segment_cb_ = end_of_segment_cb;
   log_cb_ = log_cb;
-#if defined(__LB_SHELL__)
-  filter_graph_log_ = filter_graph_log;
-#endif
 }
 
 void WebMStreamParser::Flush() {
@@ -220,12 +204,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       tracks_parser.video_track_num(),
       tracks_parser.audio_encryption_key_id(),
       tracks_parser.video_encryption_key_id(),
-#if defined(__LB_SHELL__)
-      log_cb_,
-      filter_graph_log_));
-#else
       log_cb_));
-#endif
 
   ChangeState(kParsingClusters);
 

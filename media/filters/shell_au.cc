@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include "lb_platform.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_parser.h"
 

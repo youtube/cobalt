@@ -21,7 +21,6 @@
 #include "media/base/audio_renderer_sink.h"
 #include "media/audio/shell_audio_streamer.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 
 namespace media {
 
@@ -61,8 +60,7 @@ class MEDIA_EXPORT ShellAudioSink
 
   // AudioRendererSink implementation
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback,
-                          ShellFilterGraphLog* filter_graph_log) OVERRIDE;
+                          RenderCallback* callback) OVERRIDE;
   virtual void Start() OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Pause(bool flush) OVERRIDE;
@@ -102,7 +100,6 @@ class MEDIA_EXPORT ShellAudioSink
 
   AudioParameters audio_parameters_;
   RenderCallback* render_callback_;
-  ShellFilterGraphLog* filter_graph_log_;
 
   scoped_ptr<media::AudioBus> audio_bus_;
   uint8* sink_buffer_;

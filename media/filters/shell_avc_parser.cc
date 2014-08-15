@@ -19,7 +19,6 @@
 #include "base/stringprintf.h"
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_au.h"
 #include "media/filters/shell_rbsp_stream.h"
 #include "media/mp4/aac.h"
@@ -32,9 +31,8 @@ static const int kAVCConfigMinSize = 8;
 static const uint8 kSPSNALType = 7;
 
 ShellAVCParser::ShellAVCParser(
-    scoped_refptr<ShellDataSourceReader> reader,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
-    : ShellParser(reader, filter_graph_log)
+    scoped_refptr<ShellDataSourceReader> reader)
+    : ShellParser(reader)
     , nal_header_size_(0)
     , video_prepend_size_(0) {
 }
@@ -89,7 +87,7 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
 bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
                                                      uint32 size) {
   scoped_refptr<ShellScopedArray> record_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(size, filter_graph_log_);
+      ShellBufferFactory::Instance()->AllocateArray(size);
   // It's possible that the size of this record buffer may exceed the
   // memory available to the media stack, in which case we skip it.
   if (!record_buffer || !record_buffer->Get()) {

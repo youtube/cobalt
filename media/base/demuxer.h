@@ -64,11 +64,6 @@ class MEDIA_EXPORT Demuxer : public base::RefCountedThreadSafe<Demuxer> {
   // Returns the starting time for the media file.
   virtual base::TimeDelta GetStartTime() const = 0;
 
-#if defined(__LB_SHELL__)
-  virtual void SetFilterGraphLog(
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log) = 0;
-#endif
-
  protected:
   friend class base::RefCountedThreadSafe<Demuxer>;
   virtual ~Demuxer();

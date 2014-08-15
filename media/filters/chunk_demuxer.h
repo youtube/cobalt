@@ -104,11 +104,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool EndOfStream(PipelineStatus status);
   void Shutdown();
 
-#if defined(__LB_SHELL__)
-  virtual void SetFilterGraphLog(
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
-#endif
-
  protected:
   virtual ~ChunkDemuxer();
 
@@ -218,10 +213,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // removed with RemoveID() but can not be re-added (yet).
   std::string source_id_audio_;
   std::string source_id_video_;
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxer);
 };

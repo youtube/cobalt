@@ -10,9 +10,6 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/buffers.h"
 #include "media/base/byte_queue.h"
-#if defined(__LB_SHELL__)
-#include "media/base/shell_filter_graph_log.h"
-#endif
 #include "media/base/stream_parser.h"
 #include "media/base/video_decoder_config.h"
 #include "media/webm/webm_cluster_parser.h"
@@ -25,18 +22,6 @@ class WebMStreamParser : public StreamParser {
   virtual ~WebMStreamParser();
 
   // StreamParser implementation.
-#if defined(__LB_SHELL__)
-  virtual void Init(
-      const InitCB& init_cb,
-      const NewConfigCB& config_cb,
-      const NewBuffersCB& audio_cb,
-      const NewBuffersCB& video_cb,
-      const NeedKeyCB& need_key_cb,
-      const NewMediaSegmentCB& new_segment_cb,
-      const base::Closure& end_of_segment_cb,
-      const LogCB& log_cb,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log) OVERRIDE;
-#else
   virtual void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
@@ -44,7 +29,6 @@ class WebMStreamParser : public StreamParser {
                     const NewMediaSegmentCB& new_segment_cb,
                     const base::Closure& end_of_segment_cb,
                     const LogCB& log_cb) OVERRIDE;
-#endif
 
   virtual void Flush() OVERRIDE;
   virtual bool Parse(const uint8* buf, int size) OVERRIDE;
@@ -97,10 +81,6 @@ class WebMStreamParser : public StreamParser {
 
   scoped_ptr<WebMClusterParser> cluster_parser_;
   ByteQueue byte_queue_;
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_COPY_AND_ASSIGN(WebMStreamParser);
 };

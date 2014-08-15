@@ -14,10 +14,6 @@
 
 namespace media {
 
-#if defined(__LB_SHELL__)
-class ShellFilterGraphLog;
-#endif  // defined(__LB_SHELL__)
-
 // AudioRendererSink is an interface representing the end-point for
 // rendered audio.  An implementation is expected to
 // periodically call Render() on a callback object.
@@ -57,18 +53,10 @@ class MEDIA_EXPORT AudioRendererSink
     virtual ~RenderCallback() {}
   };
 
-#if defined(__LB_SHELL__)
-  // Sets important information about the audio stream format.
-  // It must be called before any of the other methods.
-  virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback,
-                          ShellFilterGraphLog* filter_graph_log) = 0;
-#else  // defined(__LB_SHELL__)
   // Sets important information about the audio stream format.
   // It must be called before any of the other methods.
   virtual void Initialize(const AudioParameters& params,
                           RenderCallback* callback) = 0;
-#endif  // defined(__LB_SHELL__)
 
   // InitializeIO() may be called instead of Initialize() for clients who wish
   // to have synchronized input and output.  |input_channels| specifies the

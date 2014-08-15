@@ -20,7 +20,6 @@
 #include "media/base/pipeline.h"
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 #else
 #include "media/base/decoder_buffer.h"
 #endif
