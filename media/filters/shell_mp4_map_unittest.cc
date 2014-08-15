@@ -26,7 +26,6 @@
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/base/mock_shell_data_source_reader.h"
-#include "media/base/mock_shell_filter_graph_log.h"
 #include "media/filters/shell_mp4_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,7 +49,6 @@ using ::media::kEntrySize_stss;
 using ::media::kEntrySize_stsz;
 using ::media::kEntrySize_stts;
 using ::media::MockShellDataSourceReader;
-using ::media::MockShellFilterGraphLog;
 using ::media::ShellBufferFactory;
 using ::media::ShellMP4Map;
 
@@ -416,18 +414,14 @@ class ShellMP4MapTest : public testing::Test {
     ShellBufferFactory::Initialize();
     // make a new mock reader
     reader_ = new ::testing::NiceMock<MockShellDataSourceReader>();
-    filter_graph_log_ = new ::testing::NiceMock<MockShellFilterGraphLog>();
     // make a new map with a mock reader.
-    map_ = new ShellMP4Map(reader_, filter_graph_log_);
+    map_ = new ShellMP4Map(reader_);
   }
 
   virtual ~ShellMP4MapTest() {
     // wipe out the map or ShellBufferFactory may complain of unfreed allocs
     DCHECK(map_->HasOneRef());
     map_ = NULL;
-
-    DCHECK(filter_graph_log_->HasOneRef());
-    filter_graph_log_ = NULL;
 
     reader_->Stop(base::Closure());
     DCHECK(reader_->HasOneRef());
@@ -437,7 +431,7 @@ class ShellMP4MapTest : public testing::Test {
   }
 
   void ResetMap() {
-    map_ = new ShellMP4Map(reader_, filter_graph_log_);
+    map_ = new ShellMP4Map(reader_);
   }
 
   void CreateTestSampleTable(
@@ -475,7 +469,6 @@ class ShellMP4MapTest : public testing::Test {
   // ==== Test Fixture Members
   scoped_refptr<ShellMP4Map> map_;
   scoped_refptr<MockShellDataSourceReader> reader_;
-  scoped_refptr<MockShellFilterGraphLog> filter_graph_log_;
   scoped_ptr<SampleTable> sample_table_;
 };
 

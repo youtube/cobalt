@@ -28,8 +28,6 @@
 
 namespace media {
 
-class ShellFilterGraphLog;
-
 // abstract base class to define a stream parser interface used by ShellDemuxer.
 class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
  public:
@@ -37,10 +35,8 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   // Determine stream type, construct appropriate parser object, and return.
   static scoped_refptr<ShellParser> Construct(
       scoped_refptr<ShellDataSourceReader> reader,
-      const PipelineStatusCB &status_cb,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-  ShellParser(scoped_refptr<ShellDataSourceReader> reader,
-              scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+      const PipelineStatusCB &status_cb);
+  explicit ShellParser(scoped_refptr<ShellDataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,
   // saving as much config state as is possible. Should try to be fast but this
@@ -79,7 +75,6 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   friend class base::RefCountedThreadSafe<ShellParser>;
   virtual ~ShellParser();
   scoped_refptr<ShellDataSourceReader> reader_;
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   base::TimeDelta duration_;

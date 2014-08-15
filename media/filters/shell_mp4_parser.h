@@ -73,11 +73,9 @@ class ShellMP4Parser : public ShellAVCParser {
   static scoped_refptr<ShellParser> Construct(
       scoped_refptr<ShellDataSourceReader> reader,
       const uint8* construction_header,
-      const PipelineStatusCB& status_cb,
-      scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+      const PipelineStatusCB& status_cb);
   ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
-                 uint32 ftyp_atom_size,
-                 scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+                 uint32 ftyp_atom_size);
   virtual ~ShellMP4Parser();
 
   // === ShellParser implementation

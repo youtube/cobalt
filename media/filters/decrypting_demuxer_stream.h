@@ -21,7 +21,6 @@ namespace media {
 
 #if defined(__LB_SHELL__)
 class ShellBuffer;
-class ShellFilterGraphLog;
 #else
 class DecoderBuffer;
 #endif
@@ -47,7 +46,6 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
 #if defined(__LB_SHELL__)
-  virtual scoped_refptr<ShellFilterGraphLog> filter_graph_log() OVERRIDE;
   virtual bool StreamWasEncrypted() const OVERRIDE;
   virtual Decryptor* GetDecryptor() const OVERRIDE { return decryptor_; }
 #endif

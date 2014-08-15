@@ -17,14 +17,13 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "lb_audio_decoder.h"
 #include "lb_memory_manager.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
-#include "media/base/shell_filter_graph_log_constants.h"
 #include "media/base/shell_media_statistics.h"
 #include "media/base/video_frame.h"
 #include "media/filters/shell_avc_parser.h"
@@ -82,8 +81,7 @@ void ShellAudioDecoderImpl::Initialize(
     const scoped_refptr<DemuxerStream> &stream,
     const media::PipelineStatusCB &status_cb,
     const media::StatisticsCB &statistics_cb) {
-  filter_graph_log_ = stream->filter_graph_log();
-  filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventInitialize);
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Initialize()");
   demuxer_stream_ = stream;
   statistics_cb_ = statistics_cb;
   const AudioDecoderConfig& config = demuxer_stream_->audio_decoder_config();
@@ -113,7 +111,7 @@ void ShellAudioDecoderImpl::Initialize(
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CHANNELS, num_channels_);
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_SAMPLE_PER_SECOND,
                           samples_per_second_);
-  raw_decoder_ = LB::LBAudioDecoder::Create(filter_graph_log_);
+  raw_decoder_ = LB::LBAudioDecoder::Create();
   if (raw_decoder_ == NULL) {
     status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
@@ -218,20 +216,19 @@ void ShellAudioDecoderImpl::RequestBuffer() {
 }
 
 void ShellAudioDecoderImpl::DoRead() {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoRead()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_NE(shell_audio_decoder_status_, kUninitialized);
   DCHECK(!read_cb_.is_null());
-  filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventRead);
 
   if (shell_audio_decoder_status_ == kNormal) {
     DoDecodeBuffer();
     RequestBuffer();
   } else if (shell_audio_decoder_status_ == kStopped) {
-    filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventEndOfStreamSent);
+    TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoRead() EOS sent.");
     base::ResetAndReturn(&read_cb_).Run(kOk,
                                         ShellBuffer::CreateEOSBuffer(
-                                            kNoTimestamp(),
-                                            filter_graph_log_));
+                                            kNoTimestamp()));
   } else {
     // report decode error downstream
     base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kDecodeError, NULL);
@@ -239,9 +236,9 @@ void ShellAudioDecoderImpl::DoRead() {
 }
 
 void ShellAudioDecoderImpl::DoDecodeBuffer() {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoDecodeBuffer()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!read_cb_.is_null());
-  filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventDecode);
 
   // drop input data if we are flushing or stopped
   if (shell_audio_decoder_status_ != kNormal) {
@@ -274,8 +271,8 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
 
   // check for EndOfStream, if so flush the input queue.
   if (buffer->IsEndOfStream()) {
-    filter_graph_log_->LogEvent(kObjectIdAudioDecoder,
-                                kEventEndOfStreamReceived);
+    TRACE_EVENT0("media_stack",
+                 "ShellAudioDecoderImpl::DoDecodeBuffer() EOS received");
     // Consume any additional EOS buffers that are queued up
     while (!queued_buffers_.empty()) {
       DCHECK(queued_buffers_.front().second->IsEndOfStream());
@@ -291,11 +288,11 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
   }
 
   if (decoded_buffer->IsEndOfStream()) {
+    TRACE_EVENT0("media_stack",
+                 "ShellAudioDecoderImpl::DoDecodeBuffer() EOS sent.");
     // Set to kStopped so that subsequent read requests will get EOS
     shell_audio_decoder_status_ = kStopped;
     // pass EOS buffer down the chain
-    filter_graph_log_->LogEvent(kObjectIdAudioDecoder,
-                                kEventEndOfStreamSent);
     base::ResetAndReturn(&read_cb_).Run(kOk, decoded_buffer);
     return;
   }
@@ -311,8 +308,9 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
   test_probe_.AddData(decoded_buffer->GetData());
 #endif
 
-  filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventDataDecoded);
-
+  TRACE_EVENT1("media_stack",
+               "ShellAudioDecoderImpl::DoDecodeBuffer() data decoderd.",
+               "timestamp", decoded_buffer->GetTimestamp().InMicroseconds());
   base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, decoded_buffer);
 
   if (shell_audio_decoder_status_ == kFlushing) {
@@ -342,6 +340,7 @@ int ShellAudioDecoderImpl::samples_per_second() {
 }
 
 void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
+  TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Reset()");
   if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &ShellAudioDecoderImpl::Reset, this, closure));
@@ -357,8 +356,6 @@ void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
   }
   // This should have been reset before calling Reset again
   DCHECK(reset_cb_.is_null());
-
-  filter_graph_log_->LogEvent(kObjectIdAudioDecoder, kEventReset);
 
 #if __SAVE_DECODER_OUTPUT__
   test_probe_.Close();

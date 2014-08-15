@@ -17,7 +17,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "media/base/audio_renderer_sink.h"
-#include "media/base/shell_filter_graph_log.h"
 
 namespace media {
 class AudioBus;
@@ -29,8 +28,7 @@ class MEDIA_EXPORT NullAudioSink
 
   // AudioRendererSink implementation.
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback,
-                          ShellFilterGraphLog* filter_graph_log) OVERRIDE;
+                          RenderCallback* callback) OVERRIDE;
   virtual void Start() OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Pause(bool flush) OVERRIDE;

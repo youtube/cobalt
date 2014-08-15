@@ -11,9 +11,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
-#if defined(__LB_SHELL__)
-#include "media/base/shell_filter_graph_log.h"
-#endif
 #include "media/base/stream_parser_buffer.h"
 #include "media/webm/webm_parser.h"
 
@@ -23,22 +20,12 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
-#if defined(__LB_SHELL__)
-  WebMClusterParser(int64 timecode_scale,
-                    int audio_track_num,
-                    int video_track_num,
-                    const std::string& audio_encryption_key_id,
-                    const std::string& video_encryption_key_id,
-                    const LogCB& log_cb,
-                    scoped_refptr<ShellFilterGraphLog> filter_graph_log);
-#else
   WebMClusterParser(int64 timecode_scale,
                     int audio_track_num,
                     int video_track_num,
                     const std::string& audio_encryption_key_id,
                     const std::string& video_encryption_key_id,
                     const LogCB& log_cb);
-#endif
   virtual ~WebMClusterParser();
 
   // Resets the parser state so it can accept a new cluster.
@@ -108,10 +95,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   Track video_;
 
   LogCB log_cb_;
-
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellFilterGraphLog> filter_graph_log_;
-#endif
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
 };

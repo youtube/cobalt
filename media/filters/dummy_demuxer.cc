@@ -6,10 +6,6 @@
 
 #include "base/logging.h"
 
-#if defined(__LB_SHELL__)
-#include "media/base/shell_filter_graph_log.h"
-#endif
-
 namespace media {
 
 DummyDemuxerStream::DummyDemuxerStream(Type type)
@@ -36,36 +32,20 @@ void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
 
-#if defined(__LB_SHELL__)
-void DummyDemuxerStream::SetFilterGraphLog(
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-  filter_graph_log_ = filter_graph_log;
-}
-
-scoped_refptr<ShellFilterGraphLog> DummyDemuxerStream::filter_graph_log() {
-  return filter_graph_log_;
-}
-#endif
-
 DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio) {
   streams_.resize(DemuxerStream::NUM_TYPES);
   if (has_audio) {
     streams_[DemuxerStream::AUDIO] =
         new DummyDemuxerStream(DemuxerStream::AUDIO);
-    streams_[DemuxerStream::AUDIO]->SetFilterGraphLog(filter_graph_log_);
   }
   if (has_video) {
     streams_[DemuxerStream::VIDEO] =
         new DummyDemuxerStream(DemuxerStream::VIDEO);
-    streams_[DemuxerStream::VIDEO]->SetFilterGraphLog(filter_graph_log_);
   }
 }
 
 void DummyDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& status_cb) {
-#if defined(__LB_SHELL__)
-  DCHECK(filter_graph_log_);
-#endif
   host->SetDuration(media::kInfiniteDuration());
   status_cb.Run(PIPELINE_OK);
 }
@@ -79,12 +59,5 @@ base::TimeDelta DummyDemuxer::GetStartTime() const {
 }
 
 DummyDemuxer::~DummyDemuxer() {}
-
-#if defined(__LB_SHELL__)
-void DummyDemuxer::SetFilterGraphLog(
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
-  filter_graph_log_ = filter_graph_log;
-}
-#endif
 
 }  // namespace media

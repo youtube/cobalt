@@ -16,7 +16,6 @@
 
 #include "media/filters/shell_parser.h"
 
-#include "media/base/shell_filter_graph_log.h"
 #include "media/filters/shell_flv_parser.h"
 #include "media/filters/shell_mp4_parser.h"
 
@@ -30,8 +29,7 @@ const int ShellParser::kInitialHeaderSize = 9;
 // static
 scoped_refptr<ShellParser> ShellParser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
-    const PipelineStatusCB &status_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+    const PipelineStatusCB &status_cb) {
   scoped_refptr<ShellParser> parser;
 
   // download first 16 bytes of stream to determine file type and extract basic
@@ -46,14 +44,12 @@ scoped_refptr<ShellParser> ShellParser::Construct(
   // attempt to construct mp4 parser from this header
   parser = ShellMP4Parser::Construct(reader,
                                      header,
-                                     status_cb,
-                                     filter_graph_log);
+                                     status_cb);
   // ok, attempt FLV
   if (!parser) {
     parser = ShellFLVParser::Construct(reader,
                                        header,
-                                       status_cb,
-                                       filter_graph_log);
+                                       status_cb);
   }
   // no additional supported container formats, set error and return
   if (!parser) {
@@ -64,10 +60,8 @@ scoped_refptr<ShellParser> ShellParser::Construct(
   return parser;
 }
 
-ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader,
-                         scoped_refptr<ShellFilterGraphLog> filter_graph_log)
+ShellParser::ShellParser(scoped_refptr<ShellDataSourceReader> reader)
     : reader_(reader)
-    , filter_graph_log_(filter_graph_log)
     , duration_(kInfiniteDuration())
     , bits_per_second_(0) {
 }

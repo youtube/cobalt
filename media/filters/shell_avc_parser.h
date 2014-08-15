@@ -31,8 +31,7 @@ static const int kAnnexBPrependMaxSize = 1024;
 // while leaving the rest for its children.
 class ShellAVCParser : public ShellParser {
  public:
-  ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader,
-                 scoped_refptr<ShellFilterGraphLog> filter_graph_log);
+  explicit ShellAVCParser(scoped_refptr<ShellDataSourceReader> reader);
   virtual ~ShellAVCParser();
 
   struct ShellSPSRecord {

@@ -20,7 +20,6 @@
 
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_filter_graph_log.h"
 #include "media/mp4/es_descriptor.h"
 #include "lb_platform.h"
 
@@ -75,8 +74,7 @@ static const int kMapTableAtomCacheEntries_ctts = 51543  / kEntrySize_ctts;
 scoped_refptr<ShellParser> ShellMP4Parser::Construct(
     scoped_refptr<ShellDataSourceReader> reader,
     const uint8 *construction_header,
-    const PipelineStatusCB &status_cb,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log) {
+    const PipelineStatusCB &status_cb) {
   // detect mp4 stream by looking for ftyp atom at top of file
   uint32 ftyp = LB::Platform::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
@@ -94,23 +92,21 @@ scoped_refptr<ShellParser> ShellMP4Parser::Construct(
 
   // construct and return new mp4 parser
   return scoped_refptr<ShellParser>(new ShellMP4Parser(reader,
-                                                       ftyp_atom_size,
-                                                       filter_graph_log));
+                                                       ftyp_atom_size));
 }
 
 ShellMP4Parser::ShellMP4Parser(
     scoped_refptr<ShellDataSourceReader> reader,
-    uint32 ftyp_atom_size,
-    scoped_refptr<ShellFilterGraphLog> filter_graph_log)
-    : ShellAVCParser(reader, filter_graph_log)
+    uint32 ftyp_atom_size)
+    : ShellAVCParser(reader)
     , atom_offset_(ftyp_atom_size)  // start at next atom, skipping over ftyp
     , current_trak_is_video_(false)
     , current_trak_is_audio_(false)
     , current_trak_time_scale_(0)
     , video_time_scale_hz_(0)
     , audio_time_scale_hz_(0)
-    , audio_map_(new ShellMP4Map(reader, filter_graph_log))
-    , video_map_(new ShellMP4Map(reader, filter_graph_log))
+    , audio_map_(new ShellMP4Map(reader))
+    , video_map_(new ShellMP4Map(reader))
     , audio_sample_(0)
     , video_sample_(0)
     , first_audio_hole_ticks_(0)
@@ -465,8 +461,7 @@ void ShellMP4Parser::DumpAtomToDisk(uint32 four_cc,
                                     uint64 atom_offset) {
   // download entire atom into buffer
   scoped_refptr<ShellScopedArray> scoped_buffer =
-      ShellBufferFactory::Instance()->AllocateArray(atom_size,
-                                                    filter_graph_log_);
+      ShellBufferFactory::Instance()->AllocateArray(atom_size);
   uint8* buffer = scoped_buffer->Get();
   int bytes_read = reader_->BlockingRead(atom_offset,
                                          atom_size,
@@ -533,8 +528,7 @@ bool ShellMP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   uint64 esds_size = atom_data_size - kFullBoxHeaderAndFlagSize;
   // we'll need to download entire esds, allocate buffer for it
   scoped_refptr<ShellScopedArray> esds_storage =
-      ShellBufferFactory::Instance()->AllocateArray(esds_size,
-                                                    filter_graph_log_);
+      ShellBufferFactory::Instance()->AllocateArray(esds_size);
   uint8* esds = NULL;
   if (!esds_storage || !(esds = esds_storage->Get())) {
     DLOG(WARNING) << base::StringPrintf(
