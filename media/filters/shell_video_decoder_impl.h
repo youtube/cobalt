@@ -22,13 +22,40 @@
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/shell_buffer_factory.h"
+#include "media/base/video_decoder_config.h"
 #include "media/filters/shell_video_decoder.h"
 
-namespace LB {
-class LBVideoDecoder;
-}
-
 namespace media {
+
+// TODO(***REMOVED***) : Make this decoder handle decoder errors. Now it assumes
+// that the input stream is always correct.
+class ShellRawVideoDecoder {
+ public:
+  enum DecodeStatus {
+    FRAME_DECODED,  // Successfully decoded a frame.
+    NEED_MORE_DATA,  // Need more data to decode the next frame.
+    RETRY_WITH_SAME_BUFFER,  // The decoder is busy, retry later.
+    FATAL_ERROR  // Decoder encounters fatal error, abort playback.
+  };
+  typedef media::ShellBuffer ShellBuffer;
+  typedef media::VideoDecoderConfig VideoDecoderConfig;
+  typedef media::VideoFrame VideoFrame;
+
+  ShellRawVideoDecoder() {}
+  virtual ~ShellRawVideoDecoder() {}
+  virtual DecodeStatus Decode(const scoped_refptr<ShellBuffer>& buffer,
+                              scoped_refptr<VideoFrame>* frame) = 0;
+  virtual bool Flush() = 0;
+  virtual bool UpdateConfig(const VideoDecoderConfig& config) = 0;
+
+  static ShellRawVideoDecoder* Create(const VideoDecoderConfig& config,
+                                      media::Decryptor* decryptor,
+                                      bool was_encrypted);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoder);
+};
 
 class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
  public:
@@ -71,7 +98,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   ReadCB read_cb_;
   base::Closure reset_cb_;
 
-  scoped_ptr<LB::LBVideoDecoder> raw_decoder_;
+  scoped_ptr<ShellRawVideoDecoder> raw_decoder_;
 
   // TODO(***REMOVED***) : ensure the demuxer can handle multiple EOS requests
   //                   then remove this hack.
