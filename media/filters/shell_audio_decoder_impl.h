@@ -28,9 +28,6 @@
 #include "media/filters/shell_avc_parser.h"
 #include "media/filters/shell_demuxer.h"
 
-namespace LB {
-class LBAudioDecoder;
-}
 
 // set me to 1 to save decoded audio output to disk for debugging
 #define __SAVE_DECODER_OUTPUT__ 0
@@ -42,6 +39,28 @@ class LBAudioDecoder;
 namespace media {
 
 class AudioBus;
+
+class ShellRawAudioDecoder {
+ public:
+  typedef media::ShellBuffer ShellBuffer;
+  typedef media::AudioDecoderConfig AudioDecoderConfig;
+
+  virtual ~ShellRawAudioDecoder() {}
+  virtual scoped_refptr<ShellBuffer> Decode(
+      const scoped_refptr<ShellBuffer>& buffer) = 0;
+  virtual bool Flush() = 0;
+  virtual bool UpdateConfig(const AudioDecoderConfig& config) = 0;
+
+  static ShellRawAudioDecoder* Create();
+
+  void SetDecryptor(Decryptor *decryptor) {
+    decryptor_ = decryptor;
+  }
+
+ protected:
+  ShellRawAudioDecoder() {}
+  Decryptor *decryptor_;
+};
 
 class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
  public:
@@ -104,7 +123,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   int samples_per_second_;
   int num_channels_;
 
-  LB::LBAudioDecoder* raw_decoder_;
+  ShellRawAudioDecoder* raw_decoder_;
 
   // Callback on completion of a decode
   bool pending_renderer_read_;

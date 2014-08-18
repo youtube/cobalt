@@ -22,7 +22,6 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "lb_shell/lb_shell_constants.h"
-#include "lb_video_decoder.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_buffer_factory.h"
@@ -30,7 +29,6 @@
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 
-using LB::LBVideoDecoder;
 
 namespace media {
 
@@ -83,7 +81,7 @@ void ShellVideoDecoderImpl::Initialize(
   DLOG(INFO) << "Configuration at Start: "
              << decoder_config.AsHumanReadableString();
 
-  raw_decoder_.reset(LBVideoDecoder::Create(
+  raw_decoder_.reset(ShellRawVideoDecoder::Create(
       decoder_config, demuxer_stream_->GetDecryptor(),
       demuxer_stream_->StreamWasEncrypted()));
 
@@ -267,9 +265,9 @@ void ShellVideoDecoderImpl::DecodeBuffer(
 
   scoped_refptr<VideoFrame> frame;
 
-  LBVideoDecoder::DecodeStatus status = raw_decoder_->Decode(buffer, &frame);
+  ShellRawVideoDecoder::DecodeStatus status = raw_decoder_->Decode(buffer, &frame);
 
-  if (status == LBVideoDecoder::FRAME_DECODED) {
+  if (status == ShellRawVideoDecoder::FRAME_DECODED) {
     TRACE_EVENT1("media_stack", "ShellVideoDecoderImpl frame decoded",
                  "timestamp", frame->GetTimestamp().InMicroseconds());
     DCHECK(frame);
@@ -277,7 +275,7 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     return;
   }
 
-  if (status == LBVideoDecoder::NEED_MORE_DATA) {
+  if (status == ShellRawVideoDecoder::NEED_MORE_DATA) {
     DCHECK(!frame);
     if (state_ == kFlushCodec) {
       state_ = kDecodeFinished;
@@ -289,13 +287,13 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     return;
   }
 
-  if (status == LBVideoDecoder::RETRY_WITH_SAME_BUFFER) {
+  if (status == ShellRawVideoDecoder::RETRY_WITH_SAME_BUFFER) {
     decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
         base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this, buffer));
     return;
   }
 
-  if (status == LBVideoDecoder::FATAL_ERROR) {
+  if (status == ShellRawVideoDecoder::FATAL_ERROR) {
     DecoderFatalError();
   }
 
