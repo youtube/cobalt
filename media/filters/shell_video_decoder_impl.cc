@@ -54,10 +54,7 @@ ShellVideoDecoderImpl::ShellVideoDecoderImpl(
 }
 
 ShellVideoDecoderImpl::~ShellVideoDecoderImpl() {
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-  if (decoder_thread_.message_loop())
-    decoder_thread_.message_loop()->AssertIdle();
-#endif
+  DCHECK(!decoder_thread_.IsRunning());  // It should be stopped in Stop().
 }
 
 void ShellVideoDecoderImpl::Initialize(
@@ -352,18 +349,9 @@ void ShellVideoDecoderImpl::DecoderFatalError() {
 }
 
 void ShellVideoDecoderImpl::Stop(const base::Closure& closure) {
-  if (!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread()) {
-    DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
-    decoder_thread_.message_loop_proxy()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            &ShellVideoDecoderImpl::Stop,
-            this,
-            closure));
-    decoder_thread_.Stop();
-    return;
-  }
+  DCHECK(!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
 
+  decoder_thread_.Stop();
   raw_decoder_.reset(NULL);
 
   // terminate playback
