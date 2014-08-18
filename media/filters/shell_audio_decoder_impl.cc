@@ -20,7 +20,6 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "lb_audio_decoder.h"
 #include "lb_memory_manager.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/shell_buffer_factory.h"
@@ -111,7 +110,9 @@ void ShellAudioDecoderImpl::Initialize(
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_CHANNELS, num_channels_);
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_SAMPLE_PER_SECOND,
                           samples_per_second_);
-  raw_decoder_ = LB::LBAudioDecoder::Create();
+
+  raw_decoder_ = ShellRawAudioDecoder::Create();
+
   if (raw_decoder_ == NULL) {
     status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
