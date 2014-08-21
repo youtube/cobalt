@@ -111,6 +111,8 @@ void ShellAudioDecoderImpl::Initialize(
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_AUDIO_SAMPLE_PER_SECOND,
                           samples_per_second_);
 
+  DLOG(INFO) << "Configuration at Start: "
+             << demuxer_stream_->audio_decoder_config().AsHumanReadableString();
   raw_decoder_ = ShellRawAudioDecoder::Create();
 
   if (raw_decoder_ == NULL) {
