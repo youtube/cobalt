@@ -71,8 +71,7 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   // Data size can be less than allocated size after ShrinkTo is called.
   virtual int GetDataSize() const OVERRIDE { return size_; }
   int GetAllocatedSize() const { return allocated_size_; }
-  // This is used for video AUs because we cannot know the exact size before
-  // read it in.
+  // This is used by the data that we don't know the exact size before reading.
   void ShrinkTo(int size);
 
   // Returns a read-write pointer to the buffer data.
