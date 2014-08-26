@@ -28,6 +28,7 @@
 #include "media/filters/shell_avc_parser.h"
 #include "media/mp4/aac.h"
 
+using base::Time;
 using base::TimeDelta;
 
 namespace media {
@@ -180,6 +181,36 @@ void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
         &ShellAudioDecoderImpl::QueueBuffer, this, status, buffer));
     return;
   }
+
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  // What the test does is:
+  //   Play for kTimeBetweenUnderflow + kTimeToUnderflow;
+  //   for (;;) {
+  //     Play for kTimeBetweenUnderflow;
+  //     Underflow for kTimeToUnderflow;
+  //   }
+  const bool kEnableUnderflowTest = false;
+  if (kEnableUnderflowTest) {
+    static const TimeDelta kTimeBetweenUnderflow =
+        TimeDelta::FromMilliseconds(27293);
+    static const TimeDelta kTimeToUnderflow =
+        TimeDelta::FromMilliseconds(4837);
+    static Time last_hit;
+
+    if (status == DemuxerStream::kOk && !buffer->IsEndOfStream() &&
+        buffer->GetTimestamp().InMicroseconds() == 0) {
+      last_hit = Time::Now();
+    }
+    if (Time::Now() - last_hit > kTimeBetweenUnderflow + kTimeToUnderflow) {
+      last_hit = Time::Now();
+      message_loop_->PostDelayedTask(FROM_HERE, base::Bind(
+          &ShellAudioDecoderImpl::QueueBuffer, this, status, buffer),
+          kTimeToUnderflow);
+      return;
+    }
+  }
+#endif // !defined(__LB_SHELL__FOR_RELEASE__)
+
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(pending_demuxer_read_);
   pending_demuxer_read_ = false;
