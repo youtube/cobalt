@@ -20,7 +20,7 @@ import os
 
 
 # Represents all valid build configurations.
-VALID_BUILD_CONFIGS = ['Debug', 'Devel', 'Gold', 'QA']
+VALID_BUILD_CONFIGS = ['Debug', 'Devel']
 
 # Represents all supported platforms.
 VALID_PLATFORMS = ['linux', 'ps3']
