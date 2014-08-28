@@ -72,6 +72,8 @@
     'clang_use_chrome_plugins': 0,
     # Disables treat warnings as errors.
     'werror': '',
+    # Cobalt doesn't currently support tcmalloc.
+    'linux_use_tcmalloc': 0,
   },
 
   'target_defaults': {
