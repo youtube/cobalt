@@ -102,8 +102,8 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
 
 void DialHttpServer::OnHttpRequest(int conn_id,
                                    const HttpServerRequestInfo& info) {
-  DLOG(INFO) << "Http Request: "
-             << info.method << " " << info.path << " HTTP/1.1";
+  DVLOG(1) << "Http Request: "
+           << info.method << " " << info.path << " HTTP/1.1";
 
   if (info.method == "GET" && LowerCaseEqualsASCII(info.path, "/dd.xml")) {
     // If dd.xml request
