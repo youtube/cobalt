@@ -50,6 +50,7 @@ class MEDIA_EXPORT ShellWavTestProbe {
   // number of bytes written, size of samples, and sample rate
   void AddData(const uint8* data, uint32 length, uint64 timestamp);
   void Close();
+
  private:
   // take the current state variables below and use them to write the
   // WAV header at the top of the file. Moves the file pointer.
