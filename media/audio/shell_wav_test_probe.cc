@@ -201,6 +201,8 @@ void ShellWavTestProbe::AddData(const scoped_refptr<Buffer>& buffer) {
 }
 
 void ShellWavTestProbe::Close() {
+  if (closed_) return;
+
   closed_ = true;
   // write the header again now that we know the lengths
   WriteHeader();
