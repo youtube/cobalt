@@ -35,7 +35,9 @@ class ShellRawVideoDecoder {
   enum DecodeStatus {
     FRAME_DECODED,  // Successfully decoded a frame.
     NEED_MORE_DATA,  // Need more data to decode the next frame.
-    RETRY_WITH_SAME_BUFFER,  // The decoder is busy, retry later.
+    RETRY_WITH_SAME_BUFFER,  // Retry later with the same input. Note that in
+                             // this case the decoder may still return a valid
+                             // buffered frame.
     FATAL_ERROR  // Decoder encounters fatal error, abort playback.
   };
   typedef media::ShellBuffer ShellBuffer;
@@ -103,6 +105,8 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   // TODO(***REMOVED***) : ensure the demuxer can handle multiple EOS requests
   //                   then remove this hack.
   scoped_refptr<ShellBuffer> eof_buffer_;
+
+  scoped_refptr<ShellBuffer> cached_buffer_;
 
   // All decoding tasks will be performed on this thread's message loop
   base::Thread decoder_thread_;

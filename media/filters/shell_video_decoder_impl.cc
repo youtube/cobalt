@@ -137,11 +137,14 @@ void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
     return;
   }
 
-  // Kick off a read
-  if (state_ == kFlushCodec) {
+  if (cached_buffer_) {
+    scoped_refptr<ShellBuffer> buffer_to_decode = cached_buffer_;
+    cached_buffer_ = NULL;
+    DecodeBuffer(buffer_to_decode);
+  } else if (state_ == kFlushCodec) {
     DecodeBuffer(eof_buffer_);
   } else {
-    ReadFromDemuxerStream();
+    ReadFromDemuxerStream();  // Kick off a read
   }
 }
 
@@ -285,8 +288,13 @@ void ShellVideoDecoderImpl::DecodeBuffer(
   }
 
   if (status == ShellRawVideoDecoder::RETRY_WITH_SAME_BUFFER) {
-    decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-        base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this, buffer));
+    if (frame) {
+      base::ResetAndReturn(&read_cb_).Run(kOk, frame);
+      cached_buffer_ = buffer;
+    } else {
+      decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
+          base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this, buffer));
+    }
     return;
   }
 
@@ -331,6 +339,9 @@ void ShellVideoDecoderImpl::DoReset() {
     DLOG(ERROR) << "Error Flush Decoder";
     DecoderFatalError();
   }
+
+  eof_buffer_ = NULL;
+  cached_buffer_ = NULL;
 
   base::ResetAndReturn(&reset_cb_).Run();
 }
