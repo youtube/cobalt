@@ -62,6 +62,11 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
       ],
+      'conditions': [
+        ['target_arch in ["xb1", "xb360"]', {
+          'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
+        }],
+      ],
     },
     {
       'target_name': 'math_test',
