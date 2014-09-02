@@ -44,4 +44,5 @@ int main(int argc, char* argv[]) {
   cobalt::InitCobalt(argc, argv);
 
   RunCode();
+  return 0;
 }
