@@ -27,6 +27,9 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
       ],
+      'export_dependent_settings': [
+        '<(DEPTH)/base/base.gyp:base',
+      ],
     },
   ],
 }

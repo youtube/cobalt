@@ -26,6 +26,8 @@
     'cobalt_sha1%': 0,
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
+    # The "real" target_arch that is used to select the correct delegate source.
+    'actual_target_arch%': '<(target_arch)',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
@@ -78,6 +80,7 @@
 
   'target_defaults': {
     'defines': [
+      'COBALT',
       '__LB_SHELL__',
     ],
     'cflags': [ '<@(compiler_flags)' ],
