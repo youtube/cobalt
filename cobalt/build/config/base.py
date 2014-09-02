@@ -23,7 +23,7 @@ import os
 VALID_BUILD_CONFIGS = ['Debug', 'Devel']
 
 # Represents all supported platforms.
-VALID_PLATFORMS = ['linux', 'ps3']
+VALID_PLATFORMS = ['linux', 'ps3', 'win']
 
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
 
