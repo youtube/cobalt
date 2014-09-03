@@ -300,6 +300,7 @@ void ShellVideoDecoderImpl::DecodeBuffer(
 
   if (status == ShellRawVideoDecoder::FATAL_ERROR) {
     DecoderFatalError();
+    return;
   }
 
   NOTREACHED();
