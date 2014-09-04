@@ -28,7 +28,7 @@
         'simple_example.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
       ],
     },
 
@@ -61,7 +61,7 @@
       'dependencies': [
         'simple_example_lib',
         'simple_example_content',
-        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
       ],
     },
 
@@ -92,8 +92,8 @@
       ],
       'dependencies': [
         'simple_example_lib',
-        '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
 
