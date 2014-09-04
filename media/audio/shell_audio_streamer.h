@@ -45,6 +45,8 @@ class ShellAudioStreamer {
  public:
   class Config {
    public:
+    static const uint32 kInvalidSampleRate = 0;
+
     enum StorageMode {
       INTERLEAVED,
       PLANAR
@@ -57,7 +59,9 @@ class ShellAudioStreamer {
     Config(StorageMode storage_mode,
            uint32 initial_rebuffering_frames_per_channel,
            uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
-           uint32 renderer_request_frames, uint32 max_hardware_channels)
+           uint32 renderer_request_frames, uint32 max_hardware_channels,
+           uint32 bytes_per_sample,
+           uint32 native_output_sample_rate = kInvalidSampleRate)
         : valid_(true),
           interleaved_(storage_mode == INTERLEAVED),
           initial_rebuffering_frames_per_channel_(
@@ -66,7 +70,9 @@ class ShellAudioStreamer {
           max_frames_per_channel_(max_frames_per_channel),
           initial_frames_per_channel_(initial_frames_per_channel),
           renderer_request_frames_(renderer_request_frames),
-          max_hardware_channels_(max_hardware_channels) {
+          max_hardware_channels_(max_hardware_channels),
+          bytes_per_sample_(bytes_per_sample),
+          native_output_sample_rate_(native_output_sample_rate) {
     }
 
     bool interleaved() const {
@@ -97,6 +103,14 @@ class ShellAudioStreamer {
       AssertValid();
       return max_hardware_channels_;
     }
+    uint32 bytes_per_sample() const {
+      AssertValid();
+      return bytes_per_sample_;
+    }
+    uint32 native_output_sample_rate() const {
+      AssertValid();
+      return native_output_sample_rate_;
+    }
 
    private:
     void AssertValid() const { DCHECK(valid_); }
@@ -117,6 +131,8 @@ class ShellAudioStreamer {
     // different devices. So it represent the current status on the time of
     // query.
     uint32 max_hardware_channels_;
+    uint32 bytes_per_sample_;
+    uint32 native_output_sample_rate_;
   };
 
   ShellAudioStreamer() {}

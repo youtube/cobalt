@@ -25,6 +25,8 @@
 
 typedef media::ShellAudioStreamer::Config Config;
 
+// TODO(***REMOVED***): Add 32 bits per sample tests.
+
 namespace {
 
 using namespace testing;
@@ -289,18 +291,19 @@ TEST_F(ShellAudioSinkTest, Initialize) {
 
   // 2 configurations with different interleaved
   for (int i = 0; i < 2; ++i) {
-    Config config(
-        i == 0 ? Config::INTERLEAVED : Config::PLANAR,
-        initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames,
-        kMaxHardwareChannelsStereo
-    );
-
     for (media::ChannelLayout layout = media::CHANNEL_LAYOUT_MONO;
          layout != media::CHANNEL_LAYOUT_MAX;
          layout = static_cast<media::ChannelLayout>(layout + 1)) {
       for (int bytes_per_sample = 2; bytes_per_sample < 5;
            bytes_per_sample *= 2) {
+        Config config(
+            i == 0 ? Config::INTERLEAVED : Config::PLANAR,
+            initial_rebuffering_frames_per_channel, max_frames_per_channel,
+            initial_frames_per_channel, renderer_request_frames,
+            kMaxHardwareChannelsStereo,
+            bytes_per_sample,
+            48000  /* output_sample_rate */);
+
         Setup(config);
         EXPECT_TRUE(!sink_->GetAudioBus());
         media::AudioParameters init_params = media::AudioParameters(
@@ -343,7 +346,9 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
   Config config(Config::INTERLEAVED,
                 initial_rebuffering_frames_per_channel, max_frames_per_channel,
                 initial_frames_per_channel, renderer_request_frames,
-                kMaxHardwareChannelsStereo);
+                kMaxHardwareChannelsStereo,
+                sizeof(int16_t)  /* bytes_per_sample */,
+                48000  /* output_sample_rate */);
 
   media::AudioParameters init_params = media::AudioParameters(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -374,7 +379,9 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
   Config config(Config::INTERLEAVED,
                 initial_rebuffering_frames_per_channel, max_frames_per_channel,
                 initial_frames_per_channel, renderer_request_frames,
-                kMaxHardwareChannelsStereo);
+                kMaxHardwareChannelsStereo,
+                sizeof(int16_t)  /* bytes_per_sample */,
+                48000  /* output_sample_rate */);
 
   Setup(config);
 
@@ -410,7 +417,9 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
         initial_frames_per_channel, renderer_request_frames,
-        kMaxHardwareChannelsStereo);
+        kMaxHardwareChannelsStereo,
+        sizeof(int16_t)  /* bytes_per_sample */,
+        48000  /* output_sample_rate */);
 
     Setup(config);
 
@@ -476,7 +485,9 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
         initial_frames_per_channel, renderer_request_frames,
-        kMaxHardwareChannelsStereo);
+        kMaxHardwareChannelsStereo,
+        sizeof(int16_t)  /* bytes_per_sample */,
+        48000  /* output_sample_rate */);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
@@ -578,7 +589,9 @@ TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
         initial_rebuffering_frames_per_channel, max_frames_per_channel,
         initial_frames_per_channel, renderer_request_frames,
-        kMaxHardwareChannelsStereo);
+        kMaxHardwareChannelsStereo,
+        sizeof(int16_t)  /* bytes_per_sample */,
+        48000  /* output_sample_rate */);
     Setup(config);
 
     media::AudioParameters init_params = media::AudioParameters(
