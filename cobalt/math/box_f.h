@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_BOX_F_H_
-#define UI_GFX_GEOMETRY_BOX_F_H_
+#ifndef MATH_BOX_F_H_
+#define MATH_BOX_F_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point3_f.h"
-#include "ui/gfx/geometry/vector3d_f.h"
+#include "cobalt/math/point3_f.h"
+#include "cobalt/math/vector3d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-// A 3d version of gfx::RectF, with the positive z-axis pointed towards
-// the camera.
-class GFX_EXPORT BoxF {
+// A 3d version of RectF, with the positive z-axis pointed towards the camera.
+class BoxF {
  public:
   BoxF() : width_(0.f), height_(0.f), depth_(0.f) {}
 
@@ -115,7 +115,7 @@ class GFX_EXPORT BoxF {
   float depth_;
 };
 
-GFX_EXPORT BoxF UnionBoxes(const BoxF& a, const BoxF& b);
+BoxF UnionBoxes(const BoxF& a, const BoxF& b);
 
 inline BoxF ScaleBox(const BoxF& b, float x_scale, float y_scale,
                      float z_scale) {
@@ -139,11 +139,7 @@ inline BoxF operator+(const BoxF& b, const Vector3dF& v) {
               b.height(), b.depth());
 }
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const BoxF& box, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_BOX_F_H_
+#endif  // MATH_BOX_F_H_

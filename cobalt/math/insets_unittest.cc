@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/insets.h"
+#include "cobalt/math/insets.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace cobalt {
+namespace math {
+
 TEST(InsetsTest, InsetsDefault) {
-  gfx::Insets insets;
+  Insets insets;
   EXPECT_EQ(0, insets.top());
   EXPECT_EQ(0, insets.left());
   EXPECT_EQ(0, insets.bottom());
@@ -18,7 +21,7 @@ TEST(InsetsTest, InsetsDefault) {
 }
 
 TEST(InsetsTest, Insets) {
-  gfx::Insets insets(1, 2, 3, 4);
+  Insets insets(1, 2, 3, 4);
   EXPECT_EQ(1, insets.top());
   EXPECT_EQ(2, insets.left());
   EXPECT_EQ(3, insets.bottom());
@@ -29,7 +32,7 @@ TEST(InsetsTest, Insets) {
 }
 
 TEST(InsetsTest, Set) {
-  gfx::Insets insets;
+  Insets insets;
   insets.Set(1, 2, 3, 4);
   EXPECT_EQ(1, insets.top());
   EXPECT_EQ(2, insets.left());
@@ -38,9 +41,9 @@ TEST(InsetsTest, Set) {
 }
 
 TEST(InsetsTest, Add) {
-  gfx::Insets insets;
+  Insets insets;
   insets.Set(1, 2, 3, 4);
-  insets += gfx::Insets(5, 6, 7, 8);
+  insets += Insets(5, 6, 7, 8);
   EXPECT_EQ(6, insets.top());
   EXPECT_EQ(8, insets.left());
   EXPECT_EQ(10, insets.bottom());
@@ -48,9 +51,9 @@ TEST(InsetsTest, Add) {
 }
 
 TEST(InsetsTest, Equality) {
-  gfx::Insets insets1;
+  Insets insets1;
   insets1.Set(1, 2, 3, 4);
-  gfx::Insets insets2;
+  Insets insets2;
   // Test operator== and operator!=.
   EXPECT_FALSE(insets1 == insets2);
   EXPECT_TRUE(insets1 != insets2);
@@ -61,6 +64,9 @@ TEST(InsetsTest, Equality) {
 }
 
 TEST(InsetsTest, ToString) {
-  gfx::Insets insets(1, 2, 3, 4);
+  Insets insets(1, 2, 3, 4);
   EXPECT_EQ("1,2,3,4", insets.ToString());
 }
+
+}  // namespace math
+}  // namespace cobalt

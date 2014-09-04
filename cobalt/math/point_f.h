@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_POINT_F_H_
-#define UI_GFX_GEOMETRY_POINT_F_H_
+#ifndef MATH_POINT_F_H_
+#define MATH_POINT_F_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point_base.h"
-#include "ui/gfx/geometry/vector2d_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/point_base.h"
+#include "cobalt/math/vector2d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-// A floating version of gfx::Point.
-class GFX_EXPORT PointF : public PointBase<PointF, float, Vector2dF> {
+// A floating-point version of Point.
+class PointF : public PointBase<PointF, float, Vector2dF> {
  public:
   PointF() : PointBase<PointF, float, Vector2dF>(0, 0) {}
   PointF(float x, float y) : PointBase<PointF, float, Vector2dF>(x, y) {}
@@ -59,21 +59,15 @@ inline PointF PointAtOffsetFromOrigin(const Vector2dF& offset_from_origin) {
   return PointF(offset_from_origin.x(), offset_from_origin.y());
 }
 
-GFX_EXPORT PointF ScalePoint(const PointF& p, float x_scale, float y_scale);
+PointF ScalePoint(const PointF& p, float x_scale, float y_scale);
 
 inline PointF ScalePoint(const PointF& p, float scale) {
   return ScalePoint(p, scale, scale);
 }
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class PointBase<PointF, float, Vector2dF>;
-#endif
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const PointF& point, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_POINT_F_H_
+#endif  // MATH_POINT_F_H_

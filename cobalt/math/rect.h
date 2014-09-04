@@ -9,33 +9,25 @@
 // rectangles with negative width and/or height), but there will be assertions
 // in the operations (such as Contains()) to complain in this case.
 
-#ifndef UI_GFX_GEOMETRY_RECT_H_
-#define UI_GFX_GEOMETRY_RECT_H_
+#ifndef MATH_RECT_H_
+#define MATH_RECT_H_
 
 #include <cmath>
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/rect_base.h"
-#include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/vector2d.h"
+#include "cobalt/math/point.h"
+#include "cobalt/math/rect_base.h"
+#include "cobalt/math/rect_f.h"
+#include "cobalt/math/size.h"
+#include "cobalt/math/vector2d.h"
 
-#if defined(OS_WIN)
-typedef struct tagRECT RECT;
-#elif defined(OS_IOS)
-#include <CoreGraphics/CoreGraphics.h>
-#elif defined(OS_MACOSX)
-#include <ApplicationServices/ApplicationServices.h>
-#endif
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 class Insets;
 
-class GFX_EXPORT Rect
-    : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
+class Rect : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
  public:
   Rect() : RectBase<Rect, Point, Size, Insets, Vector2d, int>(Point()) {}
 
@@ -47,27 +39,13 @@ class GFX_EXPORT Rect
       : RectBase<Rect, Point, Size, Insets, Vector2d, int>(
             Point(x, y), Size(width, height)) {}
 
-#if defined(OS_WIN)
-  explicit Rect(const RECT& r);
-#elif defined(OS_MACOSX)
-  explicit Rect(const CGRect& r);
-#endif
-
-  explicit Rect(const gfx::Size& size)
+  explicit Rect(const Size& size)
       : RectBase<Rect, Point, Size, Insets, Vector2d, int>(size) {}
 
-  Rect(const gfx::Point& origin, const gfx::Size& size)
+  Rect(const Point& origin, const Size& size)
       : RectBase<Rect, Point, Size, Insets, Vector2d, int>(origin, size) {}
 
   ~Rect() {}
-
-#if defined(OS_WIN)
-  // Construct an equivalent Win32 RECT object.
-  RECT ToRECT() const;
-#elif defined(OS_MACOSX)
-  // Construct an equivalent CoreGraphics object.
-  CGRect ToCGRect() const;
-#endif
 
   operator RectF() const {
     return RectF(origin().x(), origin().y(), size().width(), size().height());
@@ -84,16 +62,16 @@ inline bool operator!=(const Rect& lhs, const Rect& rhs) {
   return !(lhs == rhs);
 }
 
-GFX_EXPORT Rect operator+(const Rect& lhs, const Vector2d& rhs);
-GFX_EXPORT Rect operator-(const Rect& lhs, const Vector2d& rhs);
+Rect operator+(const Rect& lhs, const Vector2d& rhs);
+Rect operator-(const Rect& lhs, const Vector2d& rhs);
 
 inline Rect operator+(const Vector2d& lhs, const Rect& rhs) {
   return rhs + lhs;
 }
 
-GFX_EXPORT Rect IntersectRects(const Rect& a, const Rect& b);
-GFX_EXPORT Rect UnionRects(const Rect& a, const Rect& b);
-GFX_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
+Rect IntersectRects(const Rect& a, const Rect& b);
+Rect UnionRects(const Rect& a, const Rect& b);
+Rect SubtractRects(const Rect& a, const Rect& b);
 
 // Constructs a rectangle with |p1| and |p2| as opposite corners.
 //
@@ -101,7 +79,7 @@ GFX_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
 // points", except that we consider points on the right/bottom edges of the
 // rect to be outside the rect.  So technically one or both points will not be
 // contained within the rect, because they will appear on one of these edges.
-GFX_EXPORT Rect BoundingRect(const Point& p1, const Point& p2);
+Rect BoundingRect(const Point& p1, const Point& p2);
 
 inline Rect ScaleToEnclosingRect(const Rect& rect, float x_scale,
                                  float y_scale) {
@@ -129,15 +107,9 @@ inline Rect ScaleToEnclosedRect(const Rect& rect, float scale) {
   return ScaleToEnclosedRect(rect, scale, scale);
 }
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
-#endif
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Rect& rect, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_RECT_H_
+#endif  // MATH_RECT_H_

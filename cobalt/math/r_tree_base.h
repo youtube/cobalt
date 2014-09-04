@@ -8,22 +8,20 @@
 // internal objects of an RTree, namely Nodes (internal nodes of the tree) and
 // Records, which hold (key, rectangle) pairs.
 
-#ifndef UI_GFX_GEOMETRY_R_TREE_BASE_H_
-#define UI_GFX_GEOMETRY_R_TREE_BASE_H_
+#ifndef MATH_R_TREE_BASE_H_
+#define MATH_R_TREE_BASE_H_
 
-#include <list>
 #include <vector>
 
-#include "base/containers/hash_tables.h"
-#include "base/macros.h"
+#include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/rect.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-class GFX_EXPORT RTreeBase {
+class RTreeBase {
  protected:
   class NodeBase;
   class RecordBase;
@@ -36,7 +34,7 @@ class GFX_EXPORT RTreeBase {
 
   // Protected data structure class for storing internal Nodes or leaves with
   // Records.
-  class GFX_EXPORT NodeBase {
+  class NodeBase {
    public:
     virtual ~NodeBase();
 
@@ -90,7 +88,7 @@ class GFX_EXPORT RTreeBase {
     DISALLOW_COPY_AND_ASSIGN(NodeBase);
   };
 
-  class GFX_EXPORT RecordBase : public NodeBase {
+  class RecordBase : public NodeBase {
    public:
     explicit RecordBase(const Rect& rect);
     virtual ~RecordBase();
@@ -108,7 +106,7 @@ class GFX_EXPORT RTreeBase {
     DISALLOW_COPY_AND_ASSIGN(RecordBase);
   };
 
-  class GFX_EXPORT Node : public NodeBase {
+  class Node : public NodeBase {
    public:
     // Constructs an empty Node with |level_| of 0.
     Node();
@@ -299,6 +297,7 @@ class GFX_EXPORT RTreeBase {
   DISALLOW_COPY_AND_ASSIGN(RTreeBase);
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_R_TREE_BASE_H_
+#endif  // MATH_R_TREE_BASE_H_

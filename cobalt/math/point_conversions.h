@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_POINT_CONVERSIONS_H_
-#define UI_GFX_GEOMETRY_POINT_CONVERSIONS_H_
+#ifndef MATH_POINT_CONVERSIONS_H_
+#define MATH_POINT_CONVERSIONS_H_
 
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "cobalt/math/point.h"
+#include "cobalt/math/point_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // Returns a Point with each component from the input PointF floored.
-GFX_EXPORT Point ToFlooredPoint(const PointF& point);
+Point ToFlooredPoint(const PointF& point);
 
 // Returns a Point with each component from the input PointF ceiled.
-GFX_EXPORT Point ToCeiledPoint(const PointF& point);
+Point ToCeiledPoint(const PointF& point);
 
 // Returns a Point with each component from the input PointF rounded.
-GFX_EXPORT Point ToRoundedPoint(const PointF& point);
+Point ToRoundedPoint(const PointF& point);
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_POINT_CONVERSIONS_H_
+#endif  // MATH_POINT_CONVERSIONS_H_

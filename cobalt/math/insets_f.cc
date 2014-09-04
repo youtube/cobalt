@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/insets_f.h"
+#include "cobalt/math/insets_f.h"
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 template class InsetsBase<InsetsF, float>;
 
@@ -22,4 +23,5 @@ std::string InsetsF::ToString() const {
   return base::StringPrintf("%f,%f,%f,%f", top(), left(), bottom(), right());
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

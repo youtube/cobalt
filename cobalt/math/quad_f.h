@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_QUAD_F_H_
-#define UI_GFX_GEOMETRY_QUAD_F_H_
+#ifndef MATH_QUAD_F_H_
+#define MATH_QUAD_F_H_
 
 #include <algorithm>
 #include <cmath>
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/rect_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A Quad is defined by four corners, allowing it to have edges that are not
 // axis-aligned, unlike a Rect.
-class GFX_EXPORT QuadF {
+class QuadF {
  public:
   QuadF() {}
   QuadF(const PointF& p1, const PointF& p2, const PointF& p3, const PointF& p4)
@@ -51,7 +51,7 @@ class GFX_EXPORT QuadF {
 
   // Returns true if the |point| is contained within the quad, or lies on on
   // edge of the quad. This assumes that the quad is convex.
-  bool Contains(const gfx::PointF& point) const;
+  bool Contains(const PointF& point) const;
 
   // Returns a rectangle that bounds the four points of the quad. The points of
   // the quad may lie on the right/bottom edge of the resulting rectangle,
@@ -96,16 +96,12 @@ inline bool operator!=(const QuadF& lhs, const QuadF& rhs) {
 }
 
 // Add a vector to a quad, offseting each point in the quad by the vector.
-GFX_EXPORT QuadF operator+(const QuadF& lhs, const Vector2dF& rhs);
+QuadF operator+(const QuadF& lhs, const Vector2dF& rhs);
 // Subtract a vector from a quad, offseting each point in the quad by the
 // inverse of the vector.
-GFX_EXPORT QuadF operator-(const QuadF& lhs, const Vector2dF& rhs);
+QuadF operator-(const QuadF& lhs, const Vector2dF& rhs);
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const QuadF& quad, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_QUAD_F_H_
+#endif  // MATH_QUAD_F_H_

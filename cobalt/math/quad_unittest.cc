@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/quad_f.h"
-#include "ui/gfx/geometry/rect_f.h"
+#include "cobalt/math/quad_f.h"
 
-namespace gfx {
+#include "base/basictypes.h"
+#include "cobalt/math/rect_f.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace cobalt {
+namespace math {
 
 TEST(QuadTest, Construction) {
   // Verify constructors.
@@ -325,4 +327,5 @@ TEST(QuadTest, Scale) {
   EXPECT_EQ(q2, q2);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
