@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/r_tree.h"
-#include "ui/gfx/geometry/r_tree_base.h"
-#include "ui/gfx/geometry/rect.h"
+#include "cobalt/math/r_tree.h"
 
-namespace gfx {
+#include <vector>
+
+#include "base/hash_tables.h"
+#include "cobalt/math/r_tree_base.h"
+#include "cobalt/math/rect.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace cobalt {
+namespace math {
 
 class RTreeTest : public ::testing::Test {
  protected:
@@ -1006,4 +1011,5 @@ TEST_F(RTreeTest, InsertReplacementMaintainsTree) {
   }
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/quad_f.h"
+#include "cobalt/math/quad_f.h"
 
 #include <limits>
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 void QuadF::operator=(const RectF& rect) {
   p1_ = PointF(rect.x(), rect.y());
@@ -115,4 +116,5 @@ QuadF operator-(const QuadF& lhs, const Vector2dF& rhs) {
   return result;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

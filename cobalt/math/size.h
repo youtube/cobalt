@@ -2,47 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_SIZE_H_
-#define UI_GFX_GEOMETRY_SIZE_H_
+#ifndef MATH_SIZE_H_
+#define MATH_SIZE_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "base/compiler_specific.h"
-#include "ui/gfx/geometry/size_base.h"
-#include "ui/gfx/geometry/size_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/size_base.h"
+#include "cobalt/math/size_f.h"
 
-#if defined(OS_WIN)
-typedef struct tagSIZE SIZE;
-#elif defined(OS_IOS)
-#include <CoreGraphics/CoreGraphics.h>
-#elif defined(OS_MACOSX)
-#include <ApplicationServices/ApplicationServices.h>
-#endif
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A size has width and height values.
-class GFX_EXPORT Size : public SizeBase<Size, int> {
+class Size : public SizeBase<Size, int> {
  public:
   Size() : SizeBase<Size, int>(0, 0) {}
   Size(int width, int height) : SizeBase<Size, int>(width, height) {}
-#if defined(OS_MACOSX)
-  explicit Size(const CGSize& s);
-#endif
 
   ~Size() {}
-
-#if defined(OS_MACOSX)
-  Size& operator=(const CGSize& s);
-#endif
-
-#if defined(OS_WIN)
-  SIZE ToSIZE() const;
-#elif defined(OS_MACOSX)
-  CGSize ToCGSize() const;
-#endif
 
   operator SizeF() const { return SizeF(width(), height()); }
 
@@ -57,15 +35,9 @@ inline bool operator!=(const Size& lhs, const Size& rhs) {
   return !(lhs == rhs);
 }
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class SizeBase<Size, int>;
-#endif
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Size& size, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_SIZE_H_
+#endif  // MATH_SIZE_H_

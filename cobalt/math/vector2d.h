@@ -7,19 +7,19 @@
 // produce a vector, and adding a vector to a point produces the point at the
 // vector's distance from the original point.
 
-#ifndef UI_GFX_GEOMETRY_VECTOR2D_H_
-#define UI_GFX_GEOMETRY_VECTOR2D_H_
+#ifndef MATH_VECTOR2D_H_
+#define MATH_VECTOR2D_H_
 
 #include <iosfwd>
 #include <string>
 
 #include "base/basictypes.h"
-#include "ui/gfx/geometry/vector2d_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/vector2d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-class GFX_EXPORT Vector2d {
+class Vector2d {
  public:
   Vector2d() : x_(0), y_(0) {}
   Vector2d(int x, int y) : x_(x), y_(y) {}
@@ -87,11 +87,7 @@ inline Vector2d operator-(const Vector2d& lhs, const Vector2d& rhs) {
   return result;
 }
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Vector2d& vector, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_VECTOR2D_H_
+#endif  // MATH_VECTOR2D_H_

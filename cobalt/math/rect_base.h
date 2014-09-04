@@ -9,18 +9,17 @@
 // rectangles with negative width and/or height), but there will be assertions
 // in the operations (such as Contains()) to complain in this case.
 
-#ifndef UI_GFX_GEOMETRY_RECT_BASE_H_
-#define UI_GFX_GEOMETRY_RECT_BASE_H_
+#ifndef MATH_RECT_BASE_H_
+#define MATH_RECT_BASE_H_
 
 #include <string>
 
-#include "base/compiler_specific.h"
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 template <typename Class, typename PointClass, typename SizeClass,
           typename InsetsClass, typename VectorClass, typename Type>
-class GFX_EXPORT RectBase {
+class RectBase {
  public:
   Type x() const { return origin_.x(); }
   void set_x(Type x) { origin_.set_x(x); }
@@ -159,6 +158,7 @@ class GFX_EXPORT RectBase {
   SizeClass size_;
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_RECT_BASE_H_
+#endif  // MATH_RECT_BASE_H_

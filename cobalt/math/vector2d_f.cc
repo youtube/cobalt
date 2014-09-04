@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/vector2d_f.h"
+#include "cobalt/math/vector2d_f.h"
 
 #include <cmath>
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 std::string Vector2dF::ToString() const {
   return base::StringPrintf("[%f %f]", x_, y_);
@@ -55,4 +56,5 @@ Vector2dF ScaleVector2d(const Vector2dF& v, float x_scale, float y_scale) {
   return scaled_v;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

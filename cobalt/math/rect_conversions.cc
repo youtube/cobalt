@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/rect_conversions.h"
+#include "cobalt/math/rect_conversions.h"
 
 #include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"
-#include "ui/gfx/geometry/safe_integer_conversions.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 Rect ToEnclosingRect(const RectF& rect) {
   int min_x = ToFlooredInt(rect.x());
@@ -53,7 +54,7 @@ Rect ToNearestRect(const RectF& rect) {
   return Rect(min_x, min_y, max_x - min_x, max_y - min_y);
 }
 
-bool IsNearestRectWithinDistance(const gfx::RectF& rect, float distance) {
+bool IsNearestRectWithinDistance(const RectF& rect, float distance) {
   float float_min_x = rect.x();
   float float_min_y = rect.y();
   float float_max_x = rect.right();
@@ -75,4 +76,5 @@ Rect ToFlooredRectDeprecated(const RectF& rect) {
               ToFlooredInt(rect.width()), ToFlooredInt(rect.height()));
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

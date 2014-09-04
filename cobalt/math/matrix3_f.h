@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_MATRIX3_F_H_
-#define UI_GFX_GEOMETRY_MATRIX3_F_H_
+#ifndef MATH_MATRIX3_F_H_
+#define MATH_MATRIX3_F_H_
 
 #include "base/logging.h"
-#include "ui/gfx/geometry/vector3d_f.h"
+#include "cobalt/math/vector3d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-class GFX_EXPORT Matrix3F {
+class Matrix3F {
  public:
   ~Matrix3F();
 
@@ -96,6 +97,7 @@ inline bool operator==(const Matrix3F& lhs, const Matrix3F& rhs) {
   return lhs.IsEqual(rhs);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_MATRIX3_F_H_
+#endif  // MATH_MATRIX3_F_H_
