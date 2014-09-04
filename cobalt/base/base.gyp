@@ -14,14 +14,17 @@
 
 {
   'targets': [
-    # Fake target that captures header files for the sake of Visual Studio
-    # project generation. This will eventually turn into a static library
-    # once .cc files are added.
     {
-      'target_name': 'base_lib',
-      'type': 'none',
+      'target_name': 'base',
+      'type': 'static_library',
       'sources': [
         'compiler.h',
+        'init_cobalt.h',
+        'init_cobalt.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
       ],
     },
   ],

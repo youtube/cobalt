@@ -14,34 +14,28 @@
  * limitations under the License.
  */
 
-#include "cobalt/samples/simple_example.h"
-
-#include "base/at_exit.h"
-#include "base/logging.h"
-#include "base/stringprintf.h"
 #include "cobalt/base/init_cobalt.h"
 
+#include "base/at_exit.h"
+#include "base/command_line.h"
+#include "cobalt/deprecated/platform_delegate.h"
+
+namespace cobalt {
 namespace {
 
-void MultiplyAdd(int m, int a, int b) {
-  const cobalt::samples::SimpleExample example(m);
-  const int result = example.MultiplyAdd(a, b);
-
-  LOG(INFO) << base::StringPrintf("MultiplyAdd(%d*%d + %d) = %d",
-                                  m, a, b, result);
-}
-
-void RunCode() {
-  MultiplyAdd(1, 1, 3);
-  MultiplyAdd(1, 4, -2);
-  MultiplyAdd(1, 2, 10);
+void AtExitCallback(void* /*param*/) {
+  deprecated::PlatformDelegate::Teardown();
 }
 
 }  // namespace
 
-int main(int argc, char* argv[]) {
-  base::AtExitManager at_exit;
-  cobalt::InitCobalt(argc, argv);
+void InitCobalt(int argc, char* argv[]) {
+  CommandLine::Init(argc, argv);
+  deprecated::PlatformDelegate::Init();
 
-  RunCode();
+  // Register a callback to be called during program termination.
+  // This will fail if AtExitManager wasn't created before calling InitCobalt.
+  base::AtExitManager::RegisterCallback(&AtExitCallback, NULL);
 }
+
+}  // namespace cobalt
