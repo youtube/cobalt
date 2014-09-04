@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/size_conversions.h"
+#include "cobalt/math/size_conversions.h"
 
-#include "ui/gfx/geometry/safe_integer_conversions.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 Size ToFlooredSize(const SizeF& size) {
   int w = ToFlooredInt(size.width());
@@ -26,4 +27,5 @@ Size ToRoundedSize(const SizeF& size) {
   return Size(w, h);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

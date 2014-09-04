@@ -2,34 +2,36 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/math/vector3d_f.h"
+
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/vector3d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 TEST(Vector3dTest, IsZero) {
-  gfx::Vector3dF float_zero(0, 0, 0);
-  gfx::Vector3dF float_nonzero(0.1f, -0.1f, 0.1f);
+  Vector3dF float_zero(0, 0, 0);
+  Vector3dF float_nonzero(0.1f, -0.1f, 0.1f);
 
   EXPECT_TRUE(float_zero.IsZero());
   EXPECT_FALSE(float_nonzero.IsZero());
 }
 
 TEST(Vector3dTest, Add) {
-  gfx::Vector3dF f1(3.1f, 5.1f, 2.7f);
-  gfx::Vector3dF f2(4.3f, -1.3f, 8.1f);
+  Vector3dF f1(3.1f, 5.1f, 2.7f);
+  Vector3dF f2(4.3f, -1.3f, 8.1f);
 
   const struct {
-    gfx::Vector3dF expected;
-    gfx::Vector3dF actual;
+    Vector3dF expected;
+    Vector3dF actual;
   } float_tests[] = {
-        {gfx::Vector3dF(3.1F, 5.1F, 2.7f), f1 + gfx::Vector3dF()},
-        {gfx::Vector3dF(3.1f + 4.3f, 5.1f - 1.3f, 2.7f + 8.1f), f1 + f2},
-        {gfx::Vector3dF(3.1f - 4.3f, 5.1f + 1.3f, 2.7f - 8.1f), f1 - f2}};
+        {Vector3dF(3.1F, 5.1F, 2.7f), f1 + Vector3dF()},
+        {Vector3dF(3.1f + 4.3f, 5.1f - 1.3f, 2.7f + 8.1f), f1 + f2},
+        {Vector3dF(3.1f - 4.3f, 5.1f + 1.3f, 2.7f - 8.1f), f1 - f2}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(float_tests); ++i)
     EXPECT_EQ(float_tests[i].expected.ToString(),
@@ -38,20 +40,15 @@ TEST(Vector3dTest, Add) {
 
 TEST(Vector3dTest, Negative) {
   const struct {
-    gfx::Vector3dF expected;
-    gfx::Vector3dF actual;
+    Vector3dF expected;
+    Vector3dF actual;
   } float_tests[] = {
-        {gfx::Vector3dF(-0.0f, -0.0f, -0.0f), -gfx::Vector3dF(0, 0, 0)},
-        {gfx::Vector3dF(-0.3f, -0.3f, -0.3f),
-         -gfx::Vector3dF(0.3f, 0.3f, 0.3f)},
-        {gfx::Vector3dF(0.3f, 0.3f, 0.3f),
-         -gfx::Vector3dF(-0.3f, -0.3f, -0.3f)},
-        {gfx::Vector3dF(-0.3f, 0.3f, -0.3f),
-         -gfx::Vector3dF(0.3f, -0.3f, 0.3f)},
-        {gfx::Vector3dF(0.3f, -0.3f, -0.3f),
-         -gfx::Vector3dF(-0.3f, 0.3f, 0.3f)},
-        {gfx::Vector3dF(-0.3f, -0.3f, 0.3f),
-         -gfx::Vector3dF(0.3f, 0.3f, -0.3f)}};
+        {Vector3dF(-0.0f, -0.0f, -0.0f), -Vector3dF(0, 0, 0)},
+        {Vector3dF(-0.3f, -0.3f, -0.3f), -Vector3dF(0.3f, 0.3f, 0.3f)},
+        {Vector3dF(0.3f, 0.3f, 0.3f), -Vector3dF(-0.3f, -0.3f, -0.3f)},
+        {Vector3dF(-0.3f, 0.3f, -0.3f), -Vector3dF(0.3f, -0.3f, 0.3f)},
+        {Vector3dF(0.3f, -0.3f, -0.3f), -Vector3dF(-0.3f, 0.3f, 0.3f)},
+        {Vector3dF(-0.3f, -0.3f, 0.3f), -Vector3dF(0.3f, 0.3f, -0.3f)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(float_tests); ++i)
     EXPECT_EQ(float_tests[i].expected.ToString(),
@@ -81,16 +78,15 @@ TEST(Vector3dTest, Scale) {
                               {0, 1.2f, 1.8f, 3.3f, 5.6f, 4.2f}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(triple_values); ++i) {
-    gfx::Vector3dF v(triple_values[i][0], triple_values[i][1],
-                     triple_values[i][2]);
+    Vector3dF v(triple_values[i][0], triple_values[i][1], triple_values[i][2]);
     v.Scale(triple_values[i][3], triple_values[i][4], triple_values[i][5]);
     EXPECT_EQ(triple_values[i][0] * triple_values[i][3], v.x());
     EXPECT_EQ(triple_values[i][1] * triple_values[i][4], v.y());
     EXPECT_EQ(triple_values[i][2] * triple_values[i][5], v.z());
 
     Vector3dF v2 = ScaleVector3d(
-        gfx::Vector3dF(triple_values[i][0], triple_values[i][1],
-                       triple_values[i][2]),
+        Vector3dF(triple_values[i][0], triple_values[i][1],
+                  triple_values[i][2]),
         triple_values[i][3], triple_values[i][4], triple_values[i][5]);
     EXPECT_EQ(triple_values[i][0] * triple_values[i][3], v2.x());
     EXPECT_EQ(triple_values[i][1] * triple_values[i][4], v2.y());
@@ -113,16 +109,15 @@ TEST(Vector3dTest, Scale) {
                               {4.5f, 1.2f, 0, 3.3f}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(single_values); ++i) {
-    gfx::Vector3dF v(single_values[i][0], single_values[i][1],
-                     single_values[i][2]);
+    Vector3dF v(single_values[i][0], single_values[i][1], single_values[i][2]);
     v.Scale(single_values[i][3]);
     EXPECT_EQ(single_values[i][0] * single_values[i][3], v.x());
     EXPECT_EQ(single_values[i][1] * single_values[i][3], v.y());
     EXPECT_EQ(single_values[i][2] * single_values[i][3], v.z());
 
     Vector3dF v2 =
-        ScaleVector3d(gfx::Vector3dF(single_values[i][0], single_values[i][1],
-                                     single_values[i][2]),
+        ScaleVector3d(Vector3dF(single_values[i][0], single_values[i][1],
+                                single_values[i][2]),
                       single_values[i][3]);
     EXPECT_EQ(single_values[i][0] * single_values[i][3], v2.x());
     EXPECT_EQ(single_values[i][1] * single_values[i][3], v2.y());
@@ -159,7 +154,7 @@ TEST(Vector3dTest, Length) {
                             static_cast<double>(v1) * v1 +
                             static_cast<double>(v2) * v2;
     double length = std::sqrt(length_squared);
-    gfx::Vector3dF vector(v0, v1, v2);
+    Vector3dF vector(v0, v1, v2);
     EXPECT_DOUBLE_EQ(length_squared, vector.LengthSquared());
     EXPECT_FLOAT_EQ(static_cast<float>(length), vector.Length());
   }
@@ -168,29 +163,28 @@ TEST(Vector3dTest, Length) {
 TEST(Vector3dTest, DotProduct) {
   const struct {
     float expected;
-    gfx::Vector3dF input1;
-    gfx::Vector3dF input2;
+    Vector3dF input1;
+    Vector3dF input2;
   } tests[] = {
-        {0, gfx::Vector3dF(1, 0, 0), gfx::Vector3dF(0, 1, 1)},
-        {0, gfx::Vector3dF(0, 1, 0), gfx::Vector3dF(1, 0, 1)},
-        {0, gfx::Vector3dF(0, 0, 1), gfx::Vector3dF(1, 1, 0)},
-        {3, gfx::Vector3dF(1, 1, 1), gfx::Vector3dF(1, 1, 1)},
-        {1.2f, gfx::Vector3dF(1.2f, -1.2f, 1.2f), gfx::Vector3dF(1, 1, 1)},
-        {1.2f, gfx::Vector3dF(1, 1, 1), gfx::Vector3dF(1.2f, -1.2f, 1.2f)},
-        {38.72f, gfx::Vector3dF(1.1f, 2.2f, 3.3f),
-         gfx::Vector3dF(4.4f, 5.5f, 6.6f)}};
+        {0, Vector3dF(1, 0, 0), Vector3dF(0, 1, 1)},
+        {0, Vector3dF(0, 1, 0), Vector3dF(1, 0, 1)},
+        {0, Vector3dF(0, 0, 1), Vector3dF(1, 1, 0)},
+        {3, Vector3dF(1, 1, 1), Vector3dF(1, 1, 1)},
+        {1.2f, Vector3dF(1.2f, -1.2f, 1.2f), Vector3dF(1, 1, 1)},
+        {1.2f, Vector3dF(1, 1, 1), Vector3dF(1.2f, -1.2f, 1.2f)},
+        {38.72f, Vector3dF(1.1f, 2.2f, 3.3f), Vector3dF(4.4f, 5.5f, 6.6f)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    float actual = gfx::DotProduct(tests[i].input1, tests[i].input2);
+    float actual = DotProduct(tests[i].input1, tests[i].input2);
     EXPECT_EQ(tests[i].expected, actual);
   }
 }
 
 TEST(Vector3dTest, CrossProduct) {
   const struct {
-    gfx::Vector3dF expected;
-    gfx::Vector3dF input1;
-    gfx::Vector3dF input2;
+    Vector3dF expected;
+    Vector3dF input1;
+    Vector3dF input2;
   } tests[] = {{Vector3dF(), Vector3dF(), Vector3dF(1, 1, 1)},
                {Vector3dF(), Vector3dF(1, 1, 1), Vector3dF()},
                {Vector3dF(), Vector3dF(1, 1, 1), Vector3dF(1, 1, 1)},
@@ -204,7 +198,7 @@ TEST(Vector3dTest, CrossProduct) {
                {Vector3dF(0, -1, 1), Vector3dF(1, 0, 0), Vector3dF(1, 1, 1)}};
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    Vector3dF actual = gfx::CrossProduct(tests[i].input1, tests[i].input2);
+    Vector3dF actual = CrossProduct(tests[i].input1, tests[i].input2);
     EXPECT_EQ(tests[i].expected.ToString(), actual.ToString());
   }
 }
@@ -241,4 +235,5 @@ TEST(Vector3dFTest, ClampVector3dF) {
   EXPECT_EQ(Vector3dF(3.5f, 5.5f, 7.5f).ToString(), a.ToString());
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

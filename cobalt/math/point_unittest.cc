@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_base.h"
-#include "ui/gfx/geometry/point_conversions.h"
-#include "ui/gfx/geometry/point_f.h"
+#include "cobalt/math/point.h"
+#include "cobalt/math/point_f.h"
 
-namespace gfx {
+#include "base/basictypes.h"
+#include "cobalt/math/point_base.h"
+#include "cobalt/math/point_conversions.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace cobalt {
+namespace math {
 
 namespace {
 
@@ -165,4 +167,5 @@ TEST(PointTest, ClampPointF) {
   EXPECT_EQ(PointF(3.5f, 5.5f).ToString(), a.ToString());
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

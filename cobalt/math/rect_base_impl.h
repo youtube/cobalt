@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef MATH_RECT_BASE_IMPL_H_
+#define MATH_RECT_BASE_IMPL_H_
+
+#include <algorithm>
 #include <limits>
 
 #include "base/logging.h"
-#include "base/strings/stringprintf.h"
-#include "ui/gfx/geometry/rect_base.h"
+#include "base/stringprintf.h"
+#include "cobalt/math/rect_base.h"
 
-// This file provides the implementation for RectBaese template and
-// used to instantiate the base class for Rect and RectF classes.
-#if !defined(GFX_IMPLEMENTATION)
-#error "This file is intended for UI implementation only"
-#endif
-
-namespace {
+namespace cobalt {
+namespace math {
 
 template <typename Type>
 void AdjustAlongAxis(Type dst_origin, Type dst_size, Type* origin, Type* size) {
@@ -24,10 +23,6 @@ void AdjustAlongAxis(Type dst_origin, Type dst_size, Type* origin, Type* size) {
   else
     *origin = std::min(dst_origin + dst_size, *origin + *size) - *size;
 }
-
-}  // namespace
-
-namespace gfx {
 
 template <typename Class, typename PointClass, typename SizeClass,
           typename InsetsClass, typename VectorClass, typename Type>
@@ -266,4 +261,7 @@ Type RectBase<Class, PointClass, SizeClass, InsetsClass, VectorClass,
   return x + y;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
+
+#endif  // MATH_RECT_BASE_IMPL_H_

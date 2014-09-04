@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_SIZE_CONVERSIONS_H_
-#define UI_GFX_GEOMETRY_SIZE_CONVERSIONS_H_
+#ifndef MATH_SIZE_CONVERSIONS_H_
+#define MATH_SIZE_CONVERSIONS_H_
 
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/size_f.h"
+#include "cobalt/math/size.h"
+#include "cobalt/math/size_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // Returns a Size with each component from the input SizeF floored.
-GFX_EXPORT Size ToFlooredSize(const SizeF& size);
+Size ToFlooredSize(const SizeF& size);
 
 // Returns a Size with each component from the input SizeF ceiled.
-GFX_EXPORT Size ToCeiledSize(const SizeF& size);
+Size ToCeiledSize(const SizeF& size);
 
 // Returns a Size with each component from the input SizeF rounded.
-GFX_EXPORT Size ToRoundedSize(const SizeF& size);
+Size ToRoundedSize(const SizeF& size);
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_SIZE_CONVERSIONS_H_
+#endif  // MATH_SIZE_CONVERSIONS_H_

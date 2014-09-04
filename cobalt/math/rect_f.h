@@ -2,24 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_RECT_F_H_
-#define UI_GFX_GEOMETRY_RECT_F_H_
+#ifndef MATH_RECT_F_H_
+#define MATH_RECT_F_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/rect_base.h"
-#include "ui/gfx/geometry/size_f.h"
-#include "ui/gfx/geometry/vector2d_f.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/rect_base.h"
+#include "cobalt/math/size_f.h"
+#include "cobalt/math/vector2d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 class InsetsF;
 
-// A floating version of gfx::Rect.
-class GFX_EXPORT RectF
-    : public RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float> {
+// A floating-point version of Rect.
+class RectF : public RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float> {
  public:
   RectF()
       : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>(SizeF()) {}
@@ -78,9 +78,9 @@ inline RectF operator+(const Vector2dF& lhs, const RectF& rhs) {
   return rhs + lhs;
 }
 
-GFX_EXPORT RectF IntersectRects(const RectF& a, const RectF& b);
-GFX_EXPORT RectF UnionRects(const RectF& a, const RectF& b);
-GFX_EXPORT RectF SubtractRects(const RectF& a, const RectF& b);
+RectF IntersectRects(const RectF& a, const RectF& b);
+RectF UnionRects(const RectF& a, const RectF& b);
+RectF SubtractRects(const RectF& a, const RectF& b);
 
 inline RectF ScaleRect(const RectF& r, float x_scale, float y_scale) {
   return RectF(r.x() * x_scale, r.y() * y_scale, r.width() * x_scale,
@@ -97,17 +97,11 @@ inline RectF ScaleRect(const RectF& r, float scale) {
 // points", except that we consider points on the right/bottom edges of the
 // rect to be outside the rect.  So technically one or both points will not be
 // contained within the rect, because they will appear on one of these edges.
-GFX_EXPORT RectF BoundingRect(const PointF& p1, const PointF& p2);
+RectF BoundingRect(const PointF& p1, const PointF& p2);
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
-#endif
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const RectF& rect, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_RECT_F_H_
+#endif  // MATH_RECT_F_H_

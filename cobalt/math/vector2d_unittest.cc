@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/math/vector2d.h"
+#include "cobalt/math/vector2d_f.h"
+
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/geometry/vector2d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 TEST(Vector2dTest, ConversionToFloat) {
   Vector2d i(3, 4);
@@ -105,7 +107,7 @@ TEST(Vector2dTest, Scale) {
     EXPECT_EQ(v.y(), double_values[i][1] * double_values[i][3]);
 
     Vector2dF v2 =
-        ScaleVector2d(gfx::Vector2dF(double_values[i][0], double_values[i][1]),
+        ScaleVector2d(Vector2dF(double_values[i][0], double_values[i][1]),
                       double_values[i][2], double_values[i][3]);
     EXPECT_EQ(double_values[i][0] * double_values[i][2], v2.x());
     EXPECT_EQ(double_values[i][1] * double_values[i][3], v2.y());
@@ -128,7 +130,7 @@ TEST(Vector2dTest, Scale) {
     EXPECT_EQ(v.y(), single_values[i][1] * single_values[i][2]);
 
     Vector2dF v2 =
-        ScaleVector2d(gfx::Vector2dF(double_values[i][0], double_values[i][1]),
+        ScaleVector2d(Vector2dF(double_values[i][0], double_values[i][1]),
                       double_values[i][2]);
     EXPECT_EQ(single_values[i][0] * single_values[i][2], v2.x());
     EXPECT_EQ(single_values[i][1] * single_values[i][2], v2.y());
@@ -228,4 +230,5 @@ TEST(Vector2dTest, ClampVector2dF) {
   EXPECT_EQ(Vector2dF(3.5f, 5.5f).ToString(), a.ToString());
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

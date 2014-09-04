@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_SIZE_BASE_H_
-#define UI_GFX_GEOMETRY_SIZE_BASE_H_
+#ifndef MATH_SIZE_BASE_H_
+#define MATH_SIZE_BASE_H_
 
-#include "ui/gfx/gfx_export.h"
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A size has width and height values.
 template <typename Class, typename Type>
-class GFX_EXPORT SizeBase {
+class SizeBase {
  public:
   Type width() const { return width_; }
   Type height() const { return height_; }
@@ -56,6 +55,7 @@ class GFX_EXPORT SizeBase {
   Type height_;
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_SIZE_BASE_H_
+#endif  // MATH_SIZE_BASE_H_

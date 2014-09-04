@@ -13,12 +13,15 @@
 // robust access method for points and rectangles', Proc ACM SIGMOD Int Conf on
 // Management of Data, 322-331, 1990
 
-#ifndef UI_GFX_GEOMETRY_R_TREE_H_
-#define UI_GFX_GEOMETRY_R_TREE_H_
+#ifndef MATH_R_TREE_H_
+#define MATH_R_TREE_H_
 
-#include "r_tree_base.h"
+#include "cobalt/math/r_tree_base.h"
 
-namespace gfx {
+#include "base/hash_tables.h"
+
+namespace cobalt {
+namespace math {
 
 template <typename Key>
 class RTree : public RTreeBase {
@@ -158,7 +161,6 @@ void RTree<Key>::AppendIntersectingRecords(const Rect& query_rect,
   }
 }
 
-
 // RTree::Record --------------------------------------------------------------
 
 template <typename Key>
@@ -168,6 +170,7 @@ RTree<Key>::Record::Record(const Rect& rect, const Key& key)
 template <typename Key>
 RTree<Key>::Record::~Record() {}
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_R_TREE_H_
+#endif  // MATH_R_TREE_H_

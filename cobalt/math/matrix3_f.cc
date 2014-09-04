@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/matrix3_f.h"
+#include "cobalt/math/matrix3_f.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+namespace cobalt {
+namespace math {
 
 namespace {
 
@@ -34,8 +33,6 @@ double Determinant3x3(T data[M_END]) {
 }
 
 }  // namespace
-
-namespace gfx {
 
 Matrix3F::Matrix3F() {}
 
@@ -76,7 +73,7 @@ bool Matrix3F::IsEqual(const Matrix3F& rhs) const {
 }
 
 bool Matrix3F::IsNear(const Matrix3F& rhs, float precision) const {
-  DCHECK(precision >= 0);
+  DCHECK_GE(precision, 0);
   for (int i = 0; i < M_END; ++i) {
     if (std::abs(data_[i] - rhs.data_[i]) > precision) return false;
   }
@@ -212,4 +209,5 @@ Vector3dF Matrix3F::SolveEigenproblem(Matrix3F* eigenvectors) const {
   return Vector3dF(eigenvalues[0], eigenvalues[1], eigenvalues[2]);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

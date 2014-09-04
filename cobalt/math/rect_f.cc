@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/rect_f.h"
+#include "cobalt/math/rect_f.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/strings/stringprintf.h"
-#include "ui/gfx/geometry/insets_f.h"
-#include "ui/gfx/geometry/rect_base_impl.h"
-#include "ui/gfx/geometry/safe_integer_conversions.h"
+#include "base/stringprintf.h"
+#include "cobalt/math/insets_f.h"
+#include "cobalt/math/rect_base_impl.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
 
@@ -56,4 +57,5 @@ RectF BoundingRect(const PointF& p1, const PointF& p2) {
   return RectF(rx, ry, rr - rx, rb - ry);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

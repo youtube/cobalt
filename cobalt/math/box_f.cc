@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/box_f.h"
+#include "cobalt/math/box_f.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 std::string BoxF::ToString() const {
   return base::StringPrintf("%s %fx%fx%f", origin().ToString().c_str(), width_,
@@ -51,7 +52,7 @@ void BoxF::Union(const BoxF& box) {
 void BoxF::ExpandTo(const Point3F& point) { ExpandTo(point, point); }
 
 void BoxF::ExpandTo(const BoxF& box) {
-  ExpandTo(box.origin(), gfx::Point3F(box.right(), box.bottom(), box.front()));
+  ExpandTo(box.origin(), Point3F(box.right(), box.bottom(), box.front()));
 }
 
 BoxF UnionBoxes(const BoxF& a, const BoxF& b) {
@@ -60,4 +61,5 @@ BoxF UnionBoxes(const BoxF& a, const BoxF& b) {
   return result;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
