@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/cubic_bezier.h"
+#include "cobalt/math/cubic_bezier.h"
 
 #include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 namespace {
 
 TEST(CubicBezierTest, Basic) {
@@ -165,4 +166,5 @@ TEST(CubicBezierTest, Slope) {
 }
 
 }  // namespace
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

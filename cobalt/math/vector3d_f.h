@@ -7,18 +7,18 @@
 // produce a vector, and adding a vector to a point produces the point at the
 // vector's distance from the original point.
 
-#ifndef UI_GFX_GEOMETRY_VECTOR3D_F_H_
-#define UI_GFX_GEOMETRY_VECTOR3D_F_H_
+#ifndef MATH_VECTOR3D_F_H_
+#define MATH_VECTOR3D_F_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/vector2d_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/vector2d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-class GFX_EXPORT Vector3dF {
+class Vector3dF {
  public:
   Vector3dF();
   Vector3dF(float x, float y, float z);
@@ -106,23 +106,19 @@ inline Vector3dF CrossProduct(const Vector3dF& lhs, const Vector3dF& rhs) {
 }
 
 // Return the dot product of two vectors.
-GFX_EXPORT float DotProduct(const Vector3dF& lhs, const Vector3dF& rhs);
+float DotProduct(const Vector3dF& lhs, const Vector3dF& rhs);
 
 // Return a vector that is |v| scaled by the given scale factors along each
 // axis.
-GFX_EXPORT Vector3dF ScaleVector3d(const Vector3dF& v, float x_scale,
-                                   float y_scale, float z_scale);
+Vector3dF ScaleVector3d(const Vector3dF& v, float x_scale, float y_scale,
+                        float z_scale);
 
 // Return a vector that is |v| scaled by the given scale factor.
 inline Vector3dF ScaleVector3d(const Vector3dF& v, float scale) {
   return ScaleVector3d(v, scale, scale, scale);
 }
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Vector3dF& vector, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_VECTOR3D_F_H_
+#endif  // MATH_VECTOR3D_F_H_

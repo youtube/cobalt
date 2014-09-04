@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/r_tree_base.h"
+#include "cobalt/math/r_tree_base.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "base/logging.h"
 
+namespace cobalt {
+namespace math {
 
 // Helpers --------------------------------------------------------------------
 
@@ -15,14 +18,11 @@ namespace {
 
 // Returns a Vector2d to allow us to do arithmetic on the result such as
 // computing distances between centers.
-gfx::Vector2d CenterOfRect(const gfx::Rect& rect) {
+Vector2d CenterOfRect(const Rect& rect) {
   return rect.OffsetFromOrigin() +
-         gfx::Vector2d(rect.width() / 2, rect.height() / 2);
+         Vector2d(rect.width() / 2, rect.height() / 2);
 }
 }
-
-namespace gfx {
-
 
 // RTreeBase::NodeBase --------------------------------------------------------
 
@@ -59,7 +59,6 @@ RTreeBase::RecordBase::RemoveAndReturnLastChild() {
 }
 
 int RTreeBase::RecordBase::Level() const { return -1; }
-
 
 // RTreeBase::Node ------------------------------------------------------------
 
@@ -481,7 +480,6 @@ RTreeBase::Node* RTreeBase::Node::LeastAreaEnlargement(
   return static_cast<Node*>(best_node);
 }
 
-
 // RTreeBase ------------------------------------------------------------------
 
 RTreeBase::RTreeBase(size_t min_children, size_t max_children)
@@ -609,4 +607,5 @@ void RTreeBase::PruneRootIfNecessary() {
 
 void RTreeBase::ResetRoot() { root_.reset(new Node()); }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

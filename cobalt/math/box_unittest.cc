@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/math/box_f.h"
+
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/box_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 TEST(BoxTest, Constructors) {
   EXPECT_EQ(BoxF(0.f, 0.f, 0.f, 0.f, 0.f, 0.f).ToString(), BoxF().ToString());
@@ -155,7 +157,6 @@ TEST(BoxTest, NotEquals) {
   EXPECT_TRUE(BoxF() != BoxF(1.f, 0.f, 0.f, 0.f, 0.f, 0.f));
 }
 
-
 TEST(BoxTest, Offset) {
   BoxF box1(2.f, 3.f, 4.f, 5.f, 6.f, 7.f);
 
@@ -171,4 +172,5 @@ TEST(BoxTest, Offset) {
   EXPECT_EQ(BoxF(3.f, 1.f, 0.f, 5.f, 6.f, 7.f).ToString(), box2.ToString());
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

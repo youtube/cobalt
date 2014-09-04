@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/vector2d.h"
+#include "cobalt/math/vector2d.h"
 
 #include <cmath>
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 bool Vector2d::IsZero() const { return x_ == 0 && y_ == 0; }
 
@@ -34,4 +35,5 @@ std::string Vector2d::ToString() const {
   return base::StringPrintf("[%d %d]", x_, y_);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

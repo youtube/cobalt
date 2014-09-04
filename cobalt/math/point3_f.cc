@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/point3_f.h"
+#include "cobalt/math/point3_f.h"
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 std::string Point3F::ToString() const {
   return base::StringPrintf("%f,%f,%f", x_, y_, z_);
@@ -37,4 +38,5 @@ Vector3dF operator-(const Point3F& lhs, const Point3F& rhs) {
   return Vector3dF(x, y, z);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

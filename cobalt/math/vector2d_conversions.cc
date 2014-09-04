@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/vector2d_conversions.h"
+#include "cobalt/math/vector2d_conversions.h"
 
-#include "ui/gfx/geometry/safe_integer_conversions.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 Vector2d ToFlooredVector2d(const Vector2dF& vector2d) {
   int x = ToFlooredInt(vector2d.x());
@@ -26,4 +27,5 @@ Vector2d ToRoundedVector2d(const Vector2dF& vector2d) {
   return Vector2d(x, y);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

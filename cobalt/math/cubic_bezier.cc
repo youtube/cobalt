@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/cubic_bezier.h"
+#include "cobalt/math/cubic_bezier.h"
 
 #include <algorithm>
 #include <cmath>
 
 #include "base/logging.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 namespace {
 
@@ -122,4 +123,5 @@ void CubicBezier::Range(double* min, double* max) const {
   *max = std::max(std::max(*max, sol_1), sol_2);
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

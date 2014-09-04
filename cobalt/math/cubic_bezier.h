@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_CUBIC_BEZIER_H_
-#define UI_GFX_GEOMETRY_CUBIC_BEZIER_H_
+#ifndef MATH_CUBIC_BEZIER_H_
+#define MATH_CUBIC_BEZIER_H_
 
-#include "base/macros.h"
-#include "ui/gfx/gfx_export.h"
+namespace cobalt {
+namespace math {
 
-namespace gfx {
-
-class GFX_EXPORT CubicBezier {
+class CubicBezier {
  public:
   CubicBezier(double x1, double y1, double x2, double y2);
   ~CubicBezier();
@@ -30,10 +28,9 @@ class GFX_EXPORT CubicBezier {
   double y1_;
   double x2_;
   double y2_;
-
-  DISALLOW_ASSIGN(CubicBezier);
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_CUBIC_BEZIER_H_
+#endif  // MATH_CUBIC_BEZIER_H_
