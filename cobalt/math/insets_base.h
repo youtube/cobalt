@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_INSETS_BASE_H_
-#define UI_GFX_GEOMETRY_INSETS_BASE_H_
+#ifndef MATH_INSETS_BASE_H_
+#define MATH_INSETS_BASE_H_
 
-#include "ui/gfx/gfx_export.h"
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // An insets represents the borders of a container (the space the container must
 // leave at each of its edges).
 template <typename Class, typename Type>
-class GFX_EXPORT InsetsBase {
+class InsetsBase {
  public:
   Type top() const { return top_; }
   Type left() const { return left_; }
@@ -68,6 +67,7 @@ class GFX_EXPORT InsetsBase {
   Type right_;
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_INSETS_BASE_H_
+#endif  // MATH_INSETS_BASE_H_

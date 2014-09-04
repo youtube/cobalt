@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/point_f.h"
+#include "cobalt/math/point_f.h"
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 template class PointBase<PointF, float, Vector2dF>;
 
@@ -20,5 +21,5 @@ PointF ScalePoint(const PointF& p, float x_scale, float y_scale) {
   return scaled_p;
 }
 
-
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

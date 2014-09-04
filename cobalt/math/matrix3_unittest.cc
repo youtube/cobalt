@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/math/matrix3_f.h"
+
 #include <cmath>
 #include <limits>
 
 #include "base/basictypes.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/matrix3_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 namespace {
 
 TEST(Matrix3fTest, Constructors) {
@@ -115,7 +117,17 @@ TEST(Matrix3fTest, EigenvectorsNiceNotPositive) {
   matrix.set(3, 2, 4, 2, 0, 2, 4, 2, 3);
   Matrix3F eigenvectors = Matrix3F::Zeros();
   Vector3dF eigenvals = matrix.SolveEigenproblem(&eigenvectors);
-  EXPECT_EQ(Vector3dF(8.0f, -1.0f, -1.0f), eigenvals);
+
+  // The below three EXPECT_NEARs are changed from
+  //   EXPECT_EQ(Vector3dF(8.0f, -1.0f, -1.0f), eigenvals);
+  // because the test fails on PS3.
+  //   Value of: eigenvals.y()
+  //   Actual: -0.99999952
+  //   Expected: -1.0f
+  //   Which is: -1
+  EXPECT_NEAR(8.0f, eigenvals.x(), 0.000001f);
+  EXPECT_NEAR(-1.0f, eigenvals.y(), 0.000001f);
+  EXPECT_NEAR(-1.0f, eigenvals.z(), 0.000001f);
 
   Vector3dF expected_principal(0.66666667f, 0.33333333f, 0.66666667f);
   EXPECT_NEAR(0.0f, (expected_principal - eigenvectors.get_column(0)).Length(),
@@ -138,5 +150,7 @@ TEST(Matrix3fTest, EigenvectorsPositiveDefinite) {
                             -0.2916096f, 0.76941158f);
   EXPECT_TRUE(expected_eigenvectors.IsNear(eigenvectors, 0.00001f));
 }
-}
-}  // namespace gfx
+
+}  // namespace
+}  // namespace math
+}  // namespace cobalt

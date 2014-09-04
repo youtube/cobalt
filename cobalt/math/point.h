@@ -2,51 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_POINT_H_
-#define UI_GFX_GEOMETRY_POINT_H_
+#ifndef MATH_POINT_H_
+#define MATH_POINT_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point_base.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/point_base.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/vector2d.h"
 
-#if defined(OS_WIN)
-typedef unsigned long DWORD;
-typedef struct tagPOINT POINT;
-#elif defined(OS_IOS)
-#include <CoreGraphics/CoreGraphics.h>
-#elif defined(OS_MACOSX)
-#include <ApplicationServices/ApplicationServices.h>
-#endif
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A point has an x and y coordinate.
-class GFX_EXPORT Point : public PointBase<Point, int, Vector2d> {
+class Point : public PointBase<Point, int, Vector2d> {
  public:
   Point() : PointBase<Point, int, Vector2d>(0, 0) {}
   Point(int x, int y) : PointBase<Point, int, Vector2d>(x, y) {}
-#if defined(OS_WIN)
-  // |point| is a DWORD value that contains a coordinate.  The x-coordinate is
-  // the low-order short and the y-coordinate is the high-order short.  This
-  // value is commonly acquired from GetMessagePos/GetCursorPos.
-  explicit Point(DWORD point);
-  explicit Point(const POINT& point);
-  Point& operator=(const POINT& point);
-#elif defined(OS_MACOSX)
-  explicit Point(const CGPoint& point);
-#endif
 
   ~Point() {}
-
-#if defined(OS_WIN)
-  POINT ToPOINT() const;
-#elif defined(OS_MACOSX)
-  CGPoint ToCGPoint() const;
-#endif
 
   operator PointF() const { return PointF(x(), y()); }
 
@@ -82,15 +57,9 @@ inline Point PointAtOffsetFromOrigin(const Vector2d& offset_from_origin) {
   return Point(offset_from_origin.x(), offset_from_origin.y());
 }
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class PointBase<Point, int, Vector2d>;
-#endif
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Point& point, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_POINT_H_
+#endif  // MATH_POINT_H_

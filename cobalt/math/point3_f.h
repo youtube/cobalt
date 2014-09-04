@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_POINT3_F_H_
-#define UI_GFX_GEOMETRY_POINT3_F_H_
+#ifndef MATH_POINT3_F_H_
+#define MATH_POINT3_F_H_
 
 #include <iosfwd>
 #include <string>
 
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/vector3d_f.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/vector3d_f.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A point has an x, y and z coordinate.
-class GFX_EXPORT Point3F {
+class Point3F {
  public:
   Point3F() : x_(0), y_(0), z_(0) {}
 
@@ -89,15 +89,15 @@ inline bool operator!=(const Point3F& lhs, const Point3F& rhs) {
 }
 
 // Add a vector to a point, producing a new point offset by the vector.
-GFX_EXPORT Point3F operator+(const Point3F& lhs, const Vector3dF& rhs);
+Point3F operator+(const Point3F& lhs, const Vector3dF& rhs);
 
 // Subtract a vector from a point, producing a new point offset by the vector's
 // inverse.
-GFX_EXPORT Point3F operator-(const Point3F& lhs, const Vector3dF& rhs);
+Point3F operator-(const Point3F& lhs, const Vector3dF& rhs);
 
 // Subtract one point from another, producing a vector that represents the
 // distances between the two points along each axis.
-GFX_EXPORT Vector3dF operator-(const Point3F& lhs, const Point3F& rhs);
+Vector3dF operator-(const Point3F& lhs, const Point3F& rhs);
 
 inline Point3F PointAtOffsetFromOrigin(const Vector3dF& offset) {
   return Point3F(offset.x(), offset.y(), offset.z());
@@ -112,11 +112,7 @@ inline Point3F ScalePoint(const Point3F& p, float scale) {
   return ScalePoint(p, scale, scale, scale);
 }
 
-// This is declared here for use in gtest-based unit tests but is defined in
-// the gfx_test_support target. Depend on that to use this in your unit test.
-// This should not be used in production code - call ToString() instead.
-void PrintTo(const Point3F& point, ::std::ostream* os);
+}  // namespace math
+}  // namespace cobalt
 
-}  // namespace gfx
-
-#endif  // UI_GFX_GEOMETRY_POINT3_F_H_
+#endif  // MATH_POINT3_F_H_

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/vector3d_f.h"
+#include "cobalt/math/vector3d_f.h"
 
 #include <cmath>
 
-#include "base/strings/stringprintf.h"
+#include "base/stringprintf.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 Vector3dF::Vector3dF() : x_(0), y_(0), z_(0) {}
 
@@ -70,4 +71,5 @@ Vector3dF ScaleVector3d(const Vector3dF& v, float x_scale, float y_scale,
   return scaled_v;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

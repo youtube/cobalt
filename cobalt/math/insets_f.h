@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_INSETS_F_H_
-#define UI_GFX_GEOMETRY_INSETS_F_H_
+#ifndef MATH_INSETS_F_H_
+#define MATH_INSETS_F_H_
 
 #include <string>
 
-#include "build/build_config.h"
-#include "ui/gfx/geometry/insets_base.h"
-#include "ui/gfx/gfx_export.h"
+#include "cobalt/math/insets_base.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
-// A floating versin of gfx::Insets.
-class GFX_EXPORT InsetsF : public InsetsBase<InsetsF, float> {
+// A floating-point version of Insets.
+class InsetsF : public InsetsBase<InsetsF, float> {
  public:
   InsetsF();
   InsetsF(float top, float left, float bottom, float right);
@@ -24,10 +23,9 @@ class GFX_EXPORT InsetsF : public InsetsBase<InsetsF, float> {
   std::string ToString() const;
 };
 
-#if !defined(COMPILER_MSVC) && !defined(__native_client__)
 extern template class InsetsBase<InsetsF, float>;
-#endif
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_INSETS_F_H_
+#endif  // MATH_INSETS_F_H_

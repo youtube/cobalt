@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_SAFE_INTEGER_CONVERSIONS_H_
-#define UI_GFX_GEOMETRY_SAFE_INTEGER_CONVERSIONS_H_
+#ifndef MATH_SAFE_INTEGER_CONVERSIONS_H_
+#define MATH_SAFE_INTEGER_CONVERSIONS_H_
 
 #include <cmath>
 #include <limits>
 
-#include "ui/gfx/gfx_export.h"
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 inline int ClampToInt(float value) {
   if (value != value) return 0;  // no int NaN.
@@ -41,6 +40,7 @@ inline bool IsExpressibleAsInt(float value) {
   return true;
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_SAFE_INTEGER_CONVERSIONS_H_
+#endif  // MATH_SAFE_INTEGER_CONVERSIONS_H_

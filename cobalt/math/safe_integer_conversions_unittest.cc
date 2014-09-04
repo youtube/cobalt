@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/gfx/geometry/safe_integer_conversions.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
 #include <limits>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 TEST(SafeIntegerConversions, ClampToInt) {
   EXPECT_EQ(0, ClampToInt(std::numeric_limits<float>::quiet_NaN()));
@@ -106,4 +107,5 @@ TEST(SafeIntegerConversions, ToRoundedInt) {
   EXPECT_EQ(int_min, ToRoundedInt(min - 100));
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

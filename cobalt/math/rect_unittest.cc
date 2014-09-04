@@ -2,19 +2,44 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "cobalt/math/rect.h"
+
 #include <limits>
 
 #include "base/basictypes.h"
+#include "cobalt/math/box_f.h"
+#include "cobalt/math/rect_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rect_conversions.h"
-#include "ui/gfx/test/gfx_util.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#endif
+namespace cobalt {
+namespace math {
 
-namespace gfx {
+#define EXPECT_RECTF_EQ(a, b) EXPECT_PRED_FORMAT2(AssertRectFloatEqual, a, b)
+
+namespace {
+
+bool FloatAlmostEqual(float a, float b) {
+  // FloatLE is the gtest predicate for less than or almost equal to.
+  return ::testing::FloatLE("a", "b", a, b) &&
+         ::testing::FloatLE("b", "a", b, a);
+}
+
+}  // namespace
+
+::testing::AssertionResult AssertRectFloatEqual(const char* lhs_expr,
+                                                const char* rhs_expr,
+                                                const RectF& lhs,
+                                                const RectF& rhs) {
+  if (FloatAlmostEqual(lhs.x(), rhs.x()) &&
+      FloatAlmostEqual(lhs.y(), rhs.y()) &&
+      FloatAlmostEqual(lhs.width(), rhs.width()) &&
+      FloatAlmostEqual(lhs.height(), rhs.height())) {
+    return ::testing::AssertionSuccess();
+  }
+  return ::testing::AssertionFailure()
+         << "Value of: " << rhs_expr << "\n  Actual: " << rhs.ToString()
+         << "\nExpected: " << lhs_expr << "\nWhich is: " << lhs.ToString();
+}
 
 TEST(RectTest, Contains) {
   static const struct ContainsCase {
@@ -610,15 +635,6 @@ TEST(RectTest, ScaleToEnclosingRect) {
   }
 }
 
-#if defined(OS_WIN)
-TEST(RectTest, ConstructAndAssign) {
-  const RECT rect_1 = {0, 0, 10, 10};
-  const RECT rect_2 = {0, 0, -10, -10};
-  Rect test1(rect_1);
-  Rect test2(rect_2);
-}
-#endif
-
 TEST(RectTest, ToRectF) {
   // Check that implicit conversion from integer to float compiles.
   Rect a(10, 20, 30, 40);
@@ -783,37 +799,38 @@ TEST(RectTest, ManhattanDistanceToPoint) {
 
 TEST(RectTest, ManhattanInternalDistance) {
   Rect i(0, 0, 400, 400);
-  EXPECT_EQ(0, i.ManhattanInternalDistance(gfx::Rect(-1, 0, 2, 1)));
-  EXPECT_EQ(1, i.ManhattanInternalDistance(gfx::Rect(400, 0, 1, 400)));
-  EXPECT_EQ(2, i.ManhattanInternalDistance(gfx::Rect(-100, -100, 100, 100)));
-  EXPECT_EQ(2, i.ManhattanInternalDistance(gfx::Rect(-101, 100, 100, 100)));
-  EXPECT_EQ(4, i.ManhattanInternalDistance(gfx::Rect(-101, -101, 100, 100)));
-  EXPECT_EQ(435, i.ManhattanInternalDistance(gfx::Rect(630, 603, 100, 100)));
+  EXPECT_EQ(0, i.ManhattanInternalDistance(Rect(-1, 0, 2, 1)));
+  EXPECT_EQ(1, i.ManhattanInternalDistance(Rect(400, 0, 1, 400)));
+  EXPECT_EQ(2, i.ManhattanInternalDistance(Rect(-100, -100, 100, 100)));
+  EXPECT_EQ(2, i.ManhattanInternalDistance(Rect(-101, 100, 100, 100)));
+  EXPECT_EQ(4, i.ManhattanInternalDistance(Rect(-101, -101, 100, 100)));
+  EXPECT_EQ(435, i.ManhattanInternalDistance(Rect(630, 603, 100, 100)));
 
   RectF f(0.0f, 0.0f, 400.0f, 400.0f);
   static const float kEpsilon = std::numeric_limits<float>::epsilon();
 
+  EXPECT_FLOAT_EQ(0.0f,
+                  f.ManhattanInternalDistance(RectF(-1.0f, 0.0f, 2.0f, 1.0f)));
   EXPECT_FLOAT_EQ(
-      0.0f, f.ManhattanInternalDistance(gfx::RectF(-1.0f, 0.0f, 2.0f, 1.0f)));
-  EXPECT_FLOAT_EQ(kEpsilon, f.ManhattanInternalDistance(
-                                gfx::RectF(400.0f, 0.0f, 1.0f, 400.0f)));
-  EXPECT_FLOAT_EQ(2.0f * kEpsilon, f.ManhattanInternalDistance(gfx::RectF(
+      kEpsilon, f.ManhattanInternalDistance(RectF(400.0f, 0.0f, 1.0f, 400.0f)));
+  EXPECT_FLOAT_EQ(2.0f * kEpsilon, f.ManhattanInternalDistance(RectF(
                                        -100.0f, -100.0f, 100.0f, 100.0f)));
-  EXPECT_FLOAT_EQ(1.0f + kEpsilon, f.ManhattanInternalDistance(gfx::RectF(
-                                       -101.0f, 100.0f, 100.0f, 100.0f)));
-  EXPECT_FLOAT_EQ(2.0f + 2.0f * kEpsilon,
-                  f.ManhattanInternalDistance(
-                      gfx::RectF(-101.0f, -101.0f, 100.0f, 100.0f)));
+  EXPECT_FLOAT_EQ(1.0f + kEpsilon, f.ManhattanInternalDistance(
+                                       RectF(-101.0f, 100.0f, 100.0f, 100.0f)));
+  EXPECT_FLOAT_EQ(
+      2.0f + 2.0f * kEpsilon,
+      f.ManhattanInternalDistance(RectF(-101.0f, -101.0f, 100.0f, 100.0f)));
   EXPECT_FLOAT_EQ(
       433.0f + 2.0f * kEpsilon,
-      f.ManhattanInternalDistance(gfx::RectF(630.0f, 603.0f, 100.0f, 100.0f)));
+      f.ManhattanInternalDistance(RectF(630.0f, 603.0f, 100.0f, 100.0f)));
 
-  EXPECT_FLOAT_EQ(
-      0.0f, f.ManhattanInternalDistance(gfx::RectF(-1.0f, 0.0f, 1.1f, 1.0f)));
-  EXPECT_FLOAT_EQ(0.1f + kEpsilon, f.ManhattanInternalDistance(
-                                       gfx::RectF(-1.5f, 0.0f, 1.4f, 1.0f)));
-  EXPECT_FLOAT_EQ(kEpsilon, f.ManhattanInternalDistance(
-                                gfx::RectF(-1.5f, 0.0f, 1.5f, 1.0f)));
+  EXPECT_FLOAT_EQ(0.0f,
+                  f.ManhattanInternalDistance(RectF(-1.0f, 0.0f, 1.1f, 1.0f)));
+  EXPECT_FLOAT_EQ(0.1f + kEpsilon,
+                  f.ManhattanInternalDistance(RectF(-1.5f, 0.0f, 1.4f, 1.0f)));
+  EXPECT_FLOAT_EQ(kEpsilon,
+                  f.ManhattanInternalDistance(RectF(-1.5f, 0.0f, 1.5f, 1.0f)));
 }
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt

@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_GEOMETRY_POINT_BASE_H_
-#define UI_GFX_GEOMETRY_POINT_BASE_H_
+#ifndef MATH_POINT_BASE_H_
+#define MATH_POINT_BASE_H_
 
 #include <string>
 
-#include "base/compiler_specific.h"
-#include "build/build_config.h"
-#include "ui/gfx/gfx_export.h"
-
-namespace gfx {
+namespace cobalt {
+namespace math {
 
 // A point has an x and y coordinate.
 template <typename Class, typename Type, typename VectorClass>
-class GFX_EXPORT PointBase {
+class PointBase {
  public:
   Type x() const { return x_; }
   Type y() const { return y_; }
@@ -78,6 +75,7 @@ class GFX_EXPORT PointBase {
   Type y_;
 };
 
-}  // namespace gfx
+}  // namespace math
+}  // namespace cobalt
 
-#endif  // UI_GFX_GEOMETRY_POINT_BASE_H_
+#endif  // MATH_POINT_BASE_H_
