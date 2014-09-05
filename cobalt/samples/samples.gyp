@@ -104,8 +104,8 @@
           'action_name': 'copy_test_data',
           'variables': {
             'test_data_files': [
-              'data/data.txt',
-              'data/test_cases/',
+              'testdata/data.txt',
+              'testdata/test_cases/',
             ],
             'test_data_prefix': 'cobalt/samples',
           },

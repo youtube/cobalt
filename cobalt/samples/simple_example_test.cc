@@ -72,16 +72,15 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
-                     .Append(FILE_PATH_LITERAL("samples"))
-                     .Append(FILE_PATH_LITERAL("data"))
-                     .Append(FILE_PATH_LITERAL("test_cases"));
+                 .Append(FILE_PATH_LITERAL("samples"))
+                 .Append(FILE_PATH_LITERAL("testdata"))
+                 .Append(FILE_PATH_LITERAL("test_cases"));
   ASSERT_TRUE(file_util::PathExists(data_dir));
 
   const char* kCaseFiles[] = {
-    "case1.txt",
-    "case2.txt",
-    "case3.txt",
+      "case1.txt", "case2.txt", "case3.txt",
   };
+  const int kNumInputArgs = 3;
 
   for (int i = 0; i < arraysize(kCaseFiles); ++i) {
     // Read test input.
@@ -90,11 +89,12 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
                                             &test_input_string));
     std::vector<std::string> test_input;
     base::SplitString(test_input_string, ' ', &test_input);
-    ASSERT_EQ(3, test_input.size());
+    ASSERT_EQ(kNumInputArgs, test_input.size());
 
-    int test_input_args[3] = { 0 };
-    for (int i = 0; i < 3; ++i) {
-      ASSERT_TRUE(base::StringToInt(test_input[i], &test_input_args[i]));
+    // Convert input arguments from strings to integers.
+    int test_input_args[kNumInputArgs] = {0};
+    for (int j = 0; j < kNumInputArgs; ++j) {
+      ASSERT_TRUE(base::StringToInt(test_input[j], &test_input_args[j]));
     }
 
     // Read expected test result.
@@ -108,8 +108,8 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
     ASSERT_TRUE(base::StringToInt(expected_string, &expected_result));
 
     example_.set_multiplier(test_input_args[0]);
-    const int result = example_.MultiplyAdd(test_input_args[1],
-                                            test_input_args[2]);
+    const int result =
+        example_.MultiplyAdd(test_input_args[1], test_input_args[2]);
 
     // Check the result.
     EXPECT_EQ(result, expected_result);
@@ -120,8 +120,8 @@ TEST_F(SimpleExampleTest, PrintData) {
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
-                     .Append(FILE_PATH_LITERAL("samples"))
-                     .Append(FILE_PATH_LITERAL("data"));
+                 .Append(FILE_PATH_LITERAL("samples"))
+                 .Append(FILE_PATH_LITERAL("testdata"));
   ASSERT_TRUE(file_util::PathExists(data_dir));
 
   std::string data_string;
