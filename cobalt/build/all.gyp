@@ -21,8 +21,10 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/cobalt/samples/samples.gyp:simple_example_deploy',
-        '<(DEPTH)/cobalt/samples/samples.gyp:simple_example_test_deploy',
+        '<(DEPTH)/cobalt/browser/browser.gyp:*',
+
+        # Include the samples to make sure that they always compile and work.
+        '<(DEPTH)/cobalt/samples/samples.gyp:*',
       ]
     }
   ],
