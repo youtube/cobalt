@@ -65,7 +65,6 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
 
   // Callbacks Javascript Handlers, if any.
   bool CallbackJsHttpRequest(int conn_id, const HttpServerRequestInfo& info);
-  void ReceivedResponse(int, HttpServerResponseInfo*, bool);
   void AsyncReceivedResponse(int, HttpServerResponseInfo*, bool);
 
   scoped_ptr<TCPListenSocketFactory> factory_;
