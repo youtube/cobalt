@@ -18,7 +18,7 @@
 
 namespace {
 
-media::ShellMediaPlatform* g_shell_media_platform_;
+media::ShellMediaPlatform* s_shell_media_platform_;
 
 }  // namespace
 
@@ -26,13 +26,13 @@ namespace media {
 
 // static
 ShellMediaPlatform* ShellMediaPlatform::Instance() {
-  return g_shell_media_platform_;
+  return s_shell_media_platform_;
 }
 
 // static
 void ShellMediaPlatform::SetInstance(
     ShellMediaPlatform* shell_media_platform) {
-  g_shell_media_platform_ = shell_media_platform;
+  s_shell_media_platform_ = shell_media_platform;
 }
 
 }  // namespace media

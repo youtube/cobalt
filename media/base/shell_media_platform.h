@@ -66,10 +66,13 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return limits::kMaxVideoFrames;
   }
 
- protected:
+ private:
   static void SetInstance(ShellMediaPlatform* shell_media_platform);
 
- private:
+  // Platform specific media Init and Tear down.
+  virtual void InternalInitialize() const = 0;
+  virtual void InternalTerminate() const = 0;
+
   DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatform);
 };
 
@@ -80,9 +83,11 @@ class MEDIA_EXPORT ShellMediaPlatform {
     void ShellMediaPlatform::Initialize() {      \
       DCHECK(!Instance());                       \
       SetInstance(new ClassName);                \
+      Instance()->InternalInitialize();          \
     }                                            \
     void ShellMediaPlatform::Terminate() {       \
       DCHECK(Instance());                        \
+      Instance()->InternalTerminate();           \
       delete Instance();                         \
       SetInstance(NULL);                         \
     }                                            \
