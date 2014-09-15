@@ -14,12 +14,13 @@
 
 {
   'targets': [
+
     {
-      'target_name': 'web_content',
+      'target_name': 'browser',
       'type': 'static_library',
       'sources': [
-        'web_content.h',
         'web_content.cc',
+        'web_content.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -29,24 +30,14 @@
     },
 
     {
-      'target_name': 'web_content_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'web_content_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'web_content',
-      ],
-
+      'target_name': 'browser_copy_test_data',
+      'type': 'none',
       'actions': [
         {
-          'action_name': 'copy_test_data',
+          'action_name': 'browser_copy_test_data',
           'variables': {
             'test_data_files': [
-              'testdata/',
+              '<(DEPTH)/cobalt/browser/testdata/',
             ],
             'test_data_prefix': 'cobalt/browser',
           },
@@ -56,15 +47,40 @@
     },
 
     {
-      'target_name': 'web_content_test_deploy',
+      'target_name': 'browser_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'web_content_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/testing/testing.gyp:browser_testing',
+        'browser',
+        'browser_copy_test_data',
+      ],
+    },
+
+    {
+      'target_name': 'browser_test_deploy',
       'type': 'none',
       'dependencies': [
-        'web_content_test',
+        'browser_test',
       ],
       'variables': {
-        'executable_name': 'web_content_test',
+        'executable_name': 'browser_test',
       },
       'includes': [ '../build/deploy.gypi' ],
+    },
+
+    # This target make the browser component tests visible to the toolchain.
+    {
+      'target_name': 'browser_component_tests',
+      'type': 'none',
+      'dependencies': [
+        '<(DEPTH)/cobalt/browser/css/css.gyp:css_test_deploy',
+        '<(DEPTH)/cobalt/browser/html/html.gyp:html_test_deploy',
+      ],
     },
 
   ],
