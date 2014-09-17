@@ -18,6 +18,7 @@
       'target_name': 'base',
       'type': 'static_library',
       'sources': [
+        'cobalt_paths.h'
         'compiler.h',
         'init_cobalt.h',
         'init_cobalt.cc',
