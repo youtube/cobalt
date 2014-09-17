@@ -25,6 +25,10 @@
 
         # Include the samples to make sure that they always compile and work.
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
+
+        # Include the skia sandbox app to ensure it compiles and works on
+        # all platforms.
+        '<(DEPTH)/cobalt/renderer/skia/sandbox/sandbox.gyp:*',
       ]
     }
   ],
