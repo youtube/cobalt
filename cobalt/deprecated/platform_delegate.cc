@@ -16,15 +16,56 @@
 
 #include "cobalt/deprecated/platform_delegate.h"
 
-namespace cobalt {
+#include "base/file_path.h"
+#include "base/logging.h"
+#include "base/path_service.h"
+#include "cobalt/base/cobalt_paths.h"
+#include "lbshell/src/lb_globals.h"
 
+namespace cobalt {
 namespace deprecated {
+namespace {
+
+bool PathProvider(int key, FilePath* result) {
+  const global_values_t* global_values = GetGlobalsPtr();
+  if (!global_values) {
+    return false;
+  }
+
+  switch (key) {
+    case paths::DIR_COBALT_LOGS:
+      if (global_values->logging_output_path) {
+        *result = FilePath(global_values->logging_output_path);
+        return true;
+      }
+      return false;
+
+    case paths::DIR_COBALT_SCREENSHOTS:
+      if (global_values->screenshot_output_path) {
+        *result = FilePath(global_values->screenshot_output_path);
+        return true;
+      }
+      return false;
+
+    default:
+      return false;
+  }
+
+  NOTREACHED();
+  return false;
+}
+
+}  // namespace
 
 // static
 void PlatformDelegate::Init() {
   PlatformInit();
 
   PlatformMediaInit();
+
+  // Register a path provider for Cobalt-specific paths.
+  PathService::RegisterProvider(&PathProvider, paths::PATH_COBALT_START,
+                                paths::PATH_COBALT_END);
 }
 
 // static
@@ -35,5 +76,4 @@ void PlatformDelegate::Teardown() {
 }
 
 }   // namespace deprecated
-
 }   // namespace cobalt
