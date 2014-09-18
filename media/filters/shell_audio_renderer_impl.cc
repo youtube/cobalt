@@ -378,13 +378,17 @@ void ShellAudioRendererImpl::DecodedAudioReady(
         // Here we assume that a non-interleaved audio_bus means that the
         // decoder output is in planar form, where each channel follows the
         // other in the decoded buffer.
-        const int kAudioBusFrameSize =
-            decoded_audio_bus_->frames() * sizeof(float);
+        int audio_bus_size_per_channel_in_bytes =
+            buffer->GetDataSize() / decoded_audio_bus_->channels();
+        // TODO(***REMOVED***) : Change this to DCHECK_LE once we support Read with
+        //                   arbitrary size.
+        DCHECK_EQ(audio_bus_size_per_channel_in_bytes,
+                  decoded_audio_bus_->frames() * sizeof(float));
         for (int i = 0; i < decoded_audio_bus_->channels(); ++i) {
           const uint8_t* decoded_channel_data =
-              buffer->GetData() + (i * kAudioBusFrameSize);
+              buffer->GetData() + (i * audio_bus_size_per_channel_in_bytes);
           memcpy(decoded_audio_bus_->channel(i), decoded_channel_data,
-                 kAudioBusFrameSize);
+                 audio_bus_size_per_channel_in_bytes);
         }
       }
       // This is read by the renderer thread in Render(), but will only be read
@@ -393,7 +397,7 @@ void ShellAudioRendererImpl::DecodedAudioReady(
     }
   } else {
     DCHECK(status == AudioDecoder::kAborted ||
-        status == AudioDecoder::kDecodeError);
+           status == AudioDecoder::kDecodeError);
     DLOG_IF(WARNING, status == AudioDecoder::kDecodeError)
         << "audio decoder returned decode error";
     DLOG_IF(WARNING, status == AudioDecoder::kAborted)
@@ -415,8 +419,8 @@ void ShellAudioRendererImpl::DecodedAudioReady(
 }
 
 // CAUTION: this method will not usually execute on the renderer thread!
-// On Android, this is normally called by the system audio thread, and must
-// not block or perform high-latency operations
+// This is normally called by the system audio thread, and must not block or
+// perform high-latency operations.
 int ShellAudioRendererImpl::Render(AudioBus* dest,
                                    int audio_delay_milliseconds) {
   // Use the previous value for rendered_timestamp_ and audio_delay_milliseconds
@@ -479,6 +483,9 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
         }
         if (end_of_stream_state_ == kRenderedEOS) {
           const int bytes_per_sample = audio_parameters_.bits_per_sample() / 8;
+          // TODO(***REMOVED***) : Change this to DCHECK_LE and fill only
+          // kSamplesPerFrame instead of dest->frames() once we support
+          // Read with arbitrary size.
           DCHECK_EQ(mp4::AAC::kSamplesPerFrame * bytes_per_sample *
                         audio_parameters_.channels(),
                     dest->frames() * dest->channels() * sizeof(float));

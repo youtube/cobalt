@@ -20,6 +20,7 @@
 
 #include "media/audio/mock_shell_audio_streamer.h"
 #include "media/base/mock_filters.h"
+#include "media/mp4/aac.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,6 +33,7 @@ namespace {
 using namespace testing;
 
 const uint32 kMaxHardwareChannelsStereo = 2;
+const size_t kSamplesPerFrame = media::mp4::AAC::kSamplesPerFrame;
 
 bool operator ==(const media::AudioParameters& params1,
                  const media::AudioParameters& params2) {
@@ -284,10 +286,8 @@ TEST_F(ShellAudioSinkTest, Prerequisites) {
 }
 
 TEST_F(ShellAudioSinkTest, Initialize) {
-  const uint32 renderer_request_frames = 1024;
   const uint32 initial_rebuffering_frames_per_channel = 2048;
-  const uint32 max_frames_per_channel = 8192;
-  const uint32 initial_frames_per_channel = 4096;
+  const uint32 sink_buffer_size_in_frames_per_channel = 8192;
 
   // 2 configurations with different interleaved
   for (int i = 0; i < 2; ++i) {
@@ -298,8 +298,8 @@ TEST_F(ShellAudioSinkTest, Initialize) {
            bytes_per_sample *= 2) {
         Config config(
             i == 0 ? Config::INTERLEAVED : Config::PLANAR,
-            initial_rebuffering_frames_per_channel, max_frames_per_channel,
-            initial_frames_per_channel, renderer_request_frames,
+            initial_rebuffering_frames_per_channel,
+            sink_buffer_size_in_frames_per_channel,
             kMaxHardwareChannelsStereo,
             bytes_per_sample,
             48000  /* output_sample_rate */);
@@ -320,13 +320,14 @@ TEST_F(ShellAudioSinkTest, Initialize) {
         if (config.interleaved()) {
           EXPECT_EQ(audio_bus->channels(), 1);
           EXPECT_EQ(audio_bus->frames(),
-              config.initial_frames_per_channel() * expected_channels *
-              bytes_per_sample / sizeof(float));
+              config.sink_buffer_size_in_frames_per_channel() *
+              expected_channels * bytes_per_sample / sizeof(float));
           EXPECT_EQ(params.channels(), init_params.channels());
         } else {
           EXPECT_EQ(audio_bus->channels(), expected_channels);
-          EXPECT_EQ(audio_bus->frames(), config.initial_frames_per_channel() *
-              bytes_per_sample / sizeof(float));
+          EXPECT_EQ(audio_bus->frames(),
+              config.sink_buffer_size_in_frames_per_channel() * bytes_per_sample
+              / sizeof(float));
           EXPECT_EQ(params.channels(), init_params.channels());
         }
 
@@ -338,14 +339,12 @@ TEST_F(ShellAudioSinkTest, Initialize) {
 }
 
 TEST_F(ShellAudioSinkTest, StartAndStop) {
-  const uint32 renderer_request_frames = 1024;
   const uint32 initial_rebuffering_frames_per_channel = 2048;
-  const uint32 max_frames_per_channel = 8192;
-  const uint32 initial_frames_per_channel = 4096;
+  const uint32 sink_buffer_size_in_frames_per_channel = 8192;
 
   Config config(Config::INTERLEAVED,
-                initial_rebuffering_frames_per_channel, max_frames_per_channel,
-                initial_frames_per_channel, renderer_request_frames,
+                initial_rebuffering_frames_per_channel,
+                sink_buffer_size_in_frames_per_channel,
                 kMaxHardwareChannelsStereo,
                 sizeof(int16_t)  /* bytes_per_sample */,
                 48000  /* output_sample_rate */);
@@ -371,14 +370,12 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderNoFrames) {
-  const uint32 renderer_request_frames = 1024;
   const uint32 initial_rebuffering_frames_per_channel = 2048;
-  const uint32 max_frames_per_channel = 8192;
-  const uint32 initial_frames_per_channel = 4096;
+  const uint32 sink_buffer_size_in_frames_per_channel = 8192;
 
   Config config(Config::INTERLEAVED,
-                initial_rebuffering_frames_per_channel, max_frames_per_channel,
-                initial_frames_per_channel, renderer_request_frames,
+                initial_rebuffering_frames_per_channel,
+                sink_buffer_size_in_frames_per_channel,
                 kMaxHardwareChannelsStereo,
                 sizeof(int16_t)  /* bytes_per_sample */,
                 48000  /* output_sample_rate */);
@@ -407,16 +404,14 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderFrames) {
-  const uint32 renderer_request_frames = 1024;
   const uint32 initial_rebuffering_frames_per_channel = 2048;
-  const uint32 max_frames_per_channel = 8192;
-  const uint32 initial_frames_per_channel = 4096;
+  const uint32 sink_buffer_size_in_frames_per_channel = 8192;
 
   for (int i = 0; i < 2; ++i) {
     Config config(
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
-        initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames,
+        initial_rebuffering_frames_per_channel,
+        sink_buffer_size_in_frames_per_channel,
         kMaxHardwareChannelsStereo,
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
@@ -475,16 +470,14 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
-  const uint32 renderer_request_frames = 64;
-  const uint32 initial_rebuffering_frames_per_channel = 128;
-  const uint32 max_frames_per_channel = 128;
-  const uint32 initial_frames_per_channel = 128;
+  const uint32 initial_rebuffering_frames_per_channel = 2048;
+  const uint32 sink_buffer_size_in_frames_per_channel = 2048;
 
   for (int i = 0; i < 2; ++i) {
     Config config(
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
-        initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames,
+        initial_rebuffering_frames_per_channel,
+        sink_buffer_size_in_frames_per_channel,
         kMaxHardwareChannelsStereo,
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
@@ -505,65 +498,61 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
     sink_->Start();
 
     for (int i = 0; i < 10; ++i) {
-      // Try to get 64 frames but don't give it any data
+      // Try to get 1024 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
           .WillOnce(VerifyAudioBusFrameCount(config, init_params,
-                                             config.renderer_request_frames()));
+                                             kSamplesPerFrame));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Ok, now give it 64 frames
+      // Ok, now give it 1024 frames
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(RenderAudioBus(64, this));
+          .WillOnce(RenderAudioBus(1024, this));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Try to get another 64 frames but don't give it any data
+      // Try to get another 1024 frames but don't give it any data
       EXPECT_CALL(render_callback_, Render(_, _))
           .WillOnce(VerifyAudioBusFrameCount(config, init_params,
-                                             config.renderer_request_frames()));
+                                             kSamplesPerFrame));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Ok, now give it 48 frames
+      // Ok, now give it 480 frames
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(RenderAudioBus(48, this));
+          .WillOnce(RenderAudioBus(480, this));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Now it only has room for 16 frames, which is less than the minimum
-      // request size, so there shouldn't be any call to Render.
-      EXPECT_CALL(render_callback_, Render(_, _)).Times(0);
-      EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
+      // Consume 1024 frames, leave 1568 frames space but only 544 are
+      // continuous
+      Consume(1024);
 
-      // Consume 64 frames, leave 80 frames space but only 16 are continuous
-      Consume(64);
-
-      // It still only has room for 16 continuous frames, don't give it any
+      // It still only has room for 544 continuous frames, don't give it any
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(VerifyAudioBusFrameCount(config, init_params, 16));
+          .WillOnce(VerifyAudioBusFrameCount(config, init_params, 544));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Ok, now give it 16 frames
+      // Ok, now give it 544 frames
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(RenderAudioBus(16, this));
+          .WillOnce(RenderAudioBus(544, this));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Now it has room for another 64 frames, don't give it
+      // Now it has room for another 1024 frames, don't give it
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(VerifyAudioBusFrameCount(config, init_params, 64));
+          .WillOnce(VerifyAudioBusFrameCount(config, init_params, 1024));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Ok, now give it 64 frames
+      // Ok, now give it 1024 frames
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(RenderAudioBus(64, this));
+          .WillOnce(RenderAudioBus(1024, this));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
 
-      // Consume 128 frames
-      Consume(128);
+      // Consume 2048 frames
+      Consume(2048);
 
       // Give it another 64 and then consume 64 to ensure we can get into the
       // next iteration of the loop with empty buffer
       EXPECT_CALL(render_callback_, Render(_, _))
-          .WillOnce(RenderAudioBus(64, this));
+          .WillOnce(RenderAudioBus(1024, this));
       EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
-      Consume(64);
+      Consume(1024);
 
       EXPECT_TRUE(AllConsumed());
     }
@@ -579,16 +568,14 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
 }
 
 TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
-  const uint32 renderer_request_frames = 64;
-  const uint32 initial_rebuffering_frames_per_channel = 128;
-  const uint32 max_frames_per_channel = 256;
-  const uint32 initial_frames_per_channel = 128;
+  const uint32 initial_rebuffering_frames_per_channel = 1024;
+  const uint32 sink_buffer_size_in_frames_per_channel = 2048;
 
   for (int i = 0; i < 2; ++i) {
     Config config(
         i == 0 ? Config::INTERLEAVED : Config::PLANAR,
-        initial_rebuffering_frames_per_channel, max_frames_per_channel,
-        initial_frames_per_channel, renderer_request_frames,
+        initial_rebuffering_frames_per_channel,
+        sink_buffer_size_in_frames_per_channel,
         kMaxHardwareChannelsStereo,
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
@@ -625,15 +612,6 @@ TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
     EXPECT_CALL(render_callback_, Render(_, _))
         .WillOnce(RenderAudioBus(16, this));
     EXPECT_FALSE(sink_->PullFrames(NULL, NULL));
-
-    // Now we have 32 frames in the buffer, 16 frames is the last 16 frames
-    // of a 64 frames render, another 16 frames is from a 16 frames render.
-    // Now do a ResumeAfterUnderflow to double the buffer
-    int frames = sink_->GetAudioBus()->frames();
-    sink_->ResumeAfterUnderflow(false);
-    EXPECT_EQ(sink_->GetAudioBus()->frames(), frames);
-    sink_->ResumeAfterUnderflow(true);
-    EXPECT_EQ(sink_->GetAudioBus()->frames(), frames * 2);
 
     Consume(32);
 

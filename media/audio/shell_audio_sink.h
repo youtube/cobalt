@@ -81,19 +81,6 @@ class MEDIA_EXPORT ShellAudioSink
   void SetClockBiasMs(int64 time_ms);
 
  private:
-  // Copy audio data inside audio_bus_ into target and keep the existing data
-  // at the same offset. The size of target is guaranteed to be larger than
-  // audio_bus_.
-  void CopyAudioBus(scoped_ptr<media::AudioBus>* target);
-  // Allocate memory for the sink_buffer_ for at least 'target_size' frames
-  // and create the sink audio bus on top of it. If there is an existing
-  // sink_buffer_ and its size is larger than or equal to the new size,
-  // nothing will be done. If we fail to allocate the new buffer then the
-  // existing one will be kept. It will also take care of copying the existing
-  // data to the new audio bus.
-  // Return true when a new audio bus is created or the size of the existing
-  // audio bus is larger than or equal to target size.
-  bool CreateSinkAudioBus(uint32 target_frames_per_channel);
   // Config the audio bus that will be sent to the AudioRenderer. It reueses
   // the memory occupied by the sink audio bus (audio_bus_).
   void SetupRenderAudioBus();
@@ -102,7 +89,7 @@ class MEDIA_EXPORT ShellAudioSink
   RenderCallback* render_callback_;
 
   scoped_ptr<media::AudioBus> audio_bus_;
-  uint8* sink_buffer_;
+
   // Used as a paremeter when calling render_callback_->Render().
   // We can only construct it through a static Create method that does a heap
   // allocate so it is a member variable to avoid a heap allocation each
