@@ -38,6 +38,11 @@ class MEDIA_EXPORT AudioBus {
   static scoped_ptr<AudioBus> Create(int channels, int frames);
   static scoped_ptr<AudioBus> Create(const AudioParameters& params);
 
+#if defined(__LB_SHELL__)
+  static scoped_ptr<AudioBus> Create(int channels, int frames_per_channel,
+                                     int bytes_per_frame, bool interleaved);
+#endif  // defined(__LB_SHELL__)
+
   // Creates a new AudioBus with the given number of channels, but zero length.
   // It's expected to be used with SetChannelData() and set_frames() to
   // wrap externally allocated memory.

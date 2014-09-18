@@ -4,6 +4,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "media/mp4/aac.h"
 
 namespace media {
 
@@ -23,6 +24,9 @@ class ShellAudioStream {
   // called periodically so the stream (the AudioSink) can pull data from
   // upper level, even when it is paused.
   // 2. It will return true to indicate that it is playing, false to pause.
+  // The frame referred in this function is not an AAC frame but a PCM frame. It
+  // contains a group of samples start at the same timestamp, each of them are
+  // from different channels of a multi-channel audio stream.
   // NOTE: This function can be called on a low level audio mixer thread and
   // is LATENCY-SENSITIVE. Avoid locks and other high-latency operations!
   virtual bool PullFrames(uint32_t* offset_in_frame,
@@ -58,21 +62,25 @@ class ShellAudioStreamer {
     // below for more details.
     Config(StorageMode storage_mode,
            uint32 initial_rebuffering_frames_per_channel,
-           uint32 max_frames_per_channel, uint32 initial_frames_per_channel,
-           uint32 renderer_request_frames, uint32 max_hardware_channels,
-           uint32 bytes_per_sample,
+           uint32 sink_buffer_size_in_frames_per_channel,
+           uint32 max_hardware_channels, uint32 bytes_per_sample,
            uint32 native_output_sample_rate = kInvalidSampleRate)
         : valid_(true),
           interleaved_(storage_mode == INTERLEAVED),
           initial_rebuffering_frames_per_channel_(
               initial_rebuffering_frames_per_channel
           ),
-          max_frames_per_channel_(max_frames_per_channel),
-          initial_frames_per_channel_(initial_frames_per_channel),
-          renderer_request_frames_(renderer_request_frames),
+          sink_buffer_size_in_frames_per_channel_(
+              sink_buffer_size_in_frames_per_channel
+          ),
           max_hardware_channels_(max_hardware_channels),
           bytes_per_sample_(bytes_per_sample),
           native_output_sample_rate_(native_output_sample_rate) {
+      const size_t kSamplesPerFrame = mp4::AAC::kSamplesPerFrame;
+      DCHECK_LE(initial_rebuffering_frames_per_channel,
+                sink_buffer_size_in_frames_per_channel);
+      DCHECK_EQ(initial_rebuffering_frames_per_channel % kSamplesPerFrame, 0);
+      DCHECK_EQ(sink_buffer_size_in_frames_per_channel % kSamplesPerFrame, 0);
     }
 
     bool interleaved() const {
@@ -83,21 +91,9 @@ class ShellAudioStreamer {
       AssertValid();
       return initial_rebuffering_frames_per_channel_;
     }
-    uint32 max_frames_per_channel() const {
+    uint32 sink_buffer_size_in_frames_per_channel() const {
       AssertValid();
-      return max_frames_per_channel_;
-    }
-    uint32 initial_frames_per_channel() const {
-      AssertValid();
-      return initial_frames_per_channel_;
-    }
-    uint32 renderer_request_frames() const {
-      AssertValid();
-      return renderer_request_frames_;
-    }
-    uint32 underflow_threshold() const {
-      AssertValid();
-      return renderer_request_frames_ / 2;
+      return sink_buffer_size_in_frames_per_channel_;
     }
     uint32 max_hardware_channels() const {
       AssertValid();
@@ -119,13 +115,10 @@ class ShellAudioStreamer {
 
     // Is the data in audio bus interleaved and stored as one channel.
     bool interleaved_;
-    // These paramters control rebuffering.
+    // The following parameter controls the sink rebuffering.
     // See ShellAudioSink::ResumeAfterUnderflow for more details.
     uint32 initial_rebuffering_frames_per_channel_;
-    uint32 max_frames_per_channel_;
-    uint32 initial_frames_per_channel_;
-    // Amount of data we should request each time from the renderer
-    uint32 renderer_request_frames_;
+    uint32 sink_buffer_size_in_frames_per_channel_;
     // Max channels the current audio hardware can render. This can be changed
     // during the running of the application as the user can plug/unplug
     // different devices. So it represent the current status on the time of

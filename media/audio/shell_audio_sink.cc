@@ -22,6 +22,7 @@
 #include "media/base/audio_bus.h"
 #include "media/base/shell_media_statistics.h"
 #include "media/filters/shell_audio_renderer.h"
+#include "media/mp4/aac.h"
 
 namespace media {
 
@@ -56,7 +57,6 @@ ShellAudioSink* ShellAudioSink::Create(ShellAudioStreamer* audio_streamer) {
 
 ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
     : render_callback_(NULL)
-    , sink_buffer_(NULL)
     , pause_requested_(true)
     , rebuffering_(true)
     , rebuffer_num_frames_(0)
@@ -69,8 +69,6 @@ ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
 
 ShellAudioSink::~ShellAudioSink() {
   DCHECK(!audio_streamer_->HasStream(this));
-  buffer_factory_->Reclaim(sink_buffer_);
-  sink_buffer_ = NULL;
 }
 
 void ShellAudioSink::Initialize(const AudioParameters& params,
@@ -85,8 +83,11 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
   streamer_config_ = audio_streamer_->GetConfig();
   settings_.Reset(streamer_config_, params);
 
-  // something is very wrong if we cannot create sink audio bus on creation
-  if (!CreateSinkAudioBus(streamer_config_.initial_frames_per_channel())) {
+  audio_bus_ = AudioBus::Create(
+      settings_.channels(),
+      streamer_config_.sink_buffer_size_in_frames_per_channel(),
+      audio_parameters_.bits_per_sample() / 8, streamer_config_.interleaved());
+  if (!audio_bus_) {
     NOTREACHED() << "couldn't create sink buffer";
     render_callback_->OnRenderError();
     return;
@@ -160,30 +161,16 @@ bool ShellAudioSink::SetVolume(double volume) {
 }
 
 void ShellAudioSink::ResumeAfterUnderflow(bool buffer_more_audio) {
-  // only rebuffer when paused, we access state variables nonatomically
+  // only rebuffer when paused, we access state variables non atomically
   DCHECK(pause_requested_);
   DCHECK(rebuffering_);
 
   if (!buffer_more_audio)
     return;
 
-  // The rebuffering system is determinated by three factors: the current
-  // rebuffering frame (R), the current buffer capacity in frame (C) and the
-  // maximum buffer capacity in frame (M). We always have R <= C <= M.
-  // For example, we can have a 1M buffer but will trigger SinkFull when we
-  // have 512K audio frame in the buffer. In this case R = 512K while C = 1M.
-  // When we are going to buffer more audio, we first increase R. If R is
-  // larger than C, we have to re-allocate the buffer to C. C is capped at M.
-  // Some platforms requires that the audio bus not being changed during
-  // playback so we have to set C to M on these platforms.
-  CreateSinkAudioBus(rebuffer_num_frames_ * 2);
   rebuffer_num_frames_ =
       std::min<int>(rebuffer_num_frames_ * 2,
                     settings_.per_channel_frames(audio_bus_.get()));
-  DLOG(INFO) << "sink rebuffering, buffer now "
-      << settings_.per_channel_frames(audio_bus_.get()) << " frames, "
-      << audio_bus_->frames() * audio_bus_->channels() * sizeof(float)
-      << " bytes";
 }
 
 bool ShellAudioSink::PauseRequested() const {
@@ -206,7 +193,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   // Number of ms of buffered playback remaining
   uint32_t buffered_time =
       (*total_frames * 1000 / audio_parameters_.sample_rate());
-  if (free_frames >= streamer_config_.renderer_request_frames()) {
+  if (free_frames >= mp4::AAC::kSamplesPerFrame) {
     SetupRenderAudioBus();
 
     int frames_rendered = render_callback_->Render(renderer_audio_bus_.get(),
@@ -218,8 +205,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
       // TODO(***REMOVED***) : We cannot guarantee this on PS3 because of the
       // resampler. Check if it is possible to move the resample into the
       // streamer.
-      // DCHECK_EQ(frames_rendered,
-      //           streamer_config_.renderer_request_frames());
+      // DCHECK_EQ(frames_rendered, mp4::AAC::kSamplesPerFrame);
       render_frame_cursor_ += frames_rendered;
       *total_frames += frames_rendered;
       free_frames -= frames_rendered;
@@ -234,7 +220,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 #endif
   }
 
-  bool buffer_full = free_frames < streamer_config_.renderer_request_frames();
+  bool buffer_full = free_frames < mp4::AAC::kSamplesPerFrame;
   bool rebuffer_threshold_reached = *total_frames >= rebuffer_num_frames_;
   if (rebuffering_ && (buffer_full || rebuffer_threshold_reached)) {
     render_callback_->SinkFull();
@@ -243,7 +229,8 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 
 #if defined(__LB_LINUX__) || defined(__LB_WIIU__) || \
     defined(__LB_ANDROID__) || defined(__LB_PS4__)
-  if (*total_frames < streamer_config_.underflow_threshold()) {
+  const size_t kUnderflowThreshold = mp4::AAC::kSamplesPerFrame / 2;
+  if (*total_frames < kUnderflowThreshold) {
     if (!rebuffering_) {
       rebuffering_ = true;
       render_callback_->SinkUnderflow();
@@ -292,104 +279,11 @@ void ShellAudioSink::SetClockBiasMs(int64 time_ms) {
   clock_bias_frames_ = (time_ms * audio_parameters_.sample_rate()) / 1000;
 }
 
-void ShellAudioSink::CopyAudioBus(scoped_ptr<media::AudioBus>* target) {
-  DCHECK(target);
-  DCHECK_EQ(audio_bus_->channels(), (*target)->channels());
-  DCHECK_LT(audio_bus_->frames(), (*target)->frames());
-  // calculate how many frames were left in the buffer before underrun
-  uint32 unplayed_frames = render_frame_cursor_ - output_frame_cursor_;
-  uint32 frames_to_bytes = audio_parameters_.bits_per_sample() / 8;
-  if (streamer_config_.interleaved()) {
-    frames_to_bytes *= settings_.channels();
-  }
-  // check to see if we need to copy frames from the old buffer
-  if (unplayed_frames > 0) {
-    for (int i = 0; i < audio_bus_->channels(); ++i) {
-      uint32 start_offset =
-          output_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
-      uint32 frames_to_copy = std::min<uint32>(
-          unplayed_frames,
-          settings_.per_channel_frames(audio_bus_.get()) - start_offset);
-      float* src_frame_pointer = audio_bus_->channel(i) +
-          start_offset * frames_to_bytes / sizeof(float);
-      float* target_frame_pointer = (*target)->channel(i);
-      memcpy(target_frame_pointer, src_frame_pointer,
-             frames_to_copy * frames_to_bytes);
-      if (unplayed_frames > frames_to_copy) {
-        src_frame_pointer = audio_bus_->channel(i);
-        target_frame_pointer +=
-            frames_to_copy * frames_to_bytes / sizeof(float);
-        frames_to_copy = unplayed_frames - frames_to_copy;
-        memcpy(target_frame_pointer, src_frame_pointer,
-               frames_to_copy * frames_to_bytes);
-      }
-      DLOG(INFO) << "copying " << unplayed_frames << " audio frames, "
-          << unplayed_frames * frames_to_bytes << " bytes, to new buffer.";
-    }
-  }
-}
-
-bool ShellAudioSink::CreateSinkAudioBus(uint32 target_frames_per_channel) {
-  if (target_frames_per_channel > streamer_config_.max_frames_per_channel())
-    target_frames_per_channel = streamer_config_.max_frames_per_channel();
-
-  uint32 target_memory_size = audio_parameters_.bits_per_sample() / 8 *
-      settings_.channels() * target_frames_per_channel;
-  uint32 current_memory_size = 0;
-  if (audio_bus_) {
-    current_memory_size = audio_bus_->frames() * audio_bus_->channels() *
-        sizeof(float);
-  }
-  if (target_memory_size <= current_memory_size)
-    return true;
-  uint8* new_buffer = buffer_factory_->AllocateNow(target_memory_size);
-  scoped_ptr<media::AudioBus> new_audio_bus;
-  if (!new_buffer)
-    return false;
-
-  // AudioBus treats everything in float so we have to convert.
-  uint32 float_frame_per_channel = target_frames_per_channel *
-      audio_parameters_.bits_per_sample() / 8 / sizeof(float);
-  if (streamer_config_.interleaved()) {
-    new_audio_bus = AudioBus::WrapMemory(
-        1, settings_.channels() * float_frame_per_channel, new_buffer);
-  } else {
-    new_audio_bus = AudioBus::WrapMemory(
-        settings_.channels(), float_frame_per_channel, new_buffer);
-  }
-
-  if (!audio_bus_) {
-    sink_buffer_ = new_buffer;
-    audio_bus_.swap(new_audio_bus);
-    return true;
-  }
-
-  bool stream_added = audio_streamer_->HasStream(this);
-  if (stream_added) audio_streamer_->RemoveStream(this);
-
-  CopyAudioBus(&new_audio_bus);
-  clock_bias_frames_ += output_frame_cursor_;
-  // TODO(***REMOVED***) : The decoder/renderer relies on that the size of the
-  // buffer passed to them is exactly 1024 frames to work properly. The
-  // following operation will break this as output_frame_cursor_ maybe not be
-  // exactly multiple times of 1024. This problem can be avoided by either fix
-  // the code or ensure that the audio bus begins with the maximum buffer size
-  // possible.
-  render_frame_cursor_ -= output_frame_cursor_;
-  output_frame_cursor_ = 0;
-
-  buffer_factory_->Reclaim(sink_buffer_);
-  sink_buffer_ = new_buffer;
-  audio_bus_.swap(new_audio_bus);
-  if (stream_added) audio_streamer_->AddStream(this);
-  return true;
-}
-
 void ShellAudioSink::SetupRenderAudioBus() {
   // check for buffer wraparound, hopefully rare
   int render_frame_position =
       render_frame_cursor_ % settings_.per_channel_frames(audio_bus_.get());
-  int requested_frames = streamer_config_.renderer_request_frames();
+  int requested_frames = mp4::AAC::kSamplesPerFrame;
   if (render_frame_position + requested_frames >
       settings_.per_channel_frames(audio_bus_.get())) {
     requested_frames =
