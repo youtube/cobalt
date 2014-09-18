@@ -15,6 +15,10 @@ AudioParameters::AudioParameters()
       bits_per_sample_(0),
       frames_per_buffer_(0),
       channels_(0) {
+#if defined(__LB_WIIU__)
+  output_to_tv_ = true;
+  output_to_gamepad_ = true;
+#endif
 }
 
 AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
@@ -26,6 +30,10 @@ AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
       bits_per_sample_(bits_per_sample),
       frames_per_buffer_(frames_per_buffer),
       channels_(ChannelLayoutToChannelCount(channel_layout)) {
+#if defined(__LB_WIIU__)
+  output_to_tv_ = true;
+  output_to_gamepad_ = true;
+#endif
 }
 
 void AudioParameters::Reset(Format format, ChannelLayout channel_layout,
@@ -37,6 +45,10 @@ void AudioParameters::Reset(Format format, ChannelLayout channel_layout,
   bits_per_sample_ = bits_per_sample;
   frames_per_buffer_ = frames_per_buffer;
   channels_ = ChannelLayoutToChannelCount(channel_layout);
+#if defined(__LB_WIIU__)
+  output_to_tv_ = true;
+  output_to_gamepad_ = true;
+#endif
 }
 
 bool AudioParameters::IsValid() const {
