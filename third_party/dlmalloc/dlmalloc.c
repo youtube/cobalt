@@ -1848,9 +1848,8 @@ static FORCEINLINE int win32munmap(void* ptr, size_t size) {
 /* static MLOCK_T malloc_global_mutex = ... */
 
 // See dlmalloc_config.h for definitions of *_LOCK macros.
-#if defined(__LB_XB360__)
 static MLOCK_T malloc_global_mutex;
-static volatile LONG malloc_global_mutex_status;
+static volatile int malloc_global_mutex_status;
 static void init_malloc_global_mutex() {
   if (malloc_global_mutex_status > 0) {
     return;
@@ -1858,9 +1857,6 @@ static void init_malloc_global_mutex() {
   INITIAL_LOCK(&malloc_global_mutex);
   malloc_global_mutex_status = 1;
 }
-#else  // defined(__LB_XB360__)
-static MLOCK_T malloc_global_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif  // defined(__LB_XB360__)
 
 #elif USE_SPIN_LOCKS
 
@@ -3139,6 +3135,10 @@ static void post_fork_parent(void) { RELEASE_LOCK(&(gm)->mutex); }
 static void post_fork_child(void)  { INITIAL_LOCK(&(gm)->mutex); }
 #endif /* LOCK_AT_FORK */
 
+#if defined(__LB_SHELL__)
+static void dl_heap_init();
+#endif
+
 /* Initialize mparams */
 static int init_mparams(void) {
 #ifdef NEED_GLOBAL_LOCK_INIT
@@ -3223,11 +3223,10 @@ static int init_mparams(void) {
       /* Until memory modes commonly available, use volatile-write */
       (*(volatile size_t *)(&(mparams.magic))) = magic;
     }
-#if defined(__LB_LINUX__) || defined(__LB_ANDROID__) || defined(__LB_XB360__)
-    // On some platforms this can be called before our malloc_init hook.
-    dl_malloc_init();
+#if defined(__LB_SHELL__)
+    // Call our own initialization functions.
+    dl_heap_init();
 #endif
-
   }
   RELEASE_MALLOC_GLOBAL_LOCK();
   return 1;
@@ -6184,12 +6183,7 @@ static void set_unmapped_range(size_t start, size_t page_count) {
   assert(page_count == 0);
 }
 
-void dl_malloc_init() {
-#ifdef NEED_GLOBAL_LOCK_INIT
-  if (malloc_global_mutex_status <= 0)
-    init_malloc_global_mutex();
-#endif
-
+static void dl_heap_init() {
   const size_t region_size = lb_get_virtual_region_size();
   assert(region_size / kPageSize <= kMaxPageCount);
   global_heap.mem_base =
@@ -6209,6 +6203,14 @@ void dl_malloc_init() {
   extern void lb_hijack_weak_allocators();
   lb_hijack_weak_allocators();
 #endif
+}
+
+void dl_malloc_init() {
+  // No-op. Let all initialization happen in init_mparams().
+  // On most systems, we can't guarantee this
+  // will run before the first call to malloc().
+  // This is just provided so the linker can succeed when ALLOCATOR
+  // is set to 'dl' in lb_memory_manager.h.
 }
 
 void dl_malloc_finalize() {
