@@ -45,7 +45,6 @@
 #define TRY_LOCK(lk)          TryEnterCriticalSection(lk)
 #define INITIAL_LOCK(lk)      (InitializeCriticalSection(lk), 0)
 #define DESTROY_LOCK(lk)      (DeleteCriticalSection(lk), 0)
-#define NEED_GLOBAL_LOCK_INIT
 #else
 #define MLOCK_T lb_shell_mutex_t
 #define INITIAL_LOCK(lk) lb_shell_mutex_init(lk)
@@ -54,6 +53,8 @@
 #define RELEASE_LOCK(lk)  lb_shell_mutex_unlock(lk)
 #define TRY_LOCK(lk) lb_shell_mutex_trylock(lk)
 #endif
+
+#define NEED_GLOBAL_LOCK_INIT
 
 #define MORECORE lbshell_morecore
 
