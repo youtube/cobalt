@@ -160,6 +160,21 @@ scoped_ptr<AudioBus> AudioBus::Create(const AudioParameters& params) {
       params.channels(), params.frames_per_buffer()));
 }
 
+#if defined(__LB_SHELL__)
+
+scoped_ptr<AudioBus> AudioBus::Create(int channels, int frames_per_channel,
+                                      int bytes_per_frame, bool interleaved) {
+  // AudioBus treats everything in float so we have to convert.
+  uint32 float_frame_per_channel =
+      frames_per_channel * bytes_per_frame / sizeof(float);
+  if (interleaved)
+    return Create(1, channels * float_frame_per_channel);
+
+  return Create(channels, float_frame_per_channel);
+}
+
+#endif  // defined(__LB_SHELL__)
+
 scoped_ptr<AudioBus> AudioBus::CreateWrapper(int channels) {
   return scoped_ptr<AudioBus>(new AudioBus(channels));
 }
