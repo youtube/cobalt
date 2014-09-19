@@ -88,8 +88,14 @@
 #define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
 // PS4 Supports pages that are multiples of 16K and a power of 2
-#define PAGESIZE ((size_t)(64 * 1024U))
+#define PAGESIZE ((size_t)(2 * 1024 * 1024U))
+
+// "Large" blocks come from a separate VM region.
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
+
+// This needs to be larger than a single page.
+// Increase from the default of 2MB to avoid spurious trim + morecore combos.
+#define DEFAULT_TRIM_THRESHOLD ((size_t)(8 * 1024 * 1024U))
 
 #elif defined(__LB_WIIU__)
 #define HAVE_MMAP 0 // 0 == off due to a lack of reliable VM support
