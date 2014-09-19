@@ -6048,13 +6048,8 @@ int mspace_mallopt(int param_number, int value) {
 #include "lb_platform.h"
 #include "lb_memory_pages.h"
 
-enum {
-  kPageSize = PAGESIZE,
-  kPageMask = kPageSize - 1,
-  kOneMeg = 1024 * 1024,
-  // Assume a maximum virtual address space of 2GB.
-  kMaxPageCount = (2048 * (kOneMeg / kPageSize)),
-};
+// Assume a maximum virtual address space of 2GB.
+#define MAX_PAGE_COUNT ((size_t)(2 * 1024 * 1024 * 1024U) / PAGESIZE)
 
 typedef struct HeapInfo {
   lb_virtual_mem_t mem_base;
@@ -6071,7 +6066,7 @@ typedef struct MappedSpaceInfo {
   // Assume a maximum VM space of 2GB
   // With 64K pages, that's 32K bits or 1K ints.
   // With 1MB pages, that's 64.
-  size_t mapped[kMaxPageCount / SIZE_T_BITSIZE];
+  size_t mapped[MAX_PAGE_COUNT / SIZE_T_BITSIZE];
   lb_virtual_mem_t mem_base;
 } MappedSpaceInfo;
 
@@ -6098,7 +6093,7 @@ static ssize_t find_contiguous(size_t page_count) {
   int start = 0;
 
   // Skip over any full blocks.
-  for (int i = 0; i < kMaxPageCount / SIZE_T_BITSIZE; ++i) {
+  for (int i = 0; i < MAX_PAGE_COUNT / SIZE_T_BITSIZE; ++i) {
     if (mmapped_heap.mapped[i] == MAX_SIZE_T) {
       start += SIZE_T_BITSIZE;
     }
@@ -6108,7 +6103,7 @@ static ssize_t find_contiguous(size_t page_count) {
   }
 
   // Now start scanning bits.
-  for (int i = start; i < kMaxPageCount; ++i) {
+  for (int i = start; i < MAX_PAGE_COUNT; ++i) {
     if (is_mapped(i)) {
       num_contiguous = 0;
     } else {
@@ -6131,9 +6126,9 @@ static void set_mapped_range(size_t start, size_t page_count) {
   const size_t word_aligned_start = align(start, SIZE_T_BITSIZE);
   const size_t head_offset = start % SIZE_T_BITSIZE;
   if (head_offset) {
-    const size_t head_page_count =
-        min(page_count, word_aligned_start - start);
-    const size_t head_mask = ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
+    const size_t head_page_count = min(page_count, word_aligned_start - start);
+    const size_t head_mask =
+        ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
     mmapped_heap.mapped[start / SIZE_T_BITSIZE] |= head_mask;
     page_count -= head_page_count;
   }
@@ -6160,9 +6155,9 @@ static void set_unmapped_range(size_t start, size_t page_count) {
   const size_t word_aligned_start = align(start, SIZE_T_BITSIZE);
   const size_t head_offset = start % SIZE_T_BITSIZE;
   if (head_offset) {
-    const size_t head_page_count =
-        min(page_count, word_aligned_start - start);
-    const size_t head_mask = ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
+    const size_t head_page_count = min(page_count, word_aligned_start - start);
+    const size_t head_mask =
+        ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
     mmapped_heap.mapped[start / SIZE_T_BITSIZE] &= ~head_mask;
     page_count -= head_page_count;
   }
@@ -6185,17 +6180,13 @@ static void set_unmapped_range(size_t start, size_t page_count) {
 
 static void dl_heap_init() {
   const size_t region_size = lb_get_virtual_region_size();
-  assert(region_size / kPageSize <= kMaxPageCount);
-  global_heap.mem_base =
-      lb_allocate_virtual_address(region_size,
-                                  kPageSize);
+  assert(region_size / PAGESIZE <= MAX_PAGE_COUNT);
+  global_heap.mem_base = lb_allocate_virtual_address(region_size, PAGESIZE);
   global_heap.sbrk_top = (uintptr_t)global_heap.mem_base;
 
 #if HAVE_MMAP
   // Allocate another virtual region for our mmapped pages.
-  mmapped_heap.mem_base =
-      lb_allocate_virtual_address(region_size,
-                                  kPageSize);
+  mmapped_heap.mem_base = lb_allocate_virtual_address(region_size, PAGESIZE);
 #endif
 
 #if defined(__LB_WIIU__)
@@ -6216,21 +6207,19 @@ void dl_malloc_init() {
 void dl_malloc_finalize() {
   // Free all pages owned by the global heap.
   while (global_heap.sbrk_top > (uintptr_t)global_heap.mem_base) {
-    global_heap.sbrk_top -= kPageSize;
+    global_heap.sbrk_top -= PAGESIZE;
     lb_physical_mem_t phys_mem_id;
-    lb_unmap_memory(
-        (lb_virtual_mem_t)global_heap.sbrk_top, &phys_mem_id);
+    lb_unmap_memory((lb_virtual_mem_t)global_heap.sbrk_top, &phys_mem_id);
     lb_free_physical_memory(phys_mem_id);
   }
   lb_free_virtual_address(global_heap.mem_base);
 
 #if HAVE_MMAP
   // Now the mmapped heap.
-  for (int i = 0; i < kMaxPageCount; ++i) {
+  for (int i = 0; i < MAX_PAGE_COUNT; ++i) {
     if (is_mapped(i)) {
       lb_physical_mem_t phys_mem_id;
-      lb_virtual_mem_t virt_offset =
-          mmapped_heap.mem_base + i * kPageSize;
+      lb_virtual_mem_t virt_offset = mmapped_heap.mem_base + i * PAGESIZE;
       lb_unmap_memory(virt_offset, &phys_mem_id);
       lb_free_physical_memory(phys_mem_id);
     }
@@ -6271,10 +6260,8 @@ static void heap_walker_init(HeapWalker* hw, char* file) {
   hw->file_descriptor = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 }
 
-static void heap_walker_log(HeapWalker* hw,
-                     void* start,
-                     void* end,
-                     size_t used_bytes) {
+static void heap_walker_log(
+    HeapWalker* hw, void* start, void* end, size_t used_bytes) {
   size_t block_bytes = (uintptr_t)end - (uintptr_t)start;
 
   if (hw->cur_start) {
@@ -6332,15 +6319,13 @@ static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
   heap_walker_log(hw, start, end, used_bytes);
 }
 
-void lbshell_inspect_mmap_heap(void(*handler)(void*, void *, size_t, void*),
-                           void* arg) {
+void lbshell_inspect_mmap_heap(
+    void(*handler)(void*, void *, size_t, void*), void* arg) {
   // This shows how the virtual address space has been mapped.
   int last_mapped = -1;
-  for (int i = 0; i < kMaxPageCount; ++i) {
-    if (is_mapped(i)) {
-      if (i > last_mapped) {
+  for (int i = 0; i < MAX_PAGE_COUNT; ++i) {
+    if ((is_mapped(i)) && (i > last_mapped)) {
         last_mapped = i;
-      }
     }
   }
 
@@ -6349,20 +6334,14 @@ void lbshell_inspect_mmap_heap(void(*handler)(void*, void *, size_t, void*),
   }
 
   for (size_t i = 0; i <= (size_t)last_mapped; ++i) {
-    uintptr_t start = (uintptr_t)(mmapped_heap.mem_base) + i * kPageSize;
-    uintptr_t end = (uintptr_t)(mmapped_heap.mem_base) + (i + 1) * kPageSize;
+    uintptr_t start = (uintptr_t)(mmapped_heap.mem_base) + i * PAGESIZE;
+    uintptr_t end = (uintptr_t)(mmapped_heap.mem_base) + (i + 1) * PAGESIZE;
 
     if (is_mapped(i)) {
       size_t region_size = end - start;
-      handler((void*)start,
-              (void*)end,
-              region_size,
-              arg);
+      handler((void*)start, (void*)end, region_size, arg);
     } else {
-      handler((void*)start,
-              (void*)end,
-              0,
-              arg);
+      handler((void*)start, (void*)end, 0, arg);
     }
   }
 }
@@ -6427,25 +6406,24 @@ int dlmalloc_stats_np(size_t *system_size, size_t *in_use_size) {
 }
 
 static void* lbshell_mmap(size_t size) {
-  size = align(size, kPageSize);
-  size_t page_count = size / kPageSize;
+  size = align(size, PAGESIZE);
+  size_t page_count = size / PAGESIZE;
   ssize_t vm_start = find_contiguous(page_count);
   if (vm_start == -1) {
     // Virtual space is too fragmented.  Unlikely, but possible.
     return (void*)-1;
   }
 
-  lb_virtual_mem_t virtual_mem = mmapped_heap.mem_base +
-      vm_start * kPageSize;
+  lb_virtual_mem_t virtual_mem = mmapped_heap.mem_base + vm_start * PAGESIZE;
   for (int i = 0; i < page_count; ++i) {
     lb_physical_mem_t mem_id;
-    int ret = lb_allocate_physical_memory(kPageSize, kPageSize, &mem_id);
+    int ret = lb_allocate_physical_memory(PAGESIZE, PAGESIZE, &mem_id);
     if (ret == -1) {
       // No physical memory pages left.
       return (void*)-1;
     }
 
-    ret = lb_map_memory(virtual_mem + i * kPageSize, mem_id);
+    ret = lb_map_memory(virtual_mem + i * PAGESIZE, mem_id);
     assert(ret == 0);
   }
   set_mapped_range(vm_start, page_count);
@@ -6453,15 +6431,15 @@ static void* lbshell_mmap(size_t size) {
 }
 
 static int lbshell_munmap(void* ptr, size_t size) {
-  assert(size % kPageSize == 0);
-  size_t page_count = size / kPageSize;
+  assert(size % PAGESIZE == 0);
+  size_t page_count = size / PAGESIZE;
   lb_virtual_mem_t cur_mem = (lb_virtual_mem_t)ptr;
   for (size_t i = 0; i < page_count; ++i) {
     lb_physical_mem_t phys_mem_id;
-    lb_unmap_memory(cur_mem + i * kPageSize, &phys_mem_id);
+    lb_unmap_memory(cur_mem + i * PAGESIZE, &phys_mem_id);
     lb_free_physical_memory(phys_mem_id);
   }
-  size_t page_index = (cur_mem - mmapped_heap.mem_base) / kPageSize;
+  size_t page_index = (cur_mem - mmapped_heap.mem_base) / PAGESIZE;
   set_unmapped_range(page_index, page_count);
   return 0;
 }
@@ -6469,30 +6447,26 @@ static int lbshell_munmap(void* ptr, size_t size) {
 static void* lbshell_morecore(ssize_t size) {
   void* ptr = (void*)global_heap.sbrk_top;
   if (size > 0) {
-    size_t page_count = align(size, kPageSize) / kPageSize;
+    size_t page_count = align(size, PAGESIZE) / PAGESIZE;
     // Grab physical pages and map them into our virtual address space.
     for (size_t i = 0; i < page_count; ++i) {
       lb_physical_mem_t mem_id;
-      int ret = lb_allocate_physical_memory(kPageSize,
-                                            kPageSize,
-                                            &mem_id);
+      int ret = lb_allocate_physical_memory(PAGESIZE, PAGESIZE, &mem_id);
       if (ret != 0) {
         return (void*)-1;
       }
 
-      ret = lb_map_memory(
-          (lb_virtual_mem_t)global_heap.sbrk_top, mem_id);
+      ret = lb_map_memory((lb_virtual_mem_t)global_heap.sbrk_top, mem_id);
       assert(ret == 0);
-      global_heap.sbrk_top += kPageSize;
+      global_heap.sbrk_top += PAGESIZE;
     }
   } else if (size < 0) {
-    assert(size % kPageSize == 0);
-    size_t num_pages = -size / kPageSize;
+    assert(size % PAGESIZE == 0);
+    size_t num_pages = -size / PAGESIZE;
     for (size_t i = 0; i < num_pages; ++i) {
-      global_heap.sbrk_top -= kPageSize;
+      global_heap.sbrk_top -= PAGESIZE;
       lb_physical_mem_t mem_id;
-      lb_unmap_memory(
-          (lb_virtual_mem_t)global_heap.sbrk_top, &mem_id);
+      lb_unmap_memory((lb_virtual_mem_t)global_heap.sbrk_top, &mem_id);
       lb_free_physical_memory(mem_id);
     }
     ptr = (void*)global_heap.sbrk_top;
