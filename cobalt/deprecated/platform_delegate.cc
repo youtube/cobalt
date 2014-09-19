@@ -47,6 +47,14 @@ bool PathProvider(int key, FilePath* result) {
       }
       return false;
 
+    case paths::DIR_COBALT_TEST_OUT:
+      // TODO(***REMOVED***): Create a special directory for tests.
+      if (global_values->logging_output_path) {
+        *result = FilePath(global_values->logging_output_path);
+        return true;
+      }
+      return false;
+
     default:
       return false;
   }
