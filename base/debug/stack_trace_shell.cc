@@ -9,11 +9,17 @@
 // that they are compiled for a desktop application. This is the reason
 // why the functionality will only be enabled in internal builds.
 
+#if !defined(COBALT_WIN)
 #pragma push_macro("WINAPI_PARTITION_DESKTOP")
 #undef WINAPI_PARTITION_DESKTOP
 #define WINAPI_PARTITION_DESKTOP 1
+#endif
+
 #include "stack_trace_win.cc"
+
+#if !defined(COBALT_WIN)
 #pragma pop_macro("WINAPI_PARTITION_DESKTOP")
+#endif
 
 // EnableInProcessStackDumping is implemented in stack_trace_xb1.cc
 
