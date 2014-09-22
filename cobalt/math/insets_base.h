@@ -29,7 +29,7 @@ class InsetsBase {
   // Returns true if the insets are empty.
   bool empty() const { return width() == 0 && height() == 0; }
 
-  void Set(Type top, Type left, Type bottom, Type right) {
+  void SetInsets(Type top, Type left, Type bottom, Type right) {
     top_ = top;
     left_ = left;
     bottom_ = bottom;

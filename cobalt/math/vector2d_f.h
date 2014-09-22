@@ -21,6 +21,11 @@ class Vector2dF {
   Vector2dF() : x_(0), y_(0) {}
   Vector2dF(float x, float y) : x_(x), y_(y) {}
 
+  void SetVector(float x, float y) {
+    x_ = x;
+    y_ = y;
+  }
+
   float x() const { return x_; }
   void set_x(float x) { x_ = x; }
 
