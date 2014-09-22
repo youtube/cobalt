@@ -24,12 +24,6 @@ class BoxF {
         height_(height < 0 ? 0 : height),
         depth_(depth < 0 ? 0 : depth) {}
 
-  BoxF(float x, float y, float z, float width, float height, float depth)
-      : origin_(x, y, z),
-        width_(width < 0 ? 0 : width),
-        height_(height < 0 ? 0 : height),
-        depth_(depth < 0 ? 0 : depth) {}
-
   BoxF(const Point3F& origin, float width, float height, float depth)
       : origin_(origin),
         width_(width < 0 ? 0 : width),
@@ -37,6 +31,20 @@ class BoxF {
         depth_(depth < 0 ? 0 : depth) {}
 
   ~BoxF() {}
+
+  void SetBox(float width, float height, float depth) {
+    origin_.SetPoint(0, 0, 0);
+    set_width(width);
+    set_height(height);
+    set_depth(depth);
+  }
+
+  void SetBox(const Point3F& origin, float width, float height, float depth) {
+    set_origin(origin);
+    set_width(width);
+    set_height(height);
+    set_depth(depth);
+  }
 
   // Scales all three axes by the given scale.
   void Scale(float scale) { Scale(scale, scale, scale); }
@@ -119,7 +127,7 @@ BoxF UnionBoxes(const BoxF& a, const BoxF& b);
 
 inline BoxF ScaleBox(const BoxF& b, float x_scale, float y_scale,
                      float z_scale) {
-  return BoxF(b.x() * x_scale, b.y() * y_scale, b.z() * z_scale,
+  return BoxF(ScalePoint(b.origin(), x_scale, y_scale, z_scale),
               b.width() * x_scale, b.height() * y_scale, b.depth() * z_scale);
 }
 
@@ -135,8 +143,7 @@ inline bool operator==(const BoxF& a, const BoxF& b) {
 inline bool operator!=(const BoxF& a, const BoxF& b) { return !(a == b); }
 
 inline BoxF operator+(const BoxF& b, const Vector3dF& v) {
-  return BoxF(b.x() + v.x(), b.y() + v.y(), b.z() + v.z(), b.width(),
-              b.height(), b.depth());
+  return BoxF(b.origin() + v, b.width(), b.height(), b.depth());
 }
 
 }  // namespace math

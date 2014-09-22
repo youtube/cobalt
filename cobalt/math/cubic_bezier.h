@@ -8,6 +8,20 @@
 namespace cobalt {
 namespace math {
 
+// CubicBezier implements functionality required to evaluate the cubic-bezier()
+// class of timing functions as defined here:
+//   https://developer.mozilla.org/en-US/docs/Web/CSS/timing-function
+//
+// A cubic Bezier curve is defined by four points P0, P1, P2, and P3.
+// P0 and P3 are the start and the end of the curve and in CSS these points
+// are fixed and defined as (0, 0) and (1, 1) respectively.
+//
+// Given P1=(x1, y1) and P2=(x2, y2), for each x in [0, 1] the following code
+// will find y, such that P=(x, y) resides on the curve.
+//
+//   const CubicBezier curve(x1, y1, x2, y2);
+//   const double y = curve.Solve(x);
+//
 class CubicBezier {
  public:
   CubicBezier(double x1, double y1, double x2, double y2);

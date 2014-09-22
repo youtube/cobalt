@@ -31,9 +31,9 @@ TEST(InsetsTest, Insets) {
   EXPECT_FALSE(insets.empty());
 }
 
-TEST(InsetsTest, Set) {
+TEST(InsetsTest, SetInsets) {
   Insets insets;
-  insets.Set(1, 2, 3, 4);
+  insets.SetInsets(1, 2, 3, 4);
   EXPECT_EQ(1, insets.top());
   EXPECT_EQ(2, insets.left());
   EXPECT_EQ(3, insets.bottom());
@@ -42,7 +42,7 @@ TEST(InsetsTest, Set) {
 
 TEST(InsetsTest, Add) {
   Insets insets;
-  insets.Set(1, 2, 3, 4);
+  insets.SetInsets(1, 2, 3, 4);
   insets += Insets(5, 6, 7, 8);
   EXPECT_EQ(6, insets.top());
   EXPECT_EQ(8, insets.left());
@@ -52,13 +52,13 @@ TEST(InsetsTest, Add) {
 
 TEST(InsetsTest, Equality) {
   Insets insets1;
-  insets1.Set(1, 2, 3, 4);
+  insets1.SetInsets(1, 2, 3, 4);
   Insets insets2;
   // Test operator== and operator!=.
   EXPECT_FALSE(insets1 == insets2);
   EXPECT_TRUE(insets1 != insets2);
 
-  insets2.Set(1, 2, 3, 4);
+  insets2.SetInsets(1, 2, 3, 4);
   EXPECT_TRUE(insets1 == insets2);
   EXPECT_FALSE(insets1 != insets2);
 }
