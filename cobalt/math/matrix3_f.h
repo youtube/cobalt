@@ -19,18 +19,13 @@ class Matrix3F {
   static Matrix3F Ones();
   static Matrix3F Identity();
   static Matrix3F FromOuterProduct(const Vector3dF& a, const Vector3dF& bt);
+  static Matrix3F FromArray(const float data[9]);
+  static Matrix3F FromValues(float m00, float m01, float m02, float m10,
+                             float m11, float m12, float m20, float m21,
+                             float m22);
 
-  bool IsEqual(const Matrix3F& rhs) const;
-
-  // Element-wise comparison with given precision.
-  bool IsNear(const Matrix3F& rhs, float precision) const;
-
-  float get(int i, int j) const { return data_[MatrixToArrayCoords(i, j)]; }
-
-  void set(int i, int j, float v) { data_[MatrixToArrayCoords(i, j)] = v; }
-
-  void set(float m00, float m01, float m02, float m10, float m11, float m12,
-           float m20, float m21, float m22) {
+  void SetMatrix(float m00, float m01, float m02, float m10, float m11,
+                 float m12, float m20, float m21, float m22) {
     data_[0] = m00;
     data_[1] = m01;
     data_[2] = m02;
@@ -42,7 +37,21 @@ class Matrix3F {
     data_[8] = m22;
   }
 
-  Vector3dF get_column(int i) const {
+  bool IsEqual(const Matrix3F& rhs) const;
+
+  // Element-wise comparison with given precision.
+  bool IsNear(const Matrix3F& rhs, float precision) const;
+
+  // Access data by row (i) and column (j).
+  float Get(int i, int j) const { return (*this)(i, j); }
+  void Set(int i, int j, float v) { (*this)(i, j) = v; }
+
+  float operator()(int i, int j) const {
+    return data_[MatrixToArrayCoords(i, j)];
+  }
+  float& operator()(int i, int j) { return data_[MatrixToArrayCoords(i, j)]; }
+
+  Vector3dF column(int i) const {
     return Vector3dF(data_[MatrixToArrayCoords(0, i)],
                      data_[MatrixToArrayCoords(1, i)],
                      data_[MatrixToArrayCoords(2, i)]);

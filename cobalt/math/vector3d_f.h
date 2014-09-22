@@ -25,6 +25,12 @@ class Vector3dF {
 
   explicit Vector3dF(const Vector2dF& other);
 
+  void SetVector(float x, float y, float z) {
+    x_ = x;
+    y_ = y;
+    z_ = z;
+  }
+
   float x() const { return x_; }
   void set_x(float x) { x_ = x; }
 
