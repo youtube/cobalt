@@ -32,6 +32,14 @@ class QuadF {
 
   void operator=(const RectF& rect);
 
+  void SetQuad(const PointF& p1, const PointF& p2, const PointF& p3,
+               const PointF& p4) {
+    set_p1(p1);
+    set_p2(p2);
+    set_p3(p3);
+    set_p4(p4);
+  }
+
   void set_p1(const PointF& p) { p1_ = p; }
   void set_p2(const PointF& p) { p2_ = p; }
   void set_p3(const PointF& p) { p3_ = p; }

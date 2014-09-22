@@ -24,6 +24,11 @@ class Vector2d {
   Vector2d() : x_(0), y_(0) {}
   Vector2d(int x, int y) : x_(x), y_(y) {}
 
+  void SetVector(int x, int y) {
+    x_ = x;
+    y_ = y;
+  }
+
   int x() const { return x_; }
   void set_x(int x) { x_ = x; }
 

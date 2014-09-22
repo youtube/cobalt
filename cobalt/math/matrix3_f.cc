@@ -41,30 +41,46 @@ Matrix3F::~Matrix3F() {}
 // static
 Matrix3F Matrix3F::Zeros() {
   Matrix3F matrix;
-  matrix.set(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+  matrix.SetMatrix(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
   return matrix;
 }
 
 // static
 Matrix3F Matrix3F::Ones() {
   Matrix3F matrix;
-  matrix.set(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+  matrix.SetMatrix(1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
   return matrix;
 }
 
 // static
 Matrix3F Matrix3F::Identity() {
   Matrix3F matrix;
-  matrix.set(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+  matrix.SetMatrix(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
   return matrix;
 }
 
 // static
 Matrix3F Matrix3F::FromOuterProduct(const Vector3dF& a, const Vector3dF& bt) {
   Matrix3F matrix;
-  matrix.set(a.x() * bt.x(), a.x() * bt.y(), a.x() * bt.z(), a.y() * bt.x(),
-             a.y() * bt.y(), a.y() * bt.z(), a.z() * bt.x(), a.z() * bt.y(),
-             a.z() * bt.z());
+  matrix.SetMatrix(a.x() * bt.x(), a.x() * bt.y(), a.x() * bt.z(),
+                   a.y() * bt.x(), a.y() * bt.y(), a.y() * bt.z(),
+                   a.z() * bt.x(), a.z() * bt.y(), a.z() * bt.z());
+  return matrix;
+}
+
+// static
+Matrix3F Matrix3F::FromArray(const float data[9]) {
+  Matrix3F matrix;
+  memcpy(matrix.data_, data, sizeof(float) * 9);
+  return matrix;
+}
+
+// static
+Matrix3F Matrix3F::FromValues(float m00, float m01, float m02, float m10,
+                              float m11, float m12, float m20, float m21,
+                              float m22) {
+  Matrix3F matrix;
+  matrix.SetMatrix(m00, m01, m02, m10, m11, m12, m20, m21, m22);
   return matrix;
 }
 
@@ -86,7 +102,7 @@ Matrix3F Matrix3F::Inverse() const {
   if (std::numeric_limits<float>::epsilon() > std::abs(determinant))
     return inverse;  // Singular matrix. Return Zeros().
 
-  inverse.set(
+  inverse.SetMatrix(
       (data_[M11] * data_[M22] - data_[M12] * data_[M21]) / determinant,
       (data_[M02] * data_[M21] - data_[M01] * data_[M22]) / determinant,
       (data_[M01] * data_[M12] - data_[M02] * data_[M11]) / determinant,
@@ -170,7 +186,7 @@ Vector3dF Matrix3F::SolveEigenproblem(Matrix3F* eigenvectors) const {
   if (eigenvectors != NULL && diagonal) {
     // Eigenvectors are e-vectors, just need to be sorted accordingly.
     *eigenvectors = Zeros();
-    for (int i = 0; i < 3; ++i) eigenvectors->set(indices[i], i, 1.0f);
+    for (int i = 0; i < 3; ++i) eigenvectors->Set(indices[i], i, 1.0f);
   } else if (eigenvectors != NULL) {
     // Consult the following for a detailed discussion:
     // Joachim Kopp
@@ -187,12 +203,9 @@ Vector3dF Matrix3F::SolveEigenproblem(Matrix3F* eigenvectors) const {
       matrix_b.data_[M00] -= l;
       matrix_b.data_[M11] -= l;
       matrix_b.data_[M22] -= l;
-      Vector3dF e1 =
-          CrossProduct(matrix_b.get_column(0), matrix_b.get_column(1));
-      Vector3dF e2 =
-          CrossProduct(matrix_b.get_column(1), matrix_b.get_column(2));
-      Vector3dF e3 =
-          CrossProduct(matrix_b.get_column(2), matrix_b.get_column(0));
+      Vector3dF e1 = CrossProduct(matrix_b.column(0), matrix_b.column(1));
+      Vector3dF e2 = CrossProduct(matrix_b.column(1), matrix_b.column(2));
+      Vector3dF e3 = CrossProduct(matrix_b.column(2), matrix_b.column(0));
 
       // e1, e2 and e3 should point in the same direction.
       if (DotProduct(e1, e2) < 0) e2 = -e2;
