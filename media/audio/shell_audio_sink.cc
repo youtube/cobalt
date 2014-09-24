@@ -179,7 +179,7 @@ bool ShellAudioSink::PauseRequested() const {
 
 bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
                                 uint32_t* total_frames) {
-  TRACE_EVENT0("media_stack", "ShellAudioSink::PullFrame()");
+  TRACE_EVENT0("media_stack", "ShellAudioSink::PullFrames()");
   // with a valid render callback
   DCHECK(render_callback_);
 

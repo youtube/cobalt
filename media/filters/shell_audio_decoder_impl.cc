@@ -343,7 +343,7 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
 #endif
 
   TRACE_EVENT1("media_stack",
-               "ShellAudioDecoderImpl::DoDecodeBuffer() data decoderd.",
+               "ShellAudioDecoderImpl::DoDecodeBuffer() data decoded.",
                "timestamp", decoded_buffer->GetTimestamp().InMicroseconds());
   base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, decoded_buffer);
 
