@@ -27,7 +27,9 @@
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
     # The "real" target_arch that is used to select the correct delegate source.
-    'actual_target_arch%': '<(target_arch)',
+    # TODO(***REMOVED***): Investigate why adding % will break the build on platforms
+    # other than Windows
+    'actual_target_arch': '<(target_arch)',
 
     # The variables allow changing the target type on platforms where the
     # native code may require an additional packaging step (ex. Android).
