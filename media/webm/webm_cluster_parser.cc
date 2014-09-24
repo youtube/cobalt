@@ -225,8 +225,17 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   // The first bit of the flags is set when the block contains only keyframes.
   // http://www.matroska.org/technical/specs/index.html
   bool is_keyframe = (flags & 0x80) != 0;
+
+#if defined(__LB_SHELL__)
+  scoped_refptr<StreamParserBuffer> buffer;
+  // Create buffer and copy data over for non-encrypted data. Encrypted data
+  // will be handled in the following if block.
+  if (encryption_key_id.empty())
+    buffer = StreamParserBuffer::CopyFrom(data, size, is_keyframe);
+#else  // defined(__LB_SHELL__)
   scoped_refptr<StreamParserBuffer> buffer =
       StreamParserBuffer::CopyFrom(data, size, is_keyframe);
+#endif  // defined(__LB_SHELL__)
 
   // Every encrypted Block has a signal byte and IV prepended to it. Current
   // encrypted WebM request for comments specification is here
@@ -256,6 +265,13 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
       data_offset += kWebMIvSize;
     }
 
+#if defined(__LB_SHELL__)
+    // Don't copy prepended meta data as it is not used by the decrytor and
+    // decoder.
+    buffer = StreamParserBuffer::CopyFrom(data + data_offset,
+                                          size - data_offset, is_keyframe);
+#endif  // defined(__LB_SHELL__)
+
     // TODO(fgalligan): Revisit if DecryptConfig needs to be set on unencrypted
     // frames after the CDM API is finalized.
     // Unencrypted frames of potentially encrypted streams currently set
@@ -263,7 +279,9 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
         encryption_key_id,
         counter_block,
+#if !defined(__LB_SHELL__)
         data_offset,
+#endif  // !defined(__LB_SHELL__)
         std::vector<SubsampleEntry>())));
   }
 

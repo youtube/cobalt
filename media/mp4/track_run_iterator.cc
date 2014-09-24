@@ -441,7 +441,9 @@ scoped_ptr<DecryptConfig> TrackRunIterator::GetDecryptConfig() {
       std::string(reinterpret_cast<const char*>(&kid[0]), kid.size()),
       std::string(reinterpret_cast<const char*>(cenc_info.iv),
                   arraysize(cenc_info.iv)),
+#if !defined(__LB_SHELL__)
       0,  // No offset to start of media data in MP4 using CENC.
+#endif  // !defined(__LB_SHELL__)
       cenc_info.subsamples));
 }
 
