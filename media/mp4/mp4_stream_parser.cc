@@ -466,7 +466,9 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     decrypt_config.reset(new DecryptConfig(
         decrypt_config->key_id(),
         decrypt_config->iv(),
+#if !defined(__LB_SHELL__)
         decrypt_config->data_offset(),
+#endif  // !defined(__LB_SHELL__)
         subsamples));
     }
     // else, use the existing config.
@@ -474,8 +476,13 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
              (video && is_video_track_encrypted_)) {
     // The media pipeline requires a DecryptConfig with an empty |iv|.
     // TODO(ddorwin): Refactor so we do not need a fake key ID ("1");
+#if defined(__LB_SHELL__)
+    decrypt_config.reset(
+        new DecryptConfig("1", "", std::vector<SubsampleEntry>()));
+#else  // !defined(__LB_SHELL__)
     decrypt_config.reset(
         new DecryptConfig("1", "", 0, std::vector<SubsampleEntry>()));
+#endif  // !defined(__LB_SHELL__)
   }
 
 #if defined(__LB_SHELL__)
