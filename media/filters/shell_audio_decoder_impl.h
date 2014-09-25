@@ -97,8 +97,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   bool ValidateConfig(const AudioDecoderConfig& config);
 
   void DoDecodeBuffer();
-  void DecodeBuffer(media::AudioBus* audio_bus,
-                    DemuxerStream::Status status,
+  void DecodeBuffer(AudioBus* audio_bus, DemuxerStream::Status status,
                     const scoped_refptr<ShellBuffer>& buffer);
 
   void DoRead();

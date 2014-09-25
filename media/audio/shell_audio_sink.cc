@@ -265,11 +265,11 @@ void ShellAudioSink::ConsumeFrames(uint32_t frame_played) {
   }
 }
 
-media::AudioBus* ShellAudioSink::GetAudioBus() {
+AudioBus* ShellAudioSink::GetAudioBus() {
   return audio_bus_.get();
 }
 
-const media::AudioParameters& ShellAudioSink::GetAudioParameters() const {
+const AudioParameters& ShellAudioSink::GetAudioParameters() const {
   return audio_parameters_;
 }
 

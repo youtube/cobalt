@@ -79,8 +79,7 @@ ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
 
 void ShellAudioDecoderImpl::Initialize(
     const scoped_refptr<DemuxerStream> &stream,
-    const media::PipelineStatusCB &status_cb,
-    const media::StatisticsCB &statistics_cb) {
+    const PipelineStatusCB &status_cb, const StatisticsCB &statistics_cb) {
   TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::Initialize()");
   demuxer_stream_ = stream;
   statistics_cb_ = statistics_cb;
@@ -155,7 +154,7 @@ bool ShellAudioDecoderImpl::ValidateConfig(const AudioDecoderConfig& config) {
   return true;
 }
 
-void ShellAudioDecoderImpl::Read(const media::AudioDecoder::ReadCB& read_cb) {
+void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
   // This may be called from another thread (H/W audio thread) so redirect
   // this request to the decoder's message loop
   if (!message_loop_->BelongsToCurrentThread()) {

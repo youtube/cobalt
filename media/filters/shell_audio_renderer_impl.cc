@@ -33,16 +33,14 @@ namespace media {
 
 // static
 ShellAudioRenderer* ShellAudioRenderer::Create(
-    media::AudioRendererSink* sink,
-    const SetDecryptorReadyCB& set_decryptor_ready_cb,
+    AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop) {
   return new ShellAudioRendererImpl(
       sink, set_decryptor_ready_cb, message_loop);
 }
 
 ShellAudioRendererImpl::ShellAudioRendererImpl(
-    media::AudioRendererSink* sink,
-    const SetDecryptorReadyCB& set_decryptor_ready_cb,
+    AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : message_loop_(message_loop)
     , set_decryptor_ready_cb_(set_decryptor_ready_cb)
@@ -97,7 +95,7 @@ void ShellAudioRendererImpl::Flush(const base::Closure &callback) {
   TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::Flush()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPaused);
-  DCHECK_EQ(decoded_audio_bus_, (media::AudioBus*)NULL);
+  DCHECK_EQ(decoded_audio_bus_, (AudioBus*)NULL);
 
   // Pause and flush the sink. Do this only if there is not a decode pending
   // because the sink expects that it will not be flushed while a read is
@@ -154,12 +152,12 @@ void ShellAudioRendererImpl::OnDecoderReset(const base::Closure& callback) {
   TRACE_EVENT0("media_stack", "ShellAudioRendererImpl::OnDecoderReset()");
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(state_ == kStopping || state_ == kUninitialized);
-  DCHECK_EQ(decoded_audio_bus_, (media::AudioBus*)NULL);
+  DCHECK_EQ(decoded_audio_bus_, (AudioBus*)NULL);
   DCHECK(renderer_idle_cb_.is_null());
 
   decoder_ = NULL;
   if (state_ != kUninitialized && state_ != kStopped) {
-    DCHECK_NE(sink_, (media::AudioRendererSink*)NULL);
+    DCHECK_NE(sink_, (AudioRendererSink*)NULL);
     sink_->Stop();
   }
   sink_ = NULL;
@@ -204,7 +202,7 @@ void ShellAudioRendererImpl::Initialize(
   state_ = kUninitialized;
   playback_rate_ = 1.0f;
   end_of_stream_state_ = kWaitingForEOS;
-  DCHECK_EQ(decoded_audio_bus_, (media::AudioBus*)NULL);
+  DCHECK_EQ(decoded_audio_bus_, (AudioBus*)NULL);
   decoded_audio_bus_ = NULL;
   decode_complete_ = false;
 
@@ -357,7 +355,7 @@ void ShellAudioRendererImpl::DecodedAudioReady(
                "status", status);
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!decode_complete_);
-  DCHECK_NE(decoded_audio_bus_, (media::AudioBus*)NULL);
+  DCHECK_NE(decoded_audio_bus_, (AudioBus*)NULL);
 
   if (status == AudioDecoder::kOk) {
     if (!buffer) {
@@ -458,7 +456,7 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
   if (dest != NULL) {
     // No pending decode, so fire off the Read if we are in an appropriate state
     if (ShouldQueueRead(state_) && decoded_audio_bus_ == NULL) {
-      DCHECK_NE(dest, (media::AudioBus*)NULL);
+      DCHECK_NE(dest, (AudioBus*)NULL);
       decode_complete_ = false;
       decoded_audio_bus_ = dest;
       decoder_->Read(
