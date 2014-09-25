@@ -29,7 +29,7 @@ class DecryptingDemuxerStream;
 class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
  public:
   explicit ShellAudioRendererImpl(
-      media::AudioRendererSink* sink,
+      AudioRendererSink* sink,
       const SetDecryptorReadyCB& set_decryptor_ready_cb,
       const scoped_refptr<base::MessageLoopProxy>& message_loop);
 
@@ -114,7 +114,7 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   void DoResumeAfterUnderflow(bool buffer_more_audio);
   void DoSinkFull();
 
-  // media::AudioRendererSink::RenderCallback implementation.
+  // AudioRendererSink::RenderCallback implementation.
   // Attempts to completely fill all channels of |dest|, returns actual
   // number of frames filled.
   // Render() is run on the system audio thread
@@ -147,7 +147,7 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   bool ShouldQueueRead(State state);
 
   // objects communicating with the rest of the filter graph
-  scoped_refptr<media::AudioRendererSink> sink_;
+  scoped_refptr<AudioRendererSink> sink_;
   SetDecryptorReadyCB set_decryptor_ready_cb_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   scoped_refptr<AudioDecoder> decoder_;
@@ -171,7 +171,7 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   float playback_rate_;
   AudioParameters audio_parameters_;
 
-  media::AudioBus* decoded_audio_bus_;
+  AudioBus* decoded_audio_bus_;
   AudioDecoder::Status decode_status_;
   bool decode_complete_;
 

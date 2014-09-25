@@ -74,8 +74,8 @@ class MEDIA_EXPORT ShellAudioSink
   virtual bool PullFrames(uint32_t* offset_in_frame,
                           uint32_t* total_frames) OVERRIDE;
   virtual void ConsumeFrames(uint32_t frame_played) OVERRIDE;
-  virtual const media::AudioParameters& GetAudioParameters() const OVERRIDE;
-  virtual media::AudioBus* GetAudioBus() OVERRIDE;
+  virtual const AudioParameters& GetAudioParameters() const OVERRIDE;
+  virtual AudioBus* GetAudioBus() OVERRIDE;
 
   // useful for jitter tracking
   void SetClockBiasMs(int64 time_ms);
@@ -88,7 +88,7 @@ class MEDIA_EXPORT ShellAudioSink
   AudioParameters audio_parameters_;
   RenderCallback* render_callback_;
 
-  scoped_ptr<media::AudioBus> audio_bus_;
+  scoped_ptr<AudioBus> audio_bus_;
 
   // Used as a paremeter when calling render_callback_->Render().
   // We can only construct it through a static Create method that does a heap
