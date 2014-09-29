@@ -253,18 +253,8 @@ class MsvsSettings(object):
 
   def _TargetConfig(self, config):
     """Returns the target-specific configuration."""
-    # There's two levels of architecture/platform specification in VS. The
-    # first level is globally for the configuration (this is what we consider
-    # "the" config at the gyp level, which will be something like 'Debug' or
-    # 'Release_x64'), and a second target-specific configuration, which is an
-    # override for the global one. |config| is remapped here to take into
-    # account the local target-specific overrides to the global configuration.
-    arch = self.GetArch(config)
-    if not config.startswith('XB1') and not config.startswith('XB360'):
-      if arch == 'x64' and not config.endswith('_x64'):
-        config += '_x64'
-      if arch == 'x86' and config.endswith('_x64'):
-        config = config.rsplit('_', 1)[0]
+    # On Cobalt, we're not using any suffix on config names like Win_Debug_x64.
+    # Cobalt on Windows is x64 only.
     return config
 
   def _Setting(self, path, config,
