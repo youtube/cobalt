@@ -82,15 +82,24 @@
       'WIN32_LEAN_AND_MEAN',
     ],
     'msvs_disabled_warnings': [
-      # Using unsecure or deprecated version of a function. Turned off /sdl
-      # below to not treat this as error.
+      # Warning level 1
+      # C4530: Exception handler used, but unwind semantics are not enabled.
+      #        Specify /EHsc.
+      # This should disappear when turning off Component Extension.
+      4530,
+
+      # Warning level 2
+      # C4244: Conversion from 'type1' to 'type2', possible loss of data.
+      # Too many places, will not fix.
+      4244,
+
+      # Warning level 3
+      # C4996: Using unsecure or deprecated version of a function.
+      # Turned off /sdl below to not treat this as error.
       4996,
-      # TODO(***REMOVED***): Investigate following warnings:
-      # 4530: exception handler used, but unwind semantics are not enabled. Specify /EHsc
-      # 4244: conversion from 'type1' to 'type2', possible loss of data
-      4530, 4244,
-      # Warnings below are introdcued by changing WarningLevel from 2 to 3.
-      4267, 4018, 4800
+      # C4267: Conversion from 'size_t' to 'type', possible loss of data.
+      # Too many places, will not fix.
+      4267,
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
