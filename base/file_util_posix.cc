@@ -797,7 +797,8 @@ FilePath FileEnumerator::Next() {
     pending_paths_.pop();
 
     std::vector<DirectoryEntryInfo> entries;
-    if (!ReadDirectory(&entries, root_path_, file_type_ & SHOW_SYM_LINKS))
+    if (!ReadDirectory(
+            &entries, root_path_, (file_type_ & SHOW_SYM_LINKS) != 0))
       continue;
 
     directory_entries_.clear();
