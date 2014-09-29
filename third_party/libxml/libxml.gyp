@@ -232,6 +232,10 @@
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
+            # Disable signed/unsigned comparison warning on Coblat on Windows.
+            ['actual_target_arch=="win"', {
+              'msvs_disabled_warnings': [ 4018 ],
+            }],
             ['clang == 1', {
               'xcode_settings': {
                 'WARNING_CFLAGS': [
