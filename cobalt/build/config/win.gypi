@@ -133,7 +133,9 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
-        'msvs_configuration_platform': 'x64',
+        # TODO(***REMOVED***): For now, msvs_configuration_platform and
+        # msvs_target_platform serve similar purposes. Investigate, if ever,
+        # when porting to x86.
         'msvs_target_platform': 'x64',
         # Add the default import libs.
         'msvs_settings':{
