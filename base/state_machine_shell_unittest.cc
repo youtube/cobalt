@@ -107,7 +107,9 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
       : base::StateMachineShell<hsm::TestState, hsm::TestEvent>("TestHsm"),
         foo_(true),
         event_i_count_(0) {
-    EnableLogging();
+    if (VLOG_IS_ON(1)) {
+      EnableLogging();
+    }
   }
   virtual ~TestHsm() { }
 
@@ -123,28 +125,28 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
               StateEnumN current_state = StateEnumN(),
               void *data = NULL,
               uint64_t version = hsm::kNoVersion) {
-    DLOG(INFO) << __FUNCTION__ << ": hsm_event=" << hsm_event
-               << ", event_state=" << GetStateString(event_state)
-               << ", event=" << GetEventString(event)
-               << ", current_state=" << GetStateString(current_state)
-               << ", data=0x" << std::hex << data
-               << ", version=" << version;
+    VLOG(1) << __FUNCTION__ << ": hsm_event=" << hsm_event
+            << ", event_state=" << GetStateString(event_state)
+            << ", event=" << GetEventString(event)
+            << ", current_state=" << GetStateString(current_state)
+            << ", data=0x" << std::hex << data << ", version=" << version;
+
     EXPECT_FALSE(results.empty());
     TestHsm::ResultEvent result = results.front();
     results.pop_front();
     EXPECT_EQ(hsm_event, result.hsm_event);
-    if (!event_state.is_null()) {
+    if (event_state) {
       EXPECT_EQ(event_state, result.event_state);
-      if (current_state.is_null()) {
+      if (!current_state) {
         EXPECT_EQ(event_state, result.state);
       }
     }
 
-    if (!current_state.is_null()) {
+    if (current_state) {
       EXPECT_EQ(current_state, result.state);
     }
 
-    if (!event.is_null()) {
+    if (event) {
       EXPECT_EQ(event, result.event);
     }
     EXPECT_EQ(data, result.data);
@@ -169,7 +171,7 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
       case hsm::kStateS211:
         return hsm::kStateS21;
       default:
-        return StateEnumN::Null();
+        return StateEnumN();
     }
   }
 
@@ -184,7 +186,7 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
       case hsm::kStateS21:
         return hsm::kStateS211;
       default:
-        return StateEnumN::Null();
+        return StateEnumN();
     }
   }
 
@@ -243,8 +245,8 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
   virtual Result HandleUserStateEvent(hsm::TestState state,
                                       hsm::TestEvent event,
                                       void *data) OVERRIDE {
-    DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", "
-               << GetEventString(event) << ", 0x" << std::hex << data << ");";
+    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", "
+            << GetEventString(event) << ", 0x" << std::hex << data << ");";
 
     Result result(kNotHandled);
     switch (state) {
@@ -387,13 +389,15 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
   }
 
   virtual void HandleUserStateEnter(hsm::TestState state) OVERRIDE {
-    DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", ENTER);";
-    AddEvent(state, EventEnumN::Null(), NULL, hsm::kHsmEnter);
+    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", ENTER);";
+
+    AddEvent(state, EventEnumN(), NULL, hsm::kHsmEnter);
   }
 
   virtual void HandleUserStateExit(hsm::TestState state) OVERRIDE {
-    DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", EXIT);";
-    AddEvent(state, EventEnumN::Null(), NULL, hsm::kHsmExit);
+    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", EXIT);";
+
+    AddEvent(state, EventEnumN(), NULL, hsm::kHsmExit);
   }
 
  private:
