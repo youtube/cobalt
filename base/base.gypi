@@ -568,6 +568,9 @@
               'message_pump_shell.h',
               'native_library_shell.cc',  # Stub implementation
               'nullable_shell.h',
+              'optional.cc',
+              'optional.h',
+              'optional_internal.h',
               'shared_memory_shell.cc',  # Stub implementation
               'state_machine_shell.h',
               'state_machine_shell.cc',
