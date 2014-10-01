@@ -9,8 +9,7 @@
 // --- Macros for common logging idioms ---
 
 #define SM_STATE(s) GetStateString(s) << "(" << s << ")"
-#define SM_STATEN(s) \
-    GetStateString(s) << "(" << (s.is_null() ? 0 : s.value()) << ")"
+#define SM_STATEN(s) GetStateString(s) << "(" << s.value_or(0) << ")"
 #define SM_EVENT(e) GetEventString(e) << "(" << e << ")"
 #define SM_PREFIX \
     name_ << "-" << SM_STATEN(state_) << "v" << version_ << ": "
@@ -34,15 +33,15 @@ void StateMachineBaseShell::Initialize() {
   if (should_log_) {
     SM_DLOG(INFO) << "INITIALIZING";
   }
-  DCHECK(state_.is_null()) << SM_PREFIX;
-  DCHECK(GetParentState(GetUserInitialState()).is_null()) << SM_PREFIX;
+  DCHECK(!state_) << SM_PREFIX;
+  DCHECK(!GetParentState(GetUserInitialState())) << SM_PREFIX;
   is_initialized_ = true;
   FollowInitialSubstates();
 }
 
 bool StateMachineBaseShell::IsIn(State state) const {
   StateN currentState = state_;
-  while (!currentState.is_null()) {
+  while (currentState) {
     if (state == currentState.value()) {
       return true;
     }
@@ -54,7 +53,7 @@ bool StateMachineBaseShell::IsIn(State state) const {
 }
 
 const char *StateMachineBaseShell::GetStateString(StateN state) const {
-  if (state.is_null()) {
+  if (!state) {
     return "<none>";
   }
 
@@ -67,7 +66,7 @@ const char *StateMachineBaseShell::GetStateString(StateN state) const {
 }
 
 const char *StateMachineBaseShell::GetEventString(EventN event) const {
-  if (event.is_null()) {
+  if (!event) {
     return "<none>";
   }
 
@@ -98,8 +97,8 @@ void StateMachineBaseShell::Handle(Event event, void *data) {
 
 StateMachineBaseShell::StateN
 StateMachineBaseShell::GetParentState(StateN state) const {
-  if (state.is_null()) {
-    return StateN::Null();
+  if (!state) {
+    return StateN();
   }
 
   return GetUserParentState(state.value());
@@ -107,8 +106,8 @@ StateMachineBaseShell::GetParentState(StateN state) const {
 
 StateMachineBaseShell::StateN
 StateMachineBaseShell::GetInitialSubstate(StateN state) const {
-  if (state.is_null()) {
-    return StateN::Null();
+  if (!state) {
+    return StateN();
   }
 
   return GetUserInitialSubstate(state.value());
@@ -133,7 +132,7 @@ void StateMachineBaseShell::HandleOneEvent(Event event, void *data) {
   // handlers, stopping at the first state that decides to handle the event.
   StateN source = state_;
   Result result;
-  while (!source.is_null()) {
+  while (source) {
     result = HandleUserStateEvent(source.value(), event, data);
     if (!result.is_handled) {
       // Result was not handled, so we continue up the state chain.
@@ -147,7 +146,7 @@ void StateMachineBaseShell::HandleOneEvent(Event event, void *data) {
   // Log that the event was completely unhandled, because that's kinda weird.
   // It's better if the state machine handler explicitly consumes and ignores
   // events that should be ignored.
-  if (!result.is_handled) {
+  if (!result.is_handled && should_log_) {
     SM_DLOG(WARNING) << "Event " << SM_EVENT(event) << " was unhandled.";
   }
 
@@ -165,12 +164,13 @@ void StateMachineBaseShell::HandleOneEvent(Event event, void *data) {
 static int IndexOf(StateMachineBaseShell::StateN state,
                    const StateMachineBaseShell::State *path,
                    size_t path_length) {
-  if (state.is_null()) {
+  if (!state) {
     return -1;
   }
 
   int i;
-  for (i = 0; path[i] != state && i < path_length; ++i) { }
+  for (i = 0; !(path[i] == state) && i < path_length; ++i) {
+  }
   return (i == path_length ? -1 : i);
 }
 
@@ -184,7 +184,7 @@ static StateMachineBaseShell::StateN FindLeastCommonAncestor(
   size_t max = std::min(length_a, length_b);
   size_t i;
   for (i = 0; path_a[i] == path_b[i] && i < max; ++i) { }
-  return (i == 0 ? StateMachineBaseShell::StateN::Null() : path_a[i - 1]);
+  return (i == 0 ? StateMachineBaseShell::StateN() : path_a[i - 1]);
 }
 
 void StateMachineBaseShell::GetPath(State state, size_t max_depth, State *out_path,
@@ -199,7 +199,7 @@ void StateMachineBaseShell::GetPath(State state, size_t max_depth, State *out_pa
 
   size_t depth = 0;
   StateN currentState = state;
-  while (!currentState.is_null() && depth < max_depth) {
+  while (currentState && depth < max_depth) {
     out_path[depth] = currentState.value();
     ++depth;
     currentState = GetParentState(currentState);
@@ -241,7 +241,7 @@ void StateMachineBaseShell::Transition(Event event, State source, State target,
   }
 
   // Unwind (exit) states up to the closest common ancestor.
-  while (!state_.is_null() && state_ != least_common_ancestor) {
+  while (state_ && !(state_ == least_common_ancestor)) {
     ExitCurrentState();
   }
 
@@ -261,9 +261,9 @@ void StateMachineBaseShell::Transition(Event event, State source, State target,
 
 void StateMachineBaseShell::FollowInitialSubstates() {
   while (true) {
-    StateN substate = (state_.is_null() ? GetUserInitialState() :
-                       GetInitialSubstate(state_));
-    if (substate.is_null()) {
+    StateN substate =
+        (state_ ? GetInitialSubstate(state_) : GetUserInitialState());
+    if (!substate) {
       break;
     }
     EnterState(substate.value());
