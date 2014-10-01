@@ -804,6 +804,9 @@
             'shared_memory_unittest.cc',
             'synchronization/waitable_event_watcher_unittest.cc',
           ],
+          'sources': [
+            'optional_unittest.cc',
+          ],
           'conditions': [
             ['target_arch != "android"', {
               'dependencies!': [
