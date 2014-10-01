@@ -17,7 +17,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
-#include "base/nullable_shell.h"
+#include "base/optional.h"
 
 namespace base {
 
@@ -83,9 +83,8 @@ class BASE_EXPORT StateMachineBaseShell {
   typedef uint32_t State;
   typedef uint32_t Event;
 
-  typedef Nullable<State> StateN;
-  typedef Nullable<Event> EventN;
-
+  typedef optional<State> StateN;
+  typedef optional<Event> EventN;
 
   // --- Public Methods ---
 
@@ -190,7 +189,7 @@ class BASE_EXPORT StateMachineBaseShell {
           is_handled(true) { }
 
     Result &operator=(HandledState rhs) {
-      target.Clear();
+      target = base::nullopt;
       is_transition = false;
       is_external = false;
       is_handled = (rhs == kHandled);
@@ -371,8 +370,8 @@ class BASE_EXPORT StateMachineShell {
  public:
   // --- Nested Types and Constants ---
 
-  typedef Nullable<StateEnum> StateEnumN;
-  typedef Nullable<EventEnum> EventEnumN;
+  typedef optional<StateEnum> StateEnumN;
+  typedef optional<EventEnum> EventEnumN;
 
   explicit StateMachineShell(const std::string &name)
       : machine_(this, name) { }
@@ -392,8 +391,8 @@ class BASE_EXPORT StateMachineShell {
 
   StateEnumN state() const {
     BaseStateN wrappedState = machine_.state();
-    return (wrappedState.is_null() ? StateEnumN::Null() :
-            static_cast<StateEnum>(wrappedState.value()));
+    return (wrappedState ? static_cast<StateEnum>(*wrappedState)
+                         : StateEnumN());
   }
 
   bool IsIn(StateEnum state) const {
@@ -401,13 +400,13 @@ class BASE_EXPORT StateMachineShell {
   }
 
   const char *GetStateString(StateEnumN state) const {
-    return machine_.GetStateString(state.is_null() ? BaseStateN::Null() :
-                                   static_cast<BaseState>(state.value()));
+    return machine_.GetStateString(state ? static_cast<BaseState>(*state)
+                                         : BaseStateN());
   }
 
   const char *GetEventString(EventEnumN event) const {
-    return machine_.GetEventString(event.is_null() ? BaseEventN::Null() :
-                                   static_cast<BaseEvent>(event.value()));
+    return machine_.GetEventString(event ? static_cast<BaseEvent>(*event)
+                                         : BaseEventN());
   }
 
   void Handle(EventEnum event, void *data = NULL) {
@@ -438,7 +437,7 @@ class BASE_EXPORT StateMachineShell {
           is_handled(true) { }
 
     Result &operator=(HandledState rhs) {
-      target.Clear();
+      target = base::nullopt;
       is_transition = false;
       is_external = false;
       is_handled = (rhs == kHandled);
@@ -493,15 +492,13 @@ class BASE_EXPORT StateMachineShell {
     StateN GetUserParentState(State state) const OVERRIDE {
       StateEnumN result =
           wrapper_->GetUserParentState(static_cast<StateEnum>(state));
-      return (result.is_null() ? StateN::Null() :
-              static_cast<State>(result.value()));
+      return (result ? static_cast<State>(*result) : StateN());
     }
 
     StateN GetUserInitialSubstate(State state) const OVERRIDE {
       StateEnumN result =
           wrapper_->GetUserInitialSubstate(static_cast<StateEnum>(state));
-      return (result.is_null() ? StateN::Null() :
-              static_cast<State>(result.value()));
+      return (result ? static_cast<State>(*result) : StateN());
     }
 
     State GetUserInitialState() const OVERRIDE {
@@ -522,7 +519,7 @@ class BASE_EXPORT StateMachineShell {
                                          static_cast<EventEnum>(event),
                                          data);
       if (result.is_transition) {
-        return Result(static_cast<State>(result.target.value()),
+        return Result(static_cast<State>(*result.target),
                       result.is_external);
       }
 

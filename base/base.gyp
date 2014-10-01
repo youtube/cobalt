@@ -255,7 +255,7 @@
             'sys_string_conversions_posix.cc',
             'threading/thread_local_posix.cc',
             'threading/thread_local_storage_posix.cc',
-            
+
           ],
           'sources/': [
             ['exclude', '^win/'],
@@ -806,6 +806,7 @@
           ],
           'sources': [
             'optional_unittest.cc',
+            'state_machine_shell_unittest.cc',
           ],
           'conditions': [
             ['target_arch != "android"', {
