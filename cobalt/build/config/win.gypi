@@ -154,6 +154,14 @@
           },
           'VCLinkerTool': {
             'RandomizedBaseAddress': '2', # /DYNAMICBASE
+            # TODO(***REMOVED***): SubSystem is hardcoded in
+            # win\sources_template.vcxproj. This will have the exe behave in the
+            # expected way in MSVS: when it's run without debug (Ctrl+F5), it
+            # will pause after finish; when debugging (F5) it will not pause
+            # before the cmd window disappears.
+            # Currently the value is ignored by msvs_makefile.py which generates
+            # the MSVS project files (it's in "data" in GenerateOutput()). Fix
+            # it if we ever need to change SubSystem.
             'SubSystem': '1', # CONSOLE
             'TargetMachine': '17', # x86 - 64
             'AdditionalOptions': [
