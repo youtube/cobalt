@@ -278,6 +278,7 @@ void ShellAudioRendererImpl::DoPreroll(
   preroll_cb_ = callback;
   preroll_timestamp_ = time;
   state_ = kPrerolling;
+  end_of_stream_state_ = kWaitingForEOS;
 }
 
 void ShellAudioRendererImpl::DoUnderflow() {
