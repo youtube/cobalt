@@ -144,7 +144,13 @@ class BASE_EXPORT optional {
 
   // Method for determining whether the optional is engaged or not.  It returns
   // true if the optional is engaged, and false otherwise.
+#if defined(_MSC_VER) && _MSC_VER < 1800
+  // MSVC 2012 does not support explicit cast operators.
+  // http://blogs.msdn.com/b/vcblog/archive/2011/09/12/10209291.aspx
+  operator bool() const { return engaged_; }
+#else
   explicit operator bool() const { return engaged_; }
+#endif
 
   // Dereferences the internal object.
   const T* operator->() const { return &(value()); }
