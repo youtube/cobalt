@@ -341,6 +341,8 @@ void ShellVideoDecoderImpl::DoReset() {
     DecoderFatalError();
   }
 
+  if (state_ != kShellDecodeError)
+    state_ = kNormal;
   eof_buffer_ = NULL;
   cached_buffer_ = NULL;
 
