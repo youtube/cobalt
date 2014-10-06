@@ -114,6 +114,12 @@ class MEDIA_EXPORT Pipeline
   Pipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
            MediaLog* media_log);
 
+#if defined(__LB_SHELL__)
+  // TODO(***REMOVED***) : Refactor this function. This function works fine it is
+  // ugly to let LB::VideoOverlay to know Pipeline directly.
+  static base::TimeDelta GetCurrentTime();
+#endif  // defined(__LB_SHELL__)
+
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
   //
