@@ -457,6 +457,7 @@ uint8* ShellBufferFactory::AllocateLockAcquired(size_t aligned_size) {
   allocs_.insert(std::make_pair(best_fit_ptr, aligned_size));
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_LARGEST_FREE_SHELL_BUFFER,
                           LargestFreeSpace_Locked());
+  UPDATE_MEDIA_STATISTICS(STAT_TYPE_ALLOCATED_SHELL_BUFFER_SIZE, aligned_size);
   return best_fit_ptr;
 }
 
