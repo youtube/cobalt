@@ -52,6 +52,8 @@ class ShellMediaStatistics {
     STAT_TYPE_START_OF_GLOBAL_STAT,
     // The size of the largest free shell buffer block.
     STAT_TYPE_LARGEST_FREE_SHELL_BUFFER,
+    // The size of the shell buffer block just allocated.
+    STAT_TYPE_ALLOCATED_SHELL_BUFFER_SIZE,
     STAT_TYPE_MAX
   };
 
