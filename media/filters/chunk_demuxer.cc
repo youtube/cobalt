@@ -459,21 +459,6 @@ void ChunkDemuxerStream::Shutdown() {
 }
 
 // Helper function that makes sure |read_cb| runs on |message_loop_proxy|.
-#if defined(__LB_SHELL__)
-static void RunOnMessageLoop(
-    const DemuxerStream::ReadCB& read_cb,
-    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
-    DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
-  if (!message_loop_proxy->BelongsToCurrentThread()) {
-    message_loop_proxy->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, read_cb, message_loop_proxy, status, buffer));
-    return;
-  }
-
-  read_cb.Run(status, buffer);
-}
-#else
 static void RunOnMessageLoop(
     const DemuxerStream::ReadCB& read_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
@@ -487,7 +472,6 @@ static void RunOnMessageLoop(
 
   read_cb.Run(status, buffer);
 }
-#endif
 
 // DemuxerStream methods.
 void ChunkDemuxerStream::Read(const ReadCB& read_cb) {

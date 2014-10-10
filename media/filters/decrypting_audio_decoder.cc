@@ -18,11 +18,7 @@
 #include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline.h"
-#if defined(__LB_SHELL__)
-#include "media/base/shell_buffer_factory.h"
-#else
 #include "media/base/decoder_buffer.h"
-#endif
 
 namespace media {
 
@@ -271,15 +267,9 @@ void DecryptingAudioDecoder::ReadFromDemuxerStream() {
       base::Bind(&DecryptingAudioDecoder::DoDecryptAndDecodeBuffer, this));
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
-#else
 void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
-#endif
   if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &DecryptingAudioDecoder::DoDecryptAndDecodeBuffer, this,
@@ -369,13 +359,8 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   bool need_to_try_again_if_nokey_is_returned = key_added_while_decode_pending_;
   key_added_while_decode_pending_ = false;
 
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellBuffer> scoped_pending_buffer_to_decode =
-      pending_buffer_to_decode_;
-#else
   scoped_refptr<DecoderBuffer> scoped_pending_buffer_to_decode =
       pending_buffer_to_decode_;
-#endif
 
   pending_buffer_to_decode_ = NULL;
 

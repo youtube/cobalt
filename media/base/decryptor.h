@@ -21,11 +21,7 @@ namespace media {
 
 class AudioDecoderConfig;
 class Buffer;
-#if defined(__LB_SHELL__)
-class ShellBuffer;
-#else
 class DecoderBuffer;
-#endif
 class VideoDecoderConfig;
 class VideoFrame;
 
@@ -119,13 +115,8 @@ class MEDIA_EXPORT Decryptor {
   //   decrypted buffer must be NULL.
   // - This parameter should not be set to kNeedMoreData.
   // Second parameter: The decrypted buffer.
-#if defined(__LB_SHELL__)
-  typedef base::Callback<void(Status,
-                              const scoped_refptr<ShellBuffer>&)> DecryptCB;
-#else
   typedef base::Callback<void(Status,
                               const scoped_refptr<DecoderBuffer>&)> DecryptCB;
-#endif
 
   // Decrypts the |encrypted| buffer. The decrypt status and decrypted buffer
   // are returned via the provided callback |decrypt_cb|. The |encrypted| buffer
@@ -133,15 +124,9 @@ class MEDIA_EXPORT Decryptor {
   // Decrypt() should not be called until any previous DecryptCB of the same
   // |stream_type| has completed. Thus, only one DecryptCB may be pending at
   // a time for a given |stream_type|.
-#if defined(__LB_SHELL__)
-  virtual void Decrypt(StreamType stream_type,
-                       const scoped_refptr<ShellBuffer>& encrypted,
-                       const DecryptCB& decrypt_cb) = 0;
-#else
   virtual void Decrypt(StreamType stream_type,
                        const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) = 0;
-#endif
 
   // Cancels the scheduled decryption operation for |stream_type| and fires the
   // pending DecryptCB immediately with kSuccess and NULL.
@@ -193,21 +178,12 @@ class MEDIA_EXPORT Decryptor {
   // end-of-stream DecoderBuffer until no frame/buffer can be produced.
   // These methods can only be called after the corresponding decoder has
   // been successfully initialized.
-#if defined(__LB_SHELL__)
-  virtual void DecryptAndDecodeAudio(
-      const scoped_refptr<ShellBuffer>& encrypted,
-      const AudioDecodeCB& audio_decode_cb) = 0;
-  virtual void DecryptAndDecodeVideo(
-      const scoped_refptr<ShellBuffer>& encrypted,
-      const VideoDecodeCB& video_decode_cb) = 0;
-#else
   virtual void DecryptAndDecodeAudio(
       const scoped_refptr<DecoderBuffer>& encrypted,
       const AudioDecodeCB& audio_decode_cb) = 0;
   virtual void DecryptAndDecodeVideo(
       const scoped_refptr<DecoderBuffer>& encrypted,
       const VideoDecodeCB& video_decode_cb) = 0;
-#endif
 
   // Resets the decoder to an initialized clean state, cancels any scheduled
   // decrypt-and-decode operations, and fires any pending

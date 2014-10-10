@@ -347,9 +347,9 @@ SourceBufferStream::SourceBufferStream(
       config_change_pending_(false) {
 #if defined(__LB_SHELL__)
   // The SourceBufferStream caches sample data up to the memory limits
-  // defined above. These sample data is stored using ShellBuffer. So we
-  // have to ensure that the combined limit of SourceBufferStream is less
-  // than or equal to the limit of ShellBuffer.
+  // defined above. These sample data is stored using ShellBufferFactory.
+  // So we have to ensure that the combined limit of SourceBufferStream is less
+  // than or equal to the limit of ShellBufferFactory.
   ShellMediaPlatform* platform = ShellMediaPlatform::Instance();
   const int combined_memory_limit =
       platform->GetSourceBufferStreamAudioMemoryLimit() +

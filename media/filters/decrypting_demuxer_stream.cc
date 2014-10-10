@@ -17,7 +17,6 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/pipeline.h"
 #if defined(__LB_SHELL__)
-#include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_media_statistics.h"
 #endif
 
@@ -166,15 +165,9 @@ void DecryptingDemuxerStream::SetDecryptor(Decryptor* decryptor) {
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingDemuxerStream::DecryptBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
-#else
 void DecryptingDemuxerStream::DecryptBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
-#endif
   // In theory, we don't need to force post the task here, because we do a
   // force task post in DeliverBuffer(). Therefore, even if
   // demuxer_stream_->Read() execute the read callback on the same execution
@@ -184,15 +177,9 @@ void DecryptingDemuxerStream::DecryptBuffer(
       &DecryptingDemuxerStream::DoDecryptBuffer, this, status, buffer));
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingDemuxerStream::DoDecryptBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
-#else
 void DecryptingDemuxerStream::DoDecryptBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
-#endif
   DVLOG(3) << "DoDecryptBuffer()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDemuxerRead) << state_;
@@ -248,16 +235,9 @@ void DecryptingDemuxerStream::DecryptPendingBuffer() {
       base::Bind(&DecryptingDemuxerStream::DeliverBuffer, this));
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingDemuxerStream::DeliverBuffer(
-    Decryptor::Status status,
-    const scoped_refptr<ShellBuffer>& decrypted_buffer) {
-#else
 void DecryptingDemuxerStream::DeliverBuffer(
     Decryptor::Status status,
     const scoped_refptr<DecoderBuffer>& decrypted_buffer) {
-#endif
-
 #if defined(__LB_SHELL__)
   UPDATE_MEDIA_STATISTICS(STAT_TYPE_DECRYPT,
       (base::Time::Now() - decrypting_start_).ToInternalValue());
@@ -271,15 +251,9 @@ void DecryptingDemuxerStream::DeliverBuffer(
       status, decrypted_buffer));
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingDemuxerStream::DoDeliverBuffer(
-    Decryptor::Status status,
-    const scoped_refptr<ShellBuffer>& decrypted_buffer) {
-#else
 void DecryptingDemuxerStream::DoDeliverBuffer(
     Decryptor::Status status,
     const scoped_refptr<DecoderBuffer>& decrypted_buffer) {
-#endif
   DVLOG(3) << "DoDeliverBuffer() - status: " << status;
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecrypt) << state_;

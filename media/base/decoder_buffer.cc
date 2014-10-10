@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !defined(__LB_SHELL__)
+
 #include "media/base/decoder_buffer.h"
 
 #include "base/logging.h"
@@ -83,3 +85,5 @@ void DecoderBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
 }
 
 }  // namespace media
+
+#endif  // !defined(__LB_SHELL__)

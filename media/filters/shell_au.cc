@@ -42,7 +42,7 @@ class ShellEndOfStreamAU : public media::ShellAU {
   virtual bool IsEndOfStream() const OVERRIDE { return true; }
   virtual bool IsValid() const OVERRIDE { return true; }
   virtual bool Read(ShellDataSourceReader* reader,
-                    media::ShellBuffer* buffer) {
+                    media::DecoderBuffer* buffer) {
     NOTREACHED();
     return false;
   }
@@ -89,7 +89,7 @@ class ShellAudioAU : public media::ShellAU {
     return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
   }
   virtual bool Read(ShellDataSourceReader* reader,
-                    ShellBuffer* buffer) OVERRIDE;
+                    DecoderBuffer* buffer) OVERRIDE;
   virtual Type GetType() const OVERRIDE { return media::DemuxerStream::AUDIO; }
   virtual bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
   virtual bool AddPrepend() const OVERRIDE { return true; }
@@ -125,7 +125,7 @@ ShellAudioAU::ShellAudioAU(uint64 offset, size_t size, size_t prepend_size,
 }
 
 bool ShellAudioAU::Read(ShellDataSourceReader* reader,
-                        ShellBuffer* buffer) {
+                        DecoderBuffer* buffer) {
   DCHECK_LE(size_ + prepend_size_, buffer->GetDataSize());
   if (!ReadBytes(
       offset_, size_, buffer->GetWritableData() + prepend_size_, reader))
@@ -153,7 +153,7 @@ class ShellVideoAU : public media::ShellAU {
     return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
   }
   virtual bool Read(ShellDataSourceReader* reader,
-                    ShellBuffer* buffer) OVERRIDE;
+                    DecoderBuffer* buffer) OVERRIDE;
   virtual Type GetType() const OVERRIDE { return media::DemuxerStream::VIDEO; }
   virtual bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
 #if defined(__LB_WIIU__)
@@ -198,7 +198,7 @@ ShellVideoAU::ShellVideoAU(uint64 offset, size_t size, size_t prepend_size,
 }
 
 bool ShellVideoAU::Read(ShellDataSourceReader* reader,
-                        ShellBuffer* buffer) {
+                        DecoderBuffer* buffer) {
   size_t au_left = size_;  // bytes left in the AU
   uint64 au_offset = offset_;  // offset to read in the reader
   size_t buf_left = buffer->GetAllocatedSize();  // bytes left in the buffer

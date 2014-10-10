@@ -17,11 +17,7 @@ class MessageLoopProxy;
 
 namespace media {
 
-#if !defined(__LB_SHELL__)
 class DecoderBuffer;
-#else
-class ShellBuffer;
-#endif
 class Decryptor;
 
 // Decryptor-based AudioDecoder implementation that can decrypt and decode
@@ -84,13 +80,8 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   void ReadFromDemuxerStream();
 
   // Callback for DemuxerStream::Read().
-#if !defined(__LB_SHELL__)
   void DoDecryptAndDecodeBuffer(DemuxerStream::Status status,
                                 const scoped_refptr<DecoderBuffer>& buffer);
-#else
-  void DoDecryptAndDecodeBuffer(DemuxerStream::Status status,
-                                const scoped_refptr<ShellBuffer>& buffer);
-#endif
 
   void DecodePendingBuffer();
 
@@ -136,11 +127,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   Decryptor* decryptor_;
 
   // The buffer returned by the demuxer that needs decrypting/decoding.
-#if !defined(__LB_SHELL__)
   scoped_refptr<media::DecoderBuffer> pending_buffer_to_decode_;
-#else
-  scoped_refptr<media::ShellBuffer> pending_buffer_to_decode_;
-#endif
 
   // Indicates the situation where new key is added during pending decode
   // (in other words, this variable can only be set in state kPendingDecode).

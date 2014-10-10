@@ -51,7 +51,7 @@ class ShellParser : public base::RefCountedThreadSafe<ShellParser> {
   // Write the appropriate prepend header for the supplied au into the supplied
   // buffer. Return false on error.
   virtual bool Prepend(scoped_refptr<ShellAU> au,
-                       scoped_refptr<ShellBuffer> buffer) = 0;
+                       scoped_refptr<DecoderBuffer> buffer) = 0;
   // Advance internal state to provided timestamp. Return false on error.
   virtual bool SeekTo(base::TimeDelta timestamp) = 0;
 

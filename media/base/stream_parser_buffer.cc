@@ -58,7 +58,7 @@ StreamParserBuffer::StreamParserBuffer(
     uint8* data,
     int data_size,
     bool is_keyframe)
-    : ShellBuffer(data, data_size),
+    : DecoderBuffer(data, data_size),
       is_keyframe_(is_keyframe),
       decode_timestamp_(kNoTimestamp()),
       config_id_(kInvalidConfigId) {

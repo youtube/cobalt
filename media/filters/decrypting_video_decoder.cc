@@ -17,9 +17,6 @@
 #include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
-#if defined(__LB_SHELL__)
-#include "media/base/shell_buffer_factory.h"
-#endif
 
 namespace media {
 
@@ -239,15 +236,9 @@ void DecryptingVideoDecoder::ReadFromDemuxerStream() {
       base::Bind(&DecryptingVideoDecoder::DecryptAndDecodeBuffer, this));
 }
 
-#if defined(__LB_SHELL__)
-void DecryptingVideoDecoder::DecryptAndDecodeBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
-#else
 void DecryptingVideoDecoder::DecryptAndDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
-#endif
   DVLOG(3) << "DecryptAndDecodeBuffer()";
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -321,13 +312,8 @@ void DecryptingVideoDecoder::DeliverFrame(
   bool need_to_try_again_if_nokey_is_returned = key_added_while_decode_pending_;
   key_added_while_decode_pending_ = false;
 
-#if defined(__LB_SHELL__)
-  scoped_refptr<ShellBuffer> scoped_pending_buffer_to_decode =
-      pending_buffer_to_decode_;
-#else
   scoped_refptr<DecoderBuffer> scoped_pending_buffer_to_decode =
       pending_buffer_to_decode_;
-#endif
 
   pending_buffer_to_decode_ = NULL;
 

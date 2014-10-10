@@ -59,24 +59,24 @@ ShellScopedArray::~ShellScopedArray() {
   }
 }
 
-// ==== ShellBuffer ============================================================
+// ==== DecoderBuffer =========================================================
 
 // static
-scoped_refptr<ShellBuffer> ShellBuffer::CreateEOSBuffer(
+scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
     base::TimeDelta timestamp) {
- scoped_refptr<ShellBuffer> eos = scoped_refptr<ShellBuffer>(
-    new ShellBuffer(NULL, 0));
- eos->SetTimestamp(timestamp);
- return eos;
+  scoped_refptr<DecoderBuffer> eos = scoped_refptr<DecoderBuffer>(
+    new DecoderBuffer(NULL, 0));
+  eos->SetTimestamp(timestamp);
+  return eos;
 }
 
-void ShellBuffer::ShrinkTo(int size) {
+void DecoderBuffer::ShrinkTo(int size) {
   CHECK_LE(size, GetAllocatedSize());
   size_ = size;
 }
 
-ShellBuffer::ShellBuffer(uint8* reusable_buffer,
-                         size_t size)
+DecoderBuffer::DecoderBuffer(uint8* reusable_buffer,
+                             size_t size)
     : Buffer(kNoTimestamp(), kInfiniteDuration())
     , buffer_(reusable_buffer)
     , size_(size)
@@ -89,27 +89,27 @@ ShellBuffer::ShellBuffer(uint8* reusable_buffer,
   }
 }
 
-ShellBuffer::~ShellBuffer() {
+DecoderBuffer::~DecoderBuffer() {
   // recycle our buffer
   if (buffer_) {
-    TRACE_EVENT1("media_stack", "ShellBuffer::~ShellBuffer()",
+    TRACE_EVENT1("media_stack", "DecoderBuffer::~DecoderBuffer()",
                  "timestamp", GetTimestamp().InMicroseconds());
     DCHECK_NE(buffer_factory_, (ShellBufferFactory*)NULL);
     buffer_factory_->Reclaim(buffer_);
   }
 }
 
-const DecryptConfig* ShellBuffer::GetDecryptConfig() const {
+const DecryptConfig* DecoderBuffer::GetDecryptConfig() const {
   DCHECK(!IsEndOfStream());
   return decrypt_config_.get();
 }
 
-void ShellBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
+void DecoderBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
   DCHECK(!IsEndOfStream());
   decrypt_config_ = decrypt_config.Pass();
 }
 
-void ShellBuffer::SetBuffer(uint8* reusable_buffer) {
+void DecoderBuffer::SetBuffer(uint8* reusable_buffer) {
   buffer_ = reusable_buffer;
   if (buffer_) {
     // Retain a reference to the buffer factory, to ensure that we do not
@@ -145,7 +145,7 @@ bool ShellBufferFactory::AllocateBuffer(
   size_t aligned_size = SizeAlign(size);
   // If we can allocate a buffer right now save a pointer to it so that we don't
   // run the callback while holding the memory lock, for safety's sake.
-  scoped_refptr<ShellBuffer> instant_buffer = NULL;
+  scoped_refptr<DecoderBuffer> instant_buffer = NULL;
 
   {
     base::AutoLock lock(lock_);
@@ -154,8 +154,8 @@ bool ShellBufferFactory::AllocateBuffer(
     uint8* shell_buffer_bytes;
     if (pending_allocs_.size() == 0 &&
         aligned_size <= LargestFreeSpace_Locked()) {
-      instant_buffer = new ShellBuffer(AllocateLockAcquired(aligned_size),
-                                       size);
+      instant_buffer = new DecoderBuffer(AllocateLockAcquired(aligned_size),
+                                         size);
       TRACE_EVENT0("media_stack",
                    "ShellBufferFactory::AllocateBuffer() finished allocation.");
       DCHECK(!instant_buffer->IsEndOfStream());
@@ -164,7 +164,7 @@ bool ShellBufferFactory::AllocateBuffer(
       TRACE_EVENT0("media_stack",
                    "ShellBufferFactory::AllocateBuffer() deferred.");
       pending_allocs_.push_back(
-          std::make_pair(cb, new ShellBuffer(NULL, size)));
+          std::make_pair(cb, new DecoderBuffer(NULL, size)));
     }
   }
 
@@ -180,7 +180,8 @@ bool ShellBufferFactory::HasRoomForBufferNow(size_t size) {
   return (SizeAlign(size) <= LargestFreeSpace_Locked());
 }
 
-scoped_refptr<ShellBuffer> ShellBufferFactory::AllocateBufferNow(size_t size) {
+scoped_refptr<DecoderBuffer> ShellBufferFactory::AllocateBufferNow(
+    size_t size) {
   TRACE_EVENT1("media_stack", "ShellBufferFactory::AllocateBufferNow()",
                "size", size);
   // Zero-size buffers are allocation error, allocate an EOS buffer explicity
@@ -197,8 +198,8 @@ scoped_refptr<ShellBuffer> ShellBufferFactory::AllocateBufferNow(size_t size) {
         "ShellBufferFactory::AllocateBufferNow() failed as size is too large.");
     return NULL;
   }
-  scoped_refptr<ShellBuffer> buffer =
-      new ShellBuffer(AllocateLockAcquired(aligned_size), size);
+  scoped_refptr<DecoderBuffer> buffer =
+      new DecoderBuffer(AllocateLockAcquired(aligned_size), size);
   TRACE_EVENT0("media_stack",
                "ShellBufferFactory::AllocateBufferNow() finished allocation.");
   DCHECK(!buffer->IsEndOfStream());
@@ -283,7 +284,7 @@ scoped_refptr<ShellScopedArray> ShellBufferFactory::AllocateArray(size_t size) {
 
 void ShellBufferFactory::Reclaim(uint8* p) {
   TRACE_EVENT0("media_stack", "ShellBufferFactory::Reclaim()");
-  typedef std::list<std::pair<AllocCB, scoped_refptr<ShellBuffer> > >
+  typedef std::list<std::pair<AllocCB, scoped_refptr<DecoderBuffer> > >
       FinishList;
   FinishList finished_allocs_;
 
@@ -380,7 +381,8 @@ void ShellBufferFactory::Reclaim(uint8* p) {
       size_t aligned_size = SizeAlign(size);
       uint8* bytes = AllocateLockAcquired(aligned_size);
       if (bytes) {
-        scoped_refptr<ShellBuffer> alloc_buff = pending_allocs_.front().second;
+        scoped_refptr<DecoderBuffer> alloc_buff =
+            pending_allocs_.front().second;
         alloc_buff->SetBuffer(bytes);
         TRACE_EVENT1("media_stack",
                      "ShellBufferFactory::Reclaim() finished allocation.",

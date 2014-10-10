@@ -52,7 +52,7 @@ class ShellAU : public base::RefCountedThreadSafe<ShellAU> {
   virtual bool IsValid() const = 0;
   // Read an AU from reader to buffer and also do all the necessary operations
   // like prepending head to make it ready to decode.
-  virtual bool Read(ShellDataSourceReader* reader, ShellBuffer* buffer) = 0;
+  virtual bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) = 0;
   virtual Type GetType() const = 0;
   virtual bool IsKeyframe() const = 0;
   virtual bool AddPrepend() const = 0;

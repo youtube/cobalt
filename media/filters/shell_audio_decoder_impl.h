@@ -42,12 +42,12 @@ class AudioBus;
 
 class ShellRawAudioDecoder {
  public:
-  typedef media::ShellBuffer ShellBuffer;
+  typedef media::DecoderBuffer DecoderBuffer;
   typedef media::AudioDecoderConfig AudioDecoderConfig;
 
   virtual ~ShellRawAudioDecoder() {}
-  virtual scoped_refptr<ShellBuffer> Decode(
-      const scoped_refptr<ShellBuffer>& buffer) = 0;
+  virtual scoped_refptr<DecoderBuffer> Decode(
+      const scoped_refptr<DecoderBuffer>& buffer) = 0;
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const AudioDecoderConfig& config) = 0;
 
@@ -98,14 +98,14 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
 
   void DoDecodeBuffer();
   void DecodeBuffer(AudioBus* audio_bus, DemuxerStream::Status status,
-                    const scoped_refptr<ShellBuffer>& buffer);
+                    const scoped_refptr<DecoderBuffer>& buffer);
 
   void DoRead();
   void DoDecodeBuffer(DemuxerStream::Status status,
-                      const scoped_refptr<ShellBuffer>& buffer);
+                      const scoped_refptr<DecoderBuffer>& buffer);
 
   void QueueBuffer(DemuxerStream::Status status,
-                   const scoped_refptr<ShellBuffer>& buffer);
+                   const scoped_refptr<DecoderBuffer>& buffer);
   void RequestBuffer();
 
   // general state
@@ -129,7 +129,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   ReadCB read_cb_;
 
   static const int kMaxQueuedBuffers = 8;
-  typedef std::pair<DemuxerStream::Status, const scoped_refptr<ShellBuffer> >
+  typedef std::pair<DemuxerStream::Status, const scoped_refptr<DecoderBuffer> >
       QueuedBuffer;
   std::list<QueuedBuffer> queued_buffers_;
   bool pending_demuxer_read_;
