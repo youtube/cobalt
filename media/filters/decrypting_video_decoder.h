@@ -17,11 +17,7 @@ class MessageLoopProxy;
 
 namespace media {
 
-#if defined(__LB_SHELL__)
-class ShellBuffer;
-#else
 class DecoderBuffer;
-#endif
 class Decryptor;
 
 // Decryptor-based VideoDecoder implementation that can decrypt and decode
@@ -79,13 +75,8 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   void ReadFromDemuxerStream();
 
   // Callback for DemuxerStream::Read().
-#if defined(__LB_SHELL__)
-  void DecryptAndDecodeBuffer(DemuxerStream::Status status,
-                              const scoped_refptr<ShellBuffer>& buffer);
-#else
   void DecryptAndDecodeBuffer(DemuxerStream::Status status,
                               const scoped_refptr<DecoderBuffer>& buffer);
-#endif
 
   void DecodePendingBuffer();
 
@@ -122,11 +113,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   Decryptor* decryptor_;
 
   // The buffer returned by the demuxer that needs decrypting/decoding.
-#if defined(__LB_SHELL__)
-  scoped_refptr<media::ShellBuffer> pending_buffer_to_decode_;
-#else
   scoped_refptr<media::DecoderBuffer> pending_buffer_to_decode_;
-#endif
 
   // Indicates the situation where new key is added during pending decode
   // (in other words, this variable can only be set in state kPendingDecode).

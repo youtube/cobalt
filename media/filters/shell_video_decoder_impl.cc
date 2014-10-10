@@ -138,7 +138,7 @@ void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
   }
 
   if (cached_buffer_) {
-    scoped_refptr<ShellBuffer> buffer_to_decode = cached_buffer_;
+    scoped_refptr<DecoderBuffer> buffer_to_decode = cached_buffer_;
     cached_buffer_ = NULL;
     DecodeBuffer(buffer_to_decode);
   } else if (state_ == kFlushCodec) {
@@ -160,7 +160,7 @@ void ShellVideoDecoderImpl::ReadFromDemuxerStream() {
 
 void ShellVideoDecoderImpl::BufferReady(
     DemuxerStream::Status demuxer_status,
-    const scoped_refptr<ShellBuffer>& buffer) {
+    const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
   // must either be Ok and have a buffer or not Ok and no buffer
   DCHECK_EQ(demuxer_status != DemuxerStream::kOk, !buffer) << demuxer_status;
@@ -234,7 +234,7 @@ void ShellVideoDecoderImpl::BufferReady(
 }
 
 void ShellVideoDecoderImpl::DecodeBuffer(
-    const scoped_refptr<ShellBuffer>& buffer) {
+    const scoped_refptr<DecoderBuffer>& buffer) {
   TRACE_EVENT0("media_stack", "ShellVideoDecoderImpl::DecodeBuffer()");
   SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_DECODE);
 

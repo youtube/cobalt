@@ -13,6 +13,15 @@
 #ifndef MEDIA_BASE_DECODER_BUFFER_H_
 #define MEDIA_BASE_DECODER_BUFFER_H_
 
+#if defined(__LB_SHELL__)
+
+// The DecoderBuffer in Steel is defined in shell_buffer_factory.h. Include
+// shell_buffer_factory.h here to avoid include it in all files that are using
+// DecoderBuffer.
+#include "shell_buffer_factory.h"
+
+#else  // defined(__LB_SHELL__)
+
 #include "base/memory/scoped_ptr.h"
 #include "build/build_config.h"
 #include "media/base/buffers.h"
@@ -72,5 +81,7 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
 };
 
 }  // namespace media
+
+#endif  // defined(__LB_SHELL__)
 
 #endif  // MEDIA_BASE_DECODER_BUFFER_H_

@@ -19,11 +19,7 @@ class MessageLoopProxy;
 
 namespace media {
 
-#if defined(__LB_SHELL__)
-class ShellBuffer;
-#else
 class DecoderBuffer;
-#endif
 
 // Decryptor-based DemuxerStream implementation that converts a potentially
 // encrypted demuxer stream to a clear demuxer stream.
@@ -74,15 +70,6 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // Callback for DecryptorHost::RequestDecryptor().
   void SetDecryptor(Decryptor* decryptor);
 
-#if defined(__LB_SHELL__)
-  // Callback for DemuxerStream::Read().
-  void DecryptBuffer(DemuxerStream::Status status,
-                     const scoped_refptr<ShellBuffer>& buffer);
-
-  // Carries out the buffer decryption operation scheduled by DecryptBuffer().
-  void DoDecryptBuffer(DemuxerStream::Status status,
-                       const scoped_refptr<ShellBuffer>& buffer);
-#else
   // Callback for DemuxerStream::Read().
   void DecryptBuffer(DemuxerStream::Status status,
                      const scoped_refptr<DecoderBuffer>& buffer);
@@ -90,19 +77,9 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // Carries out the buffer decryption operation scheduled by DecryptBuffer().
   void DoDecryptBuffer(DemuxerStream::Status status,
                        const scoped_refptr<DecoderBuffer>& buffer);
-#endif
 
   void DecryptPendingBuffer();
 
-#if defined(__LB_SHELL__)
-    // Callback for Decryptor::Decrypt().
-  void DeliverBuffer(Decryptor::Status status,
-                     const scoped_refptr<ShellBuffer>& decrypted_buffer);
-
-  // Carries out the frame delivery operation scheduled by DeliverBuffer().
-  void DoDeliverBuffer(Decryptor::Status status,
-                       const scoped_refptr<ShellBuffer>& decrypted_buffer);
-#else
   // Callback for Decryptor::Decrypt().
   void DeliverBuffer(Decryptor::Status status,
                      const scoped_refptr<DecoderBuffer>& decrypted_buffer);
@@ -110,7 +87,6 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   // Carries out the frame delivery operation scheduled by DeliverBuffer().
   void DoDeliverBuffer(Decryptor::Status status,
                        const scoped_refptr<DecoderBuffer>& decrypted_buffer);
-#endif
 
   // Callback for the |decryptor_| to notify this object that a new key has been
   // added.
@@ -146,11 +122,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   Decryptor* decryptor_;
 
   // The buffer returned by the demuxer that needs to be decrypted.
-#if defined(__LB_SHELL__)
-  scoped_refptr<media::ShellBuffer> pending_buffer_to_decrypt_;
-#else
   scoped_refptr<media::DecoderBuffer> pending_buffer_to_decrypt_;
-#endif
 
   // Indicates the situation where new key is added during pending decryption
   // (in other words, this variable can only be set in state kPendingDecrypt).

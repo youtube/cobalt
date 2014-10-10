@@ -5,20 +5,12 @@
 #ifndef MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 #define MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 
-#if defined(__LB_SHELL__)
-#include "media/base/shell_buffer_factory.h"
-#else
 #include "media/base/decoder_buffer.h"
-#endif
 #include "media/base/media_export.h"
 
 namespace media {
 
-#if defined(__LB_SHELL__)
-class MEDIA_EXPORT StreamParserBuffer : public ShellBuffer {
-#else
 class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
-#endif
  public:
   // Value used to signal an invalid decoder config ID.
   enum { kInvalidConfigId = -1 };

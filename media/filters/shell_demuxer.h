@@ -48,7 +48,7 @@ class ShellDemuxerStream : public DemuxerStream {
 
   // Functions used by ShellDemuxer
   Ranges<base::TimeDelta> GetBufferedRanges();
-  void EnqueueBuffer(scoped_refptr<ShellBuffer> buffer);
+  void EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer);
   void FlushBuffers();
   void Stop();
   base::TimeDelta GetLastBufferTimestamp() const;
@@ -76,7 +76,7 @@ class ShellDemuxerStream : public DemuxerStream {
   base::TimeDelta last_buffer_timestamp_;
   bool stopped_;
 
-  typedef std::deque<scoped_refptr<ShellBuffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
 
   typedef std::deque<ReadCB> ReadQueue;
@@ -116,7 +116,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   bool MessageLoopBelongsToCurrentThread() const;
 
   // Callback from ShellBufferFactory
-  void BufferAllocated(scoped_refptr<ShellBuffer> buffer);
+  void BufferAllocated(scoped_refptr<DecoderBuffer> buffer);
 
  private:
   void ParseConfigDone(const PipelineStatusCB& status_cb, bool result);
@@ -128,7 +128,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // false on error.
   bool ParseConfigBlocking();
   void RequestTask(DemuxerStream::Type type);
-  void DownloadTask(scoped_refptr<ShellBuffer> buffer);
+  void DownloadTask(scoped_refptr<DecoderBuffer> buffer);
   void IssueNextRequestTask();
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 

@@ -56,14 +56,15 @@ class MEDIA_EXPORT ShellScopedArray :
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellScopedArray);
 };
 
-
+// TODO(***REMOVED***) : Consider move DecoderBuffer into decoder_buffer.* and
+// rename ShellBufferFactory into ShellMemoryPool.
 // A media buffer object designed to use the recycled memory allocated
 // by ShellBufferFactory.
-class MEDIA_EXPORT ShellBuffer : public Buffer {
+class MEDIA_EXPORT DecoderBuffer : public Buffer {
  public:
-  // Create a ShellBuffer indicating we've reached end of stream or an error.
+  // Create a DecoderBuffer indicating we've reached end of stream or an error.
   // GetData() and GetWritableData() return NULL and GetDataSize() returns 0.
-  static scoped_refptr<ShellBuffer> CreateEOSBuffer(
+  static scoped_refptr<DecoderBuffer> CreateEOSBuffer(
       base::TimeDelta timestamp);
 
   // Buffer implementation.
@@ -88,14 +89,14 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
  protected:
   friend class ShellBufferFactory;
   // Should only be called by ShellBufferFactory, consumers should use
-  // ShellBufferFactory::AllocateBuffer to make a ShellBuffer.
-  ShellBuffer(uint8* reusable_buffer, size_t size);
+  // ShellBufferFactory::AllocateBuffer to make a DecoderBuffer.
+  DecoderBuffer(uint8* reusable_buffer, size_t size);
   // For deferred allocation create a shell buffer with buffer_ NULL but a
   // non-zero size. Then we use the SetBuffer() method below to actually
   // set the reusable buffer pointer when it becomes available
   void SetBuffer(uint8* reusable_buffer);
 
-  virtual ~ShellBuffer();
+  virtual ~DecoderBuffer();
   uint8* buffer_;
   size_t size_;
   size_t allocated_size_;
@@ -103,7 +104,7 @@ class MEDIA_EXPORT ShellBuffer : public Buffer {
   scoped_ptr<DecryptConfig> decrypt_config_;
   bool is_decrypted_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ShellBuffer);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(DecoderBuffer);
 };
 
 // Singleton instance class for the management and recycling of media-related
@@ -120,17 +121,17 @@ class MEDIA_EXPORT ShellBufferFactory
     return instance_;
   }
 
-  typedef base::Callback<void(scoped_refptr<ShellBuffer>)> AllocCB;
+  typedef base::Callback<void(scoped_refptr<DecoderBuffer>)> AllocCB;
   // Returns false if the allocator will never be able to allocate a buffer
   // of the requested size. Note that if memory is currently available this
   // function will call the callback provided _before_ returning true.
   bool AllocateBuffer(size_t size, AllocCB cb);
-  // Returns true if a ShellBuffer of this size could be allocated without
+  // Returns true if a DecoderBuffer of this size could be allocated without
   // waiting for some other buffer to be released.
   bool HasRoomForBufferNow(size_t size);
-  // This function tries to allocate a ShellBuffer immediately. It returns NULL
-  // on failure.
-  scoped_refptr<ShellBuffer> AllocateBufferNow(size_t size);
+  // This function tries to allocate a DecoderBuffer immediately. It returns
+  // NULL on failure.
+  scoped_refptr<DecoderBuffer> AllocateBufferNow(size_t size);
   // Returns a newly allocated byte field if there's room for it, or NULL if
   // there isn't. Note that this raw allocation method provides no guarantee
   // that ShellBufferFactory will still exist when the memory is to be freed.
@@ -143,8 +144,8 @@ class MEDIA_EXPORT ShellBufferFactory
   // and return NULL.
   scoped_refptr<ShellScopedArray> AllocateArray(size_t size);
 
-  // Only called by ShellBuffer and ShellScopedArray, informs the factory that
-  // these objects have gone out of scoped and we can reclaim the memory
+  // Only called by DecoderBuffer and ShellScopedArray, informs the factory
+  // that these objects have gone out of scoped and we can reclaim the memory
   void Reclaim(uint8* p);
 
   static void Terminate();
@@ -175,7 +176,7 @@ class MEDIA_EXPORT ShellBufferFactory
 
   // queue of pending buffer allocation requests and their sizes
   typedef std::list<std::pair<AllocCB,
-                              scoped_refptr<ShellBuffer> > > AllocList;
+                              scoped_refptr<DecoderBuffer> > > AllocList;
   AllocList pending_allocs_;
 
   // event used for blocking calls for array allocation

@@ -492,7 +492,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
                                  runs_->is_keyframe());
 
   if (!stream_buf) {
-    MEDIA_LOG(log_cb_) << "Failed to allocate ShellBuffer";
+    MEDIA_LOG(log_cb_) << "Failed to allocate StreamParserBuffer";
     *err = true;
     return false;
   }

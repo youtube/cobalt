@@ -63,8 +63,8 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
   if (stopped_) {
     TRACE_EVENT0("media_stack", "ShellDemuxerStream::Read() EOS sent.");
     read_cb.Run(DemuxerStream::kOk,
-                scoped_refptr<ShellBuffer>(
-                    ShellBuffer::CreateEOSBuffer(kNoTimestamp())));
+                scoped_refptr<DecoderBuffer>(
+                    DecoderBuffer::CreateEOSBuffer(kNoTimestamp())));
     return;
   }
 
@@ -73,7 +73,7 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
 
   if (!buffer_queue_.empty()) {
     // Send the oldest buffer back.
-    scoped_refptr<ShellBuffer> buffer = buffer_queue_.front();
+    scoped_refptr<DecoderBuffer> buffer = buffer_queue_.front();
     if (buffer->IsEndOfStream()) {
       TRACE_EVENT0("media_stack", "ShellDemuxerStream::Read() EOS sent.");
     } else {
@@ -108,7 +108,7 @@ void ShellDemuxerStream::EnableBitstreamConverter() {
   NOTIMPLEMENTED();
 }
 
-void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<ShellBuffer> buffer) {
+void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
   TRACE_EVENT1("media_stack", "ShellDemuxerStream::EnqueueBuffer()",
                "timestamp", buffer->GetTimestamp().InMicroseconds());
   base::AutoLock auto_lock(lock_);
@@ -170,8 +170,8 @@ void ShellDemuxerStream::Stop() {
        it != read_queue_.end(); ++it) {
     TRACE_EVENT0("media_stack", "ShellDemuxerStream::Stop() EOS sent.");
     it->Run(DemuxerStream::kOk,
-            scoped_refptr<ShellBuffer>(
-                ShellBuffer::CreateEOSBuffer(kNoTimestamp())));
+            scoped_refptr<DecoderBuffer>(
+                DecoderBuffer::CreateEOSBuffer(kNoTimestamp())));
   }
   read_queue_.clear();
   stopped_ = true;
@@ -307,8 +307,8 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   if (au->IsEndOfStream()) {
     TRACE_EVENT0("media_stack", "ShellDemuxer::RequestTask() EOS sent");
     // enqueue EOS buffer with correct stream
-    scoped_refptr<ShellBuffer> eos_buffer =
-        ShellBuffer::CreateEOSBuffer(au->GetTimestamp());
+    scoped_refptr<DecoderBuffer> eos_buffer =
+        DecoderBuffer::CreateEOSBuffer(au->GetTimestamp());
     if (type == DemuxerStream::AUDIO) {
       audio_reached_eos_ = true;
       audio_demuxer_stream_->EnqueueBuffer(eos_buffer);
@@ -335,14 +335,14 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
 }
 
 // callback from ShellBufferAllocated, post a task to the blocking thread
-void ShellDemuxer::BufferAllocated(scoped_refptr<ShellBuffer> buffer) {
+void ShellDemuxer::BufferAllocated(scoped_refptr<DecoderBuffer> buffer) {
   if (!stopped_) {
     blocking_thread_.message_loop_proxy()->PostTask(FROM_HERE,
         base::Bind(&ShellDemuxer::DownloadTask, this, buffer));
   }
 }
 
-void ShellDemuxer::DownloadTask(scoped_refptr<ShellBuffer> buffer) {
+void ShellDemuxer::DownloadTask(scoped_refptr<DecoderBuffer> buffer) {
   // We need a requested_au_ or to have canceled this request and
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
