@@ -174,7 +174,7 @@ void ShellAudioDecoderImpl::Read(const AudioDecoder::ReadCB& read_cb) {
 }
 
 void ShellAudioDecoderImpl::QueueBuffer(DemuxerStream::Status status,
-    const scoped_refptr<ShellBuffer>& buffer) {
+    const scoped_refptr<DecoderBuffer>& buffer) {
   if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &ShellAudioDecoderImpl::QueueBuffer, this, status, buffer));
@@ -260,7 +260,7 @@ void ShellAudioDecoderImpl::DoRead() {
   } else if (shell_audio_decoder_status_ == kStopped) {
     TRACE_EVENT0("media_stack", "ShellAudioDecoderImpl::DoRead() EOS sent.");
     base::ResetAndReturn(&read_cb_).Run(kOk,
-                                        ShellBuffer::CreateEOSBuffer(
+                                        DecoderBuffer::CreateEOSBuffer(
                                             kNoTimestamp()));
   } else {
     // report decode error downstream
@@ -290,7 +290,7 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
   queued_buffers_.pop_front();
 
   DemuxerStream::Status status = queued_buffer.first;
-  const scoped_refptr<ShellBuffer>& buffer = queued_buffer.second;
+  const scoped_refptr<DecoderBuffer>& buffer = queued_buffer.second;
 
   // check for demuxer error
   if (status != DemuxerStream::kOk) {
@@ -313,7 +313,7 @@ void ShellAudioDecoderImpl::DoDecodeBuffer() {
     }
   }
 
-  scoped_refptr<ShellBuffer> decoded_buffer = raw_decoder_->Decode(buffer);
+  scoped_refptr<DecoderBuffer> decoded_buffer = raw_decoder_->Decode(buffer);
   if (!decoded_buffer) {
     DCHECK(!pending_renderer_read_);
     pending_renderer_read_ = true;

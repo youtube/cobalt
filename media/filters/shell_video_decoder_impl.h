@@ -40,13 +40,13 @@ class ShellRawVideoDecoder {
                              // buffered frame.
     FATAL_ERROR  // Decoder encounters fatal error, abort playback.
   };
-  typedef media::ShellBuffer ShellBuffer;
+  typedef media::DecoderBuffer DecoderBuffer;
   typedef media::VideoDecoderConfig VideoDecoderConfig;
   typedef media::VideoFrame VideoFrame;
 
   ShellRawVideoDecoder() {}
   virtual ~ShellRawVideoDecoder() {}
-  virtual DecodeStatus Decode(const scoped_refptr<ShellBuffer>& buffer,
+  virtual DecodeStatus Decode(const scoped_refptr<DecoderBuffer>& buffer,
                               scoped_refptr<VideoFrame>* frame) = 0;
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const VideoDecoderConfig& config) = 0;
@@ -83,10 +83,10 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   };
 
   void BufferReady(DemuxerStream::Status status,
-                   const scoped_refptr<ShellBuffer>& buffer);
+                   const scoped_refptr<DecoderBuffer>& buffer);
 
   // actually makes the call to the platform decoder to decode
-  void DecodeBuffer(const scoped_refptr<ShellBuffer>& buffer);
+  void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
   // Posts a task to read from the demuxer stream.
   void ReadFromDemuxerStream();
   // Reset decoder and call |reset_cb_|.
@@ -104,9 +104,9 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
 
   // TODO(***REMOVED***) : ensure the demuxer can handle multiple EOS requests
   //                   then remove this hack.
-  scoped_refptr<ShellBuffer> eof_buffer_;
+  scoped_refptr<DecoderBuffer> eof_buffer_;
 
-  scoped_refptr<ShellBuffer> cached_buffer_;
+  scoped_refptr<DecoderBuffer> cached_buffer_;
 
   // All decoding tasks will be performed on this thread's message loop
   base::Thread decoder_thread_;

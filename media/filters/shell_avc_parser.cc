@@ -41,7 +41,7 @@ ShellAVCParser::~ShellAVCParser() {
 }
 
 bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
-                             scoped_refptr<ShellBuffer> buffer) {
+                             scoped_refptr<DecoderBuffer> buffer) {
   // sanity-check inputs
   if (!au || !buffer) {
     NOTREACHED() << "bad input to Prepend()";
