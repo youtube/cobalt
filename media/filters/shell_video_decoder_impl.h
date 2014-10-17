@@ -28,8 +28,6 @@
 
 namespace media {
 
-// TODO(***REMOVED***) : Make this decoder handle decoder errors. Now it assumes
-// that the input stream is always correct.
 class ShellRawVideoDecoder {
  public:
   enum DecodeStatus {
@@ -43,11 +41,13 @@ class ShellRawVideoDecoder {
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::VideoDecoderConfig VideoDecoderConfig;
   typedef media::VideoFrame VideoFrame;
+  typedef base::Callback<void (DecodeStatus, const scoped_refptr<VideoFrame>&)>
+      DecodeCB;
 
   ShellRawVideoDecoder() {}
   virtual ~ShellRawVideoDecoder() {}
-  virtual DecodeStatus Decode(const scoped_refptr<DecoderBuffer>& buffer,
-                              scoped_refptr<VideoFrame>* frame) = 0;
+  virtual void Decode(const scoped_refptr<DecoderBuffer>& buffer,
+                      const DecodeCB& decode_cb) = 0;
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const VideoDecoderConfig& config) = 0;
 
@@ -87,6 +87,9 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
 
   // actually makes the call to the platform decoder to decode
   void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  // the callback from the raw decoder indicates an operation has been finished.
+  void DecodeCallback(ShellRawVideoDecoder::DecodeStatus status,
+                      const scoped_refptr<VideoFrame>& frame);
   // Posts a task to read from the demuxer stream.
   void ReadFromDemuxerStream();
   // Reset decoder and call |reset_cb_|.
@@ -106,7 +109,7 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
   //                   then remove this hack.
   scoped_refptr<DecoderBuffer> eof_buffer_;
 
-  scoped_refptr<DecoderBuffer> cached_buffer_;
+  scoped_refptr<DecoderBuffer> buffer_to_decode_;
 
   // All decoding tasks will be performed on this thread's message loop
   base::Thread decoder_thread_;
