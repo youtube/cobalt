@@ -137,10 +137,8 @@ void ShellVideoDecoderImpl::Read(const ReadCB& read_cb) {
     return;
   }
 
-  if (cached_buffer_) {
-    scoped_refptr<DecoderBuffer> buffer_to_decode = cached_buffer_;
-    cached_buffer_ = NULL;
-    DecodeBuffer(buffer_to_decode);
+  if (buffer_to_decode_) {
+    DecodeBuffer(buffer_to_decode_);
   } else if (state_ == kFlushCodec) {
     DecodeBuffer(eof_buffer_);
   } else {
@@ -242,6 +240,9 @@ void ShellVideoDecoderImpl::DecodeBuffer(
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(buffer);
+  if (buffer_to_decode_) DCHECK_EQ(buffer_to_decode_, buffer);
+
+  buffer_to_decode_ = buffer;
 
   // if we deferred reset based on a pending read, process that reset now
   // after returning an empty frame
@@ -263,9 +264,33 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     }
   }
 
-  scoped_refptr<VideoFrame> frame;
+  ShellRawVideoDecoder::DecodeCB decode_cb =
+      base::Bind(&ShellVideoDecoderImpl::DecodeCallback, this);
+  raw_decoder_->Decode(buffer, BindToCurrentLoop(decode_cb));
+}
 
-  ShellRawVideoDecoder::DecodeStatus status = raw_decoder_->Decode(buffer, &frame);
+void ShellVideoDecoderImpl::DecodeCallback(
+    ShellRawVideoDecoder::DecodeStatus status,
+    const scoped_refptr<VideoFrame>& frame) {
+  DCHECK(buffer_to_decode_);
+
+  if (!reset_cb_.is_null()) {
+    DoReset();
+    return;
+  }
+
+  if (status == ShellRawVideoDecoder::RETRY_WITH_SAME_BUFFER) {
+    if (frame) {
+      base::ResetAndReturn(&read_cb_).Run(kOk, frame);
+    } else {
+      decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
+          base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this,
+                     buffer_to_decode_));
+    }
+    return;
+  }
+
+  buffer_to_decode_ = NULL;
 
   if (status == ShellRawVideoDecoder::FRAME_DECODED) {
     TRACE_EVENT1("media_stack", "ShellVideoDecoderImpl frame decoded",
@@ -284,17 +309,6 @@ void ShellVideoDecoderImpl::DecodeBuffer(
     }
 
     ReadFromDemuxerStream();
-    return;
-  }
-
-  if (status == ShellRawVideoDecoder::RETRY_WITH_SAME_BUFFER) {
-    if (frame) {
-      base::ResetAndReturn(&read_cb_).Run(kOk, frame);
-      cached_buffer_ = buffer;
-    } else {
-      decoder_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-          base::Bind(&ShellVideoDecoderImpl::DecodeBuffer, this, buffer));
-    }
     return;
   }
 
@@ -344,7 +358,7 @@ void ShellVideoDecoderImpl::DoReset() {
   if (state_ != kShellDecodeError)
     state_ = kNormal;
   eof_buffer_ = NULL;
-  cached_buffer_ = NULL;
+  buffer_to_decode_ = NULL;
 
   base::ResetAndReturn(&reset_cb_).Run();
 }
