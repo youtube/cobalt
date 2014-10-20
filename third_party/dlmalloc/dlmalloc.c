@@ -1661,9 +1661,9 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #if HAVE_MMAP
 
 #if defined (__LB_SHELL__)
-#define MMAP_DEFAULT(s) lbshell_mmap(s)
+#define MMAP_DEFAULT(s) lb_mmap(s)
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
-#define MUNMAP_DEFAULT(a ,s) lbshell_munmap((a), (s))
+#define MUNMAP_DEFAULT(a, s) lb_munmap((a), (s))
 
 #elif !defined(WIN32)
 #define MUNMAP_DEFAULT(a, s)  munmap((a), (s))
@@ -6045,12 +6045,6 @@ int mspace_mallopt(int param_number, int value) {
   The large block heap has physical pages mapped in as needed.
 */
 
-#include "lb_platform.h"
-#include "lb_memory_pages.h"
-
-// Assume a maximum virtual address space of 2GB.
-#define MAX_PAGE_COUNT ((size_t)(2 * 1024 * 1024 * 1024U) / PAGESIZE)
-
 typedef struct HeapInfo {
   lb_virtual_mem_t mem_base;
   // Current top of the heap.
@@ -6060,25 +6054,6 @@ typedef struct HeapInfo {
 // This tracks our global contiguous heap.
 static HeapInfo global_heap;
 
-// This represents the status of a virtual memory space
-// and whether or not physical pages are mapped into it.
-typedef struct MappedSpaceInfo {
-  // Assume a maximum VM space of 2GB
-  // With 64K pages, that's 32K bits or 1K ints.
-  // With 1MB pages, that's 64.
-  size_t mapped[MAX_PAGE_COUNT / SIZE_T_BITSIZE];
-  lb_virtual_mem_t mem_base;
-} MappedSpaceInfo;
-
-// This tracks our large block heap.
-static MappedSpaceInfo mmapped_heap;
-
-static int is_mapped(size_t page_index) {
-  size_t block = page_index / SIZE_T_BITSIZE;
-  size_t bit = page_index % SIZE_T_BITSIZE;
-  return mmapped_heap.mapped[block] & (SIZE_T_ONE << bit) ? 1 : 0;
-}
-
 static FORCEINLINE size_t align(size_t val, size_t boundary) {
   return (val + boundary - 1) & ~(boundary - 1);
 }
@@ -6087,108 +6062,14 @@ static FORCEINLINE size_t min(size_t lhs, size_t rhs) {
   return lhs < rhs ? lhs : rhs;
 }
 
-// find a place in 'mapped' with a run of 0 bits.
-static ssize_t find_contiguous(size_t page_count) {
-  int num_contiguous = 0;
-  int start = 0;
-
-  // Skip over any full blocks.
-  for (int i = 0; i < MAX_PAGE_COUNT / SIZE_T_BITSIZE; ++i) {
-    if (mmapped_heap.mapped[i] == MAX_SIZE_T) {
-      start += SIZE_T_BITSIZE;
-    }
-    else {
-      break;
-    }
-  }
-
-  // Now start scanning bits.
-  for (int i = start; i < MAX_PAGE_COUNT; ++i) {
-    if (is_mapped(i)) {
-      num_contiguous = 0;
-    } else {
-      num_contiguous++;
-      if (num_contiguous == page_count) {
-        return (i + 1) - page_count;
-      }
-    }
-  }
-  return -1;
-}
-
-static void set_mapped_range(size_t start, size_t page_count) {
-  // Do this in 3 parts.
-  // 1- any partial-word at the start
-  // 2- blocks of SIZE_T_BITSIZE pages (all 1s)
-  // 3- any partial-word at the end.
-
-  const size_t end = start + page_count;
-  const size_t word_aligned_start = align(start, SIZE_T_BITSIZE);
-  const size_t head_offset = start % SIZE_T_BITSIZE;
-  if (head_offset) {
-    const size_t head_page_count = min(page_count, word_aligned_start - start);
-    const size_t head_mask =
-        ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
-    mmapped_heap.mapped[start / SIZE_T_BITSIZE] |= head_mask;
-    page_count -= head_page_count;
-  }
-
-  const size_t num_full_words = page_count / SIZE_T_BITSIZE;
-  page_count -= num_full_words * SIZE_T_BITSIZE;
-
-  for (size_t i = 0; i < num_full_words; ++i) {
-    mmapped_heap.mapped[word_aligned_start / SIZE_T_BITSIZE + i] = MAX_SIZE_T;
-  }
-
-  const size_t tail_pages = page_count % SIZE_T_BITSIZE;
-  if (tail_pages) {
-    const size_t tail_mask = (SIZE_T_ONE << tail_pages) - 1;
-    mmapped_heap.mapped[end / SIZE_T_BITSIZE] |= tail_mask;
-    page_count -= tail_pages;
-  }
-  assert(page_count == 0);
-}
-
-static void set_unmapped_range(size_t start, size_t page_count) {
-  // Same as set_mapped_range(), but writes 0 instead of 1.
-  const size_t end = start + page_count;
-  const size_t word_aligned_start = align(start, SIZE_T_BITSIZE);
-  const size_t head_offset = start % SIZE_T_BITSIZE;
-  if (head_offset) {
-    const size_t head_page_count = min(page_count, word_aligned_start - start);
-    const size_t head_mask =
-        ((SIZE_T_ONE << head_page_count) - 1) << head_offset;
-    mmapped_heap.mapped[start / SIZE_T_BITSIZE] &= ~head_mask;
-    page_count -= head_page_count;
-  }
-
-  const size_t num_full_words = page_count / SIZE_T_BITSIZE;
-  page_count -= num_full_words * SIZE_T_BITSIZE;
-
-  for (size_t i = 0; i < num_full_words; ++i) {
-    mmapped_heap.mapped[word_aligned_start / SIZE_T_BITSIZE + i] = 0;
-  }
-
-  const size_t tail_pages = page_count % SIZE_T_BITSIZE;
-  if (tail_pages) {
-    const size_t tail_mask = (SIZE_T_ONE << tail_pages) - 1;
-    mmapped_heap.mapped[end / SIZE_T_BITSIZE] &= ~tail_mask;
-    page_count -= tail_pages;
-  }
-  assert(page_count == 0);
-}
 
 static void dl_heap_init() {
+  assert(mparams.page_size == LB_PAGE_SIZE);
+#if HAVE_MORECORE
   const size_t region_size = lb_get_virtual_region_size();
-  assert(region_size / PAGESIZE <= MAX_PAGE_COUNT);
-  global_heap.mem_base = lb_allocate_virtual_address(region_size, PAGESIZE);
+  global_heap.mem_base = lb_reserve_virtual_region(region_size);
   global_heap.sbrk_top = (uintptr_t)global_heap.mem_base;
-
-#if HAVE_MMAP
-  // Allocate another virtual region for our mmapped pages.
-  mmapped_heap.mem_base = lb_allocate_virtual_address(region_size, PAGESIZE);
 #endif
-
 #if defined(__LB_WIIU__)
   // override the OS's weak symbols for allocation.
   extern void lb_hijack_weak_allocators();
@@ -6205,26 +6086,11 @@ void dl_malloc_init() {
 }
 
 void dl_malloc_finalize() {
+#if HAVE_MORECORE
   // Free all pages owned by the global heap.
-  while (global_heap.sbrk_top > (uintptr_t)global_heap.mem_base) {
-    global_heap.sbrk_top -= PAGESIZE;
-    lb_physical_mem_t phys_mem_id;
-    lb_unmap_memory((lb_virtual_mem_t)global_heap.sbrk_top, &phys_mem_id);
-    lb_free_physical_memory(phys_mem_id);
-  }
-  lb_free_virtual_address(global_heap.mem_base);
-
-#if HAVE_MMAP
-  // Now the mmapped heap.
-  for (int i = 0; i < MAX_PAGE_COUNT; ++i) {
-    if (is_mapped(i)) {
-      lb_physical_mem_t phys_mem_id;
-      lb_virtual_mem_t virt_offset = mmapped_heap.mem_base + i * PAGESIZE;
-      lb_unmap_memory(virt_offset, &phys_mem_id);
-      lb_free_physical_memory(phys_mem_id);
-    }
-  }
-  lb_free_virtual_address(mmapped_heap.mem_base);
+  size_t heap_size = global_heap.sbrk_top - (uintptr_t)global_heap.mem_base;
+  lb_unmap_and_free_physical(global_heap.mem_base, heap_size);
+  lb_release_virtual_region(global_heap.mem_base);
 #endif
 }
 
@@ -6319,42 +6185,11 @@ static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
   heap_walker_log(hw, start, end, used_bytes);
 }
 
-void lbshell_inspect_mmap_heap(
-    void(*handler)(void*, void *, size_t, void*), void* arg) {
-  // This shows how the virtual address space has been mapped.
-  int last_mapped = -1;
-  for (int i = 0; i < MAX_PAGE_COUNT; ++i) {
-    if ((is_mapped(i)) && (i > last_mapped)) {
-        last_mapped = i;
-    }
-  }
-
-  if (last_mapped == -1) {
-    return;
-  }
-
-  for (size_t i = 0; i <= (size_t)last_mapped; ++i) {
-    uintptr_t start = (uintptr_t)(mmapped_heap.mem_base) + i * PAGESIZE;
-    uintptr_t end = (uintptr_t)(mmapped_heap.mem_base) + (i + 1) * PAGESIZE;
-
-    if (is_mapped(i)) {
-      size_t region_size = end - start;
-      handler((void*)start, (void*)end, region_size, arg);
-    } else {
-      handler((void*)start, (void*)end, 0, arg);
-    }
-  }
-}
-
 void dldump_heap() {
   oom_fprintf(1, "Dumping global heap.\n");
   HeapWalker hw;
   heap_walker_init(&hw, "global_heap.txt");
   dlmalloc_inspect_all(heap_walker, &hw);
-  heap_walker_finish(&hw);
-  oom_fprintf(1, "\nDumping mmap heap (large blocks).\n");
-  heap_walker_init(&hw, "mmap_heap.txt");
-  lbshell_inspect_mmap_heap(heap_walker, &hw);
   heap_walker_finish(&hw);
 }
 
@@ -6404,77 +6239,27 @@ int dlmalloc_stats_np(size_t *system_size, size_t *in_use_size) {
   POSTACTION(m); /* drop lock */
   return 0;
 }
-
-static void* lbshell_mmap(size_t size) {
-  size = align(size, PAGESIZE);
-  size_t page_count = size / PAGESIZE;
-  ssize_t vm_start = find_contiguous(page_count);
-  if (vm_start == -1) {
-    // Virtual space is too fragmented.  Unlikely, but possible.
-    return (void*)-1;
-  }
-
-  lb_virtual_mem_t virtual_mem = mmapped_heap.mem_base + vm_start * PAGESIZE;
-  for (int i = 0; i < page_count; ++i) {
-    lb_physical_mem_t mem_id;
-    int ret = lb_allocate_physical_memory(PAGESIZE, PAGESIZE, &mem_id);
-    if (ret == -1) {
-      // No physical memory pages left.
-      return (void*)-1;
-    }
-
-    ret = lb_map_memory(virtual_mem + i * PAGESIZE, mem_id);
-    assert(ret == 0);
-  }
-  set_mapped_range(vm_start, page_count);
-  return (void*)virtual_mem;
-}
-
-static int lbshell_munmap(void* ptr, size_t size) {
-  assert(size % PAGESIZE == 0);
-  size_t page_count = size / PAGESIZE;
-  lb_virtual_mem_t cur_mem = (lb_virtual_mem_t)ptr;
-  for (size_t i = 0; i < page_count; ++i) {
-    lb_physical_mem_t phys_mem_id;
-    lb_unmap_memory(cur_mem + i * PAGESIZE, &phys_mem_id);
-    lb_free_physical_memory(phys_mem_id);
-  }
-  size_t page_index = (cur_mem - mmapped_heap.mem_base) / PAGESIZE;
-  set_unmapped_range(page_index, page_count);
-  return 0;
-}
-
+#if HAVE_MORECORE
 static void* lbshell_morecore(ssize_t size) {
   void* ptr = (void*)global_heap.sbrk_top;
   if (size > 0) {
-    size_t page_count = align(size, PAGESIZE) / PAGESIZE;
-    // Grab physical pages and map them into our virtual address space.
-    for (size_t i = 0; i < page_count; ++i) {
-      lb_physical_mem_t mem_id;
-      int ret = lb_allocate_physical_memory(PAGESIZE, PAGESIZE, &mem_id);
-      if (ret != 0) {
-        return (void*)-1;
-      }
-
-      ret = lb_map_memory((lb_virtual_mem_t)global_heap.sbrk_top, mem_id);
-      assert(ret == 0);
-      global_heap.sbrk_top += PAGESIZE;
+    size = align(size, mparams.page_size);
+    int ret = lb_allocate_physical_and_map(
+        (lb_virtual_mem_t)global_heap.sbrk_top, size);
+    if (ret != 0) {
+      return (void*)-1;
     }
+    global_heap.sbrk_top += size;
   } else if (size < 0) {
-    assert(size % PAGESIZE == 0);
-    size_t num_pages = -size / PAGESIZE;
-    for (size_t i = 0; i < num_pages; ++i) {
-      global_heap.sbrk_top -= PAGESIZE;
-      lb_physical_mem_t mem_id;
-      lb_unmap_memory((lb_virtual_mem_t)global_heap.sbrk_top, &mem_id);
-      lb_free_physical_memory(mem_id);
-    }
+    global_heap.sbrk_top -= -size;
+    lb_unmap_and_free_physical((lb_virtual_mem_t)global_heap.sbrk_top, -size);
     ptr = (void*)global_heap.sbrk_top;
   } else {
     // size 0 is a query for current position.
   }
   return ptr;
 }
+#endif
 
 #endif /* defined(__LB_SHELL__) */
 /* -------------------- Alternative MORECORE functions ------------------- */
