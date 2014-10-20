@@ -19,7 +19,9 @@
 #include <fcntl.h> // For HeapWalker to open files
 #include <stdint.h>
 
+#include "lb_memory_pages.h"
 #include "lb_mutex.h"
+#include "lb_platform.h"
 
 // Want this for all our targets so these symbols
 // dont conflict with the normal malloc functions.
@@ -56,40 +58,35 @@
 
 #define NEED_GLOBAL_LOCK_INIT
 
-#define MORECORE lbshell_morecore
-
 #define HAVE_MREMAP 0
-#define HAVE_MORECORE 1
 #define USE_BUILTIN_FFS 1
-#define malloc_getpagesize PAGESIZE
+#define malloc_getpagesize LB_PAGE_SIZE
+
+#if defined(LB_HAS_MMAP)
+#define HAVE_MMAP 2  // 2 == use our custom implementation
+#else
+#define HAVE_MMAP 0
+#endif
+
+#if defined(LB_HAS_VIRTUAL_REGIONS)
+#define HAVE_MORECORE 1
+#define MORECORE lbshell_morecore
+#else
+#define HAVE_MORECORE 0
+#endif
 
 #if defined(__LB_ANDROID__)
-#define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
-#define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
 #elif defined(__LB_LINUX__)
-#define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
-// For emulation purposes, we'll say 64K, regardless
-// of what the system is using.
-#define PAGESIZE ((size_t)(64 * 1024U))
-#define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
 #elif defined(__LB_PS3__)
-#define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
-// 64K size pages pay some price in performance
-// but we get more granularity.
-#define PAGESIZE ((size_t)(64 * 1024U))
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
 #elif defined(__LB_PS4__)
-#define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
-// PS4 Supports pages that are multiples of 16K and a power of 2
-#define PAGESIZE ((size_t)(2 * 1024 * 1024U))
-
 // "Large" blocks come from a separate VM region.
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
@@ -98,28 +95,17 @@
 #define DEFAULT_TRIM_THRESHOLD ((size_t)(8 * 1024 * 1024U))
 
 #elif defined(__LB_WIIU__)
-#define HAVE_MMAP 0 // 0 == off due to a lack of reliable VM support
 #define MALLOC_ALIGNMENT ((size_t)8U)
-#define PAGESIZE ((size_t)(128 * 1024U))
 #define DEFAULT_MMAP_THRESHOLD MAX_SIZE_T
 
 #elif defined(__LB_XB1__)
-#define HAVE_MMAP 2 // 2 == use our custom implementation
 #define MALLOC_ALIGNMENT ((size_t)16U)
-// XB1 page size is actually 4K. But we can allocate our physical pages
-// in 64K chunks anyway.
-#define PAGESIZE ((size_t)(64 * 1024U))
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
 #define FORCEINLINE __forceinline
 
 #elif defined(__LB_XB360__)
-// TODO(rjogrady): We have limited virtual address space on 360 so to avoid
-// wasting it, just put everything into the default morecore region.
-// We can write a simple mmap allocator if needed.
-#define HAVE_MMAP 0 // 0 == Just use morecore for everything.
 #define MALLOC_ALIGNMENT ((size_t)16U)
-#define PAGESIZE ((size_t)(64 * 1024U))
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 #else
 #error Platform-specific settings for dlmalloc must be defined here.
