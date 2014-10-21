@@ -22,6 +22,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
+        '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
 
         # Include the samples to make sure that they always compile and work.
         '<(DEPTH)/cobalt/samples/samples.gyp:*',

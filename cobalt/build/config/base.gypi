@@ -117,6 +117,9 @@
           '__LB_BASE_SHARED__=1',
         ],
       }],
+      ['target_arch in ["xb1", "xb360"]', {
+        'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
+      }],
     ],
 
     # TODO(***REMOVED***): Revisit and remove unused configurations.
