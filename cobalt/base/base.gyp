@@ -22,6 +22,7 @@
         'compiler.h',
         'init_cobalt.h',
         'init_cobalt.cc',
+        '<(DEPTH)/lbshell/src/lb_reuse_allocator.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
