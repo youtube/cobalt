@@ -549,7 +549,14 @@
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
             }],
-            ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
+            ['target_arch=="ps3"', {
+              'sources/': [
+                # PS3 has its own implementations.
+                ['exclude', 'filters/shell_audio_decoder_impl'],
+                ['exclude', 'filters/shell_audio_renderer_impl'],
+              ]
+            }],
+            ['target_arch=="xb1" or target_arch=="xb360"', {
               'sources/': [
                 # These platforms have their own implementations.
                 ['exclude', 'filters/shell_audio_decoder_impl'],
