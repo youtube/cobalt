@@ -188,6 +188,12 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   // Read/written only in Render callback. Indicates how much silence has been
   // written to the sink after EOS was encountered
   base::TimeDelta silence_rendered_;
+
+  // Store the DecryptingDemuxerStream so we can reset it when Stop is
+  // requested. As the top level demuxer has no knowledge of the decrypting
+  // demuxer stream, the pipeline will not be able to reset the streams during
+  // stopping. So we have to reset it.
+  scoped_refptr<DecryptingDemuxerStream> decrypting_demuxer_stream_;
 };
 
 }  // namespace media
