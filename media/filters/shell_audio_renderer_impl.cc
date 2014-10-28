@@ -29,6 +29,13 @@
 #include "media/filters/decrypting_demuxer_stream.h"
 #include "media/mp4/aac.h"
 
+namespace {
+
+// Used by decrypting_demuxer_stream_->Reset() as we don't handle the callback.
+void DummyFunction() {}
+
+}  // namespace
+
 namespace media {
 
 // static
@@ -242,6 +249,7 @@ void ShellAudioRendererImpl::OnDecoderSelected(
   }
 
   decoder_ = selected_decoder;
+  decrypting_demuxer_stream_ = decrypting_demuxer_stream;
 
   // construct audio parameters for the sink
   audio_parameters_ = AudioParameters(
@@ -504,6 +512,14 @@ int ShellAudioRendererImpl::Render(AudioBus* dest,
     }
   }
 
+  if (state_ == kStopping && decrypting_demuxer_stream_ != NULL) {
+    // Use a dummy callback as we don't care about the exact time that Reset()
+    // finishes. Once Reset() is done the decoded_audio_bus_ will be set to NULL
+    // and the renderer_idle_cb_ will be called in the next if block. This will
+    // reset the decoder and finish the Stop().
+    decrypting_demuxer_stream_->Reset(base::Bind(DummyFunction));
+    decrypting_demuxer_stream_ = NULL;
+  }
   if (decoded_audio_bus_ == NULL) {
     // No pending decode, so we are idle. Call and clear
     // the callback if it is set.
