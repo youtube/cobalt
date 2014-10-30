@@ -79,8 +79,8 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/cobalt/browser/css/css.gyp:css_test_deploy',
-        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom_test_deploy',
-        '<(DEPTH)/cobalt/browser/html/html.gyp:html_test_deploy',
+        '<(DEPTH)/cobalt/browser/dom/dom_test.gyp:dom_test_deploy',
+        '<(DEPTH)/cobalt/browser/html/html_test.gyp:html_test_deploy',
       ],
     },
 
