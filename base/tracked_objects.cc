@@ -22,7 +22,11 @@ namespace tracked_objects {
 
 namespace {
 // Flag to compile out almost all of the task tracking code.
+#if defined(__LB_SHELL__FOR_RELEASE__)
+const bool kTrackAllTaskObjects = false;
+#else
 const bool kTrackAllTaskObjects = true;
+#endif
 
 // TODO(jar): Evaluate the perf impact of enabling this.  If the perf impact is
 // negligible, enable by default.
@@ -334,6 +338,14 @@ void ThreadData::OnThreadTermination(void* thread_data) {
 }
 
 void ThreadData::OnThreadTerminationCleanup() {
+#if defined(__LB_SHELL__)
+  // The Chromium code avoids doing allocations here and puts ThreadDatas
+  // into a linked list for reuse.
+  // However, every call to InitializeThreadContext() will create
+  // a new ThreadData without any possibility of reuse.
+  // We prefer to delete the ThreadData to avoid leaking mutexes and memory.
+  delete this;
+#else
   // The list_lock_ was created when we registered the callback, so it won't be
   // allocated here despite the lazy reference.
   base::AutoLock lock(*list_lock_.Pointer());
@@ -349,6 +361,7 @@ void ThreadData::OnThreadTerminationCleanup() {
   DCHECK_EQ(this->next_retired_worker_, reinterpret_cast<ThreadData*>(NULL));
   this->next_retired_worker_ = first_retired_worker_;
   first_retired_worker_ = this;
+#endif
 }
 
 // static
