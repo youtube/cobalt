@@ -39,13 +39,14 @@ from optparse import OptionParser
 import os
 import sys
 
+from code_generator_cobalt import CodeGeneratorCobalt
 from code_generator_v8 import CodeGeneratorDictionaryImpl
 from code_generator_v8 import CodeGeneratorV8
 from code_generator_v8 import CodeGeneratorUnionType
 from code_generator_v8 import CodeGeneratorCallbackFunction
 from idl_reader import IdlReader
 from utilities import create_component_info_provider
-from utilities import read_idl_files_list_from_file
+from utilities import read_idl_files_list_from_file, idl_filename_to_component
 from utilities import write_file
 
 
@@ -88,7 +89,7 @@ class IdlCompiler(object):
 
     def __init__(self, output_directory, cache_directory=None,
                  code_generator_class=None, info_provider=None,
-                 target_component=None):
+                 target_component=None, extended_attributes_filepath=None):
         """
         Args:
           output_directory: directory to put output files.
@@ -101,7 +102,7 @@ class IdlCompiler(object):
         self.info_provider = info_provider
         self.output_directory = output_directory
         self.target_component = target_component
-        self.reader = IdlReader(info_provider.interfaces_info, cache_directory)
+        self.reader = IdlReader(extended_attributes_filepath, info_provider.interfaces_info, cache_directory)
         self.code_generator = code_generator_class(self.info_provider,
                                                    self.cache_directory,
                                                    self.output_directory)
