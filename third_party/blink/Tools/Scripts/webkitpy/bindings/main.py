@@ -97,7 +97,7 @@ def TemporaryDirectory():
         shutil.rmtree(name)
 
 
-def generate_interface_dependencies(output_directory):
+def generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files):
     def idl_paths_recursive(directory):
         # This is slow, especially on Windows, due to os.walk making
         # excess stat() calls. Faster versions may appear in Python 3.5 or
@@ -113,7 +113,7 @@ def generate_interface_dependencies(output_directory):
     def collect_blink_idl_paths():
         """Returns IDL file paths which blink actually uses."""
         idl_paths = []
-        for component in COMPONENT_DIRECTORY:
+        for component in component_directories:
             directory = os.path.join(source_path, component)
             idl_paths.extend(idl_paths_recursive(directory))
         return idl_paths
@@ -121,7 +121,7 @@ def generate_interface_dependencies(output_directory):
     def collect_interfaces_info(idl_path_list):
         info_collector = InterfaceInfoCollector()
         for idl_path in idl_path_list:
-            if os.path.basename(idl_path) in NON_BLINK_IDL_FILES:
+            if os.path.basename(idl_path) in ignore_idl_files:
                 continue
             info_collector.collect_info(idl_path)
         info = info_collector.get_info_as_dict()
@@ -152,7 +152,7 @@ def generate_interface_dependencies(output_directory):
     # For bindings test IDL files, we collect interfaces info for each
     # component so that we can generate union type containers separately.
     test_idl_paths = {}
-    for component in COMPONENT_DIRECTORY:
+    for component in component_directories:
         test_idl_paths[component] = idl_paths_recursive(
             os.path.join(test_input_directory, component))
     # 2nd-stage computation: individual, then overall
@@ -178,13 +178,16 @@ def generate_interface_dependencies(output_directory):
         union_types[component] = interfaces_info['union_types']
 
 
-def bindings_tests(output_directory, verbose):
+def bindings_tests(output_directory, verbose, reference_directory,
+                   test_input_directory, idl_compiler_constructor,
+                   component_directories, ignore_idl_files,
+                   dependency_idl_files):
     executive = Executive()
 
     def list_files(directory):
         files = []
         for component in os.listdir(directory):
-            if component not in COMPONENT_DIRECTORY:
+            if component not in component_directories:
                 continue
             directory_with_component = os.path.join(directory, component)
             for filename in os.listdir(directory_with_component):
@@ -245,7 +248,7 @@ def bindings_tests(output_directory, verbose):
         generated_files = set([os.path.relpath(path, output_directory)
                                for path in output_files])
         # Add subversion working copy directories in core and modules.
-        for component in COMPONENT_DIRECTORY:
+        for component in component_directories:
             generated_files.add(os.path.join(component, '.svn'))
 
         excess_files = []
@@ -269,23 +272,24 @@ def bindings_tests(output_directory, verbose):
             write_file(output_code, output_path, only_if_changed=True)
 
     try:
-        generate_interface_dependencies(output_directory)
-        for component in COMPONENT_DIRECTORY:
+        generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files)
+        for component in component_directories:
             output_dir = os.path.join(output_directory, component)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
             generate_union_type_containers(output_dir, component)
 
-            idl_compiler = IdlCompilerV8(output_dir,
-                                         interfaces_info=interfaces_info,
-                                         only_if_changed=True)
+            idl_compiler = idl_compiler_constructor(
+                output_dir,
+                interfaces_info=interfaces_info,
+                only_if_changed=True)
             if component == 'core':
                 partial_interface_output_dir = os.path.join(output_directory,
                                                             'modules')
                 if not os.path.exists(partial_interface_output_dir):
                     os.makedirs(partial_interface_output_dir)
-                idl_partial_interface_compiler = IdlCompilerV8(
+                idl_partial_interface_compiler = idl_compiler_constructor(
                     partial_interface_output_dir,
                     interfaces_info=interfaces_info,
                     only_if_changed=True,
@@ -303,7 +307,7 @@ def bindings_tests(output_directory, verbose):
                 if (filename.endswith('.idl') and
                     # Dependencies aren't built
                     # (they are used by the dependent)
-                    filename not in DEPENDENCY_IDL_FILES):
+                    filename not in dependency_idl_files):
                     idl_filenames.append(
                         os.path.realpath(
                             os.path.join(input_directory, filename)))
@@ -337,11 +341,21 @@ def bindings_tests(output_directory, verbose):
     return 1
 
 
-def run_bindings_tests(reset_results, verbose):
+def run_bindings_tests(reset_results, verbose, args=None):
     # Generate output into the reference directory if resetting results, or
     # a temp directory if not.
+    if not args:
+        # Default args for blink
+        args = {
+            'idl_compiler_constructor': IdlCompilerV8,
+            'test_input_directory': test_input_directory,
+            'reference_directory': reference_directory,
+            'component_directories': COMPONENT_DIRECTORY,
+            'ignore_idl_files': NON_BLINK_IDL_FILES,
+            'dependency_idl_files': DEPENDENCY_IDL_FILES,
+        }
     if reset_results:
         print 'Resetting results'
-        return bindings_tests(reference_directory, verbose)
+        return bindings_tests(args['reference_directory'], verbose, **args)
     with TemporaryDirectory() as temp_dir:
-        return bindings_tests(temp_dir, verbose)
+        return bindings_tests(temp_dir, verbose, **args)
