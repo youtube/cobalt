@@ -133,6 +133,7 @@ class CodeGeneratorV8Base(CodeGeneratorBase):
     def __init__(self, info_provider, cache_dir, output_dir):
         CodeGeneratorBase.__init__(self, MODULE_PYNAME, info_provider, cache_dir, output_dir)
         self.typedef_resolver = TypedefResolver(info_provider)
+        self.jinja_env = initialize_jinja_env(cache_dir)
 
     def generate_code(self, definitions, definition_name):
         """Returns .h/.cpp code as ((path, content)...)."""
@@ -286,6 +287,7 @@ class CodeGeneratorUnionType(CodeGeneratorBase):
     """
     def __init__(self, info_provider, cache_dir, output_dir, target_component):
         CodeGeneratorBase.__init__(self, MODULE_PYNAME, info_provider, cache_dir, output_dir)
+        self.jinja_env = initialize_jinja_env(cache_dir)
         self.target_component = target_component
 
     def _generate_container_code(self, union_type):
