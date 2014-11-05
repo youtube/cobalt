@@ -105,7 +105,7 @@ def TemporaryDirectory():
         shutil.rmtree(name)
 
 
-def generate_interface_dependencies():
+def generate_interface_dependencies(test_input_directory, component_directories, ignore_idl_files, root_directory, extended_attributes_path):
     def idl_paths_recursive(directory):
         # This is slow, especially on Windows, due to os.walk making
         # excess stat() calls. Faster versions may appear in Python 3.5 or
@@ -121,7 +121,7 @@ def generate_interface_dependencies():
     def collect_blink_idl_paths():
         """Returns IDL file paths which blink actually uses."""
         idl_paths = []
-        for component in COMPONENT_DIRECTORY:
+        for component in component_directories:
             directory = os.path.join(SOURCE_PATH, component)
             idl_paths.extend(idl_paths_recursive(directory))
         return idl_paths
@@ -286,8 +286,8 @@ def bindings_tests(output_directory, verbose, reference_directory,
         return True
 
     try:
-        generate_interface_dependencies()
-        for component in COMPONENT_DIRECTORY:
+        generate_interface_dependencies(test_input_directory, component_directories, ignore_idl_files, root_directory, extended_attributes_path)
+        for component in component_directories:
             output_dir = os.path.join(output_directory, component)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -317,7 +317,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
                 if (filename.endswith('.idl') and
                         # Dependencies aren't built
                         # (they are used by the dependent)
-                        filename not in DEPENDENCY_IDL_FILES):
+                        filename not in dependency_idl_files):
                     idl_path = os.path.realpath(
                         os.path.join(input_directory, filename))
                     idl_filenames.append(idl_path)
@@ -393,6 +393,6 @@ def run_bindings_tests(reset_results, verbose, args=None):
         }
     if reset_results:
         print 'Resetting results'
-        return bindings_tests(REFERENCE_DIRECTORY, verbose)
+        return bindings_tests(args['reference_directory'], verbose, **args)
     with TemporaryDirectory() as temp_dir:
         return bindings_tests(temp_dir, verbose, **args)

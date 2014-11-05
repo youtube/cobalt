@@ -76,6 +76,8 @@ def parse_options():
     parser.add_option('--dependency-idl-files', help='list of dependency IDL files')
     parser.add_option('--interfaces-info-file', help='interface info pickle file')
     parser.add_option('--component-info-file', help='component wide info pickle file')
+    parser.add_option('--root-directory', help='root directory for relative path computation', default=source_path)
+    parser.add_option('--extended-attributes', help='file containing whitelist of supported extended attributes')
 
     options, args = parser.parse_args()
     if options.interfaces_info_file is None:
@@ -102,10 +104,7 @@ def include_path(idl_filename, root_path, implemented_as=None):
     POSIX format is used for consistency of output, so reference tests are
     platform-independent.
     """
-    if idl_filename.startswith(gen_path):
-        relative_dir = relative_dir_posix(idl_filename, gen_path)
-    else:
-        relative_dir = relative_dir_posix(idl_filename, source_path)
+    relative_dir = relative_dir_posix(idl_filename, root_path)
 
     # IDL file basename is used even if only a partial interface file
     cpp_class_name = implemented_as or idl_filename_to_interface_name(idl_filename)
@@ -178,6 +177,8 @@ class InterfaceInfoCollector(object):
         self.union_types = set()
         self.typedefs = {}
         self.callback_functions = {}
+        self.root_path = root_directory
+        self.referenced_from_partial_interfaces = defaultdict(lambda: set())
 
     def add_paths_to_partials_dict(self, partial_interface_name, full_path,
                                    include_paths):
@@ -277,7 +278,7 @@ class InterfaceInfoCollector(object):
         extended_attributes = definition.extended_attributes
         implemented_as = extended_attributes.get('ImplementedAs')
         full_path = os.path.realpath(idl_filename)
-        this_include_path = include_path(idl_filename, implemented_as)
+        this_include_path = include_path(idl_filename, self.root_path, implemented_as)
         if definition.is_partial:
             # We don't create interface_info for partial interfaces, but
             # adds paths to another dict.
@@ -289,8 +290,8 @@ class InterfaceInfoCollector(object):
                 partial_include_paths.append(
                     'bindings/%s/v8/%s.h' % (component, name))
             self.add_paths_to_partials_dict(definition.name, full_path, partial_include_paths)
-            # Collects C++ header paths which should be included from generated
-            # .cpp files.  The resulting structure is as follows.
+            referenced_from_interface = get_put_forward_interfaces_from_definition(definition)
+            self.referenced_from_partial_interfaces[definition.name].update(referenced_from_interface)
             #   interfaces_info[interface_name] = {
             #       'cpp_includes': {
             #           'core': set(['core/foo/Foo.h', ...]),
@@ -323,7 +324,7 @@ class InterfaceInfoCollector(object):
             # 'implements': http://crbug.com/360435
             'is_legacy_treat_as_partial_interface': 'LegacyTreatAsPartialInterface' in extended_attributes,
             'parent': definition.parent,
-            'relative_dir': relative_dir_posix(idl_filename, source_path),
+            'relative_dir': relative_dir_posix(idl_filename, self.root_path),
         })
         merge_dict_recursively(self.interfaces_info[definition.name], interface_info)
 
