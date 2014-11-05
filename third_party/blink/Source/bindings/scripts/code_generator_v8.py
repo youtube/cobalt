@@ -119,7 +119,7 @@ class CodeGeneratorBase(object):
     def __init__(self, interfaces_info, cache_dir, output_dir):
         interfaces_info = interfaces_info or {}
         self.interfaces_info = interfaces_info
-        self.jinja_env = initialize_jinja_env(cache_dir)
+        self.jinja_env = initialize_jinja_env(cache_dir, templates_dir)
         self.output_dir = output_dir
         set_global_type_info(interfaces_info)
 
@@ -258,7 +258,7 @@ class CodeGeneratorUnionType(object):
     """
     def __init__(self, interfaces_info, cache_dir, output_dir, target_component):
         self.interfaces_info = interfaces_info
-        self.jinja_env = initialize_jinja_env(cache_dir)
+        self.jinja_env = initialize_jinja_env(cache_dir, templates_dir)
         self.output_dir = output_dir
         self.target_component = target_component
         set_global_type_info(interfaces_info)
@@ -288,7 +288,7 @@ class CodeGeneratorUnionType(object):
         )
 
 
-def initialize_jinja_env(cache_dir):
+def initialize_jinja_env(cache_dir, templates_dir):
     jinja_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(templates_dir),
         # Bytecode cache is not concurrency-safe unless pre-cached:
@@ -358,7 +358,7 @@ def main(argv):
         return 1
 
     # Cache templates
-    jinja_env = initialize_jinja_env(cache_dir)
+    jinja_env = initialize_jinja_env(cache_dir, templates_dir)
     template_filenames = [filename for filename in os.listdir(templates_dir)
                           # Skip .svn, directories, etc.
                           if filename.endswith(('.cpp', '.h'))]
