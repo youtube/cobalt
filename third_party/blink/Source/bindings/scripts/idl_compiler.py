@@ -38,6 +38,7 @@ import os
 import cPickle as pickle
 import sys
 
+from code_generator_cobalt import CodeGeneratorCobalt
 from code_generator_v8 import CodeGeneratorDictionaryImpl, CodeGeneratorV8, CodeGeneratorUnionType
 from idl_reader import IdlReader
 from utilities import read_idl_files_list_from_file, write_file, idl_filename_to_component
@@ -131,6 +132,16 @@ class IdlCompilerV8(IdlCompiler):
         self.code_generator = CodeGeneratorV8(self.interfaces_info,
                                               self.cache_directory,
                                               self.output_directory)
+
+    def compile_file(self, idl_filename):
+        self.compile_and_write(idl_filename)
+
+class IdlCompilerCobalt(IdlCompiler):
+    def __init__(self, *args, **kwargs):
+        IdlCompiler.__init__(self, *args, **kwargs)
+        self.code_generator = CodeGeneratorCobalt(self.interfaces_info,
+                                                  self.cache_directory,
+                                                  self.output_directory)
 
     def compile_file(self, idl_filename):
         self.compile_and_write(idl_filename)
