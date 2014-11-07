@@ -41,11 +41,19 @@ TEST(NodeVisitorTest, VisitsContainer) {
   container.Accept(&mock_visitor);
 }
 
+namespace {
+class DummyImage : public Image {
+  int GetWidth() const OVERRIDE { return 0; }
+  int GetHeight() const OVERRIDE { return 0; }
+};
+}  // namespace
+
 TEST(NodeVisitorTest, VisitsImage) {
-  ImageNode image;
+  scoped_refptr<DummyImage> image = make_scoped_refptr(new DummyImage());
+  ImageNode image_node(image);
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(&image));
-  image.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(&image_node));
+  image_node.Accept(&mock_visitor);
 }
 
 TEST(NodeVisitorTest, VisitsRect) {
