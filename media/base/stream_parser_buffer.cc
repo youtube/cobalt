@@ -5,6 +5,7 @@
 #include "media/base/stream_parser_buffer.h"
 
 #include "base/logging.h"
+#include "media/base/shell_buffer_factory.h"
 
 namespace media {
 
