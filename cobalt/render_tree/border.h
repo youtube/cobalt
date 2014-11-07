@@ -1,0 +1,53 @@
+/*
+ * Copyright 2014 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef RENDER_TREE_BORDER_H_
+#define RENDER_TREE_BORDER_H_
+
+#include "base/memory/scoped_ptr.h"
+
+namespace cobalt {
+namespace render_tree {
+
+class Brush;
+
+// A style of a border segment.
+enum BorderStyle {
+  // A border segment along the given side should not be drawn.
+  kBorderStyleNone,
+  // A border segment along the given side should be drawn.
+  kBorderStyleSolid
+};
+
+// Style properties for one of four sides of a border around a rectangle.
+struct BorderSide {
+  float width;
+  BorderStyle style;
+  scoped_ptr<Brush> brush;
+};
+
+// A border around a rectangle.
+struct Border {
+  BorderSide left;
+  BorderSide right;
+  BorderSide top;
+  BorderSide bottom;
+};
+
+}  // namespace render_tree
+}  // namespace cobalt
+
+#endif  // RENDER_TREE_BORDER_H_
