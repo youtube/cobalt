@@ -25,12 +25,14 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "lb_shell/lb_shell_constants.h"
-#include "media/base/buffers.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
 static const size_t kShellMaxArraySize = 1024 * 1024;
 
+class DecoderBuffer;
 class DecryptConfig;
 class ShellBufferFactory;
 
@@ -54,57 +56,6 @@ class MEDIA_EXPORT ShellScopedArray :
   scoped_refptr<ShellBufferFactory> buffer_factory_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ShellScopedArray);
-};
-
-// TODO(***REMOVED***) : Consider move DecoderBuffer into decoder_buffer.* and
-// rename ShellBufferFactory into ShellMemoryPool.
-// A media buffer object designed to use the recycled memory allocated
-// by ShellBufferFactory.
-class MEDIA_EXPORT DecoderBuffer : public Buffer {
- public:
-  // Create a DecoderBuffer indicating we've reached end of stream or an error.
-  // GetData() and GetWritableData() return NULL and GetDataSize() returns 0.
-  static scoped_refptr<DecoderBuffer> CreateEOSBuffer(
-      base::TimeDelta timestamp);
-
-  // Buffer implementation.
-  virtual const uint8* GetData() const OVERRIDE { return buffer_; }
-  // Data size can be less than allocated size after ShrinkTo is called.
-  virtual int GetDataSize() const OVERRIDE { return size_; }
-  int GetAllocatedSize() const { return allocated_size_; }
-  // This is used by the data that we don't know the exact size before reading.
-  void ShrinkTo(int size);
-
-  // Returns a read-write pointer to the buffer data.
-  virtual uint8* GetWritableData() { return buffer_; }
-
-  // Returns a flag indicating whether or not the buffer has been decrypted
-  // in-place.  If so, a CDM should avoid decrypting it again after a seek.
-  bool IsAlreadyDecrypted() { return is_decrypted_; }
-  void SetAlreadyDecrypted(bool value) { is_decrypted_ = value; }
-
-  const DecryptConfig* GetDecryptConfig() const;
-  void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
-
- protected:
-  friend class ShellBufferFactory;
-  // Should only be called by ShellBufferFactory, consumers should use
-  // ShellBufferFactory::AllocateBuffer to make a DecoderBuffer.
-  DecoderBuffer(uint8* reusable_buffer, size_t size);
-  // For deferred allocation create a shell buffer with buffer_ NULL but a
-  // non-zero size. Then we use the SetBuffer() method below to actually
-  // set the reusable buffer pointer when it becomes available
-  void SetBuffer(uint8* reusable_buffer);
-
-  virtual ~DecoderBuffer();
-  uint8* buffer_;
-  size_t size_;
-  size_t allocated_size_;
-  scoped_refptr<ShellBufferFactory> buffer_factory_;
-  scoped_ptr<DecryptConfig> decrypt_config_;
-  bool is_decrypted_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(DecoderBuffer);
 };
 
 // Singleton instance class for the management and recycling of media-related
