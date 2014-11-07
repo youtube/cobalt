@@ -28,6 +28,8 @@ namespace render_tree {
 // An image that supports scaling and tiling.
 class ImageNode : public Node {
  public:
+  explicit ImageNode(const scoped_refptr<Image>& image) : image_(image) {}
+
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
