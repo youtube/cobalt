@@ -17,18 +17,22 @@
 #ifndef RENDER_TREE_NODE_H_
 #define RENDER_TREE_NODE_H_
 
+#include "base/memory/ref_counted.h"
+
 namespace cobalt {
 namespace render_tree {
 
 class NodeVisitor;
 
 // A base class of all objects that form a render tree.
-class Node {
+class Node : public base::RefCountedThreadSafe<Node> {
  public:
-  virtual ~Node() {}
-
   // A type-safe branching.
   virtual void Accept(NodeVisitor* visitor) = 0;
+
+ protected:
+  virtual ~Node() {}
+  friend class base::RefCountedThreadSafe<Node>;
 };
 
 }  // namespace render_tree
