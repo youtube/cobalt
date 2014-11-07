@@ -59,65 +59,6 @@ ShellScopedArray::~ShellScopedArray() {
   }
 }
 
-// ==== DecoderBuffer =========================================================
-
-// static
-scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer(
-    base::TimeDelta timestamp) {
-  scoped_refptr<DecoderBuffer> eos = scoped_refptr<DecoderBuffer>(
-    new DecoderBuffer(NULL, 0));
-  eos->SetTimestamp(timestamp);
-  return eos;
-}
-
-void DecoderBuffer::ShrinkTo(int size) {
-  CHECK_LE(size, GetAllocatedSize());
-  size_ = size;
-}
-
-DecoderBuffer::DecoderBuffer(uint8* reusable_buffer,
-                             size_t size)
-    : Buffer(kNoTimestamp(), kInfiniteDuration())
-    , buffer_(reusable_buffer)
-    , size_(size)
-    , allocated_size_(size)
-    , is_decrypted_(false) {
-  if (buffer_) {
-    // Retain a reference to the buffer factory, to ensure that we do not
-    // outlive it.
-    buffer_factory_ = ShellBufferFactory::Instance();
-  }
-}
-
-DecoderBuffer::~DecoderBuffer() {
-  // recycle our buffer
-  if (buffer_) {
-    TRACE_EVENT1("media_stack", "DecoderBuffer::~DecoderBuffer()",
-                 "timestamp", GetTimestamp().InMicroseconds());
-    DCHECK_NE(buffer_factory_, (ShellBufferFactory*)NULL);
-    buffer_factory_->Reclaim(buffer_);
-  }
-}
-
-const DecryptConfig* DecoderBuffer::GetDecryptConfig() const {
-  DCHECK(!IsEndOfStream());
-  return decrypt_config_.get();
-}
-
-void DecoderBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
-  DCHECK(!IsEndOfStream());
-  decrypt_config_ = decrypt_config.Pass();
-}
-
-void DecoderBuffer::SetBuffer(uint8* reusable_buffer) {
-  buffer_ = reusable_buffer;
-  if (buffer_) {
-    // Retain a reference to the buffer factory, to ensure that we do not
-    // outlive it.
-    buffer_factory_ = ShellBufferFactory::Instance();
-  }
-}
-
 // ==== ShellBufferFactory =====================================================
 
 scoped_refptr<ShellBufferFactory> ShellBufferFactory::instance_ = NULL;
