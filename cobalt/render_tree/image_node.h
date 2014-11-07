@@ -18,14 +18,12 @@
 #define RENDER_TREE_IMAGE_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
-
-// TODO(***REMOVED***): Define the image.
-class Image;
 
 // An image that supports scaling and tiling.
 class ImageNode : public Node {
@@ -35,7 +33,7 @@ class ImageNode : public Node {
 
   // A source of pixels. May be smaller or larger than layed out image.
   // The class does not own the image, it merely refers it from a resource pool.
-  Image* source() const;
+  scoped_refptr<Image> source() const { return image_; }
 
   // A part of the source image that has to be scaled or tiled.
   const math::RectF& source_rect() const;
@@ -50,6 +48,9 @@ class ImageNode : public Node {
 
   // A position and size of the layed out image.
   const math::RectF& destination_rect() const;
+
+ private:
+  scoped_refptr<Image> image_;
 };
 
 }  // namespace render_tree
