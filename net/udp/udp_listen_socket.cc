@@ -105,29 +105,34 @@ void UDPListenSocket::Read() {
     buffer_.reset(new char[kUdpMaxPacketSize + 1]);
   }
   int len;
+  do {
+    SockaddrStorage src_addr;
+    len = HANDLE_EINTR(
+        recvfrom(socket_, buffer_.get(),
+                 kUdpMaxPacketSize, MSG_DONTWAIT,
+                 src_addr.addr, &src_addr.addr_len));
 
-  SockaddrStorage src_addr;
-  len = HANDLE_EINTR(recvfrom(socket_, buffer_.get(), kUdpMaxPacketSize, 0,
-                              src_addr.addr, &src_addr.addr_len));
-
-  if (len < 0) {
-    PLOG(WARNING) << "recvfrom failed.";
-    return;
-  }
-
-  if (len > 0) {
-    DCHECK_LE(len, kUdpMaxPacketSize);
-
-    IPEndPoint address;
-    int ret = address.FromSockAddr(src_addr.addr, src_addr.addr_len);
-    if (!ret) {
-      LOG(ERROR) << "Failed to convert src sockaddr to IPEndPoint. ";
+    if (len <= 0) {
+      if (!LB::Platform::NetWouldBlock()) {
+        PLOG(WARNING) << "recvfrom() failed: " << std::hex << len;
+      }
       return;
     }
 
-    buffer_[len] = '\0'; // Doesn't hurt to be careful!
-    socket_delegate_->DidRead(this, buffer_.get(), len, &address);
-  }
+    if (len > 0) {
+      DCHECK_LE(len, kUdpMaxPacketSize);
+
+      IPEndPoint address;
+      int ret = address.FromSockAddr(src_addr.addr, src_addr.addr_len);
+      if (!ret) {
+        LOG(ERROR) << "Failed to convert src sockaddr to IPEndPoint. ";
+        return;
+      }
+
+      buffer_[len] = '\0'; // Doesn't hurt to be careful!
+      socket_delegate_->DidRead(this, buffer_.get(), len, &address);
+    }
+  } while (true);
 }
 
 void UDPListenSocket::WatchSocket() {
