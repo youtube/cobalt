@@ -24,7 +24,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-#include "lb_shell/lb_shell_constants.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
 
@@ -77,9 +76,6 @@ class MEDIA_EXPORT ShellBufferFactory
   // of the requested size. Note that if memory is currently available this
   // function will call the callback provided _before_ returning true.
   bool AllocateBuffer(size_t size, AllocCB cb);
-  // Returns true if a DecoderBuffer of this size could be allocated without
-  // waiting for some other buffer to be released.
-  bool HasRoomForBufferNow(size_t size);
   // This function tries to allocate a DecoderBuffer immediately. It returns
   // NULL on failure.
   scoped_refptr<DecoderBuffer> AllocateBufferNow(size_t size);
@@ -105,25 +101,12 @@ class MEDIA_EXPORT ShellBufferFactory
   friend class base::RefCountedThreadSafe<ShellBufferFactory>;
   ShellBufferFactory();
   ~ShellBufferFactory();
-  uint8* AllocateLockAcquired(size_t aligned_size);
-  size_t LargestFreeSpace_Locked() const;
-  // given a size and an address, search the holes_ map for the specific
-  // instance of this pair and remove it from the map.
-  void FillHole_Locked(size_t size, uint8* address);
+  uint8* Allocate_Locked(size_t aligned_size);
 
   static scoped_refptr<ShellBufferFactory> instance_;
-  uint8* buffer_;
 
   // protects all following members.
   base::Lock lock_;
-
-  // sorted map of pointers within buffer_ to sizes occupied at that offset.
-  typedef std::map<uint8*, size_t> AllocMap;
-  AllocMap allocs_;
-  // sorted map of size of free spaces => pointer to that space. As there
-  // can be multiple instances of holes of the same size, it's a multimap.
-  typedef std::multimap<size_t, uint8*> HoleMap;
-  HoleMap holes_;
 
   // queue of pending buffer allocation requests and their sizes
   typedef std::list<std::pair<AllocCB,
