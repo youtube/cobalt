@@ -345,17 +345,6 @@ SourceBufferStream::SourceBufferStream(
       memory_limit_(kDefaultVideoMemoryLimit),
 #endif  // defined(__LB_SHELL__)
       config_change_pending_(false) {
-#if defined(__LB_SHELL__)
-  // The SourceBufferStream caches sample data up to the memory limits
-  // defined above. These sample data is stored using ShellBufferFactory.
-  // So we have to ensure that the combined limit of SourceBufferStream is less
-  // than or equal to the limit of ShellBufferFactory.
-  ShellMediaPlatform* platform = ShellMediaPlatform::Instance();
-  const int combined_memory_limit =
-      platform->GetSourceBufferStreamAudioMemoryLimit() +
-      platform->GetSourceBufferStreamVideoMemoryLimit();
-  DCHECK_LE(combined_memory_limit, platform->GetShellBufferSpaceSize());
-#endif  // defined(__LB_SHELL__)
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(new VideoDecoderConfig());
   video_configs_.back()->CopyFrom(video_config);

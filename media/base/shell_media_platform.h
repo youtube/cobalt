@@ -40,14 +40,10 @@ class MEDIA_EXPORT ShellMediaPlatform {
 
   static ShellMediaPlatform* Instance();
 
-  // LBShell is designed to leverage hardware audio and video decoders, which
-  // have specific byte-alignment for buffers. They also have limited memory,
-  // so we define a per-platform limit to the total size of the media buffering
-  // pool from which all ShellBuffers are allocated.
-  // See implementation of ShellBufferFactory for more details.
-  virtual size_t GetShellBufferSpaceSize() const = 0;
-  virtual size_t GetShellBufferSpaceAlignment() const = 0;
-  virtual uint8* GetShellBufferSpace() const = 0;
+  // Media stack buffer allocate/free functions currently only used by
+  // ShellBufferFactory.
+  virtual void* AllocateBuffer(size_t size) = 0;
+  virtual void FreeBuffer(void* ptr) = 0;
 
   // The maximum audio and video buffer size used by SourceBufferStream.
   // See implementation of SourceBufferStream for more details.
