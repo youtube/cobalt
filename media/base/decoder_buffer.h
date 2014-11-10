@@ -48,8 +48,8 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   bool IsAlreadyDecrypted() { return is_decrypted_; }
   void SetAlreadyDecrypted(bool value) { is_decrypted_ = value; }
 
-  const DecryptConfig* GetDecryptConfig() const;
-  void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
+  virtual const DecryptConfig* GetDecryptConfig() const;
+  virtual void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
 
  protected:
   friend class ShellBufferFactory;
