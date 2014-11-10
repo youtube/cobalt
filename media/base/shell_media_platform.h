@@ -19,6 +19,8 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_export.h"
 
@@ -60,6 +62,15 @@ class MEDIA_EXPORT ShellMediaPlatform {
   // You can expect more memory usage and less jitter by increasing this.
   virtual int GetMaxVideoFrames() const {
     return limits::kMaxVideoFrames;
+  }
+
+  // This function is called before the decoder buffer leaves the demuxer and
+  // is being sent to the media pipeline for decrypting and decoding. The
+  // default implementation simply returns the buffer indicateing that there is
+  // no processing necessary.
+  virtual scoped_refptr<DecoderBuffer> ProcessBeforeLeavingDemuxer(
+      const scoped_refptr<DecoderBuffer>& buffer) {
+    return buffer;
   }
 
  private:
