@@ -13,20 +13,35 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'graphics_system_stub_sources': [
+      'display_stub.h',
+      'graphics_context_stub.h',
+      'graphics_system_stub.h',
+      'render_target_stub.h',
+      'texture_stub.h',
+    ],
+  },
+
   'targets': [
     {
-      # This target conveniently aggregates all sub-modules required to declare
-      # and implement rasterization commands as well as display/GPU resource
-      # management and communication.  It will eventually also contain source
-      # code to help glue all of the components together.
-      'target_name': 'renderer',
+      'target_name': 'renderer_backend',
       'type': 'static_library',
       'sources': [
+        'default_graphics_system.h',
+        'display.h',
+        'graphics_context.h',
+        'graphics_system.h',
+        'render_target.h',
+        'surface_info.h',
+        'texture.h',
+        '<@(graphics_system_stub_sources)'
       ],
 
       'dependencies': [
-        '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
-        '<(DEPTH)/cobalt/renderer/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/cobalt/renderer/backend/<(actual_target_arch)/platform_backend.gyp:renderer_paltform_backend',
       ],
     },
   ],

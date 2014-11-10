@@ -15,18 +15,11 @@
 {
   'targets': [
     {
-      # This target conveniently aggregates all sub-modules required to declare
-      # and implement rasterization commands as well as display/GPU resource
-      # management and communication.  It will eventually also contain source
-      # code to help glue all of the components together.
-      'target_name': 'renderer',
+      'target_name': 'renderer_paltform_backend',
       'type': 'static_library',
-      'sources': [
-      ],
 
-      'dependencies': [
-        '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
-        '<(DEPTH)/cobalt/renderer/skia/skia.gyp:skia',
+      'sources': [
+        'default_graphics_system.cc',
       ],
     },
   ],
