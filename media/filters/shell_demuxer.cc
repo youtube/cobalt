@@ -27,6 +27,7 @@
 #include "base/time.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/data_source.h"
+#include "media/base/shell_media_platform.h"
 
 #include <inttypes.h>
 
@@ -80,7 +81,9 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
       // Do not pop EOS buffers, so that subsequent read requests also get EOS
       buffer_queue_.pop_front();
     }
-    read_cb.Run(DemuxerStream::kOk, buffer);
+    read_cb.Run(
+        DemuxerStream::kOk,
+        ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
   } else {
     TRACE_EVENT0("media_stack", "ShellDemuxerStream::Read() request queued.");
     read_queue_.push_back(read_cb);
@@ -139,7 +142,9 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
     DCHECK_EQ(buffer_queue_.size(), 0);
     ReadCB read_cb(read_queue_.front());
     read_queue_.pop_front();
-    read_cb.Run(DemuxerStream::kOk, buffer);
+    read_cb.Run(
+        DemuxerStream::kOk,
+        ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);

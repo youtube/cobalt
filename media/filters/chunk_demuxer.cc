@@ -23,6 +23,7 @@
 
 #if defined(__LB_SHELL__)
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_media_platform.h"
 #endif
 
 using base::TimeDelta;
@@ -485,7 +486,13 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
     }
   }
 
+#if defined(__LB_SHELL__)
+  read_cb.Run(
+      status,
+      ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer));
+#else  // defined(__LB_SHELL__)
   read_cb.Run(status, buffer);
+#endif  // defined(__LB_SHELL__)
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
@@ -534,8 +541,14 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
   while (!read_cbs_.empty() && status != kConfigChanged) {
     if (!GetNextBuffer_Locked(&status, &buffer))
       return;
+#if defined(__LB_SHELL__)
+    closures->push_back(base::Bind(
+        read_cbs_.front(), status,
+        ShellMediaPlatform::Instance()->ProcessBeforeLeavingDemuxer(buffer)));
+#else  // defined(__LB_SHELL__)
     closures->push_back(base::Bind(read_cbs_.front(),
                                    status, buffer));
+#endif  // defined(__LB_SHELL__)
     read_cbs_.pop_front();
   }
 }
