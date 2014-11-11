@@ -36,6 +36,7 @@ DialSystemConfig::DialSystemConfig()
 }
 
 const char* DialSystemConfig::model_uuid() const {
+  base::AutoLock lock(lock_);
   if (g_dial_uuid == NULL) {
     CreateDialUuid();
   }
