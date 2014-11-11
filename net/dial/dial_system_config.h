@@ -13,6 +13,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/singleton.h"
+#include "base/synchronization/lock.h"
 
 namespace net {
 
@@ -42,6 +43,7 @@ class DialSystemConfig {
   static std::string GeneratePlatformUuid();
 
   DISALLOW_COPY_AND_ASSIGN(DialSystemConfig);
+  mutable base::Lock lock_;
 };
 
 }
