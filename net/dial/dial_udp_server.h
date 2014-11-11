@@ -11,6 +11,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/thread.h"
 #include "net/base/net_export.h"
 #include "net/udp/udp_listen_socket.h"
 
@@ -40,14 +41,18 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);
 
+  // Create the listen socket. Runs on a separate thread.
+  void CreateAndBind();
+  void Shutdown();
+
   // Construct the appropriate search response.
   const std::string ConstructSearchResponse() const;
 
   // Parse a request to make sure it is a M-Search.
-  bool ParseSearchRequest(const std::string& request) const;
+  static bool ParseSearchRequest(const std::string& request);
 
   // Is the valid SSDP request a valid M-Search request too ?
-  bool IsValidMSearchRequest(const HttpServerRequestInfo& info) const;
+  static bool IsValidMSearchRequest(const HttpServerRequestInfo& info);
 
   scoped_refptr<UDPListenSocket> socket_;
   scoped_ptr<UdpSocketFactory> factory_;
@@ -57,6 +62,10 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
 
   // Value to pass in SERVER: header
   std::string server_agent_;
+
+  base::Thread thread_;
+
+  bool is_running_;
 };
 
 } // namespace net

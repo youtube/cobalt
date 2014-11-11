@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "base/string_util.h"
@@ -37,52 +38,66 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
   ignore_result(addr.FromSockAddr(any_addr.addr, any_addr.addr_len));
   return addr;
 }
-} // namespace anonymous
+
+}  // namespace
 
 DialUdpServer::DialUdpServer()
-  : factory_(new DialUdpSocketFactory()) {
+  : factory_(new DialUdpSocketFactory()),
+    thread_("dial_udp_server"),
+    is_running_(false) {
+  thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 DialUdpServer::~DialUdpServer() {
 }
 
+void DialUdpServer::CreateAndBind() {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900), this);
+  DLOG(INFO) << "Starting the Dial UDP Server";
+  DCHECK(socket_);
+}
+
+void DialUdpServer::Shutdown() {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  location_url_.clear();
+  socket_ = NULL;
+}
+
 bool DialUdpServer::Start(const std::string& location_url,
                           const std::string& server_agent) {
-  // Already running!
-  if (socket_ != NULL) {
+  if (is_running_) {
     return true;
   }
+  is_running_ = true;
 
   DCHECK(!location_url.empty());
 
   location_url_ = location_url;
   server_agent_ = server_agent;
-  socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900), this);
-
-  LOG(INFO) << "Starting the Dial UDP Server";
-
-  return (socket_ != NULL);
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &DialUdpServer::CreateAndBind, base::Unretained(this)));
+  return true;
 }
 
 bool DialUdpServer::Stop() {
-  // Already stopped!
-  if (socket_ == NULL) {
-    return true;
-  }
-
-  socket_ = NULL;
-  location_url_.clear();
+  thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
+      &DialUdpServer::Shutdown, base::Unretained(this)));
   return true;
 }
 
 void DialUdpServer::DidClose(UDPListenSocket* server) {
-  LOG(INFO) << "Stopping the Dial UDP Server";
+  DLOG(INFO) << "Stopping the Dial UDP Server";
 }
 
 void DialUdpServer::DidRead(UDPListenSocket* server,
                             const char* data,
                             int len,
                             const IPEndPoint* address) {
+  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
+  if (!socket_) {
+    return;
+  }
   std::string st_request_id;
   // If M-Search request was valid, send response. Else, keep quiet.
   if (ParseSearchRequest(std::string(data, len))) {
@@ -91,8 +106,9 @@ void DialUdpServer::DidRead(UDPListenSocket* server,
   }
 }
 
-// Return true if valid M-Search request.
-bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
+
+// Parse a request to make sure it is a M-Search.
+bool DialUdpServer::ParseSearchRequest(const std::string& request) {
   HttpServerRequestInfo info;
   if (!HttpServer::ParseHeaders(request, &info)) {
     DVLOG(1) << "Failed parsing SSDP headers: " << request;
@@ -120,8 +136,7 @@ bool DialUdpServer::ParseSearchRequest(const std::string& request) const {
   return true;
 }
 
-bool DialUdpServer::IsValidMSearchRequest(
-    const HttpServerRequestInfo& info) const {
+bool DialUdpServer::IsValidMSearchRequest(const HttpServerRequestInfo& info) {
   if (info.method != "M-SEARCH") {
     DVLOG(1) << "Invalid M-Search: SSDP method incorrect.";
     return false;
