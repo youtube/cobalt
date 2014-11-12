@@ -14,32 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef RENDER_TREE_NODE_VISITOR_H_
-#define RENDER_TREE_NODE_VISITOR_H_
+#include "cobalt/render_tree/composition_node.h"
+
+#include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {
 namespace render_tree {
 
-class CompositionNode;
-class ImageNode;
-class RectNode;
-class TextNode;
+void CompositionNodeMutable::AddChild(const scoped_refptr<Node>& node,
+                                      const math::Matrix3F& transform) {
+  composed_children_.push_back(ComposedChild(node, transform));
+}
 
-// Type-safe branching on a class hierarchy of render tree nodes,
-// implemented after a classical GoF pattern (see
-// http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
-class NodeVisitor {
- public:
-  virtual void Visit(CompositionNode* composition) = 0;
-  virtual void Visit(ImageNode* image) = 0;
-  virtual void Visit(RectNode* rect) = 0;
-  virtual void Visit(TextNode* text) = 0;
-
- protected:
-  ~NodeVisitor() {}
-};
+void CompositionNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 }  // namespace render_tree
 }  // namespace cobalt
-
-#endif  // RENDER_TREE_NODE_VISITOR_H_
