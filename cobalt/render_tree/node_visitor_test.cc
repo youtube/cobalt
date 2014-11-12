@@ -16,29 +16,35 @@
 
 #include "cobalt/render_tree/node_visitor.h"
 
-#include "cobalt/render_tree/container_node.h"
+#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
-namespace render_tree {
+using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::Image;
+using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::CompositionNodeMutable;
+using cobalt::render_tree::NodeVisitor;
+using cobalt::render_tree::RectNode;
+using cobalt::render_tree::TextNode;
 
 class MockNodeVisitor : public NodeVisitor {
  public:
-  MOCK_METHOD1(Visit, void(ContainerNode* container));
+  MOCK_METHOD1(Visit, void(CompositionNode* composition));
   MOCK_METHOD1(Visit, void(ImageNode* image));
   MOCK_METHOD1(Visit, void(RectNode* rect));
   MOCK_METHOD1(Visit, void(TextNode* text));
 };
 
-TEST(NodeVisitorTest, VisitsContainer) {
-  scoped_refptr<ContainerNode> container(new ContainerNode());
+TEST(NodeVisitorTest, VisitsComposition) {
+  scoped_refptr<CompositionNode> composition(
+      new CompositionNode(make_scoped_ptr(new CompositionNodeMutable())));
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(container.get()));
-  container->Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(composition.get()));
+  composition->Accept(&mock_visitor);
 }
 
 namespace {
@@ -69,6 +75,3 @@ TEST(NodeVisitorTest, VisitsText) {
   EXPECT_CALL(mock_visitor, Visit(text.get()));
   text->Accept(&mock_visitor);
 }
-
-}  // namespace render_tree
-}  // namespace cobalt
