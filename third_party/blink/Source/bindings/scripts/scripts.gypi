@@ -5,7 +5,7 @@
 {
   'variables': {
     'bindings_scripts_dir': '.',
-    'bindings_scripts_output_dir': '<(SHARED_INTERMEDIATE_DIR)/blink/bindings/scripts',
+    'bindings_scripts_output_dir%': '<(SHARED_INTERMEDIATE_DIR)/blink/bindings/scripts',
     'jinja_module_files': [
       # jinja2/__init__.py contains version string, so sufficient for package
       '<(DEPTH)/third_party/jinja2/__init__.py',
