@@ -15,8 +15,8 @@ import os
 import sys
 import textwrap
 
-def ConvertPaths(input_paths,
-                 output_directory, output_extension, forward_slashes):
+def ConvertPaths(input_paths, output_directory, output_prefix,
+                 output_extension, forward_slashes):
   """The script's core function."""
   def ConvertPath(path):
     output_path = path
@@ -24,6 +24,9 @@ def ConvertPaths(input_paths,
     if output_directory:
       output_path = os.path.join(output_directory,
                                  os.path.basename(output_path))
+    if output_prefix:
+      output_path = os.path.join(os.path.dirname(output_path),
+                                 output_prefix + os.path.basename(output_path))
     if output_extension:
       output_path = (os.path.splitext(output_path)[0] +
                      os.extsep + output_extension)
@@ -48,6 +51,10 @@ def DoMain(argv):
                       help=('If specified, will replace all input path '
                             'extensions with the one specified by this '
                             'parameter.'))
+  parser.add_argument('-p', '--output_prefix',
+                      type=str,
+                      help=('If specified, will prepend the string '
+                            'specified in the parameter to the filename.'))
   parser.add_argument('-s', '--forward_slashes',
                       action='store_true',
                       help=('Set this flag if you would like all output '
@@ -62,6 +69,7 @@ def DoMain(argv):
 
   return ' '.join(ConvertPaths(args.input_paths,
                                args.output_directory,
+                               args.output_prefix,
                                args.output_extension,
                                args.forward_slashes))
 
