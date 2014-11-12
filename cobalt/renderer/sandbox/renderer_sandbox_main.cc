@@ -23,6 +23,9 @@
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/init_cobalt.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/renderer/backend/display.h"
@@ -148,12 +151,89 @@ LoadPNG(const FilePath& png_file_path) {
           width, height, pitch, data.Pass()));
 }
 
-scoped_refptr<cobalt::render_tree::Node> BuildRenderTree(
-    double seconds_elapsed,
-    const scoped_refptr<cobalt::render_tree::Image>& test_image) {
-  // Currently this is a very simple test that wraps the passed in image
-  // in a render tree and returns that.
-  return make_scoped_refptr(new cobalt::render_tree::ImageNode(test_image));
+class RenderTreeBuilder {
+ public:
+  RenderTreeBuilder();
+
+  scoped_refptr<cobalt::render_tree::Node> Build(double seconds_elapsed,
+                                                 float width,
+                                                 float height) const;
+
+ private:
+  struct SpriteInfo {
+    float scale;
+    float rotation_speed;           // In revolutions per second.
+    cobalt::math::PointF position;  // In normalized device coordinates.
+  };
+
+  std::vector<SpriteInfo> sprite_infos_;
+
+  scoped_refptr<cobalt::render_tree::Image> test_image_;
+};
+
+RenderTreeBuilder::RenderTreeBuilder() {
+  // Create a set of randomly positioned and sized sprites.
+  const int kNumSprites = 20;
+  for (int i = 0; i < kNumSprites; ++i) {
+    const float kMinScale = 0.1f;
+    const float kMaxScale = 0.7f;
+    SpriteInfo sprite_info;
+    sprite_info.scale =
+        (rand() / static_cast<float>(RAND_MAX)) * (kMaxScale - kMinScale) +
+        kMinScale;
+
+    sprite_info.position.set_x(rand() / static_cast<float>(RAND_MAX));
+    sprite_info.position.set_y(rand() / static_cast<float>(RAND_MAX));
+
+    const float kMinRotationSpeed = 0.01f;
+    const float kMaxRotationSpeed = 0.3f;
+    sprite_info.rotation_speed = (rand() / static_cast<float>(RAND_MAX)) *
+                                     (kMaxRotationSpeed - kMinRotationSpeed) +
+                                 kMinRotationSpeed;
+
+    sprite_infos_.push_back(sprite_info);
+  }
+
+  // Load a test image from disk.
+  FilePath data_directory;
+  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  test_image_ =
+      LoadPNG(data_directory.Append(FILE_PATH_LITERAL("renderer_sandbox"))
+                  .Append(FILE_PATH_LITERAL("test_image.png")));
+}
+
+scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
+    double seconds_elapsed, float width, float height) const {
+  // Create an image for each SpriteInfo we have in our sprite_infos_ vector.
+  // They will be positioned and scaled according to their SpriteInfo settings,
+  // and rotated according to time.
+  scoped_ptr<cobalt::render_tree::CompositionNodeMutable> mutable_composition(
+      new cobalt::render_tree::CompositionNodeMutable());
+  for (std::vector<SpriteInfo>::const_iterator iter = sprite_infos_.begin();
+       iter != sprite_infos_.end(); ++iter) {
+    // Create the child image node that references the image data
+    scoped_refptr<cobalt::render_tree::ImageNode> image_node(
+        new cobalt::render_tree::ImageNode(test_image_));
+
+    // Setup child image node's scale and rotation and translation.
+    float theta = seconds_elapsed * iter->rotation_speed * 2 * M_PI;
+    cobalt::math::Matrix3F sprite_matrix =
+        cobalt::math::TranslateMatrix(  // Place the image within the scene.
+            iter->position.x() * width,
+            iter->position.y() * height) *
+        cobalt::math::RotateMatrix(theta) *
+        cobalt::math::ScaleMatrix(iter->scale) *
+        cobalt::math::TranslateMatrix(  // Set image center as origin.
+            -0.5 * image_node->destination_size().width(),
+            -0.5 * image_node->destination_size().height());
+
+    // Add the child image node to the list of composed nodes.
+    mutable_composition->AddChild(image_node, sprite_matrix);
+  }
+
+  // Finally construct the composition node and return it.
+  return make_scoped_refptr(
+      new cobalt::render_tree::CompositionNode(mutable_composition.Pass()));
 }
 
 // Determine the Cobalt texture format that is compatible with a given
@@ -191,20 +271,16 @@ int main(int argc, char* argv[]) {
   scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context =
       graphics->CreateGraphicsContext(display->GetRenderTarget());
 
-  // Load a test image from disk.
-  FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
-  scoped_refptr<cobalt::render_tree::Image> test_image = LoadPNG(
-      data_directory.
-      Append(FILE_PATH_LITERAL("renderer_sandbox")).
-      Append(FILE_PATH_LITERAL("test_image.png")));
-
   // Determine in advance the image size and format that we will use to
   // render to.
   SkImageInfo output_image_info =
       SkImageInfo::MakeN32(display->GetRenderTarget()->GetSurfaceInfo().width_,
                            display->GetRenderTarget()->GetSurfaceInfo().height_,
                            kPremul_SkAlphaType);
+
+  // Construct our render tree builder which will be the source of our render
+  // trees within the main loop.
+  RenderTreeBuilder render_tree_builder;
 
   // Repeatedly render/animate and flip the screen.
   base::Time start_time = base::Time::Now();
@@ -214,7 +290,10 @@ int main(int argc, char* argv[]) {
 
     // Build the render tree that we will output to the screen
     scoped_refptr<cobalt::render_tree::Node> render_tree =
-        BuildRenderTree(seconds_elapsed, test_image);
+        render_tree_builder.Build(
+            seconds_elapsed,
+            display->GetRenderTarget()->GetSurfaceInfo().width_,
+            display->GetRenderTarget()->GetSurfaceInfo().height_);
 
     // Allocate the pixels for the output image.  By manually creating the
     // pixels, we can retain ownership of them, and thus pass them into the
@@ -225,6 +304,10 @@ int main(int argc, char* argv[]) {
     SkBitmap bitmap;
     bitmap.installPixels(output_image_info, bitmap_pixels.get(),
                          output_image_info.minRowBytes());
+
+    // Setup the canvas such that it assumes normalized device coordinates, so
+    // that (0,0) represents the top left corner and (1,1) represents the
+    // bottom right corner.
     SkCanvas canvas(bitmap);
 
     // Create the rasterizer and setup its render target to the bitmap we have

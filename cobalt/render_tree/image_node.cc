@@ -21,6 +21,13 @@
 namespace cobalt {
 namespace render_tree {
 
+ImageNode::ImageNode(const scoped_refptr<Image>& image)
+    : image_(image), destination_size_(image->GetWidth(), image->GetHeight()) {}
+
+ImageNode::ImageNode(const scoped_refptr<Image>& image,
+                     const math::SizeF& destination_size)
+    : image_(image), destination_size_(destination_size) {}
+
 void ImageNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 }  // namespace render_tree
