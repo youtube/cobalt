@@ -136,16 +136,6 @@ class IdlCompilerV8(IdlCompiler):
     def compile_file(self, idl_filename):
         self.compile_and_write(idl_filename)
 
-class IdlCompilerCobalt(IdlCompiler):
-    def __init__(self, *args, **kwargs):
-        IdlCompiler.__init__(self, *args, **kwargs)
-        self.code_generator = CodeGeneratorCobalt(self.interfaces_info,
-                                                  self.cache_directory,
-                                                  self.output_directory)
-
-    def compile_file(self, idl_filename):
-        self.compile_and_write(idl_filename)
-
 
 class IdlCompilerDictionaryImpl(IdlCompiler):
     def __init__(self, *args, **kwargs):
