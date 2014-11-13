@@ -16,6 +16,8 @@
 
 #include "media/audio/shell_audio_sink.h"
 
+#include <malloc.h>
+
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
