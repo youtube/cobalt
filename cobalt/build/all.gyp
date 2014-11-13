@@ -22,6 +22,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
+        '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
