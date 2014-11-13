@@ -19,10 +19,18 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/audio_bus.h"
 #include "media/base/shell_media_statistics.h"
 #include "media/filters/shell_audio_renderer.h"
 #include "media/mp4/aac.h"
+
+namespace {
+
+scoped_array<float> s_audio_sink_buffer;
+size_t s_audio_sink_buffer_size_in_float;
+
+}  // namespace
 
 namespace media {
 
@@ -83,10 +91,37 @@ void ShellAudioSink::Initialize(const AudioParameters& params,
   streamer_config_ = audio_streamer_->GetConfig();
   settings_.Reset(streamer_config_, params);
 
-  audio_bus_ = AudioBus::Create(
-      settings_.channels(),
-      streamer_config_.sink_buffer_size_in_frames_per_channel(),
-      audio_parameters_.bits_per_sample() / 8, streamer_config_.interleaved());
+  // Creating the audio bus
+  size_t per_channel_size_in_float =
+      streamer_config_.sink_buffer_size_in_frames_per_channel() *
+      audio_parameters_.bits_per_sample() / (8 * sizeof(float));
+  size_t audio_bus_buffer_size_in_float =
+      settings_.channels() * per_channel_size_in_float;
+  if (audio_bus_buffer_size_in_float > s_audio_sink_buffer_size_in_float) {
+    s_audio_sink_buffer_size_in_float = audio_bus_buffer_size_in_float;
+    // free the existing memory first so we have more free memory for the
+    // allocation following.
+    s_audio_sink_buffer.reset(NULL);
+    s_audio_sink_buffer.reset(static_cast<float*>(
+        memalign(AudioBus::kChannelAlignment,
+                 s_audio_sink_buffer_size_in_float * sizeof(float))));
+    if (!s_audio_sink_buffer) {
+      DLOG(ERROR) << "couldn't reallocate sink buffer";
+      render_callback_->OnRenderError();
+      return;
+    }
+  }
+
+  if (streamer_config_.interleaved()) {
+    audio_bus_ = AudioBus::WrapMemory(
+        1, settings_.channels() * per_channel_size_in_float,
+        s_audio_sink_buffer.get());
+  } else {
+    audio_bus_ = AudioBus::WrapMemory(
+        settings_.channels(), per_channel_size_in_float,
+        s_audio_sink_buffer.get());
+  }
+
   if (!audio_bus_) {
     NOTREACHED() << "couldn't create sink buffer";
     render_callback_->OnRenderError();
