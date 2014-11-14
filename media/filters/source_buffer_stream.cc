@@ -579,8 +579,17 @@ void SourceBufferStream::UpdateMaxInterbufferDistance(
     base::TimeDelta current_timestamp = (*itr)->GetDecodeTimestamp();
     DCHECK(current_timestamp != kNoTimestamp());
 
+    base::TimeDelta interbuffer_distance;
+    // WebMStreamParser in M25 doesn't guarantee that a duration is always set.
+    if ((*itr)->GetDuration() != kNoTimestamp())
+      interbuffer_distance = (*itr)->GetDuration();
+
     if (prev_timestamp != kNoTimestamp()) {
-      base::TimeDelta interbuffer_distance = current_timestamp - prev_timestamp;
+      interbuffer_distance =
+          std::max(current_timestamp - prev_timestamp, interbuffer_distance);
+    }
+
+    if (interbuffer_distance > base::TimeDelta()) {
       if (max_interbuffer_distance_ == kNoTimestamp()) {
         max_interbuffer_distance_ = interbuffer_distance;
       } else {
