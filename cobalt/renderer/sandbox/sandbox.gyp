@@ -32,14 +32,14 @@
 
       'actions': [
         {
-          'action_name': 'copy_test_data',
+          'action_name': 'copy_data',
           'variables': {
-            'test_data_files': [
+            'input_files': [
               'test_image.png',
             ],
-            'test_data_prefix': 'renderer_sandbox',
+            'output_dir': 'renderer_sandbox',
           },
-          'includes': ['../../build/copy_test_data.gypi'],
+          'includes': ['../../build/copy_data.gypi'],
         },
       ],
     },
