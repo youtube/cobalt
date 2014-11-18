@@ -36,12 +36,12 @@
         {
           'action_name': 'browser_copy_test_data',
           'variables': {
-            'test_data_files': [
+            'input_files': [
               '<(DEPTH)/cobalt/browser/testdata/',
             ],
-            'test_data_prefix': 'cobalt/browser',
+            'output_dir': 'cobalt/browser',
           },
-          'includes': [ '../build/copy_test_data.gypi' ],
+          'includes': [ '../build/copy_data.gypi' ],
         },
       ],
     },
