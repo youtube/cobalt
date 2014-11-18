@@ -103,13 +103,13 @@
         {
           'action_name': 'copy_test_data',
           'variables': {
-            'test_data_files': [
+            'input_files': [
               'testdata/data.txt',
               'testdata/test_cases/',
             ],
-            'test_data_prefix': 'cobalt/samples',
+            'output_dir': 'cobalt/samples',
           },
-          'includes': [ '../build/copy_test_data.gypi' ],
+          'includes': [ '../build/copy_data.gypi' ],
         },
       ],
     },
