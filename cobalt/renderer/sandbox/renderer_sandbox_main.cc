@@ -32,6 +32,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
+#include "cobalt/renderer/rasterizer/skia/skia_font.h"
 #include "cobalt/renderer/rasterizer/skia/skia_software_image.h"
 #include "cobalt/renderer/rasterizer/skia/rasterizer.h"
 #include "third_party/libpng/png.h"
@@ -169,6 +170,7 @@ class RenderTreeBuilder {
   std::vector<SpriteInfo> sprite_infos_;
 
   scoped_refptr<cobalt::render_tree::Image> test_image_;
+  scoped_refptr<cobalt::render_tree::Font> test_font_;
 };
 
 RenderTreeBuilder::RenderTreeBuilder() {
@@ -200,6 +202,12 @@ RenderTreeBuilder::RenderTreeBuilder() {
   test_image_ =
       LoadPNG(data_directory.Append(FILE_PATH_LITERAL("renderer_sandbox"))
                   .Append(FILE_PATH_LITERAL("test_image.png")));
+
+  // Create our test font.
+  SkAutoTUnref<SkTypeface> typeface(
+      SkTypeface::CreateFromName("Droid Sans", SkTypeface::kNormal));
+  test_font_ = scoped_refptr<cobalt::render_tree::Font>(
+      new cobalt::renderer::rasterizer::SkiaFont(typeface, 40));
 }
 
 scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
@@ -230,6 +238,32 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
     // Add the child image node to the list of composed nodes.
     mutable_composition->AddChild(image_node, sprite_matrix);
   }
+
+  // Add a text marque that passes by the screen.
+  const std::string kMarqueeText("YouTube");
+
+  // Use information about the string we are rendering to properly position
+  // it in the vertical center of the screen and far enough offscreen that
+  // a switch from the right side to the left is not noticed.
+  cobalt::math::SizeF text_bounds = test_font_->GetBounds(kMarqueeText);
+
+  float y_position = height / 2.0f - text_bounds.height() / 2.0f;
+
+  // Calculate the animated x position of the text.
+  const float kTextVelocityInScreenWidthsPerSecond = 0.1f;
+  float text_start_position = -text_bounds.width();
+  float text_end_position = width;
+  float text_distance = seconds_elapsed * kTextVelocityInScreenWidthsPerSecond;
+  float periodic_position = text_distance - static_cast<int>(text_distance);
+  float x_position =
+      text_start_position +
+      (text_end_position - text_start_position) * periodic_position;
+
+  // Add the text node to our composition.
+  mutable_composition->AddChild(
+      make_scoped_refptr(
+          new cobalt::render_tree::TextNode(kMarqueeText, test_font_)),
+      cobalt::math::TranslateMatrix(x_position, y_position));
 
   // Finally construct the composition node and return it.
   return make_scoped_refptr(
