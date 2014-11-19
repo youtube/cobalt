@@ -29,6 +29,7 @@
         'clip_region.h',
         'composition_node.cc',
         'composition_node.h',
+        'font.h',
         'image_node.cc',
         'image_node.h',
         'node.h',

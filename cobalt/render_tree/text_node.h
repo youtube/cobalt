@@ -19,6 +19,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/string_piece.h"
+#include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/rect_f.h"
 
@@ -28,9 +29,6 @@ namespace render_tree {
 // TODO(***REMOVED***): Define the color.
 class Color;
 
-// TODO(***REMOVED***): Define the font.
-class Font;
-
 // TODO(***REMOVED***): Define the shadow.
 class Shadow;
 
@@ -38,17 +36,17 @@ class Shadow;
 // Bidirectional Algorithm (http://www.unicode.org/reports/tr9/).
 class TextNode : public Node {
  public:
+  TextNode(const std::string& text, const scoped_refptr<Font>& font);
+
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
   // A text to draw. Guaranteed not to contain newlines.
   // The class does not own the text, it merely refers it from a resource pool.
-  const base::StringPiece& text() const;
+  const std::string& text() const { return text_; }
 
   // A font to draw the text with.
-  // The class does not own the font face, it merely refers it from a
-  // resource pool.
-  const Font& font() const;
+  scoped_refptr<Font> font() const { return font_; }
 
   // A text color.
   const Color& color() const;
@@ -56,12 +54,9 @@ class TextNode : public Node {
   // A text shadow.
   const Shadow& shadow() const;
 
-  // An extra spacing added between each glyph. Can be negative.
-  float letter_spacing() const;
-
-  // A position and size of the layed out text. Size is guaranteeed to be
-  // consistent with the given font and include every glyph.
-  const math::RectF& rect() const;
+ private:
+  std::string text_;
+  scoped_refptr<Font> font_;
 };
 
 }  // namespace render_tree
