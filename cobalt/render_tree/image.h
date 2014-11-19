@@ -32,40 +32,13 @@ namespace render_tree {
 // an Image objects is not relevant unless the Image is being constructed or
 // it is being read by a rasterizer reading a submitted render tree.  Since
 // the rasterizer may only be compatible with specific concrete Image types,
-// functionality is provided through Downcast to downcast the image to a
-// particular subtype.  In debug builds, RTTI is used to ensure the cast
-// is safe.
+// it is expected that the object will be safely downcast by the rasterizer
+// to a rasterizer-specific Image type using base::Downcast().
+
 class Image : public base::RefCountedThreadSafe<Image> {
  public:
   virtual int GetWidth() const = 0;
   virtual int GetHeight() const = 0;
-
-  // Provide functionality for downcasting Image
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-  template <typename Derived>
-  Derived* Downcast() {
-    Derived* casted = dynamic_cast<Derived*>(this);
-    DCHECK(casted);
-    return casted;
-  }
-  template <typename Derived>
-  const Derived* Downcast() const {
-    const Derived* casted = dynamic_cast<const Derived*>(this);
-    DCHECK(casted);
-    return casted;
-  }
-#else
-  // RTTI may not be enabled in release builds, so use a standard
-  // static_cast.
-  template <typename Derived>
-  Derived* Downcast() {
-    return static_cast<Derived*>(this);
-  }
-  template <typename Derived>
-  const Derived* Downcast() const {
-    return static_cast<const Derived*>(this);
-  }
-#endif
 
  protected:
   virtual ~Image() {}

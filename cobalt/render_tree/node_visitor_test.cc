@@ -24,6 +24,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::Font;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::CompositionNodeMutable;
@@ -48,10 +49,12 @@ TEST(NodeVisitorTest, VisitsComposition) {
 }
 
 namespace {
+
 class DummyImage : public Image {
   int GetWidth() const OVERRIDE { return 0; }
   int GetHeight() const OVERRIDE { return 0; }
 };
+
 }  // namespace
 
 TEST(NodeVisitorTest, VisitsImage) {
@@ -69,8 +72,20 @@ TEST(NodeVisitorTest, VisitsRect) {
   rect->Accept(&mock_visitor);
 }
 
+namespace {
+
+class DummyFont : public Font {
+ public:
+  cobalt::math::SizeF GetBounds(const std::string& text) const OVERRIDE {
+    return cobalt::math::SizeF();
+  }
+};
+
+}  // namespace
+
 TEST(NodeVisitorTest, VisitsText) {
-  scoped_refptr<TextNode> text(new TextNode());
+  scoped_refptr<TextNode> text(
+      new TextNode("foobar", make_scoped_refptr(new DummyFont())));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(text.get()));
   text->Accept(&mock_visitor);
