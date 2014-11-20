@@ -162,6 +162,35 @@ TEST(Matrix3fTest, EigenvectorsPositiveDefinite) {
   EXPECT_TRUE(expected_eigenvectors.IsNear(eigenvectors, 0.00001f));
 }
 
+TEST(Matrix3fTest, MatrixMultiplyIdentityByIdentity) {
+  // The identity matrix times itself should give the identity matrix
+  EXPECT_TRUE(Matrix3F::Identity().IsNear(
+      Matrix3F::Identity() * Matrix3F::Identity(), 0.00001f));
+}
+
+TEST(Matrix3fTest, MatrixMultiplyIdentityByArbitrary) {
+  // The identity matrix times an arbitrary matrix should return that same
+  // arbitrary matrix.
+  Matrix3F matrix_a =
+      Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
+  EXPECT_TRUE(matrix_a.IsNear(Matrix3F::Identity() * matrix_a, 0.00001f));
+  EXPECT_TRUE(matrix_a.IsNear(matrix_a * Matrix3F::Identity(), 0.00001f));
+}
+
+TEST(Matrix3fTest, MatrixMultiplyArbitraryByArbitrary) {
+  // Check that multiplying two arbitrary matrices together gives the expected
+  // results.
+  Matrix3F matrix_a =
+      Matrix3F::FromValues(1, 2, 3, 4, 5, 6, 7, 8, 9);
+  Matrix3F matrix_b =
+      Matrix3F::FromValues(10, 11, 12, 13, 14, 15, 16, 17, 18);
+
+  Matrix3F result = matrix_a * matrix_b;
+  Matrix3F expected_result =
+      Matrix3F::FromValues(84, 90, 96, 201, 216, 231, 318, 342, 366);
+  EXPECT_TRUE(expected_result.IsNear(result, 0.00001f));
+}
+
 }  // namespace
 }  // namespace math
 }  // namespace cobalt
