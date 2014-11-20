@@ -35,10 +35,10 @@ class MockNodeVisitor : public NodeVisitor {
 };
 
 TEST(NodeVisitorTest, VisitsContainer) {
-  ContainerNode container;
+  scoped_refptr<ContainerNode> container(new ContainerNode());
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(&container));
-  container.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(container.get()));
+  container->Accept(&mock_visitor);
 }
 
 namespace {
@@ -50,24 +50,24 @@ class DummyImage : public Image {
 
 TEST(NodeVisitorTest, VisitsImage) {
   scoped_refptr<DummyImage> image = make_scoped_refptr(new DummyImage());
-  ImageNode image_node(image);
+  scoped_refptr<ImageNode> image_node(new ImageNode(image));
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(&image_node));
-  image_node.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(image_node.get()));
+  image_node->Accept(&mock_visitor);
 }
 
 TEST(NodeVisitorTest, VisitsRect) {
-  RectNode rect;
+  scoped_refptr<RectNode> rect(new RectNode());
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(&rect));
-  rect.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(rect.get()));
+  rect->Accept(&mock_visitor);
 }
 
 TEST(NodeVisitorTest, VisitsText) {
-  TextNode text;
+  scoped_refptr<TextNode> text(new TextNode());
   MockNodeVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, Visit(&text));
-  text.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, Visit(text.get()));
+  text->Accept(&mock_visitor);
 }
 
 }  // namespace render_tree
