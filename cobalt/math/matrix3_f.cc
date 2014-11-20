@@ -222,5 +222,40 @@ Vector3dF Matrix3F::SolveEigenproblem(Matrix3F* eigenvectors) const {
   return Vector3dF(eigenvalues[0], eigenvalues[1], eigenvalues[2]);
 }
 
+Matrix3F Matrix3F::operator*(const Matrix3F& other) const {
+  Matrix3F ret;
+  ret.Set(0, 0, Get(0, 0) * other.Get(0, 0) +
+                Get(0, 1) * other.Get(1, 0) +
+                Get(0, 2) * other.Get(2, 0));
+  ret.Set(0, 1, Get(0, 0) * other.Get(0, 1) +
+                Get(0, 1) * other.Get(1, 1) +
+                Get(0, 2) * other.Get(2, 1));
+  ret.Set(0, 2, Get(0, 0) * other.Get(0, 2) +
+                Get(0, 1) * other.Get(1, 2) +
+                Get(0, 2) * other.Get(2, 2));
+
+  ret.Set(1, 0, Get(1, 0) * other.Get(0, 0) +
+                Get(1, 1) * other.Get(1, 0) +
+                Get(1, 2) * other.Get(2, 0));
+  ret.Set(1, 1, Get(1, 0) * other.Get(0, 1) +
+                Get(1, 1) * other.Get(1, 1) +
+                Get(1, 2) * other.Get(2, 1));
+  ret.Set(1, 2, Get(1, 0) * other.Get(0, 2) +
+                Get(1, 1) * other.Get(1, 2) +
+                Get(1, 2) * other.Get(2, 2));
+
+  ret.Set(2, 0, Get(2, 0) * other.Get(0, 0) +
+                Get(2, 1) * other.Get(1, 0) +
+                Get(2, 2) * other.Get(2, 0));
+  ret.Set(2, 1, Get(2, 0) * other.Get(0, 1) +
+                Get(2, 1) * other.Get(1, 1) +
+                Get(2, 2) * other.Get(2, 1));
+  ret.Set(2, 2, Get(2, 0) * other.Get(0, 2) +
+                Get(2, 1) * other.Get(1, 2) +
+                Get(2, 2) * other.Get(2, 2));
+
+  return ret;
+}
+
 }  // namespace math
 }  // namespace cobalt
