@@ -51,6 +51,8 @@ class Matrix3F {
   }
   float& operator()(int i, int j) { return data_[MatrixToArrayCoords(i, j)]; }
 
+  Matrix3F operator*(const Matrix3F& other) const;
+
   Vector3dF column(int i) const {
     return Vector3dF(data_[MatrixToArrayCoords(0, i)],
                      data_[MatrixToArrayCoords(1, i)],
