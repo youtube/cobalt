@@ -20,6 +20,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/init_cobalt.h"
@@ -28,16 +29,15 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer_skia/font.h"
 #include "cobalt/renderer/rasterizer_skia/software_image.h"
-#include "cobalt/renderer/rasterizer_skia/rasterizer.h"
+#include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 #include "third_party/libpng/png.h"
-
-#include "third_party/skia/include/core/SkCanvas.h"
 
 namespace {
 
@@ -269,22 +269,6 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
       new cobalt::render_tree::CompositionNode(mutable_composition.Pass()));
 }
 
-// Determine the Cobalt texture format that is compatible with a given
-// Skia texture format.
-cobalt::renderer::backend::SurfaceInfo::Format SkiaFormatToCobaltFormat(
-    SkColorType skia_format) {
-  switch (skia_format) {
-    case kRGBA_8888_SkColorType:
-      return cobalt::renderer::backend::SurfaceInfo::kFormatRGBA8;
-    case kBGRA_8888_SkColorType:
-      return cobalt::renderer::backend::SurfaceInfo::kFormatBGRA8;
-    default: {
-      DLOG(FATAL) << "Unsupported Skia image format!";
-      return cobalt::renderer::backend::SurfaceInfo::kFormatRGBA8;
-    }
-  }
-}
-
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -300,16 +284,14 @@ int main(int argc, char* argv[]) {
       graphics->CreateDefaultDisplay();
 
   // Create a graphics context associated with the default display's render
-  // target so that we can output to the display.
+  // target so that we have a channel to write to the display.
   scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context =
       graphics->CreateGraphicsContext(display->GetRenderTarget());
 
-  // Determine in advance the image size and format that we will use to
-  // render to.
-  SkImageInfo output_image_info =
-      SkImageInfo::MakeN32(display->GetRenderTarget()->GetSurfaceInfo().width_,
-                           display->GetRenderTarget()->GetSurfaceInfo().height_,
-                           kPremul_SkAlphaType);
+  // Create a Skia software rasterizer to rasterize our render trees and
+  // send output directly to the display.
+  cobalt::renderer::rasterizer_skia::SkiaSoftwareRasterizer rasterizer(
+      display->GetRenderTarget(), graphics_context.Pass());
 
   // Construct our render tree builder which will be the source of our render
   // trees within the main loop.
@@ -328,44 +310,8 @@ int main(int argc, char* argv[]) {
             display->GetRenderTarget()->GetSurfaceInfo().width_,
             display->GetRenderTarget()->GetSurfaceInfo().height_);
 
-    // Allocate the pixels for the output image.  By manually creating the
-    // pixels, we can retain ownership of them, and thus pass them into the
-    // graphics system without a copy.
-    scoped_array<unsigned char> bitmap_pixels(
-        new unsigned char[output_image_info.height() *
-                          output_image_info.minRowBytes()]);
-    SkBitmap bitmap;
-    bitmap.installPixels(output_image_info, bitmap_pixels.get(),
-                         output_image_info.minRowBytes());
-
-    // Setup the canvas such that it assumes normalized device coordinates, so
-    // that (0,0) represents the top left corner and (1,1) represents the
-    // bottom right corner.
-    SkCanvas canvas(bitmap);
-
-    // Create the rasterizer and setup its render target to the bitmap we have
-    // just created above.
-    cobalt::renderer::rasterizer_skia::RasterizerSkia rasterizer(&canvas);
-
-    // Finally, rasterize the render tree to the output canvas using the
-    // rasterizer we just created.
-    render_tree->Accept(&rasterizer);
-
-    // The rasterized pixels are still on the CPU, ship them off to the GPU
-    // for output to the display.  We must first create a backend GPU texture
-    // with the data so that it is visible to the GPU.
-    scoped_ptr<cobalt::renderer::backend::Texture> output_texture =
-        graphics_context->CreateTexture(
-            output_image_info.width(), output_image_info.height(),
-            SkiaFormatToCobaltFormat(output_image_info.colorType()),
-            output_image_info.minRowBytes(), bitmap_pixels.Pass());
-
-    // Issue the command to render the texture to the display.
-    graphics_context->BlitToRenderTarget(output_texture.get());
-
-    // Flush all graphics commands and flip the display (and possibly block
-    // if we're flipping faster than the display refresh rate).
-    graphics_context->Submit();
+    // Submit the render tree to be rendered.
+    rasterizer.Submit(render_tree);
   }
 
   return 0;

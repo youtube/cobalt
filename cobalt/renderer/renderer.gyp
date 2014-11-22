@@ -22,17 +22,19 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
+        'rasterizer.h',
       ],
 
       'includes': [
         'copy_font_data.gypi',
+        'rasterizer_skia/rasterizer_skia.gypi'
       ],
 
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
-        '<(DEPTH)/cobalt/renderer/rasterizer_skia/rasterizer_skia.gyp:rasterizer_skia',
       ],
     },
   ],
