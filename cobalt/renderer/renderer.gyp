@@ -24,6 +24,10 @@
       'sources': [
       ],
 
+      'includes': [
+        'copy_font_data.gypi',
+      ],
+
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
