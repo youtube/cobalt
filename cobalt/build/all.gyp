@@ -27,7 +27,7 @@
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
-        '<(DEPTH)/cobalt/renderer/skia/sandbox/sandbox.gyp:*',
+        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/sandbox/sandbox.gyp:*',
       ]
     }
   ],
