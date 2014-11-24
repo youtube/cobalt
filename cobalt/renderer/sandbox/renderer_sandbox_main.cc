@@ -32,9 +32,9 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
-#include "cobalt/renderer/rasterizer/skia/skia_font.h"
-#include "cobalt/renderer/rasterizer/skia/skia_software_image.h"
-#include "cobalt/renderer/rasterizer/skia/rasterizer.h"
+#include "cobalt/renderer/rasterizer_skia/font.h"
+#include "cobalt/renderer/rasterizer_skia/software_image.h"
+#include "cobalt/renderer/rasterizer_skia/rasterizer.h"
 #include "third_party/libpng/png.h"
 
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -145,10 +145,9 @@ LoadPNG(const FilePath& png_file_path) {
 
   file_util::CloseFile(fp);
 
-
   // And now create a texture out of the image data.
   return scoped_refptr<cobalt::render_tree::Image>(
-      new cobalt::renderer::rasterizer::SkiaSoftwareImage(
+      new cobalt::renderer::rasterizer_skia::SkiaSoftwareImage(
           width, height, pitch, data.Pass()));
 }
 
@@ -207,7 +206,7 @@ RenderTreeBuilder::RenderTreeBuilder() {
   SkAutoTUnref<SkTypeface> typeface(
       SkTypeface::CreateFromName("Droid Sans", SkTypeface::kNormal));
   test_font_ = scoped_refptr<cobalt::render_tree::Font>(
-      new cobalt::renderer::rasterizer::SkiaFont(typeface, 40));
+      new cobalt::renderer::rasterizer_skia::SkiaFont(typeface, 40));
 }
 
 scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
@@ -346,7 +345,7 @@ int main(int argc, char* argv[]) {
 
     // Create the rasterizer and setup its render target to the bitmap we have
     // just created above.
-    cobalt::renderer::rasterizer::RasterizerSkia rasterizer(&canvas);
+    cobalt::renderer::rasterizer_skia::RasterizerSkia rasterizer(&canvas);
 
     // Finally, rasterize the render tree to the output canvas using the
     // rasterizer we just created.
