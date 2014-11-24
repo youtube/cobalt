@@ -26,7 +26,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-        '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer_skia.gyp:rasterizer_skia',
+        '<(DEPTH)/cobalt/renderer/rasterizer_skia/rasterizer_skia.gyp:rasterizer_skia',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
       ],
 
@@ -45,8 +45,9 @@
     },
 
     # This target will build a sandbox application that allows for easy
-    # experimentation with Skia on any platform.  This can also be useful for
-    # visually inspecting the output that Skia is producing.
+    # experimentation with the renderer interface on any platform.  This can
+    # also be useful for visually inspecting the output that the Cobalt
+    # renderer is producing.
     {
       'target_name': 'renderer_sandbox_deploy',
       'type': 'none',
