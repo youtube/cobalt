@@ -34,6 +34,7 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
+#include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer_skia/font.h"
 #include "cobalt/renderer/rasterizer_skia/software_image.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
@@ -293,6 +294,10 @@ int main(int argc, char* argv[]) {
   cobalt::renderer::rasterizer_skia::SkiaSoftwareRasterizer rasterizer(
       display->GetRenderTarget(), graphics_context.Pass());
 
+  // Setup the threaded rendering pipeline and fit our newly created rasterizer
+  // into it.
+  cobalt::renderer::Pipeline render_pipeline(&rasterizer);
+
   // Construct our render tree builder which will be the source of our render
   // trees within the main loop.
   RenderTreeBuilder render_tree_builder;
@@ -301,7 +306,11 @@ int main(int argc, char* argv[]) {
   base::Time start_time = base::Time::Now();
   while (true) {
     double seconds_elapsed = (base::Time::Now() - start_time).InSecondsF();
-    if (seconds_elapsed > 30) break;
+
+    // Stop after 30 seconds have passed.
+    if (seconds_elapsed > 30) {
+      break;
+    }
 
     // Build the render tree that we will output to the screen
     scoped_refptr<cobalt::render_tree::Node> render_tree =
@@ -311,7 +320,7 @@ int main(int argc, char* argv[]) {
             display->GetRenderTarget()->GetSurfaceInfo().height_);
 
     // Submit the render tree to be rendered.
-    rasterizer.Submit(render_tree);
+    render_pipeline.Submit(render_tree);
   }
 
   return 0;
