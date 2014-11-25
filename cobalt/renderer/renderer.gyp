@@ -22,6 +22,8 @@
       'target_name': 'renderer',
       'type': 'static_library',
       'sources': [
+        'pipeline.cc',
+        'pipeline.h',
         'rasterizer.h',
       ],
 
@@ -36,6 +38,33 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
       ],
+    },
+
+    {
+      'target_name': 'renderer_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'pipeline_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'renderer',
+      ],
+    },
+
+    {
+      'target_name': 'renderer_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'renderer_test',
+      ],
+      'variables': {
+        'executable_name': 'renderer_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
     },
   ],
 }
