@@ -25,12 +25,12 @@ namespace render_tree {
 
 class MockBrushVisitor : public BrushVisitor {
  public:
-  MOCK_METHOD1(Visit, void(SolidColorBrush* solid_color_brush));
-  MOCK_METHOD1(Visit, void(LinearGradientBrush* linear_gradient_brush));
+  MOCK_METHOD1(Visit, void(const SolidColorBrush* solid_color_brush));
+  MOCK_METHOD1(Visit, void(const LinearGradientBrush* linear_gradient_brush));
 };
 
 TEST(BrushVisitorTest, VisitsSolidColorBrush) {
-  SolidColorBrush solid_color_brush;
+  SolidColorBrush solid_color_brush(ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f));
   MockBrushVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(&solid_color_brush));
   solid_color_brush.Accept(&mock_visitor);
