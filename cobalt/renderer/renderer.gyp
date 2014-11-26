@@ -25,6 +25,7 @@
         'pipeline.cc',
         'pipeline.h',
         'rasterizer.h',
+        'resource_provider.h',
       ],
 
       'includes': [

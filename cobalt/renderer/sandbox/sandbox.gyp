@@ -25,7 +25,6 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
       ],

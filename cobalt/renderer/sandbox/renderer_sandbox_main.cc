@@ -36,15 +36,14 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
-#include "cobalt/renderer/rasterizer_skia/font.h"
-#include "cobalt/renderer/rasterizer_skia/software_image.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 #include "third_party/libpng/png.h"
 
 namespace {
 
-scoped_refptr<cobalt::render_tree::Image>
-LoadPNG(const FilePath& png_file_path) {
+scoped_refptr<cobalt::render_tree::Image> LoadPNG(
+    const FilePath& png_file_path,
+    cobalt::render_tree::ResourceProvider* resource_provider) {
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
@@ -148,14 +147,13 @@ LoadPNG(const FilePath& png_file_path) {
   file_util::CloseFile(fp);
 
   // And now create a texture out of the image data.
-  return scoped_refptr<cobalt::render_tree::Image>(
-      new cobalt::renderer::rasterizer_skia::SkiaSoftwareImage(
-          width, height, pitch, data.Pass()));
+  return resource_provider->CreateImage(width, height, pitch, data.Pass());
 }
 
 class RenderTreeBuilder {
  public:
-  RenderTreeBuilder();
+  explicit RenderTreeBuilder(
+      cobalt::render_tree::ResourceProvider* resource_provider);
 
   scoped_refptr<cobalt::render_tree::Node> Build(double seconds_elapsed,
                                                  float width,
@@ -174,7 +172,8 @@ class RenderTreeBuilder {
   scoped_refptr<cobalt::render_tree::Font> test_font_;
 };
 
-RenderTreeBuilder::RenderTreeBuilder() {
+RenderTreeBuilder::RenderTreeBuilder(
+    cobalt::render_tree::ResourceProvider* resource_provider) {
   // Create a set of randomly positioned and sized sprites.
   const int kNumSprites = 20;
   for (int i = 0; i < kNumSprites; ++i) {
@@ -202,13 +201,12 @@ RenderTreeBuilder::RenderTreeBuilder() {
   CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
   test_image_ =
       LoadPNG(data_directory.Append(FILE_PATH_LITERAL("renderer_sandbox"))
-                  .Append(FILE_PATH_LITERAL("test_image.png")));
+                  .Append(FILE_PATH_LITERAL("test_image.png")),
+              resource_provider);
 
   // Create our test font.
-  SkAutoTUnref<SkTypeface> typeface(
-      SkTypeface::CreateFromName("Droid Sans", SkTypeface::kNormal));
-  test_font_ = scoped_refptr<cobalt::render_tree::Font>(
-      new cobalt::renderer::rasterizer_skia::SkiaFont(typeface, 40));
+  test_font_ = resource_provider->GetPreInstalledFont(
+      "Droid Sans", cobalt::render_tree::ResourceProvider::kNormal, 40);
 }
 
 namespace {
@@ -326,7 +324,7 @@ int main(int argc, char* argv[]) {
 
   // Construct our render tree builder which will be the source of our render
   // trees within the main loop.
-  RenderTreeBuilder render_tree_builder;
+  RenderTreeBuilder render_tree_builder(render_pipeline.GetResourceProvider());
 
   // Repeatedly render/animate and flip the screen.
   base::Time start_time = base::Time::Now();
