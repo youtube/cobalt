@@ -52,6 +52,13 @@ class Pipeline {
   // and submitted to the display.
   float refresh_rate() const { return refresh_rate_; }
 
+  // Returns a thread-safe object from which one can produce renderer resources
+  // like images and fonts which can be referenced by render trees that are
+  // subsequently submitted to this pipeline.
+  render_tree::ResourceProvider* GetResourceProvider() {
+    return rasterizer_->GetResourceProvider();
+  }
+
  private:
   // All private data members should be accessed only on the rasterizer thread,
   // with the exception of rasterizer_thread_ itself through which messages
@@ -73,6 +80,9 @@ class Pipeline {
   // The refresh rate of the rasterizer.
   const float refresh_rate_;
 
+  // The rasterizer object that will run on the rasterizer_thread_ and is
+  // effectively the last stage of the pipeline, responsible for rasterizing
+  // the final render tree and submitting it to the render target.
   Rasterizer* rasterizer_;
 
   // Maintains the current render tree that is to be rendered next frame.
