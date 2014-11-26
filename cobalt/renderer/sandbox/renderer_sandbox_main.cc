@@ -29,6 +29,7 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -210,6 +211,13 @@ RenderTreeBuilder::RenderTreeBuilder() {
       new cobalt::renderer::rasterizer_skia::SkiaFont(typeface, 40));
 }
 
+namespace {
+
+// Passes the input value through a sawtooth function.
+float Sawtooth(float x) { return x - static_cast<int>(x); }
+
+}  // namespace
+
 scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
     double seconds_elapsed, float width, float height) const {
   // Create an image for each SpriteInfo we have in our sprite_infos_ vector.
@@ -217,6 +225,24 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
   // and rotated according to time.
   scoped_ptr<cobalt::render_tree::CompositionNodeMutable> mutable_composition(
       new cobalt::render_tree::CompositionNodeMutable());
+
+  // First, create a centered, sawtoothed-growing black rectangle in the
+  // background.
+  const float kBackgroundRectPeriod = 5.0f;
+  float background_rect_size =
+      Sawtooth(seconds_elapsed / kBackgroundRectPeriod);
+  cobalt::math::SizeF rect_size(background_rect_size * width,
+                                background_rect_size * height);
+  mutable_composition->AddChild(
+      make_scoped_refptr(new cobalt::render_tree::RectNode(
+          rect_size,
+          scoped_ptr<cobalt::render_tree::Brush>(
+              new cobalt::render_tree::SolidColorBrush(
+                  cobalt::render_tree::ColorRGBA(0.2f, 0.2f, 0.2f))))),
+      cobalt::math::TranslateMatrix((width - rect_size.width()) / 2,
+                                    (height - rect_size.height()) / 2));
+
+  // Now, setup a plurality of spinning images that contain the YouTube logo.
   for (std::vector<SpriteInfo>::const_iterator iter = sprite_infos_.begin();
        iter != sprite_infos_.end(); ++iter) {
     // Create the child image node that references the image data
@@ -250,11 +276,10 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
   float y_position = height / 2.0f - text_bounds.height() / 2.0f;
 
   // Calculate the animated x position of the text.
-  const float kTextVelocityInScreenWidthsPerSecond = 0.1f;
+  const float kTextMarqueePeriod = 10.0f;
   float text_start_position = -text_bounds.width();
   float text_end_position = width;
-  float text_distance = seconds_elapsed * kTextVelocityInScreenWidthsPerSecond;
-  float periodic_position = text_distance - static_cast<int>(text_distance);
+  float periodic_position = Sawtooth(seconds_elapsed / kTextMarqueePeriod);
   float x_position =
       text_start_position +
       (text_end_position - text_start_position) * periodic_position;

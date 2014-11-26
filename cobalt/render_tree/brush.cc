@@ -21,9 +21,11 @@
 namespace cobalt {
 namespace render_tree {
 
-void SolidColorBrush::Accept(BrushVisitor* visitor) { visitor->Visit(this); }
+void SolidColorBrush::Accept(BrushVisitor* visitor) const {
+  visitor->Visit(this);
+}
 
-void LinearGradientBrush::Accept(BrushVisitor* visitor) {
+void LinearGradientBrush::Accept(BrushVisitor* visitor) const {
   visitor->Visit(this);
 }
 
