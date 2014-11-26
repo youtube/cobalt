@@ -42,6 +42,10 @@ class MockRasterizer : public Rasterizer {
     ++submission_count_;
   }
 
+  cobalt::render_tree::ResourceProvider* GetResourceProvider() OVERRIDE {
+    return NULL;
+  }
+
   int submission_count() const { return submission_count_; }
 
  private:
