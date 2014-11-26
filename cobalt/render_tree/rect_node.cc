@@ -21,6 +21,9 @@
 namespace cobalt {
 namespace render_tree {
 
+RectNode::RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush)
+    : size_(size), background_brush_(background_brush.Pass()) {}
+
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 }  // namespace render_tree

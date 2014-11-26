@@ -18,6 +18,8 @@
 #define RENDER_TREE_RECT_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/rect_f.h"
 
@@ -30,15 +32,19 @@ class Border;
 // TODO(***REMOVED***): Define border radiuses.
 class BorderRadiuses;
 
-// TODO(***REMOVED***): Define the brush, don't forget no brush case.
-class Brush;
-
 // TODO(***REMOVED***): Define the shadow.
 class Shadow;
 
 // A filled rectangle with a border and rounded corners.
 class RectNode : public Node {
  public:
+  // TODO(***REMOVED***): This constructor format is not scalable as additional
+  //               RectNode functionality is implemented.  It should be
+  //               adjusted, either by introducing a mutable builder
+  //               RectNode class, or splitting RectNode into different
+  //               render_tree nodes.
+  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
@@ -47,7 +53,8 @@ class RectNode : public Node {
   const Border& border() const;
 
   // A solid or gradient brush to fill the rectangle with.
-  const Brush& background_brush() const;
+  // This can be null if a background brush is not specified.
+  const Brush* background_brush() const { return background_brush_.get(); }
 
   // A rectangle shadow.
   const Shadow& shadow() const;
@@ -55,8 +62,12 @@ class RectNode : public Node {
   // Radiuses of corners. Most likely to be all zeros for a majority of cases.
   const BorderRadiuses& radiuses() const;
 
-  // A position and size of a rectangle (size includes border).
-  const math::RectF& rect() const;
+  // A size of a rectangle (size includes border).
+  const math::SizeF& size() const { return size_; }
+
+ private:
+  math::SizeF size_;
+  scoped_ptr<Brush> background_brush_;
 };
 
 }  // namespace render_tree
