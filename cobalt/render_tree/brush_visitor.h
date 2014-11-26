@@ -49,8 +49,8 @@ class LinearGradientBrush;
 //
 class BrushVisitor {
  public:
-  virtual void Visit(SolidColorBrush* solid_color_brush) = 0;
-  virtual void Visit(LinearGradientBrush* linear_gradient_brush) = 0;
+  virtual void Visit(const SolidColorBrush* solid_color_brush) = 0;
+  virtual void Visit(const LinearGradientBrush* linear_gradient_brush) = 0;
 
  protected:
   ~BrushVisitor() {}
