@@ -36,6 +36,7 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // A position and size of the given text. Size is guaranteeed to be
   // consistent with the given font and include every glyph.
   // The return value is given in units of pixels.
+  // TODO(***REMOVED***): Use StringPiece instead of std::string.
   virtual math::SizeF GetBounds(const std::string& text) const = 0;
 
  protected:
