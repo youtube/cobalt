@@ -18,8 +18,6 @@
       'target_name': 'cssom',
       'type': 'static_library',
       'sources': [
-        'color_value.cc',
-        'color_value.h',
         'css_rule.h',
         'css_rule_list.cc',
         'css_rule_list.h',
@@ -37,6 +35,8 @@
         'length_value.h',
         'property_value.h',
         'property_value_visitor.h',
+        'rgba_color_value.cc',
+        'rgba_color_value.h',
         'string_value.cc',
         'string_value.h',
         'style_sheet.h',
