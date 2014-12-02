@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/string_value.h"
 
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() {
-  return style_;
+void StringValue::Accept(PropertyValueVisitor* visitor) {
+  visitor->VisitString(this);
 }
-
-CSSStyleRule::CSSStyleRule(const scoped_refptr<CSSStyleDeclaration>& style)
-    : style_(style) {}
-
-CSSStyleRule::~CSSStyleRule() {}
 
 }  // namespace cssom
 }  // namespace cobalt
