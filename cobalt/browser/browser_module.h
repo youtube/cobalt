@@ -18,13 +18,15 @@
 #define BROWSER_BROWSER_MODULE_H_
 
 #include "cobalt/browser/dom/document.h"
-#include "cobalt/browser/dummy_render_tree_source.h"
 #include "cobalt/browser/html/document_builder.h"
+#include "cobalt/browser/html/document_builder.h"
+#include "cobalt/browser/html/html_element_factory.h"
 #include "cobalt/browser/html/html_element_factory.h"
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/browser/script/global_object.h"
 #include "cobalt/browser/script/javascript_engine.h"
+#include "cobalt/layout/layout_manager.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "googleurl/src/gurl.h"
 
@@ -65,10 +67,6 @@ class BrowserModule {
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
 
-  // Until the html/css parser and layout engine are in place and functional,
-  // we use a DummyRenderTreeSource object to feed the graphics pipeline.
-  DummyRenderTreeSource dummy_render_tree_source_;
-
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -87,6 +85,9 @@ class BrowserModule {
 
   // The document.
   scoped_refptr<Document> document_;
+
+  // Triggers layout whenever the document changes.
+  layout::LayoutManager layout_manager_;
 };
 
 }  // namespace browser
