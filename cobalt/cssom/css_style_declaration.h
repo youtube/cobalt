@@ -27,10 +27,13 @@ namespace cobalt {
 namespace cssom {
 
 // Lower-case names of CSS properties.
-extern const char* kBackgroundColorProperty;
-extern const char* kColorProperty;
-extern const char* kFontFamilyProperty;
-extern const char* kFontSizeProperty;
+extern const char* const kBackgroundColorProperty;
+extern const char* const kColorProperty;
+extern const char* const kDisplayProperty;
+extern const char* const kFontFamilyProperty;
+extern const char* const kFontSizeProperty;
+extern const char* const kHeightProperty;
+extern const char* const kWidthProperty;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
@@ -43,9 +46,10 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   // Web API: CSSStyleDeclaration
   //
 
-  PropertyValue* GetPropertyValue(const std::string& property_name);
+  scoped_refptr<PropertyValue> GetPropertyValue(
+      const std::string& property_name);
   void SetPropertyValue(const std::string& property_name,
-                        scoped_ptr<PropertyValue> property_value);
+                        const scoped_refptr<PropertyValue>& property_value);
 
   // TODO(***REMOVED***): Define types of the properties more precisely by introducing
   // an additional level of property value class hierarchy. For example:
@@ -72,31 +76,52 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   // UnresolvedColorValue* color() const;
   // UnresolvedFontSizeValue* font_size() const;
 
-  PropertyValue* background_color() const { return background_color_.get(); }
-  void set_background_color(scoped_ptr<PropertyValue> background_color) {
-    background_color_ = background_color.Pass();
+  const scoped_refptr<PropertyValue>& background_color() const {
+    return background_color_;
+  }
+  void set_background_color(
+      const scoped_refptr<PropertyValue>& background_color) {
+    background_color_ = background_color;
   }
 
-  PropertyValue* color() const { return color_.get(); }
-  void set_color(scoped_ptr<PropertyValue> color) { color_ = color.Pass(); }
+  const scoped_refptr<PropertyValue>& color() const { return color_; }
+  void set_color(const scoped_refptr<PropertyValue>& color) { color_ = color; }
 
-  PropertyValue* font_family() const { return font_family_.get(); }
-  void set_font_family(scoped_ptr<PropertyValue> font_family) {
-    font_family_ = font_family.Pass();
+  const scoped_refptr<PropertyValue>& display() const { return display_; }
+  void set_display(const scoped_refptr<PropertyValue>& display) {
+    display_ = display;
   }
 
-  PropertyValue* font_size() const { return font_size_.get(); }
-  void set_font_size(scoped_ptr<PropertyValue> font_size) {
-    font_size_ = font_size.Pass();
+  const scoped_refptr<PropertyValue>& font_family() const {
+    return font_family_;
   }
+  void set_font_family(const scoped_refptr<PropertyValue>& font_family) {
+    font_family_ = font_family;
+  }
+
+  const scoped_refptr<PropertyValue>& font_size() const { return font_size_; }
+  void set_font_size(const scoped_refptr<PropertyValue>& font_size) {
+    font_size_ = font_size;
+  }
+
+  const scoped_refptr<PropertyValue>& height() const { return height_; }
+  void set_height(const scoped_refptr<PropertyValue>& height) {
+    height_ = height;
+  }
+
+  const scoped_refptr<PropertyValue>& width() const { return width_; }
+  void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
  private:
   ~CSSStyleDeclaration();
 
-  scoped_ptr<PropertyValue> background_color_;
-  scoped_ptr<PropertyValue> color_;
-  scoped_ptr<PropertyValue> font_family_;
-  scoped_ptr<PropertyValue> font_size_;
+  scoped_refptr<PropertyValue> background_color_;
+  scoped_refptr<PropertyValue> color_;
+  scoped_refptr<PropertyValue> display_;
+  scoped_refptr<PropertyValue> font_family_;
+  scoped_refptr<PropertyValue> font_size_;
+  scoped_refptr<PropertyValue> height_;
+  scoped_refptr<PropertyValue> width_;
 
   friend class base::RefCounted<CSSStyleDeclaration>;
   DISALLOW_COPY_AND_ASSIGN(CSSStyleDeclaration);

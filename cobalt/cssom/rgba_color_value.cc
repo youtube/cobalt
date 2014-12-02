@@ -22,7 +22,7 @@ namespace cobalt {
 namespace cssom {
 
 void RGBAColorValue::Accept(PropertyValueVisitor* visitor) {
-  visitor->VisitColor(this);
+  visitor->VisitRGBAColor(this);
 }
 
 }  // namespace cssom

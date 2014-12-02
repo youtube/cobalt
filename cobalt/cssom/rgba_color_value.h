@@ -40,13 +40,14 @@ namespace cssom {
 class RGBAColorValue : public PropertyValue {
  public:
   explicit RGBAColorValue(uint32_t value) : value_(value) {}
-  ~RGBAColorValue() OVERRIDE {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   uint32_t value() const { return value_; }
 
  private:
+  ~RGBAColorValue() OVERRIDE {}
+
   const uint32_t value_;
 
   DISALLOW_COPY_AND_ASSIGN(RGBAColorValue);

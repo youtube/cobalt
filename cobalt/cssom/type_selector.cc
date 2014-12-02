@@ -14,24 +14,15 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/type_selector.h"
 
-#include "cobalt/cssom/css_style_rule.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-TEST(CSSRuleListTest, ItemAccess) {
-  scoped_refptr<CSSRuleList> rule_list = CSSRuleList::Create();
-  ASSERT_EQ(0, rule_list->length());
-  ASSERT_TRUE(rule_list->Item(0) == NULL);
-
-  scoped_refptr<CSSRule> rule = CSSStyleRule::Create();
-  rule_list->Append(rule);
-  ASSERT_EQ(1, rule_list->length());
-  ASSERT_EQ(rule, rule_list->Item(0));
-  ASSERT_TRUE(rule_list->Item(1) == NULL);
+void TypeSelector::Accept(SelectorVisitor* visitor) {
+  visitor->VisitTypeSelector(this);
 }
 
 }  // namespace cssom
