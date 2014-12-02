@@ -14,34 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_PROPERTY_VALUE_VISITOR_H_
-#define CSSOM_PROPERTY_VALUE_VISITOR_H_
+#ifndef CSSOM_SELECTOR_VISITOR_H_
+#define CSSOM_SELECTOR_VISITOR_H_
 
 namespace cobalt {
 namespace cssom {
 
-class RGBAColorValue;
-class InheritedValue;
-class InitialValue;
-class LengthValue;
-class StringValue;
+class TypeSelector;
 
-// Type-safe branching on a class hierarchy of CSS property values,
+// Type-safe branching on a class hierarchy of CSS selectors,
 // implemented after a classical GoF pattern (see
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
-class PropertyValueVisitor {
+class SelectorVisitor {
  public:
-  virtual void VisitInherited(InheritedValue* inherited_value) = 0;
-  virtual void VisitInitial(InitialValue* initial_value) = 0;
-  virtual void VisitLength(LengthValue* length_value) = 0;
-  virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
-  virtual void VisitString(StringValue* string_value) = 0;
+  virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
 
  protected:
-  ~PropertyValueVisitor() {}
+  ~SelectorVisitor() {}
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_PROPERTY_VALUE_VISITOR_H_
+#endif  // CSSOM_SELECTOR_VISITOR_H_

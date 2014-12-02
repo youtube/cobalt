@@ -37,11 +37,15 @@
         'property_value_visitor.h',
         'rgba_color_value.cc',
         'rgba_color_value.h',
+        'selector.h',
+        'selector_visitor.h',
         'string_value.cc',
         'string_value.h',
         'style_sheet.h',
         'style_sheet_list.cc',
         'style_sheet_list.h',
+        'type_selector.cc',
+        'type_selector.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -52,8 +56,10 @@
       'target_name': 'cssom_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',
         'property_value_visitor_test.cc',
+        'selector_visitor_test.cc',
         'style_sheet_list_test.cc',
       ],
       'dependencies': [

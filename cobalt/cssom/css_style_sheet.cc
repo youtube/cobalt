@@ -16,8 +16,8 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 
-#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/css_style_rule.h"
 
 namespace cobalt {
 namespace cssom {
@@ -36,7 +36,7 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   return css_rule_list;
 }
 
-void CSSStyleSheet::AppendRule(const scoped_refptr<CSSRule>& css_rule) {
+void CSSStyleSheet::AppendRule(const scoped_refptr<CSSStyleRule>& css_rule) {
   css_rules_.push_back(css_rule);
 }
 

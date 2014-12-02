@@ -16,7 +16,7 @@
 
 #include "cobalt/cssom/css_rule_list.h"
 
-#include "cobalt/cssom/css_rule.h"
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
@@ -27,7 +27,7 @@ scoped_refptr<CSSRuleList> CSSRuleList::Create(
   return make_scoped_refptr(new CSSRuleList(css_style_sheet));
 }
 
-scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
+scoped_refptr<CSSStyleRule> CSSRuleList::Item(unsigned int index) const {
   return index < css_style_sheet_->css_rules_.size()
              ? css_style_sheet_->css_rules_[index]
              : NULL;

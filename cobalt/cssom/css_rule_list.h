@@ -23,7 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSRule;
+class CSSStyleRule;
 class CSSStyleSheet;
 
 // The CSSRuleList interface represents an ordered collection of CSS
@@ -40,7 +40,7 @@ class CSSRuleList : public base::RefCounted<CSSRuleList>,
 
   // Returns the index-th CSSRule object in the collection.
   // Returns null if there is no index-th object in the collection.
-  scoped_refptr<CSSRule> Item(unsigned int index) const;
+  scoped_refptr<CSSStyleRule> Item(unsigned int index) const;
 
   // Returns the number of CSSRule objects represented by the collection.
   unsigned int length() const;
