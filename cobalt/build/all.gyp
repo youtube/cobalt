@@ -23,11 +23,12 @@
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
+        '<(DEPTH)/cobalt/layout/layout.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
-        '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
-        '<(DEPTH)/cobalt/samples/samples.gyp:*',
-        '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/sandbox/sandbox.gyp:*',
+        '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
+        '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
+        '<(DEPTH)/cobalt/samples/samples.gyp:*',
       ]
     }
   ],

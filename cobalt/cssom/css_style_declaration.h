@@ -115,6 +115,11 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   const scoped_refptr<PropertyValue>& width() const { return width_; }
   void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
+  // Custom, not in any spec.
+  //
+
+  void AssignFrom(const CSSStyleDeclaration& rhs);
+
  private:
   ~CSSStyleDeclaration();
 
