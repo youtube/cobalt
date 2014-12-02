@@ -286,8 +286,9 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
 
   // Add the text node to our composition.
   mutable_composition->AddChild(
-      make_scoped_refptr(
-          new cobalt::render_tree::TextNode(kMarqueeText, test_font_)),
+      make_scoped_refptr(new cobalt::render_tree::TextNode(
+          kMarqueeText, test_font_,
+          cobalt::render_tree::ColorRGBA(0.0f, 0.0f, 0.0f))),
       cobalt::math::TranslateMatrix(x_position, y_position));
 
   // Finally construct the composition node and return it.
