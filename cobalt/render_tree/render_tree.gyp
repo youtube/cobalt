@@ -37,6 +37,7 @@
         'node_visitor.h',
         'rect_node.cc',
         'rect_node.h',
+        'resource_provider.h',
         'text_node.cc',
         'text_node.h',
       ],
