@@ -23,6 +23,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::Image;
@@ -86,8 +87,9 @@ class DummyFont : public Font {
 }  // namespace
 
 TEST(NodeVisitorTest, VisitsText) {
-  scoped_refptr<TextNode> text(
-      new TextNode("foobar", make_scoped_refptr(new DummyFont())));
+  scoped_refptr<TextNode> text(new TextNode("foobar",
+                                            make_scoped_refptr(new DummyFont()),
+                                            ColorRGBA(0.0f, 0.0f, 0.0f)));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(text.get()));
   text->Accept(&mock_visitor);
