@@ -29,46 +29,46 @@ namespace cssom {
 
 class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
-  MOCK_METHOD1(VisitColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitInherited, void(InheritedValue* inherited_value));
   MOCK_METHOD1(VisitInitial, void(InitialValue* initial_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
+  MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
 };
 
-TEST(PropertyValueVisitorTest, VisitsColorValue) {
-  RGBAColorValue color_value(0x0047abff);
-  MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitColor(&color_value));
-  color_value.Accept(&mock_visitor);
-}
-
 TEST(PropertyValueVisitorTest, VisitsInheritedValue) {
-  InheritedValue inherited_value;
+  scoped_refptr<InheritedValue> inherited_value = InheritedValue::GetInstance();
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitInherited(&inherited_value));
-  inherited_value.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitInherited(inherited_value.get()));
+  inherited_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsInitialValue) {
-  InitialValue initial_value;
+  scoped_refptr<InitialValue> initial_value = InitialValue::GetInstance();
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitInitial(&initial_value));
-  initial_value.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitInitial(initial_value.get()));
+  initial_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsLengthValue) {
-  LengthValue length_value(10, kPixelsUnit);
+  scoped_refptr<LengthValue> length_value = new LengthValue(10, kPixelsUnit);
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitLength(&length_value));
-  length_value.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitLength(length_value.get()));
+  length_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
+  scoped_refptr<RGBAColorValue> color_value = new RGBAColorValue(0x0047abff);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitRGBAColor(color_value.get()));
+  color_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsStringValue) {
-  StringValue string_value("sans-serif");
+  scoped_refptr<StringValue> string_value = new StringValue("sans-serif");
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitString(&string_value));
-  string_value.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
+  string_value->Accept(&mock_visitor);
 }
 
 }  // namespace cssom

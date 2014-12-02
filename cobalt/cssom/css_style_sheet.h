@@ -25,8 +25,8 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSRule;
 class CSSRuleList;
+class CSSStyleRule;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
@@ -43,13 +43,13 @@ class CSSStyleSheet : public StyleSheet {
   // Custom, not in any spec.
   //
 
-  void AppendRule(const scoped_refptr<CSSRule>& css_rule);
+  void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
 
  private:
   CSSStyleSheet();
   ~CSSStyleSheet() OVERRIDE;
 
-  typedef std::vector<scoped_refptr<CSSRule> > CSSRules;
+  typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
   CSSRules css_rules_;
 
   base::WeakPtr<CSSRuleList> css_rule_list_;

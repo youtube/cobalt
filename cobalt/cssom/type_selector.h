@@ -14,39 +14,35 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_STYLE_RULE_H_
-#define CSSOM_CSS_STYLE_RULE_H_
+#ifndef CSSOM_TYPE_SELECTOR_H_
+#define CSSOM_TYPE_SELECTOR_H_
 
-#include "base/memory/scoped_vector.h"
-#include "cobalt/cssom/css_rule.h"
+#include <string>
+
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
+#include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleDeclaration;
-struct Selector;
-
-// The CSSStyleRule interface represents a style rule.
-//   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
-class CSSStyleRule : public CSSRule {
+class TypeSelector : public Selector {
  public:
-  typedef ScopedVector<Selector> Selectors;
+  explicit TypeSelector(const std::string& element_name)
+      : element_name_(element_name) {}
+  ~TypeSelector() OVERRIDE {}
 
-  CSSStyleRule(Selectors selectors,
-               const scoped_refptr<CSSStyleDeclaration>& style);
+  void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  const Selectors& selectors() const { return selectors_; }
-
-  const scoped_refptr<CSSStyleDeclaration>& style();
+  const std::string& element_name() const { return element_name_; }
 
  private:
-  ~CSSStyleRule() OVERRIDE;
+  const std::string element_name_;
 
-  Selectors selectors_;
-  scoped_refptr<CSSStyleDeclaration> style_;
+  DISALLOW_COPY_AND_ASSIGN(TypeSelector);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_STYLE_RULE_H_
+#endif  // CSSOM_TYPE_SELECTOR_H_

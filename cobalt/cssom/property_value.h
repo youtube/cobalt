@@ -17,17 +17,24 @@
 #ifndef CSSOM_PROPERTY_VALUE_H_
 #define CSSOM_PROPERTY_VALUE_H_
 
+#include "base/memory/ref_counted.h"
+
 namespace cobalt {
 namespace cssom {
 
 class PropertyValueVisitor;
 
 // A base type for all values of CSS properties.
-struct PropertyValue {
+// All derived classes must be immutable.
+class PropertyValue : public base::RefCounted<PropertyValue> {
+ public:
+  virtual void Accept(PropertyValueVisitor* visitor) = 0;
+
+ protected:
   virtual ~PropertyValue() {}
 
-  // A type-safe branching.
-  virtual void Accept(PropertyValueVisitor* visitor) = 0;
+ private:
+  friend class base::RefCounted<PropertyValue>;
 };
 
 }  // namespace cssom
