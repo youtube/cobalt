@@ -16,10 +16,10 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
-#include "cobalt/cssom/color_value.h"
 #include "cobalt/cssom/inherited_value.h"
 #include "cobalt/cssom/initial_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
