@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_style_rule.h"
-
-#include "cobalt/cssom/css_style_declaration.h"
+#ifndef CSSOM_PROPERTY_VALUE_H_
+#define CSSOM_PROPERTY_VALUE_H_
 
 namespace cobalt {
 namespace cssom {
 
-const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() {
-  return style_;
-}
+class PropertyValueVisitor;
 
-CSSStyleRule::CSSStyleRule(const scoped_refptr<CSSStyleDeclaration>& style)
-    : style_(style) {}
+// A base type for all values of CSS properties.
+struct PropertyValue {
+  virtual ~PropertyValue() {}
 
-CSSStyleRule::~CSSStyleRule() {}
+  // A type-safe branching.
+  virtual void Accept(PropertyValueVisitor* visitor) = 0;
+};
 
 }  // namespace cssom
 }  // namespace cobalt
+
+#endif  // CSSOM_PROPERTY_VALUE_H_
