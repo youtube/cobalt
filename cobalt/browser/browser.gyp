@@ -57,14 +57,15 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
+        '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
         '<(DEPTH)/cobalt/browser/html/html.gyp:html',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
-        '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/layout/layout.gyp:layout',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
 
