@@ -36,7 +36,6 @@ enum Unit { kPixelsUnit };
 class LengthValue : public PropertyValue {
  public:
   LengthValue(float value, Unit unit) : value_(value), unit_(unit) {}
-  ~LengthValue() OVERRIDE {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
@@ -44,6 +43,8 @@ class LengthValue : public PropertyValue {
   Unit unit() const { return unit_; }
 
  private:
+  ~LengthValue() OVERRIDE {}
+
   const float value_;
   const Unit unit_;
 
