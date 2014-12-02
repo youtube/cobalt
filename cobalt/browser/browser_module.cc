@@ -19,17 +19,11 @@
 #include "base/bind.h"
 #include "base/logging.h"
 
-using cobalt::renderer::RendererModule;
-
 namespace cobalt {
 namespace browser {
 
 BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
-      dummy_render_tree_source_(
-          renderer_module_.pipeline()->GetResourceProvider(),
-          base::Bind(&BrowserModule::OnRenderTreeProduced,
-                     base::Unretained(this))),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_(javascript_engine_->CreateGlobalObject()),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
@@ -38,7 +32,13 @@ BrowserModule::BrowserModule(const Options& options)
       html_element_factory_(resource_loader_factory_.get(), global_object_),
       document_builder_(DocumentBuilder::Create(resource_loader_factory_.get(),
                                                 &html_element_factory_)),
-      document_(Document::CreateWithURL(&html_element_factory_, options.url)) {
+      document_(Document::CreateWithURL(&html_element_factory_, options.url)),
+      // TODO(***REMOVED***): Request viewport size from graphics pipeline and
+      //               subscribe to viewport size changes.
+      layout_manager_(document_, math::SizeF(1920, 1080),
+                      renderer_module_.pipeline()->GetResourceProvider(),
+                      base::Bind(&BrowserModule::OnRenderTreeProduced,
+                                 base::Unretained(this))) {
   // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
   global_object_->Bind("document", document_);
   // Start building the document asynchronously.

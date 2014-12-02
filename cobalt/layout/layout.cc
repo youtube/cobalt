@@ -35,7 +35,7 @@ namespace layout {
 // of the viewport and is anchored at the canvas origin.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
-    const math::SizeF& viewport_size, UsedStyleProvider used_style_provider) {
+    const math::SizeF& viewport_size, UsedStyleProvider* used_style_provider) {
   scoped_refptr<cssom::CSSStyleDeclaration>
       initial_containing_block_computed_style =
           new cssom::CSSStyleDeclaration();
@@ -55,7 +55,7 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
       new cssom::LengthValue(viewport_size.width(), cssom::kPixelsUnit));
   PromoteToComputedStyle(initial_containing_block_computed_style);
   return make_scoped_ptr(new ContainingBlock(
-      NULL, initial_containing_block_computed_style, &used_style_provider));
+      NULL, initial_containing_block_computed_style, used_style_provider));
 }
 
 scoped_refptr<render_tree::Node> Layout(
@@ -65,7 +65,7 @@ scoped_refptr<render_tree::Node> Layout(
   UsedStyleProvider used_style_provider(resource_provider);
 
   scoped_ptr<ContainingBlock> initial_containing_block =
-      CreateInitialContainingBlock(viewport_size, used_style_provider);
+      CreateInitialContainingBlock(viewport_size, &used_style_provider);
 
   BoxGenerator box_generator(initial_containing_block.get(),
                              &used_style_provider);

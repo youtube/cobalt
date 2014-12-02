@@ -164,6 +164,8 @@ void BoxGenerator::GenerateWhitespaceBox(
 
   scoped_ptr<TextBox> whitespace_box(new TextBox(
       containing_block_, parent_computed_style, used_style_provider_, " "));
+  // TODO(***REMOVED***): Do not add whitespace box if the last child is already
+  //               a whitespace box.
   containing_block_->AddChildBox(whitespace_box.PassAs<Box>());
 }
 

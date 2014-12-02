@@ -52,6 +52,8 @@ class UsedStyleProvider {
 
  private:
   render_tree::ResourceProvider* const resource_provider_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);
 };
 
 render_tree::ColorRGBA GetUsedColor(
