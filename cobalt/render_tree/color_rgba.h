@@ -95,6 +95,17 @@ struct ColorRGBA {
   float r_, g_, b_, a_;
 };
 
+inline bool operator==(const ColorRGBA& lhs, const ColorRGBA& rhs) {
+  return lhs.r() == rhs.r() && lhs.g() == rhs.g() && lhs.b() == rhs.b() &&
+         lhs.a() == rhs.a();
+}
+
+// Used by tests.
+inline std::ostream& operator<<(std::ostream& stream, const ColorRGBA& color) {
+  return stream << "rgba(" << color.r() << ", " << color.g() << ", "
+                << color.b() << ", " << color.a() << ")";
+}
+
 }  // namespace render_tree
 }  // namespace cobalt
 

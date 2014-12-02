@@ -43,6 +43,9 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
  public:
   CSSStyleDeclaration();
 
+  // Intentionally allowing compiler to generate copy constructor
+  // and assignment operator.
+
   // Web API: CSSStyleDeclaration
   //
 
@@ -124,7 +127,6 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   scoped_refptr<PropertyValue> width_;
 
   friend class base::RefCounted<CSSStyleDeclaration>;
-  DISALLOW_COPY_AND_ASSIGN(CSSStyleDeclaration);
 };
 
 }  // namespace cssom
