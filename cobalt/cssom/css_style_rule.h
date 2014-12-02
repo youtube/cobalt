@@ -22,19 +22,20 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSStyleDeclaration;
+
 // The CSSStyleRule interface represents a style rule.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
 class CSSStyleRule : public CSSRule {
  public:
-  static scoped_refptr<CSSStyleRule> Create();
+  explicit CSSStyleRule(const scoped_refptr<CSSStyleDeclaration>& style);
 
-  // Creates style rule with reference count equal to 1.
-  // See cobalt::cssom::MakeScopedRefPtrAndRelease for details.
-  static CSSStyleRule* CreateAndAddRef();
+  const scoped_refptr<CSSStyleDeclaration>& style();
 
  private:
-  CSSStyleRule();
   ~CSSStyleRule() OVERRIDE;
+
+  scoped_refptr<CSSStyleDeclaration> style_;
 };
 
 }  // namespace cssom
