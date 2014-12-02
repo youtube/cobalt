@@ -22,16 +22,22 @@
 namespace cobalt {
 namespace cssom {
 
-const char* kBackgroundColorProperty = "background-color";
-const char* kColorProperty = "color";
-const char* kFontFamilyProperty = "font-family";
-const char* kFontSizeProperty = "font-size";
+const char* const kBackgroundColorProperty = "background-color";
+const char* const kColorProperty = "color";
+const char* const kDisplayProperty = "display";
+const char* const kFontFamilyProperty = "font-family";
+const char* const kFontSizeProperty = "font-size";
+const char* const kHeightProperty = "height";
+const char* const kWidthProperty = "width";
 
 CSSStyleDeclaration::CSSStyleDeclaration() {}
 
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
-PropertyValue* CSSStyleDeclaration::GetPropertyValue(
+// TODO(***REMOVED***): Replace if-else cascade in Get/SetPropertyValue()
+//               with hash map.
+
+scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
     const std::string& property_name) {
   if (LowerCaseEqualsASCII(property_name, kBackgroundColorProperty)) {
     return background_color();
@@ -39,26 +45,41 @@ PropertyValue* CSSStyleDeclaration::GetPropertyValue(
   if (LowerCaseEqualsASCII(property_name, kColorProperty)) {
     return color();
   }
+  if (LowerCaseEqualsASCII(property_name, kDisplayProperty)) {
+    return display();
+  }
   if (LowerCaseEqualsASCII(property_name, kFontFamilyProperty)) {
     return font_family();
   }
   if (LowerCaseEqualsASCII(property_name, kFontSizeProperty)) {
     return font_size();
   }
+  if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
+    return height();
+  }
+  if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
+    return width();
+  }
   return NULL;
 }
 
 void CSSStyleDeclaration::SetPropertyValue(
     const std::string& property_name,
-    scoped_ptr<PropertyValue> property_value) {
+    const scoped_refptr<PropertyValue>& property_value) {
   if (LowerCaseEqualsASCII(property_name, kBackgroundColorProperty)) {
-    set_background_color(property_value.Pass());
+    set_background_color(property_value);
   } else if (LowerCaseEqualsASCII(property_name, kColorProperty)) {
-    set_color(property_value.Pass());
+    set_color(property_value);
+  } else if (LowerCaseEqualsASCII(property_name, kDisplayProperty)) {
+    set_display(property_value);
   } else if (LowerCaseEqualsASCII(property_name, kFontFamilyProperty)) {
-    set_font_family(property_value.Pass());
+    set_font_family(property_value);
   } else if (LowerCaseEqualsASCII(property_name, kFontSizeProperty)) {
-    set_font_size(property_value.Pass());
+    set_font_size(property_value);
+  } else if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
+    set_height(property_value);
+  } else if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
+    set_width(property_value);
   }
 }
 

@@ -19,7 +19,8 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "gtest/gtest.h"
+#include "cobalt/cssom/selector.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace cssom {
@@ -43,7 +44,8 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   ASSERT_EQ(0, rule_list->length());
   ASSERT_EQ(NULL, rule_list->Item(0).get());
 
-  scoped_refptr<CSSRule> rule = new CSSStyleRule(new CSSStyleDeclaration());
+  scoped_refptr<CSSStyleRule> rule =
+      new CSSStyleRule(CSSStyleRule::Selectors(), new CSSStyleDeclaration());
   css_style_sheet_->AppendRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));

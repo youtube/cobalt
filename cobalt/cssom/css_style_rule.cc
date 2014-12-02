@@ -17,6 +17,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
@@ -25,8 +26,9 @@ const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() {
   return style_;
 }
 
-CSSStyleRule::CSSStyleRule(const scoped_refptr<CSSStyleDeclaration>& style)
-    : style_(style) {}
+CSSStyleRule::CSSStyleRule(Selectors selectors,
+                           const scoped_refptr<CSSStyleDeclaration>& style)
+    : selectors_(selectors.Pass()), style_(style) {}
 
 CSSStyleRule::~CSSStyleRule() {}
 

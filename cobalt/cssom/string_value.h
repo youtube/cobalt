@@ -33,13 +33,14 @@ namespace cssom {
 class StringValue : public PropertyValue {
  public:
   explicit StringValue(const std::string& value) : value_(value) {}
-  ~StringValue() OVERRIDE {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const std::string& value() const { return value_; }
 
  private:
+  ~StringValue() OVERRIDE {}
+
   const std::string value_;
 
   DISALLOW_COPY_AND_ASSIGN(StringValue);
