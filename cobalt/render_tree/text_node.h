@@ -19,15 +19,13 @@
 
 #include "base/compiler_specific.h"
 #include "base/string_piece.h"
+#include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
-
-// TODO(***REMOVED***): Define the color.
-class Color;
 
 // TODO(***REMOVED***): Define the shadow.
 class Shadow;
@@ -36,7 +34,8 @@ class Shadow;
 // Bidirectional Algorithm (http://www.unicode.org/reports/tr9/).
 class TextNode : public Node {
  public:
-  TextNode(const std::string& text, const scoped_refptr<Font>& font);
+  TextNode(const std::string& text, const scoped_refptr<Font>& font,
+           const ColorRGBA& color);
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
@@ -49,7 +48,7 @@ class TextNode : public Node {
   scoped_refptr<Font> font() const { return font_; }
 
   // A text color.
-  const Color& color() const;
+  const ColorRGBA& color() const { return color_; }
 
   // A text shadow.
   const Shadow& shadow() const;
@@ -57,6 +56,7 @@ class TextNode : public Node {
  private:
   std::string text_;
   scoped_refptr<Font> font_;
+  ColorRGBA color_;
 };
 
 }  // namespace render_tree
