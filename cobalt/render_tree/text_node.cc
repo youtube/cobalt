@@ -21,8 +21,9 @@
 namespace cobalt {
 namespace render_tree {
 
-TextNode::TextNode(const std::string& text, const scoped_refptr<Font>& font)
-    : text_(text), font_(font) {}
+TextNode::TextNode(const std::string& text, const scoped_refptr<Font>& font,
+                   const ColorRGBA& color)
+    : text_(text), font_(font), color_(color) {}
 
 void TextNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
