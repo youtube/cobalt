@@ -38,6 +38,8 @@
         'keywords.h',
         'layout.cc',
         'layout.h',
+        'layout_manager.cc',
+        'layout_manager.h',
         'specified_style.cc',
         'specified_style.h',
         'text_box.cc',

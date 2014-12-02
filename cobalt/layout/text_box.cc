@@ -43,7 +43,11 @@ void TextBox::Layout(const LayoutOptions& options) {
     //               Does it mean that the first letter like "W" should overlap
     //               with the preceding text or we should additionally shift
     //               entire word by -x()?
-    used_frame().set_size(used_font->GetBounds(text_.as_string()));
+    // TODO(***REMOVED***): Figure out why Skia returns zero bounds for whitespace
+    //               characters.
+    // TODO(***REMOVED***): Line height should be calculated from font metrics,
+    //               not from actual text bounds.
+    used_frame() = used_font->GetBounds(text_ == " " ? "i" : text_.as_string());
   }
 }
 
