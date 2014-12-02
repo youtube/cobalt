@@ -83,5 +83,15 @@ void CSSStyleDeclaration::SetPropertyValue(
   }
 }
 
+void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
+  set_background_color(rhs.background_color());
+  set_color(rhs.color());
+  set_display(rhs.display());
+  set_font_family(rhs.font_family());
+  set_font_size(rhs.font_size());
+  set_height(rhs.height());
+  set_width(rhs.width());
+}
+
 }  // namespace cssom
 }  // namespace cobalt
