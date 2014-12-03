@@ -16,9 +16,26 @@
   'targets': [
 
     {
+      'target_name': 'cobalt',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'main.cc',
+      ],
+      'dependencies': [
+        'browser',
+      ],
+    },
+
+    {
       'target_name': 'browser',
       'type': 'static_library',
       'sources': [
+        'application.cc',
+        'application.h',
+        'dummy_render_tree_source.cc',
+        'dummy_render_tree_source.h',
+        'browser_module.cc',
+        'browser_module.h',
         'web_content.cc',
         'web_content.h',
       ],
@@ -26,6 +43,8 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
       ],
     },
 
