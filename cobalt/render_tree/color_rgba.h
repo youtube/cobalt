@@ -51,6 +51,19 @@ struct ColorRGBA {
     a_ = alpha;
   }
 
+  // Decodes the color value from 32-bit integer (4 channels, 8 bits each).
+  // Note that alpha channel is mandatory, so opaque colors should be encoded
+  // as 0xrrggbbff.
+  explicit ColorRGBA(uint32_t rgba) {
+    a_ = (rgba & 0xff) / 255.0f;
+    rgba >>= 8;
+    b_ = (rgba & 0xff) / 255.0f;
+    rgba >>= 8;
+    g_ = (rgba & 0xff) / 255.0f;
+    rgba >>= 8;
+    r_ = (rgba & 0xff) / 255.0f;
+  }
+
   void set_r(float value) {
     CheckRange(value);
     r_ = value;

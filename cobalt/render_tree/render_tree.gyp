@@ -27,6 +27,7 @@
         'brush.h',
         'brush_visitor.h',
         'clip_region.h',
+        'color_rgba.h',
         'composition_node.cc',
         'composition_node.h',
         'font.h',
@@ -51,6 +52,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'brush_visitor_test.cc',
+        'color_rgba_test.cc',
         'node_visitor_test.cc',
       ],
       'dependencies': [
