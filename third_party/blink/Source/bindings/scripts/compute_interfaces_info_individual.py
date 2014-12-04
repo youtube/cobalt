@@ -67,6 +67,7 @@ def parse_options():
     parser.add_option('--interfaces-info-file', help='interface info pickle file')
     parser.add_option('--component-info-file', help='component wide info pickle file')
     parser.add_option('--write-file-only-if-changed', type='int', help='if true, do not write an output file if it would be identical to the existing one, which avoids unnecessary rebuilds in ninja')
+    parser.add_option('--root-directory', help='root directory for relative path computation', default=source_path)
 
     options, args = parser.parse_args()
     if options.interfaces_info_file is None:
@@ -83,20 +84,20 @@ def parse_options():
 # Computations
 ################################################################################
 
-def relative_dir_posix(idl_filename):
+def relative_dir_posix(idl_filename, root_path):
     """Returns relative path to the directory of idl_file in POSIX format."""
-    relative_path_local = os.path.relpath(idl_filename, source_path)
+    relative_path_local = os.path.relpath(idl_filename, root_path)
     relative_dir_local = os.path.dirname(relative_path_local)
     return relative_dir_local.replace(os.path.sep, posixpath.sep)
 
 
-def include_path(idl_filename, implemented_as=None):
+def include_path(idl_filename, root_path, implemented_as=None):
     """Returns relative path to header file in POSIX format; used in includes.
 
     POSIX format is used for consistency of output, so reference tests are
     platform-independent.
     """
-    relative_dir = relative_dir_posix(idl_filename)
+    relative_dir = relative_dir_posix(idl_filename, root_path)
 
     # IDL file basename is used even if only a partial interface file
     idl_file_basename, _ = os.path.splitext(os.path.basename(idl_filename))
@@ -154,7 +155,7 @@ def collect_union_types_from_definitions(definitions):
 
 class InterfaceInfoCollector(object):
     """A class that collects interface information from idl files."""
-    def __init__(self, cache_directory=None):
+    def __init__(self, root_directory, cache_directory=None):
         self.reader = IdlReader(interfaces_info=None, outputdir=cache_directory)
         self.interfaces_info = {}
         self.partial_interface_files = defaultdict(lambda: {
@@ -162,6 +163,7 @@ class InterfaceInfoCollector(object):
             'include_paths': [],
         })
         self.union_types = set()
+        self.root_path = root_directory
 
     def add_paths_to_partials_dict(self, partial_interface_name, full_path,
                                    this_include_path=None):
@@ -204,7 +206,7 @@ class InterfaceInfoCollector(object):
         extended_attributes = definition.extended_attributes
         implemented_as = extended_attributes.get('ImplementedAs')
         full_path = os.path.realpath(idl_filename)
-        this_include_path = None if 'NoImplHeader' in extended_attributes else include_path(idl_filename, implemented_as)
+        this_include_path = None if 'NoImplHeader' in extended_attributes else include_path(idl_filename, self.root_path, implemented_as)
         if definition.is_partial:
             # We don't create interface_info for partial interfaces, but
             # adds paths to another dict.
@@ -230,7 +232,7 @@ class InterfaceInfoCollector(object):
             # 'implements': http://crbug.com/360435
             'is_legacy_treat_as_partial_interface': 'LegacyTreatAsPartialInterface' in extended_attributes,
             'parent': definition.parent,
-            'relative_dir': relative_dir_posix(idl_filename),
+            'relative_dir': relative_dir_posix(idl_filename, self.root_path),
         })
         self.interfaces_info[definition.name] = interface_info
 
@@ -266,7 +268,7 @@ def main():
     # Compute information for individual files
     # Information is stored in global variables interfaces_info and
     # partial_interface_files.
-    info_collector = InterfaceInfoCollector(options.cache_directory)
+    info_collector = InterfaceInfoCollector(options.root_directory, options.cache_directory)
     for idl_filename in idl_files:
         info_collector.collect_info(idl_filename)
 

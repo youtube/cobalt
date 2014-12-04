@@ -97,7 +97,7 @@ def TemporaryDirectory():
         shutil.rmtree(name)
 
 
-def generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files):
+def generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files, root_directory):
     def idl_paths_recursive(directory):
         # This is slow, especially on Windows, due to os.walk making
         # excess stat() calls. Faster versions may appear in Python 3.5 or
@@ -119,7 +119,7 @@ def generate_interface_dependencies(output_directory, test_input_directory, comp
         return idl_paths
 
     def collect_interfaces_info(idl_path_list):
-        info_collector = InterfaceInfoCollector()
+        info_collector = InterfaceInfoCollector(root_directory)
         for idl_path in idl_path_list:
             if os.path.basename(idl_path) in ignore_idl_files:
                 continue
@@ -181,7 +181,7 @@ def generate_interface_dependencies(output_directory, test_input_directory, comp
 def bindings_tests(output_directory, verbose, reference_directory,
                    test_input_directory, idl_compiler_constructor,
                    component_directories, ignore_idl_files,
-                   dependency_idl_files):
+                   dependency_idl_files, root_directory):
     executive = Executive()
 
     def list_files(directory):
@@ -272,7 +272,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
             write_file(output_code, output_path, only_if_changed=True)
 
     try:
-        generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files)
+        generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files, root_directory)
         for component in component_directories:
             output_dir = os.path.join(output_directory, component)
             if not os.path.exists(output_dir):
