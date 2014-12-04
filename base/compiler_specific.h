@@ -129,9 +129,7 @@
 // method in the parent class.
 // Use like:
 //   virtual void foo() OVERRIDE;
-#if defined(COMPILER_MSVC)
-#define OVERRIDE override
-#elif defined(__clang__)
+#if defined(COMPILER_MSVC) || defined(COMPILER_GCC)
 #define OVERRIDE override
 #else
 #define OVERRIDE
