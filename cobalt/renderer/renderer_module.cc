@@ -32,26 +32,24 @@ RendererModule::RendererModule(const Options& options) {
 
   // Create a graphics context associated with the default display's render
   // target so that we have a channel to write to the display.
-  primary_graphics_context_ =
-      graphics_system_->CreateGraphicsContext(display_->GetRenderTarget());
+  scoped_ptr<renderer::backend::GraphicsContext> primary_graphics_context(
+      graphics_system_->CreateGraphicsContext(display_->GetRenderTarget()));
 
   // Create a Skia software rasterizer to rasterize our render trees and
   // send output directly to the display.
   DCHECK(!options.use_hardware_skia_rasterizer)
       << "Hardware Skia is not yet supported.";
-  rasterizer_ = scoped_ptr<renderer::Rasterizer>(
+  scoped_ptr<renderer::Rasterizer> rasterizer(
       new renderer::rasterizer_skia::SkiaSoftwareRasterizer(
-          display_->GetRenderTarget(), primary_graphics_context_.Pass()));
+          display_->GetRenderTarget(), primary_graphics_context.Pass()));
 
   // Setup the threaded rendering pipeline and fit our newly created rasterizer
   // into it.
-  pipeline_ = make_scoped_ptr(new renderer::Pipeline(rasterizer_.get()));
+  pipeline_ = make_scoped_ptr(new renderer::Pipeline(rasterizer.Pass()));
 }
 
 RendererModule::~RendererModule() {
   pipeline_.reset();
-  rasterizer_.reset();
-  primary_graphics_context_.reset();
   display_.reset();
   graphics_system_.reset();
 }
