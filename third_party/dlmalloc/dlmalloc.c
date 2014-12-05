@@ -6111,9 +6111,6 @@ typedef struct HeapWalker {
   size_t total_used_bytes;
   size_t total_block_bytes;
   size_t largest_free_block_bytes;
-  uintptr_t cur_start;
-  uintptr_t cur_end;
-  int cur_state; // 1 for alloced, 0 for free
   int total_free_blocks;
   size_t total_free_bytes;
   int file_descriptor;
@@ -6124,38 +6121,29 @@ static void heap_walker_init(HeapWalker* hw, char* file) {
   char path[256];
   snprintf(path, sizeof(path), "%s/%s", MEMORY_LOG_PATH, file);
   hw->file_descriptor = open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+  if (hw->file_descriptor >= 0) {
+    oom_fprintf(1, "Writing allocations to %s\n", path);
+  }
 }
 
 static void heap_walker_log(
     HeapWalker* hw, void* start, void* end, size_t used_bytes) {
   size_t block_bytes = (uintptr_t)end - (uintptr_t)start;
-
-  if (hw->cur_start) {
-    if ((used_bytes && hw->cur_state == 0) ||
-        (!used_bytes && hw->cur_state == 1)) {
-      // Tracking a region and we've changed state.
-      // Dump the current one.
-      if (hw->file_descriptor >= 0) {
-        oom_fprintf(hw->file_descriptor, "%s\t[0x%x - 0x%x]\t%d\n",
-            hw->cur_state ? "A" : "F",
-            hw->cur_start,
-            hw->cur_end,
-            (hw->cur_end - hw->cur_start));
-      }
-      // Reset starting point for this region.
-      hw->cur_start = (uintptr_t)start;
-      // Update free block stats
-      if (hw->cur_state == 0) {
-        hw->total_free_blocks++;
-        hw->largest_free_block_bytes =
-          MAX(block_bytes, hw->largest_free_block_bytes);
-      }
-    }
-  } else {
-    hw->cur_start = (uintptr_t)start;
+  if (hw->file_descriptor >= 0) {
+    char buf[128];
+    int len = snprintf(buf, sizeof(buf),
+        "%s\t[0x%" PRIxPTR " - 0x%" PRIxPTR "]\t%d\n",
+        used_bytes != 0 ? "A" : "F",
+        (uintptr_t)start, (uintptr_t)end, (int)used_bytes);
+    buf[sizeof(buf) - 1] = '\0';
+    write(hw->file_descriptor, buf, len);
   }
-  hw->cur_state = used_bytes ? 1 : 0;
-  hw->cur_end = (uintptr_t)end;
+  // Update free block stats
+  if (used_bytes == 0) {
+    hw->total_free_blocks++;
+    hw->largest_free_block_bytes =
+        MAX(block_bytes, hw->largest_free_block_bytes);
+  }
 
   if (used_bytes) {
     // allocated block
@@ -6186,11 +6174,20 @@ static void heap_walker(void* start, void* end, size_t used_bytes, void* arg) {
 }
 
 void dldump_heap() {
-  oom_fprintf(1, "Dumping global heap.\n");
+  oom_fprintf(1,
+      "Dumping global heap (Does not include large mmapped blocks).\n");
   HeapWalker hw;
   heap_walker_init(&hw, "global_heap.txt");
   dlmalloc_inspect_all(heap_walker, &hw);
   heap_walker_finish(&hw);
+  oom_fprintf(1, "mallinfo stats:\n");
+  struct mallinfo info = dlmallinfo();
+  oom_fprintf(1, "\ttotal in use: %6dKB\n", info.uordblks / 1024);
+  oom_fprintf(1, "\ttotal free: %6dKB\n", info.fordblks / 1024);
+  oom_fprintf(1, "arena:\n");
+  oom_fprintf(1, "\ttotal allocated: %6dKB\n", info.arena / 1024);
+  oom_fprintf(1, "direct mmapped:\n");
+  oom_fprintf(1, "\tmmapped bytes: %6dKB\n", info.hblkhd / 1024);
 }
 
 #endif /* defined(__LB_SHELL__FOR_RELEASE__) */
