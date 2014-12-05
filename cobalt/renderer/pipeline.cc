@@ -26,9 +26,9 @@ namespace {
 const float kRefreshRate = 60.0f;
 }  // namespace
 
-Pipeline::Pipeline(Rasterizer* rasterizer)
+Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer)
     : refresh_rate_(kRefreshRate),
-      rasterizer_(rasterizer),
+      rasterizer_(rasterizer.Pass()),
       rasterizer_thread_(base::in_place, "Rasterizer") {
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
