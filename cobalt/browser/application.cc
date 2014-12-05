@@ -14,13 +14,35 @@
  * limitations under the License.
  */
 
+#include "base/command_line.h"
+#include "base/logging.h"
 #include "base/run_loop.h"
 #include "cobalt/browser/application.h"
+#include "cobalt/browser/switches.h"
 
 namespace cobalt {
 namespace browser {
 
-Application::Application() : ui_message_loop_(MessageLoop::TYPE_UI) {}
+namespace {
+
+std::string GetInitialURL() {
+  // Allow the user to override the default initial URL via a command line
+  // parameter.
+  CommandLine *command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kInitialURL)) {
+    return command_line->GetSwitchValueASCII(switches::kInitialURL);
+  }
+
+  static const char* kDefaultInitialURL = "https://www.youtube.com/tv";
+  return std::string(kDefaultInitialURL);
+}
+
+}  // namespace
+
+Application::Application()
+    : ui_message_loop_(MessageLoop::TYPE_UI)
+    , initial_url_(GetInitialURL()) {
+}
 
 Application::~Application() { DCHECK(!ui_message_loop_.is_running()); }
 
