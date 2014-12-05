@@ -17,6 +17,7 @@
 #define _DLMALLOC_CONFIG_H_
 
 #include <fcntl.h> // For HeapWalker to open files
+#include <inttypes.h>
 #include <stdint.h>
 
 #include "lb_memory_pages.h"
