@@ -31,12 +31,13 @@
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
-#include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
+#include "cobalt/renderer/renderer_module.h"
 #include "third_party/libpng/png.h"
 
 namespace {
@@ -300,31 +301,13 @@ int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
-  // Load up the platform's default graphics system.
-  scoped_ptr<cobalt::renderer::backend::GraphicsSystem> graphics =
-      cobalt::renderer::backend::CreateDefaultGraphicsSystem();
-
-  // Create/initialize the default display
-  scoped_ptr<cobalt::renderer::backend::Display> display =
-      graphics->CreateDefaultDisplay();
-
-  // Create a graphics context associated with the default display's render
-  // target so that we have a channel to write to the display.
-  scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context =
-      graphics->CreateGraphicsContext(display->GetRenderTarget());
-
-  // Create a Skia software rasterizer to rasterize our render trees and
-  // send output directly to the display.
-  cobalt::renderer::rasterizer_skia::SkiaSoftwareRasterizer rasterizer(
-      display->GetRenderTarget(), graphics_context.Pass());
-
-  // Setup the threaded rendering pipeline and fit our newly created rasterizer
-  // into it.
-  cobalt::renderer::Pipeline render_pipeline(&rasterizer);
+  cobalt::renderer::RendererModule::Options options;
+  cobalt::renderer::RendererModule renderer_module(options);
 
   // Construct our render tree builder which will be the source of our render
   // trees within the main loop.
-  RenderTreeBuilder render_tree_builder(render_pipeline.GetResourceProvider());
+  RenderTreeBuilder render_tree_builder(
+      renderer_module.pipeline()->GetResourceProvider());
 
   // Repeatedly render/animate and flip the screen.
   base::Time start_time = base::Time::Now();
@@ -340,11 +323,11 @@ int main(int argc, char* argv[]) {
     scoped_refptr<cobalt::render_tree::Node> render_tree =
         render_tree_builder.Build(
             seconds_elapsed,
-            display->GetRenderTarget()->GetSurfaceInfo().width_,
-            display->GetRenderTarget()->GetSurfaceInfo().height_);
+            renderer_module.render_target()->GetSurfaceInfo().width_,
+            renderer_module.render_target()->GetSurfaceInfo().height_);
 
     // Submit the render tree to be rendered.
-    render_pipeline.Submit(render_tree);
+    renderer_module.pipeline()->Submit(render_tree);
   }
 
   return 0;
