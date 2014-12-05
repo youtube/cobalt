@@ -39,12 +39,13 @@ class RendererModule {
   ~RendererModule();
 
   renderer::Pipeline* pipeline() { return pipeline_.get(); }
+  const scoped_refptr<renderer::backend::RenderTarget> render_target() {
+    return display_->GetRenderTarget();
+  }
 
  private:
   scoped_ptr<renderer::backend::GraphicsSystem> graphics_system_;
   scoped_ptr<renderer::backend::Display> display_;
-  scoped_ptr<renderer::backend::GraphicsContext> primary_graphics_context_;
-  scoped_ptr<renderer::Rasterizer> rasterizer_;
   scoped_ptr<renderer::Pipeline> pipeline_;
 };
 
