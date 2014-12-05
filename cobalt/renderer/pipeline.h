@@ -40,7 +40,7 @@ namespace renderer {
 // to a specific frequency, such as 60hz, the refresh rate of most displays.
 class Pipeline {
  public:
-  explicit Pipeline(Rasterizer* rasterizer);
+  explicit Pipeline(scoped_ptr<Rasterizer> rasterizer);
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
@@ -83,7 +83,7 @@ class Pipeline {
   // The rasterizer object that will run on the rasterizer_thread_ and is
   // effectively the last stage of the pipeline, responsible for rasterizing
   // the final render tree and submitting it to the render target.
-  Rasterizer* rasterizer_;
+  scoped_ptr<Rasterizer> rasterizer_;
 
   // Maintains the current render tree that is to be rendered next frame.
   scoped_refptr<render_tree::Node> current_tree_;

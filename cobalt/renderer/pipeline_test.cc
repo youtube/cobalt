@@ -36,27 +36,27 @@ using cobalt::renderer::Pipeline;
 // before we know how long it had taken.
 class MockRasterizer : public Rasterizer {
  public:
-  MockRasterizer() : submission_count_(0) {}
+  MockRasterizer(int* submission_count) : submission_count_(submission_count) {}
 
   void Submit(const scoped_refptr<cobalt::render_tree::Node>&) OVERRIDE {
-    ++submission_count_;
+    ++(*submission_count_);
   }
 
   cobalt::render_tree::ResourceProvider* GetResourceProvider() OVERRIDE {
     return NULL;
   }
 
-  int submission_count() const { return submission_count_; }
-
  private:
-  int submission_count_;
+  int* submission_count_;
 };
 
 class RendererPipelineTest : public ::testing::Test {
  protected:
   RendererPipelineTest() {
+    submission_count_ = 0;
     start_time_ = base::Time::Now();
-    pipeline_.reset(new Pipeline(&mock_rasterizer_));
+    pipeline_.reset(new Pipeline(
+        scoped_ptr<Rasterizer>(new MockRasterizer(&submission_count_))));
     refresh_rate_ = pipeline_->refresh_rate();
 
     // We create a render tree here composed of only a single, empty
@@ -99,10 +99,10 @@ class RendererPipelineTest : public ::testing::Test {
   }
 
   base::Time start_time_;  // Record the time that we started the pipeline.
-  MockRasterizer mock_rasterizer_;
   scoped_ptr<Pipeline> pipeline_;
   scoped_refptr<cobalt::render_tree::Node> dummy_render_tree_;
   float refresh_rate_;
+  int submission_count_;
 };
 
 TEST_F(RendererPipelineTest,
@@ -122,10 +122,8 @@ TEST_F(RendererPipelineTest,
 
   ExpectedNumberOfSubmissions expected_submissions =
       GetExpectedNumberOfSubmissions(kDelay, time_elapsed);
-  EXPECT_LE(expected_submissions.lower_bound,
-            mock_rasterizer_.submission_count());
-  EXPECT_GE(expected_submissions.upper_bound,
-            mock_rasterizer_.submission_count());
+  EXPECT_LE(expected_submissions.lower_bound, submission_count_);
+  EXPECT_GE(expected_submissions.upper_bound, submission_count_);
 }
 
 TEST_F(RendererPipelineTest,
@@ -152,8 +150,6 @@ TEST_F(RendererPipelineTest,
 
   ExpectedNumberOfSubmissions expected_submissions =
       GetExpectedNumberOfSubmissions(kDelay, time_elapsed);
-  EXPECT_LE(expected_submissions.lower_bound,
-            mock_rasterizer_.submission_count());
-  EXPECT_GE(expected_submissions.upper_bound,
-            mock_rasterizer_.submission_count());
+  EXPECT_LE(expected_submissions.lower_bound, submission_count_);
+  EXPECT_GE(expected_submissions.upper_bound, submission_count_);
 }
