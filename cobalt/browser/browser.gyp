@@ -30,23 +30,6 @@
     },
 
     {
-      'target_name': 'browser_copy_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'browser_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/browser/testdata/',
-            ],
-            'output_dir': 'cobalt/browser',
-          },
-          'includes': [ '../build/copy_data.gypi' ],
-        },
-      ],
-    },
-
-    {
       'target_name': 'browser_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -55,9 +38,9 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_copy_test_data.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/browser/testing/testing.gyp:browser_testing',
         'browser',
-        'browser_copy_test_data',
       ],
     },
 
