@@ -22,7 +22,7 @@
         'compiler.h',
         'init_cobalt.h',
         'init_cobalt.cc',
-        'polymorphic_cast.h',
+        'polymorphic_downcast.h',
         '<(DEPTH)/lbshell/src/lb_reuse_allocator.cc',
       ],
       'dependencies': [
