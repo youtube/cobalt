@@ -104,8 +104,7 @@
           'action_name': 'copy_test_data',
           'variables': {
             'input_files': [
-              'testdata/data.txt',
-              'testdata/test_cases/',
+              'testdata',
             ],
             'output_dir': 'cobalt/samples',
           },
