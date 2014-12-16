@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/browser/application.h"
+
 #include "cobalt/browser/browser_module.h"
 
 namespace cobalt {

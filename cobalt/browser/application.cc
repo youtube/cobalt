@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+#include "cobalt/browser/application.h"
+
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
-#include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
 
 namespace cobalt {
@@ -40,9 +41,7 @@ std::string GetInitialURL() {
 }  // namespace
 
 Application::Application()
-    : ui_message_loop_(MessageLoop::TYPE_UI)
-    , initial_url_(GetInitialURL()) {
-}
+    : ui_message_loop_(MessageLoop::TYPE_UI), initial_url_(GetInitialURL()) {}
 
 Application::~Application() { DCHECK(!ui_message_loop_.is_running()); }
 
