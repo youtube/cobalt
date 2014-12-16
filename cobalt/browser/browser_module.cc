@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-#include "base/bind.h"
 #include "cobalt/browser/browser_module.h"
+
+#include "base/bind.h"
+#include "base/logging.h"
 
 using cobalt::renderer::RendererModule;
 
@@ -27,7 +29,12 @@ BrowserModule::BrowserModule(const Options& options)
       dummy_render_tree_source_(
           renderer_module_.pipeline()->GetResourceProvider(),
           base::Bind(&BrowserModule::OnRenderTreeProduced,
-                     base::Unretained(this))) {}
+                     base::Unretained(this))),
+      resource_loader_factory_(FakeResourceLoaderFactory::Create(
+          options.fake_resource_loader_factory_options)),
+      document_builder_(
+          DocumentBuilder::Create(resource_loader_factory_.get())),
+      document_(Document::Create(options.url)) {}
 
 BrowserModule::~BrowserModule() {}
 
