@@ -22,6 +22,8 @@
         'main.cc',
       ],
       'dependencies': [
+        # TODO(***REMOVED***): This is only for Oxide, remove afterwards.
+        '<(DEPTH)/cobalt/browser/browser_copy_test_data.gyp:browser_copy_test_data',
         'browser',
       ],
     },
@@ -45,8 +47,10 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-        '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
+        '<(DEPTH)/cobalt/browser/html/html.gyp:html',
+        '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
+        '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
       ],
     },
 
