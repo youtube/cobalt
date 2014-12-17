@@ -32,9 +32,11 @@ BrowserModule::BrowserModule(const Options& options)
                      base::Unretained(this))),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
-      document_builder_(
-          DocumentBuilder::Create(resource_loader_factory_.get())),
-      document_(Document::Create(options.url)) {
+      // TODO(***REMOVED***): Move all DOM and HTML classes to their own modules.
+      html_element_factory_(resource_loader_factory_.get()),
+      document_builder_(DocumentBuilder::Create(resource_loader_factory_.get(),
+                                                &html_element_factory_)),
+      document_(Document::CreateWithURL(&html_element_factory_, options.url)) {
   // Start building the document asynchronously.
   document_builder_->BuildDocument(options.url, document_.get());
 }
