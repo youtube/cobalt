@@ -19,9 +19,10 @@
 
 #include "cobalt/browser/dom/document.h"
 #include "cobalt/browser/dummy_render_tree_source.h"
+#include "cobalt/browser/html/document_builder.h"
+#include "cobalt/browser/html/html_element_factory.h"
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
-#include "cobalt/browser/html/document_builder.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "googleurl/src/gurl.h"
 
@@ -68,6 +69,9 @@ class BrowserModule {
 
   // The loader factory that creates loader that starts the actuall loading.
   scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;
+
+  // Creates HTML elements by name.
+  HTMLElementFactory html_element_factory_;
 
   // The builder that builds the document in the run loop.
   scoped_ptr<DocumentBuilder> document_builder_;
