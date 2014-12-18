@@ -43,6 +43,11 @@ inline SizeF ScaleSize(const SizeF& p, float scale) {
   return ScaleSize(p, scale, scale);
 }
 
+inline std::ostream& operator<<(std::ostream& stream, const SizeF& size) {
+  stream << "{width=" << size.width() << " height=" << size.height() << "}";
+  return stream;
+}
+
 extern template class SizeBase<SizeF, float>;
 
 }  // namespace math
