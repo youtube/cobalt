@@ -108,6 +108,18 @@ inline bool operator==(const Matrix3F& lhs, const Matrix3F& rhs) {
   return lhs.IsEqual(rhs);
 }
 
+inline std::ostream& operator<<(std::ostream& stream, const Matrix3F& matrix) {
+  stream << "[";
+  stream << "[" << matrix(0, 0) << ", " << matrix(0, 1) << ", " << matrix(0, 2)
+         << "], ";
+  stream << "[" << matrix(1, 0) << ", " << matrix(1, 1) << ", " << matrix(1, 2)
+         << "], ";
+  stream << "[" << matrix(2, 0) << ", " << matrix(2, 1) << ", " << matrix(2, 2)
+         << "]";
+  stream << "]";
+  return stream;
+}
+
 }  // namespace math
 }  // namespace cobalt
 
