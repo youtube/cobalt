@@ -42,6 +42,7 @@
     'inputs': [
       '<(bindings_scripts_dir)/compute_interfaces_info_individual.py',
       '<(bindings_scripts_dir)/utilities.py',
+      '<(extended_attributes_file)',
       '<(static_idl_files_list)',
       '<@(static_idl_files)',
       '<@(generated_idl_files)',
@@ -64,6 +65,8 @@
       '<(interfaces_info_file)',
       '--component-info-file',
       '<(component_info_file)',
+      '--extended-attributes',
+      '<(extended_attributes_file)',
       '--write-file-only-if-changed',
       '<(write_file_only_if_changed)',
       '--',
