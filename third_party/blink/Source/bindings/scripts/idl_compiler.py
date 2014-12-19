@@ -60,6 +60,7 @@ def parse_options():
     parser.add_option('--target-component',
                       help='target component to generate code, defaults to '
                       'component of input idl file')
+    parser.add_option('--extended-attributes', help='file containing whitelist of supported extended attributes')
     # ensure output comes last, so command line easy to parse via regexes
     parser.disable_interspersed_args()
 
@@ -92,7 +93,7 @@ class IdlCompiler(object):
     def __init__(self, output_directory, cache_directory=None,
                  code_generator=None, interfaces_info=None,
                  interfaces_info_filename='', only_if_changed=False,
-                 target_component=None):
+                 target_component=None, extended_attributes_filepath=None):
         """
         Args:
             interfaces_info:
@@ -109,7 +110,7 @@ class IdlCompiler(object):
         self.only_if_changed = only_if_changed
         self.output_directory = output_directory
         self.target_component = target_component
-        self.reader = IdlReader(interfaces_info, cache_directory)
+        self.reader = IdlReader(extended_attributes_filepath, interfaces_info, cache_directory)
 
     def compile_and_write(self, idl_filename):
         interface_name = idl_filename_to_interface_name(idl_filename)
