@@ -47,8 +47,8 @@ class IDLInvalidExtendedAttributeError(Exception):
 
 
 class IDLExtendedAttributeValidator(object):
-    def __init__(self):
-        self.valid_extended_attributes = read_extended_attributes_file()
+    def __init__(self, extended_attributes_filename):
+        self.valid_extended_attributes = read_extended_attributes_file(extended_attributes_filename)
 
     def validate_extended_attributes(self, definitions):
         # FIXME: this should be done when parsing the file, rather than after.
@@ -89,9 +89,9 @@ class IDLExtendedAttributeValidator(object):
                 (invalid_value, name, values_string))
 
 
-def read_extended_attributes_file():
+def read_extended_attributes_file(extended_attributes_filename):
     def extended_attribute_name_values():
-        with open(EXTENDED_ATTRIBUTES_FILENAME) as extended_attributes_file:
+        with open(extended_attributes_filename) as extended_attributes_file:
             for line in extended_attributes_file:
                 line = line.strip()
                 if not line or line.startswith('#'):

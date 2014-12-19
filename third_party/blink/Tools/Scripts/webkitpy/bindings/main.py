@@ -97,7 +97,8 @@ def TemporaryDirectory():
         shutil.rmtree(name)
 
 
-def generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files, root_directory):
+def generate_interface_dependencies(output_directory, test_input_directory, component_directories,
+                                    ignore_idl_files, root_directory, extended_attributes_path):
     def idl_paths_recursive(directory):
         # This is slow, especially on Windows, due to os.walk making
         # excess stat() calls. Faster versions may appear in Python 3.5 or
@@ -119,7 +120,7 @@ def generate_interface_dependencies(output_directory, test_input_directory, comp
         return idl_paths
 
     def collect_interfaces_info(idl_path_list):
-        info_collector = InterfaceInfoCollector(root_directory)
+        info_collector = InterfaceInfoCollector(root_directory, extended_attributes_path)
         for idl_path in idl_path_list:
             if os.path.basename(idl_path) in ignore_idl_files:
                 continue
@@ -181,7 +182,8 @@ def generate_interface_dependencies(output_directory, test_input_directory, comp
 def bindings_tests(output_directory, verbose, reference_directory,
                    test_input_directory, idl_compiler_constructor,
                    component_directories, ignore_idl_files,
-                   dependency_idl_files, root_directory):
+                   dependency_idl_files, root_directory,
+                   extended_attributes_path):
     executive = Executive()
 
     def list_files(directory):
@@ -272,18 +274,19 @@ def bindings_tests(output_directory, verbose, reference_directory,
             write_file(output_code, output_path, only_if_changed=True)
 
     try:
-        generate_interface_dependencies(output_directory, test_input_directory, component_directories, ignore_idl_files, root_directory)
+        generate_interface_dependencies(output_directory, test_input_directory, component_directories,
+                                        ignore_idl_files, root_directory, extended_attributes_path)
         for component in component_directories:
             output_dir = os.path.join(output_directory, component)
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
             generate_union_type_containers(output_dir, component)
-
             idl_compiler = idl_compiler_constructor(
                 output_dir,
                 interfaces_info=interfaces_info,
-                only_if_changed=True)
+                only_if_changed=True,
+                extended_attributes_filepath=extended_attributes_path)
             if component == 'core':
                 partial_interface_output_dir = os.path.join(output_directory,
                                                             'modules')
@@ -293,13 +296,15 @@ def bindings_tests(output_directory, verbose, reference_directory,
                     partial_interface_output_dir,
                     interfaces_info=interfaces_info,
                     only_if_changed=True,
-                    target_component='modules')
+                    target_component='modules',
+                    extended_attributes_filepath=extended_attributes_path)
             else:
                 idl_partial_interface_compiler = None
 
             dictionary_impl_compiler = IdlCompilerDictionaryImpl(
                 output_dir, interfaces_info=interfaces_info,
-                only_if_changed=True)
+                only_if_changed=True,
+                extended_attributes_filepath=extended_attributes_path)
 
             idl_filenames = []
             input_directory = os.path.join(test_input_directory, component)
