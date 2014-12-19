@@ -68,6 +68,7 @@ def parse_options():
     parser.add_option('--component-info-file', help='component wide info pickle file')
     parser.add_option('--write-file-only-if-changed', type='int', help='if true, do not write an output file if it would be identical to the existing one, which avoids unnecessary rebuilds in ninja')
     parser.add_option('--root-directory', help='root directory for relative path computation', default=source_path)
+    parser.add_option('--extended-attributes', help='file containing whitelist of supported extended attributes')
 
     options, args = parser.parse_args()
     if options.interfaces_info_file is None:
@@ -155,8 +156,9 @@ def collect_union_types_from_definitions(definitions):
 
 class InterfaceInfoCollector(object):
     """A class that collects interface information from idl files."""
-    def __init__(self, root_directory, cache_directory=None):
-        self.reader = IdlReader(interfaces_info=None, outputdir=cache_directory)
+    def __init__(self, root_directory, extend_attributes_filename, cache_directory=None):
+        self.reader = IdlReader(interfaces_info=None, outputdir=cache_directory,
+            extend_attributes_filename=extend_attributes_filename)
         self.interfaces_info = {}
         self.partial_interface_files = defaultdict(lambda: {
             'full_paths': [],
@@ -268,7 +270,8 @@ def main():
     # Compute information for individual files
     # Information is stored in global variables interfaces_info and
     # partial_interface_files.
-    info_collector = InterfaceInfoCollector(options.root_directory, options.cache_directory)
+    info_collector = InterfaceInfoCollector(options.root_directory,
+        options.extended_attributes, options.cache_directory)
     for idl_filename in idl_files:
         info_collector.collect_info(idl_filename)
 
