@@ -28,6 +28,8 @@
       'target_name': 'renderer_backend',
       'type': 'static_library',
       'sources': [
+        'copy_image_data.cc',
+        'copy_image_data.h',
         'default_graphics_system.h',
         'display.h',
         'graphics_context.cc',
