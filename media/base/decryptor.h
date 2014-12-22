@@ -5,6 +5,10 @@
 #ifndef MEDIA_BASE_DECRYPTOR_H_
 #define MEDIA_BASE_DECRYPTOR_H_
 
+#if defined(__LB_XB360__)
+#include <guiddef.h>
+#endif  // defined(__LB_XB360__)
+
 #include <list>
 #include <string>
 
@@ -103,6 +107,18 @@ class MEDIA_EXPORT Decryptor {
   // registering a null callback cancels the originally registered callback.
   virtual void RegisterKeyAddedCB(StreamType stream_type,
                                   const KeyAddedCB& key_added_cb) = 0;
+
+#if defined(__LB_XB360__)
+  // On XB360, before sending any samples encrypted with a particular key, we
+  // must call the XAVSetupDecryptorCB to setup the XAV decryptor for this key.
+  typedef base::Callback<void (GUID)> XAVSetupDecryptorCB;
+
+  // Registers a XAVSetupDecryptorCB which should be called when a key is added
+  // to the decryptor. The RegisterXAVSetupDecryptorCB() function should only
+  // be called once to register the only callback.
+  virtual void RegisterXAVSetupDecryptorCB(
+      const XAVSetupDecryptorCB& xav_setup_decryptor_cb) {};
+#endif  // defined(__LB_XB360__)
 
   // Indicates completion of a decryption operation.
   //
