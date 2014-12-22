@@ -29,9 +29,8 @@ namespace backend {
 // if queried.
 class RenderTargetStub : public RenderTarget {
  public:
-  RenderTargetStub()
-      : surface_info_(1920, 1080, SurfaceInfo::kFormatARGB8) {
-  }
+  explicit RenderTargetStub(const SurfaceInfo& surface_info)
+      : surface_info_(surface_info) {}
 
   const SurfaceInfo& GetSurfaceInfo() OVERRIDE { return surface_info_; }
 

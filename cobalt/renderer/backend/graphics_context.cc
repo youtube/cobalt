@@ -16,6 +16,8 @@
 
 #include "cobalt/renderer/backend/graphics_context.h"
 
+#include "cobalt/renderer/backend/copy_image_data.h"
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -37,18 +39,9 @@ scoped_ptr<Texture> GraphicsContext::CreateTextureFromCopy(
   DCHECK_LE(bytes_per_pixel * surface_info.width, pitch_in_bytes);
 
   // Copy the data specified by the user into the image source data memory.
-  if (pitch_in_bytes == image_source_pitch_in_bytes) {
-    // If the pitches are equal, we can do the entire copy in one memcpy().
-    memcpy(image_source_memory, pixel_data,
-           surface_info.height * pitch_in_bytes);
-  } else {
-    // If the pitches are not equal, we must memcpy each row seperately.
-    for (int i = 0; i < surface_info.height; ++i) {
-      memcpy(image_source_memory + i * image_source_pitch_in_bytes,
-             pixel_data + i * pitch_in_bytes,
-             surface_info.width * bytes_per_pixel);
-    }
-  }
+  CopyImageData(image_source_memory, image_source_pitch_in_bytes,
+                pixel_data, pitch_in_bytes,
+                surface_info.width * bytes_per_pixel, surface_info.height);
 
   // Finally wrap our filled out TextureData object in a Image and
   // return the result.

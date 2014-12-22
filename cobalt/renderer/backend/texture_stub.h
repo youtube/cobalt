@@ -49,7 +49,7 @@ class TextureStub : public Texture {
   explicit TextureStub(const SurfaceInfo& surface_info)
       : surface_info_(surface_info) {}
 
-  const SurfaceInfo& GetSurfaceInfo() OVERRIDE { return surface_info_; }
+  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
 
  private:
   SurfaceInfo surface_info_;
