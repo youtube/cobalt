@@ -61,6 +61,28 @@ class GraphicsContext {
       const SurfaceInfo& surface_info, int pitch_in_bytes,
       const uint8_t* pixel_data);
 
+  // Creates an offscreen render target that can be targeted by a
+  // GraphicsContext::Frame.  This might be used in unit tests where a
+  // display render target is not needed and we simply wish to render to an
+  // offscreen buffer and analyze the results offline.
+  virtual scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
+      const SurfaceInfo& surface_info) = 0;
+
+  // Creates a texture that references the same image as a render target.  This
+  // is useful for acquiring a texture for subsequent render passes from a
+  // render target that was recently rendered to.
+  virtual scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
+      const scoped_refptr<RenderTarget>& render_target) = 0;
+
+  // Saves texture pixels to CPU memory that is then returned as a scoped_array.
+  // This function will wait for the pipeline to flush, so it is slow and should
+  // only be used in a debug context.  One use case for the returned image
+  // memory is to encode it and serialize it as a PNG file for offline viewing.
+  // The format of the returned memory can be found by examining the results of
+  // texture.GetSurfaceInfo().  The pitch of each row is equal to the width.
+  virtual scoped_array<uint8_t> GetCopyOfTexturePixelData(
+      const Texture& texture) = 0;
+
   // The interface for creating and submitting frames to be rendered is
   // to call GraphicsContext::StartFrame() which instantiates a
   // GraphicsContext::Frame object which binds the context to a render target.
