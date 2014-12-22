@@ -42,6 +42,20 @@ class GraphicsContextStub : public GraphicsContext {
     return scoped_ptr<Texture>(new TextureStub(texture_data->GetSurfaceInfo()));
   }
 
+  scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
+      const SurfaceInfo& surface_info) OVERRIDE {
+    return scoped_refptr<RenderTarget>(new RenderTargetStub(surface_info));
+  }
+  scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
+      const scoped_refptr<RenderTarget>& render_target) OVERRIDE {
+    return scoped_ptr<Texture>(
+        new TextureStub(render_target->GetSurfaceInfo()));
+  }
+  scoped_array<uint8_t> GetCopyOfTexturePixelData(
+      const Texture& texture) OVERRIDE {
+    return scoped_array<uint8_t>();
+  }
+
   class FrameStub : public GraphicsContext::Frame {
    public:
     void Clear(float red, float green, float blue, float alpha) OVERRIDE {}

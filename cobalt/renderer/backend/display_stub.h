@@ -29,7 +29,9 @@ namespace backend {
 // that it returns if queried for a render target.
 class DisplayStub : public Display {
  public:
-  DisplayStub() : render_target_(new RenderTargetStub()) {}
+  DisplayStub()
+      : render_target_(new RenderTargetStub(
+            SurfaceInfo(1920, 1080, SurfaceInfo::kFormatARGB8))) {}
 
   // Return the stub render target.
   scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE {
