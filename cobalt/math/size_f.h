@@ -5,7 +5,7 @@
 #ifndef MATH_SIZE_F_H_
 #define MATH_SIZE_F_H_
 
-#include <iosfwd>
+#include <iostream>
 #include <string>
 
 #include "cobalt/math/size_base.h"
