@@ -421,7 +421,7 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& o,
   return result;                                                        \
 
 namespace BASE_HASH_NAMESPACE {
-#if defined(COMPILER_GCC) || defined(__LB_LINUX__)
+#if defined(COMPILER_GCC) && !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 
 template<>
 struct hash<base::StringPiece> {
