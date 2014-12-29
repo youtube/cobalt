@@ -23,6 +23,8 @@
 #include "cobalt/browser/html/html_element_factory.h"
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
+#include "cobalt/browser/script/global_object.h"
+#include "cobalt/browser/script/javascript_engine.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "googleurl/src/gurl.h"
 
@@ -66,6 +68,13 @@ class BrowserModule {
   // Until the html/css parser and layout engine are in place and functional,
   // we use a DummyRenderTreeSource object to feed the graphics pipeline.
   DummyRenderTreeSource dummy_render_tree_source_;
+
+  // JavaScript engine for the browser.
+  scoped_ptr<script::JavaScriptEngine> javascript_engine_;
+
+  // JavaScript Global Object for the browser. There should be one per window,
+  // but since there is only one window, we can have one per browser.
+  scoped_refptr<script::GlobalObject> global_object_;
 
   // The loader factory that creates loader that starts the actuall loading.
   scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;

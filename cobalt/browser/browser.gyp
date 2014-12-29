@@ -29,6 +29,18 @@
     },
 
     {
+      'target_name': 'cobalt_deploy',
+      'type': 'none',
+      'dependencies': [
+        'cobalt',
+      ],
+      'variables': {
+        'executable_name': 'cobalt',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
+
+    {
       'target_name': 'browser',
       'type': 'static_library',
       'sources': [
@@ -50,6 +62,8 @@
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
         '<(DEPTH)/cobalt/browser/html/html.gyp:html',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
+        '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
+        '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
       ],
     },
