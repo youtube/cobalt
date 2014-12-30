@@ -86,6 +86,13 @@ void Pipeline::ShutdownRasterizerThread() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   // Stop and shutdown the raterizer timer.
   refresh_rate_timer_ = base::nullopt;
+
+  // Do not retain any more references to the current render tree (which
+  // may refer to rasterizer resources).
+  current_tree_ = NULL;
+
+  // Finally, destroy the rasterizer.
+  rasterizer_.reset();
 }
 
 }  // namespace renderer
