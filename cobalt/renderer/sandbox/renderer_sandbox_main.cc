@@ -36,7 +36,6 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
-#include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "third_party/libpng/png.h"
 
@@ -224,6 +223,16 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
   // and rotated according to time.
   scoped_ptr<cobalt::render_tree::CompositionNodeMutable> mutable_composition(
       new cobalt::render_tree::CompositionNodeMutable());
+  // Declare a rectangle that fills the background to effectively clear the
+  // screen.
+  mutable_composition->AddChild(
+      make_scoped_refptr(new cobalt::render_tree::RectNode(
+          cobalt::math::SizeF(width, height),
+          scoped_ptr<cobalt::render_tree::Brush>(
+              new cobalt::render_tree::SolidColorBrush(
+                  cobalt::render_tree::ColorRGBA(1.0f, 1.0f, 1.0f))))),
+      cobalt::math::Matrix3F::Identity());
+
 
   // First, create a centered, sawtoothed-growing black rectangle in the
   // background.
@@ -314,6 +323,7 @@ int main(int argc, char* argv[]) {
   cobalt::InitCobalt(argc, argv);
 
   cobalt::renderer::RendererModule::Options options;
+  options.use_hardware_skia_rasterizer = true;
   cobalt::renderer::RendererModule renderer_module(options);
 
   // Construct our render tree builder which will be the source of our render

@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/renderer/backend/default_graphics_system.h"
+#include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
 
@@ -35,13 +36,16 @@ RendererModule::RendererModule(const Options& options) {
   scoped_ptr<renderer::backend::GraphicsContext> primary_graphics_context(
       graphics_system_->CreateGraphicsContext(display_->GetRenderTarget()));
 
-  // Create a Skia software rasterizer to rasterize our render trees and
+  // Create a Skia rasterizer to rasterize our render trees and
   // send output directly to the display.
-  DCHECK(!options.use_hardware_skia_rasterizer)
-      << "Hardware Skia is not yet supported.";
-  scoped_ptr<renderer::Rasterizer> rasterizer(
-      new renderer::rasterizer_skia::SkiaSoftwareRasterizer(
-          display_->GetRenderTarget(), primary_graphics_context.Pass()));
+  scoped_ptr<renderer::Rasterizer> rasterizer;
+  if (options.use_hardware_skia_rasterizer) {
+    rasterizer.reset(new renderer::rasterizer_skia::SkiaHardwareRasterizer(
+        display_->GetRenderTarget(), primary_graphics_context.Pass()));
+  } else {
+    rasterizer.reset(new renderer::rasterizer_skia::SkiaSoftwareRasterizer(
+        display_->GetRenderTarget(), primary_graphics_context.Pass()));
+  }
 
   // Setup the threaded rendering pipeline and fit our newly created rasterizer
   // into it.
