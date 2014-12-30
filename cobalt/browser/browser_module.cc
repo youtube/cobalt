@@ -25,11 +25,12 @@ namespace browser {
 BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
-      global_object_(javascript_engine_->CreateGlobalObject()),
+      global_object_proxy_(javascript_engine_->CreateGlobalObject()),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
       // TODO(***REMOVED***): Move all DOM and HTML classes to their own modules.
-      html_element_factory_(resource_loader_factory_.get(), global_object_),
+      html_element_factory_(resource_loader_factory_.get(),
+                            global_object_proxy_),
       document_builder_(DocumentBuilder::Create(resource_loader_factory_.get(),
                                                 &html_element_factory_)),
       document_(Document::CreateWithURL(&html_element_factory_, options.url)),
@@ -40,7 +41,7 @@ BrowserModule::BrowserModule(const Options& options)
                       base::Bind(&BrowserModule::OnRenderTreeProduced,
                                  base::Unretained(this))) {
   // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
-  global_object_->Bind("document", document_);
+  global_object_proxy_->Bind("document", document_);
   // Start building the document asynchronously.
   document_builder_->BuildDocument(options.url, document_.get());
 }
