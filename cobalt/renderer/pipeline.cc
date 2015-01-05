@@ -64,10 +64,26 @@ void Pipeline::SetNewRenderTree(
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
+    // We add 1 to the refresh rate in the following timer_interval calculation
+    // to ensure that we are submitting frames to the rasterizer at least
+    // as fast as it can consume them, thus ensuring we don't miss a frame.
+    // The rasterizer is responsible for pacing us if we submit too quickly,
+    // though this can result in a backed up submission log which can result
+    // in input lag.  Eventually (likely after a profiling system is introduced
+    // to better measure timing issues like this), we will investigate adding
+    // regulator code to attempt to make render tree submissions at times that
+    // result in the least amount of input lag while still providing a
+    // submission for each VSync.
+    // TODO(***REMOVED***): It should instead be investigated if we can trigger
+    //               rasterizer submits based on a platform-specific VSync
+    //               signal instead of relying on a timer that may or may not
+    //               match the precise VSync interval of the hardware.
+    const float timer_interval =
+        base::Time::kMicrosecondsPerSecond * 1.0f / (kRefreshRate + 1.0f);
+
     refresh_rate_timer_.emplace(
         FROM_HERE,
-        base::TimeDelta::FromMicroseconds(base::Time::kMicrosecondsPerSecond *
-                                          1.0f / kRefreshRate),
+        base::TimeDelta::FromMicroseconds(timer_interval),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true);
     refresh_rate_timer_->Reset();
