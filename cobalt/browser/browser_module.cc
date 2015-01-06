@@ -34,7 +34,10 @@ BrowserModule::BrowserModule(const Options& options)
           options.fake_resource_loader_factory_options)),
       document_builder_(
           DocumentBuilder::Create(resource_loader_factory_.get())),
-      document_(Document::Create(options.url)) {}
+      document_(Document::Create(options.url)) {
+  // Start building the document asynchronously.
+  document_builder_->BuildDocument(options.url, document_.get());
+}
 
 BrowserModule::~BrowserModule() {}
 
