@@ -33,14 +33,14 @@ struct SurfaceInfo;
 // rendering.  Render targets are reference counted so that shutdown of
 // render targets being rendered to asynchronously can be postponed until
 // after rendering is completed.
-class RenderTarget : public base::RefCounted<RenderTarget> {
+class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
  public:
   // Return metadata about the render target such as dimensions and format.
   virtual const SurfaceInfo& GetSurfaceInfo() = 0;
 
  protected:
   // Concrete child classes should declare their destructors as private.
-  friend class base::RefCounted<RenderTarget>;
+  friend class base::RefCountedThreadSafe<RenderTarget>;
   virtual ~RenderTarget() {}
 };
 
