@@ -15,7 +15,7 @@
 {
   'targets': [
     {
-      'target_name': 'renderer_paltform_backend',
+      'target_name': 'renderer_platform_backend',
       'type': 'static_library',
 
       'sources': [
