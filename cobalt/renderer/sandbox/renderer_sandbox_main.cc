@@ -270,20 +270,32 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
   // Use information about the string we are rendering to properly position
   // it in the vertical center of the screen and far enough offscreen that
   // a switch from the right side to the left is not noticed.
-  cobalt::math::SizeF text_bounds = test_font_->GetBounds(kMarqueeText);
+  cobalt::math::RectF text_bounds = test_font_->GetBounds(kMarqueeText);
 
-  float y_position = height / 2.0f - text_bounds.height() / 2.0f;
+  // Center the text's bounding box vertically on the screen.
+  float y_position =
+      height / 2.0f - text_bounds.y() - text_bounds.height() / 2.0f;
 
   // Calculate the animated x position of the text.
   const float kTextMarqueePeriod = 10.0f;
-  float text_start_position = -text_bounds.width();
-  float text_end_position = width;
+  float text_start_position = -text_bounds.right();
+  float text_end_position = width - text_bounds.x();
   float periodic_position = Sawtooth(seconds_elapsed / kTextMarqueePeriod);
   float x_position =
       text_start_position +
       (text_end_position - text_start_position) * periodic_position;
 
-  // Add the text node to our composition.
+  // Add a background rectangle to the text in order to demonstrate the
+  // relationship between the text's origin and its bounding box.
+  mutable_composition->AddChild(
+      make_scoped_refptr(new cobalt::render_tree::RectNode(
+          cobalt::math::SizeF(text_bounds.width(), text_bounds.height()),
+          scoped_ptr<cobalt::render_tree::Brush>(
+              new cobalt::render_tree::SolidColorBrush(
+                  cobalt::render_tree::ColorRGBA(0.7f, 0.2f, 1.0f))))),
+      cobalt::math::TranslateMatrix(x_position + text_bounds.x(),
+                                    y_position + text_bounds.y()));
+  // Add the actual text node to our composition.
   mutable_composition->AddChild(
       make_scoped_refptr(new cobalt::render_tree::TextNode(
           kMarqueeText, test_font_,

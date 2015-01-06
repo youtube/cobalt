@@ -79,8 +79,8 @@ namespace {
 
 class DummyFont : public Font {
  public:
-  cobalt::math::SizeF GetBounds(const std::string& text) const OVERRIDE {
-    return cobalt::math::SizeF();
+  cobalt::math::RectF GetBounds(const std::string& text) const OVERRIDE {
+    return cobalt::math::RectF();
   }
 };
 
