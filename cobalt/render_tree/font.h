@@ -19,7 +19,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/math/size_f.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -33,11 +33,13 @@ namespace render_tree {
 // to a rasterizer-specific type through base::Downcast().
 class Font : public base::RefCountedThreadSafe<Font> {
  public:
-  // A position and size of the given text. Size is guaranteeed to be
-  // consistent with the given font and include every glyph.
-  // The return value is given in units of pixels.
-  // TODO(***REMOVED***): Use StringPiece instead of std::string.
-  virtual math::SizeF GetBounds(const std::string& text) const = 0;
+  // Returns the bounding box for a given text string.  The size is guaranteeed
+  // to be consistent with the given font and include every glyph.  Note that
+  // since text is output with the origin horizontally on the left and
+  // vertically on the baseline, the left and top of the bounding box will
+  // likely be non-zero and are used to indicate the offset of the text bounding
+  // box from the origin.  The return value is given in units of pixels.
+  virtual math::RectF GetBounds(const std::string& text) const = 0;
 
  protected:
   virtual ~Font() {}

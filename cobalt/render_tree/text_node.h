@@ -32,6 +32,10 @@ class Shadow;
 
 // A single line of text or a directional run as specified by Unicode
 // Bidirectional Algorithm (http://www.unicode.org/reports/tr9/).
+// When rendering the text node, the origin will horizontally be on the far left
+// of the text, and vertically it will be on the text's baseline.  This means
+// that the text bounding box may cover area above and below the TextNode's
+// origin.
 class TextNode : public Node {
  public:
   TextNode(const std::string& text, const scoped_refptr<Font>& font,
