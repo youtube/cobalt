@@ -30,6 +30,7 @@
       'sources': [
         'default_graphics_system.h',
         'display.h',
+        'graphics_context.cc',
         'graphics_context.h',
         'graphics_system.h',
         'render_target.h',

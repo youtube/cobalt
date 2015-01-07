@@ -25,6 +25,8 @@
         'pipeline.cc',
         'pipeline.h',
         'rasterizer.h',
+        'render_tree_backend_conversions.cc',
+        'render_tree_backend_conversions.h',
         'renderer_module.cc',
         'renderer_module.h',
         'resource_provider.h',
