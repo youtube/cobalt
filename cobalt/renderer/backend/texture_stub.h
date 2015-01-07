@@ -24,14 +24,30 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
+// Maintains a scoped array of texture data.
+class TextureDataStub : public TextureData {
+ public:
+  explicit TextureDataStub(const SurfaceInfo& surface_info)
+      : surface_info_(surface_info) {}
+
+  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
+  int GetPitchInBytes() const OVERRIDE {
+    return surface_info_.width *
+           SurfaceInfo::BytesPerPixel(surface_info_.format);
+  }
+  uint8_t* GetMemory() OVERRIDE { return NULL; }
+
+ private:
+  SurfaceInfo surface_info_;
+};
+
 // Acts as a texture in the stub graphics system.  It does not store any pixel
 // information and cannot redraw itself, but it does store surface information
 // and so even the stub graphics system can query for texture metadata.
 class TextureStub : public Texture {
  public:
   explicit TextureStub(const SurfaceInfo& surface_info)
-      : surface_info_(surface_info) {
-  }
+      : surface_info_(surface_info) {}
 
   const SurfaceInfo& GetSurfaceInfo() OVERRIDE { return surface_info_; }
 
