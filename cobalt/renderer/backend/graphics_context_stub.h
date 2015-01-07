@@ -31,11 +31,15 @@ class GraphicsContextStub : public GraphicsContext {
  public:
   GraphicsContextStub() {}
 
+  scoped_ptr<TextureData> AllocateTextureData(
+      const SurfaceInfo& surface_info) OVERRIDE {
+    return scoped_ptr<TextureData>(
+        new TextureDataStub(surface_info));
+  }
+
   scoped_ptr<Texture> CreateTexture(
-      int width, int height, SurfaceInfo::Format format, int pitch_in_pixels,
-      scoped_array<uint8_t> data) OVERRIDE {
-    return scoped_ptr<Texture>(
-        new TextureStub(SurfaceInfo(width, height, format)));
+      scoped_ptr<TextureData> texture_data) OVERRIDE {
+    return scoped_ptr<Texture>(new TextureStub(texture_data->GetSurfaceInfo()));
   }
 
   void Clear(float red, float green, float blue, float alpha) OVERRIDE {}
