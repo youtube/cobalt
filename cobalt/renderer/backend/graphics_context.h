@@ -41,13 +41,23 @@ class GraphicsContext {
  public:
   virtual ~GraphicsContext() {}
 
-  // Create a texture associated with this graphics context (though some
-  // platforms do not actually have an association between textures and
-  // graphics contexts).  The pixel data provided will be uploaded to the
-  // created texture.
+  // This method will allocate CPU-accessible memory with the given
+  // SurfaceInfo specifications.  The resulting TextureData object
+  // allows access to pixel memory which the caller can write to and eventually
+  // pass the object in to CreateTexture() to finalize a texture.
+  virtual scoped_ptr<TextureData> AllocateTextureData(
+      const SurfaceInfo& surface_info) = 0;
+
+  // Constructs a texture from the given formatted pixel data.
   virtual scoped_ptr<Texture> CreateTexture(
-      int width, int height, SurfaceInfo::Format format, int pitch_in_pixels,
-      scoped_array<uint8_t> data) = 0;
+      scoped_ptr<TextureData> texture_data) = 0;
+
+  // Constructs a texture from a pointer to raw memory.  This method will likely
+  // require a pixel copy to take place, and it is recommended that
+  // CreateTexture() be used instead, if possible.
+  virtual scoped_ptr<Texture> CreateTextureFromCopy(
+      const SurfaceInfo& surface_info, int pitch_in_bytes,
+      const uint8_t* pixel_data);
 
   // Clear the screen with the specified color.
   virtual void Clear(float red, float green, float blue, float alpha) = 0;

@@ -39,11 +39,12 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "third_party/libpng/png.h"
 
+using cobalt::render_tree::ResourceProvider;
+
 namespace {
 
 scoped_refptr<cobalt::render_tree::Image> LoadPNG(
-    const FilePath& png_file_path,
-    cobalt::render_tree::ResourceProvider* resource_provider) {
+    const FilePath& png_file_path, ResourceProvider* resource_provider) {
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
@@ -121,9 +122,11 @@ scoped_refptr<cobalt::render_tree::Image> LoadPNG(
 
   // Setup pointers to the rows in which libpng should read out the decoded png
   // image data to.
-  scoped_array<uint8_t> data(new uint8_t[pitch * height]);
+  scoped_ptr<ResourceProvider::ImageData> data =
+      resource_provider->AllocateImageData(
+          width, height, ResourceProvider::ImageData::kPixelFormatRGBA8);
   std::vector<png_bytep> rows(height);
-  uint8_t* row = &data[0];
+  uint8_t* row = data->GetMemory();
   for (int i = 0; i < height; ++i) {
     rows[i] = row;
     row += pitch;
@@ -147,13 +150,12 @@ scoped_refptr<cobalt::render_tree::Image> LoadPNG(
   file_util::CloseFile(fp);
 
   // And now create a texture out of the image data.
-  return resource_provider->CreateImage(width, height, pitch, data.Pass());
+  return resource_provider->CreateImage(data.Pass());
 }
 
 class RenderTreeBuilder {
  public:
-  explicit RenderTreeBuilder(
-      cobalt::render_tree::ResourceProvider* resource_provider);
+  explicit RenderTreeBuilder(ResourceProvider* resource_provider);
 
   scoped_refptr<cobalt::render_tree::Node> Build(double seconds_elapsed,
                                                  float width,
@@ -172,8 +174,7 @@ class RenderTreeBuilder {
   scoped_refptr<cobalt::render_tree::Font> test_font_;
 };
 
-RenderTreeBuilder::RenderTreeBuilder(
-    cobalt::render_tree::ResourceProvider* resource_provider) {
+RenderTreeBuilder::RenderTreeBuilder(ResourceProvider* resource_provider) {
   // Create a set of randomly positioned and sized sprites.
   const int kNumSprites = 20;
   for (int i = 0; i < kNumSprites; ++i) {
@@ -206,7 +207,7 @@ RenderTreeBuilder::RenderTreeBuilder(
 
   // Create our test font.
   test_font_ = resource_provider->GetPreInstalledFont(
-      "Droid Sans", cobalt::render_tree::ResourceProvider::kNormal, 40);
+      "Droid Sans", ResourceProvider::kNormal, 40);
 }
 
 namespace {
@@ -345,8 +346,8 @@ int main(int argc, char* argv[]) {
     scoped_refptr<cobalt::render_tree::Node> render_tree =
         render_tree_builder.Build(
             seconds_elapsed,
-            renderer_module.render_target()->GetSurfaceInfo().width_,
-            renderer_module.render_target()->GetSurfaceInfo().height_);
+            renderer_module.render_target()->GetSurfaceInfo().width,
+            renderer_module.render_target()->GetSurfaceInfo().height);
 
     // Submit the render tree to be rendered.
     renderer_module.pipeline()->Submit(render_tree);
