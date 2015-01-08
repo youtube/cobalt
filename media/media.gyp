@@ -1239,20 +1239,6 @@
           ],
         },
         {
-          'target_name': 'scaler_bench',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'yuv_convert',
-            '../base/base.gyp:base',
-            '../skia/skia.gyp:skia',
-            '../ui/ui.gyp:ui',
-          ],
-          'sources': [
-            'tools/scaler_bench/scaler_bench.cc',
-          ],
-        },
-        {
           'target_name': 'qt_faststart',
           'type': 'executable',
           'sources': [
