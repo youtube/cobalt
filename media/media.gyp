@@ -24,10 +24,7 @@
       'type': '<(component)',
       'dependencies': [
         '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../crypto/crypto.gyp:crypto',
-        '../skia/skia.gyp:skia',
-       '../ui/ui.gyp:ui',
+        '../ui/ui.gyp:ui',
       ],
       'defines': [
         'MEDIA_IMPLEMENTATION',
@@ -818,7 +815,6 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
-        '../skia/skia.gyp:skia',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../ui/ui.gyp:ui',
