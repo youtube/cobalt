@@ -54,7 +54,9 @@ class _PlatformConfig(base.PlatformConfigBase):
   def GetVariables(self, config):
     """Returns a dict of GYP variables for the given configuration."""
     _ = config
-    variables = {}
+    variables = {
+        'use_widevine': 0,
+    }
     return variables
 
   def GetGeneratorVariables(self, config):
