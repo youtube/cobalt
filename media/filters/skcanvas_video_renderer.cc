@@ -5,6 +5,20 @@
 #include "media/filters/skcanvas_video_renderer.h"
 
 #include "base/logging.h"
+
+#if defined(__LB_SHELL__)
+
+namespace media {
+
+void SkCanvasVideoRenderer::Paint(VideoFrame* video_frame, SkCanvas* canvas,
+                                  const gfx::RectF& dest_rect, uint8_t alpha) {
+  NOTREACHED();
+}
+
+}  // namespace media
+
+#else  // defined(__LB_SHELL__)
+
 #include "media/base/video_frame.h"
 #include "media/base/yuv_convert.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -284,3 +298,5 @@ void SkCanvasVideoRenderer::Paint(media::VideoFrame* video_frame,
 }
 
 }  // namespace media
+
+#endif  // defined(__LB_SHELL__)

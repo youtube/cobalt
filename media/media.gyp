@@ -24,10 +24,7 @@
       'type': '<(component)',
       'dependencies': [
         '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../crypto/crypto.gyp:crypto',
-        '../skia/skia.gyp:skia',
-       '../ui/ui.gyp:ui',
+        '../ui/ui.gyp:ui',
       ],
       'defines': [
         'MEDIA_IMPLEMENTATION',
@@ -818,7 +815,6 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
-        '../skia/skia.gyp:skia',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../ui/ui.gyp:ui',
@@ -1221,9 +1217,12 @@
             'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
           },
           'msvs_2010_disable_uldi_when_referenced': 1,
-          'includes': [
-            '../third_party/yasm/yasm_compile.gypi',
-          ],
+          # Comment this out so we no longer depends on yasm_compile.gypi.
+          # Choose to comment instead of removing so we wouldn't get lost if we
+          # ever want to get it back.
+          # 'includes': [
+          #  '../third_party/yasm/yasm_compile.gypi',
+          # ],
         },
         {
           'target_name': 'yuv_convert_simd_c',
@@ -1240,20 +1239,6 @@
             'base/simd/filter_yuv_c.cc',
             'base/simd/yuv_to_rgb_table.cc',
             'base/simd/yuv_to_rgb_table.h',
-          ],
-        },
-        {
-          'target_name': 'scaler_bench',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'yuv_convert',
-            '../base/base.gyp:base',
-            '../skia/skia.gyp:skia',
-            '../ui/ui.gyp:ui',
-          ],
-          'sources': [
-            'tools/scaler_bench/scaler_bench.cc',
           ],
         },
         {
