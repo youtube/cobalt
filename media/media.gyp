@@ -1217,9 +1217,12 @@
             'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
           },
           'msvs_2010_disable_uldi_when_referenced': 1,
-          'includes': [
-            '../third_party/yasm/yasm_compile.gypi',
-          ],
+          # Comment this out so we no longer depends on yasm_compile.gypi.
+          # Choose to comment instead of removing so we wouldn't get lost if we
+          # ever want to get it back.
+          # 'includes': [
+          #  '../third_party/yasm/yasm_compile.gypi',
+          # ],
         },
         {
           'target_name': 'yuv_convert_simd_c',
