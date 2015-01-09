@@ -8,6 +8,25 @@
 #include "base/time.h"
 #include "media/base/media_export.h"
 #include "ui/gfx/rect.h"
+
+#if defined(__LB_SHELL__)
+
+class SkCanvas;
+
+namespace media {
+
+class VideoFrame;
+
+class MEDIA_EXPORT SkCanvasVideoRenderer {
+ public:
+  void Paint(VideoFrame* video_frame, SkCanvas* canvas,
+             const gfx::RectF& dest_rect, uint8_t alpha);
+};
+
+}  // namespace media
+
+#else  // defined(__LB_SHELL__)
+
 #include "third_party/skia/include/core/SkBitmap.h"
 
 class SkCanvas;
@@ -42,5 +61,7 @@ class MEDIA_EXPORT SkCanvasVideoRenderer {
 };
 
 }  // namespace media
+
+#endif  // defined(__LB_SHELL__)
 
 #endif  // MEDIA_FILTERS_SKCANVAS_VIDEO_RENDERER_H_
