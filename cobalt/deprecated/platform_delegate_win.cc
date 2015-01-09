@@ -16,6 +16,7 @@
 #include "cobalt/deprecated/platform_delegate.h"
 
 #include <direct.h>
+#include <ObjBase.h>
 #include <stdlib.h>
 #include <string>
 #include <windows.h>
@@ -38,6 +39,7 @@
 class PThreadInitializer {
  public:
   PThreadInitializer() {
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
     __pthread_init();
   }
 };
