@@ -101,13 +101,13 @@ def read_pickle_files(pickle_filenames):
 
 def write_file(new_text, destination_filename, only_if_changed):
     if only_if_changed and os.path.isfile(destination_filename):
-        with open(destination_filename) as destination_file:
+        with open(destination_filename, 'rb') as destination_file:
             if destination_file.read() == new_text:
                 return
     destination_dirname = os.path.dirname(destination_filename)
     if not os.path.exists(destination_dirname):
         os.makedirs(destination_dirname)
-    with open(destination_filename, 'w') as destination_file:
+    with open(destination_filename, 'wb') as destination_file:
         destination_file.write(new_text)
 
 
