@@ -148,7 +148,6 @@
             'WarningLevel': '3',
 
             'AdditionalOptions': [
-              '/arch:AVX', # Advanced Vector Extensions
               '/errorReport:none', # don't send error reports to MS.
             ],
           },
