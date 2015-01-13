@@ -41,7 +41,14 @@ std::string GetInitialURL() {
 }  // namespace
 
 Application::Application()
-    : ui_message_loop_(MessageLoop::TYPE_UI), initial_url_(GetInitialURL()) {}
+    : ui_message_loop_(MessageLoop::TYPE_UI) {
+  DLOG(INFO) << "Initial URL: " << GetInitialURL();
+  // Create the main components of our browser.
+  BrowserModule::Options options;
+  options.url = GURL(GetInitialURL());
+  options.fake_resource_loader_factory_options.create_fake_io_thread = true;
+  browser_module_.reset(new BrowserModule(options));
+}
 
 Application::~Application() { DCHECK(!ui_message_loop_.is_running()); }
 
