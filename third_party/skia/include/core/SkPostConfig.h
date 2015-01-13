@@ -201,7 +201,7 @@
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN32
+#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN32 && !defined(COBALT_WIN)
 #  ifdef free
 #    undef free
 #  endif
