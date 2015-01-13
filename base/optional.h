@@ -142,12 +142,32 @@ class BASE_EXPORT optional {
     return *this;
   }
 
-  // Method for determining whether the optional is engaged or not.  It returns
-  // true if the optional is engaged, and false otherwise.
+  // Overloaded conversion to bool operator for determining whether the optional
+  // is engaged or not.  It returns true if the optional is engaged, and false
+  // otherwise.
 #if defined(_MSC_VER) && _MSC_VER < 1800
   // MSVC 2012 does not support explicit cast operators.
   // http://blogs.msdn.com/b/vcblog/archive/2011/09/12/10209291.aspx
-  operator bool() const { return engaged_; }
+
+  // For any compiler that doesn't support explicit bool operators, we instead
+  // use the Safe Bool Idiom: http://www.artima.com/cppsource/safebool.html
+ private:
+  // The type of SafeBoolIdiomType (pointer to data member of a private type) is
+  // limited in functionality so much that the only thing a user can do with it
+  // is test for null, or apply to operator==/operator!=.  Since both operators
+  // == and != are already overloaded for optional, this leaves null tests,
+  // which we use for boolean testing.
+  class PrivateSafeBoolIdiomFakeMemberType;
+  typedef PrivateSafeBoolIdiomFakeMemberType optional::*SafeBoolIdiomType;
+ public:
+  operator const SafeBoolIdiomType() const {
+    // If we wish to return true, we cast engaged_ to our private type giving
+    // a non-null pointer to data member.  Otherwise, we return NULL.  The
+    // only thing the user can do with the return type is test for NULL.
+    return engaged_ ?
+        reinterpret_cast<const SafeBoolIdiomType>(&optional::engaged_) :
+        NULL;
+  }
 #else
   explicit operator bool() const { return engaged_; }
 #endif
@@ -319,6 +339,19 @@ optional<T> make_optional(const T& value) {
 
 namespace BASE_HASH_NAMESPACE {
 
+#if defined(COMPILER_MSVC)
+
+template <typename T>
+inline size_t hash_value(const base::optional<T>& value) {
+  if (!value) {
+    return 0;
+  } else {
+    return hash_value(value.value());
+  }
+}
+
+#else
+
 template <typename T>
 struct hash<base::optional<T> > {
  public:
@@ -333,6 +366,8 @@ struct hash<base::optional<T> > {
  private:
   hash<T> value_hash_;
 };
+
+#endif
 
 }  // namespace BASE_HASH_NAMESPACE
 
