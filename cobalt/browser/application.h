@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "cobalt/browser/browser_module.h"
 
 namespace cobalt {
 namespace browser {
@@ -39,16 +40,15 @@ class Application {
   MessageLoop* ui_message_loop() { return &ui_message_loop_; }
   void Quit();
 
-  const std::string initial_url() const { return initial_url_; }
-
  private:
   // The message loop that will handle UI events.
   MessageLoop ui_message_loop_;
 
   base::Closure quit_closure_;
 
-  // An initial URL that the Cobalt application should load on startup.
-  std::string initial_url_;
+ protected:
+  // Main components of the Cobalt browser application.
+  scoped_ptr<BrowserModule> browser_module_;
 };
 
 // Factory method for creating an application.  It should be implemented
