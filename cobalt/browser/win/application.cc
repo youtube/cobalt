@@ -25,10 +25,6 @@ class ApplicationWin : public Application {
  public:
   ApplicationWin();
   ~ApplicationWin() OVERRIDE;
-
- private:
-  // Main components of the Cobalt browser application.
-  scoped_ptr<BrowserModule> browser_module_;
 };
 
 scoped_ptr<Application> CreateApplication() {
@@ -36,9 +32,6 @@ scoped_ptr<Application> CreateApplication() {
 }
 
 ApplicationWin::ApplicationWin() {
-  // Create the main components of our browser.
-  BrowserModule::Options options;
-  browser_module_.reset(new BrowserModule(options));
 }
 
 ApplicationWin::~ApplicationWin() {}
