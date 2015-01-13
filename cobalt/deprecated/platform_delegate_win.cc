@@ -71,8 +71,8 @@ void PlatformDelegate::PlatformInit() {
   std::string game_content_path = exe_dir + "\\content\\data";
   global_values->game_content_path = strdup(game_content_path.c_str());
 
-  // Set dir_source_root as the parent folder of out\.
-  std::string dir_source_root = exe_dir.substr(0, exe_dir.rfind("out"));
+  // Set dir_source_root.
+  std::string dir_source_root = exe_dir + "\\content\\dir_source_root";
   global_values->dir_source_root = strdup(dir_source_root.c_str());
 
   // Set screenshot_output_path.
