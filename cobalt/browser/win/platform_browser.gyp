@@ -20,6 +20,10 @@
       'sources': [
         'application.cc',
       ],
+      'dependencies': [
+        # TODO(***REMOVED***): This is only for Oxide, remove afterwards.
+        '<(DEPTH)/cobalt/browser/loader/loader.gyp:fake_resource_loader',
+      ],
     },
   ],
 }
