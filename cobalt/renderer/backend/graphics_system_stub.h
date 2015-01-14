@@ -35,8 +35,7 @@ class GraphicsSystemStub : public GraphicsSystem {
     return scoped_ptr<Display>(new DisplayStub());
   }
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext(
-      const scoped_refptr<RenderTarget>& render_target) OVERRIDE {
+  scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE {
     return scoped_ptr<GraphicsContext>(new GraphicsContextStub());
   }
 };
