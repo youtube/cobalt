@@ -42,10 +42,15 @@ class GraphicsContextStub : public GraphicsContext {
     return scoped_ptr<Texture>(new TextureStub(texture_data->GetSurfaceInfo()));
   }
 
-  void Clear(float red, float green, float blue, float alpha) OVERRIDE {}
-  void BlitToRenderTarget(const Texture* texture) OVERRIDE {}
-
-  void Submit() OVERRIDE {}
+  class FrameStub : public GraphicsContext::Frame {
+   public:
+    void Clear(float red, float green, float blue, float alpha) OVERRIDE {}
+    void BlitToRenderTarget(const Texture& texture) OVERRIDE {}
+  };
+  scoped_ptr<GraphicsContext::Frame> StartFrame(
+      const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE {
+    return scoped_ptr<GraphicsContext::Frame>(new FrameStub());
+  }
 };
 
 }  // namespace backend
