@@ -36,9 +36,12 @@ using cobalt::renderer::Pipeline;
 // before we know how long it had taken.
 class MockRasterizer : public Rasterizer {
  public:
-  MockRasterizer(int* submission_count) : submission_count_(submission_count) {}
+  explicit MockRasterizer(int* submission_count)
+      : submission_count_(submission_count) {}
 
-  void Submit(const scoped_refptr<cobalt::render_tree::Node>&) OVERRIDE {
+  void Submit(
+      const scoped_refptr<cobalt::render_tree::Node>&,
+      const scoped_refptr<cobalt::renderer::backend::RenderTarget>&) OVERRIDE {
     ++(*submission_count_);
   }
 
@@ -56,7 +59,7 @@ class RendererPipelineTest : public ::testing::Test {
     submission_count_ = 0;
     start_time_ = base::Time::Now();
     pipeline_.reset(new Pipeline(
-        scoped_ptr<Rasterizer>(new MockRasterizer(&submission_count_))));
+        scoped_ptr<Rasterizer>(new MockRasterizer(&submission_count_)), NULL));
     refresh_rate_ = pipeline_->refresh_rate();
 
     // We create a render tree here composed of only a single, empty

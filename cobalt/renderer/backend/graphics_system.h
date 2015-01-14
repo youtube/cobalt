@@ -49,8 +49,7 @@ class GraphicsSystem {
 
   // Creates a graphics context that can be used to issue graphics commands to
   // the hardware.
-  virtual scoped_ptr<GraphicsContext> CreateGraphicsContext(
-      const scoped_refptr<RenderTarget>& render_target) = 0;
+  virtual scoped_ptr<GraphicsContext> CreateGraphicsContext() = 0;
 };
 
 }  // namespace backend

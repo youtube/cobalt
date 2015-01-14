@@ -26,9 +26,11 @@ namespace {
 const float kRefreshRate = 60.0f;
 }  // namespace
 
-Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer)
-    : refresh_rate_(kRefreshRate),
-      rasterizer_(rasterizer.Pass()),
+Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer,
+                   const scoped_refptr<backend::RenderTarget>& render_target)
+    : rasterizer_(rasterizer.Pass()),
+      render_target_(render_target),
+      refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -95,7 +97,7 @@ void Pipeline::RasterizeCurrentTree() {
   DCHECK(current_tree_.get());
 
   // Rasterize the last submitted render tree.
-  rasterizer_->Submit(current_tree_);
+  rasterizer_->Submit(current_tree_, render_target_);
 }
 
 void Pipeline::ShutdownRasterizerThread() {
