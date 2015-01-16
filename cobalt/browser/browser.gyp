@@ -59,9 +59,9 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
         '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
-        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
@@ -94,15 +94,6 @@
         'executable_name': 'browser_test',
       },
       'includes': [ '../build/deploy.gypi' ],
-    },
-
-    # This target make the browser component tests visible to the toolchain.
-    {
-      'target_name': 'browser_component_tests',
-      'type': 'none',
-      'dependencies': [
-        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom_test_deploy',
-      ],
     },
 
   ],

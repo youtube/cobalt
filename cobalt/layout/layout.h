@@ -17,7 +17,7 @@
 #ifndef LAYOUT_LAYOUT_H_
 #define LAYOUT_LAYOUT_H_
 
-#include "cobalt/browser/dom/html_element.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -36,7 +36,7 @@ namespace layout {
 // Produces the render tree which is a result of recursive layout of
 // the given HTML element.
 scoped_refptr<render_tree::Node> Layout(
-    const scoped_refptr<browser::HTMLElement>& root_element,
+    const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider);
 
