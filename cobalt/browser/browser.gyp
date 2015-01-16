@@ -59,7 +59,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
         '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
-        '<(DEPTH)/cobalt/browser/html/html.gyp:html',
+        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
@@ -101,8 +101,7 @@
       'target_name': 'browser_component_tests',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/cobalt/browser/dom/dom_test.gyp:dom_test_deploy',
-        '<(DEPTH)/cobalt/browser/html/html_test.gyp:html_test_deploy',
+        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom_test_deploy',
       ],
     },
 

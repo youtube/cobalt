@@ -17,7 +17,7 @@
 #ifndef LAYOUT_LAYOUT_H_
 #define LAYOUT_LAYOUT_H_
 
-#include "cobalt/browser/html/html_element.h"
+#include "cobalt/browser/dom/html_element.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
