@@ -18,10 +18,10 @@
 #define BROWSER_BROWSER_MODULE_H_
 
 #include "cobalt/browser/dom/document.h"
-#include "cobalt/browser/html/document_builder.h"
-#include "cobalt/browser/html/document_builder.h"
-#include "cobalt/browser/html/html_element_factory.h"
-#include "cobalt/browser/html/html_element_factory.h"
+#include "cobalt/browser/dom/document_builder.h"
+#include "cobalt/browser/dom/document_builder.h"
+#include "cobalt/browser/dom/html_element_factory.h"
+#include "cobalt/browser/dom/html_element_factory.h"
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/browser/script/global_object_proxy.h"
