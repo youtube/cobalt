@@ -16,14 +16,14 @@
 
 #include "cobalt/layout/layout_manager.h"
 
-#include "cobalt/browser/dom/html_body_element.h"
+#include "cobalt/dom/html_body_element.h"
 #include "cobalt/layout/layout.h"
 
 namespace cobalt {
 namespace layout {
 
 LayoutManager::LayoutManager(
-    const scoped_refptr<browser::Document>& document,
+    const scoped_refptr<dom::Document>& document,
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced)

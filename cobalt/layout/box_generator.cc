@@ -18,10 +18,10 @@
 
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/browser/dom/text.h"
-#include "cobalt/browser/dom/html_element.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/dom/html_element.h"
+#include "cobalt/dom/text.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/keywords.h"
@@ -36,9 +36,9 @@ BoxGenerator::BoxGenerator(ContainingBlock* containing_block,
       used_style_provider_(used_style_provider),
       is_root_(false) {}
 
-void BoxGenerator::Visit(browser::Element* element) {
-  scoped_refptr<browser::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK_NE(scoped_refptr<browser::HTMLElement>(), html_element);
+void BoxGenerator::Visit(dom::Element* element) {
+  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
+  DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
 
   // If element is the root of layout tree, use the style of initial containing
   // block as the style of its parent.
@@ -47,13 +47,13 @@ void BoxGenerator::Visit(browser::Element* element) {
     parent_computed_style = containing_block_->computed_style();
   } else {
     // Only HTML elements should participate in layout.
-    scoped_refptr<browser::Node> parent_node = html_element->parent_node();
-    DCHECK_NE(scoped_refptr<browser::Node>(), parent_node);
-    scoped_refptr<browser::Element> parent_element = parent_node->AsElement();
-    DCHECK_NE(scoped_refptr<browser::Element>(), parent_element);
-    scoped_refptr<browser::HTMLElement> parent_html_element =
+    scoped_refptr<dom::Node> parent_node = html_element->parent_node();
+    DCHECK_NE(scoped_refptr<dom::Node>(), parent_node);
+    scoped_refptr<dom::Element> parent_element = parent_node->AsElement();
+    DCHECK_NE(scoped_refptr<dom::Element>(), parent_element);
+    scoped_refptr<dom::HTMLElement> parent_html_element =
         parent_element->AsHTMLElement();
-    DCHECK_NE(scoped_refptr<browser::HTMLElement>(), parent_html_element);
+    DCHECK_NE(scoped_refptr<dom::HTMLElement>(), parent_html_element);
 
     parent_computed_style = parent_html_element->computed_style();
   }
@@ -64,7 +64,7 @@ void BoxGenerator::Visit(browser::Element* element) {
       GetOrGenerateContainingBlock(html_element->computed_style());
 
   // Generate child boxes.
-  for (scoped_refptr<browser::Node> child_node = html_element->first_child();
+  for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(child_containing_block,
                                      used_style_provider_);
@@ -73,13 +73,13 @@ void BoxGenerator::Visit(browser::Element* element) {
 }
 
 // Comment does not generate boxes.
-void BoxGenerator::Visit(browser::Comment* comment) {}
+void BoxGenerator::Visit(dom::Comment* comment) {}
 
 // Document should not participate in layout.
-void BoxGenerator::Visit(browser::Document* document) { NOTREACHED(); }
+void BoxGenerator::Visit(dom::Document* document) { NOTREACHED(); }
 
 // Text node produces a list of alternating whitespace and text boxes.
-void BoxGenerator::Visit(browser::Text* text) {
+void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSStyleDeclaration> parent_computed_style =
       text->parent_node()->AsElement()->AsHTMLElement()->computed_style();
 
