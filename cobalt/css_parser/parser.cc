@@ -18,6 +18,7 @@
 
 #include <sstream>
 
+#include "base/bind.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/property_declaration.h"
 #include "cobalt/css_parser/ref_counted_util.h"
@@ -39,8 +40,8 @@ namespace css_parser {
 class ParserImpl {
  public:
   ParserImpl(const std::string& file_name, const std::string& input,
-             const OnMessageCallback& on_warning_callback,
-             const OnMessageCallback& on_error_callback);
+             const Parser::OnMessageCallback& on_warning_callback,
+             const Parser::OnMessageCallback& on_error_callback);
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
 
@@ -67,8 +68,8 @@ class ParserImpl {
 
   const std::string file_path_;
   const std::string input_;
-  const OnMessageCallback on_warning_callback_;
-  const OnMessageCallback on_error_callback_;
+  const Parser::OnMessageCallback on_warning_callback_;
+  const Parser::OnMessageCallback on_error_callback_;
 
   StringPool string_pool_;
   Scanner scanner_;
@@ -80,8 +81,8 @@ class ParserImpl {
 };
 
 ParserImpl::ParserImpl(const std::string& file_path, const std::string& input,
-                       const OnMessageCallback& on_warning_callback,
-                       const OnMessageCallback& on_error_callback)
+                       const Parser::OnMessageCallback& on_warning_callback,
+                       const Parser::OnMessageCallback& on_error_callback)
     : file_path_(file_path),
       input_(input),
       scanner_(input_.c_str(), &string_pool_),
@@ -145,23 +146,43 @@ scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   switch (error_code) {
     case 0:
       // Parsed successfully or was able to recover from errors.
-      return style_sheet_;
+      break;
     case 1:
       // Failed to recover from errors.
       LogError(last_syntax_error_location_, "unrecoverable syntax error");
-      return NULL;
+      break;
     default:
       NOTREACHED();
-      return NULL;
+      break;
   }
+
+  return style_sheet_;
 }
 
-scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-    const std::string& file_name, const std::string& input,
-    const OnMessageCallback& on_warning_callback,
-    const OnMessageCallback& on_error_callback) {
-  ParserImpl parser_impl(file_name, input, on_warning_callback,
-                         on_error_callback);
+namespace {
+
+void LogWarning(const std::string& message) { LOG(WARNING) << message; }
+
+void LogError(const std::string& message) { LOG(ERROR) << message; }
+
+}  // namespace
+
+scoped_ptr<Parser> Parser::Create() {
+  return make_scoped_ptr(
+      new Parser(base::Bind(&LogWarning), base::Bind(&LogError)));
+}
+
+Parser::Parser(const OnMessageCallback& on_warning_callback,
+               const OnMessageCallback& on_error_callback)
+    : on_warning_callback_(on_warning_callback),
+      on_error_callback_(on_error_callback) {}
+
+Parser::~Parser() {}
+
+scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
+    const std::string& file_name, const std::string& input) {
+  ParserImpl parser_impl(file_name, input, on_warning_callback_,
+                         on_error_callback_);
   return parser_impl.ParseStyleSheet();
 }
 

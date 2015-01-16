@@ -21,6 +21,7 @@
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/browser/script/global_object_proxy.h"
 #include "cobalt/browser/script/javascript_engine.h"
+#include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/document_builder.h"
@@ -66,6 +67,8 @@ class BrowserModule {
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
+
+  scoped_ptr<css_parser::Parser> css_parser_;
 
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
