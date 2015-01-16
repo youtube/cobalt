@@ -17,9 +17,9 @@
 #ifndef LAYOUT_BOX_GENERATOR_H_
 #define LAYOUT_BOX_GENERATOR_H_
 
-#include "cobalt/browser/dom/node.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/dom/node.h"
 
 namespace cobalt {
 namespace layout {
@@ -29,17 +29,17 @@ class UsedStyleProvider;
 
 // Given the node, generates corresponding boxes recursively.
 // As a side-effect, computed styles of processed elements are updated.
-class BoxGenerator : public browser::NodeVisitor {
+class BoxGenerator : public dom::NodeVisitor {
  public:
   BoxGenerator(ContainingBlock* containing_block,
                UsedStyleProvider* used_style_provider);
 
   void set_is_root(bool is_root) { is_root_ = is_root; }
 
-  void Visit(browser::Comment* comment) OVERRIDE;
-  void Visit(browser::Document* document) OVERRIDE;
-  void Visit(browser::Element* element) OVERRIDE;
-  void Visit(browser::Text* text) OVERRIDE;
+  void Visit(dom::Comment* comment) OVERRIDE;
+  void Visit(dom::Document* document) OVERRIDE;
+  void Visit(dom::Element* element) OVERRIDE;
+  void Visit(dom::Text* text) OVERRIDE;
 
  private:
   // Element with computed value of a "display" property being "block" or
