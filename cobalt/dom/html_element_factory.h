@@ -26,6 +26,7 @@
 #include "base/string_piece.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/browser/script/global_object_proxy.h"
+#include "cobalt/cssom/css_parser.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,10 +34,10 @@ namespace dom {
 // This factory is responsible for creating HTML elements according to tag name.
 class HTMLElementFactory {
  public:
-  explicit HTMLElementFactory(
-      browser::ResourceLoaderFactory* loader_factory,
-      const scoped_refptr<browser::script::GlobalObjectProxy>&
-          global_object_proxy);
+  HTMLElementFactory(browser::ResourceLoaderFactory* loader_factory,
+                     cssom::CSSParser* css_parser,
+                     const scoped_refptr<browser::script::GlobalObjectProxy>&
+                         global_object_proxy);
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(
@@ -46,8 +47,9 @@ class HTMLElementFactory {
   template <typename T>
   scoped_refptr<HTMLElement> CreateHTMLElementT();
 
-  browser::ResourceLoaderFactory* loader_factory_;
-  scoped_refptr<browser::script::GlobalObjectProxy> global_object_proxy_;
+  browser::ResourceLoaderFactory* const loader_factory_;
+  cssom::CSSParser* const css_parser_;
+  const scoped_refptr<browser::script::GlobalObjectProxy> global_object_proxy_;
 
   typedef base::Callback<scoped_refptr<HTMLElement>()>
       CreateHTMLElementTCallback;

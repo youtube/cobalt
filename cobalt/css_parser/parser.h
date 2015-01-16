@@ -17,36 +17,33 @@
 #ifndef CSS_PARSER_PARSER_H_
 #define CSS_PARSER_PARSER_H_
 
-#include <string>
-
 #include "base/callback.h"
-#include "base/memory/ref_counted.h"
-#include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/css_parser.h"
 
 namespace cobalt {
 namespace css_parser {
 
-// Parser turns a string in UTF-8 encoding into one of CSSOM objects.
-// Created CSSOM objects are self-contained and do not depend on input,
-// so the arguments can be safely destroyed after one of the Parse...()
-// functions returns. By the specification, parser is very tolerant to syntax
-// errors. All recoverable syntax errors will be reported as warnings to
-// the callback.
+class Parser : public cssom::CSSParser {
+ public:
+  static scoped_ptr<Parser> Create();
+  ~Parser();
 
-typedef base::Callback<void(const std::string& message)> OnMessageCallback;
+  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
+      const std::string& file_name, const std::string& input) OVERRIDE;
 
-//
-// Parser entry points
-// (see http://dev.w3.org/csswg/css-syntax/#parser-entry-points):
-//
+ private:
+  typedef base::Callback<void(const std::string& message)> OnMessageCallback;
 
-// Parses entire stylesheet.
-scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-    const std::string& file_name, const std::string& input,
-    const OnMessageCallback& on_warning_callback,
-    const OnMessageCallback& on_error_callback);
+  Parser(const OnMessageCallback& on_warning_callback,
+         const OnMessageCallback& on_error_callback);
 
-// TODO(***REMOVED***): Implement other entry points.
+  const OnMessageCallback on_warning_callback_;
+  const OnMessageCallback on_error_callback_;
+
+  friend class ParserImpl;
+  friend class ParserTest;
+  DISALLOW_COPY_AND_ASSIGN(Parser);
+};
 
 }  // namespace css_parser
 }  // namespace cobalt

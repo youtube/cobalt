@@ -73,7 +73,6 @@
         '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
-        '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',

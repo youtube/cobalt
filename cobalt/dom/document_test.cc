@@ -34,7 +34,7 @@ namespace dom {
 
 class DocumentTest : public ::testing::Test {
  protected:
-  DocumentTest() : html_element_factory_(NULL, NULL) {}
+  DocumentTest() : html_element_factory_(NULL, NULL, NULL) {}
   ~DocumentTest() OVERRIDE {}
 
   // testing::Test:
