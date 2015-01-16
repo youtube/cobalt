@@ -17,8 +17,6 @@
 #include "cobalt/dom/html_link_element.h"
 
 #include "base/bind.h"
-#include "cobalt/css_parser/parser.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
 #include "googleurl/src/gurl.h"
 
@@ -30,8 +28,9 @@ const char* HTMLLinkElement::kTagName = "link";
 
 // static
 scoped_refptr<HTMLLinkElement> HTMLLinkElement::Create(
-    browser::ResourceLoaderFactory* loader_factory) {
-  return make_scoped_refptr(new HTMLLinkElement(loader_factory));
+    browser::ResourceLoaderFactory* loader_factory,
+    cssom::CSSParser* css_parser) {
+  return make_scoped_refptr(new HTMLLinkElement(loader_factory, css_parser));
 }
 
 void HTMLLinkElement::AttachToDocument(Document* document) {
@@ -39,8 +38,9 @@ void HTMLLinkElement::AttachToDocument(Document* document) {
   Obtain();
 }
 
-HTMLLinkElement::HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory)
-    : loader_factory_(loader_factory) {}
+HTMLLinkElement::HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory,
+                                 cssom::CSSParser* css_parser)
+    : loader_factory_(loader_factory), css_parser_(css_parser) {}
 
 HTMLLinkElement::~HTMLLinkElement() {}
 
@@ -76,9 +76,8 @@ void HTMLLinkElement::Obtain() {
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = css_parser::ParseStyleSheet(
-      href(), content, base::Bind(&HTMLLinkElement::OnCSSParserWarning, this),
-      base::Bind(&HTMLLinkElement::OnCSSParserError, this));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      css_parser_->ParseStyleSheet(href(), content);
   // Gracefully ignore style sheet if it failed to parse.
   // Appropriate errors have been reported in the error callback already.
   if (style_sheet) {
@@ -100,18 +99,6 @@ bool HTMLLinkElement::IsLoading() const { return text_loading.get() != NULL; }
 void HTMLLinkElement::StopLoading() {
   DCHECK(IsLoading());
   text_loading.reset();
-}
-
-void HTMLLinkElement::OnCSSParserWarning(const std::string& message) {
-  // TODO(***REMOVED***): Figure out whether log is the proper place for
-  //               CSS parser messages.
-  LOG(WARNING) << message;
-}
-
-void HTMLLinkElement::OnCSSParserError(const std::string& message) {
-  // TODO(***REMOVED***): Figure out whether log is the proper place for
-  //               CSS parser messages.
-  LOG(ERROR) << message;
 }
 
 }  // namespace dom
