@@ -15,7 +15,7 @@ import subprocess
 
 # All of Cobalt's interfaces are under the browser directory, thus the browser
 # component
-KNOWN_COMPONENTS = frozenset(['browser'])
+KNOWN_COMPONENTS = frozenset(['browser', 'dom'])
 
 
 def idl_filename_to_interface_name(idl_filename):
