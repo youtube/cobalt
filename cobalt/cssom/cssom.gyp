@@ -18,6 +18,7 @@
       'target_name': 'cssom',
       'type': 'static_library',
       'sources': [
+        'css_parser.h',
         'css_rule.h',
         'css_rule_list.cc',
         'css_rule_list.h',

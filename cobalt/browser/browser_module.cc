@@ -24,12 +24,13 @@ namespace browser {
 
 BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
+      css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObject()),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
       // TODO(***REMOVED***): Move all DOM and HTML classes to their own modules.
-      html_element_factory_(resource_loader_factory_.get(),
+      html_element_factory_(resource_loader_factory_.get(), css_parser_.get(),
                             global_object_proxy_),
       document_builder_(dom::DocumentBuilder::Create(
           resource_loader_factory_.get(), &html_element_factory_)),
