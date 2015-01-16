@@ -62,6 +62,7 @@
         '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
+        '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',

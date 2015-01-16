@@ -38,7 +38,7 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT() {
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>() {
-  return HTMLLinkElement::Create(loader_factory_);
+  return HTMLLinkElement::Create(loader_factory_, css_parser_);
 }
 
 template <>
@@ -51,9 +51,11 @@ HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
 
 HTMLElementFactory::HTMLElementFactory(
     browser::ResourceLoaderFactory* loader_factory,
+    cssom::CSSParser* css_parser,
     const scoped_refptr<browser::script::GlobalObjectProxy>&
         global_object_proxy)
     : loader_factory_(loader_factory),
+      css_parser_(css_parser),
       global_object_proxy_(global_object_proxy) {
   tag_name_to_create_html_element_t_callback_map_[HTMLBodyElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLBodyElement>,

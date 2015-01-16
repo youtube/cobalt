@@ -52,207 +52,180 @@ class MockPropertyValueVisitor : public cssom::PropertyValueVisitor {
   MOCK_METHOD1(VisitString, void(cssom::StringValue* string_value));
 };
 
+class ParserTest : public ::testing::Test {
+ public:
+  void SetUp() OVERRIDE {
+    parser_observer_ = make_scoped_ptr(new MockParserObserver());
+    parser_ = make_scoped_ptr(
+        new Parser(base::Bind(&MockParserObserver::OnWarning,
+                              base::Unretained(parser_observer_.get())),
+                   base::Bind(&MockParserObserver::OnError,
+                              base::Unretained(parser_observer_.get()))));
+  }
+
+  void TearDown() OVERRIDE {
+    parser_.reset();
+    parser_observer_.reset();
+  }
+
+ protected:
+  scoped_ptr<MockParserObserver> parser_observer_;
+  scoped_ptr<Parser> parser_;
+};
+
 // TODO(***REMOVED***): Test every reduction that has semantic action.
 
-TEST(ParserTest, ParsesEmptyInput) {
-  MockParserObserver parser_observer;
-  EXPECT_CALL(parser_observer, OnWarning(_)).Times(0);
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+TEST_F(ParserTest, ParsesEmptyInput) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = ParseStyleSheet(
-      "parser_test.css", "", base::Bind(&MockParserObserver::OnWarning,
-                                        base::Unretained(&parser_observer)),
-      base::Bind(&MockParserObserver::OnError,
-                 base::Unretained(&parser_observer)));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("parser_test.css", "");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, HandlesUnrecoverableSyntaxError) {
-  MockParserObserver parser_observer;
-  EXPECT_CALL(parser_observer, OnWarning(_)).Times(0);
+TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnError("parser_test.css:1:15: error: unrecoverable syntax error"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "@casino-royale",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
-  ASSERT_EQ(NULL, style_sheet.get());
+      parser_->ParseStyleSheet("parser_test.css", "@casino-royale");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, ParsesStylesheet) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, ParsesStylesheet) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning("parser_test.css:1:2: warning: @charset is not supported"));
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning(
           "parser_test.css:1:36: warning: property margin is not supported"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = ParseStyleSheet(
-      "parser_test.css", " @charset 'utf-8'; <!-- --> body { margin: 0; }",
-      base::Bind(&MockParserObserver::OnWarning,
-                 base::Unretained(&parser_observer)),
-      base::Bind(&MockParserObserver::OnError,
-                 base::Unretained(&parser_observer)));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+      "parser_test.css", " @charset 'utf-8'; <!-- --> body { margin: 0; }");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, RecoversFromInvalidAtToken) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, RecoversFromInvalidAtToken) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning("parser_test.css:1:9: warning: invalid token @cobalt-magic"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "body {} @cobalt-magic; div {}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+      "parser_test.css", "body {} @cobalt-magic; div {}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(2, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, RecoversFromInvalidRule) {
-  MockParserObserver parser_observer;
-  EXPECT_CALL(parser_observer,
+TEST_F(ParserTest, RecoversFromInvalidRule) {
+  EXPECT_CALL(*parser_observer_,
               OnWarning("parser_test.css:1:9: warning: invalid rule"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "body {} !important {} div {}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+      "parser_test.css", "body {} !important {} div {}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(2, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, WarnsAboutUnsupportedCharset) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, WarnsAboutUnsupportedCharset) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "@charset 'utf-8'; body {}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+      parser_->ParseStyleSheet("parser_test.css", "@charset 'utf-8'; body {}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedByBlock) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedByBlock) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "@charset utf-3.14 {} body {}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+      "parser_test.css", "@charset utf-3.14 {} body {}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedBySemicolon) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedBySemicolon) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css", "@charset pony; body {}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+      parser_->ParseStyleSheet("parser_test.css", "@charset pony; body {}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, ParsesNonTrivialInput) {
-  MockParserObserver parser_observer;
+TEST_F(ParserTest, ParsesNonTrivialInput) {
   EXPECT_CALL(
-      parser_observer,
+      *parser_observer_,
       OnWarning(
           "parser_test.css:2:3: warning: property padding is not supported"));
-  EXPECT_CALL(parser_observer, OnWarning(
-                                   "parser_test.css:3:3: warning: property "
-                                   "line-height is not supported"));
-  EXPECT_CALL(parser_observer, OnWarning(
-                                   "parser_test.css:4:3: warning: property "
-                                   "-moz-transition is not supported"));
-  EXPECT_CALL(parser_observer, OnWarning(
-                                   "parser_test.css:5:3: warning: property "
-                                   "-webkit-transition is not supported"));
-  EXPECT_CALL(parser_observer, OnWarning(
-                                   "parser_test.css:6:3: warning: property "
-                                   "transition is not supported"));
-  EXPECT_CALL(parser_observer, OnWarning(
-                                   "parser_test.css:7:3: warning: property "
-                                   "transition-delay is not supported"));
-  EXPECT_CALL(parser_observer,
+  EXPECT_CALL(*parser_observer_, OnWarning(
+                                     "parser_test.css:3:3: warning: property "
+                                     "line-height is not supported"));
+  EXPECT_CALL(*parser_observer_, OnWarning(
+                                     "parser_test.css:4:3: warning: property "
+                                     "-moz-transition is not supported"));
+  EXPECT_CALL(*parser_observer_, OnWarning(
+                                     "parser_test.css:5:3: warning: property "
+                                     "-webkit-transition is not supported"));
+  EXPECT_CALL(*parser_observer_, OnWarning(
+                                     "parser_test.css:6:3: warning: property "
+                                     "transition is not supported"));
+  EXPECT_CALL(*parser_observer_, OnWarning(
+                                     "parser_test.css:7:3: warning: property "
+                                     "transition-delay is not supported"));
+  EXPECT_CALL(*parser_observer_,
               OnWarning(
                   "parser_test.css:8:3: warning: property "
                   "transition-timing-function is not supported"));
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("parser_test.css",
-                      ".lozenge {\n"
-                      "  padding: 1.3em 0 0 1.5em;\n"
-                      "  line-height: 3em;\n"
-                      "  -moz-transition: opacity 100ms;\n"
-                      "  -webkit-transition: opacity 100ms;\n"
-                      "  transition: opacity 100ms;\n"
-                      "  transition-delay: 100ms;\n"
-                      "  transition-timing-function:\n"
-                      "      cubic-bezier(0.4, 0.0, 0.2, 1.0);\n"
-                      "}",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+      parser_->ParseStyleSheet("parser_test.css",
+                               ".lozenge {\n"
+                               "  padding: 1.3em 0 0 1.5em;\n"
+                               "  line-height: 3em;\n"
+                               "  -moz-transition: opacity 100ms;\n"
+                               "  -webkit-transition: opacity 100ms;\n"
+                               "  transition: opacity 100ms;\n"
+                               "  transition-delay: 100ms;\n"
+                               "  transition-timing-function:\n"
+                               "      cubic-bezier(0.4, 0.0, 0.2, 1.0);\n"
+                               "}");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST(ParserTest, ParsesOxideProperties) {
-  MockParserObserver parser_observer;
-  EXPECT_CALL(parser_observer, OnWarning(_)).Times(0);
-  EXPECT_CALL(parser_observer, OnError(_)).Times(0);
+TEST_F(ParserTest, ParsesOxideProperties) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      ParseStyleSheet("cobalt-oxide.css",
-                      "body {\n"
-                      "  background-color: #ffffff;\n"
-                      "  color: #0047ab;  /* Cobalt blue */\n"
-                      "  font-family: \"Droid Sans\";\n"
-                      "  font-size: 100px;\n"
-                      "}\n",
-                      base::Bind(&MockParserObserver::OnWarning,
-                                 base::Unretained(&parser_observer)),
-                      base::Bind(&MockParserObserver::OnError,
-                                 base::Unretained(&parser_observer)));
+      parser_->ParseStyleSheet("cobalt-oxide.css",
+                               "body {\n"
+                               "  background-color: #ffffff;\n"
+                               "  color: #0047ab;  /* Cobalt blue */\n"
+                               "  font-family: \"Droid Sans\";\n"
+                               "  font-size: 100px;\n"
+                               "}\n");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
 
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();

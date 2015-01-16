@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/loader/text_loading.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -31,7 +32,8 @@ class HTMLLinkElement : public HTMLElement {
   static const char* kTagName;
 
   static scoped_refptr<HTMLLinkElement> Create(
-      browser::ResourceLoaderFactory* loader_factory);
+      browser::ResourceLoaderFactory* loader_factory,
+      cssom::CSSParser* css_parser);
 
   // Web API: Element
   //
@@ -60,7 +62,8 @@ class HTMLLinkElement : public HTMLElement {
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  explicit HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory);
+  HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory,
+                  cssom::CSSParser* css_parser);
   ~HTMLLinkElement() OVERRIDE;
 
   // From the spec: HTMLLinkElement.
@@ -71,11 +74,10 @@ class HTMLLinkElement : public HTMLElement {
   bool IsLoading() const;
   void StopLoading();
 
-  void OnCSSParserWarning(const std::string& message);
-  void OnCSSParserError(const std::string& message);
-
   // ResourceLoaderFactory that is used to create a byte loader.
-  browser::ResourceLoaderFactory* loader_factory_;
+  browser::ResourceLoaderFactory* const loader_factory_;
+  // An abstraction of CSS parser.
+  cssom::CSSParser* const css_parser_;
   // This object is responsible for the loading.
   scoped_ptr<browser::TextLoading> text_loading;
 };
