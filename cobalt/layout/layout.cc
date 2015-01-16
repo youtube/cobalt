@@ -59,7 +59,7 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
 }
 
 scoped_refptr<render_tree::Node> Layout(
-    const scoped_refptr<browser::HTMLElement>& root_element,
+    const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider) {
   UsedStyleProvider used_style_provider(resource_provider);

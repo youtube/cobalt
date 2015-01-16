@@ -31,9 +31,10 @@ BrowserModule::BrowserModule(const Options& options)
       // TODO(***REMOVED***): Move all DOM and HTML classes to their own modules.
       html_element_factory_(resource_loader_factory_.get(),
                             global_object_proxy_),
-      document_builder_(DocumentBuilder::Create(resource_loader_factory_.get(),
-                                                &html_element_factory_)),
-      document_(Document::CreateWithURL(&html_element_factory_, options.url)),
+      document_builder_(dom::DocumentBuilder::Create(
+          resource_loader_factory_.get(), &html_element_factory_)),
+      document_(
+          dom::Document::CreateWithURL(&html_element_factory_, options.url)),
       // TODO(***REMOVED***): Request viewport size from graphics pipeline and
       //               subscribe to viewport size changes.
       layout_manager_(document_, math::SizeF(1920, 1080),

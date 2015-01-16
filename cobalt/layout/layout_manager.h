@@ -19,7 +19,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/browser/dom/document.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -27,12 +27,12 @@ namespace cobalt {
 namespace layout {
 
 // Produces the render tree each time when the document needs layout update.
-class LayoutManager : public browser::DocumentObserver {
+class LayoutManager : public dom::DocumentObserver {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Node>&)>
       OnRenderTreeProducedCallback;
 
-  LayoutManager(const scoped_refptr<browser::Document>& document,
+  LayoutManager(const scoped_refptr<dom::Document>& document,
                 const math::SizeF& viewport_size,
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced);
@@ -42,7 +42,7 @@ class LayoutManager : public browser::DocumentObserver {
   void OnMutation() OVERRIDE;
 
  private:
-  const scoped_refptr<browser::Document> document_;
+  const scoped_refptr<dom::Document> document_;
   const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
