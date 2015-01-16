@@ -19,7 +19,7 @@
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/browser/dom/text.h"
-#include "cobalt/browser/html/html_element.h"
+#include "cobalt/browser/dom/html_element.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/layout/containing_block.h"

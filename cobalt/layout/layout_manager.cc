@@ -16,7 +16,7 @@
 
 #include "cobalt/layout/layout_manager.h"
 
-#include "cobalt/browser/html/html_body_element.h"
+#include "cobalt/browser/dom/html_body_element.h"
 #include "cobalt/layout/layout.h"
 
 namespace cobalt {
