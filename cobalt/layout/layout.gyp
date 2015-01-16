@@ -49,7 +49,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
       ],
     },
