@@ -919,9 +919,9 @@ term:
     $$ = AddRef(new cssom::StringValue($1.ToString()));
   }
   | kInvalidDimensionToken maybe_space { $$ = NULL; }
-  | unary_operator kInvalidDimensionToken maybe_space { $$ = NULL }
-  | kUriToken maybe_space { $$ = NULL }
-  | kUnicodeRangeToken maybe_space { $$ = NULL }
+  | unary_operator kInvalidDimensionToken maybe_space { $$ = NULL; }
+  | kUriToken maybe_space { $$ = NULL; }
+  | kUnicodeRangeToken maybe_space { $$ = NULL; }
   | kHexToken maybe_space {
     char* value_end(const_cast<char*>($1.end));
     uint32_t rgb = std::strtoul($1.begin, &value_end, 16);
@@ -929,14 +929,14 @@ term:
 
     $$ = AddRef(new cssom::RGBAColorValue((rgb << 8) | 0xff));
   }
-  | '#' maybe_space /* Handle error case: "color: #;". */ { $$ = NULL }
+  | '#' maybe_space /* Handle error case: "color: #;". */ { $$ = NULL; }
   // According to the specs a function can have a unary_operator in front
   // but there are no known cases where this makes sense.
-  | function maybe_space { $$ = NULL }
-  | calc_function maybe_space { $$ = NULL }
-  | min_or_max_function maybe_space { $$ = NULL }
-  | '%' maybe_space /* Handle width: "%;". */ { $$ = NULL }
-  | track_names_list maybe_space { $$ = NULL }
+  | function maybe_space { $$ = NULL; }
+  | calc_function maybe_space { $$ = NULL; }
+  | min_or_max_function maybe_space { $$ = NULL; }
+  | '%' maybe_space /* Handle width: "%;". */ { $$ = NULL; }
+  | track_names_list maybe_space { $$ = NULL; }
   ;
 
 // TODO(***REMOVED***): Implement rest of units.
