@@ -25,7 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
-#include "cobalt/browser/script/global_object_proxy.h"
+#include "cobalt/browser/script/script_runner.h"
 #include "cobalt/cssom/css_parser.h"
 
 namespace cobalt {
@@ -36,8 +36,7 @@ class HTMLElementFactory {
  public:
   HTMLElementFactory(browser::ResourceLoaderFactory* loader_factory,
                      cssom::CSSParser* css_parser,
-                     const scoped_refptr<browser::script::GlobalObjectProxy>&
-                         global_object_proxy);
+                     browser::script::ScriptRunner* script_runner);
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(
@@ -49,7 +48,7 @@ class HTMLElementFactory {
 
   browser::ResourceLoaderFactory* const loader_factory_;
   cssom::CSSParser* const css_parser_;
-  const scoped_refptr<browser::script::GlobalObjectProxy> global_object_proxy_;
+  browser::script::ScriptRunner* const script_runner_;
 
   typedef base::Callback<scoped_refptr<HTMLElement>()>
       CreateHTMLElementTCallback;

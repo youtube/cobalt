@@ -34,7 +34,7 @@ class HTMLScriptElement : public HTMLElement {
 
   static scoped_refptr<HTMLScriptElement> Create(
       browser::ResourceLoaderFactory* loader_factory,
-      scoped_ptr<browser::script::ScriptRunner> script_runner);
+      browser::script::ScriptRunner* script_runner);
 
   // Web API: Element
   //
@@ -65,9 +65,8 @@ class HTMLScriptElement : public HTMLElement {
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  explicit HTMLScriptElement(
-      browser::ResourceLoaderFactory* loader_factory,
-      scoped_ptr<browser::script::ScriptRunner> script_runner);
+  HTMLScriptElement(browser::ResourceLoaderFactory* loader_factory,
+                    browser::script::ScriptRunner* script_runner);
   ~HTMLScriptElement() OVERRIDE;
 
   // From the spec: HTMLScriptElement.
@@ -81,7 +80,7 @@ class HTMLScriptElement : public HTMLElement {
   // ResourceLoaderFactory that is used to create a byte loader.
   browser::ResourceLoaderFactory* loader_factory_;
   // Proxy to JavaScript Global Object in which scripts should be run
-  scoped_ptr<browser::script::ScriptRunner> script_runner_;
+  browser::script::ScriptRunner* script_runner_;
   // This object is responsible for the loading.
   scoped_ptr<browser::TextLoad> text_load_;
   // Whether the script has been started.
