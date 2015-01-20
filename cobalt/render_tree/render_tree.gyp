@@ -58,7 +58,8 @@
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/browser/testing/testing.gyp:browser_testing',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         'render_tree',
       ],
     },
