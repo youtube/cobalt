@@ -22,8 +22,9 @@
         'main.cc',
       ],
       'dependencies': [
-        # TODO(***REMOVED***): This is only for Oxide, remove afterwards.
-        '<(DEPTH)/cobalt/browser/browser_copy_test_data.gyp:browser_copy_test_data',
+        # TODO(***REMOVED***): This is only for testing and should be removed for
+        #               production build.
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
         'browser',
       ],
     },
@@ -78,8 +79,9 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/browser_copy_test_data.gyp:browser_copy_test_data',
-        '<(DEPTH)/cobalt/browser/testing/testing.gyp:browser_testing',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         'browser',
       ],
     },

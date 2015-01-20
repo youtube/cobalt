@@ -95,9 +95,6 @@
           'includes': [ '../build/copy_data.gypi' ],
         },
       ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/browser/browser_copy_test_data.gyp:browser_copy_test_data',
-      ],
     },
 
     {
@@ -125,7 +122,8 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:fake_resource_loader',
         '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
-        '<(DEPTH)/cobalt/browser/testing/testing.gyp:browser_testing',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
         'dom_copy_test_data',
       ],
     },
