@@ -17,7 +17,6 @@
 #include "cobalt/dom/html_element_factory.h"
 
 #include "base/logging.h"
-#include "cobalt/browser/script/script_runner.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_head_element.h"
@@ -44,19 +43,15 @@ HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>() {
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
-  return HTMLScriptElement::Create(
-      loader_factory_,
-      make_scoped_ptr(new browser::script::ScriptRunner(global_object_proxy_)));
+  return HTMLScriptElement::Create(loader_factory_, script_runner_);
 }
 
 HTMLElementFactory::HTMLElementFactory(
     browser::ResourceLoaderFactory* loader_factory,
-    cssom::CSSParser* css_parser,
-    const scoped_refptr<browser::script::GlobalObjectProxy>&
-        global_object_proxy)
+    cssom::CSSParser* css_parser, browser::script::ScriptRunner* script_runner)
     : loader_factory_(loader_factory),
       css_parser_(css_parser),
-      global_object_proxy_(global_object_proxy) {
+      script_runner_(script_runner) {
   tag_name_to_create_html_element_t_callback_map_[HTMLBodyElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLBodyElement>,
                  base::Unretained(this));

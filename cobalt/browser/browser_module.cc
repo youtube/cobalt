@@ -27,10 +27,12 @@ BrowserModule::BrowserModule(const Options& options)
       css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObject()),
+      script_runner_(
+          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
       dom_module_(css_parser_.get(), resource_loader_factory_.get(),
-                  global_object_proxy_, options.url),
+                  script_runner_.get(), options.url),
       // TODO(***REMOVED***): Request viewport size from graphics pipeline and
       //               subscribe to viewport size changes.
       layout_manager_(dom_module_.document().get(), math::SizeF(1920, 1080),
