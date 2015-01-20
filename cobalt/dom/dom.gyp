@@ -72,9 +72,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:bindings',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
-        '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
@@ -122,7 +120,6 @@
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/loader/loader.gyp:fake_resource_loader',
-        '<(DEPTH)/cobalt/browser/script/javascriptcore.gyp:engine',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'dom_copy_test_data',

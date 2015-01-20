@@ -21,6 +21,7 @@
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/browser/script/global_object_proxy.h"
 #include "cobalt/browser/script/javascript_engine.h"
+#include "cobalt/browser/script/script_runner.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/module.h"
 #include "cobalt/layout/layout_manager.h"
@@ -68,6 +69,9 @@ class BrowserModule {
   // JavaScript Global Object for the browser. There should be one per window,
   // but since there is only one window, we can have one per browser.
   scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
+
+  // Interface for the document to execute JavaScript code.
+  scoped_ptr<script::ScriptRunner> script_runner_;
 
   // The loader factory that creates loader that starts the actuall loading.
   scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;

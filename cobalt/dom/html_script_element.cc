@@ -30,9 +30,9 @@ const char* HTMLScriptElement::kTagName = "script";
 // static
 scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
     browser::ResourceLoaderFactory* loader_factory,
-    scoped_ptr<browser::script::ScriptRunner> script_runner) {
+    browser::script::ScriptRunner* script_runner) {
   return make_scoped_refptr(
-      new HTMLScriptElement(loader_factory, script_runner.Pass()));
+      new HTMLScriptElement(loader_factory, script_runner));
 }
 
 void HTMLScriptElement::AttachToDocument(Document* document) {
@@ -42,10 +42,12 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
 
 HTMLScriptElement::HTMLScriptElement(
     browser::ResourceLoaderFactory* loader_factory,
-    scoped_ptr<browser::script::ScriptRunner> script_runner)
+    browser::script::ScriptRunner* script_runner)
     : loader_factory_(loader_factory),
-      script_runner_(script_runner.Pass()),
-      is_already_started_(false) {}
+      script_runner_(script_runner),
+      is_already_started_(false) {
+  DCHECK(script_runner_);
+}
 
 HTMLScriptElement::~HTMLScriptElement() {}
 
@@ -138,6 +140,7 @@ void HTMLScriptElement::Prepare() {
 }
 
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
+  // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
   script_runner_->Execute(content);
 }
 
