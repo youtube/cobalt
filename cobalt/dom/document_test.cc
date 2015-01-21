@@ -17,8 +17,8 @@
 #include "cobalt/dom/document.h"
 
 #include "cobalt/dom/attr.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/parent_node_testing.h"
@@ -45,11 +45,11 @@ class DocumentTest : public ::testing::Test {
 };
 
 void DocumentTest::SetUp() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
 void DocumentTest::TearDown() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

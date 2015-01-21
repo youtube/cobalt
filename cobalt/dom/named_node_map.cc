@@ -19,8 +19,8 @@
 #include <algorithm>
 
 #include "cobalt/dom/attr.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,10 +34,10 @@ scoped_refptr<NamedNodeMap> NamedNodeMap::Create(
 NamedNodeMap::NamedNodeMap(const scoped_refptr<Element>& element)
     : element_(element) {
   ConstructProxyAttributes();
-  DOMStats::GetInstance()->Add(this);
+  Stats::GetInstance()->Add(this);
 }
 
-NamedNodeMap::~NamedNodeMap() { DOMStats::GetInstance()->Remove(this); }
+NamedNodeMap::~NamedNodeMap() { Stats::GetInstance()->Remove(this); }
 
 void NamedNodeMap::ConstructProxyAttributes() {
   // Construct the attribute name vector.

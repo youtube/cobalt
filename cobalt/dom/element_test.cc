@@ -17,9 +17,9 @@
 #include "cobalt/dom/element.h"
 
 #include "cobalt/dom/attr.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/parent_node_testing.h"
@@ -43,12 +43,10 @@ class ElementTest : public ::testing::Test {
   void TearDown() OVERRIDE;
 };
 
-void ElementTest::SetUp() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
-}
+void ElementTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 void ElementTest::TearDown() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////

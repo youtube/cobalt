@@ -18,11 +18,11 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/node_children_iterator.h"
 #include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -146,9 +146,9 @@ bool IsElementWithTagName(const std::string& tag_name, Node* node) {
 // HTMLCollection
 /////////////////////////////////////////////////////////////////////////////
 
-HTMLCollection::HTMLCollection() { DOMStats::GetInstance()->Add(this); }
+HTMLCollection::HTMLCollection() { Stats::GetInstance()->Add(this); }
 
-HTMLCollection::~HTMLCollection() { DOMStats::GetInstance()->Remove(this); }
+HTMLCollection::~HTMLCollection() { Stats::GetInstance()->Remove(this); }
 
 // static
 scoped_refptr<HTMLCollection> HTMLCollection::CreateWithChildElements(
