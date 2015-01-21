@@ -20,8 +20,8 @@
 
 #include "base/string_split.h"
 #include "base/string_util.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -131,10 +131,10 @@ DOMTokenList::DOMTokenList(const scoped_refptr<Element>& element,
   // and it is not likely to be used anywhere else. Therefore DCHECK is used to
   // guarantee attr_name is always "class".
   DCHECK_EQ(attr_name, "class");
-  DOMStats::GetInstance()->Add(this);
+  Stats::GetInstance()->Add(this);
 }
 
-DOMTokenList::~DOMTokenList() { DOMStats::GetInstance()->Remove(this); }
+DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
 
 // Algorithm for UpdateSteps:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-dtl-update

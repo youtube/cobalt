@@ -17,7 +17,7 @@
 #include "cobalt/dom/node.h"
 
 #include "cobalt/dom/comment.h"
-#include "cobalt/dom/dom_stats.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
@@ -40,11 +40,9 @@ class NodeTest : public ::testing::Test {
   void TearDown() OVERRIDE;
 };
 
-void NodeTest::SetUp() { EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks()); }
+void NodeTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
-void NodeTest::TearDown() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
-}
+void NodeTest::TearDown() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 //////////////////////////////////////////////////////////////////////////
 // Test cases

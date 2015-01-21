@@ -16,8 +16,8 @@
 
 #include "cobalt/dom/comment.h"
 
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,12 +39,10 @@ class CommentTest : public ::testing::Test {
   void TearDown() OVERRIDE;
 };
 
-void CommentTest::SetUp() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
-}
+void CommentTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 void CommentTest::TearDown() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
 //////////////////////////////////////////////////////////////////////////
