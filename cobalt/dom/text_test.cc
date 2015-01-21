@@ -16,8 +16,8 @@
 
 #include "cobalt/dom/text.h"
 
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,11 +38,9 @@ class TextTest : public ::testing::Test {
   void TearDown() OVERRIDE;
 };
 
-void TextTest::SetUp() { EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks()); }
+void TextTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
-void TextTest::TearDown() {
-  EXPECT_TRUE(DOMStats::GetInstance()->CheckNoLeaks());
-}
+void TextTest::TearDown() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 //////////////////////////////////////////////////////////////////////////
 // Test cases
