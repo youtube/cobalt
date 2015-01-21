@@ -18,7 +18,7 @@
 #define DOM_HTML_LINK_ELEMENT_H_
 
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/loader/text_loading.h"
+#include "cobalt/browser/loader/text_load.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/html_element.h"
 
@@ -79,7 +79,7 @@ class HTMLLinkElement : public HTMLElement {
   // An abstraction of CSS parser.
   cssom::CSSParser* const css_parser_;
   // This object is responsible for the loading.
-  scoped_ptr<browser::TextLoading> text_loading;
+  scoped_ptr<browser::TextLoad> text_load_;
 };
 
 }  // namespace dom

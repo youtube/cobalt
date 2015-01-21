@@ -128,7 +128,7 @@ void HTMLScriptElement::Prepare() {
   // with the mode being the current state of the element's crossorigin
   // content attribute, the origin being the origin of the script element's
   // Document, and the default origin behaviour set to taint.
-  text_loading_ = make_scoped_ptr(new browser::TextLoading(
+  text_load_ = make_scoped_ptr(new browser::TextLoad(
       owner_document().get(), loader_factory_, url,
       base::Bind(&HTMLScriptElement::OnLoadingDone, this),
       base::Bind(&HTMLScriptElement::OnLoadingError, this),
@@ -144,13 +144,11 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
 void HTMLScriptElement::OnLoadingError(
     const browser::ResourceLoaderError& error) {}
 
-bool HTMLScriptElement::IsLoading() const {
-  return text_loading_.get() != NULL;
-}
+bool HTMLScriptElement::IsLoading() const { return text_load_.get() != NULL; }
 
 void HTMLScriptElement::StopLoading() {
   DCHECK(IsLoading());
-  text_loading_.reset();
+  text_load_.reset();
 }
 
 }  // namespace dom
