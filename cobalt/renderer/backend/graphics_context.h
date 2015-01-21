@@ -17,10 +17,11 @@
 #ifndef RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
 #define RENDERER_BACKEND_GRAPHICS_CONTEXT_H_
 
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/renderer/backend/surface_info.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
 
 namespace cobalt {
@@ -65,8 +66,11 @@ class GraphicsContext {
   // GraphicsContext::Frame.  This might be used in unit tests where a
   // display render target is not needed and we simply wish to render to an
   // offscreen buffer and analyze the results offline.
+  // This method allows platforms to choose their most compatible format that
+  // can express RGBA, though not necessarily in that order.  The chosen format
+  // can be queried from the render target after it has been created.
   virtual scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
-      const SurfaceInfo& surface_info) = 0;
+      const math::Size& dimensions) = 0;
 
   // Creates a texture that references the same image as a render target.  This
   // is useful for acquiring a texture for subsequent render passes from a
@@ -80,7 +84,8 @@ class GraphicsContext {
   // memory is to encode it and serialize it as a PNG file for offline viewing.
   // The format of the returned memory can be found by examining the results of
   // texture.GetSurfaceInfo().  The pitch of each row is equal to the width.
-  virtual scoped_array<uint8_t> GetCopyOfTexturePixelData(
+  // The pixel format of the returned data is always RGBA8, in that order.
+  virtual scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) = 0;
 
   // The interface for creating and submitting frames to be rendered is

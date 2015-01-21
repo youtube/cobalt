@@ -47,14 +47,35 @@
     },
 
     {
+      'target_name': 'renderer_copy_test_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'renderer_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/renderer/rasterizer_testdata',
+            ],
+            'output_dir': 'cobalt/renderer',
+          },
+          'includes': ['../build/copy_data.gypi'],
+        }
+      ],
+    },
+    {
       'target_name': 'renderer_test',
       'type': '<(gtest_target_type)',
       'sources': [
         'pipeline_test.cc',
+        'rasterizer_test.cc',
+        'rasterizer_test_fixture.cc',
+        'rasterizer_test_fixture.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'renderer',

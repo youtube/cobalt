@@ -43,15 +43,17 @@ class GraphicsContextStub : public GraphicsContext {
   }
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
-      const SurfaceInfo& surface_info) OVERRIDE {
-    return scoped_refptr<RenderTarget>(new RenderTargetStub(surface_info));
+      const math::Size& dimensions) OVERRIDE {
+    return scoped_refptr<RenderTarget>(new RenderTargetStub(
+        SurfaceInfo(dimensions.width(), dimensions.height(),
+                    SurfaceInfo::kFormatRGBA8)));
   }
   scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE {
     return scoped_ptr<Texture>(
         new TextureStub(render_target->GetSurfaceInfo()));
   }
-  scoped_array<uint8_t> GetCopyOfTexturePixelData(
+  scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) OVERRIDE {
     return scoped_array<uint8_t>();
   }
