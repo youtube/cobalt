@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
+#include "cobalt/renderer/renderer_module.h"
+
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
-#include "cobalt/renderer/renderer_module.h"
 
 namespace cobalt {
 namespace renderer {
 
-RendererModule::Options::Options() : use_hardware_skia_rasterizer(false) {}
+RendererModule::Options::Options() {
+  // Call into platform-specific code for setting up render module options.
+  SetPerPlatformDefaultOptions();
+}
 
 RendererModule::RendererModule(const Options& options) {
   // Load up the platform's default graphics system.
@@ -36,19 +40,12 @@ RendererModule::RendererModule(const Options& options) {
   scoped_ptr<renderer::backend::GraphicsContext> primary_graphics_context(
       graphics_system_->CreateGraphicsContext());
 
-  // Create a Skia rasterizer to rasterize our render trees and
-  // send output directly to the display.
-  scoped_ptr<renderer::Rasterizer> rasterizer;
-  if (options.use_hardware_skia_rasterizer) {
-    rasterizer.reset(new renderer::rasterizer_skia::SkiaHardwareRasterizer(
-        primary_graphics_context.Pass()));
-  } else {
-    rasterizer.reset(new renderer::rasterizer_skia::SkiaSoftwareRasterizer(
-        primary_graphics_context.Pass()));
-  }
+  // Create a rasterizer to rasterize our render trees.
+  scoped_ptr<renderer::Rasterizer> rasterizer =
+      options.create_rasterizer_function.Run(primary_graphics_context.Pass());
 
   // Setup the threaded rendering pipeline and fit our newly created rasterizer
-  // into it.
+  // into it, and direct it to render directly to the display.
   pipeline_ = make_scoped_ptr(
       new renderer::Pipeline(rasterizer.Pass(), display_->GetRenderTarget()));
 }

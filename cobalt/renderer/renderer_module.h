@@ -32,7 +32,14 @@ class RendererModule {
   struct Options {
     Options();
 
-    bool use_hardware_skia_rasterizer;
+    typedef base::Callback<scoped_ptr<Rasterizer>(
+        scoped_ptr<backend::GraphicsContext>)> CreateRasterizerCallback;
+    CreateRasterizerCallback create_rasterizer_function;
+
+   private:
+    // Implemented per-platform, and allows each platform to customize
+    // the renderer options.
+    void SetPerPlatformDefaultOptions();
   };
 
   explicit RendererModule(const Options& options);

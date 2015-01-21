@@ -323,9 +323,9 @@ int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
-  cobalt::renderer::RendererModule::Options options;
-  options.use_hardware_skia_rasterizer = true;
-  cobalt::renderer::RendererModule renderer_module(options);
+  // Construct a renderer module using default options.
+  cobalt::renderer::RendererModule::Options renderer_module_options;
+  cobalt::renderer::RendererModule renderer_module(renderer_module_options);
 
   // Construct our render tree builder which will be the source of our render
   // trees within the main loop.
