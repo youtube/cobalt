@@ -19,7 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/browser/loader/text_loading.h"
+#include "cobalt/browser/loader/text_load.h"
 #include "cobalt/browser/script/script_runner.h"
 
 namespace cobalt {
@@ -83,7 +83,7 @@ class HTMLScriptElement : public HTMLElement {
   // Proxy to JavaScript Global Object in which scripts should be run
   scoped_ptr<browser::script::ScriptRunner> script_runner_;
   // This object is responsible for the loading.
-  scoped_ptr<browser::TextLoading> text_loading_;
+  scoped_ptr<browser::TextLoad> text_load_;
   // Whether the script has been started.
   bool is_already_started_;
 };
