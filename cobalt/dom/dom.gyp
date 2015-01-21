@@ -57,6 +57,8 @@
         'html_span_element.h',
         'html_unknown_element.cc',
         'html_unknown_element.h',
+        'module.cc',
+        'module.h',
         'named_node_map.cc',
         'named_node_map.h',
         'node.cc',
