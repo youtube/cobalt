@@ -22,11 +22,7 @@
 #include "cobalt/browser/script/global_object_proxy.h"
 #include "cobalt/browser/script/javascript_engine.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/dom/document.h"
-#include "cobalt/dom/document_builder.h"
-#include "cobalt/dom/document_builder.h"
-#include "cobalt/dom/html_element_factory.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/module.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "googleurl/src/gurl.h"
@@ -54,10 +50,6 @@ class BrowserModule {
 
   renderer::RendererModule* renderer_module() { return &renderer_module_; }
 
-  dom::DocumentBuilder* document_builder() { return document_builder_.get(); }
-
-  dom::Document* document() { return document_.get(); }
-
  private:
   // Glue function to deal with the production of a render tree, and will
   // manage handing it off to the renderer.
@@ -80,15 +72,8 @@ class BrowserModule {
   // The loader factory that creates loader that starts the actuall loading.
   scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;
 
-  // TODO(***REMOVED***): Wrap the following three components in DOMModule.
-  // Creates HTML elements by name.
-  dom::HTMLElementFactory html_element_factory_;
-
-  // The builder that builds the document in the run loop.
-  scoped_ptr<dom::DocumentBuilder> document_builder_;
-
-  // The document.
-  scoped_refptr<dom::Document> document_;
+  // The module that wraps all DOM-related components.
+  dom::Module dom_module_;
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
