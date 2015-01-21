@@ -68,11 +68,11 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
-  text_loading = make_scoped_ptr(new browser::TextLoading(
-      owner_document().get(), loader_factory_, url,
-      base::Bind(&HTMLLinkElement::OnLoadingDone, this),
-      base::Bind(&HTMLLinkElement::OnLoadingError, this),
-      base::Bind(&HTMLLinkElement::StopLoading, this)));
+  text_load_ = make_scoped_ptr(
+      new browser::TextLoad(owner_document().get(), loader_factory_, url,
+                            base::Bind(&HTMLLinkElement::OnLoadingDone, this),
+                            base::Bind(&HTMLLinkElement::OnLoadingError, this),
+                            base::Bind(&HTMLLinkElement::StopLoading, this)));
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
@@ -94,11 +94,11 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
 void HTMLLinkElement::OnLoadingError(
     const browser::ResourceLoaderError& error) {}
 
-bool HTMLLinkElement::IsLoading() const { return text_loading.get() != NULL; }
+bool HTMLLinkElement::IsLoading() const { return text_load_.get() != NULL; }
 
 void HTMLLinkElement::StopLoading() {
   DCHECK(IsLoading());
-  text_loading.reset();
+  text_load_.reset();
 }
 
 }  // namespace dom
