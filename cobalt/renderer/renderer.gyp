@@ -29,6 +29,7 @@
         'render_tree_backend_conversions.h',
         'renderer_module.cc',
         'renderer_module.h',
+        'renderer_module_default_options_<(actual_target_arch).cc',
         'resource_provider.h',
       ],
 
