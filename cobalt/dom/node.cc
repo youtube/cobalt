@@ -18,9 +18,9 @@
 
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_stats.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
 
 namespace cobalt {
@@ -275,10 +275,10 @@ scoped_refptr<Element> Node::AsElement() { return NULL; }
 scoped_refptr<Text> Node::AsText() { return NULL; }
 
 Node::Node() : node_generation_(kInitialNodeGeneration) {
-  DOMStats::GetInstance()->Add(this);
+  Stats::GetInstance()->Add(this);
 }
 
-Node::~Node() { DOMStats::GetInstance()->Remove(this); }
+Node::~Node() { Stats::GetInstance()->Remove(this); }
 
 void Node::AttachToDocument(Document* document) {
   DCHECK_EQ(static_cast<Document*>(NULL), owner_document_.get());
