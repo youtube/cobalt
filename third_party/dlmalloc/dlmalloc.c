@@ -1661,7 +1661,7 @@ unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);
 #if HAVE_MMAP
 
 #if defined (__LB_SHELL__)
-#define MMAP_DEFAULT(s) lb_mmap(s)
+#define MMAP_DEFAULT(s) lb_mmap(s, "dlmalloc_mmap")
 #define DIRECT_MMAP_DEFAULT(s) MMAP_DEFAULT(s)
 #define MUNMAP_DEFAULT(a, s) lb_munmap((a), (s))
 
