@@ -54,24 +54,21 @@ class MockPropertyValueVisitor : public cssom::PropertyValueVisitor {
 
 class ParserTest : public ::testing::Test {
  public:
-  void SetUp() OVERRIDE {
-    parser_observer_ = make_scoped_ptr(new MockParserObserver());
-    parser_ = make_scoped_ptr(
-        new Parser(base::Bind(&MockParserObserver::OnWarning,
-                              base::Unretained(parser_observer_.get())),
-                   base::Bind(&MockParserObserver::OnError,
-                              base::Unretained(parser_observer_.get()))));
-  }
-
-  void TearDown() OVERRIDE {
-    parser_.reset();
-    parser_observer_.reset();
-  }
+  ParserTest();
+  ~ParserTest() OVERRIDE {}
 
  protected:
-  scoped_ptr<MockParserObserver> parser_observer_;
-  scoped_ptr<Parser> parser_;
+  const scoped_ptr<MockParserObserver> parser_observer_;
+  const scoped_ptr<Parser> parser_;
 };
+
+ParserTest::ParserTest()
+    : parser_observer_(new MockParserObserver()),
+      parser_(
+          new Parser(base::Bind(&MockParserObserver::OnWarning,
+                                base::Unretained(parser_observer_.get())),
+                     base::Bind(&MockParserObserver::OnError,
+                                base::Unretained(parser_observer_.get())))) {}
 
 // TODO(***REMOVED***): Test every reduction that has semantic action.
 
