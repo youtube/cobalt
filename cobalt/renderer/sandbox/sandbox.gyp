@@ -26,7 +26,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-        '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
       ],
 
       'actions': [
