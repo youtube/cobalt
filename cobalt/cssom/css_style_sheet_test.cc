@@ -27,10 +27,10 @@ namespace cssom {
 
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
-  void SetUp() OVERRIDE { css_style_sheet_ = CSSStyleSheet::Create(); }
-  void TearDown() OVERRIDE { css_style_sheet_ = NULL; }
+  CSSStyleSheetTest() : css_style_sheet_(CSSStyleSheet::Create()) {}
+  ~CSSStyleSheetTest() OVERRIDE {}
 
-  scoped_refptr<CSSStyleSheet> css_style_sheet_;
+  const scoped_refptr<CSSStyleSheet> css_style_sheet_;
 };
 
 TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
