@@ -91,10 +91,6 @@
 // "Large" blocks come from a separate VM region.
 #define DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 
-// This needs to be larger than a single page.
-// Increase from the default of 2MB to avoid spurious trim + morecore combos.
-#define DEFAULT_TRIM_THRESHOLD ((size_t)(8 * 1024 * 1024U))
-
 #elif defined(__LB_WIIU__)
 #define MALLOC_ALIGNMENT ((size_t)8U)
 #define DEFAULT_MMAP_THRESHOLD MAX_SIZE_T
