@@ -46,8 +46,8 @@ class DOMTokenList : public browser::script::Wrappable,
   void Remove(const std::string& token);
 
  private:
-  explicit DOMTokenList(const scoped_refptr<Element>& element,
-                        const std::string& attr_name);
+  DOMTokenList(const scoped_refptr<Element>& element,
+               const std::string& attr_name);
   ~DOMTokenList();
 
   // Web API: DOMTokenList.
