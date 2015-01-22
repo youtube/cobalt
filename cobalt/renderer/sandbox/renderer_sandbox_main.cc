@@ -36,122 +36,13 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/renderer/renderer_module.h"
-#include "third_party/libpng/png.h"
 
 using cobalt::render_tree::ResourceProvider;
+using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace {
-
-scoped_refptr<cobalt::render_tree::Image> LoadPNG(
-    const FilePath& png_file_path, ResourceProvider* resource_provider) {
-  // Much of this PNG loading code is based on a section from the libpng manual:
-  // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
-
-  FILE* fp = file_util::OpenFile(png_file_path, "rb");
-  DCHECK(fp) << "Unable to open: " << png_file_path.value();
-
-  uint8_t header[8];
-  fread(header, 1, 8, fp);
-  DCHECK(!png_sig_cmp(header, 0, 8)) << "Invalid PNG header.";
-
-  // Set up a libpng context for reading images.
-  png_structp png =
-      png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  DCHECK(png);
-
-  // Create a structure to contain metadata about the image.
-  png_infop png_metadata = png_create_info_struct(png);
-  DCHECK(png_metadata);
-
-  // libpng expects to longjump to png->jmpbuf if it encounters an error.
-  // According to longjmp's documentation, this implies that stack unwinding
-  // will occur in that case, though C++ objects with non-trivial destructors
-  // will not be called.  This is fine though, since we abort upon errors here.
-  // If alternative behavior is desired, custom error and warning handler
-  // functions can be passed into the png_create_read_struct() call above.
-  if (setjmp(png->jmpbuf)) {
-    NOTREACHED() << "libpng returned error reading " << png_file_path.value();
-    abort();
-  }
-  // Set up for file i/o.
-  png_init_io(png, fp);
-  // Tell png we already read 8 bytes.
-  png_set_sig_bytes(png, 8);
-  // Read the image info.
-  png_read_info(png, png_metadata);
-
-  // Transform PNGs into a canonical RGBA form, in order to simplify the process
-  // of reading png files of varying formats.  Of course, if we would like to
-  // maintain data in formats other than RGBA, this logic should be adjusted.
-  {
-    if (png_get_bit_depth(png, png_metadata) == 16) {
-      png_set_strip_16(png);
-    }
-
-    png_byte color = png_get_color_type(png, png_metadata);
-
-    if (color == PNG_COLOR_TYPE_GRAY &&
-        png_get_bit_depth(png, png_metadata) < 8) {
-      png_set_expand_gray_1_2_4_to_8(png);
-    }
-
-    // Convert from grayscale or palette to color.
-    if (!(color & PNG_COLOR_MASK_COLOR)) {
-      png_set_gray_to_rgb(png);
-    } else if (color == PNG_COLOR_TYPE_PALETTE) {
-      png_set_palette_to_rgb(png);
-    }
-
-    // Add an alpha channel if missing.
-    if (!(color & PNG_COLOR_MASK_ALPHA)) {
-      png_set_add_alpha(png, 0xff /* opaque */, PNG_FILLER_AFTER);
-    }
-  }
-
-  // End transformations. Get the updated info, and then verify.
-  png_read_update_info(png, png_metadata);
-  DCHECK_EQ(PNG_COLOR_TYPE_RGBA, png_get_color_type(png, png_metadata));
-  DCHECK_EQ(8, png_get_bit_depth(png, png_metadata));
-
-  int width = png_get_image_width(png, png_metadata);
-  int height = png_get_image_height(png, png_metadata);
-
-  // Allocate texture memory and set up row pointers for read.
-  int pitch = width * 4;  // Since everything is RGBA at this point.
-
-  // Setup pointers to the rows in which libpng should read out the decoded png
-  // image data to.
-  scoped_ptr<ResourceProvider::ImageData> data =
-      resource_provider->AllocateImageData(
-          width, height, ResourceProvider::ImageData::kPixelFormatRGBA8);
-  std::vector<png_bytep> rows(height);
-  uint8_t* row = data->GetMemory();
-  for (int i = 0; i < height; ++i) {
-    rows[i] = row;
-    row += pitch;
-  }
-
-  // Execute the read of png image data.
-  png_read_image(png, &rows[0]);
-
-  // Time to clean up.  First create a structure to read image metadata (like
-  // comments) from the end of the png file, then read the remaining data in
-  // the png file, and then finally release our context and close the file.
-  png_infop end = png_create_info_struct(png);
-  DCHECK(end);
-
-  // Read the end data in the png file.
-  png_read_end(png, end);
-
-  // Release our png reading context and associated info structs.
-  png_destroy_read_struct(&png, &png_metadata, &end);
-
-  file_util::CloseFile(fp);
-
-  // And now create a texture out of the image data.
-  return resource_provider->CreateImage(data.Pass());
-}
 
 class RenderTreeBuilder {
  public:
@@ -200,22 +91,18 @@ RenderTreeBuilder::RenderTreeBuilder(ResourceProvider* resource_provider) {
   // Load a test image from disk.
   FilePath data_directory;
   CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
-  test_image_ =
-      LoadPNG(data_directory.Append(FILE_PATH_LITERAL("renderer_sandbox"))
-                  .Append(FILE_PATH_LITERAL("test_image.png")),
-              resource_provider);
+  test_image_ = DecodePNGToRenderTreeImage(
+      data_directory.Append(FILE_PATH_LITERAL("renderer_sandbox"))
+          .Append(FILE_PATH_LITERAL("test_image.png")),
+      resource_provider);
 
   // Create our test font.
   test_font_ = resource_provider->GetPreInstalledFont(
       "Droid Sans", ResourceProvider::kNormal, 40);
 }
 
-namespace {
-
 // Passes the input value through a sawtooth function.
 float Sawtooth(float x) { return x - static_cast<int>(x); }
-
-}  // namespace
 
 scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
     double seconds_elapsed, float width, float height) const {
