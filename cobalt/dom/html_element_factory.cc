@@ -48,7 +48,7 @@ HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
 
 HTMLElementFactory::HTMLElementFactory(
     browser::ResourceLoaderFactory* loader_factory,
-    cssom::CSSParser* css_parser, browser::script::ScriptRunner* script_runner)
+    cssom::CSSParser* css_parser, script::ScriptRunner* script_runner)
     : loader_factory_(loader_factory),
       css_parser_(css_parser),
       script_runner_(script_runner) {

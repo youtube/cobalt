@@ -30,7 +30,7 @@ const char* HTMLScriptElement::kTagName = "script";
 // static
 scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
     browser::ResourceLoaderFactory* loader_factory,
-    browser::script::ScriptRunner* script_runner) {
+    script::ScriptRunner* script_runner) {
   return make_scoped_refptr(
       new HTMLScriptElement(loader_factory, script_runner));
 }
@@ -42,7 +42,7 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
 
 HTMLScriptElement::HTMLScriptElement(
     browser::ResourceLoaderFactory* loader_factory,
-    browser::script::ScriptRunner* script_runner)
+    script::ScriptRunner* script_runner)
     : loader_factory_(loader_factory),
       script_runner_(script_runner),
       is_already_started_(false) {
