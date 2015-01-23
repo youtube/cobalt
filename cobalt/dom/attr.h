@@ -21,7 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/browser/script/wrappable.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,7 +36,7 @@ class NamedNodeMap;
 //
 // This class is designed to proxy the actual attribute value which is stored
 // in the Element and be created only on demand.
-class Attr : public browser::script::Wrappable,
+class Attr : public script::Wrappable,
              public base::SupportsWeakPtr<Attr> {
  public:
   // If container is NULL, the Attr will be created in a detached state.

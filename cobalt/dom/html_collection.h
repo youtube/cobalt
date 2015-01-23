@@ -20,7 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/browser/script/wrappable.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -37,7 +37,7 @@ class Node;
 //    http://www.w3.org/TR/2014/WD-dom-20140710/#interface-htmlcollection
 //
 // This is a DOM interface which has an HTML prefix for historical reasons.
-class HTMLCollection : public browser::script::Wrappable {
+class HTMLCollection : public script::Wrappable {
  public:
   // A collection of all first-level child elements.
   static scoped_refptr<HTMLCollection> CreateWithChildElements(

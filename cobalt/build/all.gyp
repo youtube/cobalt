@@ -22,7 +22,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
-        '<(DEPTH)/cobalt/browser/bindings/javascriptcore.gyp:*',
+        '<(DEPTH)/cobalt/bindings/javascriptcore.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',

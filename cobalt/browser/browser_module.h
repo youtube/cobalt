@@ -19,13 +19,13 @@
 
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
-#include "cobalt/browser/script/global_object_proxy.h"
-#include "cobalt/browser/script/javascript_engine.h"
-#include "cobalt/browser/script/script_runner.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/module.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
