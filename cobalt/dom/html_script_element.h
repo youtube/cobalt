@@ -20,7 +20,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/browser/loader/text_load.h"
-#include "cobalt/browser/script/script_runner.h"
+#include "cobalt/script/script_runner.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,7 +34,7 @@ class HTMLScriptElement : public HTMLElement {
 
   static scoped_refptr<HTMLScriptElement> Create(
       browser::ResourceLoaderFactory* loader_factory,
-      browser::script::ScriptRunner* script_runner);
+      script::ScriptRunner* script_runner);
 
   // Web API: Element
   //
@@ -66,7 +66,7 @@ class HTMLScriptElement : public HTMLElement {
 
  private:
   HTMLScriptElement(browser::ResourceLoaderFactory* loader_factory,
-                    browser::script::ScriptRunner* script_runner);
+                    script::ScriptRunner* script_runner);
   ~HTMLScriptElement() OVERRIDE;
 
   // From the spec: HTMLScriptElement.
@@ -80,7 +80,7 @@ class HTMLScriptElement : public HTMLElement {
   // ResourceLoaderFactory that is used to create a byte loader.
   browser::ResourceLoaderFactory* loader_factory_;
   // Proxy to JavaScript Global Object in which scripts should be run
-  browser::script::ScriptRunner* script_runner_;
+  script::ScriptRunner* script_runner_;
   // This object is responsible for the loading.
   scoped_ptr<browser::TextLoad> text_load_;
   // Whether the script has been started.

@@ -21,7 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
-#include "cobalt/browser/script/wrappable.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,7 +30,7 @@ class Element;
 
 // The DOMTokenList interface represents a set of space-separated tokens.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-domtokenlist
-class DOMTokenList : public browser::script::Wrappable,
+class DOMTokenList : public script::Wrappable,
                      public base::SupportsWeakPtr<DOMTokenList> {
  public:
   static scoped_refptr<DOMTokenList> Create(
