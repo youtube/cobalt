@@ -13,9 +13,9 @@ import re
 import string
 import subprocess
 
-# All of Cobalt's interfaces are under the browser directory, thus the browser
-# component
-KNOWN_COMPONENTS = frozenset(['browser', 'dom'])
+# All of Cobalt's interfaces are under the dom directory.
+# Interfaces related to testing the bindings generation are under testing.
+KNOWN_COMPONENTS = frozenset(['dom', 'testing'])
 
 
 def idl_filename_to_interface_name(idl_filename):
