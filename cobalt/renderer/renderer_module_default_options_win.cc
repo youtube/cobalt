@@ -23,9 +23,9 @@ namespace renderer {
 
 namespace {
 scoped_ptr<Rasterizer> CreateRasterizer(
-    scoped_ptr<backend::GraphicsContext> graphics_context) {
+    backend::GraphicsContext* graphics_context) {
   return scoped_ptr<Rasterizer>(
-      new rasterizer_skia::SkiaSoftwareRasterizer(graphics_context.Pass()));
+      new rasterizer_skia::SkiaSoftwareRasterizer(graphics_context));
 }
 }  // namespace
 
