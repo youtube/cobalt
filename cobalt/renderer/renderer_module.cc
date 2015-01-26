@@ -37,12 +37,11 @@ RendererModule::RendererModule(const Options& options) {
 
   // Create a graphics context associated with the default display's render
   // target so that we have a channel to write to the display.
-  scoped_ptr<renderer::backend::GraphicsContext> primary_graphics_context(
-      graphics_system_->CreateGraphicsContext());
+  graphics_context_ = graphics_system_->CreateGraphicsContext();
 
   // Create a rasterizer to rasterize our render trees.
   scoped_ptr<renderer::Rasterizer> rasterizer =
-      options.create_rasterizer_function.Run(primary_graphics_context.Pass());
+      options.create_rasterizer_function.Run(graphics_context_.get());
 
   // Setup the threaded rendering pipeline and fit our newly created rasterizer
   // into it, and direct it to render directly to the display.
@@ -51,9 +50,6 @@ RendererModule::RendererModule(const Options& options) {
 }
 
 RendererModule::~RendererModule() {
-  pipeline_.reset();
-  display_.reset();
-  graphics_system_.reset();
 }
 
 }  // namespace renderer

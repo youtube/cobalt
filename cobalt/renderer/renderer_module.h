@@ -33,7 +33,7 @@ class RendererModule {
     Options();
 
     typedef base::Callback<scoped_ptr<Rasterizer>(
-        scoped_ptr<backend::GraphicsContext>)> CreateRasterizerCallback;
+        backend::GraphicsContext*)> CreateRasterizerCallback;
     CreateRasterizerCallback create_rasterizer_function;
 
    private:
@@ -53,6 +53,7 @@ class RendererModule {
  private:
   scoped_ptr<renderer::backend::GraphicsSystem> graphics_system_;
   scoped_ptr<renderer::backend::Display> display_;
+  scoped_ptr<renderer::backend::GraphicsContext> graphics_context_;
   scoped_ptr<renderer::Pipeline> pipeline_;
 };
 
