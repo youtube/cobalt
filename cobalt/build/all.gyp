@@ -25,6 +25,7 @@
         '<(DEPTH)/cobalt/bindings/javascriptcore.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
+        '<(DEPTH)/cobalt/dom/dom.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/sandbox/sandbox.gyp:*',
