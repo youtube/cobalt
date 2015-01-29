@@ -114,7 +114,7 @@ struct TraceEvent {
     return timestamp < rhs.timestamp;
   }
 
-  bool has_other_event() const { return other_event; }
+  bool has_other_event() const { return other_event != NULL; }
 
   // Returns absolute duration in microseconds between this event and other
   // event. Must have already verified that other_event exists by
