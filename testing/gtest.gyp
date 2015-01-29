@@ -223,7 +223,11 @@
             ],
           }],
         ],
-        'msvs_disabled_warnings': [4800],
+        'msvs_disabled_warnings': [
+          # Potential comparison of a constant with another constant.
+          # Detected by PREfast in unit tests when using EXPECT_EQ.
+          6326,
+        ],
       },
     },
     {
