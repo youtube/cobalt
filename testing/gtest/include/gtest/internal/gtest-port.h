@@ -1732,7 +1732,7 @@ typedef struct stat StatStruct;
 #define fileno _fileno
 #endif
 inline int FileNo(FILE* file) { return fileno(file); }
-inline int IsATTY(int fd) { return 0; }
+inline int IsATTY(int /*fd*/) { return 0; }
 inline int Stat(const char* path, StatStruct* buf) { return stat(path, buf); }
 inline int StrCaseCmp(const char* s1, const char* s2) {
   return strcasecmp(s1, s2);
@@ -1773,7 +1773,7 @@ inline const char* StrNCpy(char* dest, const char* src, size_t n) {
 // defined there.
 
 #if defined(__LB_SHELL__)
-inline int ChDir(const char* dir) {
+inline int ChDir(const char* /*dir*/) {
   // Not implemented
   return 0;
 }
