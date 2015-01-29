@@ -831,6 +831,9 @@
           ],
         }],
       ],  # target_conditions
+      'msvs_disabled_warnings': [
+        4800,  # forcing value to bool 'true' or 'false' (performance warning)
+      ],
     },
     {
       'target_name': 'test_support_base',
