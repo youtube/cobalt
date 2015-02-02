@@ -23,10 +23,40 @@
         'json_file_outputter.h',
         'scoped_trace_to_file.cc',
         'scoped_trace_to_file.h',
+        'scoped_event_parser_trace.cc',
+        'scoped_event_parser_trace.h',
+        'event_parser.cc',
+        'event_parser.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
       ],
+    },
+
+    {
+      'target_name': 'trace_event_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'event_parser_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'trace_event',
+      ],
+    },
+    {
+      'target_name': 'trace_event_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'trace_event_test',
+      ],
+      'variables': {
+        'executable_name': 'trace_event_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
     },
   ],
 }
