@@ -85,10 +85,6 @@ class Document : public Node {
   scoped_refptr<HTMLCollection> GetElementsByClassName(
       const std::string& class_name) const;
 
-  // Note: this method is deprecated in DOM4.
-  scoped_refptr<Attr> CreateAttribute(const std::string& name,
-                                      const std::string& value);
-
   scoped_refptr<Element> CreateElement();
   scoped_refptr<Element> CreateElement(const std::string& tag_name);
   scoped_refptr<Text> CreateTextNode(const std::string& text);
@@ -156,11 +152,10 @@ class Document : public Node {
   //               (see http://www.w3.org/TR/dom/#mutation-observers).
   void RecordMutation();
 
- protected:
+ private:
   Document(HTMLElementFactory* html_element_factory, const GURL& url);
   ~Document() OVERRIDE {}
 
- private:
   scoped_refptr<HTMLHtmlElement> html() const;
 
   // These functions are called when body, head, html elements are attached to/
