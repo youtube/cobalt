@@ -97,6 +97,13 @@ class BASE_EXPORT TraceEvent {
   const unsigned char* category_enabled() const { return category_enabled_; }
   const char* name() const { return name_; }
 
+#if defined(COBALT)
+  unsigned long long id() const { return id_; }
+  const TraceValue* arg_values() const { return arg_values_; }
+  int thread_id() const { return thread_id_; }
+  char phase() const { return phase_; }
+#endif
+
  private:
   // Note: these are ordered by size (largest first) for optimal packing.
   TimeTicks timestamp_;
@@ -248,6 +255,14 @@ class BASE_EXPORT TraceLog {
   typedef base::Callback<void(const scoped_refptr<base::RefCountedString>&)>
       OutputCallback;
   void Flush(const OutputCallback& cb);
+
+#if defined(COBALT)
+  // Flush out events as raw TraceEvent structures.  Optinally also flush out
+  // JSON output as well.
+  typedef base::Callback<void(const TraceEvent&)> RawEventOutputCallback;
+  void FlushWithRawEvents(const RawEventOutputCallback& raw_event_callback,
+                          const OutputCallback& json_output_callback);
+#endif
 
   // Called by TRACE_EVENT* macros, don't call this directly.
   static const unsigned char* GetCategoryEnabled(const char* name);

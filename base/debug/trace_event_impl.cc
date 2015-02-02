@@ -491,7 +491,7 @@ void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
                     OnTraceLogWillEnable());
   dispatching_to_observer_list_ = false;
 
-  logged_events_.reserve(1024);
+  logged_events_.reserve(256 * 1024);
   enabled_ = true;
   included_categories_ = included_categories;
   excluded_categories_ = excluded_categories;
@@ -606,6 +606,36 @@ void TraceLog::Flush(const TraceLog::OutputCallback& cb) {
                                    kTraceEventBatchSize,
                                    &(json_events_str_ptr->data()));
     cb.Run(json_events_str_ptr);
+  }
+}
+
+void TraceLog::FlushWithRawEvents(
+    const TraceLog::RawEventOutputCallback& raw_event_callback,
+    const TraceLog::OutputCallback& json_output_callback) {
+  std::vector<TraceEvent> previous_logged_events;
+  {
+    AutoLock lock(lock_);
+    previous_logged_events.swap(logged_events_);
+  }  // release lock
+
+  for (size_t i = 0;
+       i < previous_logged_events.size();
+       i += kTraceEventBatchSize) {
+    if (!raw_event_callback.is_null()) {
+      for (size_t j = i; j < i + kTraceEventBatchSize; ++j) {
+        raw_event_callback.Run(previous_logged_events[j]);
+      }
+    }
+
+    if (!json_output_callback.is_null()) {
+      scoped_refptr<RefCountedString> json_events_str_ptr =
+          new RefCountedString();
+      TraceEvent::AppendEventsAsJSON(previous_logged_events,
+                                     i,
+                                     kTraceEventBatchSize,
+                                     &(json_events_str_ptr->data()));
+      json_output_callback.Run(json_events_str_ptr);
+    }
   }
 }
 
