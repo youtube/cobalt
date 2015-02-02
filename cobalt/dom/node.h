@@ -207,8 +207,8 @@ class Node : public script::Wrappable,
   // Node generation counter.
   uint32_t node_generation_;
 
-  friend class Document;
   friend class base::RefCounted<Node>;
+  friend class Document;
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
 

@@ -63,11 +63,6 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
 }
 
-scoped_refptr<Attr> Document::CreateAttribute(const std::string& name,
-                                              const std::string& value) {
-  return Attr::Create(name, value, NULL);
-}
-
 scoped_refptr<Element> Document::CreateElement() { return Element::Create(); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
