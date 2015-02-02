@@ -70,15 +70,6 @@ TEST_F(DocumentTest, Create) {
   EXPECT_EQ(url, document->url_as_gurl());
 }
 
-TEST_F(DocumentTest, CreateAttribute) {
-  scoped_refptr<Document> document = Document::Create(&html_element_factory_);
-  scoped_refptr<Attr> attribute = document->CreateAttribute("name", "value");
-
-  EXPECT_EQ("name", attribute->name());
-  EXPECT_EQ("name", attribute->node_name());
-  EXPECT_EQ("value", attribute->value());
-}
-
 TEST_F(DocumentTest, CreateElement) {
   scoped_refptr<Document> document = Document::Create(&html_element_factory_);
   scoped_refptr<Element> element = document->CreateElement();
