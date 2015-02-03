@@ -29,12 +29,15 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 WTF::String ToWTFString(const std::string& utf8_string);
+JSC::JSValue BooleanToJSValue(JSC::JSGlobalData* global_data, bool in_boolean);
 JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
                              const std::string& utf8_string);
 JSC::JSValue JSObjectToJSValue(JSC::JSObject* js_object);
+
+void JSValueToBoolean(JSC::ExecState* exec_state, JSC::JSValue value,
+                      bool* out_boolean);
 void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
                      std::string* out_string);
-
 JSC::JSObject* JSValueToJSObject(JSC::ExecState* exec_state,
                                  JSC::JSValue value);
 
