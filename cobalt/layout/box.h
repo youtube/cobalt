@@ -43,6 +43,8 @@ class Box {
       const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style,
       UsedStyleProvider* used_style_provider);
 
+  virtual ~Box() {}
+
   // In CSS, many box positions and sizes are calculated with respect to
   // the edges of a rectangular box called a containing block.
   //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
