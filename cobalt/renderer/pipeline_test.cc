@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <cmath>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
