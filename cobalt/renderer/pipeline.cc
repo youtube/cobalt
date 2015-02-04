@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/pipeline.h"
 
+#include "base/debug/trace_event.h"
 #include "base/bind.h"
 
 namespace cobalt {
@@ -32,6 +33,7 @@ Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer,
       render_target_(render_target),
       refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
   // so we detach it here and let it reattach itself to the rasterizer thread
@@ -41,6 +43,7 @@ Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer,
 }
 
 Pipeline::~Pipeline() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
   rasterizer_thread_->message_loop()->PostTask(
@@ -51,6 +54,7 @@ Pipeline::~Pipeline() {
 }
 
 void Pipeline::Submit(const scoped_refptr<render_tree::Node>& render_tree) {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
@@ -62,8 +66,14 @@ void Pipeline::SetNewRenderTree(
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree.get());
 
+  if (current_tree_) {
+    TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
+                          current_tree_.get());
+  }
+  TRACE_EVENT_FLOW_BEGIN0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
+                          render_tree.get());
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
   current_tree_ = render_tree;
-
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
     // We add 1 to the refresh rate in the following timer_interval calculation
@@ -93,6 +103,10 @@ void Pipeline::SetNewRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
+  TRACE_EVENT_FLOW_STEP0(
+      "cobalt::renderer", "Pipeline::SetNewRenderTree()",
+      current_tree_.get(), "Pipeline::RasterizeCurrentTree()");
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(current_tree_.get());
 
@@ -101,6 +115,7 @@ void Pipeline::RasterizeCurrentTree() {
 }
 
 void Pipeline::ShutdownRasterizerThread() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   // Stop and shutdown the raterizer timer.
   refresh_rate_timer_ = base::nullopt;
