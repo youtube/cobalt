@@ -159,7 +159,9 @@ base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
 void ShellDemuxerStream::FlushBuffers() {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
-  DCHECK(read_queue_.empty()) << "Read requests should be empty";
+  // TODO(***REMOVED***) : Investigate if the following warning is valid.
+  //                   See also b/19254849.
+  DLOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   last_buffer_timestamp_ = kNoTimestamp();
 }
