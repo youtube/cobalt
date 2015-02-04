@@ -27,6 +27,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
       ],
 
       'actions': [
