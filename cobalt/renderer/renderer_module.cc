@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
@@ -29,24 +30,45 @@ RendererModule::Options::Options() {
 }
 
 RendererModule::RendererModule(const Options& options) {
+  TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
+
   // Load up the platform's default graphics system.
-  graphics_system_ = renderer::backend::CreateDefaultGraphicsSystem();
+  {
+    TRACE_EVENT0("cobalt::renderer",
+                 "backend::CreateDefaultGraphicsSystem()");
+    graphics_system_ = backend::CreateDefaultGraphicsSystem();
+  }
 
   // Create/initialize the default display
-  display_ = graphics_system_->CreateDefaultDisplay();
+  {
+    TRACE_EVENT0("cobalt::renderer",
+                 "GraphicsSystem::CreateDefaultDisplay()");
+    display_ = graphics_system_->CreateDefaultDisplay();
+  }
 
   // Create a graphics context associated with the default display's render
   // target so that we have a channel to write to the display.
-  graphics_context_ = graphics_system_->CreateGraphicsContext();
+  {
+    TRACE_EVENT0("cobalt::renderer",
+                 "GraphicsSystem::CreateGraphicsContext()");
+    graphics_context_ = graphics_system_->CreateGraphicsContext();
+  }
 
   // Create a rasterizer to rasterize our render trees.
-  scoped_ptr<renderer::Rasterizer> rasterizer =
-      options.create_rasterizer_function.Run(graphics_context_.get());
+  scoped_ptr<renderer::Rasterizer> rasterizer;
+  {
+    TRACE_EVENT0("cobalt::renderer", "Create Rasterizer");
+    rasterizer =
+        options.create_rasterizer_function.Run(graphics_context_.get());
+  }
 
   // Setup the threaded rendering pipeline and fit our newly created rasterizer
   // into it, and direct it to render directly to the display.
-  pipeline_ = make_scoped_ptr(
-      new renderer::Pipeline(rasterizer.Pass(), display_->GetRenderTarget()));
+  {
+    TRACE_EVENT0("cobalt::renderer", "new renderer::Pipeline()");
+    pipeline_ = make_scoped_ptr(
+        new renderer::Pipeline(rasterizer.Pass(), display_->GetRenderTarget()));
+  }
 }
 
 RendererModule::~RendererModule() {

@@ -17,6 +17,7 @@
 #include <cmath>
 
 #include "base/at_exit.h"
+#include "base/debug/trace_event.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -36,8 +37,9 @@
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
-#include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/test/png_utils/png_decode.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 
 using cobalt::render_tree::ResourceProvider;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
@@ -66,6 +68,9 @@ class RenderTreeBuilder {
 };
 
 RenderTreeBuilder::RenderTreeBuilder(ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::renderer_sandbox",
+               "RenderTreeBuilder::RenderTreeBuilder()");
+
   // Create a set of randomly positioned and sized sprites.
   const int kNumSprites = 20;
   for (int i = 0; i < kNumSprites; ++i) {
@@ -106,6 +111,8 @@ float Sawtooth(float x) { return x - static_cast<int>(x); }
 
 scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
     double seconds_elapsed, float width, float height) const {
+  TRACE_EVENT0("cobalt::renderer_sandbox", "RenderTreeBuilder::Build()");
+
   // Create an image for each SpriteInfo we have in our sprite_infos_ vector.
   // They will be positioned and scaled according to their SpriteInfo settings,
   // and rotated according to time.
@@ -210,6 +217,9 @@ int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
+  cobalt::trace_event::ScopedTraceToFile trace_to_file(
+      FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json")));
+
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;
   cobalt::renderer::RendererModule renderer_module(renderer_module_options);
@@ -220,6 +230,7 @@ int main(int argc, char* argv[]) {
       renderer_module.pipeline()->GetResourceProvider());
 
   // Repeatedly render/animate and flip the screen.
+  int frame = 0;
   base::Time start_time = base::Time::Now();
   while (true) {
     double seconds_elapsed = (base::Time::Now() - start_time).InSecondsF();
@@ -229,6 +240,8 @@ int main(int argc, char* argv[]) {
       break;
     }
 
+    ++frame;
+    TRACE_EVENT1("renderer_sandbox", "frame", "frame_number", frame);
     // Build the render tree that we will output to the screen
     scoped_refptr<cobalt::render_tree::Node> render_tree =
         render_tree_builder.Build(
@@ -237,7 +250,10 @@ int main(int argc, char* argv[]) {
             renderer_module.render_target()->GetSurfaceInfo().height);
 
     // Submit the render tree to be rendered.
-    renderer_module.pipeline()->Submit(render_tree);
+    {
+      TRACE_EVENT0("renderer_sandbox", "submit");
+      renderer_module.pipeline()->Submit(render_tree);
+    }
   }
 
   return 0;
