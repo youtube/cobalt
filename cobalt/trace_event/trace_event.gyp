@@ -58,5 +58,46 @@
       },
       'includes': [ '../build/deploy.gypi' ],
     },
+
+    {
+      # Benchmarking library.  Depend on this if you would like to define
+      # benchmarks in your project.
+      'target_name': 'benchmark',
+      'type': 'static_library',
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        'trace_event',
+      ],
+      'sources': [
+        'benchmark.cc',
+      ],
+    },
+    {
+      # Depending on this will automatically give your target a main() that
+      # will execute all visible benchmarks.
+      'target_name': 'run_all_benchmarks',
+      'type': 'static_library',
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/base/base.gyp:base',
+        'benchmark',
+      ],
+      'sources': [
+        'benchmark_runner.cc',
+      ],
+    },
+
+    {
+      # Sample benchmark project.
+      'target_name': 'sample_benchmark',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'sample_benchmark.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        'run_all_benchmarks',
+      ],
+    },
   ],
 }

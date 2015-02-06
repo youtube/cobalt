@@ -57,6 +57,16 @@ class EventParser {
                 const base::debug::TraceEvent& begin_event,
                 EventParser* event_parser);
 
+    // Shortcut method to retrieve the event name.  This should be the same
+    // amongst begin_event(), end_event() and all instant_events().
+    const std::string name() const { return begin_event().name(); }
+
+    // Convenience method for returning the duration of this event's entire
+    // flow.
+    base::TimeDelta flow_duration() const {
+      return *end_flow_time() - begin_event().timestamp();
+    }
+
     // Returns the event's parent scope.  Informally, this is the scope that
     // was responsible for producing this scope.
     const scoped_refptr<ScopedEvent>& parent() const { return parent_; }
