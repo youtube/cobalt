@@ -103,9 +103,9 @@ void Pipeline::SetNewRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
-  TRACE_EVENT_FLOW_STEP0(
-      "cobalt::renderer", "Pipeline::SetNewRenderTree()",
-      current_tree_.get(), "Pipeline::RasterizeCurrentTree()");
+  TRACE_EVENT_FLOW_STEP0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
+                         current_tree_.get(),
+                         "Pipeline::RasterizeCurrentTree()");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(current_tree_.get());
