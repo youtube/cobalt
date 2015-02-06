@@ -1,0 +1,58 @@
+$$ This is a pump file for generating the interface and implementation of
+$$ the benchmarking system's TRACE_EVENT_BENCHMARK* macros, which can take a
+$$ variable number of parameters.  Pump is a python script that is part of the
+$$ Google Test suite of utilities.  Description can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$var MAX_ARITY = 7
+
+$range ARITY 1..MAX_ARITY
+
+$for ARITY [[
+
+$range ARG 1..ARITY
+
+#define TRACE_EVENT_BENCHMARK$(ARITY)(benchmark, $for ARG , [[event_name_$(ARG)]])\
+class benchmark : public cobalt::trace_event::Benchmark {\
+ public:\
+  void Experiment() OVERRIDE;\
+  void AnalyzeTraceEvent(\
+      const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& event)\
+      OVERRIDE {\
+
+$for ARG
+[[
+    $if ARG > 1 [[else ]]if (event->name() == event_name_$(ARG)) {\
+      event_$(ARG)_durations_in_seconds_.push_back(\
+          event->flow_duration().InSecondsF());\
+    }\
+
+]]
+  }\
+  std::vector<Result> CompileResults() OVERRIDE {\
+    std::vector<Result> results;\
+
+$for ARG
+[[
+    results.push_back(Result(event_name_$(ARG) " time in seconds",\
+                             event_$(ARG)_durations_in_seconds_));\
+
+]]
+    return results;\
+  }\
+ private:\
+
+$for ARG
+[[
+  std::vector<double> event_$(ARG)_durations_in_seconds_;\
+
+]]
+};\
+\
+TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
+\
+void benchmark::Experiment()
+
+]]
