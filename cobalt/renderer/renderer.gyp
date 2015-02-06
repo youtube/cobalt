@@ -82,7 +82,6 @@
         'renderer_copy_test_data',
       ],
     },
-
     {
       'target_name': 'renderer_test_deploy',
       'type': 'none',
@@ -94,5 +93,19 @@
       },
       'includes': [ '../build/deploy.gypi' ],
     },
+
+    {
+      'target_name': 'renderer_benchmark',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'rasterizer_benchmark.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/test/render_tree_builders/render_tree_builders.gyp:render_tree_builders',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
+        'renderer',
+      ],
+    }
   ],
 }
