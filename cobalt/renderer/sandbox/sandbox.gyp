@@ -26,21 +26,8 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
-        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
+        '<(DEPTH)/cobalt/renderer/test/render_tree_builders/render_tree_builders.gyp:render_tree_builders',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
-      ],
-
-      'actions': [
-        {
-          'action_name': 'copy_data',
-          'variables': {
-            'input_files': [
-              'test_image.png',
-            ],
-            'output_dir': 'renderer_sandbox',
-          },
-          'includes': ['../../build/copy_data.gypi'],
-        },
       ],
     },
 

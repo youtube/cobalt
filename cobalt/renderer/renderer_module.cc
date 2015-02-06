@@ -34,23 +34,20 @@ RendererModule::RendererModule(const Options& options) {
 
   // Load up the platform's default graphics system.
   {
-    TRACE_EVENT0("cobalt::renderer",
-                 "backend::CreateDefaultGraphicsSystem()");
+    TRACE_EVENT0("cobalt::renderer", "backend::CreateDefaultGraphicsSystem()");
     graphics_system_ = backend::CreateDefaultGraphicsSystem();
   }
 
   // Create/initialize the default display
   {
-    TRACE_EVENT0("cobalt::renderer",
-                 "GraphicsSystem::CreateDefaultDisplay()");
+    TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateDefaultDisplay()");
     display_ = graphics_system_->CreateDefaultDisplay();
   }
 
   // Create a graphics context associated with the default display's render
   // target so that we have a channel to write to the display.
   {
-    TRACE_EVENT0("cobalt::renderer",
-                 "GraphicsSystem::CreateGraphicsContext()");
+    TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateGraphicsContext()");
     graphics_context_ = graphics_system_->CreateGraphicsContext();
   }
 
