@@ -20,8 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
-#include "cobalt/script/wrappable.h"
+#include "cobalt/dom/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -96,8 +95,7 @@ class ConstNodeVisitor {
 // If required, these limitation can be fixed by using a garbage collection
 // scheme similar to Oilpan:
 //   http://www.chromium.org/blink/blink-gc
-class Node : public script::Wrappable,
-             public base::SupportsWeakPtr<Node> {
+class Node : public EventTarget {
  public:
   // Web API: Node
   // NodeType values as defined by Web API Node.nodeType.
