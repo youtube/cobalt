@@ -16,6 +16,9 @@
 
 #include "cobalt/dom/document.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
+#include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_body_element.h"
@@ -147,6 +150,11 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchOnLoad() {
   if (--loading_counter_ == 0 && should_dispatch_on_load_) {
     should_dispatch_on_load_ = false;
     FOR_EACH_OBSERVER(DocumentObserver, observers_, OnLoad());
+    // TODO(***REMOVED***): We should also fire event on onload attribute when set.
+    base::MessageLoopProxy::current()->PostTask(
+        FROM_HERE,
+        base::Bind(base::IgnoreResult(&Document::DispatchEvent), AsWeakPtr(),
+                   make_scoped_refptr(new Event("load"))));
   }
 }
 
