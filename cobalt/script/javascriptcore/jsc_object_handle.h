@@ -13,38 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
+#ifndef SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
+#define SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
 
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "cobalt/script/script_object_handle.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
 
-// A wrapper around a JSC::Weak handle to a garbage-collected WrapperBase
+// A wrapper around a JSC::Weak handle to a garbage-collected JSC::JSObject
 // object.
-class JSWrapperHandle : public ScriptObjectHandle {
+class JSCObjectHandle : public ScriptObjectHandle {
  public:
-  explicit JSWrapperHandle(JSC::PassWeak<WrapperBase> wrapper) {
+  explicit JSCObjectHandle(JSC::PassWeak<JSC::JSObject> wrapper) {
     handle_ = wrapper;
   }
-  static WrapperBase* GetWrapperBase(ScriptObjectHandle* handle) {
+  static JSC::JSObject* GetJSObject(ScriptObjectHandle* handle) {
     if (handle) {
-      return base::polymorphic_downcast<JSWrapperHandle*>(handle)
+      return base::polymorphic_downcast<JSCObjectHandle*>(handle)
           ->handle_.get();
     }
     return NULL;
   }
 
  private:
-  JSC::Weak<WrapperBase> handle_;
+  JSC::Weak<JSC::JSObject> handle_;
 };
 
 }  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_WRAPPER_HANDLE_H_
+#endif  // SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_

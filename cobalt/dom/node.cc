@@ -67,7 +67,7 @@ scoped_refptr<Node> Node::InsertBefore(
   if (new_child->parent_) {
     new_child->parent_->RemoveChild(new_child);
   }
-  new_child->parent_ = AsWeakPtr();
+  new_child->parent_ = StaticAsWeakPtr<Node>(this);
 
   scoped_refptr<Node> next_sibling = reference_child;
   base::WeakPtr<Node> previous_sibling;
@@ -86,9 +86,9 @@ scoped_refptr<Node> Node::InsertBefore(
   new_child->previous_sibling_ = previous_sibling;
 
   if (next_sibling) {
-    next_sibling->previous_sibling_ = new_child->AsWeakPtr();
+    next_sibling->previous_sibling_ = StaticAsWeakPtr<Node>(new_child);
   } else {
-    last_child_ = new_child->AsWeakPtr();
+    last_child_ = StaticAsWeakPtr<Node>(new_child);
   }
   new_child->next_sibling_ = next_sibling;
 
