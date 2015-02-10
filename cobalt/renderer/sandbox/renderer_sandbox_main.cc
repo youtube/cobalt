@@ -213,7 +213,7 @@ scoped_refptr<cobalt::render_tree::Node> RenderTreeBuilder::Build(
 
 }  // namespace
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 
