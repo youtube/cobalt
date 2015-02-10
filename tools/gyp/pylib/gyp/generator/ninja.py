@@ -73,6 +73,8 @@ generator_supports_multiple_toolsets = (
   os.environ.get('CC_target') or
   os.environ.get('CXX_target'))
 
+is_linux = platform.system() == 'Linux'
+is_windows = platform.system() == 'Windows'
 
 def StripPrefix(arg, prefix):
   if arg.startswith(prefix):
@@ -411,7 +413,8 @@ class NinjaWriter:
     self.xcode_settings = self.msvs_settings = None
     if self.flavor == 'mac':
       self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
-    if self.flavor in ['win', 'wiiu', 'ps3', 'xb1', 'xb360', 'ps4']:
+    if (self.flavor in ['win', 'wiiu', 'ps3', 'xb1', 'xb360', 'ps4']
+        and is_windows):
       self.msvs_settings = gyp.msvs_emulation.MsvsSettings(spec,
                                                            generator_flags)
       arch = self.msvs_settings.GetArch(config_name)
@@ -1354,7 +1357,8 @@ class NinjaWriter:
     rspfile = None
     rspfile_content = None
     args = [self.ExpandSpecial(arg, self.base_to_build) for arg in args]
-    if self.flavor in ['win', 'wiiu', 'ps3', 'xb1', 'xb360', 'ps4']:
+    if (self.flavor in ['win', 'wiiu', 'ps3', 'xb1', 'xb360', 'ps4']
+        and is_windows):
       rspfile = rule_name + '.$unique_name.rsp'
       # The cygwin case handles this inside the bash sub-shell.
       run_in = '' if is_cygwin else ' ' + self.build_to_base
@@ -1434,7 +1438,7 @@ def CalculateVariables(default_variables, params):
       default_variables['MSVS_OS_BITS'] = 64
     else:
       default_variables['MSVS_OS_BITS'] = 32
-  elif (platform.system() != 'Linux' and flavor in ['ps3', 'wiiu', 'ps4']):
+  elif (is_windows and flavor in ['ps3', 'wiiu', 'ps4']):
     # We're building on Cygwin
     default_variables.setdefault('OS', 'win')
     default_variables['EXECUTABLE_SUFFIX'] = '.exe'
@@ -1473,6 +1477,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                             config_name):
   options = params['options']
   flavor = gyp.common.GetFlavor(params)
+
   generator_flags = params.get('generator_flags', {})
 
   # generator_dir: relative path from pwd to where make puts build files.
@@ -1505,7 +1510,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   # - If there is no 'make_global_settings' for CC.host/CXX.host or
   #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
   #   to cc/cxx.
-  if flavor in ['win', 'ps3', 'ps4']:
+  if (flavor == 'win' or (flavor in ['ps3', 'ps4'] and is_windows)):
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
@@ -1645,8 +1650,6 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   else:
     python_path = 'python'
   master_ninja.variable('python', python_path)
-
-  is_linux = platform.system() == 'Linux'
   master_ninja.newline()
 
   if flavor not in ['win', 'xb1', 'xb360']:
@@ -1760,7 +1763,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
     ld_cmd = '$ld'
 
-    if flavor in ['ps3', 'ps4'] and not is_linux:
+    if flavor in ['ps3', 'ps4'] and is_windows:
       alink_command = 'cmd.exe /c ' + alink_command
       alink_thin_command = 'cmd.exe /c ' + alink_thin_command
       ld_cmd = '%s gyp-win-tool link-wrapper $arch $ld' % python_exec
@@ -2007,7 +2010,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   if flavor in ['android', 'linux', 'ps3', 'ps4', 'wiiu']:
     cc_command=('bash -c "$cc_host @$out.rsp"')
     cxx_command=('bash -c "$cxx_host @$out.rsp"')
-    if not is_linux:
+    if is_windows:
       cc_command = 'cmd.exe /c ' + cc_command
       cxx_command = 'cmd.exe /c ' + cxx_command
 
