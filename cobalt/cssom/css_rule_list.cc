@@ -34,7 +34,9 @@ scoped_refptr<CSSStyleRule> CSSRuleList::Item(unsigned int index) const {
 }
 
 unsigned int CSSRuleList::length() const {
-  return css_style_sheet_->css_rules_.size();
+  CHECK_LE(css_style_sheet_->css_rules_.size(),
+           std::numeric_limits<unsigned int>::max());
+  return static_cast<unsigned int>(css_style_sheet_->css_rules_.size());
 }
 
 CSSRuleList::CSSRuleList(
