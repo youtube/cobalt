@@ -53,7 +53,8 @@ void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
 
   {
     ScopedEventParserTrace event_watcher(
-        base::Bind(&Benchmark::AnalyzeTraceEvent, base::Unretained(benchmark)));
+        base::Bind(&Benchmark::AnalyzeTraceEvent, base::Unretained(benchmark)),
+        FilePath("benchmark_" + benchmark->name() + ".json"));
     benchmark->Experiment();
   }
 

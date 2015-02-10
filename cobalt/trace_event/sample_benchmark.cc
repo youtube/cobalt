@@ -19,8 +19,9 @@
 
 // A sample simple benchmark that tracks only a single event, in this case,
 // "LoopIteration".
-TRACE_EVENT_BENCHMARK1(SampleTestBenchmarkWithOneTrackedEvent,
-                       "LoopIteration") {
+TRACE_EVENT_BENCHMARK1(
+    SampleTestBenchmarkWithOneTrackedEvent,
+    "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION) {
   const int kRenderIterationCount = 40;
   for (int i = 0; i < kRenderIterationCount; ++i) {
     TRACE_EVENT0("SampleBenchmark", "LoopIteration");
@@ -36,9 +37,15 @@ TRACE_EVENT_BENCHMARK1(SampleTestBenchmarkWithOneTrackedEvent,
 }
 
 // This sample benchmark is very similar to the single event tracking benchmark
-// above, however it tracks 3 events instead of 1.
-TRACE_EVENT_BENCHMARK3(SampleTestBenchmarkWithThreeTrackedEvents,
-                       "LoopIteration", "SubEventA", "SubEventB") {
+// above, however it tracks 3 events instead of 1.  For one of those 3 events,
+// "SubEventA", we track both its in-scope duration as well as the time between
+// subsequent event instance start times.
+TRACE_EVENT_BENCHMARK4(
+    SampleTestBenchmarkWithThreeTrackedEvents,
+    "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION,
+    "SubEventA", cobalt::trace_event::IN_SCOPE_DURATION,
+    "SubEventA", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
+    "SubEventB", cobalt::trace_event::IN_SCOPE_DURATION) {
   const int kRenderIterationCount = 40;
   for (int i = 0; i < kRenderIterationCount; ++i) {
     TRACE_EVENT0("SampleBenchmark", "LoopIteration");
@@ -66,17 +73,21 @@ void HandleTask() {
   usleep(10000);
 }
 
-TRACE_EVENT_BENCHMARK2(FlowExample,
-                       "FlowInitiator",
-                       "HandleTask()") {
+TRACE_EVENT_BENCHMARK4(
+    FlowExample,
+    "FlowInitiator", cobalt::trace_event::IN_SCOPE_DURATION,
+    "FlowInitiator", cobalt::trace_event::FLOW_DURATION,
+    "FlowInitiator", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
+    "HandleTask()", cobalt::trace_event::FLOW_DURATION) {
   base::Thread thread("Worker Thread");
   thread.Start();
 
   const int kRenderIterationCount = 40;
   for (int i = 0; i < kRenderIterationCount; ++i) {
+    usleep(2000);
     TRACE_EVENT0("SampleBenchmark", "FlowInitiator");
     thread.message_loop()->PostTask(FROM_HERE, base::Bind(&HandleTask));
-    usleep(8000);
+    usleep(5000);
   }
 }
 
@@ -84,7 +95,7 @@ TRACE_EVENT_BENCHMARK2(FlowExample,
 // method (allowing for sophisticated metrics to be extracted) as well as
 // the results compilation method which decides how to present the data
 // to subsequent stages of the pipeline.
-class SampleTestBenchmark : public cobalt::trace_event::Benchmark {
+class SampleTestAdvancedBenchmark : public cobalt::trace_event::Benchmark {
  public:
   // This method will be executed in order to generate the trace results
   // that will subsequently be analyzed.
@@ -110,7 +121,7 @@ class SampleTestBenchmark : public cobalt::trace_event::Benchmark {
   void AnalyzeTraceEvent(const scoped_refptr<
       cobalt::trace_event::EventParser::ScopedEvent>& event) OVERRIDE {
     if (event->name() == "LoopIteration") {
-      rasterize_iteration_times_in_seconds_.push_back(
+      loop_iteration_times_in_seconds_.push_back(
           event->flow_duration().InSecondsF());
     } else if (event->name() == "SubEventA") {
       sub_event_a_times_in_seconds_.push_back(
@@ -128,7 +139,7 @@ class SampleTestBenchmark : public cobalt::trace_event::Benchmark {
     std::vector<Result> results;
 
     results.push_back(Result("LoopIteration time in seconds",
-                             rasterize_iteration_times_in_seconds_));
+                             loop_iteration_times_in_seconds_));
     results.push_back(
         Result("SubEventA time in seconds", sub_event_a_times_in_seconds_));
     results.push_back(
@@ -138,8 +149,8 @@ class SampleTestBenchmark : public cobalt::trace_event::Benchmark {
   }
 
  private:
-  std::vector<double> rasterize_iteration_times_in_seconds_;
+  std::vector<double> loop_iteration_times_in_seconds_;
   std::vector<double> sub_event_a_times_in_seconds_;
   std::vector<double> sub_event_b_times_in_seconds_;
 };
-TRACE_EVENT_REGISTER_BENCHMARK(SampleTestBenchmark);
+TRACE_EVENT_REGISTER_BENCHMARK(SampleTestAdvancedBenchmark);
