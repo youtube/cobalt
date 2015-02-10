@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 
+#include "base/debug/trace_event.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "third_party/libpng/png.h"
@@ -47,6 +48,9 @@ class PNGFileReadContext {
 };
 
 PNGFileReadContext::PNGFileReadContext(const FilePath& file_path) {
+  TRACE_EVENT0("renderer::test::png_utils",
+               "PNGFileReadContext::PNGFileReadContext()");
+
   // Much of this PNG loading code is based on a section from the libpng manual:
   // http://www.libpng.org/pub/png/libpng-1.2.5-manual.html#section-3
 
@@ -136,6 +140,8 @@ PNGFileReadContext::~PNGFileReadContext() {
 }
 
 void PNGFileReadContext::DecodeImageTo(const std::vector<png_bytep>& rows) {
+  TRACE_EVENT0("renderer::test::png_utils",
+               "PNGFileReadContext::DecodeImageTo()");
   // Execute the read of png image data.
   png_read_image(png_, const_cast<png_bytep*>(&rows[0]));
 }
