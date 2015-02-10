@@ -106,6 +106,6 @@
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
         'renderer',
       ],
-    }
+    },
   ],
 }
