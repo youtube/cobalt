@@ -67,6 +67,11 @@ class EventParser {
       return *end_flow_time() - begin_event().timestamp();
     }
 
+    // Convenience method for returning the duration of this event's scope.
+    base::TimeDelta in_scope_duration() const {
+      return end_event()->timestamp() - begin_event().timestamp();
+    }
+
     // Returns the event's parent scope.  Informally, this is the scope that
     // was responsible for producing this scope.
     const scoped_refptr<ScopedEvent>& parent() const { return parent_; }
