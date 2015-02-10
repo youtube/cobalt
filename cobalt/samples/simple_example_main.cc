@@ -39,7 +39,9 @@ void RunCode() {
 
 }  // namespace
 
-int main(int argc, char* argv[]) {
+// Argument list should be passed as char**, not char*[] in order to compile
+// on Windows. See main_wrapper_win.cc for details.
+int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 

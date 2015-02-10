@@ -18,7 +18,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/browser/application.h"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
 

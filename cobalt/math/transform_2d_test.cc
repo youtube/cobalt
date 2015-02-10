@@ -52,7 +52,7 @@ TEST(Transform2DTest, IsotropicScale) {
 }
 
 TEST(Transform2DTest, Rotation) {
-  const float kTheta = M_PI / 4.0f;
+  const float kTheta = static_cast<float>(M_PI) / 4.0f;
 
   // Note that we account for the fact that up is represented by negative y.
   Matrix3F expected_value = Matrix3F::FromValues(

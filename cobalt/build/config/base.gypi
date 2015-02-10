@@ -19,6 +19,10 @@
     # Cobalt variables.
     'cobalt': 1,
 
+    # Similarly to chromium_code, marks the projects that are created
+    # by Cobalt team and thus are held to the highest standard of code health.
+    'cobalt_code%': 0,
+
     # Contains the current build configuration.
     'cobalt_config%': 'Gold',
     'cobalt_fastbuild%': 0,
@@ -81,6 +85,18 @@
   },
 
   'target_defaults': {
+    'variables': {
+      # The condition that operates on cobalt_code is in a target_conditions
+      # section, and will not have access to the default fallback value of
+      # cobalt_code at the top of this file, or to the cobalt_code
+      # variable placed at the root variables scope of .gyp files, because
+      # those variables are not set at target scope.  As a workaround,
+      # if cobalt_code is not set at target scope, define it in target scope
+      # to contain whatever value it has during early variable expansion.
+      # That's enough to make it available during target conditional
+      # processing.
+      'cobalt_code%': '<(cobalt_code)',
+    },
     'defines': [
       'COBALT',
       '__LB_SHELL__',

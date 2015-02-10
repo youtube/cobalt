@@ -29,7 +29,10 @@ scoped_refptr<CSSStyleSheet> StyleSheetList::Item(unsigned int index) const {
   return index < style_sheets_.size() ? style_sheets_[index] : NULL;
 }
 
-unsigned int StyleSheetList::length() const { return style_sheets_.size(); }
+unsigned int StyleSheetList::length() const {
+  CHECK_LE(style_sheets_.size(), std::numeric_limits<unsigned int>::max());
+  return static_cast<unsigned int>(style_sheets_.size());
+}
 
 void StyleSheetList::Append(const scoped_refptr<CSSStyleSheet>& style_sheet) {
   style_sheets_.push_back(style_sheet);
