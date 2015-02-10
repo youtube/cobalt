@@ -80,47 +80,145 @@
       '__LB_XB1__',
       # Exclude specific headers in Windows.h
       'WIN32_LEAN_AND_MEAN',
-    ],
-    'msvs_disabled_warnings': [
-      # Warning level 1
-      # C4530: Exception handler used, but unwind semantics are not enabled.
-      #        Specify /EHsc.
-      # This should disappear when turning off Component Extension.
-      4530,
-
-      # Warning level 2
-      # C4244: Conversion from 'type1' to 'type2', possible loss of data.
-      # Too many places, will not fix.
-      4244,
-
-      # Warning level 3
-      # C4996: Using unsecure or deprecated version of a function.
-      # Turned off /sdl below to not treat this as error.
-      4996,
-      # C4267: Conversion from 'size_t' to 'type', possible loss of data.
-      # Too many places, will not fix.
-      4267,
+      # Disable suggestions to switch to Microsoft-specific secure CRT.
+      '_CRT_SECURE_NO_WARNINGS',
+      # Disable support for exceptions in STL in order to detect their use
+      # (the use of exceptions is forbidden by Google C++ style guide).
+      '_HAS_EXCEPTIONS=0',
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
         'ForcedIncludeFiles': ['posix_emulation.h'],
+
+        # Check for buffer overruns.
+        'BufferSecurityCheck': 'true',
+        'Conformance': [
+          # "for" loop's initializer go out of scope after the for loop.
+          'forScope',
+          # wchar_t is treated as a built-in type.
+          'wchar_t',
+        ],
+        # Check for 64-bit portability issues.
+        'Detect64BitPortabilityProblems': 'true',
+        # Enables Native Code Analysis - a static code analysis by Microsoft.
+        'EnablePREfast': 'true',
+        # Disable Microsoft-specific header dependency tracking.
+        # Incremental linker does not support the Windows metadata included
+        # in .obj files compiled with C++/CX support (/ZW).
+        'MinimalRebuild': 'false',
+        # Treat warnings as errors.
+        'WarnAsError': 'true',
+        # Enable all warnings, even those that are disabled by default.
+        # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
+        'WarningLevel': 'all',
+
+        'AdditionalOptions': [
+          '/errorReport:none', # don't send error reports to MS.
+        ],
+      },
+      'VCLinkerTool': {
+        'RandomizedBaseAddress': '2', # /DYNAMICBASE
+        # TODO(***REMOVED***): SubSystem is hardcoded in
+        # win\sources_template.vcxproj. This will have the exe behave in the
+        # expected way in MSVS: when it's run without debug (Ctrl+F5), it
+        # will pause after finish; when debugging (F5) it will not pause
+        # before the cmd window disappears.
+        # Currently the value is ignored by msvs_makefile.py which generates
+        # the MSVS project files (it's in "data" in GenerateOutput()). Fix
+        # it if we ever need to change SubSystem.
+        'SubSystem': '1', # CONSOLE
+        'TargetMachine': '17', # x86 - 64
+        'AdditionalOptions': [
+          '/WINMD:NO', # Do not generate a WinMD file.
+          '/errorReport:none', # don't send error reports to MS.
+        ],
+      },
+      'VCLibrarianTool': {
+        'AdditionalOptions': [
+          # Linking statically with C++/CX library is not recommended.
+          # Since Windows is not a production platform, we don't care.
+          # TODO(***REMOVED***): Remove after removing ComponentExtensions
+          '/ignore:4264',
+        ],
       },
     },
+    'msvs_disabled_warnings': [
+      # Conditional expression is constant.
+      # Triggers in many legitimate cases, like branching on a constant declared
+      # in type traits.
+      4127,
+      # Class has virtual functions, but destructor is not virtual.
+      # Far less useful than in GCC because doesn't take into account the fact
+      # that destructor is not public.
+      4265,
+      # An rvalue cannot be bound to a non-const reference.
+      # In previous versions of Visual C++, it was possible to bind an rvalue
+      # to a non-const reference in a direct initialization. This warning
+      # is useless as it simply describes proper C++ behavior.
+      4350,
+      # Unreferenced inline function has been removed.
+      # While detection of dead code is good, this warning triggers in
+      # third-party libraries which renders it useless.
+      4514,
+      # Expression before comma has no effect.
+      # Cannot be used because Microsoft uses _ASSERTE(("message", 0)) trick
+      # in malloc.h which is included pretty much everywhere.
+      4548,
+      # Copy constructor could not be generated because a base class copy
+      # constructor is inaccessible.
+      # This is an expected consequence of using DISALLOW_COPY_AND_ASSIGN().
+      4625,
+      # Assignment operator could not be generated because a base class
+      # assignment operator is inaccessible.
+      # This is an expected consequence of using DISALLOW_COPY_AND_ASSIGN().
+      4626,
+      # Digraphs not supported.
+      # Thanks god!
+      4628,
+      # Symbol is not defined as a preprocessor macro, replacing with '0'.
+      # Seems like common practice, used in Windows SDK and gtest.
+      4668,
+      # The type and order of elements caused the compiler to add padding
+      # to the end of a struct.
+      # Unsurprisingly, most of the structs become larger because of padding
+      # but it's a universally acceptable price for better performance.
+      4820,
+    ],
     'target_conditions': [
       ['_type=="executable"', {
-        'msvs_settings': {
-          # TODO(***REMOVED***): Remove this by switching POSIX emulation to use
-          # pthreads-win32 just like XB360.
-          'VCCLCompilerTool': {
-            'ComponentExtensions': 'true'
-          },
-        },
+        'sources': [
+          '<(DEPTH)/lbshell/src/platform/xb1/main_wrapper_win.cc',
+        ],
       }],
       ['_type in ["executable", "shared_library"]', {
         # Everyone links in their own copy of operator new and friends.
         'sources': [
           '<(PRODUCT_DIR)/obj/lbshell/src/posix_emulation.lb_new.o',
         ],
+      }],
+      ['cobalt_code==0', {
+        # TODO(***REMOVED***): Fix warnings below or disable them on per-module basis.
+        'msvs_disabled_warnings': [
+          4244, # Conversion from 'type1' to 'type2', possible loss of data.
+          4996, # Using unsecure or deprecated version of a function.
+          4267, # Conversion from 'size_t' to 'type', possible loss of data.
+        ],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'EnablePREfast': '',
+            'WarningLevel': '3',
+          },
+        },
+      }],
+      ['cobalt_code==1', {
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              # TODO(***REMOVED***): Enable SDL everywhere once C4996 warning is fixed.
+              '/sdl', # Security Development Lifecycle checks.
+            ],
+          },
+        },
       }],
     ],
 
@@ -138,41 +236,6 @@
         # when porting to x86.
         'msvs_target_platform': 'x64',
         # Add the default import libs.
-        'msvs_settings':{
-          'VCCLCompilerTool': {
-            'BufferSecurityCheck': 'true',
-            'Conformance': ['wchar_t', 'forScope'],
-            'Detect64BitPortabilityProblems': 'false',
-            'MinimalRebuild': 'false',
-            'WarnAsError': 'false',
-            'WarningLevel': '3',
-
-            'AdditionalOptions': [
-              '/errorReport:none', # don't send error reports to MS.
-            ],
-          },
-          'VCLinkerTool': {
-            'RandomizedBaseAddress': '2', # /DYNAMICBASE
-            # TODO(***REMOVED***): SubSystem is hardcoded in
-            # win\sources_template.vcxproj. This will have the exe behave in the
-            # expected way in MSVS: when it's run without debug (Ctrl+F5), it
-            # will pause after finish; when debugging (F5) it will not pause
-            # before the cmd window disappears.
-            # Currently the value is ignored by msvs_makefile.py which generates
-            # the MSVS project files (it's in "data" in GenerateOutput()). Fix
-            # it if we ever need to change SubSystem.
-            'SubSystem': '1', # CONSOLE
-            'TargetMachine': '17', # x86 - 64
-            'AdditionalOptions': [
-              '/WINMD:NO', # Do not generate a WinMD file.
-              '/errorReport:none', # don't send error reports to MS.
-            ],
-          },
-          'VCLibrarianTool': {
-            # TODO(***REMOVED***): Remove after removing ComponentExtensions
-            'AdditionalOptions': ['/ignore:4264'],
-          },
-        },
         'conditions': [
           ['cobalt_fastbuild==0', {
             'msvs_settings': {
@@ -191,7 +254,7 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'Optimization': '0',
-            'BasicRuntimeChecks': '1',
+            'BasicRuntimeChecks': '3', # Check stack frame validity and check for uninitialized variables at run time.
             'AdditionalOptions': [
               '/MDd', # Use debug multithreaded library.
             ],
