@@ -32,5 +32,29 @@
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
       ],
     },
+    {
+      'target_name': 'png_utils_benchmark',
+      'type': '<(final_executable_type)',
+      'sources': [
+        'png_utils_benchmark.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
+        'png_utils',
+      ],
+      'actions': [
+        {
+          'action_name': 'copy_data',
+          'variables': {
+            'input_files': [
+              'png_benchmark_image.png',
+            ],
+            'output_dir': 'test/png_utils',
+          },
+          'includes': ['../../../build/copy_data.gypi'],
+        },
+      ],
+    },
   ],
 }
