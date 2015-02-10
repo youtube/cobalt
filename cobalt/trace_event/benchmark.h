@@ -28,30 +28,35 @@
 // benchmarks that measure performance metrics recorded through Chromium's
 // TRACE_EVENT system.  Sample benchmark usage can be found in
 // cobalt/trace_event/sample_benchmark.cc.  Here is a quick example of how
-// to record the performance metrics of 3 TRACE_EVENT scopes:
+// to record the performance metrics of 3 TRACE_EVENT scopes (and 1 of those
+// is measured in 2 different ways):
 //
-//  TRACE_EVENT_BENCHMARK3(
-//      SampleTestSimpleBenchmarkWithThreeTrackedEvents,
-//      "LoopIteration", "SubEventA", "SubEventB") {
-//    const int kRenderIterationCount = 40;
-//    for (int i = 0; i < kRenderIterationCount; ++i) {
-//      TRACE_EVENT0("SampleTestSimpleBenchmark", "LoopIteration");
-//      {
-//        TRACE_EVENT0("SampleTestSimpleBenchmark", "SubEventA");
-//        usleep(10000);
-//      }
-//      {
-//        TRACE_EVENT0("SampleTestSimpleBenchmark", "SubEventB");
-//        usleep(20000);
-//      }
-//    }
-//  }
+//   TRACE_EVENT_BENCHMARK4(
+//       SampleTestBenchmarkWithThreeTrackedEvents,
+//       "LoopIteration", cobalt::trace_event::IN_SCOPE_DURATION,
+//       "SubEventA", cobalt::trace_event::IN_SCOPE_DURATION,
+//       "SubEventA", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
+//       "SubEventB", cobalt::trace_event::IN_SCOPE_DURATION) {
+//     const int kRenderIterationCount = 40;
+//     for (int i = 0; i < kRenderIterationCount; ++i) {
+//       TRACE_EVENT0("SampleBenchmark", "LoopIteration");
+//       {
+//         TRACE_EVENT0("SampleBenchmark", "SubEventA");
+//         usleep(10000);
+//       }
+//       {
+//         TRACE_EVENT0("SampleBenchmark", "SubEventB");
+//         usleep(20000);
+//       }
+//     }
+//   }
 //
 // Here, a loop is iterated over multiple times, and each time the timing
 // results of the TRACE_EVENT calls are recorded and saved.  When the test is
-// complete, 40 samples of each of the 3 TRACE_EVENTS specified in the macro
+// complete, 40 samples of each of the TRACE_EVENTS specified in the macro
 // parameters are recorded.  After the benchmark completes, statistics about
-// the results or the raw sample results themselves are produced.
+// the results or the raw sample results themselves are produced.  Note that
+// "SubEventA" is measured twice in two different ways.
 //
 // More sophisticated benchmarks can also be written by subclassing from
 // cobalt::trace_event::Benchmark and implementing Experiment(),
@@ -146,6 +151,22 @@ class BenchmarkRegisterer {
     benchmark->name_ = name;
     BenchmarkRegistrar::GetInstance()->RegisterBenchmark(benchmark);
   }
+};
+
+// Measurement types allow one to specify to the SIMPLE_BENCHMARK interface
+// what quantity should be measured.
+enum MeasurementType {
+  // Measuring in-scope duration will sample the time between the start of the
+  // event and the end of the event, ignoring its children.
+  IN_SCOPE_DURATION,
+
+  // Measuring flow duration will sample the time between the start of the event
+  // and the latest end time of all the event's descendants.
+  FLOW_DURATION,
+
+  // Measuring the time between event starts will sample the time difference
+  // between the start time of subsequent events of the same name.
+  TIME_BETWEEN_EVENT_STARTS,
 };
 
 }  // namespace trace_event
