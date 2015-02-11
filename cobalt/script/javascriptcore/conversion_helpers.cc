@@ -20,6 +20,7 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSScope.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSString.h"
 
 namespace cobalt {
