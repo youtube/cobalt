@@ -43,6 +43,13 @@ namespace net {
 namespace {
 
 const int kReadBufSize = 4096;
+#if defined(__LB_PS4__)
+// Don't send SIGPIPE when the other end disconnects.
+// We will still receive an EPIPE as expected.
+const int kDefaultMsgFlags = MSG_NOSIGNAL;
+#else
+const int kDefaultMsgFlags = 0;
+#endif
 
 }  // namespace
 
@@ -118,7 +125,8 @@ void StreamListenSocket::SendInternal(const char* bytes, int len) {
   char* send_buf = const_cast<char *>(bytes);
   int len_left = len;
   while (true) {
-    int sent = HANDLE_EINTR(send(socket_, send_buf, len_left, 0));
+    int sent = HANDLE_EINTR(
+        send(socket_, send_buf, len_left, kDefaultMsgFlags));
     if (sent == len_left) {  // A shortcut to avoid extraneous checks.
       break;
     }
@@ -166,7 +174,7 @@ void StreamListenSocket::Read() {
   char buf[kReadBufSize + 1];  // +1 for null termination.
   int len;
   do {
-    len = HANDLE_EINTR(recv(socket_, buf, kReadBufSize, 0));
+    len = HANDLE_EINTR(recv(socket_, buf, kReadBufSize, kDefaultMsgFlags));
     if (len == kSocketError) {
 #if defined(OS_WIN)
       int err = WSAGetLastError();
