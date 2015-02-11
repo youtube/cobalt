@@ -47,22 +47,6 @@
     },
 
     {
-      'target_name': 'renderer_copy_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'renderer_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/renderer/rasterizer_testdata',
-            ],
-            'output_dir': 'cobalt/renderer',
-          },
-          'includes': ['../build/copy_data.gypi'],
-        }
-      ],
-    },
-    {
       'target_name': 'renderer_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -79,7 +63,18 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'renderer',
-        'renderer_copy_test_data',
+      ],
+      'actions': [
+        {
+          'action_name': 'renderer_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/renderer/rasterizer_testdata',
+            ],
+            'output_dir': 'cobalt/renderer',
+          },
+          'includes': ['../build/copy_data.gypi'],
+        }
       ],
     },
     {
