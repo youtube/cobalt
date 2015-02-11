@@ -59,11 +59,24 @@ class ResourceProvider {
       return -1;
     }
 
+    enum AlphaFormat {
+      // Premultiplied alpha means that the RGB components (in terms of
+      // the range [0.0, 1.0]) have already been multiplied by the A component
+      // (also in the range [0.0, 1.0]).  Thus, it is expected that for all
+      // pixels, each component is less than or equal to the alpha component.
+      kAlphaFormatPremultiplied,
+
+      // This alpha format implies standard alpha, where each component is
+      // independent of the alpha.
+      kAlphaFormatUnpremultiplied,
+    };
+
     // Returns information about the kind of data this ImageData is
     // intended to store.
     virtual int GetWidth() const = 0;
     virtual int GetHeight() const = 0;
     virtual PixelFormat GetPixelFormat() const = 0;
+    virtual AlphaFormat GetAlphaFormat() const = 0;
     virtual int GetPitchInBytes() const = 0;
 
     // Returns a pointer to the image data so that one can set pixel data as
@@ -73,7 +86,8 @@ class ResourceProvider {
 
   // This method can be used to create an ImageData object.
   virtual scoped_ptr<ImageData> AllocateImageData(
-      int width, int height, ImageData::PixelFormat pixel_format) = 0;
+      int width, int height, ImageData::PixelFormat pixel_format,
+      ImageData::AlphaFormat alpha_format) = 0;
 
   // This function will consume an ImageData object produced by a call to
   // AllocateImageData(), wrap it in a render_tree::Image that can be

@@ -26,9 +26,15 @@ namespace test {
 namespace png_utils {
 
 // Decodes a PNG file as RGBA directly to CPU memory.  Accepts width and
-// height as output parameters that must not be NULL.
+// height as output parameters that must not be NULL.  Alpha format will
+// be unpremultiplied.
 scoped_array<uint8_t> DecodePNGToRGBA(const FilePath& png_file_path, int* width,
                                       int* height);
+
+// Same as above, however this function will return the results as
+// premultiplied alpha format pixels.
+scoped_array<uint8_t> DecodePNGToPremultipliedAlphaRGBA(
+    const FilePath& png_file_path, int* width, int* height);
 
 // Creates a render_tree::Image object out of a PNG file that can be referenced
 // within a render tree.
