@@ -20,8 +20,35 @@
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "cobalt/trace_event/benchmark.h"
 
+namespace {
+FilePath GetBenchmarkImagePath() {
+  FilePath data_directory;
+  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  return data_directory.Append(FILE_PATH_LITERAL("test"))
+                       .Append(FILE_PATH_LITERAL("png_utils"))
+                       .Append(FILE_PATH_LITERAL("png_benchmark_image.png"));
+}
+}  // namespace
+
 TRACE_EVENT_BENCHMARK2(
-    DecodeRGBAPNGBenchmark,
+    DecodePNGToRGBABenchmark,
+    "PNGFileReadContext::PNGFileReadContext()",
+        cobalt::trace_event::IN_SCOPE_DURATION,
+    "PNGFileReadContext::DecodeImageTo()",
+        cobalt::trace_event::IN_SCOPE_DURATION) {
+  const int kIterationCount = 20;
+  for (int i = 0; i < kIterationCount; ++i) {
+    int width;
+    int height;
+    scoped_array<uint8_t> pixel_data =
+        cobalt::renderer::test::png_utils::DecodePNGToRGBA(
+            GetBenchmarkImagePath(),
+            &width, &height);
+  }
+}
+
+TRACE_EVENT_BENCHMARK2(
+    DecodePNGToPremultipliedAlphaRGBABenchmark,
     "PNGFileReadContext::PNGFileReadContext()",
         cobalt::trace_event::IN_SCOPE_DURATION,
     "PNGFileReadContext::DecodeImageTo()",
@@ -34,10 +61,8 @@ TRACE_EVENT_BENCHMARK2(
     int width;
     int height;
     scoped_array<uint8_t> pixel_data =
-        cobalt::renderer::test::png_utils::DecodePNGToRGBA(
-            data_directory.Append(FILE_PATH_LITERAL("test"))
-                .Append(FILE_PATH_LITERAL("png_utils"))
-                .Append(FILE_PATH_LITERAL("png_benchmark_image.png")),
+        cobalt::renderer::test::png_utils::DecodePNGToPremultipliedAlphaRGBA(
+            GetBenchmarkImagePath(),
             &width, &height);
   }
 }
