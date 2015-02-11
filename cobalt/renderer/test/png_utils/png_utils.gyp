@@ -32,6 +32,33 @@
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
       ],
     },
+
+    {
+      'target_name': 'png_utils_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'png_decode_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'png_utils',
+      ],
+      'actions': [
+        {
+          'action_name': 'copy_data',
+          'variables': {
+            'input_files': [
+              'png_premultiplied_alpha_test_image.png',
+            ],
+            'output_dir': 'test/png_utils',
+          },
+          'includes': ['../../../build/copy_data.gypi'],
+        },
+      ],
+    },
     {
       'target_name': 'png_utils_benchmark',
       'type': '<(final_executable_type)',
