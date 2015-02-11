@@ -85,6 +85,7 @@ class GraphicsContext {
   // The format of the returned memory can be found by examining the results of
   // texture.GetSurfaceInfo().  The pitch of each row is equal to the width.
   // The pixel format of the returned data is always RGBA8, in that order.
+  // The output alpha format is always unpremultiplied alpha.
   virtual scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) = 0;
 
