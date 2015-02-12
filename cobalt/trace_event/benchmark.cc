@@ -21,7 +21,11 @@ namespace cobalt {
 namespace trace_event {
 
 BenchmarkRegistrar* BenchmarkRegistrar::GetInstance() {
-  return Singleton<BenchmarkRegistrar>::get();
+  // The BenchmarkRegistrar must be a leaky singleton because it is likely to
+  // be constructed during static initialization while benchmarks are being
+  // registered, and so, before an AtExitManager has been created.
+  return Singleton<BenchmarkRegistrar,
+                   LeakySingletonTraits<BenchmarkRegistrar> >::get();
 }
 
 BenchmarkRegistrar::BenchmarkRegistrar() {}
