@@ -1165,9 +1165,16 @@ class TypedExpectation : public ExpectationBase {
       Log(kWarning, ss.str(), 1);
     }
 
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable: 4365) // Signed/unsigned mismatch.
+#endif
     return count <= action_count ?
         *static_cast<const Action<F>*>(untyped_actions_[count - 1]) :
         repeated_action();
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   // Given the arguments of a mock function call, if the call will
@@ -1679,8 +1686,15 @@ class FunctionMockerBase : public UntypedFunctionMockerBase {
              "expectations, but none matched")
          << ":\n";
     for (int i = 0; i < count; i++) {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable: 4365) // Signed/unsigned mismatch.
+#endif
       TypedExpectation<F>* const expectation =
           static_cast<TypedExpectation<F>*>(untyped_expectations_[i].get());
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
       *why << "\n";
       expectation->DescribeLocationTo(why);
       if (count > 1) {
