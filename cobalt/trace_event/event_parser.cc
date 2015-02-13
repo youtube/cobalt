@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "base/hash.h"
 #include "cobalt/trace_event/event_parser.h"
 
 namespace cobalt {
@@ -163,7 +164,8 @@ uint64_t MakeFlowId(const base::debug::TraceEvent& event) {
   // uniqueness.
   return static_cast<uint64_t>(event.id() << 32) ^
          (static_cast<uint64_t>(event.id() >> 32) & 0xFFFFFFFF) ^
-         reinterpret_cast<uint64_t>(event.name());
+         static_cast<uint64_t>(base::SuperFastHash(
+             event.name(), strlen(event.name())));
 }
 
 }  // namespace
@@ -225,7 +227,7 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       // A TRACE_EVENT's scope has closed, ending the event.
       scoped_refptr<ScopedEvent> ended_event = thread_info->event_stack_.back();
       UpdateLastTouchedEvent(thread_info, ended_event);
-      DCHECK_EQ(event.name(), ended_event->begin_event().name());
+      DCHECK_EQ(std::string(event.name()), ended_event->begin_event().name());
       // Mark the event as ended.
       ended_event->OnEnd(event);
       thread_info->event_stack_.pop_back();
@@ -258,7 +260,7 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       scoped_refptr<ScopedEvent> flow_event =
           flow_id_to_event_map_[MakeFlowId(event)];
       UpdateLastTouchedEvent(thread_info, flow_event);
-      DCHECK_EQ(event.name(), flow_event->begin_event().name());
+      DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
       flow_event->AddInstantEvent(event);
     } break;
 
@@ -273,7 +275,7 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       DCHECK(found != flow_id_to_event_map_.end());
       scoped_refptr<ScopedEvent> flow_event = found->second;
       UpdateLastTouchedEvent(thread_info, flow_event);
-      DCHECK_EQ(event.name(), flow_event->begin_event().name());
+      DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
       flow_event->OnEnd(event);
       flow_id_to_event_map_.erase(found);
     } break;

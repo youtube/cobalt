@@ -99,5 +99,16 @@
         'run_all_benchmarks',
       ],
     },
+    {
+      'target_name': 'sample_benchmark_deploy',
+      'type': 'none',
+      'dependencies': [
+        'sample_benchmark',
+      ],
+      'variables': {
+        'executable_name': 'sample_benchmark',
+      },
+      'includes': [ '../build/deploy.gypi' ],
+    },
   ],
 }
