@@ -101,11 +101,11 @@ void SimpleAnalyzeEvent(const char* event_name, const char* parent_name,
                         int num_children,
                         const scoped_refptr<EventParser::ScopedEvent>& event) {
   // Ensure that the correct names have been stored in the begin event.
-  EXPECT_EQ(event_name, event->begin_event().name());
+  EXPECT_STREQ(event_name, event->begin_event().name());
 
   // Ensure that the end event exists and has the correct names stored.
   EXPECT_TRUE(static_cast<bool>(event->end_event()));
-  EXPECT_EQ(event_name, event->end_event()->name());
+  EXPECT_STREQ(event_name, event->end_event()->name());
 
   // The end event should always have a time tick larger than the begin
   // event.
@@ -114,7 +114,7 @@ void SimpleAnalyzeEvent(const char* event_name, const char* parent_name,
 
   if (parent_name) {
     ASSERT_TRUE(event->parent() != NULL);
-    EXPECT_EQ(parent_name, event->parent()->begin_event().name());
+    EXPECT_STREQ(parent_name, event->parent()->begin_event().name());
 
     // Test that we are one of our parents' children.
     const std::vector<scoped_refptr<EventParser::ScopedEvent> >& children =
@@ -240,8 +240,10 @@ void AnalyzeFlowSteps(const char* event_name, const char* step_1_name,
   SimpleAnalyzeEvent(event_name, kNullCharP, 0, event);
 
   ASSERT_EQ(2, event->instant_events().size());
-  EXPECT_EQ(step_1_name, event->instant_events()[0].arg_values_[0].as_string);
-  EXPECT_EQ(step_2_name, event->instant_events()[1].arg_values_[0].as_string);
+  EXPECT_STREQ(step_1_name,
+               event->instant_events()[0].arg_values()[0].as_string);
+  EXPECT_STREQ(step_2_name,
+               event->instant_events()[1].arg_values()[0].as_string);
 }
 }  // namespace
 
