@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/style_sheet_list.h"
 
+#include <limits>
+
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
