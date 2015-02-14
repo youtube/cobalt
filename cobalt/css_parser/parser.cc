@@ -16,6 +16,7 @@
 
 #include "cobalt/css_parser/parser.h"
 
+#include <cstdio>
 #include <sstream>
 
 #include "base/bind.h"
