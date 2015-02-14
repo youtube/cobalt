@@ -732,10 +732,10 @@
               'action_name': 'copy_test_data',
               'variables': {
                 'input_files': [
-                  'data/json/bom_feff.json',
+                  'data/json',
                   'data/file_util_unittest',
                 ],
-                'output_dir': 'base',
+                'output_dir': 'base/data',
               },
               'includes': [ '../cobalt/build/copy_data.gypi' ],
             },
