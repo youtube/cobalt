@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/css_rule_list.h"
 
+#include <limits>
+
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
