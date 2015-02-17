@@ -20,6 +20,8 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/document_builder.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -32,8 +34,7 @@ class LayoutManager : public dom::DocumentObserver {
   typedef base::Callback<void(const scoped_refptr<render_tree::Node>&)>
       OnRenderTreeProducedCallback;
 
-  LayoutManager(const scoped_refptr<dom::Document>& document,
-                const math::SizeF& viewport_size,
+  LayoutManager(const scoped_refptr<dom::Window>& window,
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced);
   ~LayoutManager();
@@ -42,6 +43,7 @@ class LayoutManager : public dom::DocumentObserver {
   void OnMutation() OVERRIDE;
 
  private:
+  const scoped_refptr<dom::Window> window_;
   const scoped_refptr<dom::Document> document_;
   const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;

@@ -23,12 +23,13 @@ namespace cobalt {
 namespace layout {
 
 LayoutManager::LayoutManager(
-    const scoped_refptr<dom::Document>& document,
-    const math::SizeF& viewport_size,
+    const scoped_refptr<dom::Window>& window,
     render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced)
-    : document_(document),
-      viewport_size_(viewport_size),
+    : window_(window),
+      document_(window->document()),
+      viewport_size_(
+          math::SizeF(window_->inner_width(), window_->inner_height())),
       resource_provider_(resource_provider),
       on_render_tree_produced_callback_(on_render_tree_produced) {
   document_->AddObserver(this);
