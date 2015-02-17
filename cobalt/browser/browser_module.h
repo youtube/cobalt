@@ -20,7 +20,7 @@
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/dom/module.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/script/global_object_proxy.h"
@@ -76,8 +76,8 @@ class BrowserModule {
   // The loader factory that creates loader that starts the actuall loading.
   scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;
 
-  // The module that wraps all DOM-related components.
-  dom::Module dom_module_;
+  // The Window object wraps all DOM-related components.
+  scoped_refptr<dom::Window> window_;
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
