@@ -21,6 +21,14 @@
 
 namespace cobalt {
 namespace browser {
+namespace {
+
+// TODO(***REMOVED***): Request viewport size from graphics pipeline and subscribe to
+// viewport size changes.
+const int kInitialWidth = 1920;
+const int kInitialHeight = 1080;
+
+}  // namespace
 
 BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
@@ -31,16 +39,15 @@ BrowserModule::BrowserModule(const Options& options)
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
-      dom_module_(css_parser_.get(), resource_loader_factory_.get(),
-                  script_runner_.get(), options.url),
-      // TODO(***REMOVED***): Request viewport size from graphics pipeline and
-      //               subscribe to viewport size changes.
-      layout_manager_(dom_module_.document().get(), math::SizeF(1920, 1080),
+      window_(make_scoped_refptr(new dom::Window(
+          kInitialWidth, kInitialHeight, css_parser_.get(),
+          resource_loader_factory_.get(), script_runner_.get(), options.url))),
+      layout_manager_(window_.get(),
                       renderer_module_.pipeline()->GetResourceProvider(),
                       base::Bind(&BrowserModule::OnRenderTreeProduced,
                                  base::Unretained(this))) {
   // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
-  global_object_proxy_->Bind("document", dom_module_.document());
+  global_object_proxy_->Bind("document", window_->document());
 }
 
 BrowserModule::~BrowserModule() {}
