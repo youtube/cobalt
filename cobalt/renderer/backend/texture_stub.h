@@ -17,6 +17,7 @@
 #ifndef RENDERER_BACKEND_TEXTURE_STUB_H_
 #define RENDERER_BACKEND_TEXTURE_STUB_H_
 
+#include "cobalt/renderer/backend/pixel_data_stub.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
 
@@ -27,18 +28,22 @@ namespace backend {
 // Maintains a scoped array of texture data.
 class TextureDataStub : public TextureData {
  public:
-  explicit TextureDataStub(const SurfaceInfo& surface_info)
-      : surface_info_(surface_info) {}
+  explicit TextureDataStub(const SurfaceInfo& surface_info) :
+      pixel_data_(new PixelDataStub(surface_info)) {}
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
-  int GetPitchInBytes() const OVERRIDE {
-    return surface_info_.width *
-           SurfaceInfo::BytesPerPixel(surface_info_.format);
+  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE {
+    return pixel_data_->surface_info();
   }
-  uint8_t* GetMemory() OVERRIDE { return NULL; }
+  int GetPitchInBytes() const OVERRIDE {
+    return pixel_data_->surface_info().width *
+           SurfaceInfo::BytesPerPixel(pixel_data_->surface_info().format);
+  }
+  uint8_t* GetMemory() OVERRIDE { return pixel_data_->memory(); }
+
+  const scoped_refptr<PixelDataStub>& pixel_data() const { return pixel_data_; }
 
  private:
-  SurfaceInfo surface_info_;
+  scoped_refptr<PixelDataStub> pixel_data_;
 };
 
 // Acts as a texture in the stub graphics system.  It does not store any pixel
@@ -46,13 +51,19 @@ class TextureDataStub : public TextureData {
 // and so even the stub graphics system can query for texture metadata.
 class TextureStub : public Texture {
  public:
-  explicit TextureStub(const SurfaceInfo& surface_info)
-      : surface_info_(surface_info) {}
+  explicit TextureStub(scoped_refptr<PixelDataStub> pixel_data)
+      : pixel_data_(pixel_data) {}
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
+  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE {
+    return pixel_data_->surface_info();
+  }
+
+  const scoped_refptr<PixelDataStub>& pixel_data() const {
+    return pixel_data_;
+  }
 
  private:
-  SurfaceInfo surface_info_;
+  scoped_refptr<PixelDataStub> pixel_data_;
 };
 
 }  // namespace backend
