@@ -28,21 +28,27 @@ namespace script {
 namespace javascriptcore {
 
 JSC::JSValue BooleanToJSValue(JSC::JSGlobalData* global_data, bool in_boolean) {
-  return JSC::JSValue(in_boolean);
+  JSC::JSValue boolean_value = JSC::jsBoolean(in_boolean);
+  DCHECK(boolean_value.isBoolean());
+  return boolean_value;
 }
 
 JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
                              const std::string& utf8_string) {
   WTF::String wtf_string = ToWTFString(utf8_string);
   JSC::JSString* js_string = JSC::jsString(global_data, wtf_string);
-  return JSC::JSValue(js_string);
+  JSC::JSValue string_value(js_string);
+  DCHECK(string_value.isString());
+  return string_value;
 }
 
 JSC::JSValue JSObjectToJSValue(JSC::JSObject* js_object) {
   if (js_object == NULL) {
     return JSC::jsNull();
   }
-  return JSC::JSValue(js_object);
+  JSC::JSValue object_value(js_object);
+  DCHECK(object_value.isObject());
+  return object_value;
 }
 
 void JSValueToBoolean(JSC::ExecState* exec_state, JSC::JSValue value,
