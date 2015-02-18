@@ -16,6 +16,7 @@
   'variables': {
     'graphics_system_stub_sources': [
       'display_stub.h',
+      'graphics_context_stub.cc',
       'graphics_context_stub.h',
       'graphics_system_stub.h',
       'render_target_stub.h',
