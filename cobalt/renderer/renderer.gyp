@@ -79,6 +79,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'renderer',
+        'renderer_copy_test_data',
       ],
     },
 
