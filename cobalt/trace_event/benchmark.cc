@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <cstdio>
+
 #include "cobalt/trace_event/benchmark.h"
 #include "cobalt/trace_event/scoped_event_parser_trace.h"
 
@@ -48,8 +50,21 @@ void BenchmarkRegistrar::ExecuteBenchmarks() {
   }
 }
 
+namespace {
+void Output(const char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+
+  std::vfprintf(stderr, fmt, ap);
+
+  va_end(ap);
+
+  std::fflush(stderr);
+}
+}  // namespace
+
 void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
-  DLOG(INFO) << "Executing benchmark: " << benchmark->name();
+  Output("Executing benchmark: %s\n", benchmark->name().c_str());
 
   {
     ScopedEventParserTrace event_watcher(
@@ -67,7 +82,7 @@ void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
       continue;
     }
 
-    DLOG(INFO) << "  " << iter->name;
+    Output("  %s\n", iter->name.c_str());
     double samples_average = 0;
     double samples_min = std::numeric_limits<double>::max();
     double samples_max = std::numeric_limits<double>::min();
@@ -78,15 +93,11 @@ void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
       samples_max = std::max(samples_max, *sample);
     }
     samples_average /= iter->samples.size();
-    DLOG(INFO) << "    "
-               << "Number of samples: " << iter->samples.size();
+    Output("    Number of samples: %d\n", iter->samples.size());
     if (!iter->samples.empty()) {
-      DLOG(INFO) << "    "
-                 << "Average: " << samples_average;
-      DLOG(INFO) << "    "
-                 << "Minimum: " << samples_min;
-      DLOG(INFO) << "    "
-                 << "Maximum: " << samples_max;
+      Output("    Average: %f\n", samples_average);
+      Output("    Minimum: %f\n", samples_min);
+      Output("    Maximum: %f\n", samples_max);
     }
   }
 }
