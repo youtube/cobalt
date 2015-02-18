@@ -623,6 +623,9 @@ void TraceLog::FlushWithRawEvents(
        i += kTraceEventBatchSize) {
     if (!raw_event_callback.is_null()) {
       for (size_t j = i; j < i + kTraceEventBatchSize; ++j) {
+        if (j >= previous_logged_events.size()) {
+          break;
+        }
         raw_event_callback.Run(previous_logged_events[j]);
       }
     }
