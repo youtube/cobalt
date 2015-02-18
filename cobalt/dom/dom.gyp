@@ -67,6 +67,8 @@
         'stats.h',
         'text.cc',
         'text.h',
+        'time_ranges.cc',
+        'time_ranges.h',
         'window.cc',
         'window.h',
       ],
