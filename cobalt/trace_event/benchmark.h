@@ -82,6 +82,8 @@ namespace trace_event {
 // BenchmarkRegistrar.
 class Benchmark {
  public:
+  virtual ~Benchmark() {}
+
   struct Result {
     Result(const std::string& name, const std::vector<double>& samples)
         : name(name), samples(samples) {}
