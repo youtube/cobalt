@@ -58,6 +58,8 @@
         'html_unknown_element.cc',
         'html_unknown_element.h',
         'media_error.h',
+        'keyboard_event.cc',
+        'keyboard_event.h',
         'named_node_map.cc',
         'named_node_map.h',
         'node.cc',
@@ -72,6 +74,9 @@
         'time_ranges.h',
         'window.cc',
         'window.h',
+        'ui_event.cc',
+        'ui_event.h',
+        'ui_event_with_key_state.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
