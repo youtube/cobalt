@@ -1,0 +1,183 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
+#define BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
+
+#include "cobalt/script/wrappable.h"
+#include "testing/gmock/include/gmock/gmock.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+class NumericTypesTestInterface : public script::Wrappable {
+ public:
+  virtual int8_t ByteReturnOperation() { return 0; }
+  virtual void ByteArgumentOperation(int8_t value) {}
+  virtual int8_t byte_property() { return 0; }
+  virtual void set_byte_property(int8_t value) {}
+
+  virtual uint8_t OctetReturnOperation() { return 0; }
+  virtual void OctetArgumentOperation(uint8_t value) {}
+  virtual uint8_t octet_property() { return 0; }
+  virtual void set_octet_property(uint8_t value) {}
+
+  virtual int16_t ShortReturnOperation() { return 0; }
+  virtual void ShortArgumentOperation(int16_t value) {}
+  virtual int16_t short_property() { return 0; }
+  virtual void set_short_property(int16_t value) {}
+
+  virtual uint16_t UnsignedShortReturnOperation() { return 0; }
+  virtual void UnsignedShortArgumentOperation(uint16_t value) {}
+  virtual uint16_t unsigned_short_property() { return 0; }
+  virtual void set_unsigned_short_property(uint16_t value) {}
+
+  virtual int32_t LongReturnOperation() { return 0; }
+  virtual void LongArgumentOperation(int32_t value) {}
+  virtual int32_t long_property() { return 0; }
+  virtual void set_long_property(int32_t value) {}
+
+  virtual uint32_t UnsignedLongReturnOperation() { return 0; }
+  virtual void UnsignedLongArgumentOperation(uint32_t value) {}
+  virtual uint32_t unsigned_long_property() { return 0; }
+  virtual void set_unsigned_long_property(uint32_t value) {}
+};
+
+// Inheriting from an instantiation of this class allows for the mocking
+// and testing of one type, while returning default values for the ones that
+// are not being tested.
+// Since the mock function names are the same for every type, expectations can
+// be set in TYPED_TEST cases without needing to change the name of the
+// mock function.
+template <typename T>
+class NumericTypesTestInterfaceT : public NumericTypesTestInterface {
+ public:
+  MOCK_METHOD0_T(MockReturnValueOperation, T());
+  MOCK_METHOD1_T(MockArgumentOperation, void(T));
+  MOCK_METHOD0_T(mock_get_property, T());
+  MOCK_METHOD1_T(mock_set_property, void(T));
+};
+
+class ByteTypeTest : public NumericTypesTestInterfaceT<int8_t> {
+ public:
+  int8_t ByteReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
+  void ByteArgumentOperation(int8_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  int8_t byte_property() OVERRIDE { return mock_get_property(); }
+  void set_byte_property(int8_t value) OVERRIDE { mock_set_property(value); }
+
+  static const char* type_string() { return "byte"; }
+  static int8_t max_value() { return 127; }
+  static int8_t min_value() { return -128; }
+  static const char* max_value_string() { return "127"; }
+  static const char* min_value_string() { return "-128"; }
+};
+
+class OctetTypeTest : public NumericTypesTestInterfaceT<uint8_t> {
+ public:
+  uint8_t OctetReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
+  void OctetArgumentOperation(uint8_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  uint8_t octet_property() OVERRIDE { return mock_get_property(); }
+  void set_octet_property(uint8_t value) OVERRIDE { mock_set_property(value); }
+
+  static const char* type_string() { return "octet"; }
+  static uint8_t max_value() { return 255; }
+  static uint8_t min_value() { return 0; }
+  static const char* max_value_string() { return "255"; }
+  static const char* min_value_string() { return "0"; }
+};
+
+class ShortTypeTest : public NumericTypesTestInterfaceT<int16_t> {
+ public:
+  int16_t ShortReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
+  void ShortArgumentOperation(int16_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  int16_t short_property() OVERRIDE { return mock_get_property(); }
+  void set_short_property(int16_t value) OVERRIDE { mock_set_property(value); }
+
+  static const char* type_string() { return "short"; }
+  static int16_t max_value() { return 32767; }
+  static int16_t min_value() { return -32768; }
+  static const char* max_value_string() { return "32767"; }
+  static const char* min_value_string() { return "-32768"; }
+};
+
+class UnsignedShortTypeTest : public NumericTypesTestInterfaceT<uint16_t> {
+ public:
+  uint16_t UnsignedShortReturnOperation() OVERRIDE {
+    return MockReturnValueOperation();
+  }
+  void UnsignedShortArgumentOperation(uint16_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  uint16_t unsigned_short_property() OVERRIDE { return mock_get_property(); }
+  void set_unsigned_short_property(uint16_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+
+  static const char* type_string() { return "unsignedShort"; }
+  static uint16_t max_value() { return 65535; }
+  static uint16_t min_value() { return 0; }
+  static const char* max_value_string() { return "65535"; }
+  static const char* min_value_string() { return "0"; }
+};
+
+class LongTypeTest : public NumericTypesTestInterfaceT<int32_t> {
+ public:
+  int32_t LongReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
+  void LongArgumentOperation(int32_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  int32_t long_property() OVERRIDE { return mock_get_property(); }
+  void set_long_property(int32_t value) OVERRIDE { mock_set_property(value); }
+
+  static const char* type_string() { return "long"; }
+  static int32_t max_value() { return 2147483647; }
+  static int32_t min_value() { return -2147483648; }
+  static const char* max_value_string() { return "2147483647"; }
+  static const char* min_value_string() { return "-2147483648"; }
+};
+
+class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
+ public:
+  uint32_t UnsignedLongReturnOperation() OVERRIDE {
+    return MockReturnValueOperation();
+  }
+  void UnsignedLongArgumentOperation(uint32_t value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  uint32_t unsigned_long_property() OVERRIDE { return mock_get_property(); }
+  void set_unsigned_long_property(uint32_t value) OVERRIDE {
+    mock_set_property(value);
+  }
+
+  static const char* type_string() { return "unsignedLong"; }
+  static uint32_t max_value() { return 4294967295; }
+  static uint32_t min_value() { return 0; }
+  static const char* max_value_string() { return "4294967295"; }
+  static const char* min_value_string() { return "0"; }
+};
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
+
+#endif  // BINDINGS_TESTING_NUMERIC_TYPES_TEST_INTERFACE_H_
