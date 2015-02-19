@@ -17,6 +17,7 @@
 #ifndef BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 #define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
@@ -27,7 +28,7 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-template <class MockT>
+template <class MockT, class BaseClass = MockT>
 class BindingsTestBase : public ::testing::Test {
  public:
   BindingsTestBase()
@@ -35,8 +36,10 @@ class BindingsTestBase : public ::testing::Test {
         global_object_proxy_(engine_->CreateGlobalObject()),
         // Use StrictMock so TESTING will fail if unexpected method is called.
         test_mock_(new ::testing::StrictMock<MockT>()) {
-    global_object_proxy_->Bind("test", test_mock_);
+    global_object_proxy_->Bind("test",
+                               make_scoped_refptr<BaseClass>((test_mock_)));
   }
+
   bool EvaluateScript(const std::string& script, std::string* out_result) {
     scoped_refptr<script::SourceCode> source =
         script::SourceCode::CreateSourceCode(script);

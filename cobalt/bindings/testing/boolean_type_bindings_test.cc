@@ -15,7 +15,7 @@
  */
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
-#include "cobalt/bindings/testing/primitive_types_test_interface.h"
+#include "cobalt/bindings/testing/boolean_type_test_interface.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +27,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<PrimitiveTypesTestInterface> BooleanTypeBindingsTest;
+typedef BindingsTestBase<BooleanTypeTestInterface> BooleanTypeBindingsTest;
 }  // namespace
 
 // Boolean conversion algorithm: http://www.w3.org/TR/WebIDL/#es-boolean

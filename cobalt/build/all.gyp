@@ -33,6 +33,7 @@
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
+        '<(DEPTH)/cobalt/script/javascriptcore.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
       ]
     }
