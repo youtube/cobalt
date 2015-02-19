@@ -24,6 +24,7 @@
     'target_arch': 'xb1',
     'actual_target_arch': 'win',
     'posix_emulation_target_type': 'static_library',
+    'angle_api': 'win32',
 
     'compiler_flags_host': [
     ],
