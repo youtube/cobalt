@@ -13,25 +13,23 @@
 # limitations under the License.
 
 {
-  'targets': [
-    {
-      'target_name': 'renderer_platform_backend',
-      'type': 'static_library',
-
-      'sources': [
-        'default_graphics_system.cc',
-      ],
-      'include_dirs': [
-        '<(DEPTH)/third_party/angle/include',
-      ],
-      'dependencies': [
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libEGL',
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libGLESv2',
-      ],
-
-      'includes': [
-        '../egl/egl_backend.gypi',
-      ],
-    },
+  'sources': [
+    'display.cc',
+    'display.h',
+    'graphics_context.cc',
+    'graphics_context.h',
+    'graphics_system.cc',
+    'graphics_system.h',
+    'pbuffer_render_target.cc',
+    'pbuffer_render_target.h',
+    'render_target.h',
+    'texture.cc',
+    'texture.h',
   ],
+
+  'direct_dependent_settings': {
+    'include_dirs': [
+      '<(DEPTH)/third_party/angle/include',
+    ],
+  },
 }
