@@ -41,6 +41,9 @@
 
 # Not yet supported
 Constructor
+Global
+PutForwards=*
+Unforgeable
 
 # Ignored attributes. We do not perform any additional logic in the bindings
 # when these attributes are present
