@@ -30,7 +30,8 @@ const int kInitialHeight = 1080;
 
 }  // namespace
 
-BrowserModule::BrowserModule(const Options& options)
+BrowserModule::BrowserModule(const std::string& user_agent,
+                             const Options& options)
     : renderer_module_(options.renderer_module_options),
       css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
@@ -39,9 +40,10 @@ BrowserModule::BrowserModule(const Options& options)
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       resource_loader_factory_(FakeResourceLoaderFactory::Create(
           options.fake_resource_loader_factory_options)),
-      window_(make_scoped_refptr(new dom::Window(
-          kInitialWidth, kInitialHeight, css_parser_.get(),
-          resource_loader_factory_.get(), script_runner_.get(), options.url))),
+      window_(make_scoped_refptr(
+          new dom::Window(kInitialWidth, kInitialHeight, css_parser_.get(),
+                          resource_loader_factory_.get(), script_runner_.get(),
+                          options.url, user_agent))),
       layout_manager_(window_.get(),
                       renderer_module_.pipeline()->GetResourceProvider(),
                       base::Bind(&BrowserModule::OnRenderTreeProduced,

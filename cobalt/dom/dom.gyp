@@ -69,6 +69,8 @@
         'keyboard_event.h',
         'named_node_map.cc',
         'named_node_map.h',
+        'navigator.cc',
+        'navigator.h',
         'node.cc',
         'node.h',
         'node_children_iterator.h',
