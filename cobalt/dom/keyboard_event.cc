@@ -40,10 +40,7 @@ int KeyboardEvent::key_code() const {
 }
 
 int KeyboardEvent::char_code() const {
-  if (type_enum_ != kChar) {
-    return 0;
-  }
-  return char_code_;
+  return type_enum_ == kKeyPress ? char_code_ : 0;
 }
 
 }  // namespace dom

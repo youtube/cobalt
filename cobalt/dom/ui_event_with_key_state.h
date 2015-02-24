@@ -22,8 +22,12 @@
 namespace cobalt {
 namespace dom {
 
+// UIEventWithKeyState inherits UIEvent and has the key modifiers.
+// Both KeyboardEvent and MouseEvent inherit UIEventWithKeyState.
 class UIEventWithKeyState : public UIEvent {
  public:
+  // Web API: KeyboardEvent, MouseEvent
+  //
   enum Modifiers {
     kAltKey = 1 << 0,
     kCtrlKey = 1 << 1,
@@ -31,10 +35,10 @@ class UIEventWithKeyState : public UIEvent {
     kShiftKey = 1 << 3,
   };
 
-  bool alt_key() const { return modifiers_ & kAltKey; }
-  bool ctrl_key() const { return modifiers_ & kCtrlKey; }
-  bool meta_key() const { return modifiers_ & kMetaKey; }
-  bool shift_key() const { return modifiers_ & kShiftKey; }
+  bool alt_key() const { return (modifiers_ & kAltKey) != 0; }
+  bool ctrl_key() const { return (modifiers_ & kCtrlKey) != 0; }
+  bool meta_key() const { return (modifiers_ & kMetaKey) != 0; }
+  bool shift_key() const { return (modifiers_ & kShiftKey) != 0; }
 
  protected:
   UIEventWithKeyState(Type type, Modifiers modifiers,
