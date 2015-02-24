@@ -40,6 +40,7 @@ namespace dom {
 
 class Document;
 class DocumentBuilder;
+class Navigator;
 
 // The window object represents a window containing a DOM document.
 //   http://www.w3.org/TR/html5/browsers.html#the-window-object
@@ -50,15 +51,18 @@ class Window : public script::Wrappable {
  public:
   Window(int width, int height, cssom::CSSParser* css_parser,
          browser::ResourceLoaderFactory* resource_loader_factory,
-         script::ScriptRunner* script_runner, const GURL& url);
+         script::ScriptRunner* script_runner, const GURL& url,
+         const std::string& user_agent);
 
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
+  const std::string& user_agent() const;
 
-  const scoped_refptr<Document>& document() { return document_; }
+  const scoped_refptr<Document>& document();
+  const scoped_refptr<Navigator>& navigator();
 
  private:
-  ~Window() OVERRIDE {}
+  ~Window() OVERRIDE;
 
   int width_;
   int height_;
@@ -66,6 +70,7 @@ class Window : public script::Wrappable {
   HTMLElementFactory html_element_factory_;
   scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Document> document_;
+  scoped_refptr<Navigator> navigator_;
 
   friend class scoped_ptr<Window>;
   DISALLOW_COPY_AND_ASSIGN(Window);
