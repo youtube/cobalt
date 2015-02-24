@@ -20,6 +20,7 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
 
@@ -29,17 +30,16 @@ namespace dom {
 // The UIEvent provides specific contextual information associated with User
 // Interface events.
 //   http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
-// TODO(***REMOVED***): inherit Event according to w3 doc.
-class UIEvent : public script::Wrappable {
+class UIEvent : public Event {
  public:
   Window* view() const { return view_.get(); }
 
+  // Custom, not in any spec.
   enum Type {
     kNoType = 0,
     kKeyDown,
+    kKeyPress,
     kKeyUp,
-    kRawKeyDown,
-    kChar,
   };
 
  protected:
@@ -51,7 +51,6 @@ class UIEvent : public script::Wrappable {
   // TODO(***REMOVED***): remove type_enum_ when we have something to deal with string
   // comparison.
   Type type_enum_;
-  std::string type_;
 };
 
 }  // namespace dom
