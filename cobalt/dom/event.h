@@ -40,7 +40,7 @@ class Event : public script::Wrappable {
   void PreventDefault() { default_prevented_ = true; }
   bool default_prevented() const { return default_prevented_; }
 
- private:
+ protected:
   ~Event() OVERRIDE {}
 
   bool default_prevented_;

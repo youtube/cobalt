@@ -27,16 +27,12 @@ const char* kPress = "keypress";
 
 const char* ConvertEventType(const UIEvent::Type& type) {
   switch (type) {
+    case UIEvent::kKeyDown:
+      return kDown;
+    case UIEvent::kKeyPress:
+      return kPress;
     case UIEvent::kKeyUp:
       return kUp;
-    case UIEvent::kRawKeyDown:
-      return kDown;
-    case UIEvent::kChar:
-      return kPress;
-    case UIEvent::kKeyDown:
-      DLOG(FATAL) << "The caller should disambiguate the combined event into "
-                  << "RawKeyDown or Char events";
-      break;
     default:
       break;
   }
@@ -48,7 +44,7 @@ const char* ConvertEventType(const UIEvent::Type& type) {
 }  // namespace
 
 UIEvent::UIEvent(Type type, const scoped_refptr<Window>& view)
-    : type_enum_(type), type_(ConvertEventType(type)), view_(view) {}
+    : type_enum_(type), Event(ConvertEventType(type)), view_(view) {}
 
 }  // namespace dom
 }  // namespace cobalt
