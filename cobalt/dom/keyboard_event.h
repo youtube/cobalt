@@ -29,6 +29,8 @@ namespace dom {
 //   http://www.w3.org/TR/DOM-Level-3-Events/#events-keyboardevents
 class KeyboardEvent : public UIEventWithKeyState {
  public:
+  // Web API: KeyboardEvent
+  //
   enum KeyLocationCode {
     kLocationStandard = 0x00,
     kLocationLeft = 0x01,
@@ -41,7 +43,10 @@ class KeyboardEvent : public UIEventWithKeyState {
                 const scoped_refptr<Window>& view);
 
   bool repeat() const { return repeat_; }
+
+  // Non-standard and deprecated.
   // key code for keydown and keyup, character for keypress
+  //   http://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
   int key_code() const;
   int char_code() const;
 
