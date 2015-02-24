@@ -46,7 +46,7 @@ class BrowserModule {
     FakeResourceLoaderFactory::Options fake_resource_loader_factory_options;
   };
 
-  explicit BrowserModule(const Options& options);
+  BrowserModule(const std::string& user_agent, const Options& options);
   ~BrowserModule();
 
   renderer::RendererModule* renderer_module() { return &renderer_module_; }
