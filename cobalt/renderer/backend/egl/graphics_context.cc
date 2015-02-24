@@ -250,7 +250,11 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   // pixel is at the top-left.  While this is not a fast procedure, this
   // entire function is only intended to be used in debug/test code.
   int pitch_in_bytes = surface_info.width * surface_info.BytesPerPixel();
+#if !defined(__LB_LINUX__)
+  // Flip the pixels so that (0,0) is at the top-left.  The Mesa Gallium
+  // EGL implementation on Linux seems to return already flipped pixels.
   VerticallyFlipPixels(pixels.get(), pitch_in_bytes, surface_info.height);
+#endif
 
   return pixels.Pass();
 }
