@@ -94,7 +94,7 @@
             ],
           },
         }],
-        ['os_posix == 1', {
+        ['os_posix == 1 and cobalt != 1', {
           'defines': [
             # gtest isn't able to figure out when RTTI is disabled for gcc
             # versions older than 4.3.2, and assumes it's enabled.  Our Mac
