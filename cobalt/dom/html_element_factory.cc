@@ -24,6 +24,7 @@
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
+#include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 
 namespace cobalt {
@@ -44,6 +45,12 @@ template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
   return HTMLScriptElement::Create(loader_factory_, script_runner_);
+}
+
+template <>
+scoped_refptr<HTMLElement>
+HTMLElementFactory::CreateHTMLElementT<HTMLStyleElement>() {
+  return HTMLStyleElement::Create(css_parser_);
 }
 
 HTMLElementFactory::HTMLElementFactory(
@@ -72,6 +79,9 @@ HTMLElementFactory::HTMLElementFactory(
                  base::Unretained(this));
   tag_name_to_create_html_element_t_callback_map_[HTMLSpanElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLSpanElement>,
+                 base::Unretained(this));
+  tag_name_to_create_html_element_t_callback_map_[HTMLStyleElement::kTagName] =
+      base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLStyleElement>,
                  base::Unretained(this));
 }
 
