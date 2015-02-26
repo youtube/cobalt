@@ -21,8 +21,10 @@ const base::subtle::Atomic32 kMagicValue = 42;
 // Helper for memory accesses that can potentially corrupt memory or cause a
 // crash during a native run.
 #if defined(ADDRESS_SANITIZER)
-#if defined(OS_IOS)
+#if defined(OS_IOS) || defined(__LB_SHELL__)
 // EXPECT_DEATH is not supported on IOS.
+// TODO(rjogrady): We have EXPECT_DEATH disabled for all Steel platforms,
+// but we could potentially support it on Linux.
 #define HARMFUL_ACCESS(action,error_regexp) do { action; } while (0)
 #else
 #define HARMFUL_ACCESS(action,error_regexp) EXPECT_DEATH(action,error_regexp)
@@ -84,7 +86,7 @@ TEST(ToolsSanityTest, MemoryLeak) {
   leak[4] = 1;  // Make sure the allocated memory is used.
 }
 
-#if defined(ADDRESS_SANITIZER) && defined(OS_IOS)
+#if defined(ADDRESS_SANITIZER) && (defined(OS_IOS) || defined(__LB_SHELL__))
 // Because iOS doesn't support death tests, each of the following tests will
 // crash the whole program under ASan.
 #define MAYBE_AccessesToNewMemory DISABLED_AccessesToNewMemory
