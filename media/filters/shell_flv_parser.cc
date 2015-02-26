@@ -465,7 +465,8 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
     // might be worth trying to parse this as AMF3?
     return false;
   }
-  duration_ = base::TimeDelta::FromSeconds(duration_seconds);
+  duration_ = base::TimeDelta::FromMicroseconds(
+      duration_seconds * base::Time::kMicrosecondsPerSecond);
 
   // Try for the byterate too, but this is nonfatal if we can't get it.
   double byterate = 0;
