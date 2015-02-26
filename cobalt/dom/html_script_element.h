@@ -54,6 +54,8 @@ class HTMLScriptElement : public HTMLElement {
   std::string type() const { return GetAttribute("type").value_or(""); }
   void set_type(const std::string& value) { SetAttribute("type", value); }
 
+  std::string text() const;
+
   // Custom, not in any spec.
   //
   scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE {
