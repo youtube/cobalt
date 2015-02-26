@@ -35,9 +35,36 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
       new HTMLScriptElement(loader_factory, script_runner));
 }
 
+// Algorithm for text:
+//   http://www.w3.org/TR/html5/scripting-1.html#dom-script-text
+std::string HTMLScriptElement::text() const {
+  std::string content;
+
+  const Node* child = first_child();
+  while (child) {
+    if (child->IsText()) {
+      content.append(child->text_content());
+    }
+    child = child->next_sibling();
+  }
+
+  return content;
+}
+
 void HTMLScriptElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
-  Prepare();
+  if (HasAttribute("src")) {
+    // In Cobalt we only support asynchronous execution of loaded script, so the
+    // async attribute should be present alongside src.
+    if (!async())
+      LOG(WARNING) << "Script element has src attribute but doesn't has async "
+                      "attribute.";
+    // Prepare the script and execute when it's done.
+    Prepare();
+  } else {
+    // Immediately execute the script.
+    script_runner_->Execute(text());
+  }
 }
 
 HTMLScriptElement::HTMLScriptElement(
@@ -59,12 +86,7 @@ void HTMLScriptElement::Prepare() {
   // agent must abort these steps at this point. The script is not executed.
   if (is_already_started_) return;
 
-  // 2. 3. Not needed by Cobalt.
-
-  // 4. If the element has no src attribute, and its child nodes, if any,
-  // consist only of comment nodes and empty Text nodes, then the user agent
-  // must abort these steps at this point. The script is not executed.
-  if (!HasAttribute("src")) return;
+  // 2. 3. 4. Not needed by Cobalt.
 
   // 5. If the element is not in a Document, then the user agent must abort
   // these steps at this point. The script is not executed.
@@ -111,7 +133,7 @@ void HTMLScriptElement::Prepare() {
   // named error at the element, and abort these steps.
   if (src() == "") {
     // TODO(***REMOVED***): Report src is empty.
-    LOG(INFO) << "src attribute of script element is empty.";
+    LOG(ERROR) << "src attribute of script element is empty.";
     return;
   }
 
@@ -122,7 +144,7 @@ void HTMLScriptElement::Prepare() {
   const GURL url = base_url.Resolve(src());
   if (!url.is_valid()) {
     // TODO(***REMOVED***): Report URL cannot be resolved.
-    LOG(INFO) << src() << " cannot be resolved based on " << base_url;
+    LOG(ERROR) << src() << " cannot be resolved based on " << base_url;
     return;
   }
 
