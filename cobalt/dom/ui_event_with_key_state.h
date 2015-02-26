@@ -28,12 +28,11 @@ class UIEventWithKeyState : public UIEvent {
  public:
   // Web API: KeyboardEvent, MouseEvent
   //
-  enum Modifiers {
-    kAltKey = 1 << 0,
-    kCtrlKey = 1 << 1,
-    kMetaKey = 1 << 2,
-    kShiftKey = 1 << 3,
-  };
+  static const unsigned int kNoModifier = 0;
+  static const unsigned int kAltKey = 1 << 0;
+  static const unsigned int kCtrlKey = 1 << 1;
+  static const unsigned int kMetaKey = 1 << 2;
+  static const unsigned int kShiftKey = 1 << 3;
 
   bool alt_key() const { return (modifiers_ & kAltKey) != 0; }
   bool ctrl_key() const { return (modifiers_ & kCtrlKey) != 0; }
@@ -41,9 +40,8 @@ class UIEventWithKeyState : public UIEvent {
   bool shift_key() const { return (modifiers_ & kShiftKey) != 0; }
 
  protected:
-  UIEventWithKeyState(Type type, Modifiers modifiers,
-                      const scoped_refptr<Window>& view)
-      : UIEvent(type, view), modifiers_(modifiers) {}
+  UIEventWithKeyState(Type type, unsigned int modifiers)
+      : UIEvent(type), modifiers_(modifiers) {}
 
   ~UIEventWithKeyState() OVERRIDE {}
 
