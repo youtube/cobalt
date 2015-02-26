@@ -23,6 +23,7 @@
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
+#include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 
 namespace cobalt {
@@ -43,6 +44,10 @@ scoped_refptr<HTMLScriptElement> HTMLElement::AsHTMLScriptElement() {
 }
 
 scoped_refptr<HTMLSpanElement> HTMLElement::AsHTMLSpanElement() { return NULL; }
+
+scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
+  return NULL;
+}
 
 HTMLElement::HTMLElement()
     : style_(new cssom::CSSStyleDeclaration()),

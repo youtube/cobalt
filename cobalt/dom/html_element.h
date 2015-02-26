@@ -31,6 +31,7 @@ class HTMLHtmlElement;
 class HTMLLinkElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
+class HTMLStyleElement;
 
 // The basic interface, from which all the HTML elements' interfaces inherit,
 // and which must be used by elements that have no additional requirements.
@@ -55,6 +56,7 @@ class HTMLElement : public Element {
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
+  virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
