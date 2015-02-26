@@ -41,6 +41,9 @@ class CSSParser {
   // Parses entire stylesheet.
   virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& file_name, const std::string& input) = 0;
+  virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheetWithBeginLine(
+      const std::string& file_name, const std::string& input,
+      int begin_line) = 0;
 
   // TODO(***REMOVED***): Implement other entry points.
 

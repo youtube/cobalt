@@ -59,7 +59,8 @@ class ParserImpl {
  public:
   ParserImpl(const std::string& file_name, const std::string& input,
              const Parser::OnMessageCallback& on_warning_callback,
-             const Parser::OnMessageCallback& on_error_callback);
+             const Parser::OnMessageCallback& on_error_callback,
+             int begin_line);
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
 
@@ -91,17 +92,21 @@ class ParserImpl {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
 
+  int begin_line_;
+
   friend int yyparse(ParserImpl* parser_impl);
 };
 
 ParserImpl::ParserImpl(const std::string& file_path, const std::string& input,
                        const Parser::OnMessageCallback& on_warning_callback,
-                       const Parser::OnMessageCallback& on_error_callback)
+                       const Parser::OnMessageCallback& on_error_callback,
+                       int begin_line)
     : file_path_(file_path),
       input_(input),
       scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
-      on_error_callback_(on_error_callback) {}
+      on_error_callback_(on_error_callback),
+      begin_line_(begin_line) {}
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
                             const std::string& message) {
@@ -117,7 +122,8 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
                                       const YYLTYPE& source_location,
                                       const std::string& message) {
   std::stringstream message_stream;
-  message_stream << file_path_ << ":" << source_location.first_line << ":"
+  message_stream << file_path_ << ":"
+                 << begin_line_ + source_location.first_line - 1 << ":"
                  << source_location.first_column << ": " << message_type << ": "
                  << message;
   return message_stream.str();
@@ -180,7 +186,14 @@ Parser::~Parser() {}
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
     const std::string& file_name, const std::string& input) {
   ParserImpl parser_impl(file_name, input, on_warning_callback_,
-                         on_error_callback_);
+                         on_error_callback_, 1);
+  return parser_impl.ParseStyleSheet();
+}
+
+scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheetWithBeginLine(
+    const std::string& file_name, const std::string& input, int begin_line) {
+  ParserImpl parser_impl(file_name, input, on_warning_callback_,
+                         on_error_callback_, begin_line);
   return parser_impl.ParseStyleSheet();
 }
 
