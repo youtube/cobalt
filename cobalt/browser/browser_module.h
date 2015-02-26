@@ -17,6 +17,7 @@
 #ifndef BROWSER_BROWSER_MODULE_H_
 #define BROWSER_BROWSER_MODULE_H_
 
+#include "cobalt/browser/input_device_adapter.h"
 #include "cobalt/browser/loader/fake_resource_loader_factory.h"
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/css_parser/parser.h"
@@ -81,6 +82,9 @@ class BrowserModule {
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
+
+  // Wraps input device and dom interaction logic.
+  InputDeviceAdapter input_device_adapter_;
 };
 
 }  // namespace browser

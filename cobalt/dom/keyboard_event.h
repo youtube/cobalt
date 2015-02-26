@@ -38,10 +38,10 @@ class KeyboardEvent : public UIEventWithKeyState {
     kLocationNumpad = 0x03,
   };
 
-  KeyboardEvent(KeyLocationCode location, Type type, Modifiers modifiers,
-                int key_code, int char_code, bool is_repeat,
-                const scoped_refptr<Window>& view);
+  KeyboardEvent(KeyLocationCode location, Type type, unsigned int modifiers,
+                int key_code, int char_code, bool is_repeat);
 
+  KeyLocationCode location() const { return location_; }
   bool repeat() const { return repeat_; }
 
   // Non-standard and deprecated.

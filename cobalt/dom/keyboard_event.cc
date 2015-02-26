@@ -22,16 +22,18 @@ namespace cobalt {
 namespace dom {
 
 KeyboardEvent::KeyboardEvent(KeyLocationCode location, Type type,
-                             Modifiers modifiers, int key_code, int char_code,
-                             bool is_repeat, const scoped_refptr<Window>& view)
-    : UIEventWithKeyState(type, modifiers, view),
+                             unsigned int modifiers, int key_code,
+                             int char_code, bool is_repeat)
+    : UIEventWithKeyState(type, modifiers),
       location_(location),
       key_code_(key_code),
       char_code_(char_code),
       repeat_(is_repeat) {}
 
+// How to determine keycode:
+//   http://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
+// Virtual key code for keyup/keydown, character code for keypress
 int KeyboardEvent::key_code() const {
-  // virtual key code for keyup/keydown, character code for keypress
   if (type_enum_ == kKeyDown || type_enum_ == kKeyUp) {
     return key_code_;
   }

@@ -21,7 +21,6 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -32,21 +31,16 @@ namespace dom {
 //   http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
 class UIEvent : public Event {
  public:
-  Window* view() const { return view_.get(); }
-
   // Custom, not in any spec.
   enum Type {
-    kNoType = 0,
     kKeyDown,
     kKeyPress,
     kKeyUp,
   };
 
  protected:
-  UIEvent(Type type, const scoped_refptr<Window>& view);
+  explicit UIEvent(Type type);
   ~UIEvent() OVERRIDE {}
-
-  const scoped_refptr<Window> view_;
 
   // TODO(***REMOVED***): remove type_enum_ when we have something to deal with string
   // comparison.

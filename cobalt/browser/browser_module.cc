@@ -47,7 +47,8 @@ BrowserModule::BrowserModule(const std::string& user_agent,
       layout_manager_(window_.get(),
                       renderer_module_.pipeline()->GetResourceProvider(),
                       base::Bind(&BrowserModule::OnRenderTreeProduced,
-                                 base::Unretained(this))) {
+                                 base::Unretained(this))),
+      input_device_adapter_(window_.get()) {
   // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
   global_object_proxy_->Bind("document", window_->document());
 }

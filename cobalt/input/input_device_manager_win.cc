@@ -14,36 +14,20 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
+#include "cobalt/input/input_device_manager_win.h"
 
 namespace cobalt {
-namespace dom {
+namespace input {
 
-namespace {
+InputDeviceManagerWin::InputDeviceManagerWin(
+    const KeyboardEventCallback& callback)
+    : InputDeviceManager(callback) {}
 
-const char* kUp = "keyup";
-const char* kDown = "keydown";
-const char* kPress = "keypress";
-
-const char* GetEventTypeName(const UIEvent::Type& type) {
-  switch (type) {
-    case UIEvent::kKeyDown:
-      return kDown;
-    case UIEvent::kKeyPress:
-      return kPress;
-    case UIEvent::kKeyUp:
-      return kUp;
-    default:
-      break;
-  }
-
-  NOTREACHED();
-  return kDown;
+// static
+scoped_ptr<InputDeviceManager> InputDeviceManager::Create(
+    const KeyboardEventCallback& callback) {
+  return scoped_ptr<InputDeviceManager>(new InputDeviceManagerWin(callback));
 }
 
-}  // namespace
-
-UIEvent::UIEvent(Type type) : type_enum_(type), Event(GetEventTypeName(type)) {}
-
-}  // namespace dom
+}  // namespace input
 }  // namespace cobalt
