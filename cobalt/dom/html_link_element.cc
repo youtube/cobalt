@@ -78,17 +78,12 @@ void HTMLLinkElement::Obtain() {
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(href(), content);
-  // Gracefully ignore style sheet if it failed to parse.
-  // Appropriate errors have been reported in the error callback already.
-  if (style_sheet) {
-    owner_document()->style_sheets()->Append(style_sheet);
-    // TODO(***REMOVED***): List of style sheets should be managed by the document,
-    //               so we don't have to report the mutation manually. Moreover,
-    //               it's a CSSOM mutation, not a DOM mutation, so we may want
-    //               to split the RecordMutation() method into two methods
-    //               to have a better event granularity.
-    owner_document()->RecordMutation();
-  }
+  owner_document()->style_sheets()->Append(style_sheet);
+  // TODO(***REMOVED***): List of style sheets should be managed by the document, so we
+  // don't have to report the mutation manually. Moreover, it's a CSSOM
+  // mutation, not a DOM mutation, so we may want to split the RecordMutation()
+  // method into two methods to have a better event granularity.
+  owner_document()->RecordMutation();
 }
 
 void HTMLLinkElement::OnLoadingError(

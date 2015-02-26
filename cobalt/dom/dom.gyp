@@ -62,6 +62,8 @@
         'html_serializer.h',
         'html_span_element.cc',
         'html_span_element.h',
+        'html_style_element.cc',
+        'html_style_element.h',
         'html_unknown_element.cc',
         'html_unknown_element.h',
         'location.cc',
