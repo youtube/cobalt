@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cmath>
-
 #include "base/at_exit.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
