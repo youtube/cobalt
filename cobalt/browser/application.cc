@@ -61,7 +61,7 @@ namespace {
 std::string GetInitialURL() {
   // Allow the user to override the default initial URL via a command line
   // parameter.
-  CommandLine *command_line = CommandLine::ForCurrentProcess();
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
     return command_line->GetSwitchValueASCII(switches::kInitialURL);
   }
