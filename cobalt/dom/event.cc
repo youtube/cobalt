@@ -22,7 +22,13 @@ namespace cobalt {
 namespace dom {
 
 Event::Event(const std::string& type)
-    : default_prevented_(false), type_(type) {}
+    : type_(type), default_prevented_(false) {}
+
+const scoped_refptr<EventTarget>& Event::target() const { return target_; }
+
+void Event::SetTarget(const scoped_refptr<EventTarget>& target) {
+  target_ = target;
+}
 
 }  // namespace dom
 }  // namespace cobalt
