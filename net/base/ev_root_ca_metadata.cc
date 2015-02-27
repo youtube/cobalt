@@ -39,6 +39,7 @@ struct EVMetadata {
   const char policy_oids[kMaxOIDsPerCA][kMaxOIDLength];
 };
 
+#if defined(USE_NSS) || defined(OS_IOS) || defined(OS_WIN)
 static const EVMetadata ev_root_ca_metadata[] = {
   // AddTrust External CA Root
   // https://addtrustexternalcaroot-ev.comodoca.com
@@ -310,7 +311,7 @@ static const EVMetadata ev_root_ca_metadata[] = {
     {"2.16.840.1.114404.1.1.2.4.1", ""},
   }
 };
-
+#endif  // defined(USE_NSS) || defined(OS_IOS) || defined(OS_WIN)
 static base::LazyInstance<EVRootCAMetadata>::Leaky
     g_ev_root_ca_metadata = LAZY_INSTANCE_INITIALIZER;
 

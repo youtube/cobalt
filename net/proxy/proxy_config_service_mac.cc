@@ -22,8 +22,6 @@ namespace net {
 
 namespace {
 
-const int kPollIntervalSec = 5;
-
 // Utility function to pull out a boolean value from a dictionary and return it,
 // returning a default value if the key is not present.
 bool GetBoolFromDictionary(CFDictionaryRef dict,

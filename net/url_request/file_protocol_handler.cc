@@ -19,7 +19,9 @@ FileProtocolHandler::FileProtocolHandler() { }
 URLRequestJob* FileProtocolHandler::MaybeCreateJob(
     URLRequest* request, NetworkDelegate* network_delegate) const {
   FilePath file_path;
+#if !defined(__LB_SHELL__)
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
+#endif
 
   // Check file access permissions.
   if (!network_delegate ||

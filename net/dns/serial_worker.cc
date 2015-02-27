@@ -11,11 +11,6 @@
 
 namespace net {
 
-namespace {
-  // Delay between calls to WorkerPool::PostTask
-  const int kWorkerPoolRetryDelayMs = 100;
-}
-
 SerialWorker::SerialWorker()
   : message_loop_(base::MessageLoopProxy::current()),
     state_(IDLE) {}
@@ -33,6 +28,7 @@ void SerialWorker::WorkNow() {
         NOTREACHED() << "WorkerPool::PostTask is not expected to fail on posix";
 #else
         LOG(WARNING) << "Failed to WorkerPool::PostTask, will retry later";
+        const int kWorkerPoolRetryDelayMs = 100;
         message_loop_->PostDelayedTask(
             FROM_HERE,
             base::Bind(&SerialWorker::RetryWork, this),

@@ -19,8 +19,6 @@ namespace net {
 
 namespace {
 
-const int kFilesPerEvent = 8;
-
 // Comparator for sorting lister results. This uses the locale aware filename
 // comparison function on the filenames for sorting in the user's locale.
 // Static.
@@ -179,6 +177,7 @@ void DirectoryLister::Core::StartInternal() {
        should be done from JS to give more flexibility in the page. When we do
        that, we can uncomment this to send incremental updates to the page.
 
+    const int kFilesPerEvent = 8;
     if (file_data.size() < kFilesPerEvent)
       continue;
 

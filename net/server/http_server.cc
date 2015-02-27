@@ -154,7 +154,7 @@ void HttpServer::DidRead(StreamListenSocket* socket,
     if (request.method == "POST" || request.method == "PUT") {
       // Get the remaining data.
       size_t content_length = 0;
-      bool ret = base::StringToSizeT(
+      base::StringToSizeT(
           base::StringPiece(request.GetHeaderValue("Content-Length")),
           &content_length);
       if (content_length > 0 && pos < len) {

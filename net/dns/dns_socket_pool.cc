@@ -19,8 +19,7 @@ namespace {
 
 // When we initialize the SocketPool, we allocate kInitialPoolSize sockets.
 // When we allocate a socket, we ensure we have at least kAllocateMinSize
-// sockets to choose from.  When we free a socket, we retain it if we have
-// less than kRetainMaxSize sockets in the pool.
+// sockets to choose from.  Freed sockets are not retained.
 
 // On Windows, we can't request specific (random) ports, since that will
 // trigger firewall prompts, so request default ones, but keep a pile of
@@ -29,12 +28,10 @@ namespace {
 const DatagramSocket::BindType kBindType = DatagramSocket::DEFAULT_BIND;
 const unsigned kInitialPoolSize = 256;
 const unsigned kAllocateMinSize = 256;
-const unsigned kRetainMaxSize = 0;
 #else
 const DatagramSocket::BindType kBindType = DatagramSocket::RANDOM_BIND;
 const unsigned kInitialPoolSize = 0;
 const unsigned kAllocateMinSize = 1;
-const unsigned kRetainMaxSize = 0;
 #endif
 
 } // namespace
@@ -196,15 +193,6 @@ void DefaultDnsSocketPool::FreeSocket(
     unsigned server_index,
     scoped_ptr<DatagramClientSocket> socket) {
   DCHECK_LT(server_index, pools_.size());
-
-  // In some builds, kRetainMaxSize will be 0 if we never reuse sockets.
-  // In that case, don't compile this code to avoid a "tautological
-  // comparison" warning from clang.
-#if kRetainMaxSize > 0
-  SocketVector& pool = pools_[server_index];
-  if (pool.size() < kRetainMaxSize)
-    pool.push_back(socket.release());
-#endif
 }
 
 void DefaultDnsSocketPool::FillPool(unsigned server_index, unsigned size) {
