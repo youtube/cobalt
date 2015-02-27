@@ -49,6 +49,7 @@ void EventTarget::RemoveEventListener(
 
 // TODO(***REMOVED***): Implement proper event propagation.
 bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
+  if (!event->target()) event->SetTarget(this);
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if (iter->type == event->type()) {

@@ -16,6 +16,7 @@
 
 interface Event {
   readonly attribute DOMString type;
+  readonly attribute EventTarget? target;
 
   void preventDefault();
   readonly attribute boolean defaultPrevented;
