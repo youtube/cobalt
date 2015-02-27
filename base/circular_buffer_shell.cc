@@ -22,9 +22,9 @@ namespace base {
 
 CircularBufferShell::CircularBufferShell(size_t max_capacity)
     : max_capacity_(max_capacity),
+      buffer_(NULL),
       capacity_(0),
       length_(0),
-      buffer_(NULL),
       read_position_(0) {
 }
 

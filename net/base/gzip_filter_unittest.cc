@@ -25,11 +25,6 @@ namespace {
 const int kDefaultBufferSize = 4096;
 const int kSmallBufferSize = 128;
 
-const char kApplicationOctetStream[] = "application/octet-stream";
-const char kApplicationXGzip[] = "application/x-gzip";
-const char kApplicationGzip[] = "application/gzip";
-const char kApplicationXGunzip[] = "application/x-gunzip";
-
 // The GZIP header (see RFC 1952):
 //   +---+---+---+---+---+---+---+---+---+---+
 //   |ID1|ID2|CM |FLG|     MTIME     |XFL|OS |

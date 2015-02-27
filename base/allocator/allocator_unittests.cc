@@ -14,10 +14,13 @@ static const int kSizeBits = 8 * sizeof(size_t);
 static const size_t kMaxSize = ~static_cast<size_t>(0);
 // Maximum positive size of a size_t if it were signed.
 static const size_t kMaxSignedSize = ((size_t(1) << (kSizeBits-1)) - 1);
+
+#if !defined(__LB_SHELL__)
 // An allocation size which is not too big to be reasonable.
 static const size_t kNotTooBig = 100000;
 // An allocation size which is just too big.
 static const size_t kTooBig = ~static_cast<size_t>(0);
+#endif
 
 namespace {
 

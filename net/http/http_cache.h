@@ -112,9 +112,11 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
                               const CompletionCallback& callback) OVERRIDE;
 
    private:
-    CacheType type_;
     const FilePath path_;
+#if !defined(__LB_SHELL__)
+    CacheType type_;
     int max_bytes_;
+#endif
     scoped_refptr<base::MessageLoopProxy> thread_;
   };
 

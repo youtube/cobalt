@@ -16,6 +16,7 @@ namespace net {
 
 namespace {
 
+#if defined(USE_NSS) || defined(OS_WIN)
 static const char kVerisignPolicy[] = "2.16.840.1.113733.1.7.23.6";
 static const char kThawtePolicy[] = "2.16.840.1.113733.1.7.48.1";
 static const char kFakePolicy[] = "2.16.840.1.42";
@@ -26,7 +27,6 @@ static const SHA1HashValue kFakeFingerprint =
     { { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99 } };
 
-#if defined(USE_NSS) || defined(OS_WIN)
 class EVOidData {
  public:
   EVOidData();
