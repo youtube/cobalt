@@ -53,8 +53,6 @@ namespace net {
 
 namespace {
 
-const size_t kMaxNumNetLogEntries = 100;
-
 // When the IP address changes we don't immediately re-run proxy auto-config.
 // Instead, we  wait for |kDelayAfterNetworkChangesMs| before
 // attempting to re-valuate proxy auto-config.

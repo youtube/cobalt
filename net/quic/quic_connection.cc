@@ -35,9 +35,6 @@ const QuicPacketSequenceNumber kMaxPacketGap = 5000;
 // without exceeding kMaxPacketSize.
 const QuicPacketSequenceNumber kMaxUnackedPackets = 192u;
 
-// The amount of time we wait before resending a packet.
-const int64 kDefaultResendTimeMs = 500;
-
 // The maximum number of missing packets we'll resend to the peer before
 // sending an ack to update least_awaiting.
 // 10 is somewhat arbitrary: it's good to keep this in line with
