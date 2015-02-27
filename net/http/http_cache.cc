@@ -47,9 +47,11 @@ HttpCache::DefaultBackend::DefaultBackend(CacheType type,
                                           const FilePath& path,
                                           int max_bytes,
                                           base::MessageLoopProxy* thread)
-    : type_(type),
-      path_(path),
+    : path_(path),
+#if !defined(__LB_SHELL__)
+      type_(type),
       max_bytes_(max_bytes),
+#endif
       thread_(thread) {
 }
 
