@@ -59,7 +59,8 @@ static const uint8 kCodecIDAVC = 7;
 // FLV AVCVIDEODATA tag constants
 static const uint8 kAVCPacketTypeSequenceHeader = 0;
 static const uint8 kAVCPacketTypeNALU = 1;
-static const uint8 kAVCPacketTypeEndOfSequence = 2;
+// Unused:
+// static const uint8 kAVCPacketTypeEndOfSequence = 2;
 
 // SCRIPTDATA parsing constants
 static const uint8 kAMF0NumberType = 0x00;

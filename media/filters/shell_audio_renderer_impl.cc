@@ -49,9 +49,9 @@ ShellAudioRenderer* ShellAudioRenderer::Create(
 ShellAudioRendererImpl::ShellAudioRendererImpl(
     AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
-    : message_loop_(message_loop)
+    : sink_(sink)
     , set_decryptor_ready_cb_(set_decryptor_ready_cb)
-    , sink_(sink)
+    , message_loop_(message_loop)
     , state_(kUninitialized)
     , end_of_stream_state_(kWaitingForEOS)
     , decoded_audio_bus_(NULL)
@@ -557,4 +557,3 @@ bool ShellAudioRendererImpl::ShouldQueueRead(State state) {
 }
 
 }  // namespace media
-

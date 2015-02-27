@@ -43,12 +43,13 @@ ShellWavTestProbe::ShellWavTestProbe()
     : wav_file_(NULL)
     , form_wav_length_bytes_(kWavTotalHeaderLength - 8)
     , format_code_(0)
-    , samples_per_second_(0)
     , channels_(0)
+    , samples_per_second_(0)
     , bits_per_sample_(0)
+    , bytes_per_frame_(0)
     , closed_(true)
-    , close_after_ms_(0)
-    , bytes_per_frame_(0) {
+    , close_after_ms_(0) {
+
 }
 
 void ShellWavTestProbe::Initialize(const char* file_name,

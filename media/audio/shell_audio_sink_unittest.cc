@@ -95,7 +95,7 @@ class ShellAudioSinkTest : public testing::Test {
     media::ShellBufferFactory::Terminate();
   }
 
-  void Setup(const Config& config) {
+  void Configure(const Config& config) {
     render_byte_ = 0;
     consumption_byte_ = 0;
     render_bytes_num_ = 0;
@@ -304,7 +304,7 @@ TEST_F(ShellAudioSinkTest, Initialize) {
             bytes_per_sample,
             48000  /* output_sample_rate */);
 
-        Setup(config);
+        Configure(config);
         EXPECT_TRUE(!sink_->GetAudioBus());
         media::AudioParameters init_params = media::AudioParameters(
             media::AudioParameters::AUDIO_PCM_LOW_LATENCY, layout,
@@ -353,7 +353,7 @@ TEST_F(ShellAudioSinkTest, StartAndStop) {
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
       media::CHANNEL_LAYOUT_MONO, 48000, 16, 1024);
 
-  Setup(config);
+  Configure(config);
 
   sink_->Initialize(init_params, &render_callback_);
 
@@ -380,7 +380,7 @@ TEST_F(ShellAudioSinkTest, RenderNoFrames) {
                 sizeof(int16_t)  /* bytes_per_sample */,
                 48000  /* output_sample_rate */);
 
-  Setup(config);
+  Configure(config);
 
   media::AudioParameters init_params = media::AudioParameters(
       media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -416,7 +416,7 @@ TEST_F(ShellAudioSinkTest, RenderFrames) {
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
 
-    Setup(config);
+    Configure(config);
 
     media::AudioParameters init_params = media::AudioParameters(
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -481,7 +481,7 @@ TEST_F(ShellAudioSinkTest, RenderRequestSizeAkaAudioBusFrames) {
         kMaxHardwareChannelsStereo,
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
-    Setup(config);
+    Configure(config);
 
     media::AudioParameters init_params = media::AudioParameters(
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -579,7 +579,7 @@ TEST_F(ShellAudioSinkTest, ResumeAfterUnderflow) {
         kMaxHardwareChannelsStereo,
         sizeof(int16_t)  /* bytes_per_sample */,
         48000  /* output_sample_rate */);
-    Setup(config);
+    Configure(config);
 
     media::AudioParameters init_params = media::AudioParameters(
         media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
