@@ -24,6 +24,10 @@
 namespace cobalt {
 namespace dom {
 
+// The forward declaration is necessary for breaking the bi-directional
+// dependency between Event and EventTarget.
+class EventTarget;
+
 // The Event interface can be passed from the event target to event listener to
 // pass information between them.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-event
@@ -37,14 +41,18 @@ class Event : public script::Wrappable {
   // Web API: Event
   //
   const std::string& type() const { return type_; }
+  const scoped_refptr<EventTarget>& target() const;
   void PreventDefault() { default_prevented_ = true; }
   bool default_prevented() const { return default_prevented_; }
 
- protected:
-  ~Event() OVERRIDE {}
+  // Custom, not in any spec.
+  //
+  void SetTarget(const scoped_refptr<EventTarget>& target);
 
-  bool default_prevented_;
+ private:
   std::string type_;
+  scoped_refptr<EventTarget> target_;
+  bool default_prevented_;
 };
 
 }  // namespace dom

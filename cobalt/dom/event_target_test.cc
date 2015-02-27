@@ -21,6 +21,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::AllOf;
+using ::testing::Eq;
+using ::testing::Pointee;
+using ::testing::Property;
 
 // Use NiceMock as we don't care about EqualTo or MarkJSObjectAsNotCollectable
 // calls on the listener in most cases.
@@ -40,31 +44,50 @@ class TestScriptObjectHandleVisitor
 namespace cobalt {
 namespace dom {
 
-TEST(EventTargetTest, SingleEventListenerFiredTest) {
+class EventTargetTest : public ::testing::Test {
+ protected:
+  void ExpectHandleEventCallWithEventAndTarget(
+      const scoped_refptr<NiceMockEventListener>& listener,
+      const scoped_refptr<Event>& event,
+      const scoped_refptr<EventTarget>& target) {
+    // Note that we must pass the raw pointer to avoid reference counting issue.
+    EXPECT_CALL(
+        *listener,
+        HandleEvent(AllOf(Eq(event.get()),
+                          Pointee(Property(&Event::target, Eq(target.get()))))))
+        .RetiresOnSaturation();
+  }
+  void ExpectNoHandleEventCall(
+      const scoped_refptr<NiceMockEventListener>& listener) {
+    EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
+  }
+};
+
+TEST_F(EventTargetTest, SingleEventListenerFiredTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<NiceMockEventListener> event_listener =
       new NiceMockEventListener;
 
-  EXPECT_CALL(*event_listener, HandleEvent(event));
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
   event_target->DispatchEvent(event);
 }
 
-TEST(EventTargetTest, SingleEventListenerNotFiredTest) {
+TEST_F(EventTargetTest, SingleEventListenerNotFiredTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<NiceMockEventListener> event_listener =
       new NiceMockEventListener;
 
-  EXPECT_CALL(*event_listener, HandleEvent(_)).Times(0);
+  ExpectNoHandleEventCall(event_listener);
   event_target->AddEventListener("notfired", event_listener, false);
   event_target->DispatchEvent(event);
 }
 
 // Test if multiple event listeners of different event types can be added and
 // fired properly.
-TEST(EventTargetTest, MultipleEventListenersTest) {
+TEST_F(EventTargetTest, MultipleEventListenersTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<NiceMockEventListener> event_listener_fired_1 =
@@ -74,9 +97,11 @@ TEST(EventTargetTest, MultipleEventListenersTest) {
   scoped_refptr<NiceMockEventListener> event_listener_not_fired =
       new NiceMockEventListener;
 
-  EXPECT_CALL(*event_listener_fired_1, HandleEvent(event));
-  EXPECT_CALL(*event_listener_fired_2, HandleEvent(event));
-  EXPECT_CALL(*event_listener_not_fired, HandleEvent(event)).Times(0);
+  ExpectHandleEventCallWithEventAndTarget(event_listener_fired_1, event,
+                                          event_target);
+  ExpectHandleEventCallWithEventAndTarget(event_listener_fired_2, event,
+                                          event_target);
+  ExpectNoHandleEventCall(event_listener_not_fired);
 
   event_target->AddEventListener("fired", event_listener_fired_1, false);
   event_target->AddEventListener("notfired", event_listener_not_fired, false);
@@ -86,52 +111,56 @@ TEST(EventTargetTest, MultipleEventListenersTest) {
 }
 
 // Test if event listener can be added and later removed.
-TEST(EventTargetTest, AddRemoveEventListenerTest) {
+TEST_F(EventTargetTest, AddRemoveEventListenerTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<NiceMockEventListener> event_listener =
       new NiceMockEventListener;
 
-  EXPECT_CALL(*event_listener, HandleEvent(_));
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
   event_target->DispatchEvent(event);
 
-  EXPECT_CALL(*event_listener, HandleEvent(_)).Times(0);
+  ExpectNoHandleEventCall(event_listener);
   event_target->RemoveEventListener("fired", event_listener, false);
   event_target->DispatchEvent(event);
 
-  EXPECT_CALL(*event_listener, HandleEvent(_));
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
   event_target->DispatchEvent(event);
 }
 
 // Test if one event listener can be used by multiple events.
-TEST(EventTargetTest, EventListenerReuseTest) {
+TEST_F(EventTargetTest, EventListenerReuseTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event_1 = new Event("fired_1");
   scoped_refptr<Event> event_2 = new Event("fired_2");
   scoped_refptr<NiceMockEventListener> event_listener =
       new NiceMockEventListener;
 
-  EXPECT_CALL(*event_listener, HandleEvent(event_1)).Times(1);
-  EXPECT_CALL(*event_listener, HandleEvent(event_2)).Times(1);
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event_1,
+                                          event_target);
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event_2,
+                                          event_target);
   event_target->AddEventListener("fired_1", event_listener, false);
   event_target->AddEventListener("fired_2", event_listener, false);
   event_target->DispatchEvent(event_1);
   event_target->DispatchEvent(event_2);
 
-  EXPECT_CALL(*event_listener, HandleEvent(event_1)).Times(1);
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event_1,
+                                          event_target);
   event_target->RemoveEventListener("fired_2", event_listener, false);
   event_target->DispatchEvent(event_1);
   event_target->DispatchEvent(event_2);
 
-  EXPECT_CALL(*event_listener, HandleEvent(event_1)).Times(1);
+  ExpectHandleEventCallWithEventAndTarget(event_listener, event_1,
+                                          event_target);
   // The capture flag is not the same so the event will not be removed.
   event_target->RemoveEventListener("fired_1", event_listener, true);
   event_target->DispatchEvent(event_1);
   event_target->DispatchEvent(event_2);
 
-  EXPECT_CALL(*event_listener, HandleEvent(_)).Times(0);
+  ExpectNoHandleEventCall(event_listener);
   event_target->RemoveEventListener("fired_1", event_listener, false);
   event_target->DispatchEvent(event_1);
   event_target->DispatchEvent(event_2);
@@ -139,7 +168,7 @@ TEST(EventTargetTest, EventListenerReuseTest) {
 
 // Test MarkJSObjectAsNotCollectable on added event listener is called when
 // it is called on the EventTarget.
-TEST(EventTargetTest, MarkJSObjectAsNotCollectableTest) {
+TEST_F(EventTargetTest, MarkJSObjectAsNotCollectableTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<NiceMockEventListener> event_listener =
       new NiceMockEventListener;
