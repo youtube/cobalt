@@ -59,10 +59,12 @@ static const CodecInfo* kVideoWebMCodecs[] = {
   NULL
 };
 
+#if !defined(__LB_SHELL__)
 static const CodecInfo* kAudioWebMCodecs[] = {
   &kVorbisCodecInfo,
   NULL
 };
+#endif  // defined(__LB_SHELL__)
 
 static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
