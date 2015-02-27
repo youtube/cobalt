@@ -70,10 +70,6 @@ static void AdjustVolume(Format* buf_out,
   }
 }
 
-static const int kChannel_L = 0;
-static const int kChannel_R = 1;
-static const int kChannel_C = 2;
-
 template<class Fixed, int min_value, int max_value>
 static int AddSaturated(int val, int adder) {
   Fixed sum = static_cast<Fixed>(val) + static_cast<Fixed>(adder);

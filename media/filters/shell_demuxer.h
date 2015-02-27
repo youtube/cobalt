@@ -140,7 +140,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<DataSource> data_source_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
-  bool read_has_failed_;
   bool stopped_;
   bool flushing_;
 

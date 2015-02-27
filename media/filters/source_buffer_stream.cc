@@ -292,8 +292,10 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
 // 150MB: approximately 5 minutes of 4Mbps content.
+#if !defined(__LB_SHELL__)
 static const int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
+#endif
 
 namespace media {
 
