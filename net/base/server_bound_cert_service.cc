@@ -34,7 +34,6 @@ namespace net {
 
 namespace {
 
-const int kKeySizeInBits = 1024;
 const int kValidityPeriodInDays = 365;
 // When we check the system time, we add this many days to the end of the check
 // so the result will still hold even after chrome has been running for a

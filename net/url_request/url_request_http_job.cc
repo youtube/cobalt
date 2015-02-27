@@ -49,8 +49,6 @@
 #include "net/url_request/url_request_throttler_header_adapter.h"
 #include "net/url_request/url_request_throttler_manager.h"
 
-static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
-
 namespace net {
 
 class URLRequestHttpJob::HttpFilterContext : public FilterContext {
