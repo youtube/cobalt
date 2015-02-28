@@ -47,6 +47,16 @@
 %token kCommentToken                    // /* */
 %token kImportantToken                  // !important
 
+// Property name tokens.
+%token kBackgroundColorToken            // background-color
+%token kColorToken                      // color
+%token kFontFamilyToken                 // font-family
+%token kFontSizeToken                   // font-size
+
+// Property value tokens.
+%token kInheritToken                    // inherit
+%token kInitialToken                    // initial
+
 // Attribute matching tokens.
 %token kIncludesToken                   // ~=
 %token kDashMatchToken                  // |=
@@ -152,21 +162,6 @@
 %token <real> kDotsPerCentimeterToken                       // ...dpcm
 %token <real> kFractionsToken                               // ...fr
 
-// List of tokens in ascending order of precedence.
-// Precedence is used to resolve shift-reduce conflicts.
-// See https://www.gnu.org/software/bison/manual/html_node/Non-Operators.html
-%nonassoc kLowestPrecedenceToken
-%left kUnimportantToken
-%nonassoc ':'
-%nonassoc '.'
-%nonassoc '['
-%nonassoc '*'
-%nonassoc error
-%left '|'
-
-// Number of shift-reduce conflicts resolved in favor of shift.
-%expect 29
-
 //
 // Rules and their types.
 //
@@ -174,953 +169,358 @@
 // A top-level rule.
 %start stylesheet
 
-%union { cssom::CSSStyleRule* rule; }
-%type <rule> rule ruleset valid_rule
-%destructor { $$->Release(); } <rule>
-
-%union { cssom::CSSStyleDeclaration* style_declaration; }
-%type <style_declaration> decl_list declaration_list
-%destructor { $$->Release(); } <style_declaration>
+%union { bool important; }
+%type <important> maybe_important
 
 %union { PropertyDeclaration* property_declaration; }
-%type <property_declaration> declaration
+%type <property_declaration> maybe_declaration
 %destructor { delete $$; } <property_declaration>
 
-%type <string> property
-
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> expr term unary_term valid_expr
+%type <property_value> background_color color common_values font_family
+                       font_family_name font_size foreground_color length
+                       numeric_value
 %destructor { $$->Release(); } <property_value>
+
+%union { cssom::Selector* selector; }
+%type <selector> class_selector complex_selector compound_selector id_selector
+                 pseudo_class simple_selector type_selector universal_selector
+%destructor { delete $$; } <selector>
 
 %union { cssom::CSSStyleRule::Selectors* selectors; }
 %type <selectors> selector_list
 %destructor { delete $$; } <selectors>
 
-%union { cssom::Selector* selector; }
-%type <selector> selector simple_selector selector_with_trailing_whitespace
-                 element_name
-%destructor { delete $$; } <selector>
+%type <string> identifier
+
+%union { cssom::CSSStyleDeclaration* style_declaration; }
+%type <style_declaration> declaration_block declaration_list
+%destructor { $$->Release(); } <style_declaration>
 
 %%
 
-// TODO(***REMOVED***): Generate warnings for unsupported CSS syntax.
-// TODO(***REMOVED***): Copy YYERROR invocations from WebKit.
-// TODO(***REMOVED***): Remove useless empty rules.
-// TODO(***REMOVED***): Generate AST.
-
-stylesheet:
-  maybe_space maybe_charset maybe_sgml rule_list ;
-
-// For expressions that require at least one whitespace to be present,
-// like the + and - operators in calc expressions.
-space:
-    kWhitespaceToken
-  | space kWhitespaceToken
-  ;
-
-maybe_space:
-    /* empty */ %prec kUnimportantToken
-  | maybe_space kWhitespaceToken
-  ;
-
-maybe_sgml:
+maybe_whitespace:
     /* empty */
-  | maybe_sgml kSgmlCommentDelimiterToken
-  | maybe_sgml kWhitespaceToken
+  | maybe_whitespace kWhitespaceToken
   ;
 
-closing_brace:
-    '}'
-  | %prec kLowestPrecedenceToken kEndOfFileToken
-  ;
-
-closing_parenthesis:
-    ')'
-  | %prec kLowestPrecedenceToken kEndOfFileToken
-  ;
-
-rule_list:
-    /* empty */
-  | rule_list rule maybe_sgml {
-    if ($2) {
-      parser_impl->style_sheet().AppendRule(MakeScopedRefPtrAndRelease($2));
-    }
-  }
-  ;
-
-valid_rule:
-    ruleset
-  | media { $$ = NULL; }
-  | page { $$ = NULL; }
-  | font_face { $$ = NULL; }
-  | keyframes { $$ = NULL; }
-  | namespace { $$ = NULL; }
-  | import { $$ = NULL; }
-  | region { $$ = NULL; }
-  | supports { $$ = NULL; }
-  | viewport { $$ = NULL; }
-  ;
-
-rule:
-    valid_rule
-  | ignored_charset { $$ = NULL; }
-  | invalid_rule { $$ = NULL; }
-  | invalid_at { $$ = NULL; }
-  ;
-
-block_rule_list:
-    /* empty */
-  | block_rule_list block_rule maybe_sgml
-  ;
-
-block_valid_rule_list:
-    /* empty */
-  | block_valid_rule_list block_valid_rule maybe_sgml
-  ;
-
-block_valid_rule:
-    ruleset
-  | page
-  | font_face
-  | media
-  | keyframes
-  | supports
-  | viewport
-  ;
-
-block_rule:
-    block_valid_rule
-  | invalid_rule
-  | invalid_at
-  | namespace
-  | import
-  | region
-  ;
-
-at_import_header_end_maybe_space:
-  maybe_space ;
-
-before_import_rule:
-  /* empty */ ;
-
-/* TODO(***REMOVED***): Find unsupported rules by looking for unsupported tokens
-                 and returning unsupported_syntax with the location of those
-                 tokens. */
-
-import:
-    before_import_rule kImportToken at_import_header_end_maybe_space
-      string_or_uri maybe_space maybe_media_list ';'
-  | before_import_rule kImportToken at_import_header_end_maybe_space
-      string_or_uri maybe_space maybe_media_list kEndOfFileToken
-  | before_import_rule kImportToken at_import_header_end_maybe_space
-      string_or_uri maybe_space maybe_media_list invalid_block
-  | before_import_rule kImportToken error ';'
-  | before_import_rule kImportToken error invalid_block
-  ;
-
-namespace:
-    kNamespaceToken maybe_space maybe_ns_prefix string_or_uri maybe_space ';'
-  | kNamespaceToken maybe_space maybe_ns_prefix string_or_uri maybe_space
-      invalid_block
-  | kNamespaceToken error invalid_block
-  | kNamespaceToken error ';'
-  ;
-
-maybe_ns_prefix:
-    /* empty */
-  | kIdentifierToken maybe_space
-  ;
-
-string_or_uri:
-    kStringToken
-  | kUriToken
-  ;
-
-maybe_media_value:
-    /*empty*/
-  | ':' maybe_space expr maybe_space {
-    scoped_refptr<cssom::PropertyValue> property_value =
-        MakeScopedRefPtrAndRelease($3);
-  }
-  ;
-
-media_query_exp:
-    maybe_media_restrictor maybe_space '(' maybe_space kIdentifierToken
-      maybe_space maybe_media_value ')' maybe_space {
-  }
-  ;
-
-media_query_exp_list:
-    media_query_exp
-  | media_query_exp_list maybe_space kMediaAndToken maybe_space media_query_exp
-  ;
-
-maybe_and_media_query_exp_list:
-    /*empty*/
-  | kMediaAndToken maybe_space media_query_exp_list
-  ;
-
-maybe_media_restrictor:
-    /*empty*/
-  | kMediaOnlyToken
-  | kMediaNotToken
-  ;
-
-media_query:
-    media_query_exp_list
-  | maybe_media_restrictor maybe_space kIdentifierToken maybe_space
-      maybe_and_media_query_exp_list {
-  }
-  ;
-
-maybe_media_list:
-    /* empty */
-  | media_list
-  ;
-
-media_list:
-    media_query
-  | media_list ',' maybe_space media_query
-  | media_list error
-  ;
-
-at_rule_body_start:
-  /* empty */ ;
-
-before_media_rule:
-  /* empty */ ;
-
-at_rule_header_end_maybe_space:
-  maybe_space ;
-
-media:
-    before_media_rule kMediaToken maybe_space media_list at_rule_header_end '{'
-      at_rule_body_start maybe_space block_rule_list save_block
-  | before_media_rule kMediaToken at_rule_header_end_maybe_space '{'
-      at_rule_body_start maybe_space block_rule_list save_block
-  | before_media_rule kMediaToken at_rule_header_end_maybe_space ';'
-  ;
-
-supports:
-    before_supports_rule kSupportsToken maybe_space supports_condition
-      at_supports_rule_header_end '{' at_rule_body_start maybe_space
-          block_rule_list save_block
-  | before_supports_rule kSupportsToken supports_error
-  ;
-
-supports_error:
-    error ';'
-  | error invalid_block
-  ;
-
-before_supports_rule:
-  /* empty */ ;
-
-at_supports_rule_header_end:
-  /* empty */ ;
-
-supports_condition:
-    supports_condition_in_parens
-  | supports_negation
-  | supports_conjunction
-  | supports_disjunction
-  ;
-
-supports_negation:
-  kSupportsNotToken maybe_space supports_condition_in_parens ;
-
-supports_conjunction:
-    supports_condition_in_parens kSupportsAndToken maybe_space
-      supports_condition_in_parens
-  | supports_conjunction kSupportsAndToken maybe_space
-      supports_condition_in_parens
-  ;
-
-supports_disjunction:
-    supports_condition_in_parens kSupportsOrToken maybe_space
-      supports_condition_in_parens
-  | supports_disjunction kSupportsOrToken maybe_space
-      supports_condition_in_parens
-  ;
-
-supports_condition_in_parens:
-    '(' maybe_space supports_condition ')' maybe_space
-  | supports_declaration_condition
-  | '(' error ')'
-  ;
-
-supports_declaration_condition:
-  '(' maybe_space property ':' maybe_space expr priority ')' maybe_space {
-    scoped_refptr<cssom::PropertyValue> property_value =
-        MakeScopedRefPtrAndRelease($6);
-  }
-  ;
-
-before_keyframes_rule:
-  /* empty */ ;
-
-keyframes:
-  before_keyframes_rule kWebkitKeyframesToken maybe_space keyframe_name
-    at_rule_header_end_maybe_space '{' at_rule_body_start maybe_space
-      keyframes_rule closing_brace ;
-
-keyframe_name:
-    kIdentifierToken
-  | kStringToken
-  ;
-
-keyframes_rule:
-    /* empty */
-  | keyframes_rule keyframe_rule maybe_space
-  ;
-
-keyframe_rule:
-  key_list maybe_space '{' maybe_space declaration_list closing_brace {
+at_rule:
+    kFontFaceToken declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($5);
-  }
-  ;
-
-key_list:
-    key
-  | key_list maybe_space ',' maybe_space key
-  ;
-
-key:
-    maybe_unary_operator kPercentageToken
-  | kIdentifierToken
-  | error
-  ;
-
-before_page_rule:
-  /* empty */ ;
-
-page:
-    before_page_rule kPageToken maybe_space page_selector
-      at_rule_header_end_maybe_space '{' at_rule_body_start
-        maybe_space_before_declaration declarations_and_margins closing_brace
-  | before_page_rule kPageToken error invalid_block
-  | before_page_rule kPageToken error ';'
-  ;
-
-page_selector:
-    /* empty */
-  | kIdentifierToken
-  | kIdentifierToken pseudo_page
-  | pseudo_page
-  ;
-
-declarations_and_margins:
-    declaration_list {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($1);
-  }
-  | declarations_and_margins margin_box maybe_space declaration_list {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($4);
-  }
-  ;
-
-margin_box:
-  margin_sym maybe_space '{' maybe_space declaration_list closing_brace {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($5);
-  }
-  ;
-
-margin_sym:
-    kTopLeftCornerToken
-  | kTopLeftToken
-  | kTopCenterToken
-  | kTopRightToken
-  | kTopRightCornerToken
-  | kBottomLeftCornerToken
-  | kBottomLeftToken
-  | kBottomCenterToken
-  | kBottomRightToken
-  | kBottomRightCornerToken
-  | kLeftTopToken
-  | kLeftMiddleToken
-  | kLeftBottomToken
-  | kRightTopToken
-  | kRightMiddleToken
-  | kRightBottomToken
-  ;
-
-before_font_face_rule:
-  /* empty */ ;
-
-font_face:
-    before_font_face_rule kFontFaceToken at_rule_header_end_maybe_space '{'
-      at_rule_body_start maybe_space_before_declaration declaration_list
-        closing_brace {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($7);
-  }
-  | before_font_face_rule kFontFaceToken error invalid_block
-  | before_font_face_rule kFontFaceToken error ';'
-  ;
-
-before_viewport_rule:
-  /* empty */ ;
-
-viewport:
-    before_viewport_rule kWebkitViewportToken at_rule_header_end_maybe_space
-      '{' at_rule_body_start maybe_space_before_declaration declaration_list
-        closing_brace {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($7);
-  }
-  | before_viewport_rule kWebkitViewportToken error invalid_block
-  | before_viewport_rule kWebkitViewportToken error ';'
-  ;
-
-before_region_rule:
-  /* empty */ ;
-
-region:
-  before_region_rule kWebkitRegionToken maybe_space selector_list
-    at_rule_header_end '{' at_rule_body_start maybe_space block_valid_rule_list
-      save_block {
-    scoped_ptr<cssom::CSSStyleRule::Selectors> selectors($4);
-  }
-  ;
-
-combinator:
-    '+' maybe_space
-  | '~' maybe_space
-  | '>' maybe_space
-  ;
-
-maybe_unary_operator:
-    /* empty */
-  | unary_operator
-  ;
-
-unary_operator:
-    '-'
-  | '+'
-  ;
-
-maybe_space_before_declaration:
-  maybe_space ;
-
-before_selector_list:
-  /* empty */ ;
-
-at_rule_header_end:
-  /* empty */ ;
-
-at_selector_end:
-  /* empty */ ;
-
-ruleset:
-  before_selector_list selector_list at_selector_end at_rule_header_end '{'
-    at_rule_body_start maybe_space_before_declaration declaration_list
-      closing_brace {
-    scoped_ptr<cssom::CSSStyleRule::Selectors> selectors($2);
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($8);
-    $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
-  }
-  ;
-
-before_selector_group_item:
-  /* empty */ ;
-
-selector_list:
-    selector %prec kUnimportantToken {
-    $$ = new cssom::CSSStyleRule::Selectors();
-    if ($1) {
-      $$->push_back($1);
-    }
-  }
-  | selector_list at_selector_end ',' maybe_space before_selector_group_item
-      selector %prec kUnimportantToken {
-    $$ = $1;
-    if ($6) {
-      $$->push_back($6);
-    }
-  }
-  | selector_list error {
-    $$ = $1;
-    $$->clear();
-  }
-  ;
-
-selector_with_trailing_whitespace:
-  selector kWhitespaceToken ;
-
-selector:
-    simple_selector
-  | selector_with_trailing_whitespace
-  | selector_with_trailing_whitespace simple_selector {
-    scoped_ptr<cssom::Selector> selector_with_trailing_whitespace($1);
-    scoped_ptr<cssom::Selector> simple_selector($2);
-    // TODO(***REMOVED***): Implement selector combinators.
-    $$ = NULL;
-  }
-  | selector combinator simple_selector {
-    scoped_ptr<cssom::Selector> selector($1);
-    scoped_ptr<cssom::Selector> simple_selector($3);
-    // TODO(***REMOVED***): Implement selector combinators.
-    $$ = NULL;
-  }
-  | selector error {
-    scoped_ptr<cssom::Selector> selector($1);
-    $$ = NULL;
-  }
-  ;
-
-namespace_selector:
-    '|'
-  | '*' '|'
-  | kIdentifierToken '|'
-  ;
-
-simple_selector:
-    element_name
-  | element_name specifier_list {
-    scoped_ptr<cssom::Selector> element_name($1);
-    // TODO(***REMOVED***): Implement specifiers.
-    $$ = NULL;
-  }
-  | specifier_list { $$ = NULL; }
-  | namespace_selector element_name {
-    scoped_ptr<cssom::Selector> element_name($2);
-    $$ = NULL;
-  }
-  | namespace_selector element_name specifier_list {
-    scoped_ptr<cssom::Selector> element_name($2);
-    $$ = NULL;
-  }
-  | namespace_selector specifier_list { $$ = NULL; }
-  ;
-
-simple_selector_list:
-    simple_selector %prec kUnimportantToken
-  | simple_selector_list maybe_space ',' maybe_space simple_selector %prec kUnimportantToken {
-    scoped_ptr<cssom::Selector> simple_selector($5);
-  }
-  | simple_selector_list error
-  ;
-
-element_name:
-    kIdentifierToken { $$ = new cssom::TypeSelector($1.ToString()); }
-  | '*' {
-    // TODO(***REMOVED***): Implement universal selector.
-    $$ = NULL;
-  }
-  ;
-
-specifier_list:
-    specifier
-  | specifier_list specifier
-  | specifier_list error
-  ;
-
-specifier:
-    kIdSelectorToken
-  | kHexToken
-  | class
-  | attrib
-  | pseudo
-  ;
-
-class:
-    '.' kIdentifierToken {
-  }
-  ;
-
-attrib:
-    '[' maybe_space kIdentifierToken maybe_space ']' {
-  }
-  | '[' maybe_space kIdentifierToken maybe_space match maybe_space
-      ident_or_string maybe_space ']' {
-  }
-  | '[' maybe_space namespace_selector kIdentifierToken maybe_space ']' {
-  }
-  | '[' maybe_space namespace_selector kIdentifierToken maybe_space match
-      maybe_space ident_or_string maybe_space ']' {
-  }
-  ;
-
-match:
-    '='
-  | kIncludesToken
-  | kDashMatchToken
-  | kBeginsWithToken
-  | kEndsWithToken
-  | kContainsToken
-  ;
-
-ident_or_string:
-    kIdentifierToken
-  | kStringToken
-  ;
-
-pseudo_page:
-    ':' kIdentifierToken {
-  }
-  ;
-
-pseudo:
-    ':' kIdentifierToken {
-  }
-  | ':' ':' kIdentifierToken {
-  }
-  // used by ::cue(:past/:future)
-  | ':' ':' kCueFunctionToken maybe_space simple_selector_list maybe_space ')'
-  // use by :-webkit-any.
-  // We may support generic selectors here  but we use simple_selector_list
-  // for now to match -moz-any.
-  // See http://lists.w3.org/Archives/Public/www-style/2010Sep/0566.html
-  // for some related discussion with respect to :not.
-  | ':' kAnyFunctionToken maybe_space simple_selector_list maybe_space ')'
-  // used by :nth-*(ax+b)
-  | ':' nth_function maybe_space kNthToken maybe_space ')' {
-  }
-  // used by :nth-*
-  | ':' nth_function maybe_space maybe_unary_operator kIntegerToken
-      maybe_space ')'
-  // used by :nth-*(odd/even) and :lang
-  | ':' nth_function maybe_space kIdentifierToken maybe_space ')' {
-  }
-  // used by :not
-  | ':' kNotFunctionToken maybe_space simple_selector maybe_space ')' {
-    scoped_ptr<cssom::Selector> simple_selector($4);
-  }
-  ;
-
-nth_function:
-    kNthChildFunctionToken
-  | kNthOfTypeFunctionToken
-  | kNthLastChildFunctionToken
-  | kNthLastOfTypeFunctionToken
-  ;
-
-// TODO(***REMOVED***): Log warnings for properties that failed to parse.
-
-declaration_list:
-    /* empty */ {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
-  }
-  | declaration {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
-    parser_impl->SetPropertyValueOrLogWarning($$, make_scoped_ptr($1), @1);
-  }
-  | decl_list declaration {
-    $$ = $1;
-    parser_impl->SetPropertyValueOrLogWarning($1, make_scoped_ptr($2), @2);
-  }
-  | decl_list
-  | decl_list_recovery {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
-  }
-  | decl_list decl_list_recovery
-  ;
-
-decl_list:
-    declaration ';' maybe_space {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
-    parser_impl->SetPropertyValueOrLogWarning($$, make_scoped_ptr($1), @1);
-  }
-  | decl_list_recovery ';' maybe_space {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
-  }
-  | decl_list declaration ';' maybe_space {
-    parser_impl->SetPropertyValueOrLogWarning($1, make_scoped_ptr($2), @2);
-    $$ = $1;
-  }
-  | decl_list decl_list_recovery ';' maybe_space
-  ;
-
-decl_list_recovery:
-  error error_recovery ;
-
-declaration:
-    property ':' maybe_space expr priority {
-    $$ = new PropertyDeclaration($1, MakeScopedRefPtrAndRelease($4));
-  }
-  | property declaration_recovery {
-    $$ = NULL;
-  }
-  | property ':' maybe_space expr priority declaration_recovery {
-    $$ = new PropertyDeclaration($1, MakeScopedRefPtrAndRelease($4));
-  }
-  | kImportantToken maybe_space declaration_recovery {
-    $$ = NULL;
-  }
-  | property ':' maybe_space declaration_recovery {
-    $$ = NULL;
-  }
-  ;
-
-declaration_recovery:
-  error error_recovery ;
-
-property:
-  kIdentifierToken maybe_space ;
-
-priority:
-    /* empty */
-  | kImportantToken maybe_space
-  ;
-
-ident_list:
-    kIdentifierToken maybe_space
-  | ident_list kIdentifierToken maybe_space {
-  }
-  ;
-
-track_names_list:
-    '(' maybe_space closing_parenthesis
-  | '(' maybe_space ident_list closing_parenthesis
-  | '(' maybe_space expr_recovery closing_parenthesis
-  ;
-
-expr:
-    valid_expr
-  | valid_expr expr_recovery
-  ;
-
-valid_expr:
-    term
-  | valid_expr operator term {
-    scoped_refptr<cssom::PropertyValue> expression =
-        MakeScopedRefPtrAndRelease($1);
-    scoped_refptr<cssom::PropertyValue> term = MakeScopedRefPtrAndRelease($3);
-    // TODO(***REMOVED***): Handle multi-term expressions.
-    $$ = NULL;
-  }
-  ;
-
-expr_recovery:
-  error error_recovery ;
-
-operator:
-    /* empty */
-  | '/' maybe_space
-  | ',' maybe_space
-  ;
-
-term:
-    unary_term maybe_space
-  | unary_operator unary_term maybe_space {
-    scoped_refptr<cssom::PropertyValue> property_value =
         MakeScopedRefPtrAndRelease($2);
-    // TODO(***REMOVED***): Implement negative values.
-    $$ = NULL;
+    // TODO(***REMOVED***): Implement.
   }
-  | kStringToken maybe_space {
-    $$ = AddRef(new cssom::StringValue($1.ToString()));
+  ;
+
+// Some identifiers such as property names or values are recognized
+// specifically by the scanner. We are merging those identifiers back together
+// to allow their use in selectors.
+identifier:
+    kIdentifierToken
+  | kBackgroundColorToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorProperty);
   }
-  | kIdentifierToken maybe_space {
-    $$ = AddRef(new cssom::StringValue($1.ToString()));
+  | kColorToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kColorProperty);
   }
-  | kInvalidDimensionToken maybe_space { $$ = NULL; }
-  | unary_operator kInvalidDimensionToken maybe_space { $$ = NULL; }
-  | kUriToken maybe_space { $$ = NULL; }
-  | kUnicodeRangeToken maybe_space { $$ = NULL; }
-  | kHexToken maybe_space {
+  | kFontFamilyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFontFamilyProperty);
+  }
+  | kFontSizeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFontSizeProperty);
+  }
+  | kInheritToken {
+    $$ = TrivialStringPiece::FromCString(cssom::InheritedValue::kKeyword);
+  }
+  | kInitialToken {
+    $$ = TrivialStringPiece::FromCString(cssom::InitialValue::kKeyword);
+  }
+  ;
+
+// A type selector is the name of a document language element type written as
+// an identifier.
+//   http://dev.w3.org/csswg/selectors-4/#type-selector
+type_selector:
+    identifier {
+    $$ = new cssom::TypeSelector($1.ToString());
+  }
+  ;
+
+// The universal selector represents an element with any name.
+//   http://dev.w3.org/csswg/selectors-4/#universal-selector
+universal_selector: '*' { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+
+// The class selector represents an element belonging to the class identified
+// by the identifier.
+//   http://dev.w3.org/csswg/selectors-4/#class-selector
+class_selector: '.' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+
+// An ID selector represents an element instance that has an identifier
+// that matches the identifier in the ID selector.
+//   http://dev.w3.org/csswg/selectors-4/#id-selector
+id_selector: '#' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+
+// The pseudo-class concept is introduced to permit selection based
+// on information that lies outside of the document tree or that can be awkward
+// or impossible to express using the other simple selectors.
+//   http://dev.w3.org/csswg/selectors-4/#pseudo_class
+//
+// TODO(***REMOVED***): Replace identifier with token.
+pseudo_class: ':' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+
+// A simple selector represents an aspect of an element to be matched against.
+//   http://dev.w3.org/csswg/selectors-4/#simple
+simple_selector:
+    type_selector
+  | universal_selector
+  | class_selector
+  | id_selector
+  | pseudo_class
+  ;
+
+// A compound selector is a sequence of simple selectors that are not separated
+// by a combinator.
+//   http://dev.w3.org/csswg/selectors-4/#compound
+compound_selector:
+    simple_selector
+  | compound_selector simple_selector {
+    scoped_ptr<cssom::Selector> simple_selector($2);
+    $$ = $1;  // TODO(***REMOVED***): Implement.
+  }
+  ;
+
+// A combinator represents a particular kind of relationship between the
+// elements matched by the compound selectors on either side.
+//   http://dev.w3.org/csswg/selectors-4/#combinator
+combinator:
+    kWhitespaceToken
+  | '>' maybe_whitespace
+  | '+' maybe_whitespace
+  ;
+
+// A complex selector is a sequence of one or more compound selectors separated
+// by combinators.
+//   http://dev.w3.org/csswg/selectors-4/#complex
+complex_selector:
+    compound_selector
+  | complex_selector combinator compound_selector {
+    scoped_ptr<cssom::Selector> compound_selector($3);
+    $$ = $1;  // TODO(***REMOVED***): Implement.
+  }
+  | complex_selector kWhitespaceToken
+  ;
+
+// A selector list is a comma-separated list of selectors.
+//   http://dev.w3.org/csswg/selectors-4/#grouping
+selector_list:
+    complex_selector {
+    $$ = new cssom::CSSStyleRule::Selectors();
+    $$->push_back($1);
+  }
+  | selector_list ',' maybe_whitespace complex_selector {
+    $$ = $1;
+    $$->push_back($4);
+  }
+  ;
+
+// Numeric data types.
+//   http://www.w3.org/TR/css3-values/#numeric-types
+numeric_value:
+    kIntegerToken maybe_whitespace { $$ = NULL; }  // TODO(***REMOVED***): Implement.
+  | kRealToken maybe_whitespace { $$ = NULL; }  // TODO(***REMOVED***): Implement.
+  ;
+
+// Distance units.
+//   http://www.w3.org/TR/css3-values/#lengths
+length:
+    numeric_value {
+    $$ = $1;  // TODO(***REMOVED***): Warn if not zero.
+  }
+  // Relative lengths.
+  //   http://www.w3.org/TR/css3-values/#relative-lengths
+  | kFontSizesAkaEmToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1, cssom::kFontSizesAkaEmUnit));
+  }
+  // Absolute lengths.
+  //   http://www.w3.org/TR/css3-values/#absolute-lengths
+  | kPixelsToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1, cssom::kPixelsUnit));
+  }
+  ;
+
+colon: ':' maybe_whitespace ;
+
+// All properties accept the CSS-wide keywords.
+//   http://www.w3.org/TR/css3-values/#common-keywords
+common_values:
+    kInheritToken maybe_whitespace {
+    $$ = AddRef(cssom::InheritedValue::GetInstance().get());
+  }
+  | kInitialToken maybe_whitespace {
+    $$ = AddRef(cssom::InitialValue::GetInstance().get());
+  }
+  ;
+
+color:
+  // Hexadecimal notation.
+  //   http://www.w3.org/TR/2011/REC-css3-color-20110607/#numerical
+    kHexToken maybe_whitespace {
     char* value_end(const_cast<char*>($1.end));
     uint32_t rgb = std::strtoul($1.begin, &value_end, 16);
     DCHECK_EQ(value_end, $1.end);
 
     $$ = AddRef(new cssom::RGBAColorValue((rgb << 8) | 0xff));
   }
-  | '#' maybe_space /* Handle error case: "color: #;". */ { $$ = NULL; }
-  // According to the specs a function can have a unary_operator in front
-  // but there are no known cases where this makes sense.
-  | function maybe_space { $$ = NULL; }
-  | calc_function maybe_space { $$ = NULL; }
-  | min_or_max_function maybe_space { $$ = NULL; }
-  | '%' maybe_space /* Handle width: "%;". */ { $$ = NULL; }
-  | track_names_list maybe_space { $$ = NULL; }
   ;
 
-// TODO(***REMOVED***): Implement rest of units.
-unary_term:
-    kIntegerToken { $$ = NULL; }
-  | kRealToken { $$ = NULL; }
-  | kPercentageToken { $$ = NULL; }
-  | kPixelsToken {
-    $$ = AddRef(new cssom::LengthValue($1, cssom::kPixelsUnit));
+// Background color of an element drawn behind any background images.
+//   http://www.w3.org/TR/css3-background/#the-background-color
+background_color:
+    color
+  | common_values
+  ;
+
+// Foreground color of an element's text content.
+//   http://www.w3.org/TR/css3-color/#foreground
+foreground_color:
+    color
+  | common_values
+  ;
+
+// Font family names other than generic families must be given quoted
+// as strings.
+//   http://www.w3.org/TR/css3-fonts/#family-name-value
+font_family_name:
+    kStringToken maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1.ToString()));
   }
-  | kCentimetersToken { $$ = NULL; }
-  | kMillimetersToken { $$ = NULL; }
-  | kInchesToken { $$ = NULL; }
-  | kPointsToken { $$ = NULL; }
-  | kPicasToken { $$ = NULL; }
-  | kDegreesToken { $$ = NULL; }
-  | kRadiansToken { $$ = NULL; }
-  | kGradiansToken { $$ = NULL; }
-  | kTurnsToken { $$ = NULL; }
-  | kMillisecondsToken { $$ = NULL; }
-  | kSecondsToken { $$ = NULL; }
-  | kHertzToken { $$ = NULL; }
-  | kKilohertzToken { $$ = NULL; }
-  | kFontSizesAkaEmToken { $$ = NULL; }
-  | kXHeightsAkaExToken { $$ = NULL; }
-  | kRootElementFontSizesAkaRemToken { $$ = NULL; }
-  | kZeroGlyphWidthsAkaChToken { $$ = NULL; }
-  | kViewportWidthPercentsAkaVwToken { $$ = NULL; }
-  | kViewportHeightPercentsAkaVhToken { $$ = NULL; }
-  | kViewportSmallerSizePercentsAkaVminToken { $$ = NULL; }
-  | kViewportLargerSizePercentsAkaVmaxToken { $$ = NULL; }
-  | kDotsPerPixelToken { $$ = NULL; }
-  | kDotsPerInchToken { $$ = NULL; }
-  | kDotsPerCentimeterToken { $$ = NULL; }
-  | kFractionsToken { $$ = NULL; }
   ;
 
-function:
-    kInvalidFunctionToken maybe_space expr closing_parenthesis {
-    scoped_refptr<cssom::PropertyValue> property_value =
-        MakeScopedRefPtrAndRelease($3);
+// Prioritized list of font family names.
+//   http://www.w3.org/TR/css3-fonts/#font-family-prop
+//
+// TODO(***REMOVED***): Support multiple family names.
+font_family:
+    font_family_name
+  | common_values
+  ;
+
+// Desired height of glyphs from the font.
+// http://www.w3.org/TR/css3-fonts/#font-size-prop
+font_size:
+    length
+  | common_values
+  ;
+
+maybe_important:
+    /* empty */ { $$ = false; }
+  | kImportantToken { $$ = true; }
+  ;
+
+// Consume a declaration.
+//   http://www.w3.org/TR/css3-syntax/#consume-a-declaration0
+maybe_declaration:
+    /* empty */ { $$ = NULL; }
+  | kBackgroundColorToken maybe_whitespace colon background_color
+      maybe_important {
+    $$ = new PropertyDeclaration(cssom::kBackgroundColorProperty,
+                                 MakeScopedRefPtrAndRelease($4),
+                                 $5);
   }
-  | kInvalidFunctionToken maybe_space closing_parenthesis
-  | kInvalidFunctionToken maybe_space expr_recovery closing_parenthesis
+  | kColorToken maybe_whitespace colon foreground_color maybe_important {
+    $$ = new PropertyDeclaration(cssom::kColorProperty,
+                                 MakeScopedRefPtrAndRelease($4),
+                                 $5);
+  }
+  | kFontFamilyToken maybe_whitespace colon font_family maybe_important {
+    $$ = new PropertyDeclaration(cssom::kFontFamilyProperty,
+                                 MakeScopedRefPtrAndRelease($4),
+                                 $5);
+  }
+  | kFontSizeToken maybe_whitespace colon font_size maybe_important {
+    $$ = new PropertyDeclaration(cssom::kFontSizeProperty,
+                                 MakeScopedRefPtrAndRelease($4),
+                                 $5);
+  }
   ;
 
-calc_func_term:
-    unary_term
-  | unary_operator unary_term {
-    scoped_refptr<cssom::PropertyValue> property_value =
+semicolon: ';' maybe_whitespace ;
+
+// Consume a list of declarations.
+//   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
+declaration_list:
+    maybe_declaration {
+    $$ = AddRef(new cssom::CSSStyleDeclaration());
+
+    scoped_ptr<PropertyDeclaration> property($1);
+    if (property) {
+      $$->SetPropertyValue(property->name, property->value);
+      // TODO(***REMOVED***): Set property importance.
+      DCHECK_NE(scoped_refptr<cssom::PropertyValue>(),
+                $$->GetPropertyValue(property->name));
+    }
+  }
+  | declaration_list semicolon maybe_declaration {
+    $$ = $1;
+
+    scoped_ptr<PropertyDeclaration> property($3);
+    if (property) {
+      $$->SetPropertyValue(property->name, property->value);
+      // TODO(***REMOVED***): Set property importance.
+      DCHECK_NE(scoped_refptr<cssom::PropertyValue>(),
+                $$->GetPropertyValue(property->name));
+    }
+  }
+  ;
+
+declaration_block:
+    '{' maybe_whitespace declaration_list '}' maybe_whitespace {
+    $$ = $3;
+  }
+  ;
+
+// A style rule is a qualified rule that associates a selector list with a list
+// of property declarations.
+//   http://www.w3.org/TR/css3-syntax/#style-rule
+style_rule:
+    selector_list declaration_block {
+    scoped_ptr<cssom::CSSStyleRule::Selectors> selectors($1);
+    scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<cssom::CSSStyleRule> style_rule =
+        new cssom::CSSStyleRule(selectors->Pass(), style);
+    parser_impl->style_sheet().AppendRule(style_rule);
   }
   ;
 
-// The grammar requires spaces around binary ‘+’ and ‘-’ operators.
-// The '*' and '/' operators do not require spaces.
-// http://www.w3.org/TR/css3-values/#calc-syntax
-calc_func_operator:
-    space '+' space
-  | space '-' space
-  | calc_maybe_space '*' maybe_space
-  | calc_maybe_space '/' maybe_space
-  ;
-
-calc_maybe_space:
-    /* empty */
-  | kWhitespaceToken
-  ;
-
-calc_func_paren_expr:
-  '(' maybe_space calc_func_expr calc_maybe_space closing_parenthesis ;
-
-calc_func_expr:
-    valid_calc_func_expr
-  | valid_calc_func_expr expr_recovery
-  ;
-
-valid_calc_func_expr:
-    calc_func_term
-  | calc_func_expr calc_func_operator calc_func_term
-  | calc_func_expr calc_func_operator calc_func_paren_expr
-  | calc_func_paren_expr
-  ;
-
-calc_func_expr_list:
-    calc_func_expr calc_maybe_space
-  | calc_func_expr_list ',' maybe_space calc_func_expr calc_maybe_space
-  ;
-
-calc_function:
-    kCalcFunctionToken maybe_space calc_func_expr calc_maybe_space
-      closing_parenthesis
-  | kCalcFunctionToken maybe_space expr_recovery closing_parenthesis
-  ;
-
-min_or_max:
-    kMinFunctionToken
-  | kMaxFunctionToken
-  ;
-
-min_or_max_function:
-    min_or_max maybe_space calc_func_expr_list closing_parenthesis
-  | min_or_max maybe_space expr_recovery closing_parenthesis
-  ;
-
-// Error handling rules.
-
-save_block:
-    closing_brace
-  | error closing_brace
-  ;
-
-invalid_at:
-    kInvalidAtToken error invalid_block {
-    parser_impl->LogWarning(@1, "invalid token " + $1.ToString());
-  }
-  | kInvalidAtToken error ';' {
-    parser_impl->LogWarning(@1, "invalid token " + $1.ToString());
-  }
-  ;
+// To parse a CSS stylesheet, interpret all of the resulting top-level qualified
+// rules as style rules.
+//   http://www.w3.org/TR/css3-syntax/#css-stylesheets
+qualified_rule: style_rule ;
 
 invalid_rule:
-    error invalid_block {
+    error ';' maybe_whitespace { parser_impl->LogWarning(@1, "invalid rule"); }
+  | error declaration_block {
+    scoped_refptr<cssom::CSSStyleDeclaration> unused_style =
+        MakeScopedRefPtrAndRelease($2);
     parser_impl->LogWarning(@1, "invalid rule");
   }
   ;
 
-invalid_block:
-  '{' error_recovery closing_brace ;
-
-invalid_square_brackets_block:
-    '[' error_recovery ']'
-  | '[' error_recovery kEndOfFileToken
+// Consume a list of rules.
+//   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
+rule:
+    kSgmlCommentDelimiterToken maybe_whitespace
+  | at_rule
+  | qualified_rule
+  | invalid_rule
   ;
 
-invalid_parentheses_block:
-  opening_parenthesis error_recovery closing_parenthesis ;
-
-opening_parenthesis:
-    '('
-  | kInvalidFunctionToken
-  | kCalcFunctionToken
-  | kMinFunctionToken
-  | kMaxFunctionToken
-  | kAnyFunctionToken
-  | kNotFunctionToken
-  | kCueFunctionToken
-  ;
-
-error_recovery:
+rule_list:
     /* empty */
-  | error_recovery error
-  | error_recovery invalid_block
-  | error_recovery invalid_square_brackets_block
-  | error_recovery invalid_parentheses_block
+  | rule_list rule
   ;
 
-//
-// Rules below, while recognized, are not supported by Cobalt.
-//
-
-maybe_charset:
-    /* empty */
-  | charset
-  ;
-
-charset:
-    kCharsetToken maybe_space kStringToken maybe_space ';' {
-    parser_impl->LogWarning(@1, "@charset is not supported");
-  }
-  | kCharsetToken error invalid_block {
-    parser_impl->LogWarning(@1, "@charset is not supported");
-  }
-  | kCharsetToken error ';' {
-    parser_impl->LogWarning(@1, "@charset is not supported");
-  }
-  ;
-
-// Ignore any @charset rule not at the beginning of the style sheet.
-ignored_charset:
-    kCharsetToken maybe_space kStringToken maybe_space ';' {
-    parser_impl->LogWarning(@1, "@charset is not supported");
-  }
-  | kCharsetToken maybe_space ';' {
-    parser_impl->LogWarning(@1, "@charset is not supported");
-  }
-  ;
+// To parse a stylesheet, consume a list of rules.
+//   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
+stylesheet: maybe_whitespace rule_list ;

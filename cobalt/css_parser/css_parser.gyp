@@ -104,6 +104,7 @@
         'parser_test.cc',
         'ref_counted_util_test.cc',
         'scanner_test.cc',
+        'trivial_string_piece_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

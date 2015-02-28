@@ -14,30 +14,28 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_PROPERTY_DECLARATION_H_
-#define CSS_PARSER_PROPERTY_DECLARATION_H_
-
-#include "base/memory/scoped_ptr.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
-#include "cobalt/cssom/property_value.h"
+
+#include "gtest/gtest.h"
 
 namespace cobalt {
 namespace css_parser {
 
-// A helper used in YYSTYPE to hold together the name, value, and importance
-// of the property.
-struct PropertyDeclaration {
-  PropertyDeclaration(const std::string& name,
-                      const scoped_refptr<cssom::PropertyValue>& value,
-                      bool important)
-      : name(name), value(value), important(important) {}
+TEST(TrivialStringPieceTest, CreateFromEmptyCString) {
+  TrivialStringPiece string_piece = TrivialStringPiece::FromCString("");
+  EXPECT_EQ(0, string_piece.size());
+  EXPECT_EQ('\0', *string_piece.begin);
+  EXPECT_EQ('\0', *string_piece.end);
+  EXPECT_EQ("", string_piece.ToString());
+}
 
-  std::string name;
-  scoped_refptr<cssom::PropertyValue> value;
-  bool important;
-};
+TEST(TrivialStringPieceTest, CreateFromNonEmptyCString) {
+  TrivialStringPiece string_piece = TrivialStringPiece::FromCString("initial");
+  EXPECT_EQ(7, string_piece.size());
+  EXPECT_EQ('i', *string_piece.begin);
+  EXPECT_EQ('\0', *string_piece.end);
+  EXPECT_EQ("initial", string_piece.ToString());
+}
 
 }  // namespace css_parser
 }  // namespace cobalt
-
-#endif  // CSS_PARSER_PROPERTY_DECLARATION_H_

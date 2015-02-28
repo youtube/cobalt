@@ -65,7 +65,7 @@ TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsStringValue) {
-  scoped_refptr<StringValue> string_value = new StringValue("sans-serif");
+  scoped_refptr<StringValue> string_value = new StringValue("Droid Sans");
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
   string_value->Accept(&mock_visitor);
