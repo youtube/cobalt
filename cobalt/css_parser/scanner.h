@@ -64,8 +64,6 @@ class Scanner {
  private:
   // Parsing modes are the equivalent of Flex start conditions:
   // http://flex.sourceforge.net/manual/Start-Conditions.html
-  // TODO(***REMOVED***): Mode names should start with "k" according to
-  //               the style guide.
   enum ParsingMode {
     // A scanner is initialized in this mode and spends most of the time in it.
     kNormalMode,
@@ -144,6 +142,10 @@ class Scanner {
   bool TryScanAndMaybeCopyIdentifier(TrivialStringPiece* value,
                                      std::string* value_copy);
   UChar32 ScanEscape();  // Escape is not a token, it is a part of string.
+  bool DetectPropertyNameToken(const TrivialStringPiece& name,
+                               Token* property_name_token) const;
+  bool DetectPropertyValueToken(const TrivialStringPiece& name,
+                                Token* property_value_token) const;
   bool DetectSupportsToken(const TrivialStringPiece& name,
                            Token* supports_token) const;
   bool DetectKnownFunctionTokenAndMaybeChangeParsingMode(

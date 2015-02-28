@@ -20,10 +20,10 @@
 namespace cobalt {
 namespace cssom {
 
-class RGBAColorValue;
 class InheritedValue;
 class InitialValue;
 class LengthValue;
+class RGBAColorValue;
 class StringValue;
 
 // Type-safe branching on a class hierarchy of CSS property values,

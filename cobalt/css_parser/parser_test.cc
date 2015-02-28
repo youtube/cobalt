@@ -86,7 +86,7 @@ TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(
       *parser_observer_,
-      OnError("parser_test.css:1:15: error: unrecoverable syntax error"));
+      OnError("parser_test.css:1:1: error: unrecoverable syntax error"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_->ParseStyleSheet("parser_test.css", "@casino-royale");
@@ -94,26 +94,19 @@ TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
   ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
-TEST_F(ParserTest, ParsesStylesheet) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning("parser_test.css:1:2: warning: @charset is not supported"));
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning(
-          "parser_test.css:1:36: warning: property margin is not supported"));
+TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
-      "parser_test.css", " @charset 'utf-8'; <!-- --> body { margin: 0; }");
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("parser_test.css", "<!-- body {} -->");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidAtToken) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning("parser_test.css:1:9: warning: invalid token @cobalt-magic"));
+  EXPECT_CALL(*parser_observer_,
+              OnWarning("parser_test.css:1:9: warning: invalid rule"));
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
@@ -122,7 +115,18 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
   ASSERT_EQ(2, style_sheet->css_rules()->length());
 }
 
-TEST_F(ParserTest, RecoversFromInvalidRule) {
+TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
+  EXPECT_CALL(*parser_observer_,
+              OnWarning("parser_test.css:1:9: warning: invalid rule"));
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+      "parser_test.css", "body {} @charset 'utf-8'; div {}");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_EQ(2, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
   EXPECT_CALL(*parser_observer_,
               OnWarning("parser_test.css:1:9: warning: invalid rule"));
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
@@ -133,43 +137,14 @@ TEST_F(ParserTest, RecoversFromInvalidRule) {
   ASSERT_EQ(2, style_sheet->css_rules()->length());
 }
 
-TEST_F(ParserTest, WarnsAboutUnsupportedCharset) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+// TODO(***REMOVED***): Test for recovery from unsupported property, for example
+//               prefixed with "-o-".
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      parser_->ParseStyleSheet("parser_test.css", "@charset 'utf-8'; body {}");
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
-}
+// TODO(***REMOVED***): Test selectors.
 
-TEST_F(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedByBlock) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
-      "parser_test.css", "@charset utf-3.14 {} body {}");
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
-}
-
-TEST_F(ParserTest, WarnsAboutUnsupportedInvalidCharsetFollowedBySemicolon) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning("parser_test.css:1:1: warning: @charset is not supported"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      parser_->ParseStyleSheet("parser_test.css", "@charset pony; body {}");
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
-}
-
-TEST_F(ParserTest, ParsesNonTrivialInput) {
+// TODO(***REMOVED***): Break into tests that cover properties needed
+//               for Performance Spike.
+TEST_F(ParserTest, DISABLED_ParsesNonTrivialInput) {
   EXPECT_CALL(
       *parser_observer_,
       OnWarning(
@@ -211,28 +186,25 @@ TEST_F(ParserTest, ParsesNonTrivialInput) {
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
-TEST_F(ParserTest, ParsesOxideProperties) {
+TEST_F(ParserTest, ParsesBackgroundColor) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      parser_->ParseStyleSheet("cobalt-oxide.css",
-                               "body {\n"
+      parser_->ParseStyleSheet("parser_test.css",
+                               ".hex-color {\n"
                                "  background-color: #ffffff;\n"
-                               "  color: #0047ab;  /* Cobalt blue */\n"
-                               "  font-family: \"Droid Sans\";\n"
-                               "  font-size: 100px;\n"
                                "}\n");
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
 
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleRule> style_rule =
+  scoped_refptr<cssom::CSSStyleRule> hex_color_rule =
       base::polymorphic_downcast<cssom::CSSStyleRule*>(
           css_rules->Item(0).get());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
+  scoped_refptr<cssom::CSSStyleDeclaration> style = hex_color_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   MockPropertyValueVisitor mock_visitor;
@@ -244,18 +216,90 @@ TEST_F(ParserTest, ParsesOxideProperties) {
   ASSERT_NE(static_cast<cssom::PropertyValue*>(NULL),
             style->background_color());
   style->background_color()->Accept(&mock_visitor);
+}
+
+TEST_F(ParserTest, ParsesColor) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("parser_test.css",
+                               ".hex-color {\n"
+                               "  color: #0047ab;  /* Cobalt blue */\n"
+                               "}\n");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+
+  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
+  ASSERT_EQ(1, css_rules->length());
+
+  scoped_refptr<cssom::CSSStyleRule> hex_color_rule =
+      base::polymorphic_downcast<cssom::CSSStyleRule*>(
+          css_rules->Item(0).get());
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = hex_color_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
+
+  MockPropertyValueVisitor mock_visitor;
 
   scoped_refptr<cssom::RGBAColorValue> color =
       new cssom::RGBAColorValue(0x0047abff);
   EXPECT_CALL(mock_visitor, VisitRGBAColor(Pointee(Eq(ByRef(*color)))));
   ASSERT_NE(static_cast<cssom::PropertyValue*>(NULL), style->color());
   style->color()->Accept(&mock_visitor);
+}
+
+TEST_F(ParserTest, ParsesFontFamily) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("cobalt-oxide.css",
+                               ".string {\n"
+                               "  font-family: \"Droid Sans\";\n"
+                               "}\n");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+
+  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
+  ASSERT_EQ(1, css_rules->length());
+
+  scoped_refptr<cssom::CSSStyleRule> string_rule =
+      base::polymorphic_downcast<cssom::CSSStyleRule*>(
+          css_rules->Item(0).get());
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = string_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
+
+  MockPropertyValueVisitor mock_visitor;
 
   scoped_refptr<cssom::StringValue> font_family =
       new cssom::StringValue("Droid Sans");
   EXPECT_CALL(mock_visitor, VisitString(Pointee(Eq(ByRef(*font_family)))));
   ASSERT_NE(static_cast<cssom::PropertyValue*>(NULL), style->font_family());
   style->font_family()->Accept(&mock_visitor);
+}
+
+TEST_F(ParserTest, ParsesFontSize) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("cobalt-oxide.css",
+                               ".pixels {\n"
+                               "  font-size: 100px;\n"
+                               "}\n");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+
+  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
+  ASSERT_EQ(1, css_rules->length());
+
+  scoped_refptr<cssom::CSSStyleRule> pixels_rule =
+      base::polymorphic_downcast<cssom::CSSStyleRule*>(
+          css_rules->Item(0).get());
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = pixels_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
+
+  MockPropertyValueVisitor mock_visitor;
 
   scoped_refptr<cssom::LengthValue> font_size =
       new cssom::LengthValue(100, cssom::kPixelsUnit);
