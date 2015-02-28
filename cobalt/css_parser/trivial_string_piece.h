@@ -32,6 +32,8 @@ namespace css_parser {
 // management is external: strings point either into an input or into a string
 // pool injected into the scanner.
 struct TrivialStringPiece {
+  static TrivialStringPiece FromCString(const char* c_string);
+
   inline std::size_t size() const {
     DCHECK_LE(begin, end);
     return end - begin;
@@ -42,6 +44,14 @@ struct TrivialStringPiece {
   const char* begin;
   const char* end;
 };
+
+inline TrivialStringPiece TrivialStringPiece::FromCString(
+    const char* c_string) {
+  TrivialStringPiece string_piece;
+  string_piece.begin = c_string;
+  string_piece.end = c_string + strlen(c_string);
+  return string_piece;
+}
 
 // Used by tests.
 inline bool operator==(const TrivialStringPiece& lhs, const char* rhs) {
