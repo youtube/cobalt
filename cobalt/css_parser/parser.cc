@@ -28,6 +28,8 @@
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/inherited_value.h"
+#include "cobalt/cssom/initial_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
@@ -57,10 +59,6 @@ class ParserImpl {
   void LogError(const YYLTYPE& source_location, const std::string& message);
 
   cssom::CSSStyleSheet& style_sheet() const { return *style_sheet_; }
-
-  void SetPropertyValueOrLogWarning(cssom::CSSStyleDeclaration* style,
-                                    scoped_ptr<PropertyDeclaration> property,
-                                    const YYLTYPE& source_location);
 
  private:
   std::string FormatMessage(const std::string& message_type,
@@ -98,22 +96,6 @@ void ParserImpl::LogWarning(const YYLTYPE& source_location,
 void ParserImpl::LogError(const YYLTYPE& source_location,
                           const std::string& message) {
   on_error_callback_.Run(FormatMessage("error", source_location, message));
-}
-
-void ParserImpl::SetPropertyValueOrLogWarning(
-    cssom::CSSStyleDeclaration* style, scoped_ptr<PropertyDeclaration> property,
-    const YYLTYPE& source_location) {
-  // Gracefully ignore properties that failed to parse.
-  // Appropriate warnings have been logged in grammar.y already.
-  if (property == NULL) {
-    return;
-  }
-
-  style->SetPropertyValue(property->name, property->value);
-  if (style->GetPropertyValue(property->name) == NULL) {
-    LogWarning(source_location,
-               "property " + property->name + " is not supported");
-  }
 }
 
 std::string ParserImpl::FormatMessage(const std::string& message_type,

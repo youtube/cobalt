@@ -426,6 +426,16 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
   bool has_escape;
   ScanIdentifier(&token_value->string, &has_escape);
 
+  Token property_name_token;
+  if (DetectPropertyNameToken(token_value->string, &property_name_token)) {
+    return property_name_token;
+  }
+
+  Token property_value_token;
+  if (DetectPropertyValueToken(token_value->string, &property_value_token)) {
+    return property_value_token;
+  }
+
   if (UNLIKELY(*input_iterator_ == '(')) {
     if (parsing_mode_ == kSupportsMode && !has_escape) {
       Token supports_token;
@@ -1025,6 +1035,67 @@ UChar32 Scanner::ScanEscape() {
   }
 
   return *input_iterator_++;
+}
+
+// WARNING: every time a new name token is introduced, it should be added
+//          to |identifier| rule in grammar.y.
+bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
+                                      Token* property_name_token) const {
+  DCHECK_GT(name.size(), 0);
+
+  switch (name.size()) {
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, "color")) {
+        *property_name_token = kColorToken;
+        return true;
+      }
+      return false;
+
+    case 9:
+      if (IsEqualToCssIdentifier(name.begin, "font-size")) {
+        *property_name_token = kFontSizeToken;
+        return true;
+      }
+      return false;
+
+    case 11:
+      if (IsEqualToCssIdentifier(name.begin, "font-family")) {
+        *property_name_token = kFontFamilyToken;
+        return true;
+      }
+      return false;
+
+    case 16:
+      if (IsEqualToCssIdentifier(name.begin, "background-color")) {
+        *property_name_token = kBackgroundColorToken;
+        return true;
+      }
+      return false;
+  }
+
+  return false;
+}
+
+// WARNING: every time a new value token is introduced, it should be added
+//          to |identifier| rule in grammar.y.
+bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
+                                       Token* property_value_token) const {
+  DCHECK_GT(name.size(), 0);
+
+  switch (name.size()) {
+    case 7:
+      if (IsEqualToCssIdentifier(name.begin, "inherit")) {
+        *property_value_token = kInheritToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "initial")) {
+        *property_value_token = kInitialToken;
+        return true;
+      }
+      return false;
+  }
+
+  return false;
 }
 
 bool Scanner::DetectSupportsToken(const TrivialStringPiece& name,

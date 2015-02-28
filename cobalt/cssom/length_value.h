@@ -28,7 +28,10 @@ namespace cobalt {
 namespace cssom {
 
 // TODO(***REMOVED***): Add more units.
-enum Unit { kPixelsUnit };
+enum Unit {
+  kFontSizesAkaEmUnit,
+  kPixelsUnit,
+};
 
 // Represents distance or size.
 // Applies to properties such as left, width, font-size, etc.
@@ -61,6 +64,9 @@ inline std::ostream& operator<<(std::ostream& stream,
   stream << length.value();
 
   switch (length.unit()) {
+    case kFontSizesAkaEmUnit:
+      stream << "em";
+      break;
     case kPixelsUnit:
       stream << "px";
       break;
