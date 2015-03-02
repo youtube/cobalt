@@ -92,7 +92,6 @@ class FileFetcherTest : public ::testing::Test {
 
 FileFetcherTest::FileFetcherTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
   data_dir_ = data_dir_.Append(FILE_PATH_LITERAL("cobalt"))
-                  .Append(FILE_PATH_LITERAL("browser"))
                   .Append(FILE_PATH_LITERAL("loader"))
                   .Append(FILE_PATH_LITERAL("testdata"));
   PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root_);
