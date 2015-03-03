@@ -35,10 +35,17 @@ class NumericTypeBindingsTest
  public:
 };
 
+template <typename T>
+class IntegerTypeBindingsTest : public NumericTypeBindingsTest<T> {};
+
 typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
                          UnsignedShortTypeTest, LongTypeTest,
-                         UnsignedLongTypeTest> NumericTypes;
+                         UnsignedLongTypeTest, DoubleTypeTest> NumericTypes;
+typedef ::testing::Types<ByteTypeTest, OctetTypeTest, ShortTypeTest,
+                         UnsignedShortTypeTest, LongTypeTest,
+                         UnsignedLongTypeTest> IntegerTypes;
 TYPED_TEST_CASE(NumericTypeBindingsTest, NumericTypes);
+TYPED_TEST_CASE(IntegerTypeBindingsTest, IntegerTypes);
 
 }  // namespace
 
@@ -60,7 +67,7 @@ TYPED_TEST(NumericTypeBindingsTest, ReturnValueIsNumber) {
   EXPECT_STREQ("number", result.c_str());
 }
 
-TYPED_TEST(NumericTypeBindingsTest, PropertyValueRange) {
+TYPED_TEST(IntegerTypeBindingsTest, PropertyValueRange) {
   InSequence in_sequence_dummy;
 
   std::string result;
@@ -82,7 +89,7 @@ TYPED_TEST(NumericTypeBindingsTest, PropertyValueRange) {
   EXPECT_STREQ(TypeParam::max_value_string(), result.c_str());
 }
 
-TYPED_TEST(NumericTypeBindingsTest, ReturnValueRange) {
+TYPED_TEST(IntegerTypeBindingsTest, ReturnValueRange) {
   InSequence in_sequence_dummy;
 
   std::string result;
@@ -104,7 +111,7 @@ TYPED_TEST(NumericTypeBindingsTest, ReturnValueRange) {
   EXPECT_STREQ(TypeParam::max_value_string(), result.c_str());
 }
 
-TYPED_TEST(NumericTypeBindingsTest, SetPropertyRange) {
+TYPED_TEST(IntegerTypeBindingsTest, SetPropertyRange) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(this->test_mock(), mock_set_property(0));
@@ -124,7 +131,7 @@ TYPED_TEST(NumericTypeBindingsTest, SetPropertyRange) {
       NULL));
 }
 
-TYPED_TEST(NumericTypeBindingsTest, ArgumentOperationRange) {
+TYPED_TEST(IntegerTypeBindingsTest, ArgumentOperationRange) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(this->test_mock(), MockArgumentOperation(0));
@@ -153,7 +160,7 @@ TYPED_TEST(NumericTypeBindingsTest, ArgumentOperationRange) {
 //     6. x := x modulo 2^8
 //     7. return (x >= 2^7) ? x - 2^8 : x
 // For unsigned types, skip step 7.
-TYPED_TEST(NumericTypeBindingsTest, OutOfRangeBehaviour) {
+TYPED_TEST(IntegerTypeBindingsTest, OutOfRangeBehaviour) {
   InSequence in_sequence_dummy;
 
   EXPECT_CALL(this->test_mock(), mock_set_property(TypeParam::min_value()));
