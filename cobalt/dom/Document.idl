@@ -23,9 +23,9 @@ interface Document : Node {
   [NewObject] Element createElement(DOMString localName);
   [NewObject] Text createTextNode(DOMString data);
 
-  // TODO(***REMOVED***): Move to partial interface, or keep it here and change
-  // body to nullable and and add head:
-  // attribute HTMLBodyElement? body;
-  // readonly attribute HTMLHeadElement? head;
+  // TODO(***REMOVED***): Add optional (?) to body, head when supported.
+  // TODO(***REMOVED***): Enable location when supported.
+  // [PutForwards=href, Unforgeable] readonly attribute Location? location;
+  readonly attribute HTMLHeadElement head;
   attribute HTMLBodyElement body;
 };
