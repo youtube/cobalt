@@ -54,16 +54,20 @@ JSC::JSValue NumberToJSValue(T in_number) {
 }
 
 template <typename T>
-typename base::enable_if<std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
-                   T>::type
+typename base::enable_if<
+    std::numeric_limits<T>::is_integer &&
+        std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
+    T>::type
 JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
   int32_t int32_value = value.toInt32(exec_state);
   return static_cast<T>(int32_value);
 }
 
 template <typename T>
-typename base::enable_if<!std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
-                   T>::type
+typename base::enable_if<std::numeric_limits<T>::is_integer &&
+                             !std::numeric_limits<T>::is_signed &&
+                             (sizeof(T) <= 4),
+                         T>::type
 JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
   uint32_t uint32_value = value.toUInt32(exec_state);
   return static_cast<T>(uint32_value);
@@ -72,9 +76,12 @@ JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
 template <typename T>
 typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type
 JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
-  // Stubbed out to allow compilation to continue.
-  NOTIMPLEMENTED();
-  return 0;
+  double double_value = value.toNumber(exec_state);
+  // For non-unrestricted doubles/floats, NaN and +/-Infinity should throw a
+  // TypeError
+  DCHECK(isfinite(double_value))
+      << "unrestricted doubles/floats are not yet supported.";
+  return double_value;
 }
 
 }  // namespace javascriptcore

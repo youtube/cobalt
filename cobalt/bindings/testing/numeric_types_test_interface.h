@@ -55,6 +55,11 @@ class NumericTypesTestInterface : public script::Wrappable {
   virtual void UnsignedLongArgumentOperation(uint32_t value) {}
   virtual uint32_t unsigned_long_property() { return 0; }
   virtual void set_unsigned_long_property(uint32_t value) {}
+
+  virtual double DoubleReturnOperation() { return 0; }
+  virtual void DoubleArgumentOperation(double value) {}
+  virtual double double_property() { return 0; }
+  virtual void set_double_property(double value) {}
 };
 
 // Inheriting from an instantiation of this class allows for the mocking
@@ -179,6 +184,18 @@ class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
   static uint32_t min_value() { return 0; }
   static const char* max_value_string() { return "4294967295"; }
   static const char* min_value_string() { return "0"; }
+};
+
+class DoubleTypeTest : public NumericTypesTestInterfaceT<double> {
+ public:
+  double DoubleReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
+  void DoubleArgumentOperation(double value) OVERRIDE {
+    MockArgumentOperation(value);
+  }
+  double double_property() OVERRIDE { return mock_get_property(); }
+  void set_double_property(double value) OVERRIDE { mock_set_property(value); }
+
+  static const char* type_string() { return "double"; }
 };
 
 }  // namespace testing
