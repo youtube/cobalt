@@ -68,9 +68,16 @@ class NumericConversionTest : public ::testing::Test {
   JSC::ExecState* exec_state_;
 };
 
+template <typename T>
+class IntegerConversionTest : public NumericConversionTest<T> {};
+
+typedef ::testing::Types<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
+                         double> NumericTypes;
 typedef ::testing::Types<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t>
-    NumericTypes;
+    IntegerTypes;
 TYPED_TEST_CASE(NumericConversionTest, NumericTypes);
+TYPED_TEST_CASE(IntegerConversionTest, IntegerTypes);
+
 
 }  // namespace
 
@@ -82,6 +89,7 @@ TYPED_TEST_CASE(NumericConversionTest, NumericTypes);
 //     http://www.w3.org/TR/WebIDL/#es-unsigned-short
 //     http://www.w3.org/TR/WebIDL/#es-long
 //     http://www.w3.org/TR/WebIDL/#es-unsigned-long
+//     http://www.w3.org/TR/WebIDL/#es-double
 // The first step in each of these algorithms is the ToNumber operation:
 //     http://es5.github.io/#x9.3
 // ToNumber describes how various non-numeric types should convert to a
@@ -103,21 +111,32 @@ TYPED_TEST(NumericConversionTest, StringConversion) {
   EXPECT_EQ(
       0, JSValueToNumber<TypeParam>(this->exec_state_,
                                     JSC::jsString(this->exec_state_, "    ")));
-  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                   this->exec_state_,
-                   JSC::jsString(this->exec_state_, "not_a_number")));
+
+  // Integer types convert NaN to 0, and float types throw a TypeError.
+  if (std::numeric_limits<TypeParam>::is_integer) {
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                     this->exec_state_,
+                     JSC::jsString(this->exec_state_, "not_a_number")));
+  }
+
   EXPECT_EQ(32, JSValueToNumber<TypeParam>(
                     this->exec_state_, JSC::jsString(this->exec_state_, "32")));
   EXPECT_EQ(
       32, JSValueToNumber<TypeParam>(this->exec_state_,
                                      JSC::jsString(this->exec_state_, "0x20")));
+
+  if (!std::numeric_limits<TypeParam>::is_integer) {
+    EXPECT_EQ(54.34, JSValueToNumber<TypeParam>(
+                         this->exec_state_,
+                         JSC::jsString(this->exec_state_, "54.34")));
+  }
 }
 
 // Described in the integer type conversion algorithms:
 //     Set x to sign(x)*floor(abs(x))
 // Also in ToUint16, ToInt32, and ToUInt64:
 //     3. Let posInt be sign(number) * floor(abs(number))
-TYPED_TEST(NumericConversionTest, FloatingPointToIntegerConversion) {
+TYPED_TEST(IntegerConversionTest, FloatingPointToIntegerConversion) {
   EXPECT_EQ(5,
             JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNumber(5.1)));
   if (std::numeric_limits<TypeParam>::is_signed) {
@@ -129,15 +148,20 @@ TYPED_TEST(NumericConversionTest, FloatingPointToIntegerConversion) {
 // http://es5.github.io/#x9.3
 TYPED_TEST(NumericConversionTest, OtherConversions) {
   EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNull()));
-  EXPECT_EQ(0,
-            JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsUndefined()));
-  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                   this->exec_state_,
-                   JSC::jsNumber(std::numeric_limits<double>::infinity())));
-  EXPECT_EQ(0, JSValueToNumber<TypeParam>(
-                   this->exec_state_,
-                   JSC::jsNumber(-std::numeric_limits<double>::infinity())));
-  EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN()));
+
+  // The following convert to non-finite numbers, which should throw a TypeError
+  // for floating point types.
+  if (std::numeric_limits<TypeParam>::is_integer) {
+    EXPECT_EQ(
+        0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsUndefined()));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                     this->exec_state_,
+                     JSC::jsNumber(std::numeric_limits<double>::infinity())));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(
+                     this->exec_state_,
+                     JSC::jsNumber(-std::numeric_limits<double>::infinity())));
+    EXPECT_EQ(0, JSValueToNumber<TypeParam>(this->exec_state_, JSC::jsNaN()));
+  }
 }
 
 
