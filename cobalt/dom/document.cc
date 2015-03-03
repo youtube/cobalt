@@ -27,6 +27,7 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/text.h"
@@ -34,16 +35,15 @@
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<Document> Document::Create(
-    HTMLElementFactory* html_element_factory) {
-  return make_scoped_refptr(new Document(html_element_factory, GURL()));
-}
-
-// static
-scoped_refptr<Document> Document::CreateWithURL(
-    HTMLElementFactory* html_element_factory, const GURL& url) {
-  return make_scoped_refptr(new Document(html_element_factory, url));
+Document::Document(HTMLElementFactory* html_element_factory,
+                   const Options& options)
+    : html_element_factory_(html_element_factory),
+      location_(make_scoped_refptr(new Location(options.url))),
+      url_(options.url),
+      style_sheets_(cssom::StyleSheetList::Create()),
+      loading_counter_(0),
+      should_dispatch_on_load_(true) {
+  DCHECK(url_.is_empty() || url_.is_valid());
 }
 
 scoped_refptr<Node> Document::InsertBefore(
@@ -91,6 +91,8 @@ scoped_refptr<Element> Document::GetElementById(const std::string& id) const {
   }
   return NULL;
 }
+
+scoped_refptr<Location> Document::location() const { return location_; }
 
 scoped_refptr<HTMLBodyElement> Document::body() const { return body_.get(); }
 
@@ -164,14 +166,7 @@ void Document::RecordMutation() {
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
 
-Document::Document(HTMLElementFactory* html_element_factory, const GURL& url)
-    : html_element_factory_(html_element_factory),
-      url_(url),
-      style_sheets_(cssom::StyleSheetList::Create()),
-      loading_counter_(0),
-      should_dispatch_on_load_(true) {
-  DCHECK(url_.is_empty() || url_.is_valid());
-}
+Document::~Document() {}
 
 scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
 
