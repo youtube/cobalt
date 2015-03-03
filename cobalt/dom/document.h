@@ -34,6 +34,7 @@ class HTMLElement;
 class HTMLElementFactory;
 class HTMLHeadElement;
 class HTMLHtmlElement;
+class Location;
 class Text;
 
 class DocumentObserver {
@@ -58,10 +59,14 @@ class DocumentObserver {
 // document.
 class Document : public Node {
  public:
-  static scoped_refptr<Document> Create(
-      HTMLElementFactory* html_element_factory);
-  static scoped_refptr<Document> CreateWithURL(
-      HTMLElementFactory* html_element_factory, const GURL& url);
+  struct Options {
+    Options() {}
+    explicit Options(const GURL& url_value) : url(url_value) {}
+
+    GURL url;
+  };
+
+  Document(HTMLElementFactory* html_element_factory, const Options& options);
 
   // Web API: Node
   //
@@ -94,12 +99,10 @@ class Document : public Node {
   //
   scoped_refptr<Element> GetElementById(const std::string& id) const;
 
-  // Web API: HTML5 (partial interface).
-  // This interface is extended in the spec HTML5.
+  // Web API: HTML5 (partial interface)
   //   http://www.w3.org/TR/html/dom.html#the-document-object
   //
-
-  // TODO(***REMOVED***): Implement location.
+  scoped_refptr<Location> location() const;
 
   // The IDL of body attribute has been changed from the spec's:
   //    attribute HTMLElement? body;
@@ -153,8 +156,7 @@ class Document : public Node {
   void RecordMutation();
 
  private:
-  Document(HTMLElementFactory* html_element_factory, const GURL& url);
-  ~Document() OVERRIDE {}
+  ~Document() OVERRIDE;
 
   scoped_refptr<HTMLHtmlElement> html() const;
 
@@ -167,6 +169,8 @@ class Document : public Node {
 
   // HTMLElement Factory, guaranteed to outlive Document.
   HTMLElementFactory* html_element_factory_;
+  // Associated location obejct.
+  scoped_refptr<Location> location_;
   // Weak references to the elements that according to the spec should only
   // appear once in the document.
   base::WeakPtr<HTMLBodyElement> body_;

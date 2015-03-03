@@ -14,36 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NAVIGATOR_H_
-#define DOM_NAVIGATOR_H_
+#include "cobalt/dom/location.h"
 
-#include <string>
-
-#include "cobalt/script/wrappable.h"
+#include "base/memory/scoped_ptr.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
 
-// The Navigator object represents the identity and state of the user agent (the
-// client), and allows Web pages to register themselves as potential protocol
-// and content handlers.
-//   http://www.w3.org/TR/html5/webappapis.html#navigator
-class Navigator : public script::Wrappable {
- public:
-  explicit Navigator(const std::string& user_agent);
+TEST(LocationTest, LocationTest) {
+  scoped_refptr<Location> location;
 
-  // Web API: Navigator
-  const std::string& user_agent() const;
+  location = make_scoped_refptr(
+      new Location(GURL("http://user:pass@google.com:99/foo;bar?q=a#ref")));
+  EXPECT_EQ("http://user:pass@google.com:99/foo;bar?q=a#ref", location->href());
+  EXPECT_EQ("?q=a", location->search());
 
- private:
-  ~Navigator() OVERRIDE {}
-
-  std::string user_agent_;
-
-  DISALLOW_COPY_AND_ASSIGN(Navigator);
-};
+  location = make_scoped_refptr(
+      new Location(GURL("http://user:pass@google.com:99/foo;bar#ref")));
+  EXPECT_EQ("http://user:pass@google.com:99/foo;bar#ref", location->href());
+  EXPECT_EQ("", location->search());
+}
 
 }  // namespace dom
 }  // namespace cobalt
-
-#endif  // DOM_NAVIGATOR_H_

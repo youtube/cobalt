@@ -40,26 +40,30 @@ namespace dom {
 
 class Document;
 class DocumentBuilder;
+class Location;
 class Navigator;
 
 // The window object represents a window containing a DOM document.
 //   http://www.w3.org/TR/html5/browsers.html#the-window-object
 //
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
-// TODO(***REMOVED***): Inherit from EventTarget.
-class Window : public script::Wrappable {
+class Window : public EventTarget {
  public:
   Window(int width, int height, cssom::CSSParser* css_parser,
          browser::ResourceLoaderFactory* resource_loader_factory,
          script::ScriptRunner* script_runner, const GURL& url,
          const std::string& user_agent);
 
+  // Web API: Window
+  scoped_refptr<Window> window() { return make_scoped_refptr(this); }
+  const scoped_refptr<Document>& document() const;
+  scoped_refptr<Location> location() const;
+  const scoped_refptr<Navigator>& navigator() const;
+
+  // Web API: CSSOM View Module (partial interface)
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
-  const std::string& user_agent() const;
-
-  const scoped_refptr<Document>& document();
-  const scoped_refptr<Navigator>& navigator();
 
  private:
   ~Window() OVERRIDE;
@@ -72,7 +76,6 @@ class Window : public script::Wrappable {
   scoped_refptr<Document> document_;
   scoped_refptr<Navigator> navigator_;
 
-  friend class scoped_ptr<Window>;
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
 

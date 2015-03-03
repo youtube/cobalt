@@ -14,36 +14,41 @@
  * limitations under the License.
  */
 
-#ifndef DOM_NAVIGATOR_H_
-#define DOM_NAVIGATOR_H_
+#ifndef DOM_LOCATION_H_
+#define DOM_LOCATION_H_
 
 #include <string>
 
+#include "base/logging.h"
 #include "cobalt/script/wrappable.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace dom {
 
-// The Navigator object represents the identity and state of the user agent (the
-// client), and allows Web pages to register themselves as potential protocol
-// and content handlers.
-//   http://www.w3.org/TR/html5/webappapis.html#navigator
-class Navigator : public script::Wrappable {
+// Each Document object in a browsing context's session history is associated
+// with a unique instance of a Location object.
+//   http://www.w3.org/TR/html5/browsers.html#the-location-interface
+class Location : public script::Wrappable {
  public:
-  explicit Navigator(const std::string& user_agent);
+  explicit Location(const GURL& url);
 
-  // Web API: Navigator
-  const std::string& user_agent() const;
+  // Web API: Location
+  std::string href() const;
+  void set_href(const std::string& search) { NOTIMPLEMENTED(); }
+
+  std::string search() const;
+  void set_search(const std::string& search) { NOTIMPLEMENTED(); }
 
  private:
-  ~Navigator() OVERRIDE {}
+  ~Location() OVERRIDE {}
 
-  std::string user_agent_;
+  GURL url_;
 
-  DISALLOW_COPY_AND_ASSIGN(Navigator);
+  DISALLOW_COPY_AND_ASSIGN(Location);
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_NAVIGATOR_H_
+#endif  // DOM_LOCATION_H_
