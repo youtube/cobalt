@@ -154,7 +154,8 @@ class LongTypeTest : public NumericTypesTestInterfaceT<int32_t> {
   static int32_t min_value() {
     // The minimum integer value cannot be written as -2147483648,
     // see https://msdn.microsoft.com/en-us/library/4kh09110.aspx for details.
-    return std::numeric_limits<int32_t>::min();
+    // Express it as a 64-bit integer literal and static_cast to int32_t.
+    return static_cast<int32_t>(-2147483648ll);
   }
   static const char* max_value_string() { return "2147483647"; }
   static const char* min_value_string() { return "-2147483648"; }
