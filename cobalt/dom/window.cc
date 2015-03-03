@@ -19,6 +19,7 @@
 #include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/script/script_runner.h"
@@ -35,18 +36,19 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       html_element_factory_(resource_loader_factory, css_parser, script_runner),
       document_builder_(DocumentBuilder::Create(resource_loader_factory,
                                                 &html_element_factory_)),
-      document_(Document::CreateWithURL(&html_element_factory_, url)),
+      document_(make_scoped_refptr(
+          new Document(&html_element_factory_, Document::Options(url)))),
       navigator_(make_scoped_refptr(new Navigator(user_agent))) {
   document_builder_->BuildDocument(url, document_.get());
 }
 
-const scoped_refptr<Document>& Window::document() { return document_; }
+const scoped_refptr<Document>& Window::document() const { return document_; }
 
-const scoped_refptr<Navigator>& Window::navigator() { return navigator_; }
-
-const std::string& Window::user_agent() const {
-  return navigator_->user_agent();
+scoped_refptr<Location> Window::location() const {
+  return document_->location();
 }
+
+const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
 Window::~Window() {}
 
