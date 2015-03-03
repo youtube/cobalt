@@ -16,8 +16,6 @@
 
 #include "cobalt/browser/application.h"
 
-#include "cobalt/browser/browser_module.h"
-
 namespace cobalt {
 namespace browser {
 
@@ -31,8 +29,7 @@ scoped_ptr<Application> CreateApplication() {
   return scoped_ptr<Application>(new ApplicationWin());
 }
 
-ApplicationWin::ApplicationWin() {
-}
+ApplicationWin::ApplicationWin() {}
 
 ApplicationWin::~ApplicationWin() {}
 
