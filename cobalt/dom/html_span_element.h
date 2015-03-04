@@ -33,10 +33,7 @@ class HTMLSpanElement : public HTMLElement {
   static scoped_refptr<HTMLSpanElement> Create();
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kSpanTagString(kTagName);
-    return kSpanTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() OVERRIDE { return this; }

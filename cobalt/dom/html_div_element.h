@@ -33,10 +33,7 @@ class HTMLDivElement : public HTMLElement {
   static scoped_refptr<HTMLDivElement> Create();
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kDivTagString(kTagName);
-    return kDivTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLDivElement> AsHTMLDivElement() OVERRIDE { return this; }

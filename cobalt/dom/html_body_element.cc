@@ -33,6 +33,11 @@ HTMLBodyElement::HTMLBodyElement() {}
 
 HTMLBodyElement::~HTMLBodyElement() {}
 
+const std::string& HTMLBodyElement::tag_name() const {
+  static const std::string kBodyTagString(kTagName);
+  return kBodyTagString;
+}
+
 void HTMLBodyElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
   this->owner_document()->SetBodyInternal(this);

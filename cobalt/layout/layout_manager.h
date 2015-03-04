@@ -48,6 +48,8 @@ class LayoutManager : public dom::DocumentObserver {
   const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(LayoutManager);
 };
 
 }  // namespace layout

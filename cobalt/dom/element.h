@@ -53,10 +53,7 @@ class Element : public Node {
   // Element that is not an HTMLElement, tag_name() always returns "#element".
   // For an HTMLElement, each subclass will be responsible for reporting its
   // own tag name.
-  virtual const std::string& tag_name() const {
-    static const std::string kElementName("#element");
-    return kElementName;
-  }
+  virtual const std::string& tag_name() const;
 
   std::string id() const { return GetAttribute("id").value_or(""); }
   void set_id(const std::string& value) { SetAttribute("id", value); }
