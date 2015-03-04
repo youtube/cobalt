@@ -54,29 +54,6 @@ class LengthValue : public PropertyValue {
   DISALLOW_COPY_AND_ASSIGN(LengthValue);
 };
 
-inline bool operator==(const LengthValue& lhs, const LengthValue& rhs) {
-  return lhs.value() == rhs.value() && lhs.unit() == rhs.unit();
-}
-
-// Used by tests.
-inline std::ostream& operator<<(std::ostream& stream,
-                                const LengthValue& length) {
-  stream << length.value();
-
-  switch (length.unit()) {
-    case kFontSizesAkaEmUnit:
-      stream << "em";
-      break;
-    case kPixelsUnit:
-      stream << "px";
-      break;
-    default:
-      NOTREACHED();
-  }
-
-  return stream;
-}
-
 }  // namespace cssom
 }  // namespace cobalt
 
