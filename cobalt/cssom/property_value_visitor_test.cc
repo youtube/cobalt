@@ -19,8 +19,12 @@
 #include "cobalt/cssom/inherited_value.h"
 #include "cobalt/cssom/initial_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/none_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/cssom/transform_function.h"
+#include "cobalt/cssom/transform_list_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,8 +36,12 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitInherited, void(InheritedValue* inherited_value));
   MOCK_METHOD1(VisitInitial, void(InitialValue* initial_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
+  MOCK_METHOD1(VisitNone, void(NoneValue* none_value));
+  MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
+  MOCK_METHOD1(VisitTransformList,
+               void(cssom::TransformListValue* transform_list_value));
 };
 
 TEST(PropertyValueVisitorTest, VisitsInheritedValue) {
@@ -57,6 +65,20 @@ TEST(PropertyValueVisitorTest, VisitsLengthValue) {
   length_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsNoneValue) {
+  scoped_refptr<NoneValue> none_value = NoneValue::GetInstance();
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitNone(none_value.get()));
+  none_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsNumberValue) {
+  scoped_refptr<NumberValue> number_value = new NumberValue(299792458);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitNumber(number_value.get()));
+  number_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
   scoped_refptr<RGBAColorValue> color_value = new RGBAColorValue(0x0047abff);
   MockPropertyValueVisitor mock_visitor;
@@ -69,6 +91,14 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
   string_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
+  scoped_refptr<TransformListValue> transform_list_value =
+      new TransformListValue(TransformListValue::TransformFunctions());
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitTransformList(transform_list_value.get()));
+  transform_list_value->Accept(&mock_visitor);
 }
 
 }  // namespace cssom

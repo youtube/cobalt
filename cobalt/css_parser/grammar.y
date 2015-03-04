@@ -48,14 +48,20 @@
 %token kImportantToken                  // !important
 
 // Property name tokens.
+// WARNING: every time a new name token is introduced, it should be added
+//          to |identifier_token| rule below.
 %token kBackgroundColorToken            // background-color
 %token kColorToken                      // color
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
+%token kTransformToken                  // transform
 
 // Property value tokens.
+// WARNING: every time a new name token is introduced, it should be added
+//          to |identifier_token| rule below.
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
+%token kNoneToken                       // none
 
 // Attribute matching tokens.
 %token kIncludesToken                   // ~=
@@ -106,15 +112,19 @@
 
 // Function tokens.
 %token kAnyFunctionToken                // -webkit-any(
-%token kNotFunctionToken                // not(
 %token kCalcFunctionToken               // calc(
-%token kMinFunctionToken                // -webkit-min(
-%token kMaxFunctionToken                // -webkit-max(
 %token kCueFunctionToken                // cue(
+%token kMaxFunctionToken                // -webkit-max(
+%token kMinFunctionToken                // -webkit-min(
+%token kNotFunctionToken                // not(
 %token kNthChildFunctionToken           // nth-child(
-%token kNthOfTypeFunctionToken          // nth-of-type(
 %token kNthLastChildFunctionToken       // nth-last-child(
 %token kNthLastOfTypeFunctionToken      // nth-last-of-type(
+%token kNthOfTypeFunctionToken          // nth-of-type(
+%token kScaleFunctionToken              // scale(
+%token kTranslateXFunctionToken         // translateX(
+%token kTranslateYFunctionToken         // translateY(
+%token kTranslateZFunctionToken         // translateZ(
 
 // Tokens with a string value.
 %token <string> kStringToken            // "...", '...'
@@ -130,9 +140,11 @@
 %token <string> kInvalidAtToken         // @...
 
 // Tokens with an integer value.
+// WARNING: Remember to use |maybe_sign_token| rule with this token.
 %token <integer> kIntegerToken          // 123, for example
 
 // Tokens with a floating point value.
+// WARNING: Remember to use |maybe_sign_token| rule with these tokens.
 %token <real> kRealToken                                    // 1.23, for example
 %token <real> kPercentageToken                              // ...%
 %token <real> kRootElementFontSizesAkaRemToken              // ...rem
@@ -177,31 +189,53 @@
 %destructor { delete $$; } <property_declaration>
 
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> background_color color common_values font_family
-                       font_family_name font_size foreground_color length
-                       numeric_value
+%type <property_value> background_color_property_value color
+                       color_property_value common_values
+                       font_family_property_value font_family_name
+                       font_size_property_value length number
+                       transform_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { cssom::Selector* selector; }
-%type <selector> class_selector complex_selector compound_selector id_selector
-                 pseudo_class simple_selector type_selector universal_selector
+%type <selector> class_selector_token complex_selector compound_selector_token
+                 id_selector_token pseudo_class_token simple_selector_token
+                 type_selector_token universal_selector_token
 %destructor { delete $$; } <selector>
 
 %union { cssom::CSSStyleRule::Selectors* selectors; }
 %type <selectors> selector_list
 %destructor { delete $$; } <selectors>
 
-%type <string> identifier
+%union { int sign; }
+%type <sign> maybe_sign_token
+
+%type <string> identifier_token
 
 %union { cssom::CSSStyleDeclaration* style_declaration; }
 %type <style_declaration> declaration_block declaration_list
 %destructor { $$->Release(); } <style_declaration>
 
+%union { cssom::TransformFunction* transform_function; }
+%type <transform_function> scale_function_parameters transform_function
+%destructor { delete $$; } <transform_function>
+
+%union { cssom::TransformListValue::TransformFunctions* transform_functions; }
+%type <transform_functions> transform_list
+%destructor { delete $$; } <transform_functions>
+
 %%
+
+// WARNING: Every rule, except the ones which end with "..._token", should
+//          consume trailing whitespace.
 
 maybe_whitespace:
     /* empty */
   | maybe_whitespace kWhitespaceToken
+  ;
+
+errors:
+    error
+  | errors error
   ;
 
 at_rule:
@@ -215,8 +249,9 @@ at_rule:
 // Some identifiers such as property names or values are recognized
 // specifically by the scanner. We are merging those identifiers back together
 // to allow their use in selectors.
-identifier:
+identifier_token:
     kIdentifierToken
+  // Property names.
   | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorProperty);
   }
@@ -229,36 +264,51 @@ identifier:
   | kFontSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontSizeProperty);
   }
+  | kTransformToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTransformProperty);
+  }
+  // Property values.
   | kInheritToken {
     $$ = TrivialStringPiece::FromCString(cssom::InheritedValue::kKeyword);
   }
   | kInitialToken {
     $$ = TrivialStringPiece::FromCString(cssom::InitialValue::kKeyword);
   }
+  | kNoneToken {
+    $$ = TrivialStringPiece::FromCString(cssom::NoneValue::kKeyword);
+  }
   ;
 
 // A type selector is the name of a document language element type written as
 // an identifier.
 //   http://dev.w3.org/csswg/selectors-4/#type-selector
-type_selector:
-    identifier {
+type_selector_token:
+    identifier_token {
     $$ = new cssom::TypeSelector($1.ToString());
   }
   ;
 
 // The universal selector represents an element with any name.
 //   http://dev.w3.org/csswg/selectors-4/#universal-selector
-universal_selector: '*' { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+universal_selector_token: '*' { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
 
 // The class selector represents an element belonging to the class identified
 // by the identifier.
 //   http://dev.w3.org/csswg/selectors-4/#class-selector
-class_selector: '.' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+class_selector_token:
+    '.' identifier_token {
+    $$ = NULL;  // TODO(***REMOVED***): Implement.
+  }
+  ;
 
 // An ID selector represents an element instance that has an identifier
 // that matches the identifier in the ID selector.
 //   http://dev.w3.org/csswg/selectors-4/#id-selector
-id_selector: '#' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+id_selector_token:
+    kIdSelectorToken { $$ = NULL; } // TODO(***REMOVED***): Implement.
+  | kHexToken { $$ = NULL; } // TODO(***REMOVED***): Implement, check it doesn't start
+                             //               with number.
+  ;
 
 // The pseudo-class concept is introduced to permit selection based
 // on information that lies outside of the document tree or that can be awkward
@@ -266,24 +316,28 @@ id_selector: '#' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
 //   http://dev.w3.org/csswg/selectors-4/#pseudo_class
 //
 // TODO(***REMOVED***): Replace identifier with token.
-pseudo_class: ':' identifier { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+pseudo_class_token:
+    ':' identifier_token {
+    $$ = NULL;  // TODO(***REMOVED***): Implement.
+  }
+  ;
 
 // A simple selector represents an aspect of an element to be matched against.
 //   http://dev.w3.org/csswg/selectors-4/#simple
-simple_selector:
-    type_selector
-  | universal_selector
-  | class_selector
-  | id_selector
-  | pseudo_class
+simple_selector_token:
+    type_selector_token
+  | universal_selector_token
+  | class_selector_token
+  | id_selector_token
+  | pseudo_class_token
   ;
 
 // A compound selector is a sequence of simple selectors that are not separated
 // by a combinator.
 //   http://dev.w3.org/csswg/selectors-4/#compound
-compound_selector:
-    simple_selector
-  | compound_selector simple_selector {
+compound_selector_token:
+    simple_selector_token
+  | compound_selector_token simple_selector_token {
     scoped_ptr<cssom::Selector> simple_selector($2);
     $$ = $1;  // TODO(***REMOVED***): Implement.
   }
@@ -302,8 +356,8 @@ combinator:
 // by combinators.
 //   http://dev.w3.org/csswg/selectors-4/#complex
 complex_selector:
-    compound_selector
-  | complex_selector combinator compound_selector {
+    compound_selector_token
+  | complex_selector combinator compound_selector_token {
     scoped_ptr<cssom::Selector> compound_selector($3);
     $$ = $1;  // TODO(***REMOVED***): Implement.
   }
@@ -323,28 +377,50 @@ selector_list:
   }
   ;
 
+// The scanner that we adopted from WebKit was built with assumption that sign
+// is handled in the grammar. Practically this means that tokens of <number>
+// and <real> types has to be prepended with this rule.
+//   http://www.w3.org/TR/css3-syntax/#consume-a-number
+maybe_sign_token:
+    /* empty */ { $$ = 1; }
+  | '+' { $$ = 1; }
+  | '-' { $$ = -1; }
+  ;
+
 // Numeric data types.
 //   http://www.w3.org/TR/css3-values/#numeric-types
-numeric_value:
-    kIntegerToken maybe_whitespace { $$ = NULL; }  // TODO(***REMOVED***): Implement.
-  | kRealToken maybe_whitespace { $$ = NULL; }  // TODO(***REMOVED***): Implement.
+number:
+    maybe_sign_token kIntegerToken maybe_whitespace {
+    $$ = AddRef(new cssom::NumberValue($1 * $2));
+  }
+  | maybe_sign_token kRealToken maybe_whitespace {
+    $$ = AddRef(new cssom::NumberValue($1 * $2));
+  }
   ;
 
 // Distance units.
 //   http://www.w3.org/TR/css3-values/#lengths
 length:
-    numeric_value {
-    $$ = $1;  // TODO(***REMOVED***): Warn if not zero.
+    number {
+    scoped_refptr<cssom::NumberValue> number = MakeScopedRefPtrAndRelease(
+        base::polymorphic_downcast<cssom::NumberValue*>($1));
+    if (number->value() == 0) {
+      $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
+    } else {
+      parser_impl->LogWarning(
+          @1, "non-zero length is not allowed without unit identifier");
+      $$ = NULL;
+    }
   }
   // Relative lengths.
   //   http://www.w3.org/TR/css3-values/#relative-lengths
-  | kFontSizesAkaEmToken maybe_whitespace {
-    $$ = AddRef(new cssom::LengthValue($1, cssom::kFontSizesAkaEmUnit));
+  | maybe_sign_token kFontSizesAkaEmToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kFontSizesAkaEmUnit));
   }
   // Absolute lengths.
   //   http://www.w3.org/TR/css3-values/#absolute-lengths
-  | kPixelsToken maybe_whitespace {
-    $$ = AddRef(new cssom::LengthValue($1, cssom::kPixelsUnit));
+  | maybe_sign_token kPixelsToken maybe_whitespace {
+    $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kPixelsUnit));
   }
   ;
 
@@ -359,30 +435,53 @@ common_values:
   | kInitialToken maybe_whitespace {
     $$ = AddRef(cssom::InitialValue::GetInstance().get());
   }
+  | errors {
+    parser_impl->LogWarning(@1, "unsupported value");
+    $$ = NULL;
+  }
   ;
 
 color:
   // Hexadecimal notation.
-  //   http://www.w3.org/TR/2011/REC-css3-color-20110607/#numerical
+  //   http://www.w3.org/TR/css3-color/#numerical
     kHexToken maybe_whitespace {
-    char* value_end(const_cast<char*>($1.end));
-    uint32_t rgb = std::strtoul($1.begin, &value_end, 16);
-    DCHECK_EQ(value_end, $1.end);
-
-    $$ = AddRef(new cssom::RGBAColorValue((rgb << 8) | 0xff));
+    switch ($1.size()) {
+      // The three-digit RGB notation (#rgb) is converted into six-digit
+      // form (#rrggbb) by replicating digits.
+      case 3: {
+        uint32_t rgb = ParseHexToken($1);
+        uint32_t r = (rgb & 0xf00) >> 8;
+        uint32_t g = (rgb & 0x0f0) >> 4;
+        uint32_t b = (rgb & 0x00f);
+        $$ = AddRef(new cssom::RGBAColorValue((r << 28) | (r << 24) |
+                                              (g << 20) | (g << 16) |
+                                              (b << 12) | (b << 8) |
+                                              0xff));
+        break;
+      }
+      case 6: {
+        uint32_t rgb = ParseHexToken($1);
+        $$ = AddRef(new cssom::RGBAColorValue((rgb << 8) | 0xff));
+        break;
+      }
+      default:
+        parser_impl->LogWarning(@1, "invalid color value");
+        $$ = NULL;
+        break;
+    }
   }
   ;
 
 // Background color of an element drawn behind any background images.
 //   http://www.w3.org/TR/css3-background/#the-background-color
-background_color:
+background_color_property_value:
     color
   | common_values
   ;
 
 // Foreground color of an element's text content.
 //   http://www.w3.org/TR/css3-color/#foreground
-foreground_color:
+color_property_value:
     color
   | common_values
   ;
@@ -400,47 +499,146 @@ font_family_name:
 //   http://www.w3.org/TR/css3-fonts/#font-family-prop
 //
 // TODO(***REMOVED***): Support multiple family names.
-font_family:
+font_family_property_value:
     font_family_name
   | common_values
   ;
 
 // Desired height of glyphs from the font.
 // http://www.w3.org/TR/css3-fonts/#font-size-prop
-font_size:
+font_size_property_value:
     length
+  | common_values
+  ;
+
+// If the second parameter is not provided, it takes a value equal to the first.
+//   http://www.w3.org/TR/css3-transforms/#funcdef-scale
+scale_function_parameters:
+    number {
+    $$ = new cssom::ScaleFunction($1, $1);
+  }
+  | number ',' maybe_whitespace number {
+    $$ = new cssom::ScaleFunction($1, $4);
+  }
+  ;
+
+// The set of allowed transform functions.
+//   http://www.w3.org/TR/css3-transforms/#transform-functions
+transform_function:
+  // Specifies a 2D scale operation by the scaling vector.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
+    kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
+      maybe_whitespace {
+    $$ = $3;
+  }
+  // Specifies a translation by the given amount in the X direction.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
+  | kTranslateXFunctionToken maybe_whitespace length ')'
+      maybe_whitespace {
+    $$ = new cssom::TranslateXFunction($3);
+  }
+  // Specifies a translation by the given amount in the Y direction.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
+  | kTranslateYFunctionToken maybe_whitespace length ')'
+      maybe_whitespace {
+    $$ = new cssom::TranslateYFunction($3);
+  }
+  // Specifies a 3D translation by the vector [0,0,z] with the given amount
+  // in the Z direction.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-translatez
+  | kTranslateZFunctionToken maybe_whitespace length ')'
+      maybe_whitespace {
+    $$ = new cssom::TranslateZFunction($3);
+  }
+  ;
+
+// One or more transform functions separated by whitespace.
+//   http://www.w3.org/TR/css3-transforms/#typedef-transform-list
+transform_list:
+    transform_function {
+    $$ = new cssom::TransformListValue::TransformFunctions();
+    $$->push_back($1);
+  }
+  | transform_list transform_function {
+    $$ = $1;
+    if ($$) { $$->push_back($2); }
+  }
+  | transform_list error {
+    scoped_ptr<cssom::TransformListValue::TransformFunctions>
+        transform_functions($1);
+    if (transform_functions) {
+      parser_impl->LogWarning(@2, "invalid transform function");
+    }
+    $$ = NULL;
+  }
+  ;
+
+// A transformation that is applied to the coordinate system an element
+// renders in.
+//   http://www.w3.org/TR/css3-transforms/#transform-property
+transform_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::NoneValue::GetInstance().get());
+  }
+  | transform_list {
+    scoped_ptr<cssom::TransformListValue::TransformFunctions>
+        transform_functions($1);
+    $$ = transform_functions
+        ? AddRef(new cssom::TransformListValue(transform_functions->Pass()))
+        : NULL;
+  }
   | common_values
   ;
 
 maybe_important:
     /* empty */ { $$ = false; }
-  | kImportantToken { $$ = true; }
+  | kImportantToken maybe_whitespace { $$ = true; }
   ;
 
 // Consume a declaration.
 //   http://www.w3.org/TR/css3-syntax/#consume-a-declaration0
 maybe_declaration:
     /* empty */ { $$ = NULL; }
-  | kBackgroundColorToken maybe_whitespace colon background_color
+  | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
-    $$ = new PropertyDeclaration(cssom::kBackgroundColorProperty,
-                                 MakeScopedRefPtrAndRelease($4),
-                                 $5);
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
   }
-  | kColorToken maybe_whitespace colon foreground_color maybe_important {
-    $$ = new PropertyDeclaration(cssom::kColorProperty,
-                                 MakeScopedRefPtrAndRelease($4),
-                                 $5);
+  | kColorToken maybe_whitespace colon color_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kColorProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
   }
-  | kFontFamilyToken maybe_whitespace colon font_family maybe_important {
-    $$ = new PropertyDeclaration(cssom::kFontFamilyProperty,
-                                 MakeScopedRefPtrAndRelease($4),
-                                 $5);
+  | kFontFamilyToken maybe_whitespace colon font_family_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontFamilyProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
   }
-  | kFontSizeToken maybe_whitespace colon font_size maybe_important {
-    $$ = new PropertyDeclaration(cssom::kFontSizeProperty,
-                                 MakeScopedRefPtrAndRelease($4),
-                                 $5);
+  | kFontSizeToken maybe_whitespace colon font_size_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontSizeProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransformToken maybe_whitespace colon transform_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransformProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kIdentifierToken maybe_whitespace colon errors {
+    std::string property_name = $1.ToString();
+    DCHECK_GT(property_name.size(), 0);
+
+    // Do not warn about non-standard or non-WebKit properties.
+    if (property_name[0] != '-' ||
+        StartsWithASCII(property_name, "-webkit-", false)) {
+      parser_impl->LogWarning(@1, "unsupported property " + property_name);
+    }
+    $$ = NULL;
   }
   ;
 
