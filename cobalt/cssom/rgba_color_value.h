@@ -53,19 +53,6 @@ class RGBAColorValue : public PropertyValue {
   DISALLOW_COPY_AND_ASSIGN(RGBAColorValue);
 };
 
-inline bool operator==(const RGBAColorValue& lhs, const RGBAColorValue& rhs) {
-  return lhs.value() == rhs.value();
-}
-
-// Used by tests.
-inline std::ostream& operator<<(std::ostream& stream,
-                                const RGBAColorValue& color) {
-  std::ostream::fmtflags flags = stream.flags();
-  stream << "#" << std::hex << color.value();
-  stream.flags(flags);
-  return stream;
-}
-
 }  // namespace cssom
 }  // namespace cobalt
 
