@@ -36,26 +36,12 @@
 namespace cobalt {
 namespace css_parser {
 
-using ::testing::ByRef;
-using ::testing::Eq;
-using ::testing::Pointee;
 using ::testing::_;
 
 class MockParserObserver {
  public:
   MOCK_METHOD1(OnWarning, void(const std::string& message));
   MOCK_METHOD1(OnError, void(const std::string& message));
-};
-
-class MockPropertyValueVisitor : public cssom::PropertyValueVisitor {
- public:
-  MOCK_METHOD1(VisitKeyword, void(cssom::KeywordValue* keyword_value));
-  MOCK_METHOD1(VisitLength, void(cssom::LengthValue* length_value));
-  MOCK_METHOD1(VisitNumber, void(cssom::NumberValue* number_value));
-  MOCK_METHOD1(VisitRGBAColor, void(cssom::RGBAColorValue* color_value));
-  MOCK_METHOD1(VisitString, void(cssom::StringValue* string_value));
-  MOCK_METHOD1(VisitTransformList,
-               void(cssom::TransformListValue* transform_list_value));
 };
 
 class ParserTest : public ::testing::Test {
@@ -160,8 +146,11 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->transform());
@@ -189,8 +178,11 @@ TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
@@ -213,58 +205,17 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
 // TODO(***REMOVED***): Test selectors.
-
-// TODO(***REMOVED***): Break into tests that cover properties needed
-//               for Performance Spike.
-TEST_F(ParserTest, DISABLED_ParsesNonTrivialInput) {
-  EXPECT_CALL(
-      *parser_observer_,
-      OnWarning(
-          "parser_test.css:2:3: warning: property padding is not supported"));
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "parser_test.css:3:3: warning: property "
-                                     "line-height is not supported"));
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "parser_test.css:4:3: warning: property "
-                                     "-moz-transition is not supported"));
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "parser_test.css:5:3: warning: property "
-                                     "-webkit-transition is not supported"));
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "parser_test.css:6:3: warning: property "
-                                     "transition is not supported"));
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "parser_test.css:7:3: warning: property "
-                                     "transition-delay is not supported"));
-  EXPECT_CALL(*parser_observer_,
-              OnWarning(
-                  "parser_test.css:8:3: warning: property "
-                  "transition-timing-function is not supported"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      parser_->ParseStyleSheet("parser_test.css",
-                               ".lozenge {\n"
-                               "  padding: 1.3em 0 0 1.5em;\n"
-                               "  line-height: 3em;\n"
-                               "  -moz-transition: opacity 100ms;\n"
-                               "  -webkit-transition: opacity 100ms;\n"
-                               "  transition: opacity 100ms;\n"
-                               "  transition-delay: 100ms;\n"
-                               "  transition-timing-function:\n"
-                               "      cubic-bezier(0.4, 0.0, 0.2, 1.0);\n"
-                               "}");
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
-}
 
 TEST_F(ParserTest, ParsesInherit) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
@@ -280,8 +231,11 @@ TEST_F(ParserTest, ParsesInherit) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_color());
@@ -301,8 +255,11 @@ TEST_F(ParserTest, ParsesInitial) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
@@ -322,18 +279,17 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  MockPropertyValueVisitor mock_visitor;
-
   scoped_refptr<cssom::RGBAColorValue> background_color =
-      new cssom::RGBAColorValue(0xffffffff);
-  EXPECT_CALL(mock_visitor,
-              VisitRGBAColor(Pointee(Eq(ByRef(*background_color)))));
-  ASSERT_NE(scoped_refptr<cssom::PropertyValue>(), style->background_color());
-  style->background_color()->Accept(&mock_visitor);
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0xffffffff, background_color->value());
 }
 
 TEST_F(ParserTest, Parses3DigitColor) {
@@ -350,17 +306,17 @@ TEST_F(ParserTest, Parses3DigitColor) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  MockPropertyValueVisitor mock_visitor;
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::RGBAColorValue> color =
-      new cssom::RGBAColorValue(0x112233ff);
-  EXPECT_CALL(mock_visitor, VisitRGBAColor(Pointee(Eq(ByRef(*color)))));
-  ASSERT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
-  style->color()->Accept(&mock_visitor);
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_EQ(0x112233ff, color->value());
 }
 
 TEST_F(ParserTest, Parses6DigitColor) {
@@ -377,17 +333,17 @@ TEST_F(ParserTest, Parses6DigitColor) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  MockPropertyValueVisitor mock_visitor;
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::RGBAColorValue> color =
-      new cssom::RGBAColorValue(0x0047abff);
-  EXPECT_CALL(mock_visitor, VisitRGBAColor(Pointee(Eq(ByRef(*color)))));
-  ASSERT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
-  style->color()->Accept(&mock_visitor);
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_EQ(0x0047abff, color->value());
 }
 
 TEST_F(ParserTest, ParsesFontFamily) {
@@ -404,17 +360,17 @@ TEST_F(ParserTest, ParsesFontFamily) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  MockPropertyValueVisitor mock_visitor;
-
   scoped_refptr<cssom::StringValue> font_family =
-      new cssom::StringValue("Droid Sans");
-  EXPECT_CALL(mock_visitor, VisitString(Pointee(Eq(ByRef(*font_family)))));
-  ASSERT_NE(scoped_refptr<cssom::PropertyValue>(), style->font_family());
-  style->font_family()->Accept(&mock_visitor);
+      dynamic_cast<cssom::StringValue*>(style->font_family().get());
+  ASSERT_NE(scoped_refptr<cssom::StringValue>(), font_family);
+  EXPECT_EQ("Droid Sans", font_family->value());
 }
 
 // TODO(***REMOVED***): Test other length units, including negative ones.
@@ -433,17 +389,18 @@ TEST_F(ParserTest, ParsesFontSize) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  MockPropertyValueVisitor mock_visitor;
-
   scoped_refptr<cssom::LengthValue> font_size =
-      new cssom::LengthValue(100, cssom::kPixelsUnit);
-  EXPECT_CALL(mock_visitor, VisitLength(Pointee(Eq(ByRef(*font_size)))));
-  ASSERT_NE(scoped_refptr<cssom::PropertyValue>(), style->font_size());
-  style->font_size()->Accept(&mock_visitor);
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
+  EXPECT_EQ(100, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 }
 
 TEST_F(ParserTest, ParsesOverflow) {
@@ -463,14 +420,22 @@ TEST_F(ParserTest, ParsesOverflow) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(2, css_rules->length());
 
+  scoped_refptr<cssom::CSSStyleRule> hidden_style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), hidden_style_rule);
+
   scoped_refptr<cssom::CSSStyleDeclaration> hidden_style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+      hidden_style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), hidden_style);
 
   EXPECT_EQ(cssom::KeywordValue::GetHidden(), hidden_style->overflow());
 
+  scoped_refptr<cssom::CSSStyleRule> visible_style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(1).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), visible_style_rule);
+
   scoped_refptr<cssom::CSSStyleDeclaration> visible_style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(1).get())->style();
+      visible_style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), visible_style);
 
   EXPECT_EQ(cssom::KeywordValue::GetVisible(), visible_style->overflow());
@@ -490,8 +455,11 @@ TEST_F(ParserTest, ParsesNoneTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->transform());
@@ -511,23 +479,30 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
 
   scoped_refptr<cssom::NumberValue> x_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
   EXPECT_EQ(1.5, x_factor->value());
 
   scoped_refptr<cssom::NumberValue> y_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
   EXPECT_EQ(1.5, y_factor->value());
 }
 
@@ -549,23 +524,30 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
 
   scoped_refptr<cssom::NumberValue> x_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
   EXPECT_EQ(16, x_factor->value());
 
   scoped_refptr<cssom::NumberValue> y_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
   EXPECT_EQ(9, y_factor->value());
 }
 
@@ -583,20 +565,27 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateXFunction* translate_x_function =
       dynamic_cast<const cssom::TranslateXFunction*>(
           transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateXFunction*>(NULL),
+            translate_x_function);
 
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_x_function->offset().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
   EXPECT_EQ(0, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }
@@ -615,20 +604,27 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateYFunction* translate_y_function =
       dynamic_cast<const cssom::TranslateYFunction*>(
           transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateYFunction*>(NULL),
+            translate_y_function);
 
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_y_function->offset().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
   EXPECT_EQ(30, offset->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, offset->unit());
 }
@@ -647,20 +643,27 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateZFunction* translate_z_function =
       dynamic_cast<const cssom::TranslateZFunction*>(
           transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateZFunction*>(NULL),
+            translate_z_function);
 
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_z_function->offset().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
   EXPECT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }
@@ -679,12 +682,16 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
   ASSERT_EQ(2, transform_list->value().size());
   EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
             transform_list->value()[0]);
@@ -709,8 +716,11 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
   ASSERT_EQ(1, css_rules->length());
 
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  scoped_refptr<cssom::CSSStyleRule> style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
