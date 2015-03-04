@@ -63,10 +63,8 @@ class UsedHeightProvider : public cssom::PropertyValueVisitor {
  public:
   explicit UsedHeightProvider(float total_child_height);
 
-  void VisitInherited(cssom::InheritedValue* inherited) OVERRIDE;
-  void VisitInitial(cssom::InitialValue* initial) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitNone(cssom::NoneValue* none) OVERRIDE;
   void VisitNumber(cssom::NumberValue* number) OVERRIDE;
   void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
   void VisitString(cssom::StringValue* string) OVERRIDE;
@@ -83,10 +81,8 @@ class UsedWidthProvider : public cssom::PropertyValueVisitor {
  public:
   explicit UsedWidthProvider(ContainingBlock* containing_block);
 
-  void VisitInherited(cssom::InheritedValue* inherited) OVERRIDE;
-  void VisitInitial(cssom::InitialValue* initial) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitNone(cssom::NoneValue* none) OVERRIDE;
   void VisitNumber(cssom::NumberValue* number) OVERRIDE;
   void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
   void VisitString(cssom::StringValue* string) OVERRIDE;

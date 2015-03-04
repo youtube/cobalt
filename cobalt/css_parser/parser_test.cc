@@ -21,10 +21,8 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/inherited_value.h"
-#include "cobalt/cssom/initial_value.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/none_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -51,10 +49,8 @@ class MockParserObserver {
 
 class MockPropertyValueVisitor : public cssom::PropertyValueVisitor {
  public:
-  MOCK_METHOD1(VisitInherited, void(cssom::InheritedValue* inherited_value));
-  MOCK_METHOD1(VisitInitial, void(cssom::InitialValue* initial_value));
+  MOCK_METHOD1(VisitKeyword, void(cssom::KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(cssom::LengthValue* length_value));
-  MOCK_METHOD1(VisitNone, void(cssom::NoneValue* none_value));
   MOCK_METHOD1(VisitNumber, void(cssom::NumberValue* number_value));
   MOCK_METHOD1(VisitRGBAColor, void(cssom::RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(cssom::StringValue* string_value));
@@ -288,7 +284,7 @@ TEST_F(ParserTest, ParsesInherit) {
       dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  EXPECT_EQ(cssom::InheritedValue::GetInstance(), style->background_color());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_color());
 }
 
 TEST_F(ParserTest, ParsesInitial) {
@@ -309,7 +305,7 @@ TEST_F(ParserTest, ParsesInitial) {
       dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  EXPECT_EQ(cssom::InitialValue::GetInstance(), style->background_color());
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
 }
 
 TEST_F(ParserTest, ParsesBackgroundColor) {
@@ -468,7 +464,7 @@ TEST_F(ParserTest, ParsesNoneTransform) {
       dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
   ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
 
-  ASSERT_EQ(cssom::NoneValue::GetInstance(), style->transform());
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->transform());
 }
 
 TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
