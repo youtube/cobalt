@@ -128,9 +128,11 @@ ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
     return containing_block_;
 
     case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
       return NULL;
