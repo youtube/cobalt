@@ -20,10 +20,8 @@
 namespace cobalt {
 namespace cssom {
 
-class InheritedValue;
-class InitialValue;
+class KeywordValue;
 class LengthValue;
-class NoneValue;
 class NumberValue;
 class RGBAColorValue;
 class StringValue;
@@ -34,10 +32,8 @@ class TransformListValue;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class PropertyValueVisitor {
  public:
-  virtual void VisitInherited(InheritedValue* inherited_value) = 0;
-  virtual void VisitInitial(InitialValue* initial_value) = 0;
+  virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
-  virtual void VisitNone(NoneValue* none_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;

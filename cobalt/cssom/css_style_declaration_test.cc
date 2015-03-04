@@ -16,9 +16,7 @@
 
 #include "cobalt/cssom/css_style_declaration.h"
 
-#include "cobalt/cssom/inherited_value.h"
-#include "cobalt/cssom/initial_value.h"
-
+#include "cobalt/cssom/keyword_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -29,18 +27,18 @@ TEST(CSSStyleDeclarationTest, BackgroundColorSettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->background_color());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kBackgroundColorProperty));
+            style->GetPropertyValue(kBackgroundColorPropertyName));
 
-  style->set_background_color(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->background_color());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kBackgroundColorProperty));
+  style->set_background_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->background_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBackgroundColorPropertyName));
 
-  style->SetPropertyValue(kBackgroundColorProperty,
-                          InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->background_color());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kBackgroundColorProperty));
+  style->SetPropertyValue(kBackgroundColorPropertyName,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->background_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBackgroundColorPropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, ColorSettersAndGettersAreConsistent) {
@@ -48,17 +46,17 @@ TEST(CSSStyleDeclarationTest, ColorSettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->color());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kColorProperty));
+            style->GetPropertyValue(kColorPropertyName));
 
-  style->set_color(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->color());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kColorProperty));
+  style->set_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kColorPropertyName));
 
-  style->SetPropertyValue(kColorProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->color());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kColorProperty));
+  style->SetPropertyValue(kColorPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kColorPropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, DisplaySettersAndGettersAreConsistent) {
@@ -66,17 +64,17 @@ TEST(CSSStyleDeclarationTest, DisplaySettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->display());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kDisplayProperty));
+            style->GetPropertyValue(kDisplayPropertyName));
 
-  style->set_display(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->display());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kDisplayProperty));
+  style->set_display(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->display());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kDisplayPropertyName));
 
-  style->SetPropertyValue(kDisplayProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->display());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kDisplayProperty));
+  style->SetPropertyValue(kDisplayPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->display());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kDisplayPropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, FontFamilySettersAndGettersAreConsistent) {
@@ -84,17 +82,17 @@ TEST(CSSStyleDeclarationTest, FontFamilySettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->font_family());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kFontFamilyProperty));
+            style->GetPropertyValue(kFontFamilyPropertyName));
 
-  style->set_font_family(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->font_family());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kFontFamilyProperty));
+  style->set_font_family(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->font_family());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFontFamilyPropertyName));
 
-  style->SetPropertyValue(kFontFamilyProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->font_family());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kFontFamilyProperty));
+  style->SetPropertyValue(kFontFamilyPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->font_family());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFontFamilyPropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, FontSizeSettersAndGettersAreConsistent) {
@@ -102,17 +100,17 @@ TEST(CSSStyleDeclarationTest, FontSizeSettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->font_size());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kFontSizeProperty));
+            style->GetPropertyValue(kFontSizePropertyName));
 
-  style->set_font_size(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->font_size());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kFontSizeProperty));
+  style->set_font_size(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->font_size());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFontSizePropertyName));
 
-  style->SetPropertyValue(kFontSizeProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->font_size());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kFontSizeProperty));
+  style->SetPropertyValue(kFontSizePropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->font_size());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFontSizePropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, HeightSettersAndGettersAreConsistent) {
@@ -120,17 +118,35 @@ TEST(CSSStyleDeclarationTest, HeightSettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->height());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kHeightProperty));
+            style->GetPropertyValue(kHeightPropertyName));
 
-  style->set_height(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->height());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kHeightProperty));
+  style->set_height(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->height());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kHeightPropertyName));
 
-  style->SetPropertyValue(kHeightProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->height());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kHeightProperty));
+  style->SetPropertyValue(kHeightPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->height());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kHeightPropertyName));
+}
+
+TEST(CSSStyleDeclarationTest, TransformSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
+
+  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->transform());
+  EXPECT_EQ(scoped_refptr<PropertyValue>(),
+            style->GetPropertyValue(kTransformPropertyName));
+
+  style->set_transform(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->transform());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kTransformPropertyName));
+
+  style->SetPropertyValue(kTransformPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->transform());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kTransformPropertyName));
 }
 
 TEST(CSSStyleDeclarationTest, WidthSettersAndGettersAreConsistent) {
@@ -138,17 +154,17 @@ TEST(CSSStyleDeclarationTest, WidthSettersAndGettersAreConsistent) {
 
   EXPECT_EQ(scoped_refptr<PropertyValue>(), style->width());
   EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kWidthProperty));
+            style->GetPropertyValue(kWidthPropertyName));
 
-  style->set_width(InitialValue::GetInstance());
-  EXPECT_EQ(InitialValue::GetInstance(), style->width());
-  EXPECT_EQ(InitialValue::GetInstance(),
-            style->GetPropertyValue(kWidthProperty));
+  style->set_width(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->width());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kWidthPropertyName));
 
-  style->SetPropertyValue(kWidthProperty, InheritedValue::GetInstance());
-  EXPECT_EQ(InheritedValue::GetInstance(), style->width());
-  EXPECT_EQ(InheritedValue::GetInstance(),
-            style->GetPropertyValue(kWidthProperty));
+  style->SetPropertyValue(kWidthPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->width());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kWidthPropertyName));
 }
 
 }  // namespace cssom
