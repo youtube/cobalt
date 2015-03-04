@@ -40,12 +40,10 @@ inline T* AddRef(T* ptr) {
   return ptr;
 }
 
-// Takes ownership over reference-counted object that has exactly 1 reference.
+// Takes ownership over reference-counted object.
 // NULL pointers are allowed.
 template <typename T>
 inline scoped_refptr<T> MakeScopedRefPtrAndRelease(T* ptr) {
-  DCHECK(ptr == NULL || ptr->HasOneRef());
-
   scoped_refptr<T> refptr(ptr);
   if (ptr) {
     ptr->Release();
