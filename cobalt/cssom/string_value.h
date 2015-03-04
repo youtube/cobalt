@@ -46,17 +46,6 @@ class StringValue : public PropertyValue {
   DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
-inline bool operator==(const StringValue& lhs, const StringValue& rhs) {
-  return lhs.value() == rhs.value();
-}
-
-// Used by tests.
-inline std::ostream& operator<<(std::ostream& stream,
-                                const StringValue& string) {
-  stream << "\"" << string.value() << "\"";
-  return stream;
-}
-
 }  // namespace cssom
 }  // namespace cobalt
 
