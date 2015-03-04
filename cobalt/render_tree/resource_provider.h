@@ -54,6 +54,7 @@ class ResourceProvider {
       switch (pixel_format) {
         case kPixelFormatRGBA8:
           return 4;
+        case kPixelFormatInvalid:
         default: DLOG(FATAL) << "Unexpected pixel format.";
       }
       return -1;
@@ -108,7 +109,7 @@ class ResourceProvider {
   // on the system that fits the specified font parameters.
   virtual scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
                                                   FontStyle font_style,
-                                                  int font_size) = 0;
+                                                  float font_size) = 0;
 };
 
 }  // namespace render_tree

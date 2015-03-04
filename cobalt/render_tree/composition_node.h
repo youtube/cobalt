@@ -92,7 +92,8 @@ class CompositionNode : public Node {
 
     // Returns the specified child as a pointer so that it can be modified.
     ComposedChild* GetChild(int child_index) {
-      return &((*composed_children_)[child_index]);
+      DCHECK_GE(child_index, 0);
+      return &((*composed_children_)[static_cast<std::size_t>(child_index)]);
     }
 
     // A list of render tree nodes in a draw order.

@@ -71,10 +71,7 @@ class Document : public Node {
   // Web API: Node
   //
   NodeType node_type() const OVERRIDE { return Node::kDocumentNode; }
-  const std::string& node_name() const OVERRIDE {
-    static const std::string kDocumentName("#document");
-    return kDocumentName;
-  }
+  const std::string& node_name() const OVERRIDE;
 
   scoped_refptr<Node> InsertBefore(
       const scoped_refptr<Node>& new_child,

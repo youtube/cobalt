@@ -46,6 +46,11 @@ Document::Document(HTMLElementFactory* html_element_factory,
   DCHECK(url_.is_empty() || url_.is_valid());
 }
 
+const std::string& Document::node_name() const {
+  static const std::string kDocumentName("#document");
+  return kDocumentName;
+}
+
 scoped_refptr<Node> Document::InsertBefore(
     const scoped_refptr<Node>& new_child,
     const scoped_refptr<Node>& reference_child) {

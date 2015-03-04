@@ -33,6 +33,11 @@ scoped_refptr<HTMLLinkElement> HTMLLinkElement::Create(
   return make_scoped_refptr(new HTMLLinkElement(loader_factory, css_parser));
 }
 
+const std::string& HTMLLinkElement::tag_name() const {
+  static const std::string kLinkTagString(kTagName);
+  return kLinkTagString;
+}
+
 void HTMLLinkElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
   Obtain();

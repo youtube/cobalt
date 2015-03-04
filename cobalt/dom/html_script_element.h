@@ -38,10 +38,7 @@ class HTMLScriptElement : public HTMLElement {
 
   // Web API: Element
   //
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kScriptTagString(kTagName);
-    return kScriptTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Web API: HTMLScriptElement
   //

@@ -29,6 +29,11 @@ scoped_refptr<HTMLHeadElement> HTMLHeadElement::Create() {
   return make_scoped_refptr(new HTMLHeadElement());
 }
 
+const std::string& HTMLHeadElement::tag_name() const {
+  static const std::string kHeadTagString(kTagName);
+  return kHeadTagString;
+}
+
 HTMLHeadElement::HTMLHeadElement() {}
 
 HTMLHeadElement::~HTMLHeadElement() {}

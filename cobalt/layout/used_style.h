@@ -75,6 +75,8 @@ class UsedHeightProvider : public cssom::PropertyValueVisitor {
  private:
   float const total_child_height_;
   float used_height_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
 };
 
 class UsedWidthProvider : public cssom::PropertyValueVisitor {
@@ -93,6 +95,8 @@ class UsedWidthProvider : public cssom::PropertyValueVisitor {
  private:
   ContainingBlock* const containing_block_;
   float used_width_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedWidthProvider);
 };
 
 }  // namespace layout

@@ -33,10 +33,7 @@ class HTMLHeadElement : public HTMLElement {
   static scoped_refptr<HTMLHeadElement> Create();
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kHeadTagString(kTagName);
-    return kHeadTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() OVERRIDE { return this; }
