@@ -22,70 +22,120 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kBackgroundColorProperty = "background-color";
-const char* const kColorProperty = "color";
-const char* const kDisplayProperty = "display";
-const char* const kFontFamilyProperty = "font-family";
-const char* const kFontSizeProperty = "font-size";
-const char* const kHeightProperty = "height";
-const char* const kTransformProperty = "transform";
-const char* const kWidthProperty = "width";
+// WARNING: When adding a new property, update GetPropertyValue(),
+//          SetPropertyValue(), and AssignFrom() methods below.
+const char* const kBackgroundColorPropertyName = "background-color";
+const char* const kColorPropertyName = "color";
+const char* const kDisplayPropertyName = "display";
+const char* const kFontFamilyPropertyName = "font-family";
+const char* const kFontSizePropertyName = "font-size";
+const char* const kHeightPropertyName = "height";
+const char* const kTransformPropertyName = "transform";
+const char* const kWidthPropertyName = "width";
 
 CSSStyleDeclaration::CSSStyleDeclaration() {}
 
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
-// TODO(***REMOVED***): Replace if-else cascade in Get/SetPropertyValue()
-//               with hash map.
-
 scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
     const std::string& property_name) {
-  if (LowerCaseEqualsASCII(property_name, kBackgroundColorProperty)) {
-    return background_color();
+  switch (property_name.size()) {
+    case 5:
+      if (LowerCaseEqualsASCII(property_name, kColorPropertyName)) {
+        return color();
+      }
+      if (LowerCaseEqualsASCII(property_name, kWidthPropertyName)) {
+        return width();
+      }
+      return NULL;
+
+    case 6:
+      if (LowerCaseEqualsASCII(property_name, kHeightPropertyName)) {
+        return height();
+      }
+      return NULL;
+
+    case 7:
+      if (LowerCaseEqualsASCII(property_name, kDisplayPropertyName)) {
+        return display();
+      }
+      return NULL;
+
+    case 9:
+      if (LowerCaseEqualsASCII(property_name, kFontSizePropertyName)) {
+        return font_size();
+      }
+      if (LowerCaseEqualsASCII(property_name, kTransformPropertyName)) {
+        return transform();
+      }
+      return NULL;
+
+    case 11:
+      if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
+        return font_family();
+      }
+      return NULL;
+
+    case 16:
+      if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
+        return background_color();
+      }
+      return NULL;
+
+    default:
+      return NULL;
   }
-  if (LowerCaseEqualsASCII(property_name, kColorProperty)) {
-    return color();
-  }
-  if (LowerCaseEqualsASCII(property_name, kDisplayProperty)) {
-    return display();
-  }
-  if (LowerCaseEqualsASCII(property_name, kFontFamilyProperty)) {
-    return font_family();
-  }
-  if (LowerCaseEqualsASCII(property_name, kFontSizeProperty)) {
-    return font_size();
-  }
-  if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
-    return height();
-  }
-  if (LowerCaseEqualsASCII(property_name, kTransformProperty)) {
-    return transform();
-  }
-  if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
-    return width();
-  }
-  return NULL;
 }
 
 void CSSStyleDeclaration::SetPropertyValue(
     const std::string& property_name,
     const scoped_refptr<PropertyValue>& property_value) {
-  if (LowerCaseEqualsASCII(property_name, kBackgroundColorProperty)) {
-    set_background_color(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kColorProperty)) {
-    set_color(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kDisplayProperty)) {
-    set_display(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kFontFamilyProperty)) {
-    set_font_family(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kFontSizeProperty)) {
-    set_font_size(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
-    set_height(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kTransformProperty)) {
-    set_transform(property_value);
-  } else if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
-    set_width(property_value);
+  switch (property_name.size()) {
+    case 5:
+      if (LowerCaseEqualsASCII(property_name, kColorPropertyName)) {
+        set_color(property_value);
+      } else if (LowerCaseEqualsASCII(property_name, kWidthPropertyName)) {
+        set_width(property_value);
+      }
+      break;
+
+    case 6:
+      if (LowerCaseEqualsASCII(property_name, kHeightPropertyName)) {
+        set_height(property_value);
+      }
+      break;
+
+    case 7:
+      if (LowerCaseEqualsASCII(property_name, kDisplayPropertyName)) {
+        set_display(property_value);
+      }
+      break;
+
+    case 9:
+      if (LowerCaseEqualsASCII(property_name, kFontSizePropertyName)) {
+        set_font_size(property_value);
+      } else if (LowerCaseEqualsASCII(property_name, kTransformPropertyName)) {
+        set_transform(property_value);
+      }
+      break;
+
+    case 11:
+      if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
+        set_font_family(property_value);
+      }
+      break;
+
+    case 16:
+      if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
+        set_background_color(property_value);
+      }
+      break;
+
+    default:
+      // 3. If property is not a case-sensitive match for a supported CSS
+      // property, terminate this algorithm.
+      //   http://dev.w3.org/csswg/cssom/#dom-cssstyledeclaration-setproperty
+      break;
   }
 }
 
