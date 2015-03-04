@@ -26,6 +26,11 @@ scoped_refptr<Text> Text::Create(const base::StringPiece& text) {
 
 Text::Text(const base::StringPiece& text) : text_(text.begin(), text.end()) {}
 
+const std::string& Text::node_name() const {
+  static const std::string kTextName("#text");
+  return kTextName;
+}
+
 bool Text::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
   // Can't attach children nodes to a text node.
   return false;
