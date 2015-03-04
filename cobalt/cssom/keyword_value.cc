@@ -39,11 +39,13 @@ struct NonTrivialStaticFields {
   NonTrivialStaticFields()
       : auto_value(new KeywordValue(KeywordValue::kAuto)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
+        hidden_value(new KeywordValue(KeywordValue::kHidden)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
         initial_value(new KeywordValue(KeywordValue::kInitial)),
         inline_value(new KeywordValue(KeywordValue::kInline)),
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
-        none_value(new KeywordValue(KeywordValue::kNone)) {}
+        none_value(new KeywordValue(KeywordValue::kNone)),
+        visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
   base::ThreadChecker thread_checker;
 
@@ -73,6 +75,11 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
   return non_trivial_static_fields.Get().block_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetHidden() {
+  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
+  return non_trivial_static_fields.Get().hidden_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetInherit() {
   DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().inherit_value;
@@ -96,6 +103,11 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetInlineBlock() {
 const scoped_refptr<KeywordValue>& KeywordValue::GetNone() {
   DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().none_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetVisible() {
+  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
+  return non_trivial_static_fields.Get().visible_value;
 }
 
 void KeywordValue::Accept(PropertyValueVisitor* visitor) {
