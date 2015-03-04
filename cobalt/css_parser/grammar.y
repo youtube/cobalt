@@ -54,14 +54,17 @@
 %token kColorToken                      // color
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
+%token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
 
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
 %token kNoneToken                       // none
+%token kVisibleToken                    // visible
 
 // Attribute matching tokens.
 %token kIncludesToken                   // ~=
@@ -193,7 +196,7 @@
                        color_property_value common_values
                        font_family_property_value font_family_name
                        font_size_property_value length number
-                       transform_property_value
+                       overflow_property_value transform_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { cssom::Selector* selector; }
@@ -264,10 +267,16 @@ identifier_token:
   | kFontSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontSizePropertyName);
   }
+  | kOverflowToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
+  }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
   }
   // Property values.
+  | kHiddenToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
+  }
   | kInheritToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInheritKeywordName);
   }
@@ -276,6 +285,9 @@ identifier_token:
   }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
+  }
+  | kVisibleToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
   }
   ;
 
@@ -511,6 +523,19 @@ font_size_property_value:
   | common_values
   ;
 
+// Specifies whether content of a block container element is clipped when it
+// overflows the element's box.
+//   http://www.w3.org/TR/CSS2/visufx.html#overflow
+overflow_property_value:
+    kHiddenToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetHidden().get());
+  }
+  | kVisibleToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetVisible().get());
+  }
+  | common_values
+  ;
+
 // If the second parameter is not provided, it takes a value equal to the first.
 //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
 scale_function_parameters:
@@ -620,6 +645,12 @@ maybe_declaration:
   | kFontSizeToken maybe_whitespace colon font_size_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kFontSizePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOverflowToken maybe_whitespace colon overflow_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

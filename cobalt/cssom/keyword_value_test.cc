@@ -24,12 +24,14 @@ namespace cssom {
 TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kAuto, KeywordValue::GetAuto()->value());
   EXPECT_EQ(KeywordValue::kBlock, KeywordValue::GetBlock()->value());
+  EXPECT_EQ(KeywordValue::kHidden, KeywordValue::GetHidden()->value());
   EXPECT_EQ(KeywordValue::kInherit, KeywordValue::GetInherit()->value());
   EXPECT_EQ(KeywordValue::kInitial, KeywordValue::GetInitial()->value());
   EXPECT_EQ(KeywordValue::kInline, KeywordValue::GetInline()->value());
   EXPECT_EQ(KeywordValue::kInlineBlock,
             KeywordValue::GetInlineBlock()->value());
   EXPECT_EQ(KeywordValue::kNone, KeywordValue::GetNone()->value());
+  EXPECT_EQ(KeywordValue::kVisible, KeywordValue::GetVisible()->value());
 }
 
 }  // namespace cssom
