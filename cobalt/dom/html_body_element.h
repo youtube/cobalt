@@ -33,10 +33,7 @@ class HTMLBodyElement : public HTMLElement {
   static scoped_refptr<HTMLBodyElement> Create();
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kBodyTagString(kTagName);
-    return kBodyTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLBodyElement> AsHTMLBodyElement() OVERRIDE { return this; }

@@ -29,6 +29,11 @@ scoped_refptr<HTMLHtmlElement> HTMLHtmlElement::Create() {
   return make_scoped_refptr(new HTMLHtmlElement());
 }
 
+const std::string& HTMLHtmlElement::tag_name() const {
+  static const std::string kHtmlTagString(kTagName);
+  return kHtmlTagString;
+}
+
 HTMLHtmlElement::HTMLHtmlElement() {}
 
 HTMLHtmlElement::~HTMLHtmlElement() {}

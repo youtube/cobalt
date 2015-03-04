@@ -31,10 +31,7 @@ class Text : public Node {
 
   // Web API: Node
   //
-  const std::string& node_name() const OVERRIDE {
-    static const std::string kTextName("#text");
-    return kTextName;
-  }
+  const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kTextNode; }
 
   std::string text_content() const OVERRIDE { return text_; }

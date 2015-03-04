@@ -28,8 +28,8 @@ LayoutManager::LayoutManager(
     const OnRenderTreeProducedCallback& on_render_tree_produced)
     : window_(window),
       document_(window->document()),
-      viewport_size_(
-          math::SizeF(window_->inner_width(), window_->inner_height())),
+      viewport_size_(math::SizeF(static_cast<float>(window_->inner_width()),
+                                 static_cast<float>(window_->inner_height()))),
       resource_provider_(resource_provider),
       on_render_tree_produced_callback_(on_render_tree_produced) {
   document_->AddObserver(this);
@@ -40,8 +40,9 @@ LayoutManager::~LayoutManager() { document_->RemoveObserver(this); }
 void LayoutManager::OnLoad() {}
 
 void LayoutManager::OnMutation() {
-  // Chrome lays out and renders entire document, not just body.
-  // It doesn't make sense for Cobalt.
+  // Chrome lays out and renders the entire document, not just <body>.
+  // This enables rendering of <head>, but it's such an obscure feature,
+  // it does not make sense to implement it in Cobalt.
   if (document_->body()) {
     on_render_tree_produced_callback_.Run(
         layout::Layout(document_->body(), viewport_size_, resource_provider_));

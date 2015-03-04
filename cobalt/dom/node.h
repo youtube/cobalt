@@ -167,7 +167,7 @@ class Node : public EventTarget {
   // Node generation counter that will be modified for every content change
   // that affects the topology of the subtree defined by this node.
   // The returned node generation will be never equal to kInvalidNodeGeneration.
-  int node_generation() const { return node_generation_; }
+  uint32_t node_generation() const { return node_generation_; }
 
   // Children classes implement this method to support type-safe visiting via
   // double dispatch.

@@ -35,6 +35,11 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
       new HTMLScriptElement(loader_factory, script_runner));
 }
 
+const std::string& HTMLScriptElement::tag_name() const {
+  static const std::string kScriptTagString(kTagName);
+  return kScriptTagString;
+}
+
 // Algorithm for text:
 //   http://www.w3.org/TR/html5/scripting-1.html#dom-script-text
 std::string HTMLScriptElement::text() const {
