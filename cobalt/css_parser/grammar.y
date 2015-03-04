@@ -253,29 +253,29 @@ identifier_token:
     kIdentifierToken
   // Property names.
   | kBackgroundColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorProperty);
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
   }
   | kColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kColorProperty);
+    $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
   }
   | kFontFamilyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kFontFamilyProperty);
+    $$ = TrivialStringPiece::FromCString(cssom::kFontFamilyPropertyName);
   }
   | kFontSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kFontSizeProperty);
+    $$ = TrivialStringPiece::FromCString(cssom::kFontSizePropertyName);
   }
   | kTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTransformProperty);
+    $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
   }
   // Property values.
   | kInheritToken {
-    $$ = TrivialStringPiece::FromCString(cssom::InheritedValue::kKeyword);
+    $$ = TrivialStringPiece::FromCString(cssom::kInheritKeywordName);
   }
   | kInitialToken {
-    $$ = TrivialStringPiece::FromCString(cssom::InitialValue::kKeyword);
+    $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
   }
   | kNoneToken {
-    $$ = TrivialStringPiece::FromCString(cssom::NoneValue::kKeyword);
+    $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
   }
   ;
 
@@ -305,9 +305,9 @@ class_selector_token:
 // that matches the identifier in the ID selector.
 //   http://dev.w3.org/csswg/selectors-4/#id-selector
 id_selector_token:
-    kIdSelectorToken { $$ = NULL; } // TODO(***REMOVED***): Implement.
-  | kHexToken { $$ = NULL; } // TODO(***REMOVED***): Implement, check it doesn't start
-                             //               with number.
+    kIdSelectorToken { $$ = NULL; }  // TODO(***REMOVED***): Implement.
+  | kHexToken { $$ = NULL; }  // TODO(***REMOVED***): Implement, check it doesn't start
+                              //               with number.
   ;
 
 // The pseudo-class concept is introduced to permit selection based
@@ -430,10 +430,10 @@ colon: ':' maybe_whitespace ;
 //   http://www.w3.org/TR/css3-values/#common-keywords
 common_values:
     kInheritToken maybe_whitespace {
-    $$ = AddRef(cssom::InheritedValue::GetInstance().get());
+    $$ = AddRef(cssom::KeywordValue::GetInherit().get());
   }
   | kInitialToken maybe_whitespace {
-    $$ = AddRef(cssom::InitialValue::GetInstance().get());
+    $$ = AddRef(cssom::KeywordValue::GetInitial().get());
   }
   | errors {
     parser_impl->LogWarning(@1, "unsupported value");
@@ -505,7 +505,7 @@ font_family_property_value:
   ;
 
 // Desired height of glyphs from the font.
-// http://www.w3.org/TR/css3-fonts/#font-size-prop
+//   http://www.w3.org/TR/css3-fonts/#font-size-prop
 font_size_property_value:
     length
   | common_values
@@ -578,7 +578,7 @@ transform_list:
 //   http://www.w3.org/TR/css3-transforms/#transform-property
 transform_property_value:
     kNoneToken maybe_whitespace {
-    $$ = AddRef(cssom::NoneValue::GetInstance().get());
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | transform_list {
     scoped_ptr<cssom::TransformListValue::TransformFunctions>
@@ -601,31 +601,31 @@ maybe_declaration:
     /* empty */ { $$ = NULL; }
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorProperty,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kColorProperty,
+    $$ = $4 ? new PropertyDeclaration(cssom::kColorPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontFamilyToken maybe_whitespace colon font_family_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontFamilyProperty,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontFamilyPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontSizeToken maybe_whitespace colon font_size_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontSizeProperty,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontSizePropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTransformProperty,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransformPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

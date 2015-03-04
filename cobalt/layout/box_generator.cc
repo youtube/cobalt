@@ -18,13 +18,12 @@
 
 #include "base/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
-#include "cobalt/layout/keywords.h"
 #include "cobalt/layout/text_box.h"
 
 namespace cobalt {
@@ -73,12 +72,13 @@ void BoxGenerator::Visit(dom::Element* element) {
 }
 
 // Comment does not generate boxes.
-void BoxGenerator::Visit(dom::Comment* comment) {}
+void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
 
 // Document should not participate in layout.
-void BoxGenerator::Visit(dom::Document* document) { NOTREACHED(); }
+void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
 // Text node produces a list of alternating whitespace and text boxes.
+// TODO(b/19716102): Implement word breaking according to Unicode algorithm.
 void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSStyleDeclaration> parent_computed_style =
       text->parent_node()->AsElement()->AsHTMLElement()->computed_style();
@@ -87,7 +87,7 @@ void BoxGenerator::Visit(dom::Text* text) {
   std::string::const_iterator text_end_iterator = text->text().end();
 
   // Try to start with whitespace boxes.
-  if (text_iterator != text_end_iterator && IsWhitespace(*text_iterator)) {
+  if (text_iterator != text_end_iterator && IsAsciiWhitespace(*text_iterator)) {
     GenerateWhitespaceBox(&text_iterator, text_end_iterator,
                           parent_computed_style);
   }
@@ -108,26 +108,33 @@ void BoxGenerator::Visit(dom::Text* text) {
 
 ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
-  // Computed value of "display" property is guaranteed to be the string.
-  cssom::StringValue* display = base::polymorphic_downcast<cssom::StringValue*>(
-      computed_style->display().get());
+  // Computed value of "display" property is guaranteed to be the keyword.
+  cssom::KeywordValue* display =
+      base::polymorphic_downcast<cssom::KeywordValue*>(
+          computed_style->display().get());
 
-  if (LowerCaseEqualsASCII(display->value(), kBlockKeyword) ||
-      LowerCaseEqualsASCII(display->value(), kInlineBlockKeyword)) {
-    scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
-        containing_block_, computed_style, used_style_provider_));
-    ContainingBlock* saved_child_containing_block =
-        child_containing_block.get();
-    containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
-    return saved_child_containing_block;
-  }
+  switch (display->value()) {
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kInlineBlock: {
+      scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
+          containing_block_, computed_style, used_style_provider_));
+      ContainingBlock* saved_child_containing_block =
+          child_containing_block.get();
+      containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
+      return saved_child_containing_block;
+    }
 
-  if (LowerCaseEqualsASCII(display->value(), kInlineKeyword)) {
+    case cssom::KeywordValue::kInline:
     return containing_block_;
-  }
 
-  NOTREACHED();
-  return NULL;
+    case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kNone:
+    default:
+      NOTREACHED();
+      return NULL;
+  }
 }
 
 void BoxGenerator::GenerateWordBox(
@@ -138,7 +145,7 @@ void BoxGenerator::GenerateWordBox(
   std::string::const_iterator& word_end_iterator = *text_iterator;
 
   while (word_end_iterator != text_end_iterator &&
-         !IsWhitespace(*word_end_iterator)) {
+         !IsAsciiWhitespace(*word_end_iterator)) {
     ++word_end_iterator;
   }
   DCHECK(word_start_iterator != word_end_iterator);
@@ -157,7 +164,7 @@ void BoxGenerator::GenerateWhitespaceBox(
   std::string::const_iterator& whitespace_end_iterator = *text_iterator;
 
   while (whitespace_end_iterator != text_end_iterator &&
-         IsWhitespace(*whitespace_end_iterator)) {
+         IsAsciiWhitespace(*whitespace_end_iterator)) {
     ++whitespace_end_iterator;
   }
   DCHECK(whitespace_start_iterator != whitespace_end_iterator);

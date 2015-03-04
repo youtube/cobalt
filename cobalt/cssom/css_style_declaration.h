@@ -27,14 +27,14 @@ namespace cobalt {
 namespace cssom {
 
 // Lower-case names of CSS properties.
-extern const char* const kBackgroundColorProperty;
-extern const char* const kColorProperty;
-extern const char* const kDisplayProperty;
-extern const char* const kFontFamilyProperty;
-extern const char* const kFontSizeProperty;
-extern const char* const kHeightProperty;
-extern const char* const kTransformProperty;
-extern const char* const kWidthProperty;
+extern const char* const kBackgroundColorPropertyName;
+extern const char* const kColorPropertyName;
+extern const char* const kDisplayPropertyName;
+extern const char* const kFontFamilyPropertyName;
+extern const char* const kFontSizePropertyName;
+extern const char* const kHeightPropertyName;
+extern const char* const kTransformPropertyName;
+extern const char* const kWidthPropertyName;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
@@ -55,8 +55,9 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   void SetPropertyValue(const std::string& property_name,
                         const scoped_refptr<PropertyValue>& property_value);
 
-  // TODO(***REMOVED***): Define types of the properties more precisely by introducing
-  // an additional level of property value class hierarchy. For example:
+  // TODO(***REMOVED***): Consider defining types of the properties more precisely
+  // by introducing an additional level of property value class hierarchy.
+  // For example:
   //
   // Base class:
   // class PropertyValue {};
@@ -70,11 +71,11 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   // class LengthValue : public UnresolvedFontSizeValue {};
   // class PercentageValue : public UnresolvedFontSizeValue {};
   //
-  // Initial and inherited are applicable to both color and font size:
+  // "initial" and "inherit" are applicable to both color and font size:
   // class InitialValue : public UnresolvedColorValue,
   //                      public UnresolvedFontSizeValue {};
-  // class InheritedValue : public UnresolvedColorValue,
-  //                        public UnresolvedFontSizeValue {};
+  // class InheritValue : public UnresolvedColorValue,
+  //                      public UnresolvedFontSizeValue {};
   //
   // Getter signatures then become:
   // UnresolvedColorValue* color() const;

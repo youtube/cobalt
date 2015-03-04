@@ -34,8 +34,6 @@
         'html_elements.h',
         'initial_style.cc',
         'initial_style.h',
-        'keywords.cc',
-        'keywords.h',
         'layout.cc',
         'layout.h',
         'layout_manager.cc',
