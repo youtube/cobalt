@@ -70,6 +70,12 @@ void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
   used_height_ = length->value();
 }
 
+void UsedHeightProvider::VisitNone(cssom::NoneValue* none) { NOTREACHED(); }
+
+void UsedHeightProvider::VisitNumber(cssom::NumberValue* number) {
+  NOTREACHED();
+}
+
 void UsedHeightProvider::VisitRGBAColor(cssom::RGBAColorValue* color) {
   NOTREACHED();
 }
@@ -78,6 +84,11 @@ void UsedHeightProvider::VisitString(cssom::StringValue* string) {
   if (LowerCaseEqualsASCII(string->value(), kAutoKeyword)) {
     used_height_ = total_child_height_;
   }
+}
+
+void UsedHeightProvider::VisitTransformList(
+    cssom::TransformListValue* transform_list) {
+  NOTREACHED();
 }
 
 UsedWidthProvider::UsedWidthProvider(ContainingBlock* containing_block)
@@ -97,6 +108,12 @@ void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
   used_width_ = length->value();
 }
 
+void UsedWidthProvider::VisitNone(cssom::NoneValue* none) { NOTREACHED(); }
+
+void UsedWidthProvider::VisitNumber(cssom::NumberValue* number) {
+  NOTREACHED();
+}
+
 void UsedWidthProvider::VisitRGBAColor(cssom::RGBAColorValue* color) {
   NOTREACHED();
 }
@@ -106,6 +123,11 @@ void UsedWidthProvider::VisitString(cssom::StringValue* string) {
     DCHECK_NE(static_cast<ContainingBlock*>(NULL), containing_block_);
     used_width_ = containing_block_->used_frame().width();
   }
+}
+
+void UsedWidthProvider::VisitTransformList(
+    cssom::TransformListValue* transform_list) {
+  NOTREACHED();
 }
 
 }  // namespace layout

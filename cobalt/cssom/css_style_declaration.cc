@@ -28,6 +28,7 @@ const char* const kDisplayProperty = "display";
 const char* const kFontFamilyProperty = "font-family";
 const char* const kFontSizeProperty = "font-size";
 const char* const kHeightProperty = "height";
+const char* const kTransformProperty = "transform";
 const char* const kWidthProperty = "width";
 
 CSSStyleDeclaration::CSSStyleDeclaration() {}
@@ -57,6 +58,9 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
   if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
     return height();
   }
+  if (LowerCaseEqualsASCII(property_name, kTransformProperty)) {
+    return transform();
+  }
   if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
     return width();
   }
@@ -78,6 +82,8 @@ void CSSStyleDeclaration::SetPropertyValue(
     set_font_size(property_value);
   } else if (LowerCaseEqualsASCII(property_name, kHeightProperty)) {
     set_height(property_value);
+  } else if (LowerCaseEqualsASCII(property_name, kTransformProperty)) {
+    set_transform(property_value);
   } else if (LowerCaseEqualsASCII(property_name, kWidthProperty)) {
     set_width(property_value);
   }
@@ -90,6 +96,7 @@ void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
   set_font_family(rhs.font_family());
   set_font_size(rhs.font_size());
   set_height(rhs.height());
+  set_transform(rhs.transform());
   set_width(rhs.width());
 }
 
