@@ -33,6 +33,7 @@ extern const char* const kDisplayProperty;
 extern const char* const kFontFamilyProperty;
 extern const char* const kFontSizeProperty;
 extern const char* const kHeightProperty;
+extern const char* const kTransformProperty;
 extern const char* const kWidthProperty;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
@@ -112,6 +113,11 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
     height_ = height;
   }
 
+  const scoped_refptr<PropertyValue>& transform() const { return transform_; }
+  void set_transform(const scoped_refptr<PropertyValue>& transform) {
+    transform_ = transform;
+  }
+
   const scoped_refptr<PropertyValue>& width() const { return width_; }
   void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
@@ -129,6 +135,7 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   scoped_refptr<PropertyValue> font_family_;
   scoped_refptr<PropertyValue> font_size_;
   scoped_refptr<PropertyValue> height_;
+  scoped_refptr<PropertyValue> transform_;
   scoped_refptr<PropertyValue> width_;
 
   friend class base::RefCounted<CSSStyleDeclaration>;

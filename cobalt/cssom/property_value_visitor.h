@@ -23,8 +23,11 @@ namespace cssom {
 class InheritedValue;
 class InitialValue;
 class LengthValue;
+class NoneValue;
+class NumberValue;
 class RGBAColorValue;
 class StringValue;
+class TransformListValue;
 
 // Type-safe branching on a class hierarchy of CSS property values,
 // implemented after a classical GoF pattern (see
@@ -34,8 +37,11 @@ class PropertyValueVisitor {
   virtual void VisitInherited(InheritedValue* inherited_value) = 0;
   virtual void VisitInitial(InitialValue* initial_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
+  virtual void VisitNone(NoneValue* none_value) = 0;
+  virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
+  virtual void VisitTransformList(TransformListValue* transform_list_value) = 0;
 
  protected:
   ~PropertyValueVisitor() {}

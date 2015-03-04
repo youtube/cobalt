@@ -66,8 +66,11 @@ class UsedHeightProvider : public cssom::PropertyValueVisitor {
   void VisitInherited(cssom::InheritedValue* inherited) OVERRIDE;
   void VisitInitial(cssom::InitialValue* initial) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitNone(cssom::NoneValue* none) OVERRIDE;
+  void VisitNumber(cssom::NumberValue* number) OVERRIDE;
   void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
   void VisitString(cssom::StringValue* string) OVERRIDE;
+  void VisitTransformList(cssom::TransformListValue* transform_list) OVERRIDE;
 
   float used_height() const { return used_height_; }
 
@@ -83,8 +86,11 @@ class UsedWidthProvider : public cssom::PropertyValueVisitor {
   void VisitInherited(cssom::InheritedValue* inherited) OVERRIDE;
   void VisitInitial(cssom::InitialValue* initial) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitNone(cssom::NoneValue* none) OVERRIDE;
+  void VisitNumber(cssom::NumberValue* number) OVERRIDE;
   void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
   void VisitString(cssom::StringValue* string) OVERRIDE;
+  void VisitTransformList(cssom::TransformListValue* transform_list) OVERRIDE;
 
   float used_width() const { return used_width_; }
 
