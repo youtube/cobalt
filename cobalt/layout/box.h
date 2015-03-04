@@ -84,6 +84,8 @@ class Box {
   UsedStyleProvider* const used_style_provider_;
 
   math::RectF used_frame_;
+
+  DISALLOW_COPY_AND_ASSIGN(Box);
 };
 
 }  // namespace layout

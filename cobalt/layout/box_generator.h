@@ -62,6 +62,8 @@ class BoxGenerator : public dom::NodeVisitor {
   ContainingBlock* const containing_block_;
   UsedStyleProvider* const used_style_provider_;
   bool is_root_;
+
+  DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
 
 }  // namespace layout

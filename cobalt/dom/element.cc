@@ -43,6 +43,11 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
   return named_node_map;
 }
 
+const std::string& Element::tag_name() const {
+  static const std::string kElementName("#element");
+  return kElementName;
+}
+
 scoped_refptr<DOMTokenList> Element::class_list() {
   scoped_refptr<DOMTokenList> class_list = class_list_.get();
   if (!class_list) {

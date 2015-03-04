@@ -27,6 +27,11 @@ scoped_refptr<HTMLDivElement> HTMLDivElement::Create() {
   return make_scoped_refptr(new HTMLDivElement());
 }
 
+const std::string& HTMLDivElement::tag_name() const {
+  static const std::string kDivTagString(kTagName);
+  return kDivTagString;
+}
+
 HTMLDivElement::HTMLDivElement() {}
 
 HTMLDivElement::~HTMLDivElement() {}

@@ -31,5 +31,10 @@ HTMLSpanElement::HTMLSpanElement() {}
 
 HTMLSpanElement::~HTMLSpanElement() {}
 
+const std::string& HTMLSpanElement::tag_name() const {
+  static const std::string kSpanTagString(kTagName);
+  return kSpanTagString;
+}
+
 }  // namespace dom
 }  // namespace cobalt
