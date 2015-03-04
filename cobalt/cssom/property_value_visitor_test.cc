@@ -16,10 +16,8 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
-#include "cobalt/cssom/inherited_value.h"
-#include "cobalt/cssom/initial_value.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/none_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
@@ -33,10 +31,8 @@ namespace cssom {
 
 class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
-  MOCK_METHOD1(VisitInherited, void(InheritedValue* inherited_value));
-  MOCK_METHOD1(VisitInitial, void(InitialValue* initial_value));
+  MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
-  MOCK_METHOD1(VisitNone, void(NoneValue* none_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
@@ -44,18 +40,11 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(cssom::TransformListValue* transform_list_value));
 };
 
-TEST(PropertyValueVisitorTest, VisitsInheritedValue) {
-  scoped_refptr<InheritedValue> inherited_value = InheritedValue::GetInstance();
+TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
+  scoped_refptr<KeywordValue> inherit_value = KeywordValue::GetInherit();
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitInherited(inherited_value.get()));
-  inherited_value->Accept(&mock_visitor);
-}
-
-TEST(PropertyValueVisitorTest, VisitsInitialValue) {
-  scoped_refptr<InitialValue> initial_value = InitialValue::GetInstance();
-  MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitInitial(initial_value.get()));
-  initial_value->Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitKeyword(inherit_value.get()));
+  inherit_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsLengthValue) {
@@ -63,13 +52,6 @@ TEST(PropertyValueVisitorTest, VisitsLengthValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitLength(length_value.get()));
   length_value->Accept(&mock_visitor);
-}
-
-TEST(PropertyValueVisitorTest, VisitsNoneValue) {
-  scoped_refptr<NoneValue> none_value = NoneValue::GetInstance();
-  MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitNone(none_value.get()));
-  none_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsNumberValue) {

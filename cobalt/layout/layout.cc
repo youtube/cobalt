@@ -17,14 +17,13 @@
 #include "cobalt/layout/layout.h"
 
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
-#include "cobalt/cssom/string_value.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/initial_style.h"
-#include "cobalt/layout/keywords.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
@@ -44,7 +43,7 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
   initial_containing_block_computed_style->set_color(
       InitialStyle::GetInstance()->color());
   initial_containing_block_computed_style->set_display(
-      new cssom::StringValue(kBlockKeyword));
+      cssom::KeywordValue::GetBlock());
   initial_containing_block_computed_style->set_font_family(
       InitialStyle::GetInstance()->font_family());
   initial_containing_block_computed_style->set_font_size(
