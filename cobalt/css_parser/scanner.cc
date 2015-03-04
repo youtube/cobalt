@@ -1056,6 +1056,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kFontSizeToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, "transform")) {
+        *property_name_token = kTransformToken;
+        return true;
+      }
       return false;
 
     case 11:
@@ -1083,6 +1087,13 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
   DCHECK_GT(name.size(), 0);
 
   switch (name.size()) {
+    case 4:
+      if (IsEqualToCssIdentifier(name.begin, "none")) {
+        *property_value_token = kNoneToken;
+        return true;
+      }
+      return false;
+
     case 7:
       if (IsEqualToCssIdentifier(name.begin, "inherit")) {
         *property_value_token = kInheritToken;
@@ -1159,10 +1170,32 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       }
       return false;
 
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, "scale")) {
+        *known_function_token = kScaleFunctionToken;
+        return true;
+      }
+      return false;
+
     case 9:
       if (IsEqualToCssIdentifier(name.begin, "nth-child")) {
         parsing_mode_ = kNthChildMode;
         *known_function_token = kNthChildFunctionToken;
+        return true;
+      }
+      return false;
+
+    case 10:
+      if (IsEqualToCssIdentifier(name.begin, "translatex")) {
+        *known_function_token = kTranslateXFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "translatey")) {
+        *known_function_token = kTranslateYFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "translatez")) {
+        *known_function_token = kTranslateZFunctionToken;
         return true;
       }
       return false;
