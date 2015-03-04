@@ -446,6 +446,36 @@ TEST_F(ParserTest, ParsesFontSize) {
   style->font_size()->Accept(&mock_visitor);
 }
 
+TEST_F(ParserTest, ParsesOverflow) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("parser_test.css",
+                               ".hidden {\n"
+                               "  overflow: hidden;\n"
+                               "}\n"
+                               ".visible {\n"
+                               "  overflow: visible;\n"
+                               "}\n");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+
+  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
+  ASSERT_EQ(2, css_rules->length());
+
+  scoped_refptr<cssom::CSSStyleDeclaration> hidden_style =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get())->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), hidden_style);
+
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(), hidden_style->overflow());
+
+  scoped_refptr<cssom::CSSStyleDeclaration> visible_style =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(1).get())->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), visible_style);
+
+  EXPECT_EQ(cssom::KeywordValue::GetVisible(), visible_style->overflow());
+}
+
 TEST_F(ParserTest, ParsesNoneTransform) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);

@@ -52,6 +52,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
 
+    // "hidden" is a value of "overflow" property which indicates that
+    // the content is clipped.
+    //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    kHidden,
+
     // Applicable to any property, represents a cascaded value of "inherit",
     // which means that, for a given element, the property takes the same
     // specified value as the property for the element's parent.
@@ -77,6 +82,11 @@ class KeywordValue : public PropertyValue {
     // is rendered as is.
     //   http://www.w3.org/TR/css3-transforms/#transform-property
     kNone,
+
+    // "visible" is a value of "overflow" property which indicates that
+    // the content is not clipped.
+    //   http://www.w3.org/TR/CSS21/visufx.html#overflow
+    kVisible,
   };
 
   // Since keyword values do not hold additional information and some of them
@@ -85,11 +95,13 @@ class KeywordValue : public PropertyValue {
   // of shared instances returned by the methods below.
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetHidden();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();
   static const scoped_refptr<KeywordValue>& GetInline();
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetNone();
+  static const scoped_refptr<KeywordValue>& GetVisible();
 
   explicit KeywordValue(Value value) : value_(value) {}
 

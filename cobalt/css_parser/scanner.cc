@@ -1051,6 +1051,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 8:
+      if (IsEqualToCssIdentifier(name.begin, "overflow")) {
+        *property_name_token = kOverflowToken;
+        return true;
+      }
+      return false;
+
     case 9:
       if (IsEqualToCssIdentifier(name.begin, "font-size")) {
         *property_name_token = kFontSizeToken;
@@ -1094,6 +1101,13 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, "hidden")) {
+        *property_value_token = kHiddenToken;
+        return true;
+      }
+      return false;
+
     case 7:
       if (IsEqualToCssIdentifier(name.begin, "inherit")) {
         *property_value_token = kInheritToken;
@@ -1101,6 +1115,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, "initial")) {
         *property_value_token = kInitialToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "visible")) {
+        *property_value_token = kVisibleToken;
         return true;
       }
       return false;
