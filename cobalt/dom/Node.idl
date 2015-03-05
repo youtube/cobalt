@@ -28,7 +28,7 @@ interface Node : EventTarget {
   readonly attribute Node? lastChild;
   readonly attribute Node? previousSibling;
   readonly attribute Node? nextSibling;
-  attribute DOMString? textContent;
+  attribute DOMString textContent;
   boolean contains(Node? other);
   Node insertBefore(Node node, Node? child);
   Node appendChild(Node node);
