@@ -21,6 +21,8 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/logging.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 
 namespace cobalt {
@@ -41,13 +43,18 @@ class TextDecoder : public Decoder {
 
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) OVERRIDE {
+    DCHECK(thread_checker_.CalledOnValidThread());
     text_.append(data, size);
   }
-  void Finish() OVERRIDE { callback_.Run(text_); }
+  void Finish() OVERRIDE {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    callback_.Run(text_);
+  }
 
  private:
   std::string text_;
   TextCallback callback_;
+  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace loader

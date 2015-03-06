@@ -16,31 +16,30 @@
 
 #include "cobalt/dom/window.h"
 
-#include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/navigator.h"
-#include "cobalt/cssom/css_parser.h"
-#include "cobalt/script/script_runner.h"
 
 namespace cobalt {
 namespace dom {
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
-               browser::ResourceLoaderFactory* resource_loader_factory,
+               loader::FetcherFactory* fetcher_factory,
                script::ScriptRunner* script_runner, const GURL& url,
                const std::string& user_agent)
     : width_(width),
       height_(height),
-      html_element_factory_(resource_loader_factory, css_parser, script_runner),
-      document_builder_(DocumentBuilder::Create(resource_loader_factory,
-                                                &html_element_factory_)),
-      document_(make_scoped_refptr(
-          new Document(&html_element_factory_, Document::Options(url)))),
-      navigator_(make_scoped_refptr(new Navigator(user_agent))) {
-  document_builder_->BuildDocument(url, document_.get());
-}
+      html_element_factory_(
+          new HTMLElementFactory(fetcher_factory, css_parser, script_runner)),
+      document_(
+          new Document(html_element_factory_.get(), Document::Options(url))),
+      document_builder_(new DocumentBuilder(
+          document_, url, fetcher_factory, html_element_factory_.get(),
+          DocumentBuilder::DoneCallbackType(),
+          DocumentBuilder::ErrorCallbackType())),
+      navigator_(new Navigator(user_agent)) {}
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
 
