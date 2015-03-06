@@ -38,36 +38,27 @@ class Shadow;
 // A filled rectangle with a border and rounded corners.
 class RectNode : public Node {
  public:
-  // TODO(***REMOVED***): This constructor format is not scalable as additional
-  //               RectNode functionality is implemented.  It should be
-  //               adjusted, either by introducing a mutable builder
-  //               RectNode class, or splitting RectNode into different
-  //               render_tree nodes.
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+  struct Builder {
+    Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+
+    // A size of a rectangle (size includes border).
+    math::SizeF size;
+
+    // A solid or gradient brush to fill the rectangle with.
+    // This can be null if a background brush is not specified.
+    scoped_ptr<Brush> background_brush;
+  };
+
+  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush) :
+      data_(size, background_brush.Pass()) {}
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
-  // A border around rectangle. Note that this is an inner border which means
-  // that width of a border is included in rectangle's own width.
-  const Border& border() const;
-
-  // A solid or gradient brush to fill the rectangle with.
-  // This can be null if a background brush is not specified.
-  const Brush* background_brush() const { return background_brush_.get(); }
-
-  // A rectangle shadow.
-  const Shadow& shadow() const;
-
-  // Radiuses of corners. Most likely to be all zeros for a majority of cases.
-  const BorderRadiuses& radiuses() const;
-
-  // A size of a rectangle (size includes border).
-  const math::SizeF& size() const { return size_; }
+  const Builder& data() const { return data_; }
 
  private:
-  math::SizeF size_;
-  scoped_ptr<Brush> background_brush_;
+  const Builder data_;
 };
 
 }  // namespace render_tree

@@ -38,7 +38,7 @@ class TextBox : public Box {
   void Layout(const LayoutOptions& options) OVERRIDE;
 
   void AddToRenderTree(
-      render_tree::CompositionNodeMutable* composition_node) OVERRIDE;
+      render_tree::CompositionNode::Builder* composition_node_builder) OVERRIDE;
 
  private:
   const base::StringPiece text_;

@@ -38,29 +38,32 @@ class Shadow;
 // origin.
 class TextNode : public Node {
  public:
-  TextNode(const std::string& text, const scoped_refptr<Font>& font,
-           const ColorRGBA& color);
+  struct Builder {
+    Builder(const std::string& text, const scoped_refptr<Font>& font,
+            const ColorRGBA& color);
 
-  // A type-safe branching.
+    // A text to draw. Guaranteed not to contain newlines.
+    // The class does not own the text, it merely refers it from a
+    // resource pool.
+    std::string text;
+
+    // The font to draw the text with.
+    scoped_refptr<Font> font;
+
+    // The foreground color of the text.
+    ColorRGBA color;
+  };
+
+  explicit TextNode(const Builder& builder) : data_(builder) {}
+  TextNode(const std::string& text, const scoped_refptr<Font>& font,
+           const ColorRGBA& color) : data_(text, font, color) {}
+
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
-  // A text to draw. Guaranteed not to contain newlines.
-  // The class does not own the text, it merely refers it from a resource pool.
-  const std::string& text() const { return text_; }
-
-  // A font to draw the text with.
-  scoped_refptr<Font> font() const { return font_; }
-
-  // A text color.
-  const ColorRGBA& color() const { return color_; }
-
-  // A text shadow.
-  const Shadow& shadow() const;
+  const Builder& data() const { return data_; }
 
  private:
-  std::string text_;
-  scoped_refptr<Font> font_;
-  ColorRGBA color_;
+  const Builder data_;
 };
 
 }  // namespace render_tree
