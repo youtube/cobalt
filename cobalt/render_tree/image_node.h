@@ -28,10 +28,24 @@ namespace render_tree {
 // An image that supports scaling and tiling.
 class ImageNode : public Node {
  public:
+  struct Builder {
+    Builder(const scoped_refptr<Image>& source,
+            const math::SizeF& destination_size);
+
+    // A source of pixels. May be smaller or larger than layed out image.
+    // The class does not own the image, it merely refers it from a resource
+    // pool.
+    scoped_refptr<Image> source;
+
+    // Returns the width and height that the image will be rasterized as.
+    math::SizeF destination_size;
+  };
+
+  explicit ImageNode(const Builder& builder) : data_(builder) {}
+
   // If no width/height are specified, the native width and height of the
   // image will be selected and used as the image node's width and height.
-  explicit ImageNode(const scoped_refptr<Image>& image);
-
+  explicit ImageNode(const scoped_refptr<Image>& source);
   // The specified image will render with the given width and height, which
   // may result in scaling.
   ImageNode(const scoped_refptr<Image>& image,
@@ -40,28 +54,10 @@ class ImageNode : public Node {
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
 
-  // A source of pixels. May be smaller or larger than layed out image.
-  // The class does not own the image, it merely refers it from a resource pool.
-  scoped_refptr<Image> source() const { return image_; }
-
-  // A part of the source image that has to be scaled or tiled.
-  const math::RectF& source_rect() const;
-
-  // Returns the width and height that the image will be rasterized as.
-  const math::SizeF& destination_size() const { return destination_size_; }
-
-  // A horizontal and vertical tile factor.
-  // Tile factor is a number between 0 and 1 which defines how much smaller
-  // the tile is than the destination image. If the tile factor is 1, no tiling
-  // is requested in a given dimension. If the tile factor is 0.5, the source
-  // image has to be repeated twice in a given dimension, and so on.
-  float tile_factor_x() const;
-  float tile_factor_y() const;
+  const Builder& data() const { return data_; }
 
  private:
-  scoped_refptr<Image> image_;
-
-  math::SizeF destination_size_;
+  const Builder data_;
 };
 
 }  // namespace render_tree

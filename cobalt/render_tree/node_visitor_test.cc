@@ -28,7 +28,6 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
-using cobalt::render_tree::CompositionNodeMutable;
 using cobalt::render_tree::NodeVisitor;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::TextNode;
@@ -44,7 +43,7 @@ class MockNodeVisitor : public NodeVisitor {
 
 TEST(NodeVisitorTest, VisitsComposition) {
   scoped_refptr<CompositionNode> composition(
-      new CompositionNode(make_scoped_ptr(new CompositionNodeMutable())));
+      new CompositionNode(CompositionNode::Builder()));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(composition.get()));
   composition->Accept(&mock_visitor);

@@ -33,7 +33,7 @@ Box::Box(ContainingBlock* containing_block,
       used_style_provider_(used_style_provider) {}
 
 void Box::AddToRenderTree(
-    render_tree::CompositionNodeMutable* composition_node) {
+    render_tree::CompositionNode::Builder* composition_node_builder) {
   render_tree::ColorRGBA used_background_color =
       GetUsedColor(computed_style_->background_color());
   // Assuming 8-bit resolution of alpha channel, only create background
@@ -41,7 +41,7 @@ void Box::AddToRenderTree(
   if (used_background_color.a() >= 1.0 / 255.0) {
     scoped_ptr<render_tree::Brush> used_background_brush(
         new render_tree::SolidColorBrush(used_background_color));
-    composition_node->AddChild(
+    composition_node_builder->AddChild(
         new render_tree::RectNode(used_frame().size(),
                                   used_background_brush.Pass()),
         GetTransform());
