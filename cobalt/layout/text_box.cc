@@ -52,18 +52,18 @@ void TextBox::Layout(const LayoutOptions& options) {
 }
 
 void TextBox::AddToRenderTree(
-    render_tree::CompositionNodeMutable* composition_node) {
+    render_tree::CompositionNode::Builder* composition_node_builder) {
   if (trimmed_) {
     return;
   }
 
-  Box::AddToRenderTree(composition_node);
+  Box::AddToRenderTree(composition_node_builder);
 
   scoped_refptr<render_tree::Font> used_font =
       used_style_provider()->GetUsedFont(computed_style()->font_family(),
                                          computed_style()->font_size());
   render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
-  composition_node->AddChild(
+  composition_node_builder->AddChild(
       new render_tree::TextNode(text_.as_string(), used_font, used_color),
       GetTransform());
 }

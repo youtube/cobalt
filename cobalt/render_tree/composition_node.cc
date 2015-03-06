@@ -21,9 +21,9 @@
 namespace cobalt {
 namespace render_tree {
 
-void CompositionNodeMutable::AddChild(const scoped_refptr<Node>& node,
-                                      const math::Matrix3F& transform) {
-  composed_children_.push_back(ComposedChild(node, transform));
+void CompositionNode::Builder::AddChild(const scoped_refptr<Node>& node,
+                                        const math::Matrix3F& transform) {
+  composed_children_->push_back(ComposedChild(node, transform));
 }
 
 void CompositionNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }

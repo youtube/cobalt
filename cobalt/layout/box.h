@@ -69,7 +69,7 @@ class Box {
 
   // Converts layout subtree into render subtree.
   virtual void AddToRenderTree(
-      render_tree::CompositionNodeMutable* composition_node);
+      render_tree::CompositionNode::Builder* composition_node_builder);
 
  protected:
   UsedStyleProvider* used_style_provider() const {
