@@ -67,8 +67,8 @@ class RendererPipelineTest : public ::testing::Test {
     // We create a render tree here composed of only a single, empty
     // CompositionNode that is meant to act as a dummy/placeholder.
     dummy_render_tree_ = scoped_refptr<cobalt::render_tree::Node>(
-        new cobalt::render_tree::CompositionNode(make_scoped_ptr(
-            new cobalt::render_tree::CompositionNodeMutable())));
+        new cobalt::render_tree::CompositionNode(
+            cobalt::render_tree::CompositionNode::Builder()));
   }
 
   // Checks that Submit() was called on mock_rasterizer_ the expect number of

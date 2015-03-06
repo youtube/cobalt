@@ -76,10 +76,9 @@ scoped_refptr<render_tree::Node> Layout(
   layout_options.beginning_of_line = true;
   initial_containing_block->Layout(layout_options);
 
-  scoped_ptr<render_tree::CompositionNodeMutable> mutable_render_tree_root(
-      new render_tree::CompositionNodeMutable());
-  initial_containing_block->AddToRenderTree(mutable_render_tree_root.get());
-  return new render_tree::CompositionNode(mutable_render_tree_root.Pass());
+  render_tree::CompositionNode::Builder render_tree_root_builder;
+  initial_containing_block->AddToRenderTree(&render_tree_root_builder);
+  return new render_tree::CompositionNode(render_tree_root_builder.Pass());
 }
 
 }  // namespace layout
