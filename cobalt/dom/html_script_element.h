@@ -18,8 +18,11 @@
 #define DOM_HTML_SCRIPT_ELEMENT_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/browser/loader/text_load.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader.h"
+#include "cobalt/loader/text_decoder.h"
 #include "cobalt/script/script_runner.h"
 
 namespace cobalt {
@@ -33,7 +36,7 @@ class HTMLScriptElement : public HTMLElement {
   static const char* kTagName;
 
   static scoped_refptr<HTMLScriptElement> Create(
-      browser::ResourceLoaderFactory* loader_factory,
+      loader::FetcherFactory* fetcher_factory,
       script::ScriptRunner* script_runner);
 
   // Web API: Element
@@ -59,12 +62,11 @@ class HTMLScriptElement : public HTMLElement {
     return this;
   }
 
- protected:
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  HTMLScriptElement(browser::ResourceLoaderFactory* loader_factory,
+  HTMLScriptElement(loader::FetcherFactory* fetcher_factory,
                     script::ScriptRunner* script_runner);
   ~HTMLScriptElement() OVERRIDE;
 
@@ -72,18 +74,19 @@ class HTMLScriptElement : public HTMLElement {
   void Prepare();
 
   void OnLoadingDone(const std::string& content);
-  void OnLoadingError(const browser::ResourceLoaderError& error);
-  bool IsLoading() const;
+  void OnLoadingError(const std::string& error);
   void StopLoading();
 
-  // ResourceLoaderFactory that is used to create a byte loader.
-  browser::ResourceLoaderFactory* loader_factory_;
+  // FetcherFactory that is used to create a fetcher according to url.
+  loader::FetcherFactory* fetcher_factory_;
+  // The loader.
+  scoped_ptr<loader::Loader> loader_;
   // Proxy to JavaScript Global Object in which scripts should be run
   script::ScriptRunner* script_runner_;
-  // This object is responsible for the loading.
-  scoped_ptr<browser::TextLoad> text_load_;
   // Whether the script has been started.
   bool is_already_started_;
+  // Thread checker.
+  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace dom

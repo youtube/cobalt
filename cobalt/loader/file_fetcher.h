@@ -31,7 +31,7 @@ namespace cobalt {
 namespace loader {
 
 // FileFetcher is for fetching data from files on local disk. The file path that
-// is passed into the constructor shouldn't include DIR_SOURCE ROOT, e.g. it
+// is passed into the constructor shouldn't include DIR_SOURCE_ROOT, e.g. it
 // could be "cobalt/loader/testdata/...".
 class FileFetcher : public Fetcher {
  public:

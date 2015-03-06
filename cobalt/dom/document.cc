@@ -38,7 +38,7 @@ namespace dom {
 Document::Document(HTMLElementFactory* html_element_factory,
                    const Options& options)
     : html_element_factory_(html_element_factory),
-      location_(make_scoped_refptr(new Location(options.url))),
+      location_(new Location(options.url)),
       url_(options.url),
       style_sheets_(cssom::StyleSheetList::Create()),
       loading_counter_(0),
@@ -74,6 +74,7 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
 scoped_refptr<Element> Document::CreateElement() { return Element::Create(); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
+  DCHECK(html_element_factory_ != NULL);
   return html_element_factory_->CreateHTMLElement(tag_name);
 }
 

@@ -32,31 +32,16 @@ class Loader {
  public:
   typedef base::Callback<void(const std::string&)> ErrorCallback;
 
-  // This class is responsible for passing chunks of data from fetcher to
-  // decoder and notifying fetching is done or aborted on error.
-  class DecoderToFetcherAdapter : public Fetcher::Handler {
-   public:
-    DecoderToFetcherAdapter(Decoder* decoder, ErrorCallback error_callback)
-        : decoder_(decoder), error_callback_(error_callback) {}
-    void OnReceived(const char* data, size_t size) {
-      decoder_->DecodeChunk(data, size);
-    }
-    void OnDone() { decoder_->Finish(); }
-    void OnError(const std::string& error) { error_callback_.Run(error); }
-
-   private:
-    Decoder* decoder_;
-    ErrorCallback error_callback_;
-  };
-
   // The construction of Loader initiates the loading. It takes the ownership
   // of a Decoder and creates and manages a Fetcher using the given factory
   // method.
   Loader(base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
          scoped_ptr<Decoder> decoder, ErrorCallback error_callback);
-  virtual ~Loader() {}
+  virtual ~Loader();
 
  private:
+  class DecoderToFetcherAdapter;
+
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<DecoderToFetcherAdapter> decoder_to_fetcher_adaptor_;
   scoped_ptr<Fetcher> fetcher_;

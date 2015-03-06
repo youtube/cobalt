@@ -19,27 +19,18 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/dom/html_element_factory.h"
-#include "cobalt/script/wrappable.h"
+#include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/event_target.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
-namespace browser {
-class ResourceLoaderFactory;
-}  // namespace browser
-
-namespace cssom {
-class CSSParser;
-}  // namespace cssom
-
-namespace script {
-class ScriptRunner;
-}  // namespace script
-
 namespace dom {
 
 class Document;
 class DocumentBuilder;
+class HTMLElementFactory;
 class Location;
 class Navigator;
 
@@ -50,7 +41,7 @@ class Navigator;
 class Window : public EventTarget {
  public:
   Window(int width, int height, cssom::CSSParser* css_parser,
-         browser::ResourceLoaderFactory* resource_loader_factory,
+         loader::FetcherFactory* fetcher_factory,
          script::ScriptRunner* script_runner, const GURL& url,
          const std::string& user_agent);
 
@@ -71,9 +62,9 @@ class Window : public EventTarget {
   int width_;
   int height_;
 
-  HTMLElementFactory html_element_factory_;
-  scoped_ptr<DocumentBuilder> document_builder_;
+  scoped_ptr<HTMLElementFactory> html_element_factory_;
   scoped_refptr<Document> document_;
+  scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
