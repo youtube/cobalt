@@ -21,6 +21,8 @@
         'decoder.h',
         'fetcher.cc',
         'fetcher.h',
+        'fetcher_factory.cc',
+        'fetcher_factory.h',
         'file_fetcher.cc',
         'file_fetcher.h',
         'loader.cc',
@@ -37,6 +39,7 @@
       'target_name': 'loader_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'fetcher_factory_test.cc',
         'file_fetcher_test.cc',
         'loader_test.cc',
         'text_decoder_test.cc',
@@ -49,6 +52,18 @@
         'loader',
         'loader_copy_test_data',
       ],
+    },
+
+    {
+      'target_name': 'loader_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'loader_test',
+      ],
+      'variables': {
+        'executable_name': 'loader_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
     },
 
     {

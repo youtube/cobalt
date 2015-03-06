@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-#include "cobalt/loader/loader.h"
+#ifndef LOADER_FETCHER_FACTORY_H_
+#define LOADER_FETCHER_FACTORY_H_
+
+#include "base/threading/thread.h"
+#include "cobalt/loader/fetcher.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace loader {
 
-Loader::Loader(
-    base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-    scoped_ptr<Decoder> decoder, ErrorCallback error_callback)
-    : decoder_(decoder.Pass()),
-      decoder_to_fetcher_adaptor_(make_scoped_ptr(
-          new DecoderToFetcherAdapter(decoder_.get(), error_callback))),
-      fetcher_(fetcher_creator.Run(decoder_to_fetcher_adaptor_.get()).Pass()) {
-  static const std::string kLoaderNotCreated =
-      "Fetcher or Decoder is not created.";
-  if (!fetcher_ || !decoder_) error_callback.Run(kLoaderNotCreated);
-}
+class FetcherFactory {
+ public:
+  FetcherFactory() : thread_("Fetcher thread") { thread_.Start(); }
+
+  scoped_ptr<Fetcher> CreateFetcher(const GURL& url, Fetcher::Handler* handler);
+
+ private:
+  base::Thread thread_;
+};
 
 }  // namespace loader
 }  // namespace cobalt
+
+#endif  // LOADER_FETCHER_FACTORY_H_
