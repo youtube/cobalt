@@ -24,8 +24,8 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
-#include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/script/script_runner.h"
 
 namespace cobalt {
@@ -34,7 +34,7 @@ namespace dom {
 // This factory is responsible for creating HTML elements according to tag name.
 class HTMLElementFactory {
  public:
-  HTMLElementFactory(browser::ResourceLoaderFactory* loader_factory,
+  HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
                      cssom::CSSParser* css_parser,
                      script::ScriptRunner* script_runner);
   ~HTMLElementFactory();
@@ -46,7 +46,7 @@ class HTMLElementFactory {
   template <typename T>
   scoped_refptr<HTMLElement> CreateHTMLElementT();
 
-  browser::ResourceLoaderFactory* const loader_factory_;
+  loader::FetcherFactory* const fetcher_factory_;
   cssom::CSSParser* const css_parser_;
   script::ScriptRunner* const script_runner_;
 

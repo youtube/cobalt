@@ -29,10 +29,10 @@ const char* HTMLScriptElement::kTagName = "script";
 
 // static
 scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
-    browser::ResourceLoaderFactory* loader_factory,
+    loader::FetcherFactory* fetcher_factory,
     script::ScriptRunner* script_runner) {
   return make_scoped_refptr(
-      new HTMLScriptElement(loader_factory, script_runner));
+      new HTMLScriptElement(fetcher_factory, script_runner));
 }
 
 const std::string& HTMLScriptElement::tag_name() const {
@@ -72,10 +72,9 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
   }
 }
 
-HTMLScriptElement::HTMLScriptElement(
-    browser::ResourceLoaderFactory* loader_factory,
-    script::ScriptRunner* script_runner)
-    : loader_factory_(loader_factory),
+HTMLScriptElement::HTMLScriptElement(loader::FetcherFactory* fetcher_factory,
+                                     script::ScriptRunner* script_runner)
+    : fetcher_factory_(fetcher_factory),
       script_runner_(script_runner),
       is_already_started_(false) {
   DCHECK(script_runner_);
@@ -87,6 +86,10 @@ HTMLScriptElement::~HTMLScriptElement() {}
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 // TODO(***REMOVED***): Support inline script.
 void HTMLScriptElement::Prepare() {
+  // Custom, not in any spec.
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(loader_.get() == NULL);
+
   // If the script element is marked as having "already started", then the user
   // agent must abort these steps at this point. The script is not executed.
   if (is_already_started_) return;
@@ -157,28 +160,37 @@ void HTMLScriptElement::Prepare() {
   // with the mode being the current state of the element's crossorigin
   // content attribute, the origin being the origin of the script element's
   // Document, and the default origin behaviour set to taint.
-  text_load_ = make_scoped_ptr(new browser::TextLoad(
-      owner_document().get(), loader_factory_, url,
-      base::Bind(&HTMLScriptElement::OnLoadingDone, this),
-      base::Bind(&HTMLScriptElement::OnLoadingError, this),
-      base::Bind(&HTMLScriptElement::StopLoading, this)));
+
+  loader_ = make_scoped_ptr(new loader::Loader(
+      base::Bind(&loader::FetcherFactory::CreateFetcher,
+                 base::Unretained(fetcher_factory_), url),
+      scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
+          &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
+      base::Bind(&HTMLScriptElement::OnLoadingError, base::Unretained(this))));
+  owner_document()->IncreaseLoadingCounter();
 
   // 15. Not needed by Cobalt.
 }
 
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
   script_runner_->Execute(content);
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchOnLoad();
+  StopLoading();
 }
 
-void HTMLScriptElement::OnLoadingError(
-    const browser::ResourceLoaderError& error) {}
-
-bool HTMLScriptElement::IsLoading() const { return text_load_.get() != NULL; }
+void HTMLScriptElement::OnLoadingError(const std::string& error) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  LOG(ERROR) << error;
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchOnLoad();
+  StopLoading();
+}
 
 void HTMLScriptElement::StopLoading() {
-  DCHECK(IsLoading());
-  text_load_.reset();
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(loader_.get() != NULL);
+  loader_.reset();
 }
 
 }  // namespace dom
