@@ -24,8 +24,8 @@
 namespace cobalt {
 namespace loader {
 
-FileFetcher::FileFetcher(const FilePath& file_path, const Options& options,
-                         Handler* handler)
+FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
+                         const Options& options)
     : Fetcher(handler),
       buffer_size_(options.buffer_size),
       file_(base::kInvalidPlatformFileValue),
@@ -81,7 +81,7 @@ const std::string& FileFetcher::PlatformFileErrorToString(
   static const std::string kPlatformFileErrorAbort =
       "PLATFORM_FILE_ERROR_ABORT";
   static const std::string kPlatformFileErrorNotDefined =
-      "PlatformError not defined";
+      "Platform file error not defined";
 
   switch (error) {
     case base::PLATFORM_FILE_OK:
