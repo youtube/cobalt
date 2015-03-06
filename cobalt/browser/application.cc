@@ -105,7 +105,6 @@ Application::Application()
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.url = GURL(url);
-  options.fake_resource_loader_factory_options.create_fake_io_thread = true;
   browser_module_.reset(new BrowserModule(user_agent, options));
 }
 

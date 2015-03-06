@@ -19,7 +19,6 @@
 
 #include "base/string_piece.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
 

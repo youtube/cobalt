@@ -38,12 +38,10 @@ BrowserModule::BrowserModule(const std::string& user_agent,
       global_object_proxy_(javascript_engine_->CreateGlobalObject()),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      resource_loader_factory_(FakeResourceLoaderFactory::Create(
-          options.fake_resource_loader_factory_options)),
-      window_(make_scoped_refptr(
-          new dom::Window(kInitialWidth, kInitialHeight, css_parser_.get(),
-                          resource_loader_factory_.get(), script_runner_.get(),
-                          options.url, user_agent))),
+      fetcher_factory_(new loader::FetcherFactory()),
+      window_(new dom::Window(kInitialWidth, kInitialHeight, css_parser_.get(),
+                              fetcher_factory_.get(), script_runner_.get(),
+                              options.url, user_agent)),
       layout_manager_(window_.get(),
                       renderer_module_.pipeline()->GetResourceProvider(),
                       base::Bind(&BrowserModule::OnRenderTreeProduced,

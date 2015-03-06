@@ -28,9 +28,8 @@ const char* HTMLLinkElement::kTagName = "link";
 
 // static
 scoped_refptr<HTMLLinkElement> HTMLLinkElement::Create(
-    browser::ResourceLoaderFactory* loader_factory,
-    cssom::CSSParser* css_parser) {
-  return make_scoped_refptr(new HTMLLinkElement(loader_factory, css_parser));
+    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser) {
+  return make_scoped_refptr(new HTMLLinkElement(fetcher_factory, css_parser));
 }
 
 const std::string& HTMLLinkElement::tag_name() const {
@@ -43,9 +42,9 @@ void HTMLLinkElement::AttachToDocument(Document* document) {
   Obtain();
 }
 
-HTMLLinkElement::HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory,
+HTMLLinkElement::HTMLLinkElement(loader::FetcherFactory* fetcher_factory,
                                  cssom::CSSParser* css_parser)
-    : loader_factory_(loader_factory), css_parser_(css_parser) {}
+    : fetcher_factory_(fetcher_factory), css_parser_(css_parser) {}
 
 HTMLLinkElement::~HTMLLinkElement() {}
 
@@ -53,7 +52,8 @@ HTMLLinkElement::~HTMLLinkElement() {}
 //   http://www.w3.org/TR/html/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
   // Custom, not in any spec.
-  DCHECK(!IsLoading());
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(loader_.get() == NULL);
 
   // 1. If the href attribute's value is the empty string, then abort these
   // steps.
@@ -73,14 +73,16 @@ void HTMLLinkElement::Obtain() {
   // the mode being the current state of the element's crossorigin content
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
-  text_load_ = make_scoped_ptr(
-      new browser::TextLoad(owner_document().get(), loader_factory_, url,
-                            base::Bind(&HTMLLinkElement::OnLoadingDone, this),
-                            base::Bind(&HTMLLinkElement::OnLoadingError, this),
-                            base::Bind(&HTMLLinkElement::StopLoading, this)));
+  loader_ = make_scoped_ptr(new loader::Loader(
+      base::Bind(&loader::FetcherFactory::CreateFetcher,
+                 base::Unretained(fetcher_factory_), url),
+      scoped_ptr<loader::Decoder>(new loader::TextDecoder(
+          base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
+      base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(href(), content);
   owner_document()->style_sheets()->Append(style_sheet);
@@ -89,16 +91,19 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   // mutation, not a DOM mutation, so we may want to split the RecordMutation()
   // method into two methods to have a better event granularity.
   owner_document()->RecordMutation();
+  StopLoading();
 }
 
-void HTMLLinkElement::OnLoadingError(
-    const browser::ResourceLoaderError& error) {}
-
-bool HTMLLinkElement::IsLoading() const { return text_load_.get() != NULL; }
+void HTMLLinkElement::OnLoadingError(const std::string& error) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  LOG(ERROR) << error;
+  StopLoading();
+}
 
 void HTMLLinkElement::StopLoading() {
-  DCHECK(IsLoading());
-  text_load_.reset();
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(loader_.get() != NULL);
+  loader_.reset();
 }
 
 }  // namespace dom
