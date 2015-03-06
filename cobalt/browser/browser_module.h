@@ -18,11 +18,10 @@
 #define BROWSER_BROWSER_MODULE_H_
 
 #include "cobalt/browser/input_device_adapter.h"
-#include "cobalt/browser/loader/fake_resource_loader_factory.h"
-#include "cobalt/browser/loader/resource_loader_factory.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/layout/layout_manager.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
@@ -43,8 +42,6 @@ class BrowserModule {
   struct Options {
     renderer::RendererModule::Options renderer_module_options;
     GURL url;
-    // TODO(***REMOVED***): Replace with ResourceLoaderFactory once it's implemented.
-    FakeResourceLoaderFactory::Options fake_resource_loader_factory_options;
   };
 
   BrowserModule(const std::string& user_agent, const Options& options);
@@ -74,8 +71,8 @@ class BrowserModule {
   // Interface for the document to execute JavaScript code.
   scoped_ptr<script::ScriptRunner> script_runner_;
 
-  // The loader factory that creates loader that starts the actuall loading.
-  scoped_ptr<ResourceLoaderFactory> resource_loader_factory_;
+  // FetcherFactory that is used to create a fetcher according to URL.
+  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;

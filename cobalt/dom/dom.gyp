@@ -27,6 +27,8 @@
         'document.h',
         'document_builder.cc',
         'document_builder.h',
+        'dom_decoder.cc',
+        'dom_decoder.h',
         'dom_token_list.cc',
         'dom_token_list.h',
         'element.cc',
@@ -95,8 +97,8 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/loader/loader.gyp:resource_loader',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
@@ -110,9 +112,9 @@
           'action_name': 'dom_copy_test_data',
           'variables': {
             'input_files': [
-              '<(DEPTH)/cobalt/dom/testdata',
+              '<(DEPTH)/cobalt/dom/testdata/',
             ],
-            'output_dir': 'cobalt/browser',
+            'output_dir': 'cobalt/dom/testdata/',
           },
           'includes': [ '../build/copy_data.gypi' ],
         },
@@ -146,7 +148,6 @@
         'dom',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/browser/loader/loader.gyp:fake_resource_loader',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'dom_copy_test_data',

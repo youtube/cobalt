@@ -18,9 +18,12 @@
 #define DOM_HTML_LINK_ELEMENT_H_
 
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/loader/text_load.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader.h"
+#include "cobalt/loader/text_decoder.h"
 
 namespace cobalt {
 namespace dom {
@@ -32,8 +35,7 @@ class HTMLLinkElement : public HTMLElement {
   static const char* kTagName;
 
   static scoped_refptr<HTMLLinkElement> Create(
-      browser::ResourceLoaderFactory* loader_factory,
-      cssom::CSSParser* css_parser);
+      loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser);
 
   // Web API: Element
   //
@@ -54,12 +56,11 @@ class HTMLLinkElement : public HTMLElement {
   //
   scoped_refptr<HTMLLinkElement> AsHTMLLinkElement() OVERRIDE { return this; }
 
- protected:
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  HTMLLinkElement(browser::ResourceLoaderFactory* loader_factory,
+  HTMLLinkElement(loader::FetcherFactory* fetcher_factory,
                   cssom::CSSParser* css_parser);
   ~HTMLLinkElement() OVERRIDE;
 
@@ -67,16 +68,17 @@ class HTMLLinkElement : public HTMLElement {
   void Obtain();
 
   void OnLoadingDone(const std::string& content);
-  void OnLoadingError(const browser::ResourceLoaderError& error);
-  bool IsLoading() const;
+  void OnLoadingError(const std::string& error);
   void StopLoading();
 
-  // ResourceLoaderFactory that is used to create a byte loader.
-  browser::ResourceLoaderFactory* const loader_factory_;
+  // FetcherFactory that is used to create a fetcher according to url.
+  loader::FetcherFactory* fetcher_factory_;
+  // The loader.
+  scoped_ptr<loader::Loader> loader_;
   // An abstraction of CSS parser.
   cssom::CSSParser* const css_parser_;
-  // This object is responsible for the loading.
-  scoped_ptr<browser::TextLoad> text_load_;
+  // Thread checker.
+  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace dom

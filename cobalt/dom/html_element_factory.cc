@@ -38,13 +38,13 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT() {
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>() {
-  return HTMLLinkElement::Create(loader_factory_, css_parser_);
+  return HTMLLinkElement::Create(fetcher_factory_, css_parser_);
 }
 
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
-  return HTMLScriptElement::Create(loader_factory_, script_runner_);
+  return HTMLScriptElement::Create(fetcher_factory_, script_runner_);
 }
 
 template <>
@@ -53,10 +53,10 @@ HTMLElementFactory::CreateHTMLElementT<HTMLStyleElement>() {
   return HTMLStyleElement::Create(css_parser_);
 }
 
-HTMLElementFactory::HTMLElementFactory(
-    browser::ResourceLoaderFactory* loader_factory,
-    cssom::CSSParser* css_parser, script::ScriptRunner* script_runner)
-    : loader_factory_(loader_factory),
+HTMLElementFactory::HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
+                                       cssom::CSSParser* css_parser,
+                                       script::ScriptRunner* script_runner)
+    : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       script_runner_(script_runner) {
   tag_name_to_create_html_element_t_callback_map_[HTMLBodyElement::kTagName] =
