@@ -45,14 +45,14 @@ class FileFetcher : public Fetcher {
     scoped_refptr<base::MessageLoopProxy> io_message_loop;
   };
 
-  FileFetcher(const FilePath& file_path, const Options& options,
-              Handler* handler);
+  FileFetcher(const FilePath& file_path, Handler* handler,
+              const Options& options);
   ~FileFetcher() OVERRIDE;
 
   // This function is used for binding callback for creating FileFetcher.
   static scoped_ptr<Fetcher> Create(const FilePath& file_path,
                                     const Options& options, Handler* handler) {
-    return scoped_ptr<Fetcher>(new FileFetcher(file_path, options, handler));
+    return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
   }
 
  private:

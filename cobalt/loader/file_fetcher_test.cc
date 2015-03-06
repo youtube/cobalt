@@ -109,7 +109,7 @@ TEST_F(FileFetcherTest, NonExisitingPath) {
   const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("nonexistent"));
   FileFetcher::Options options;
   file_fetcher_ = make_scoped_ptr(
-      new FileFetcher(file_path, options, &fetcher_handler_mock));
+      new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   run_loop.Run();
 }
@@ -128,7 +128,7 @@ TEST_F(FileFetcherTest, EmptyFile) {
   const FilePath file_path = data_dir_.Append(FILE_PATH_LITERAL("empty.txt"));
   FileFetcher::Options options;
   file_fetcher_ = make_scoped_ptr(
-      new FileFetcher(file_path, options, &fetcher_handler_mock));
+      new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   run_loop.Run();
 
@@ -154,7 +154,7 @@ TEST_F(FileFetcherTest, ValidFile) {
   FileFetcher::Options options;
   options.buffer_size = 128;
   file_fetcher_ = make_scoped_ptr(
-      new FileFetcher(file_path, options, &fetcher_handler_mock));
+      new FileFetcher(file_path, &fetcher_handler_mock, options));
 
   // Start the message loop, hence the fetching.
   run_loop.Run();
