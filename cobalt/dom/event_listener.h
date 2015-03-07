@@ -37,12 +37,12 @@ class EventListener : public script::Wrappable {
 
   // Custom, not in any spec.
   //
-  // Used by addEventListener/removeEventListener to check if two event
-  // listeners are the same.
-  virtual bool EqualTo(const EventListener& that) = 0;
   // Marks necessary JS objects as in use so they won't be collected by GC.
   virtual void MarkJSObjectAsNotCollectable(
       script::ScriptObjectHandleVisitor* visitor) = 0;
+  // Used by addEventListener/removeEventListener to check if two event
+  // listeners are the same.
+  virtual bool EqualTo(const EventListener& that) = 0;
 };
 
 }  // namespace dom
