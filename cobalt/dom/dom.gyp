@@ -77,6 +77,8 @@
         'node.h',
         'node_children_iterator.h',
         'node_descendants_iterator.h',
+        'script_event_listener.cc',
+        'script_event_listener.h',
         'stats.cc',
         'stats.h',
         'text.cc',
