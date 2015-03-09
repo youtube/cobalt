@@ -57,8 +57,8 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
     // In Cobalt we only support asynchronous execution of loaded script, so the
     // async attribute should be present alongside src.
     if (!async())
-      LOG(WARNING) << "Script element has src attribute but doesn't has async "
-                      "attribute.";
+      LOG(WARNING)
+          << "<script> has src attribute but doesn't have async attribute.";
     // Prepare the script and execute when it's done.
     Prepare();
   } else {
