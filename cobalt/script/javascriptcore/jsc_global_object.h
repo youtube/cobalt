@@ -16,10 +16,12 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 
-#include "base/hash_tables.h"
-
 #include "config.h"
 #undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
+
+#include "base/hash_tables.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalObject.h"
 
@@ -53,6 +55,18 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   // object it references, to ensure that they are not garbage collected.
   static void visitChildren(JSC::JSCell* cell, JSC::SlotVisitor& visitor);  // NOLINT
 
+  // static override. This will be called when this object is garbage collected.
+  static void destroy(JSC::JSCell* cell) {
+    // This is necessary when a garbage-collected object has a non-trivial
+    // destructor.
+    static_cast<JSCGlobalObject*>(cell)->~JSCGlobalObject();
+  }
+
+  scoped_refptr<Wrappable> global_interface() { return global_interface_; }
+  void set_global_interface(const scoped_refptr<Wrappable>& global_interface) {
+    global_interface_ = global_interface;
+  }
+
  private:
   JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure);
 
@@ -72,6 +86,8 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
 #endif
 
   CachedObjectMap cached_objects_;
+
+  scoped_refptr<Wrappable> global_interface_;
 };
 
 }  // namespace javascriptcore
