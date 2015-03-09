@@ -39,8 +39,7 @@ WebModule::WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
                               options.url, user_agent)),
       layout_manager_(window_.get(), resource_provider,
                       on_render_tree_produced) {
-  // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
-  global_object_proxy_->Bind("document", window_->document());
+  global_object_proxy_->SetGlobalInterface(window_);
 }
 
 WebModule::~WebModule() {}

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+[Exposed=TestWindow]
 interface NullableTypesTestInterface {
   attribute boolean? nullableBooleanProperty;
   attribute long? nullableNumericProperty;
