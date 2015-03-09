@@ -43,9 +43,22 @@
 # http://www.w3.org/TR/WebIDL/#NoInterfaceObject
 NoInterfaceObject
 
+# This interface will be used as a global object. PrimaryGlobal s intended to be
+# used by the Window interface, but is also used for TestWindow in unit tests.
+# http://heycam.github.io/webidl/#Global
+Global
+PrimaryGlobal
+
+# This interface is exposed on the specified global interface, rather than
+# the default of Window.
+# This is generally used for exposing interfaces to Worker interfaces, but it is
+# also used in Cobalt to expose interfaces used in unit tests to a TestWindow
+# global interface, rather than the default Window global interface.
+# http://heycam.github.io/webidl/#Exposed
+Exposed=TestWindow
+
 # Not yet supported
 Constructor
-Global
 IndexedGetter
 TreatNullAs=*
 PutForwards=*
