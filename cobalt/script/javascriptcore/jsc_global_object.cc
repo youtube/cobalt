@@ -37,7 +37,7 @@ JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
       new (NotNull, JSC::allocateCell<JSCGlobalObject>(global_data->heap))
       JSCGlobalObject(global_data, structure);
   global_object->finishCreation(*global_data);
-  global_data->heap.addFinalizer(global_object, JSC::JSGlobalObject::destroy);
+  global_data->heap.addFinalizer(global_object, destroy);
   return global_object;
 }
 
