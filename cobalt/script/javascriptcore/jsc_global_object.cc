@@ -45,23 +45,23 @@ JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
                                  JSC::Structure* structure)
     : JSC::JSGlobalObject(*global_data, structure) {}
 
-JSC::JSObject* JSCGlobalObject::GetCachedPrototype(
+JSC::JSObject* JSCGlobalObject::GetCachedObject(
     const JSC::ClassInfo* class_info) {
-  PrototypeMap::iterator it = prototype_map_.find(class_info);
-  if (it != prototype_map_.end()) {
+  CachedObjectMap::iterator it = cached_objects_.find(class_info);
+  if (it != cached_objects_.end()) {
     return it->second.get();
   }
   return NULL;
 }
 
-void JSCGlobalObject::CachePrototype(const JSC::ClassInfo* class_info,
-                                     JSC::JSObject* prototype) {
-  std::pair<PrototypeMap::iterator, bool> pair_ib;
-  pair_ib = prototype_map_.insert(std::make_pair(
+void JSCGlobalObject::CacheObject(const JSC::ClassInfo* class_info,
+                                     JSC::JSObject* object) {
+  std::pair<CachedObjectMap::iterator, bool> pair_ib;
+  pair_ib = cached_objects_.insert(std::make_pair(
       class_info,
-      JSC::WriteBarrier<JSC::JSObject>(this->globalData(), this, prototype)));
+      JSC::WriteBarrier<JSC::JSObject>(this->globalData(), this, object)));
   DCHECK(pair_ib.second)
-      << "Prototype was already registered for this ClassInfo";
+      << "Object was already registered for this ClassInfo";
 }
 
 // static
@@ -70,9 +70,9 @@ void JSCGlobalObject::visitChildren(JSC::JSCell* cell,
   JSCGlobalObject* this_object = static_cast<JSCGlobalObject*>(cell);
   ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
   JSC::JSGlobalObject::visitChildren(this_object, visitor);
-  PrototypeMap::iterator it;
-  for (it = this_object->prototype_map_.begin();
-       it != this_object->prototype_map_.end(); ++it) {
+  CachedObjectMap::iterator it;
+  for (it = this_object->cached_objects_.begin();
+       it != this_object->cached_objects_.end(); ++it) {
     visitor.append(&(it->second));
   }
 }
