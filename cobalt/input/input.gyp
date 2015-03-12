@@ -22,11 +22,10 @@
         'input_device_manager_<(actual_target_arch).cc',
         'input_device_manager_<(actual_target_arch).h',
         'keyboard_code.h',
-        'keyboard_event.cc',
-        'keyboard_event.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
     },
   ],
