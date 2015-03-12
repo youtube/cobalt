@@ -36,12 +36,13 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   // Create a new garbage-collected JSCGlobalObject instance.
   static JSCGlobalObject* Create(JSC::JSGlobalData* global_data);
 
-  // Get the cached prototype for this ClassInfo, or NULL if none exist.
-  JSC::JSObject* GetCachedPrototype(const JSC::ClassInfo* class_info);
+  // Get the cached object associated with this ClassInfo, or NULL if none
+  // exist.
+  JSC::JSObject* GetCachedObject(const JSC::ClassInfo* class_info);
 
-  // Cache the prototype for this ClassInfo.
-  void CachePrototype(const JSC::ClassInfo* class_info,
-                      JSC::JSObject* prototype);
+  // Cache the object associated with this ClassInfo.
+  void CacheObject(const JSC::ClassInfo* class_info,
+                   JSC::JSObject* object);
 
   // JavaScriptCore stuff
   static const JSC::ClassInfo s_info;
@@ -64,13 +65,13 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   };
   typedef base::hash_map<const JSC::ClassInfo*,
                          JSC::WriteBarrier<JSC::JSObject>,
-                         hash_function> PrototypeMap;
+                         hash_function> CachedObjectMap;
 #else
   typedef base::hash_map<const JSC::ClassInfo*,
-                         JSC::WriteBarrier<JSC::JSObject> > PrototypeMap;
+                         JSC::WriteBarrier<JSC::JSObject> > CachedObjectMap;
 #endif
 
-  PrototypeMap prototype_map_;
+  CachedObjectMap cached_objects_;
 };
 
 }  // namespace javascriptcore
