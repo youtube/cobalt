@@ -39,6 +39,10 @@
 #       arbitrary, but that "X" is standard, e.g. [Attr=X], [Attr=Foo].
 #
 
+# An Interface Object for this interface will not be created.
+# http://www.w3.org/TR/WebIDL/#NoInterfaceObject
+NoInterfaceObject
+
 # Not yet supported
 Constructor
 Global
