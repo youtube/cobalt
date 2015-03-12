@@ -19,12 +19,13 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/input/keyboard_event.h"
+#include "cobalt/dom/keyboard_event.h"
 
 namespace cobalt {
 namespace input {
 
-typedef base::Callback<void(const KeyboardEvent&)> KeyboardEventCallback;
+typedef base::Callback<void(const scoped_refptr<dom::KeyboardEvent>&)>
+    KeyboardEventCallback;
 
 // InputDeviceManager listens to events from platform-specific input devices,
 // maps them to platform-independent keyboard key events and sends them to the
