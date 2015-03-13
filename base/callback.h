@@ -390,8 +390,16 @@ class Callback<R(void)> : public internal::CallbackBase {
   }
 
   R Run() const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get());
   }
@@ -430,8 +438,16 @@ class Callback<R(A1)> : public internal::CallbackBase {
   }
 
   R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1));
   }
@@ -472,8 +488,16 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
 
   R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
         typename internal::CallbackParamTraits<A2>::ForwardType a2) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2));
@@ -517,8 +541,16 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
   R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
         typename internal::CallbackParamTraits<A2>::ForwardType a2,
         typename internal::CallbackParamTraits<A3>::ForwardType a3) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2),
@@ -565,8 +597,16 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
         typename internal::CallbackParamTraits<A2>::ForwardType a2,
         typename internal::CallbackParamTraits<A3>::ForwardType a3,
         typename internal::CallbackParamTraits<A4>::ForwardType a4) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2),
@@ -617,8 +657,16 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
         typename internal::CallbackParamTraits<A3>::ForwardType a3,
         typename internal::CallbackParamTraits<A4>::ForwardType a4,
         typename internal::CallbackParamTraits<A5>::ForwardType a5) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2),
@@ -672,8 +720,16 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
         typename internal::CallbackParamTraits<A4>::ForwardType a4,
         typename internal::CallbackParamTraits<A5>::ForwardType a5,
         typename internal::CallbackParamTraits<A6>::ForwardType a6) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2),
@@ -730,8 +786,16 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
         typename internal::CallbackParamTraits<A5>::ForwardType a5,
         typename internal::CallbackParamTraits<A6>::ForwardType a6,
         typename internal::CallbackParamTraits<A7>::ForwardType a7) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get(), internal::CallbackForward(a1),
              internal::CallbackForward(a2),
