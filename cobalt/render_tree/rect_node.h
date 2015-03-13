@@ -20,6 +20,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/rect_f.h"
 
@@ -38,8 +39,13 @@ class Shadow;
 // A filled rectangle with a border and rounded corners.
 class RectNode : public Node {
  public:
-  struct Builder {
+  class Builder {
+   public:
+    DECLARE_AS_MOVABLE(Builder);
+
     Builder(const math::SizeF& size, scoped_ptr<Brush> background_brush);
+    explicit Builder(const Builder& other);
+    explicit Builder(Moved moved);
 
     // A size of a rectangle (size includes border).
     math::SizeF size;
@@ -51,6 +57,8 @@ class RectNode : public Node {
 
   RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush) :
       data_(size, background_brush.Pass()) {}
+  explicit RectNode(const Builder& builder) : data_(builder) {}
+  explicit RectNode(Builder::Moved builder) : data_(builder) {}
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
