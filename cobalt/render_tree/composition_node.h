@@ -19,7 +19,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/move.h"
+#include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/math/matrix3_f.h"
 
@@ -29,22 +29,6 @@ namespace cobalt {
 namespace render_tree {
 
 class ClipRegion;
-
-// Defines a helper structure and Pass() method that can be used to express
-// that we are passing the structure with move semantics and not copy semantics.
-// This would be trivial in C++11. The structure is private so that it cannot be
-// named, and thus one will have a difficult time storing an object of this
-// type.  It should be passed directly into a constructor that will consume a
-// moved object.
-#define DECLARE_AS_MOVEABLE(x) \
- private: \
-  struct Moved { \
-    explicit Moved(Builder* builder) : builder(builder) {} \
-    Builder* builder; \
-  }; \
- public: \
-  Moved Pass() { return Moved(this); } \
- private: \
 
 // A composition specifies a set of child nodes that are to be rendered in
 // order. It is the primary way to compose multiple child nodes together in a
@@ -90,14 +74,14 @@ class CompositionNode : public Node {
   typedef std::vector<ComposedChild> ComposedChildren;
 
   class Builder {
-    DECLARE_AS_MOVEABLE(Builder)
-
    public:
+    DECLARE_AS_MOVABLE(Builder);
+
     Builder() : composed_children_(new ComposedChildren()) {}
     explicit Builder(const Builder& other) :
         composed_children_(new ComposedChildren(*other.composed_children_)) {}
-    explicit Builder(Moved moved) :
-        composed_children_(moved.builder->composed_children_.Pass()) {}
+    explicit Builder(Moved moved)
+        : composed_children_(moved->composed_children_.Pass()) {}
 
     // Add a child node to the list of children we are building.  When a
     // CompositionNode is constructed from this CompositionNode::Builder, it
@@ -106,6 +90,11 @@ class CompositionNode : public Node {
     void AddChild(const scoped_refptr<Node>& node,
                   const math::Matrix3F& transform);
 
+    // Returns the specified child as a pointer so that it can be modified.
+    ComposedChild* GetChild(int child_index) {
+      return &((*composed_children_)[child_index]);
+    }
+
     // A list of render tree nodes in a draw order.
     const ComposedChildren& composed_children() const {
       return *composed_children_;
@@ -113,8 +102,6 @@ class CompositionNode : public Node {
 
    private:
     scoped_ptr<ComposedChildren> composed_children_;
-
-    friend class CompositionNode;
   };
 
   explicit CompositionNode(const Builder& builder) : data_(builder) {}

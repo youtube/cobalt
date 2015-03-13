@@ -47,11 +47,24 @@
       ],
     },
 
+    # Support for describing and applying render tree animations.
+    {
+      'target_name': 'animations',
+      'type': 'static_library',
+      'sources': [
+        'animations/node_animations_map.cc',
+      ],
+      'dependencies': [
+        'render_tree',
+      ],
+    },
+
     # Tests the render tree utility functionality.
     {
       'target_name': 'render_tree_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'animations/node_animations_map_test.cc',
         'brush_visitor_test.cc',
         'color_rgba_test.cc',
         'node_visitor_test.cc',
@@ -60,6 +73,7 @@
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'animations',
         'render_tree',
       ],
     },
