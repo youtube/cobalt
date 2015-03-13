@@ -407,8 +407,16 @@ class Callback<R($for ARG , [[A$(ARG)]])> : public internal::CallbackBase {
 
   R Run($for ARG ,
         [[typename internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) const {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 
     return f(bind_state_.get()[[]]
 $if ARITY != 0 [[, ]]
