@@ -1051,6 +1051,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 7:
+      if (IsEqualToCssIdentifier(name.begin, "opacity")) {
+        *property_name_token = kOpacityToken;
+        return true;
+      }
+      return false;
+
     case 8:
       if (IsEqualToCssIdentifier(name.begin, "overflow")) {
         *property_name_token = kOverflowToken;

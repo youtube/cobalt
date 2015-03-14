@@ -54,6 +54,7 @@
 %token kColorToken                      // color
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
+%token kOpacityToken                    // opacity
 %token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
 
@@ -196,7 +197,8 @@
                        color_property_value common_values
                        font_family_property_value font_family_name
                        font_size_property_value length number
-                       overflow_property_value transform_property_value
+                       opacity_property_value overflow_property_value
+                       transform_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { cssom::Selector* selector; }
@@ -266,6 +268,9 @@ identifier_token:
   }
   | kFontSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontSizePropertyName);
+  }
+  | kOpacityToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
   }
   | kOverflowToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
@@ -523,6 +528,14 @@ font_size_property_value:
   | common_values
   ;
 
+// Specifies how to blend the element (including its descendants)
+// into the current composite rendering.
+//   http://www.w3.org/TR/css3-color/#transparency
+opacity_property_value:
+    number
+  | common_values
+  ;
+
 // Specifies whether content of a block container element is clipped when it
 // overflows the element's box.
 //   http://www.w3.org/TR/CSS2/visufx.html#overflow
@@ -645,6 +658,12 @@ maybe_declaration:
   | kFontSizeToken maybe_whitespace colon font_size_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kFontSizePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOpacityToken maybe_whitespace colon opacity_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOpacityPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

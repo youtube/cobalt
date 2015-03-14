@@ -131,6 +131,24 @@ TEST(CSSStyleDeclarationTest, HeightSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kHeightPropertyName));
 }
 
+TEST(CSSStyleDeclarationTest, OpacitySettersAndGettersAreConsistent) {
+  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
+
+  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->opacity());
+  EXPECT_EQ(scoped_refptr<PropertyValue>(),
+            style->GetPropertyValue(kOpacityPropertyName));
+
+  style->set_opacity(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->opacity());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kOpacityPropertyName));
+
+  style->SetPropertyValue(kOpacityPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->opacity());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kOpacityPropertyName));
+}
+
 TEST(CSSStyleDeclarationTest, OverflowSettersAndGettersAreConsistent) {
   scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
 

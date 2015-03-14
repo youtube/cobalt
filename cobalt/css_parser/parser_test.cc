@@ -403,6 +403,66 @@ TEST_F(ParserTest, ParsesFontSize) {
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 }
 
+TEST_F(ParserTest, ParsesOpacity) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_->ParseStyleSheet("parser_test.css",
+                               ".transparent {\n"
+                               "  opacity: -3.14;\n"
+                               "}\n"
+                               ".translucent {\n"
+                               "  opacity: 0.5;\n"
+                               "}\n"
+                               ".opaque {\n"
+                               "  opacity: 2.72;\n"
+                               "}\n");
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+
+  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
+  ASSERT_EQ(3, css_rules->length());
+
+  scoped_refptr<cssom::CSSStyleRule> transparent_style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(0).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), transparent_style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> transparent_style =
+      transparent_style_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), transparent_style);
+
+  scoped_refptr<cssom::NumberValue> transparent =
+      dynamic_cast<cssom::NumberValue*>(transparent_style->opacity().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), transparent);
+  EXPECT_FLOAT_EQ(-3.14f, transparent->value());
+
+  scoped_refptr<cssom::CSSStyleRule> translucent_style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(1).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), translucent_style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> translucent_style =
+      translucent_style_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), translucent_style);
+
+  scoped_refptr<cssom::NumberValue> translucent =
+      dynamic_cast<cssom::NumberValue*>(translucent_style->opacity().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), translucent);
+  EXPECT_FLOAT_EQ(0.5f, translucent->value());
+
+  scoped_refptr<cssom::CSSStyleRule> opaque_style_rule =
+      dynamic_cast<cssom::CSSStyleRule*>(css_rules->Item(2).get());
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleRule>(), opaque_style_rule);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> opaque_style =
+      opaque_style_rule->style();
+  ASSERT_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), opaque_style);
+
+  scoped_refptr<cssom::NumberValue> opaque =
+      dynamic_cast<cssom::NumberValue*>(opaque_style->opacity().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), opaque);
+  EXPECT_FLOAT_EQ(2.72f, opaque->value());
+}
+
 TEST_F(ParserTest, ParsesOverflow) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
