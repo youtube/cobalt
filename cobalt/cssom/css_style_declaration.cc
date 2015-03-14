@@ -30,6 +30,7 @@ const char* const kDisplayPropertyName = "display";
 const char* const kFontFamilyPropertyName = "font-family";
 const char* const kFontSizePropertyName = "font-size";
 const char* const kHeightPropertyName = "height";
+const char* const kOpacityPropertyName = "opacity";
 const char* const kOverflowPropertyName = "overflow";
 const char* const kTransformPropertyName = "transform";
 const char* const kWidthPropertyName = "width";
@@ -59,6 +60,9 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
     case 7:
       if (LowerCaseEqualsASCII(property_name, kDisplayPropertyName)) {
         return display();
+      }
+      if (LowerCaseEqualsASCII(property_name, kOpacityPropertyName)) {
+        return opacity();
       }
       return NULL;
 
@@ -115,6 +119,8 @@ void CSSStyleDeclaration::SetPropertyValue(
     case 7:
       if (LowerCaseEqualsASCII(property_name, kDisplayPropertyName)) {
         set_display(property_value);
+      } else if (LowerCaseEqualsASCII(property_name, kOpacityPropertyName)) {
+        set_opacity(property_value);
       }
       break;
 
@@ -159,6 +165,7 @@ void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
   set_font_family(rhs.font_family());
   set_font_size(rhs.font_size());
   set_height(rhs.height());
+  set_opacity(rhs.opacity());
   set_overflow(rhs.overflow());
   set_transform(rhs.transform());
   set_width(rhs.width());
