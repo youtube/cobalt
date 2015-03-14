@@ -33,6 +33,7 @@ extern const char* const kDisplayPropertyName;
 extern const char* const kFontFamilyPropertyName;
 extern const char* const kFontSizePropertyName;
 extern const char* const kHeightPropertyName;
+extern const char* const kOpacityPropertyName;
 extern const char* const kOverflowPropertyName;
 extern const char* const kTransformPropertyName;
 extern const char* const kWidthPropertyName;
@@ -115,6 +116,11 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
     height_ = height;
   }
 
+  const scoped_refptr<PropertyValue>& opacity() const { return opacity_; }
+  void set_opacity(const scoped_refptr<PropertyValue>& opacity) {
+    opacity_ = opacity;
+  }
+
   const scoped_refptr<PropertyValue>& overflow() const { return overflow_; }
   void set_overflow(const scoped_refptr<PropertyValue>& overflow) {
     overflow_ = overflow;
@@ -142,6 +148,7 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   scoped_refptr<PropertyValue> font_family_;
   scoped_refptr<PropertyValue> font_size_;
   scoped_refptr<PropertyValue> height_;
+  scoped_refptr<PropertyValue> opacity_;
   scoped_refptr<PropertyValue> overflow_;
   scoped_refptr<PropertyValue> transform_;
   scoped_refptr<PropertyValue> width_;
