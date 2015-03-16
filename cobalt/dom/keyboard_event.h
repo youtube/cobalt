@@ -50,6 +50,13 @@ class KeyboardEvent : public UIEventWithKeyState {
   int key_code() const;
   int char_code() const;
 
+  // Custom, not in any spec.
+  scoped_ptr<script::ScriptObjectHandle> CreateWrapper(
+      EventWrapperCreator* creator) OVERRIDE {
+    DCHECK(!get_wrapper_handle());
+    return creator->CreateWrapper(make_scoped_refptr(this));
+  }
+
  private:
   ~KeyboardEvent() OVERRIDE {}
 
