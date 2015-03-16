@@ -399,7 +399,7 @@ TEST_F(ParserTest, ParsesFontSize) {
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(style->font_size().get());
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
-  EXPECT_EQ(100, font_size->value());
+  EXPECT_FLOAT_EQ(100, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 }
 
@@ -558,12 +558,12 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   scoped_refptr<cssom::NumberValue> x_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
   ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
-  EXPECT_EQ(1.5, x_factor->value());
+  EXPECT_FLOAT_EQ(1.5, x_factor->value());
 
   scoped_refptr<cssom::NumberValue> y_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
   ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
-  EXPECT_EQ(1.5, y_factor->value());
+  EXPECT_FLOAT_EQ(1.5, y_factor->value());
 }
 
 // TODO(***REMOVED***): Test integers, including negative ones.
@@ -603,12 +603,12 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   scoped_refptr<cssom::NumberValue> x_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
   ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
-  EXPECT_EQ(16, x_factor->value());
+  EXPECT_FLOAT_EQ(16, x_factor->value());
 
   scoped_refptr<cssom::NumberValue> y_factor =
       dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
   ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
-  EXPECT_EQ(9, y_factor->value());
+  EXPECT_FLOAT_EQ(9, y_factor->value());
 }
 
 TEST_F(ParserTest, ParsesTranslateXTransform) {
@@ -646,7 +646,7 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_x_function->offset().get());
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
-  EXPECT_EQ(0, offset->value());
+  EXPECT_FLOAT_EQ(0, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }
 
@@ -685,7 +685,7 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_y_function->offset().get());
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
-  EXPECT_EQ(30, offset->value());
+  EXPECT_FLOAT_EQ(30, offset->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, offset->unit());
 }
 
@@ -724,7 +724,7 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
   scoped_refptr<cssom::LengthValue> offset =
       dynamic_cast<cssom::LengthValue*>(translate_z_function->offset().get());
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
-  EXPECT_EQ(-22, offset->value());
+  EXPECT_FLOAT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }
 
