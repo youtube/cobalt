@@ -19,6 +19,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
+#include "cobalt/dom/event_wrapper_creator.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -48,6 +49,14 @@ class Event : public script::Wrappable {
   // Custom, not in any spec.
   //
   void SetTarget(const scoped_refptr<EventTarget>& target);
+
+  // Custom, not in any spec.
+  //
+  virtual scoped_ptr<script::ScriptObjectHandle> CreateWrapper(
+      EventWrapperCreator* creator) {
+    DCHECK(!get_wrapper_handle());
+    return creator->CreateWrapper(this);
+  }
 
  private:
   std::string type_;
