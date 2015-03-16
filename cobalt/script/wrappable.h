@@ -16,9 +16,12 @@
 #ifndef SCRIPT_WRAPPABLE_H_
 #define SCRIPT_WRAPPABLE_H_
 
+#include "base/callback.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/script/script_object_handle.h"
+#include "cobalt/script/script_object_handle_creator.h"
 
 namespace cobalt {
 namespace script {
@@ -30,16 +33,26 @@ namespace script {
 // objects.
 class Wrappable : public base::RefCounted<Wrappable> {
  public:
-  ScriptObjectHandle* get_wrapper_handle() { return wrapper_handle.get(); }
-  void set_wrapper_handle(scoped_ptr<ScriptObjectHandle> handle) {
-    wrapper_handle = handle.Pass();
+  ScriptObjectHandle* GetOrCreateWrapper(
+      ScriptObjectHandleCreator* handle_creator) {
+    if (!wrapper_handle_.get()) {
+      scoped_ptr<ScriptObjectHandle> new_wrapper_handle =
+          handle_creator->CreateHandle();
+      DCHECK(new_wrapper_handle.get());
+      DCHECK(!wrapper_handle_.get());
+      wrapper_handle_ = new_wrapper_handle.Pass();
+    }
+    return wrapper_handle_.get();
+  }
+  ScriptObjectHandle* get_wrapper_handle() const {
+    return wrapper_handle_.get();
   }
 
  protected:
   virtual ~Wrappable() { }
 
  private:
-  scoped_ptr<ScriptObjectHandle> wrapper_handle;
+  scoped_ptr<ScriptObjectHandle> wrapper_handle_;
 
   friend class base::RefCounted<Wrappable>;
 };
