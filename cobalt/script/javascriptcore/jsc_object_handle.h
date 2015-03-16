@@ -16,13 +16,13 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_OBJECT_HANDLE_H_
 
-namespace cobalt {
-namespace script {
-namespace javascriptcore {
-
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/script_object_handle.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
+
+namespace cobalt {
+namespace script {
+namespace javascriptcore {
 
 // A wrapper around a JSC::Weak handle to a garbage-collected JSC::JSObject
 // object.
