@@ -1100,6 +1100,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 13:
+      if (IsEqualToCssIdentifier(name.begin, "border-radius")) {
+        *property_name_token = kBorderRadiusToken;
+        return true;
+      }
+      return false;
+
     case 16:
       if (IsEqualToCssIdentifier(name.begin, "background-color")) {
         *property_name_token = kBackgroundColorToken;

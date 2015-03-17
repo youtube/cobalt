@@ -42,6 +42,25 @@ TEST(CSSStyleDeclarationTest, BackgroundColorSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kBackgroundColorPropertyName));
 }
 
+TEST(CSSStyleDeclarationTest, BorderRadiusSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
+
+  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->border_radius());
+  EXPECT_EQ(scoped_refptr<PropertyValue>(),
+            style->GetPropertyValue(kBorderRadiusPropertyName));
+
+  style->set_border_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderRadiusPropertyName));
+
+  style->SetPropertyValue(kBorderRadiusPropertyName,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderRadiusPropertyName));
+}
+
 TEST(CSSStyleDeclarationTest, ColorSettersAndGettersAreConsistent) {
   scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
 

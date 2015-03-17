@@ -78,6 +78,12 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
       }
       return NULL;
 
+    case 13:
+      if (LowerCaseEqualsASCII(property_name, kBorderRadiusPropertyName)) {
+        return border_radius();
+      }
+      return NULL;
+
     case 16:
       if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
         return background_color();
@@ -137,6 +143,12 @@ void CSSStyleDeclaration::SetPropertyValue(
       }
       break;
 
+    case 13:
+      if (LowerCaseEqualsASCII(property_name, kBorderRadiusPropertyName)) {
+        set_border_radius(property_value);
+      }
+      break;
+
     case 16:
       if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
         set_background_color(property_value);
@@ -153,6 +165,7 @@ void CSSStyleDeclaration::SetPropertyValue(
 
 void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
   set_background_color(rhs.background_color());
+  set_border_radius(rhs.border_radius());
   set_color(rhs.color());
   set_display(rhs.display());
   set_font_family(rhs.font_family());
