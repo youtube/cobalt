@@ -17,7 +17,23 @@
 interface Event {
   readonly attribute DOMString type;
   readonly attribute EventTarget? target;
+  readonly attribute EventTarget? currentTarget;
 
+  const unsigned short NONE = 0;
+  const unsigned short CAPTURING_PHASE = 1;
+  const unsigned short AT_TARGET = 2;
+  const unsigned short BUBBLING_PHASE = 3;
+  readonly attribute unsigned short eventPhase;
+
+  void stopPropagation();
+  void stopImmediatePropagation();
+
+  readonly attribute boolean bubbles;
+  readonly attribute boolean cancelable;
   void preventDefault();
   readonly attribute boolean defaultPrevented;
+
+  readonly attribute DOMTimeStamp timeStamp;
+
+  void initEvent(DOMString type, boolean bubbles, boolean cancelable);
 };

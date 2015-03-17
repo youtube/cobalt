@@ -40,7 +40,7 @@ void EventQueue::Enqueue(const scoped_refptr<Event>& event) {
   // Clear the target if it is the same as the stored one to avoid circular
   // reference.
   if (event->target() == event_target_) {
-    event->SetTarget(NULL);
+    event->set_target(NULL);
   }
 
   events_.push_back(event);
