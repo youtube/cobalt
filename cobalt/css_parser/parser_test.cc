@@ -268,6 +268,24 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
   EXPECT_EQ(0xffffffff, background_color->value());
 }
 
+TEST_F(ParserTest, ParsesBorderRadius) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".rounded {\n"
+                                   "  border-radius: 0.2em;\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::LengthValue> border_radius =
+      dynamic_cast<cssom::LengthValue*>(style->border_radius().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), border_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
+}
+
 TEST_F(ParserTest, Parses3DigitColor) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
