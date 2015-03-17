@@ -80,6 +80,14 @@ namespace BASE_HASH_NAMESPACE {
 DEFINE_TRIVIAL_HASH(long long);
 DEFINE_TRIVIAL_HASH(unsigned long long);
 
+template <typename T> \
+struct hash<T*> {
+  std::size_t operator()(T* value) const {
+    return BASE_HASH_NAMESPACE::hash<uintptr_t>()(
+        reinterpret_cast<uintptr_t>(value));
+  }
+};
+
 #undef DEFINE_TRIVIAL_HASH
 #endif // !defined(OS_ANDROID) && !(defined(__LB_SHELL__) && !defined(__LB_LINUX__))
 
