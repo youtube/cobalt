@@ -18,6 +18,7 @@
 #define CSSOM_CSS_RULE_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
@@ -26,13 +27,12 @@ namespace cssom {
 // Each distinct CSS style rule type is represented by a distinct interface
 // that inherits from this interface.
 //   http://dev.w3.org/csswg/cssom/#the-cssrule-interface
-class CSSRule : public base::RefCounted<CSSRule> {
+class CSSRule : public script::Wrappable {
  protected:
   CSSRule() {}
   virtual ~CSSRule() {}
 
  private:
-  friend class base::RefCounted<CSSRule>;
   DISALLOW_COPY_AND_ASSIGN(CSSRule);
 };
 

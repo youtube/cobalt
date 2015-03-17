@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
@@ -32,7 +33,7 @@ class CSSStyleSheet;
 //
 // While the specification theoretically allows style sheets of type other
 // than CSS, Cobalt is hard-coded to support CSS only.
-class StyleSheetList : public base::RefCounted<StyleSheetList> {
+class StyleSheetList : public script::Wrappable {
  public:
   static scoped_refptr<StyleSheetList> Create();
 
@@ -56,7 +57,6 @@ class StyleSheetList : public base::RefCounted<StyleSheetList> {
 
   std::vector<scoped_refptr<CSSStyleSheet> > style_sheets_;
 
-  friend class base::RefCounted<StyleSheetList>;
   DISALLOW_COPY_AND_ASSIGN(StyleSheetList);
 };
 

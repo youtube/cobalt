@@ -18,6 +18,7 @@
 interface Document : Node {
   readonly attribute DOMString URL;
   readonly attribute DOMString documentURI;
+
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
   [NewObject] Element createElement(DOMString localName);
@@ -28,4 +29,10 @@ interface Document : Node {
   // [PutForwards=href, Unforgeable] readonly attribute Location? location;
   readonly attribute HTMLHeadElement head;
   attribute HTMLBodyElement body;
+
+  // TODO(***REMOVED***): b/19866057. Add styleSheets to a partial interface when
+  // supported.
+  // Web API: CSS Object Model (partial interface)
+  //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
+  readonly attribute StyleSheetList styleSheets;
 };
