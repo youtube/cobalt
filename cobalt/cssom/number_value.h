@@ -24,18 +24,20 @@
 namespace cobalt {
 namespace cssom {
 
+// Represents a dimensionless value.
+//   http://www.w3.org/TR/css3-values/#numeric-types
 class NumberValue : public PropertyValue {
  public:
-  explicit NumberValue(double value) : value_(value) {}
+  explicit NumberValue(float value) : value_(value) {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  double value() const { return value_; }
+  float value() const { return value_; }
 
  private:
   ~NumberValue() OVERRIDE {}
 
-  const double value_;
+  const float value_;
 
   DISALLOW_COPY_AND_ASSIGN(NumberValue);
 };
