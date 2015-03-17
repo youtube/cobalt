@@ -382,7 +382,15 @@ class Callback<R(void)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -430,7 +438,15 @@ class Callback<R(A1)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -479,7 +495,15 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -531,7 +555,15 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -586,7 +618,15 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -645,7 +685,15 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -707,7 +755,15 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
@@ -772,7 +828,15 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
