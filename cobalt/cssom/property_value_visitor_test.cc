@@ -65,7 +65,7 @@ TEST(PropertyValueVisitorTest, VisitsLengthValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsNumberValue) {
-  scoped_refptr<NumberValue> number_value = new NumberValue(299792458);
+  scoped_refptr<NumberValue> number_value = new NumberValue(299792458.0f);
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitNumber(number_value.get()));
   number_value->Accept(&mock_visitor);
