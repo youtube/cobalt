@@ -46,6 +46,7 @@ NoInterfaceObject
 # Not yet supported
 Constructor
 Global
+IndexedGetter
 PutForwards=*
 Unforgeable
 

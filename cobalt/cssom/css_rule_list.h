@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
@@ -29,8 +30,8 @@ class CSSStyleSheet;
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
 //   http://dev.w3.org/csswg/cssom/#the-cssrulelist-interface
-class CSSRuleList : public base::RefCounted<CSSRuleList>,
-                    public base::SupportsWeakPtr<CSSRuleList> {
+class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
+                    public script::Wrappable {
  public:
   static scoped_refptr<CSSRuleList> Create(
       const scoped_refptr<const CSSStyleSheet>& css_style_sheet);
@@ -52,7 +53,6 @@ class CSSRuleList : public base::RefCounted<CSSRuleList>,
 
   scoped_refptr<const CSSStyleSheet> css_style_sheet_;
 
-  friend class base::RefCounted<CSSRuleList>;
   DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
 };
 

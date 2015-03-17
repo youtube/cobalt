@@ -23,6 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
+// static
 scoped_refptr<StyleSheetList> StyleSheetList::Create() {
   return make_scoped_refptr(new StyleSheetList());
 }
