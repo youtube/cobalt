@@ -21,6 +21,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -204,6 +205,22 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
+TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
+  EXPECT_CALL(*parser_observer_,
+              OnWarning("parser_test.css:2:3: warning: invalid declaration"));
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".friday-night-submit {\n"
+                                   "  1px;\n"
+                                   "  color: #fff;\n"
+                                   "}\n"));
+
+  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+}
+
 // TODO(***REMOVED***): Test selectors.
 
 TEST_F(ParserTest, ParsesInherit) {
@@ -319,6 +336,34 @@ TEST_F(ParserTest, ParsesFontSize) {
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
   EXPECT_FLOAT_EQ(100, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesNormalFontWeight) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".normal {\n"
+                                   "  font-weight: normal;\n"
+                                   "}\n"));
+
+  EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(), style->font_weight());
+}
+
+TEST_F(ParserTest, ParsesBoldFontWeight) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".bold {\n"
+                                   "  font-weight: bold;\n"
+                                   "}\n"));
+
+  EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
 }
 
 TEST_F(ParserTest, ParsesOpacity) {

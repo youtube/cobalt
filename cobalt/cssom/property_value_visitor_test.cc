@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
+#include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -31,6 +32,7 @@ namespace cssom {
 
 class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
+  MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
@@ -39,6 +41,14 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitTransformList,
                void(cssom::TransformListValue* transform_list_value));
 };
+
+TEST(PropertyValueVisitorTest, VisitsFontWeightValue) {
+  scoped_refptr<FontWeightValue> font_weight_value =
+      FontWeightValue::GetNormalAka400();
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitFontWeight(font_weight_value.get()));
+  font_weight_value->Accept(&mock_visitor);
+}
 
 TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
   scoped_refptr<KeywordValue> inherit_value = KeywordValue::GetInherit();

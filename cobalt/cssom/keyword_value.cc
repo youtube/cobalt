@@ -23,16 +23,6 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kAutoKeywordName = "auto";
-const char* const kBlockKeywordName = "block";
-const char* const kHiddenKeywordName = "hidden";
-const char* const kInheritKeywordName = "inherit";
-const char* const kInitialKeywordName = "initial";
-const char* const kInlineBlockKeywordName = "inline-block";
-const char* const kInlineKeywordName = "inline";
-const char* const kNoneKeywordName = "none";
-const char* const kVisibleKeywordName = "visible";
-
 namespace {
 
 struct NonTrivialStaticFields {
