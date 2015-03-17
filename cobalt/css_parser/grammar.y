@@ -33,7 +33,7 @@
 %union TokenValue {
   TrivialStringPiece string;
   int integer;
-  double real;
+  float real;
 }
 
 //
@@ -142,6 +142,7 @@
 %token <string> kUnicodeRangeToken      // u+..., U+...
 %token <string> kUriToken               // url(...)
 %token <string> kInvalidFunctionToken   // ...(
+%token <string> kInvalidNumberToken     // ... (digits)
 %token <string> kInvalidDimensionToken  // XXyy, where XX - number,
                                         //             yy - identifier
 %token <string> kInvalidAtToken         // @...
