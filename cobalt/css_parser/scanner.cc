@@ -1038,7 +1038,7 @@ UChar32 Scanner::ScanEscape() {
 }
 
 // WARNING: every time a new name token is introduced, it should be added
-//          to |identifier| rule in grammar.y.
+//          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
                                       Token* property_name_token) const {
   DCHECK_GT(name.size(), 0);
@@ -1081,6 +1081,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kFontFamilyToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, "font-weight")) {
+        *property_name_token = kFontWeightToken;
+        return true;
+      }
       return false;
 
     case 16:
@@ -1095,13 +1099,17 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 }
 
 // WARNING: every time a new value token is introduced, it should be added
-//          to |identifier| rule in grammar.y.
+//          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
                                        Token* property_value_token) const {
   DCHECK_GT(name.size(), 0);
 
   switch (name.size()) {
     case 4:
+      if (IsEqualToCssIdentifier(name.begin, "bold")) {
+        *property_value_token = kBoldToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "none")) {
         *property_value_token = kNoneToken;
         return true;
@@ -1111,6 +1119,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 6:
       if (IsEqualToCssIdentifier(name.begin, "hidden")) {
         *property_value_token = kHiddenToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "normal")) {
+        *property_value_token = kNormalToken;
         return true;
       }
       return false;
