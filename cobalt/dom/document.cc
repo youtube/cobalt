@@ -160,9 +160,9 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchOnLoad() {
     FOR_EACH_OBSERVER(DocumentObserver, observers_, OnLoad());
     // TODO(***REMOVED***): We should also fire event on onload attribute when set.
     base::MessageLoopProxy::current()->PostTask(
-        FROM_HERE,
-        base::Bind(base::IgnoreResult(&Document::DispatchEvent), AsWeakPtr(),
-                   make_scoped_refptr(new Event("load"))));
+        FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
+                              base::AsWeakPtr<Document>(this),
+                              make_scoped_refptr(new Event("load"))));
   }
 }
 
