@@ -51,6 +51,7 @@
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kBackgroundColorToken            // background-color
+%token kBorderRadiusToken               // border-radius
 %token kColorToken                      // color
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
@@ -197,9 +198,9 @@
 %destructor { delete $$; } <property_declaration>
 
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> background_color_property_value color
-                       color_property_value common_values
-                       font_family_property_value font_family_name
+%type <property_value> background_color_property_value
+                       border_radius_property_value color color_property_value
+                       common_values font_family_property_value font_family_name
                        font_size_property_value font_weight_property_value
                        length number opacity_property_value
                        overflow_property_value transform_property_value
@@ -263,6 +264,9 @@ identifier_token:
   // Property names.
   | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
+  }
+  | kBorderRadiusToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
   }
   | kColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
@@ -509,6 +513,14 @@ background_color_property_value:
   | common_values
   ;
 
+// The radii of a quarter ellipse that defines the shape of the corner
+// of the outer border edge.
+//   http://www.w3.org/TR/css3-background/#the-border-radius
+border_radius_property_value:
+    length
+  | common_values
+  ;
+
 // Foreground color of an element's text content.
 //   http://www.w3.org/TR/css3-color/#foreground
 color_property_value:
@@ -666,6 +678,12 @@ maybe_declaration:
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderRadiusToken maybe_whitespace colon border_radius_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderRadiusPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
