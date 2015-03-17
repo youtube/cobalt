@@ -26,17 +26,6 @@
 namespace cobalt {
 namespace cssom {
 
-// Lower-case names of CSS keywords used as property values.
-extern const char* const kAutoKeywordName;
-extern const char* const kBlockKeywordName;
-extern const char* const kHiddenKeywordName;
-extern const char* const kInheritKeywordName;
-extern const char* const kInitialKeywordName;
-extern const char* const kInlineKeywordName;
-extern const char* const kInlineBlockKeywordName;
-extern const char* const kNoneKeywordName;
-extern const char* const kVisibleKeywordName;
-
 class KeywordValue : public PropertyValue {
  public:
   enum Value {

@@ -17,6 +17,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_names.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
