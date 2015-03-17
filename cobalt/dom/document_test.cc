@@ -18,6 +18,7 @@
 
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
@@ -30,12 +31,28 @@ namespace cobalt {
 namespace dom {
 
 //////////////////////////////////////////////////////////////////////////
+// Stubs
+//////////////////////////////////////////////////////////////////////////
+
+class StubCSSParser : public cssom::CSSParser {
+  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
+      const std::string& file_name, const std::string& input) OVERRIDE {
+    return cssom::CSSStyleSheet::Create();
+  }
+  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheetWithBeginLine(
+      const std::string& file_name, const std::string& input,
+      int begin_line) OVERRIDE {
+    return cssom::CSSStyleSheet::Create();
+  }
+};
+
+//////////////////////////////////////////////////////////////////////////
 // DocumentTest
 //////////////////////////////////////////////////////////////////////////
 
 class DocumentTest : public ::testing::Test {
  protected:
-  DocumentTest() : html_element_factory_(NULL, NULL, NULL) {}
+  DocumentTest() : html_element_factory_(NULL, new StubCSSParser(), NULL) {}
   ~DocumentTest() OVERRIDE {}
 
   // testing::Test:
@@ -182,6 +199,35 @@ TEST_F(DocumentTest, Location) {
   scoped_refptr<Document> document = make_scoped_refptr(
       new Document(&html_element_factory_, Document::Options()));
   EXPECT_NE(scoped_refptr<Location>(), document->location());
+}
+
+TEST_F(DocumentTest, StyleSheets) {
+  scoped_refptr<Document> document = make_scoped_refptr(
+      new Document(&html_element_factory_, Document::Options()));
+
+  scoped_refptr<HTMLElement> element1 =
+      html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
+  element1->set_text_content("body { background-color: lightgray }");
+  document->AppendChild(element1);
+
+  scoped_refptr<HTMLElement> element2 =
+      html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
+  element2->set_text_content("h1 { color: blue }");
+  document->AppendChild(element2);
+
+  scoped_refptr<HTMLElement> element3 =
+      html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
+  element3->set_text_content("p { color: green }");
+  document->AppendChild(element3);
+
+  EXPECT_NE(scoped_refptr<cssom::StyleSheetList>(), document->style_sheets());
+  EXPECT_EQ(3, document->style_sheets()->length());
+  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
+            document->style_sheets()->Item(0));
+  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
+            document->style_sheets()->Item(1));
+  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
+            document->style_sheets()->Item(2));
 }
 
 }  // namespace dom
