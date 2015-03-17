@@ -26,18 +26,6 @@
 namespace cobalt {
 namespace cssom {
 
-// Lower-case names of CSS properties.
-extern const char* const kBackgroundColorPropertyName;
-extern const char* const kColorPropertyName;
-extern const char* const kDisplayPropertyName;
-extern const char* const kFontFamilyPropertyName;
-extern const char* const kFontSizePropertyName;
-extern const char* const kHeightPropertyName;
-extern const char* const kOpacityPropertyName;
-extern const char* const kOverflowPropertyName;
-extern const char* const kTransformPropertyName;
-extern const char* const kWidthPropertyName;
-
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
 // upon the source of the CSSStyleDeclaration instance.
@@ -111,6 +99,13 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
     font_size_ = font_size;
   }
 
+  const scoped_refptr<PropertyValue>& font_weight() const {
+    return font_weight_;
+  }
+  void set_font_weight(const scoped_refptr<PropertyValue>& font_weight) {
+    font_weight_ = font_weight;
+  }
+
   const scoped_refptr<PropertyValue>& height() const { return height_; }
   void set_height(const scoped_refptr<PropertyValue>& height) {
     height_ = height;
@@ -147,6 +142,7 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   scoped_refptr<PropertyValue> display_;
   scoped_refptr<PropertyValue> font_family_;
   scoped_refptr<PropertyValue> font_size_;
+  scoped_refptr<PropertyValue> font_weight_;
   scoped_refptr<PropertyValue> height_;
   scoped_refptr<PropertyValue> opacity_;
   scoped_refptr<PropertyValue> overflow_;

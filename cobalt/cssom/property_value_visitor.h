@@ -20,6 +20,7 @@
 namespace cobalt {
 namespace cssom {
 
+class FontWeightValue;
 class KeywordValue;
 class LengthValue;
 class NumberValue;
@@ -32,6 +33,7 @@ class TransformListValue;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class PropertyValueVisitor {
  public:
+  virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;

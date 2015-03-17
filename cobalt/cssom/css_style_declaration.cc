@@ -17,23 +17,11 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "base/string_util.h"
+#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
-
-// WARNING: When adding a new property, update GetPropertyValue(),
-//          SetPropertyValue(), and AssignFrom() methods below.
-const char* const kBackgroundColorPropertyName = "background-color";
-const char* const kColorPropertyName = "color";
-const char* const kDisplayPropertyName = "display";
-const char* const kFontFamilyPropertyName = "font-family";
-const char* const kFontSizePropertyName = "font-size";
-const char* const kHeightPropertyName = "height";
-const char* const kOpacityPropertyName = "opacity";
-const char* const kOverflowPropertyName = "overflow";
-const char* const kTransformPropertyName = "transform";
-const char* const kWidthPropertyName = "width";
 
 CSSStyleDeclaration::CSSStyleDeclaration() {}
 
@@ -84,6 +72,9 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
     case 11:
       if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
         return font_family();
+      }
+      if (LowerCaseEqualsASCII(property_name, kFontWeightPropertyName)) {
+        return font_weight();
       }
       return NULL;
 
@@ -141,6 +132,8 @@ void CSSStyleDeclaration::SetPropertyValue(
     case 11:
       if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
         set_font_family(property_value);
+      } else if (LowerCaseEqualsASCII(property_name, kFontWeightPropertyName)) {
+        set_font_weight(property_value);
       }
       break;
 
@@ -164,6 +157,7 @@ void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
   set_display(rhs.display());
   set_font_family(rhs.font_family());
   set_font_size(rhs.font_size());
+  set_font_weight(rhs.font_weight());
   set_height(rhs.height());
   set_opacity(rhs.opacity());
   set_overflow(rhs.overflow());

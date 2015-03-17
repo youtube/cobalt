@@ -54,6 +54,7 @@
 %token kColorToken                      // color
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
+%token kFontWeightToken                 // font-weight
 %token kOpacityToken                    // opacity
 %token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
@@ -61,10 +62,12 @@
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kBoldToken                       // bold
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
 %token kNoneToken                       // none
+%token kNormalToken                     // normal
 %token kVisibleToken                    // visible
 
 // Attribute matching tokens.
@@ -196,9 +199,9 @@
 %type <property_value> background_color_property_value color
                        color_property_value common_values
                        font_family_property_value font_family_name
-                       font_size_property_value length number
-                       opacity_property_value overflow_property_value
-                       transform_property_value
+                       font_size_property_value font_weight_property_value
+                       length number opacity_property_value
+                       overflow_property_value transform_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { cssom::Selector* selector; }
@@ -269,6 +272,9 @@ identifier_token:
   | kFontSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontSizePropertyName);
   }
+  | kFontWeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFontWeightPropertyName);
+  }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
   }
@@ -279,6 +285,9 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
   }
   // Property values.
+  | kBoldToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
+  }
   | kHiddenToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
   }
@@ -290,6 +299,9 @@ identifier_token:
   }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
+  }
+  | kNormalToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
   }
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
@@ -528,6 +540,19 @@ font_size_property_value:
   | common_values
   ;
 
+// The weight of glyphs in the font, their degree of blackness
+// or stroke thickness.
+//   http://www.w3.org/TR/css3-fonts/#font-weight-prop
+font_weight_property_value:
+    kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::FontWeightValue::GetNormalAka400().get());
+  }
+  | kBoldToken maybe_whitespace {
+    $$ = AddRef(cssom::FontWeightValue::GetBoldAka700().get());
+  }
+  | common_values
+  ;
+
 // Specifies how to blend the element (including its descendants)
 // into the current composite rendering.
 //   http://www.w3.org/TR/css3-color/#transparency
@@ -661,6 +686,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kFontWeightToken maybe_whitespace colon font_weight_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontWeightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kOpacityPropertyName,
@@ -688,6 +719,10 @@ maybe_declaration:
         StartsWithASCII(property_name, "-webkit-", false)) {
       parser_impl->LogWarning(@1, "unsupported property " + property_name);
     }
+    $$ = NULL;
+  }
+  | errors {
+    parser_impl->LogWarning(@1, "invalid declaration");
     $$ = NULL;
   }
   ;
