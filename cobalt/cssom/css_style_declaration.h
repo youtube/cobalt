@@ -80,6 +80,13 @@ class CSSStyleDeclaration : public script::Wrappable {
     background_color_ = background_color;
   }
 
+  const scoped_refptr<PropertyValue>& border_radius() const {
+    return border_radius_;
+  }
+  void set_border_radius(const scoped_refptr<PropertyValue>& border_radius) {
+    border_radius_ = border_radius;
+  }
+
   const scoped_refptr<PropertyValue>& color() const { return color_; }
   void set_color(const scoped_refptr<PropertyValue>& color) { color_ = color; }
 
@@ -139,6 +146,7 @@ class CSSStyleDeclaration : public script::Wrappable {
   ~CSSStyleDeclaration();
 
   scoped_refptr<PropertyValue> background_color_;
+  scoped_refptr<PropertyValue> border_radius_;
   scoped_refptr<PropertyValue> color_;
   scoped_refptr<PropertyValue> display_;
   scoped_refptr<PropertyValue> font_family_;
