@@ -36,7 +36,7 @@ struct TrivialStringPiece {
 
   inline std::size_t size() const {
     DCHECK_LE(begin, end);
-    return end - begin;
+    return static_cast<std::size_t>(end - begin);
   }
 
   inline std::string ToString() const { return std::string(begin, end); }
@@ -55,13 +55,22 @@ inline TrivialStringPiece TrivialStringPiece::FromCString(
 
 // Used by tests.
 inline bool operator==(const TrivialStringPiece& lhs, const char* rhs) {
-  return std::equal(lhs.begin, lhs.end, rhs) &&
-         rhs[lhs.end - lhs.begin] == '\0';
+  return strncmp(lhs.begin, rhs, lhs.size()) == 0 && rhs[lhs.size()] == '\0';
 }
 
 // Used by tests.
 inline bool operator==(const char* lhs, const TrivialStringPiece& rhs) {
   return rhs == lhs;
+}
+
+// Used by tests.
+inline bool operator!=(const TrivialStringPiece& lhs, const char* rhs) {
+  return !(lhs == rhs);
+}
+
+// Used by tests.
+inline bool operator!=(const char* lhs, const TrivialStringPiece& rhs) {
+  return !(rhs == lhs);
 }
 
 // Used by tests.
