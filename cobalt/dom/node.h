@@ -113,6 +113,10 @@ class Node : public EventTarget {
     kInitialNodeGeneration = 1,
   };
 
+  // Web API: EventTarget
+  //
+  bool DispatchEvent(const scoped_refptr<Event>& event) OVERRIDE;
+
   // Web API: Node
   //
   scoped_refptr<Node> AppendChild(const scoped_refptr<Node>& new_child);

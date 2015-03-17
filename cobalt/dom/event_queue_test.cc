@@ -76,7 +76,7 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
       new NiceMockEventListener;
   EventQueue event_queue(event_target.get());
 
-  event->SetTarget(event_target);
+  event->set_target(event_target);
   event_target->AddEventListener("event", event_listener, false);
   ExpectHandleEventCallWithEventAndTarget(event_listener, event, event_target);
 
@@ -91,7 +91,7 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
       new NiceMockEventListener;
   EventQueue event_queue(event_target.get());
 
-  event->SetTarget(event_target);
+  event->set_target(event_target);
   event_target->AddEventListener("event", event_listener, false);
   ExpectNoHandleEventCall(event_listener);
 
@@ -111,7 +111,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
       new NiceMockEventListener;
   EventQueue event_queue(event_target_1.get());
 
-  event->SetTarget(event_target_2);
+  event->set_target(event_target_2);
   event_target_2->AddEventListener("event", event_listener, false);
   ExpectHandleEventCallWithEventAndTarget(event_listener, event,
                                           event_target_2);
