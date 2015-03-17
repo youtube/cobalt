@@ -398,7 +398,15 @@ class Callback<R($for ARG , [[A$(ARG)]])> : public internal::CallbackBase {
     PolymorphicInvoke invoke_func =
         &internal::BindState<Runnable, BindRunType, BoundArgsType>
             ::InvokerType::Run;
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 4191)  // Calling this function through the result
+                                 // pointer may cause your program to fail.
+#endif
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
   }
 
   bool Equals(const Callback& other) const {
