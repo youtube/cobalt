@@ -14,6 +14,8 @@
 
 {
   'variables': {
+    'cobalt_code': 1,
+
     # Define the platform specific Bison binary.
     'conditions': [
       ['host_os=="win"', {

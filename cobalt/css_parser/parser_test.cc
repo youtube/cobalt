@@ -70,7 +70,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> GetStyleOfOnlyRuleInStyleSheet(
   CHECK_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
 
   scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
-  CHECK_EQ(1, css_rules->length());
+  CHECK_EQ(1u, css_rules->length());
 
   scoped_refptr<cssom::CSSStyleRule> style_rule = css_rules->Item(0);
   CHECK_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);

@@ -37,5 +37,17 @@ TEST(TrivialStringPieceTest, CreateFromNonEmptyCString) {
   EXPECT_EQ("initial", string_piece.ToString());
 }
 
+TEST(TrivialStringPieceTest, CompareWithEqualString) {
+  EXPECT_EQ(TrivialStringPiece::FromCString("inherit"), "inherit");
+}
+
+TEST(TrivialStringPieceTest, CompareWithShorterString) {
+  EXPECT_NE(TrivialStringPiece::FromCString("inherit"), "");
+}
+
+TEST(TrivialStringPieceTest, CompareWithLongerString) {
+  EXPECT_NE(TrivialStringPiece::FromCString(""), "inherit");
+}
+
 }  // namespace css_parser
 }  // namespace cobalt
