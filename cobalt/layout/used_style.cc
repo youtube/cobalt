@@ -55,6 +55,11 @@ render_tree::ColorRGBA GetUsedColor(
 UsedHeightProvider::UsedHeightProvider(float total_child_height)
     : total_child_height_(total_child_height) {}
 
+void UsedHeightProvider::VisitFontWeight(
+    cssom::FontWeightValue* /*font_weight*/) {
+  NOTREACHED();
+}
+
 void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
@@ -98,6 +103,11 @@ void UsedHeightProvider::VisitTransformList(
 
 UsedWidthProvider::UsedWidthProvider(ContainingBlock* containing_block)
     : containing_block_(containing_block) {}
+
+void UsedWidthProvider::VisitFontWeight(
+    cssom::FontWeightValue* /*font_weight*/) {
+  NOTREACHED();
+}
 
 void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
