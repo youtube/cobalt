@@ -26,6 +26,49 @@
 namespace cobalt {
 namespace dom {
 
+// Implements the dispatching of event according to
+// http://www.w3.org/TR/dom/#dispatching-events
+bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
+  DCHECK(event);
+
+  typedef std::vector<scoped_refptr<Node> > Ancestors;
+  Ancestors ancestors;
+  for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
+       current = current->parent_node()) {
+    ancestors.push_back(current);
+  }
+
+  event->set_target(this);
+
+  // The capture phase
+  if (!ancestors.empty()) {
+    event->set_event_phase(Event::kCapturingPhase);
+    for (Ancestors::reverse_iterator iter = ancestors.rbegin();
+         iter != ancestors.rend() && !event->propagation_stopped(); ++iter) {
+      (*iter)->FireEventOnListeners(event);
+    }
+  }
+
+  // The at target phase
+  if (!event->propagation_stopped()) {
+    event->set_event_phase(Event::kAtTarget);
+    FireEventOnListeners(event);
+  }
+
+  // The bubbling phase
+  if (!event->propagation_stopped() && event->bubbles() && !ancestors.empty()) {
+    event->set_event_phase(Event::kBubblingPhase);
+    for (Ancestors::iterator iter = ancestors.begin();
+         iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
+      (*iter)->FireEventOnListeners(event);
+    }
+  }
+
+  event->set_event_phase(Event::kNone);
+
+  return !event->default_prevented();
+}
+
 scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
   return InsertBefore(new_child, NULL);
 }

@@ -46,13 +46,20 @@ class EventTarget : public script::Wrappable,
   void RemoveEventListener(const std::string& type,
                            const scoped_refptr<EventListener>& listener,
                            bool use_capture);
-  bool DispatchEvent(const scoped_refptr<Event>& event);
+  // TODO(***REMOVED***): Handle DOM exception after it is implemented.
+  virtual bool DispatchEvent(const scoped_refptr<Event>& event);
 
   // Custom, not in any spec.
   //
   // MarkJSObjectAsNotCollectable gives contained event listeners a chance to
   // mark contained JS objects as in use so they won't be collected by GC.
   void MarkJSObjectAsNotCollectable(script::ScriptObjectHandleVisitor* visitor);
+
+ protected:
+  // This function sends the event to the event listeners attached to the
+  // current event target. It takes stop immediate propagation flag into
+  // account. The caller should set the phase and target.
+  void FireEventOnListeners(const scoped_refptr<Event>& event);
 
  private:
   struct EventListenerInfo {
