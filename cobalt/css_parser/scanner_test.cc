@@ -268,7 +268,7 @@ TEST_F(ScannerTest, ScansPercentage) {
   Scanner scanner("2.71828%", &string_pool_);
 
   ASSERT_EQ(kPercentageToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(2.71828, token_value_.real);
+  ASSERT_FLOAT_EQ(2.71828f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -286,7 +286,7 @@ TEST_F(ScannerTest, ScansReal) {
   Scanner scanner("2.71828", &string_pool_);
 
   ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(2.71828, token_value_.real);
+  ASSERT_FLOAT_EQ(2.71828f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -297,7 +297,7 @@ TEST_F(ScannerTest, ScansNegativeReal) {
   ASSERT_EQ('-', yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(3.14159, token_value_.real);
+  ASSERT_FLOAT_EQ(3.14159f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -311,7 +311,19 @@ TEST_F(ScannerTest, ScansVeryBigIntegerAsReal) {
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(2147483648, token_value_.real);
+  ASSERT_FLOAT_EQ(2147483648, token_value_.real);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansInvalidNumber) {
+  // As per IEEE 754 the maximum value of |float| has 39 decimal digits.
+  // We use 40 decimal digits to cause overflow into positive infinity.
+  Scanner scanner("1000000000000000000000000000000000000000", &string_pool_);
+
+  ASSERT_EQ(kInvalidNumberToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ("1000000000000000000000000000000000000000", token_value_.string);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -826,7 +838,7 @@ TEST_F(ScannerTest, ScansCentimeters) {
 
   ASSERT_EQ(kCentimetersToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -836,7 +848,7 @@ TEST_F(ScannerTest, ScansZeroGlyphWidthsAkaCh) {
 
   ASSERT_EQ(kZeroGlyphWidthsAkaChToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -845,7 +857,7 @@ TEST_F(ScannerTest, ScansDegrees) {
   Scanner scanner("8.24deg", &string_pool_);
 
   ASSERT_EQ(kDegreesToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -855,7 +867,7 @@ TEST_F(ScannerTest, ScansDotsPerPixel) {
 
   ASSERT_EQ(kDotsPerPixelToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -865,7 +877,7 @@ TEST_F(ScannerTest, ScansDotsPerCentimeter) {
 
   ASSERT_EQ(kDotsPerCentimeterToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -875,7 +887,7 @@ TEST_F(ScannerTest, ScansDotsPerInch) {
 
   ASSERT_EQ(kDotsPerInchToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -885,7 +897,7 @@ TEST_F(ScannerTest, ScansFontSizesAkaEm) {
 
   ASSERT_EQ(kFontSizesAkaEmToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -895,7 +907,7 @@ TEST_F(ScannerTest, ScansXHeightsAkaEx) {
 
   ASSERT_EQ(kXHeightsAkaExToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -904,7 +916,7 @@ TEST_F(ScannerTest, ScansFractions) {
   Scanner scanner("8.24fr", &string_pool_);
 
   ASSERT_EQ(kFractionsToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -913,7 +925,7 @@ TEST_F(ScannerTest, ScansGradians) {
   Scanner scanner("8.24grad", &string_pool_);
 
   ASSERT_EQ(kGradiansToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -922,7 +934,7 @@ TEST_F(ScannerTest, ScansHertz) {
   Scanner scanner("8.24hz", &string_pool_);
 
   ASSERT_EQ(kHertzToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -931,7 +943,7 @@ TEST_F(ScannerTest, ScansInches) {
   Scanner scanner("8.24in", &string_pool_);
 
   ASSERT_EQ(kInchesToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -940,7 +952,7 @@ TEST_F(ScannerTest, ScansKilohertz) {
   Scanner scanner("8.24khz", &string_pool_);
 
   ASSERT_EQ(kKilohertzToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -950,7 +962,7 @@ TEST_F(ScannerTest, ScansMillimeters) {
 
   ASSERT_EQ(kMillimetersToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -960,7 +972,7 @@ TEST_F(ScannerTest, ScansMilliseconds) {
 
   ASSERT_EQ(kMillisecondsToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -969,7 +981,7 @@ TEST_F(ScannerTest, ScansPixels) {
   Scanner scanner("8.24px", &string_pool_);
 
   ASSERT_EQ(kPixelsToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -978,7 +990,7 @@ TEST_F(ScannerTest, ScansPoints) {
   Scanner scanner("8.24pt", &string_pool_);
 
   ASSERT_EQ(kPointsToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -987,7 +999,7 @@ TEST_F(ScannerTest, ScansPicas) {
   Scanner scanner("8.24pc", &string_pool_);
 
   ASSERT_EQ(kPicasToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -996,7 +1008,7 @@ TEST_F(ScannerTest, ScansRadians) {
   Scanner scanner("8.24rad", &string_pool_);
 
   ASSERT_EQ(kRadiansToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1006,7 +1018,7 @@ TEST_F(ScannerTest, ScansRootElementFontSizesAkaRem) {
 
   ASSERT_EQ(kRootElementFontSizesAkaRemToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1015,7 +1027,7 @@ TEST_F(ScannerTest, ScansSeconds) {
   Scanner scanner("8.24s", &string_pool_);
 
   ASSERT_EQ(kSecondsToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1024,7 +1036,7 @@ TEST_F(ScannerTest, ScansTurns) {
   Scanner scanner("8.24turn", &string_pool_);
 
   ASSERT_EQ(kTurnsToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1034,7 +1046,7 @@ TEST_F(ScannerTest, ScansViewportWidthPercentsAkaVw) {
 
   ASSERT_EQ(kViewportWidthPercentsAkaVwToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1044,7 +1056,7 @@ TEST_F(ScannerTest, ScansViewportHeightPercentsAkaVh) {
 
   ASSERT_EQ(kViewportHeightPercentsAkaVhToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1054,7 +1066,7 @@ TEST_F(ScannerTest, ScansViewportSmallerSizePercentsAkaVmin) {
 
   ASSERT_EQ(kViewportSmallerSizePercentsAkaVminToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -1064,7 +1076,7 @@ TEST_F(ScannerTest, ScanskViewportLargerSizePercentsAkaVmax) {
 
   ASSERT_EQ(kViewportLargerSizePercentsAkaVmaxToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_DOUBLE_EQ(8.24, token_value_.real);
+  ASSERT_FLOAT_EQ(8.24f, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
