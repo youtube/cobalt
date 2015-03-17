@@ -18,13 +18,14 @@
 #define CSSOM_STYLE_SHEET_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
 // The StyleSheet interface represents an abstract, base style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-stylesheet-interface
-class StyleSheet : public base::RefCounted<StyleSheet> {
+class StyleSheet : public script::Wrappable {
  public:
   virtual ~StyleSheet() {}
 
@@ -32,7 +33,6 @@ class StyleSheet : public base::RefCounted<StyleSheet> {
   StyleSheet() {}
 
  private:
-  friend class base::RefCounted<StyleSheet>;
   DISALLOW_COPY_AND_ASSIGN(StyleSheet);
 };
 

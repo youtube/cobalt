@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
@@ -30,7 +31,7 @@ namespace cssom {
 // including its underlying state, where this underlying state depends
 // upon the source of the CSSStyleDeclaration instance.
 //   http://dev.w3.org/csswg/cssom/#the-cssstyledeclaration-interface
-class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
+class CSSStyleDeclaration : public script::Wrappable {
  public:
   CSSStyleDeclaration();
 
@@ -148,8 +149,6 @@ class CSSStyleDeclaration : public base::RefCounted<CSSStyleDeclaration> {
   scoped_refptr<PropertyValue> overflow_;
   scoped_refptr<PropertyValue> transform_;
   scoped_refptr<PropertyValue> width_;
-
-  friend class base::RefCounted<CSSStyleDeclaration>;
 };
 
 }  // namespace cssom
