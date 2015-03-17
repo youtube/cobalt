@@ -16,6 +16,8 @@
 
 #include "cobalt/css_parser/scanner.h"
 
+#include <limits>
+
 #include "base/string_util.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/css_parser/grammar.h"
@@ -560,8 +562,19 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   }
 
   char* number_end(const_cast<char*>(number.end));
-  double real(std::strtod(number.begin, &number_end));
+  // We parse into |double| for two reasons:
+  //   - C++03 doesn't have std::strtof() function;
+  //   - |float|'s significand is not large enough to represent |int| precisely.
+  double real_as_double(std::strtod(number.begin, &number_end));
   DCHECK_EQ(number_end, number.end);
+
+  float real_as_float = static_cast<float>(real_as_double);
+  if (real_as_float != real_as_float ||  // n != n if and only if it's NaN.
+      real_as_float == std::numeric_limits<float>::infinity()) {
+    token_value->string.begin = number.begin;
+    token_value->string.end = number.end;
+    return kInvalidNumberToken;
+  }
 
   // Type of the function.
   if (IsInputIteratorAtIdentifierStart()) {
@@ -576,22 +589,22 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
       return kInvalidDimensionToken;
     }
 
-    token_value->real = real;
+    token_value->real = real_as_float;
     return unit_token;
   }
 
   if (*input_iterator_ == '%') {
     ++input_iterator_;
-    token_value->real = real;
+    token_value->real = real_as_float;
     return kPercentageToken;
   }
 
-  if (!dot_seen && real <= INT_MAX) {
-    token_value->integer = static_cast<int>(real);
+  if (!dot_seen && real_as_double <= std::numeric_limits<int>::max()) {
+    token_value->integer = static_cast<int>(real_as_double);
     return kIntegerToken;
   }
 
-  token_value->real = real;
+  token_value->real = real_as_float;
   return kRealToken;
 }
 
