@@ -21,7 +21,6 @@
 
 #include "base/bind.h"
 #include "base/string_util.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/property_declaration.h"
 #include "cobalt/css_parser/ref_counted_util.h"
@@ -52,6 +51,11 @@ uint32_t ParseHexToken(const TrivialStringPiece& string_piece) {
   uint32_t integer = std::strtoul(string_piece.begin, &value_end, 16);
   DCHECK_EQ(value_end, string_piece.end);
   return integer;
+}
+
+template <typename Value>
+Value ClampToRange(Value min_value, Value max_value, Value value) {
+  return std::min(max_value, std::max(min_value, value));
 }
 
 }  // namespace

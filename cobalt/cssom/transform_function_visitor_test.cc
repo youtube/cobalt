@@ -34,28 +34,28 @@ class MockTransformFunctionVisitor : public TransformFunctionVisitor {
 };
 
 TEST(TransformFunctionVisitorTest, VisitsScaleFunction) {
-  ScaleFunction scale_function(new NumberValue(2), new NumberValue(2));
+  ScaleFunction scale_function(2, 2);
   MockTransformFunctionVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitScale(&scale_function));
   scale_function.Accept(&mock_visitor);
 }
 
 TEST(TransformFunctionVisitorTest, VisitsTranslateXFunction) {
-  TranslateXFunction translate_x_function(new NumberValue(0));
+  TranslateXFunction translate_x_function(new LengthValue(0, kPixelsUnit));
   MockTransformFunctionVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTranslateX(&translate_x_function));
   translate_x_function.Accept(&mock_visitor);
 }
 
 TEST(TransformFunctionVisitorTest, VisitsTranslateYFunction) {
-  TranslateYFunction translate_y_function(new NumberValue(0));
+  TranslateYFunction translate_y_function(new LengthValue(0, kPixelsUnit));
   MockTransformFunctionVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTranslateY(&translate_y_function));
   translate_y_function.Accept(&mock_visitor);
 }
 
 TEST(TransformFunctionVisitorTest, VisitsTranslateZFunction) {
-  TranslateZFunction translate_z_function(new NumberValue(0));
+  TranslateZFunction translate_z_function(new LengthValue(0, kPixelsUnit));
   MockTransformFunctionVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTranslateZ(&translate_z_function));
   translate_z_function.Accept(&mock_visitor);

@@ -28,18 +28,17 @@ namespace cssom {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-scale
 class ScaleFunction : public TransformFunction {
  public:
-  ScaleFunction(const scoped_refptr<PropertyValue>& x_factor,
-                const scoped_refptr<PropertyValue>& y_factor)
+  ScaleFunction(float x_factor, float y_factor)
       : x_factor_(x_factor), y_factor_(y_factor) {}
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
-  const scoped_refptr<PropertyValue>& x_factor() const { return x_factor_; }
-  const scoped_refptr<PropertyValue>& y_factor() const { return y_factor_; }
+  float x_factor() const { return x_factor_; }
+  float y_factor() const { return y_factor_; }
 
  private:
-  const scoped_refptr<PropertyValue> x_factor_;
-  const scoped_refptr<PropertyValue> y_factor_;
+  const float x_factor_;
+  const float y_factor_;
 
   DISALLOW_COPY_AND_ASSIGN(ScaleFunction);
 };
