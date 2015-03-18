@@ -1200,10 +1200,22 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
 
   switch (name.size()) {
     case 3:
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'c') &&
+          IsAsciiAlphaCaselessEqual(name.begin[1], 'u') &&
+          IsAsciiAlphaCaselessEqual(name.begin[2], 'e')) {
+        *known_function_token = kCueFunctionToken;
+        return true;
+      }
       if (IsAsciiAlphaCaselessEqual(name.begin[0], 'n') &&
           IsAsciiAlphaCaselessEqual(name.begin[1], 'o') &&
           IsAsciiAlphaCaselessEqual(name.begin[2], 't')) {
         *known_function_token = kNotFunctionToken;
+        return true;
+      }
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'r') &&
+          IsAsciiAlphaCaselessEqual(name.begin[1], 'g') &&
+          IsAsciiAlphaCaselessEqual(name.begin[2], 'b')) {
+        *known_function_token = kRGBFunctionToken;
         return true;
       }
       if (IsAsciiAlphaCaselessEqual(name.begin[0], 'u') &&
@@ -1212,17 +1224,15 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
         *known_function_token = kUriToken;
         return true;
       }
-      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'c') &&
-          IsAsciiAlphaCaselessEqual(name.begin[1], 'u') &&
-          IsAsciiAlphaCaselessEqual(name.begin[2], 'e')) {
-        *known_function_token = kCueFunctionToken;
-        return true;
-      }
       return false;
 
     case 4:
       if (IsEqualToCssIdentifier(name.begin, "calc")) {
         *known_function_token = kCalcFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "rgba")) {
+        *known_function_token = kRGBAFunctionToken;
         return true;
       }
       return false;

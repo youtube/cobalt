@@ -319,6 +319,40 @@ TEST_F(ParserTest, Parses6DigitColor) {
   EXPECT_EQ(0x0047abff, color->value());
 }
 
+TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".sparta {\n"
+                                   "  color: rgb(300, 0, -300);\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_EQ(0xff0000ff, color->value());
+}
+
+TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".dimmed {\n"
+                                   "  color: rgba(255, 128, 1, 0.5);\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_EQ(0xff80017f, color->value());
+}
+
 TEST_F(ParserTest, ParsesFontFamily) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
@@ -401,6 +435,40 @@ TEST_F(ParserTest, ParsesOpacity) {
   EXPECT_FLOAT_EQ(0.5f, translucent->value());
 }
 
+TEST_F(ParserTest, ClampsOpacityToZero) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".transparent {\n"
+                                   "  opacity: -3.14;\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::NumberValue> transparent =
+      dynamic_cast<cssom::NumberValue*>(style->opacity().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), transparent);
+  EXPECT_FLOAT_EQ(0, transparent->value());
+}
+
+TEST_F(ParserTest, ClampsOpacityToOne) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".opaque {\n"
+                                   "  opacity: 2.72;\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::NumberValue> opaque =
+      dynamic_cast<cssom::NumberValue*>(style->opacity().get());
+  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), opaque);
+  EXPECT_FLOAT_EQ(1, opaque->value());
+}
+
 TEST_F(ParserTest, ParsesHiddenOverflow) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
@@ -462,16 +530,8 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
-
-  scoped_refptr<cssom::NumberValue> x_factor =
-      dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
-  EXPECT_FLOAT_EQ(1.5, x_factor->value());
-
-  scoped_refptr<cssom::NumberValue> y_factor =
-      dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
-  EXPECT_FLOAT_EQ(1.5, y_factor->value());
+  EXPECT_FLOAT_EQ(1.5, scale_function->x_factor());
+  EXPECT_FLOAT_EQ(1.5, scale_function->y_factor());
 }
 
 // TODO(***REMOVED***): Test integers, including negative ones.
@@ -497,16 +557,8 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
-
-  scoped_refptr<cssom::NumberValue> x_factor =
-      dynamic_cast<cssom::NumberValue*>(scale_function->x_factor().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), x_factor);
-  EXPECT_FLOAT_EQ(16, x_factor->value());
-
-  scoped_refptr<cssom::NumberValue> y_factor =
-      dynamic_cast<cssom::NumberValue*>(scale_function->y_factor().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), y_factor);
-  EXPECT_FLOAT_EQ(9, y_factor->value());
+  EXPECT_FLOAT_EQ(16, scale_function->x_factor());
+  EXPECT_FLOAT_EQ(9, scale_function->y_factor());
 }
 
 TEST_F(ParserTest, ParsesTranslateXTransform) {
@@ -531,9 +583,7 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
   ASSERT_NE(static_cast<cssom::TranslateXFunction*>(NULL),
             translate_x_function);
 
-  scoped_refptr<cssom::LengthValue> offset =
-      dynamic_cast<cssom::LengthValue*>(translate_x_function->offset().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
+  scoped_refptr<cssom::LengthValue> offset = translate_x_function->offset();
   EXPECT_FLOAT_EQ(0, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }
@@ -560,9 +610,7 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
   ASSERT_NE(static_cast<cssom::TranslateYFunction*>(NULL),
             translate_y_function);
 
-  scoped_refptr<cssom::LengthValue> offset =
-      dynamic_cast<cssom::LengthValue*>(translate_y_function->offset().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
+  scoped_refptr<cssom::LengthValue> offset = translate_y_function->offset();
   EXPECT_FLOAT_EQ(30, offset->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, offset->unit());
 }
@@ -589,9 +637,7 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
   ASSERT_NE(static_cast<cssom::TranslateZFunction*>(NULL),
             translate_z_function);
 
-  scoped_refptr<cssom::LengthValue> offset =
-      dynamic_cast<cssom::LengthValue*>(translate_z_function->offset().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), offset);
+  scoped_refptr<cssom::LengthValue> offset = translate_z_function->offset();
   EXPECT_FLOAT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
 }

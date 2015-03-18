@@ -37,6 +37,8 @@
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_list_value.h"
