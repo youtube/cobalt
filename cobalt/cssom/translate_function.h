@@ -18,7 +18,7 @@
 #define CSSOM_TRANSLATE_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/transform_function.h"
 
 namespace cobalt {
@@ -28,15 +28,17 @@ namespace cssom {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-translatex
 class TranslateXFunction : public TransformFunction {
  public:
-  explicit TranslateXFunction(const scoped_refptr<PropertyValue>& offset)
-      : offset_(offset) {}
+  explicit TranslateXFunction(const scoped_refptr<LengthValue>& offset)
+      : offset_(offset) {
+    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+  }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
-  const scoped_refptr<PropertyValue>& offset() const { return offset_; }
+  const scoped_refptr<LengthValue>& offset() const { return offset_; }
 
  private:
-  const scoped_refptr<PropertyValue> offset_;
+  const scoped_refptr<LengthValue> offset_;
 
   DISALLOW_COPY_AND_ASSIGN(TranslateXFunction);
 };
@@ -45,15 +47,17 @@ class TranslateXFunction : public TransformFunction {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-translatey
 class TranslateYFunction : public TransformFunction {
  public:
-  explicit TranslateYFunction(const scoped_refptr<PropertyValue>& offset)
-      : offset_(offset) {}
+  explicit TranslateYFunction(const scoped_refptr<LengthValue>& offset)
+      : offset_(offset) {
+    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+  }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
-  const scoped_refptr<PropertyValue>& offset() const { return offset_; }
+  const scoped_refptr<LengthValue>& offset() const { return offset_; }
 
  private:
-  const scoped_refptr<PropertyValue> offset_;
+  const scoped_refptr<LengthValue> offset_;
 
   DISALLOW_COPY_AND_ASSIGN(TranslateYFunction);
 };
@@ -63,15 +67,17 @@ class TranslateYFunction : public TransformFunction {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-translatez
 class TranslateZFunction : public TransformFunction {
  public:
-  explicit TranslateZFunction(const scoped_refptr<PropertyValue>& offset)
-      : offset_(offset) {}
+  explicit TranslateZFunction(const scoped_refptr<LengthValue>& offset)
+      : offset_(offset) {
+    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+  }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
-  const scoped_refptr<PropertyValue>& offset() const { return offset_; }
+  const scoped_refptr<LengthValue>& offset() const { return offset_; }
 
  private:
-  const scoped_refptr<PropertyValue> offset_;
+  const scoped_refptr<LengthValue> offset_;
 
   DISALLOW_COPY_AND_ASSIGN(TranslateZFunction);
 };
