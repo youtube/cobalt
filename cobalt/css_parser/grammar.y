@@ -133,6 +133,8 @@
 %token kTranslateXFunctionToken         // translateX(
 %token kTranslateYFunctionToken         // translateY(
 %token kTranslateZFunctionToken         // translateZ(
+%token kRGBFunctionToken                // rgb(
+%token kRGBAFunctionToken               // rgba(
 
 // Tokens with a string value.
 %token <string> kStringToken            // "...", '...'
@@ -149,7 +151,7 @@
 %token <string> kInvalidAtToken         // @...
 
 // Tokens with an integer value.
-// WARNING: Remember to use |maybe_sign_token| rule with this token.
+// WARNING: Use |integer| rule if you want to handle the sign.
 %token <integer> kIntegerToken          // 123, for example
 
 // Tokens with a floating point value.
@@ -184,7 +186,7 @@
 %token <real> kFractionsToken                               // ...fr
 
 //
-// Rules and their types.
+// Rules and their types, sorted by type name.
 //
 
 // A top-level rule.
@@ -193,18 +195,32 @@
 %union { bool important; }
 %type <important> maybe_important
 
+%type <integer> integer
+
+%union { cssom::LengthValue* length; }
+%type <length> length
+%destructor { $$->Release(); } <length>
+
 %union { PropertyDeclaration* property_declaration; }
 %type <property_declaration> maybe_declaration
 %destructor { delete $$; } <property_declaration>
 
+// To reduce the number of classes derived from cssom::PropertyValue, some
+// semantic actions contain a value processing (such as opacity clamping
+// or RGBA color resolution) that technically belongs to computed value
+// resolution and as such should be done by layout engine. This is harmless
+// as long as web app does not rely on literal preservation of property values
+// exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> background_color_property_value
                        border_radius_property_value color color_property_value
                        common_values font_family_property_value font_family_name
                        font_size_property_value font_weight_property_value
-                       length number opacity_property_value
-                       overflow_property_value transform_property_value
+                       opacity_property_value overflow_property_value
+                       transform_property_value
 %destructor { $$->Release(); } <property_value>
+
+%type <real> alpha number
 
 %union { cssom::Selector* selector; }
 %type <selector> class_selector_token complex_selector compound_selector_token
@@ -421,14 +437,30 @@ maybe_sign_token:
   | '-' { $$ = -1; }
   ;
 
-// Numeric data types.
-//   http://www.w3.org/TR/css3-values/#numeric-types
-number:
+// An integer is one or more decimal digits "0" through "9". The first digit
+// of an integer may be immediately preceded by "-" or "+" to indicate the sign.
+//   http://www.w3.org/TR/css3-values/#integers
+integer:
     maybe_sign_token kIntegerToken maybe_whitespace {
-    $$ = AddRef(new cssom::NumberValue($1 * $2));
+    $$ = $1 * $2;
   }
-  | maybe_sign_token kRealToken maybe_whitespace {
-    $$ = AddRef(new cssom::NumberValue($1 * $2));
+  ;
+
+// A number is either an |integer| or zero or more decimal digits followed
+// by a dot followed by one or more decimal digits.
+//   http://www.w3.org/TR/css3-values/#numbers
+number:
+    integer { $$ = $1; }
+  | maybe_sign_token kRealToken maybe_whitespace { $$ = $1 * $2; }
+  ;
+
+// Opacity.
+//   http://www.w3.org/TR/css3-color/#alphavaluedt
+alpha:
+    number {
+    // Any values outside the range 0.0 (fully transparent)
+    // to 1.0 (fully opaque) will be clamped to this range.
+    $$ = ClampToRange(0.0f, 1.0f, $1);
   }
   ;
 
@@ -436,9 +468,7 @@ number:
 //   http://www.w3.org/TR/css3-values/#lengths
 length:
     number {
-    scoped_refptr<cssom::NumberValue> number = MakeScopedRefPtrAndRelease(
-        base::polymorphic_downcast<cssom::NumberValue*>($1));
-    if (number->value() == 0) {
+    if ($1 == 0) {
       $$ = AddRef(new cssom::LengthValue(0, cssom::kPixelsUnit));
     } else {
       parser_impl->LogWarning(
@@ -504,6 +534,28 @@ color:
         break;
     }
   }
+  // RGB color model.
+  //   http://www.w3.org/TR/css3-color/#rgb-color
+  | kRGBFunctionToken maybe_whitespace integer ',' maybe_whitespace
+      integer ',' maybe_whitespace integer ')' maybe_whitespace {
+    int r = ClampToRange(0, 255, $3);
+    int g = ClampToRange(0, 255, $6);
+    int b = ClampToRange(0, 255, $9);
+    $$ = AddRef(new cssom::RGBAColorValue(
+        (r << 24) | (g << 16) | (b << 8) | 0xff));
+  }
+  // RGB color model with opacity.
+  //   http://www.w3.org/TR/css3-color/#rgba-color
+  | kRGBAFunctionToken maybe_whitespace integer ',' maybe_whitespace
+      integer ',' maybe_whitespace integer ',' maybe_whitespace
+      alpha ')' maybe_whitespace {
+    int r = ClampToRange(0, 255, $3);
+    int g = ClampToRange(0, 255, $6);
+    int b = ClampToRange(0, 255, $9);
+    float a = $12;  // Already clamped.
+    $$ = AddRef(new cssom::RGBAColorValue((r << 24) | (g << 16) | (b << 8) |
+        static_cast<uint32_t>(a * 0xff)));
+  }
   ;
 
 // Background color of an element drawn behind any background images.
@@ -517,7 +569,7 @@ background_color_property_value:
 // of the outer border edge.
 //   http://www.w3.org/TR/css3-background/#the-border-radius
 border_radius_property_value:
-    length
+    length { $$ = $1; }
   | common_values
   ;
 
@@ -549,7 +601,7 @@ font_family_property_value:
 // Desired height of glyphs from the font.
 //   http://www.w3.org/TR/css3-fonts/#font-size-prop
 font_size_property_value:
-    length
+    length { $$ = $1; }
   | common_values
   ;
 
@@ -570,7 +622,7 @@ font_weight_property_value:
 // into the current composite rendering.
 //   http://www.w3.org/TR/css3-color/#transparency
 opacity_property_value:
-    number
+    alpha { $$ = AddRef(new cssom::NumberValue($1)); }
   | common_values
   ;
 
