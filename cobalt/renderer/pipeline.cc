@@ -19,6 +19,9 @@
 #include "base/debug/trace_event.h"
 #include "base/bind.h"
 
+using cobalt::render_tree::Node;
+using cobalt::render_tree::animations::NodeAnimationsMap;
+
 namespace cobalt {
 namespace renderer {
 
@@ -53,16 +56,23 @@ Pipeline::~Pipeline() {
   rasterizer_thread_ = base::nullopt;
 }
 
-void Pipeline::Submit(const scoped_refptr<render_tree::Node>& render_tree) {
+void Pipeline::Submit(const scoped_refptr<Node>& render_tree) {
+  Submit(render_tree,
+         new NodeAnimationsMap(NodeAnimationsMap::Builder().Pass()));
+}
+
+void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
+                      const scoped_refptr<NodeAnimationsMap>& animations) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree));
+                            render_tree, animations));
 }
 
 void Pipeline::SetNewRenderTree(
-    const scoped_refptr<render_tree::Node>& render_tree) {
+    const scoped_refptr<Node>& render_tree,
+    const scoped_refptr<NodeAnimationsMap>& animations) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree.get());
 
@@ -74,6 +84,8 @@ void Pipeline::SetNewRenderTree(
                           render_tree.get());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
   current_tree_ = render_tree;
+  current_animations_ = animations;
+
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
     // We add 1 to the refresh rate in the following timer_interval calculation
@@ -94,8 +106,7 @@ void Pipeline::SetNewRenderTree(
         base::Time::kMicrosecondsPerSecond * 1.0f / (kRefreshRate + 1.0f);
 
     refresh_rate_timer_.emplace(
-        FROM_HERE,
-        base::TimeDelta::FromMicroseconds(timer_interval),
+        FROM_HERE, base::TimeDelta::FromMicroseconds(timer_interval),
         base::Bind(&Pipeline::RasterizeCurrentTree, base::Unretained(this)),
         true);
     refresh_rate_timer_->Reset();
@@ -110,8 +121,12 @@ void Pipeline::RasterizeCurrentTree() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(current_tree_.get());
 
-  // Rasterize the last submitted render tree.
-  rasterizer_->Submit(current_tree_, render_target_);
+  // Animate the last submitted render tree using the last submitted animations.
+  scoped_refptr<Node> animated_render_tree =
+      current_animations_->Apply(current_tree_, base::Time::Now());
+
+  // Rasterize the animated render tree.
+  rasterizer_->Submit(animated_render_tree, render_target_);
 }
 
 void Pipeline::ShutdownRasterizerThread() {
