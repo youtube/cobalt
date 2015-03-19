@@ -20,11 +20,13 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/renderer/renderer_module.h"
-#include "cobalt/renderer/test/render_tree_builders/all_node_types_builder.h"
+#include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
 using cobalt::render_tree::ResourceProvider;
-using cobalt::renderer::test::render_tree_builders::AllNodeTypesBuilder;
+using cobalt::renderer::test::scenes::AddBlankBackgroundToScene;
+using cobalt::renderer::test::scenes::CreateAllScenesCombinedScene;
+using cobalt::renderer::test::scenes::RenderTreeWithAnimations;
 
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;
@@ -37,38 +39,25 @@ int main(int argc, char** argv) {
   cobalt::renderer::RendererModule::Options renderer_module_options;
   cobalt::renderer::RendererModule renderer_module(renderer_module_options);
 
-  // Construct our render tree builder which will be the source of our render
-  // trees within the main loop.
-  AllNodeTypesBuilder render_tree_builder(
-      renderer_module.pipeline()->GetResourceProvider());
+  cobalt::math::SizeF output_dimensions(
+      renderer_module.render_target()->GetSurfaceInfo().width,
+      renderer_module.render_target()->GetSurfaceInfo().height);
 
-  // Repeatedly render/animate and flip the screen.
-  int frame = 0;
-  base::Time start_time = base::Time::Now();
-  while (true) {
-    double seconds_elapsed = (base::Time::Now() - start_time).InSecondsF();
+  // Construct our render tree and associated animations to be passed into
+  // the renderer pipeline for display.
+  RenderTreeWithAnimations scene =
+      AddBlankBackgroundToScene(
+          CreateAllScenesCombinedScene(
+              renderer_module.pipeline()->GetResourceProvider(),
+              output_dimensions,
+              base::Time::Now()),
+          output_dimensions);
 
-    // Stop after 30 seconds have passed.
-    if (seconds_elapsed > 30) {
-      break;
-    }
+  // Pass the render tree along with associated animations into the renderer
+  // module to be displayed.
+  renderer_module.pipeline()->Submit(scene.render_tree, scene.animations);
 
-    ++frame;
-    TRACE_EVENT1("renderer_sandbox", "frame", "frame_number", frame);
-    // Build the render tree that we will output to the screen
-    scoped_refptr<cobalt::render_tree::Node> render_tree =
-        render_tree_builder.Build(
-            seconds_elapsed,
-            cobalt::math::SizeF(
-                renderer_module.render_target()->GetSurfaceInfo().width,
-                renderer_module.render_target()->GetSurfaceInfo().height));
-
-    // Submit the render tree to be rendered.
-    {
-      TRACE_EVENT0("renderer_sandbox", "submit");
-      renderer_module.pipeline()->Submit(render_tree);
-    }
-  }
+  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
 
   return 0;
 }
