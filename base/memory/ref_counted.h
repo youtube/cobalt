@@ -305,4 +305,75 @@ scoped_refptr<T> make_scoped_refptr(T* t) {
   return scoped_refptr<T>(t);
 }
 
+// Make scoped_reftr usable as key in base::hash_map.
+
+//
+// GCC-flavored hash functor.
+//
+#if defined(COMPILER_GCC) && defined(__LB_LINUX__)
+
+namespace __gnu_cxx {
+
+// Forward declaration in case <hash_fun.h> is not #include'd.
+template <typename Key>
+struct hash;
+
+template <typename T>
+struct hash<scoped_refptr<T> > {
+  size_t operator()(const scoped_refptr<T>& key) const {
+    return base_hash(key.get());
+  }
+
+  hash<T*> base_hash;
+};
+
+}  // namespace __gnu_cxx
+
+//
+// Dinkumware-flavored hash functor.
+//
+#else
+
+#if defined(COMPILER_MSVC)
+namespace stdext {
+#else
+namespace std {
+#endif
+
+// Forward declaration in case <xhash> is not #include'd.
+template <typename Key, typename Predicate>
+class hash_compare;
+
+template <typename T, typename Predicate>
+class hash_compare<scoped_refptr<T>, Predicate> {
+ public:
+  typedef hash_compare<T*, Predicate> BaseHashCompare;
+
+  enum {
+    bucket_size = BaseHashCompare::bucket_size,
+#if !defined(COMPILER_MSVC)
+    min_buckets = BaseHashCompare::min_buckets,
+#endif
+  };
+
+  hash_compare() {}
+  hash_compare(Predicate predicate) : base_hash_compare_(predicate) {}
+
+  size_t operator()(const scoped_refptr<T>& key) const {
+    return base_hash_compare_(key.get());
+  }
+
+  bool operator()(const scoped_refptr<T>& lhs,
+                  const scoped_refptr<T>& rhs) const {
+    return base_hash_compare_(lhs.get(), rhs.get());
+  }
+
+ private:
+  BaseHashCompare base_hash_compare_;
+};
+
+}  // namespace std[ext]
+
+#endif
+
 #endif  // BASE_MEMORY_REF_COUNTED_H_
