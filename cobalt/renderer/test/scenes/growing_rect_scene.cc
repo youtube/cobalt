@@ -1,0 +1,99 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "cobalt/renderer/test/scenes/growing_rect_scene.h"
+
+#include "base/bind.h"
+#include "cobalt/math/size_f.h"
+#include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/rect_node.h"
+
+using cobalt::math::Matrix3F;
+using cobalt::math::SizeF;
+using cobalt::math::ScaleMatrix;
+using cobalt::math::TranslateMatrix;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
+using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::Brush;
+using cobalt::render_tree::ColorRGBA;
+using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::Node;
+using cobalt::render_tree::RectNode;
+using cobalt::render_tree::SolidColorBrush;
+
+namespace cobalt {
+namespace renderer {
+namespace test {
+namespace scenes {
+
+namespace {
+
+void AnimateGrowingRectComposition(math::SizeF output_dimensions,
+                                   CompositionNode::Builder* composition_node,
+                                   base::TimeDelta time) {
+  const float kGrowingRectPeriod = 5.0f;
+  float rect_size_scale = Sawtooth(time.InSecondsF() / kGrowingRectPeriod);
+  SizeF rect_size(ScaleSize(output_dimensions, rect_size_scale));
+
+  // Scale and translate the matrix based on how much time has passed.
+  CompositionNode::ComposedChild* child = composition_node->GetChild(0);
+  child->transform =
+      TranslateMatrix(
+          (output_dimensions.width() - rect_size.width()) / 2,
+          (output_dimensions.height() - rect_size.height()) / 2) *
+      ScaleMatrix(rect_size_scale);
+}
+
+}  // namespace
+
+RenderTreeWithAnimations CreateGrowingRectScene(
+    const math::SizeF& output_dimensions,
+    base::Time start_time) {
+  // Create a centered, sawtoothed-growing black rectangle.  We need a
+  // composition node for this so that the rectangle's position can be set
+  // and animated.  We also use the composition node to animate the RectNode's
+  // size.
+  CompositionNode::Builder growing_rect_scene_builder;
+  NodeAnimationsMap::Builder animations;
+
+  scoped_refptr<RectNode> growing_rect_node(new RectNode(
+      output_dimensions,
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.2f, 0.2f, 0.2f)))));
+
+  growing_rect_scene_builder.AddChild(growing_rect_node, Matrix3F::Identity());
+
+  scoped_refptr<CompositionNode> growing_rect_composition(
+      new CompositionNode(growing_rect_scene_builder.Pass()));
+
+  animations.Add(
+      growing_rect_composition,
+      make_scoped_refptr(
+          new AnimationList<CompositionNode>(
+              make_scoped_refptr(new Animation<CompositionNode>(
+                  base::Bind(&AnimateGrowingRectComposition, output_dimensions),
+                  start_time)))));
+
+  return RenderTreeWithAnimations(
+      growing_rect_composition, new NodeAnimationsMap(animations.Pass()));
+}
+
+}  // namespace scenes
+}  // namespace test
+}  // namespace renderer
+}  // namespace cobalt

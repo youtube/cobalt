@@ -23,6 +23,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/rasterizer.h"
 
@@ -47,6 +48,11 @@ class Pipeline {
   // Submit a new render tree to the renderer pipeline.  After calling this
   // method, the submitted render tree will eventually be the one rendered
   // by the rasterizer at the refresh rate.
+  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
+              const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+                  animations);
+  // Convenience function that assumes there are no animations and submits
+  // an empty animation map.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree);
 
   // Returns the rate, in hertz, at which the current render tree is rasterized
@@ -67,7 +73,10 @@ class Pipeline {
 
   // Called by Submit() to do the work of actually setting the newly submitted
   // render tree.  This method will be called on the rasterizer thread.
-  void SetNewRenderTree(const scoped_refptr<render_tree::Node>& render_tree);
+  void SetNewRenderTree(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+          animations);
 
   // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
@@ -91,6 +100,11 @@ class Pipeline {
 
   // Maintains the current render tree that is to be rendered next frame.
   scoped_refptr<render_tree::Node> current_tree_;
+
+  // Maintains the current animations that are to be in effect (i.e. applied
+  // to current_tree_) for all rasterizations until specifically updated by a
+  // call to Submit().
+  scoped_refptr<render_tree::animations::NodeAnimationsMap> current_animations_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
   // It is common for this to be set to 60hz, the refresh rate of most displays.
