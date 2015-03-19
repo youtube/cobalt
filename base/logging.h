@@ -484,13 +484,25 @@ const LogSeverity LOG_0 = LOG_ERROR;
 
 #else
 
-#define CHECK(condition)                       \
-  LAZY_STREAM(LOG_STREAM(FATAL), !(condition)) \
+// Help Microsoft code analysis tool to understand that if CHECK()/PCHECK()
+// did not terminate the execution, the condition they checked must be true.
+// Note that the code under _PREFAST_ macro is not actually executed, only
+// analyzed.
+#if defined(COBALT) && defined(_PREFAST_)
+#define CHECK(condition)                                        \
+  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+
+#define PCHECK(condition)                                       \
+  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+#else
+#define CHECK(condition)                                        \
+  LAZY_STREAM(LOG_STREAM(FATAL), !(condition))                  \
   << "Check failed: " #condition ". "
 
-#define PCHECK(condition) \
-  LAZY_STREAM(PLOG_STREAM(FATAL), !(condition)) \
+#define PCHECK(condition)                                       \
+  LAZY_STREAM(PLOG_STREAM(FATAL), !(condition))                 \
   << "Check failed: " #condition ". "
+#endif
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
@@ -707,6 +719,17 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // variable warnings if the only use of a variable is in a DCHECK.
 // This behavior is different from DLOG_IF et al.
 
+// Help Microsoft code analysis tool to understand that if DCHECK()/DPCHECK()
+// did not terminate the execution, the condition they checked must be true.
+// Note that the code under _PREFAST_ macro is not actually executed, only
+// analyzed.
+#if defined(COBALT) && defined(_PREFAST_)
+#define DCHECK(condition)                                           \
+  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+
+#define DPCHECK(condition)                                          \
+  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+#else
 #define DCHECK(condition)                                           \
   LAZY_STREAM(LOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))   \
   << "Check failed: " #condition ". "
@@ -714,6 +737,7 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 #define DPCHECK(condition)                                          \
   LAZY_STREAM(PLOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))  \
   << "Check failed: " #condition ". "
+#endif
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use DCHECK_EQ et al below.
