@@ -42,6 +42,7 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
+        '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/renderer/backend/backend.gyp:renderer_backend',
       ],
     },
@@ -97,7 +98,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/test/render_tree_builders/render_tree_builders.gyp:render_tree_builders',
+        '<(DEPTH)/cobalt/renderer/test/scenes/scenes.gyp:scenes',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
         'renderer',
       ],
