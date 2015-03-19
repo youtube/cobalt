@@ -51,6 +51,7 @@ class Event : public script::Wrappable {
   // The default ctor creates an event that cannot be bubbled and cancelled.
   explicit Event(const std::string& type);
   Event(const std::string& type, Bubbles bubbles, Cancelable cancelable);
+  ~Event() OVERRIDE;
 
   // Web API: Event
   //

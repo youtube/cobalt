@@ -32,6 +32,12 @@ Event::Event(const std::string& type, Bubbles bubbles, Cancelable cancelable)
   InitEvent(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
+Event::~Event() {
+  // This needs to be in the .cc file because EventTarget is only forward
+  // declared in the .h file, and the implicit destructor for target_ cannot
+  // find the destructor for EventTarget in the header.
+}
+
 const scoped_refptr<EventTarget>& Event::target() const { return target_; }
 
 const scoped_refptr<EventTarget>& Event::current_target() const {
