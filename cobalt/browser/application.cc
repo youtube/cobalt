@@ -66,7 +66,8 @@ std::string GetInitialURL() {
     return command_line->GetSwitchValueASCII(switches::kInitialURL);
   }
 
-  static const char* kDefaultInitialURL = "https://www.youtube.com/tv";
+  static const char* kDefaultInitialURL =
+      "file:///cobalt/browser/testdata/cobalt-oxide/cobalt-oxide.html";
   return std::string(kDefaultInitialURL);
 }
 
