@@ -129,7 +129,10 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-  inline int Size() const { return work_queue_.size() + delayed_work_queue_.size() + deferred_non_nestable_work_queue_.size() + incoming_queue_.size(); }
+  inline std::size_t Size() const {
+    return work_queue_.size() + delayed_work_queue_.size() +
+           deferred_non_nestable_work_queue_.size() + incoming_queue_.size();
+  }
 #endif
 
   // A DestructionObserver is notified when the current MessageLoop is being
