@@ -53,6 +53,7 @@
       'type': 'static_library',
       'sources': [
         'animations/node_animations_map.cc',
+        'animations/node_animations_map.h',
       ],
       'dependencies': [
         'render_tree',
