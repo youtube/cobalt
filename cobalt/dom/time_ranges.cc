@@ -16,23 +16,83 @@
 
 #include "cobalt/dom/time_ranges.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 
 namespace cobalt {
 namespace dom {
 
-uint32 TimeRanges::length() const { return ranges_.size(); }
+bool TimeRanges::TimeRange::IsOverlapped(const TimeRange& that) const {
+  return end_ >= that.start_ && start_ <= that.end_;
+}
+
+void TimeRanges::TimeRange::MergeWith(const TimeRange& that) {
+  DCHECK(IsOverlapped(that));
+  start_ = std::min(start_, that.start_);
+  end_ = std::max(end_, that.end_);
+}
 
 double TimeRanges::Start(uint32 index) const {
   // TODO(***REMOVED***): Should throw INDEX_SIZE_ERR exception.
   DCHECK_LT(index, ranges_.size());
-  return ranges_.at(index).first;
+  return index < ranges_.size() ? ranges_[index].start() : 0.0;
 }
 
 double TimeRanges::End(uint32 index) const {
   // TODO(***REMOVED***): Should throw INDEX_SIZE_ERR exception.
   DCHECK_LT(index, ranges_.size());
-  return ranges_.at(index).second;
+  return index < ranges_.size() ? ranges_[index].end() : 0.0;
+}
+
+bool TimeRanges::Contains(double time) const {
+  std::vector<TimeRange>::const_iterator lower_bound =
+      std::lower_bound(ranges_.begin(), ranges_.end(), time, LessThan);
+  return (lower_bound != ranges_.end()) ? lower_bound->Contains(time) : false;
+}
+
+void TimeRanges::Add(double start, double end) {
+  // Use index instead of iterator as we are going to modify ranges_.
+  uint32 lower_bound =
+      std::lower_bound(ranges_.begin(), ranges_.end(), start, LessThan) -
+      ranges_.begin();
+  ranges_.insert(ranges_.begin() + lower_bound, TimeRange(start, end));
+  while (ranges_.size() > lower_bound + 1) {
+    if (!ranges_[lower_bound].IsOverlapped(ranges_[lower_bound + 1])) {
+      break;
+    }
+    ranges_[lower_bound].MergeWith(ranges_[lower_bound + 1]);
+    ranges_.erase(ranges_.begin() + lower_bound + 1);
+  }
+}
+
+double TimeRanges::Nearest(double time) const {
+  // Assume an empty TimeRanges contains [0.0, 0.0] and return 0.0 in this case.
+  if (length() == 0) return 0.0;
+
+  std::vector<TimeRange>::const_iterator lower_bound =
+      std::lower_bound(ranges_.begin(), ranges_.end(), time, LessThan);
+
+  // Return the end of last range if time is after all ranges.
+  if (lower_bound == ranges_.end()) {
+    DCHECK_LT((lower_bound - 1)->end(), time);
+    return (lower_bound - 1)->end();
+  }
+
+  if (lower_bound->Contains(time)) return time;
+
+  // Return the start of first range if time is before all ranges.
+  if (lower_bound == ranges_.begin()) {
+    DCHECK_LT(time, lower_bound->start());
+    return lower_bound->start();
+  }
+
+  // time is in between (lower_bound - 1) and lower_bound.
+  double prev = (lower_bound - 1)->end();
+  double next = lower_bound->start();
+  DCHECK_LT(prev, time);
+  DCHECK_LT(time, next);
+  return (time - prev <= next - time) ? prev : next;
 }
 
 }  // namespace dom
