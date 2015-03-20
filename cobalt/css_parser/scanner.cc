@@ -1089,6 +1089,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 10:
+      if (IsEqualToCssIdentifier(name.begin, "background")) {
+        *property_name_token = kBackgroundToken;
+        return true;
+      }
+      return false;
+
     case 11:
       if (IsEqualToCssIdentifier(name.begin, "font-family")) {
         *property_name_token = kFontFamilyToken;
