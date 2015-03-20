@@ -23,6 +23,24 @@
 namespace cobalt {
 namespace cssom {
 
+TEST(CSSStyleDeclarationTest, BackgroundSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
+
+  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->background());
+  EXPECT_EQ(scoped_refptr<PropertyValue>(),
+            style->GetPropertyValue(kBackgroundPropertyName));
+
+  style->set_background(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->background());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBackgroundPropertyName));
+
+  style->SetPropertyValue(kBackgroundPropertyName, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->background());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBackgroundPropertyName));
+}
+
 TEST(CSSStyleDeclarationTest, BackgroundColorSettersAndGettersAreConsistent) {
   scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration();
 

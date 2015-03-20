@@ -251,6 +251,23 @@ TEST_F(ParserTest, ParsesInitial) {
   EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
 }
 
+TEST_F(ParserTest, ParsesBackground) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(
+          parser_->ParseStyleSheet("parser_test.css",
+                                   ".playlist {\n"
+                                   "  background: rgba(0, 0, 0, .8);\n"
+                                   "}\n"));
+
+  scoped_refptr<cssom::RGBAColorValue> background =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background);
+  EXPECT_EQ(0x000000cc, background->value());
+}
+
 TEST_F(ParserTest, ParsesBackgroundColor) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
