@@ -50,6 +50,7 @@
 // Property name tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kBackgroundToken                 // background
 %token kBackgroundColorToken            // background-color
 %token kBorderRadiusToken               // border-radius
 %token kColorToken                      // color
@@ -212,9 +213,10 @@
 // as long as web app does not rely on literal preservation of property values
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> background_color_property_value
+%type <property_value> background_property_value background_color_property_value
                        border_radius_property_value color color_property_value
-                       common_values font_family_property_value font_family_name
+                       common_values final_background_layer
+                       font_family_property_value font_family_name
                        font_size_property_value font_weight_property_value
                        opacity_property_value overflow_property_value
                        transform_property_value
@@ -254,6 +256,11 @@
 // WARNING: Every rule, except the ones which end with "..._token", should
 //          consume trailing whitespace.
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Common rules used across the grammar.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 maybe_whitespace:
     /* empty */
   | maybe_whitespace kWhitespaceToken
@@ -264,6 +271,11 @@ errors:
   | errors error
   ;
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// @-rules.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 at_rule:
     kFontFaceToken declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> style =
@@ -272,12 +284,20 @@ at_rule:
   }
   ;
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Selectors.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 // Some identifiers such as property names or values are recognized
 // specifically by the scanner. We are merging those identifiers back together
 // to allow their use in selectors.
 identifier_token:
     kIdentifierToken
   // Property names.
+  | kBackgroundToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundPropertyName);
+  }
   | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
   }
@@ -427,6 +447,11 @@ selector_list:
   }
   ;
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Common rules used in property values.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 // The scanner that we adopted from WebKit was built with assumption that sign
 // is handled in the grammar. Practically this means that tokens of <number>
 // and <real> types has to be prepended with this rule.
@@ -556,6 +581,22 @@ color:
     $$ = AddRef(new cssom::RGBAColorValue((r << 24) | (g << 16) | (b << 8) |
         static_cast<uint32_t>(a * 0xff)));
   }
+  ;
+
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Property values.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
+// Only final background layer allows to set the background color.
+//   http://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
+final_background_layer: color ;
+
+// Shorthand property for setting most background properties at the same place.
+//   http://www.w3.org/TR/css3-background/#the-background
+background_property_value:
+    final_background_layer
+  | common_values
   ;
 
 // Background color of an element drawn behind any background images.
@@ -723,10 +764,21 @@ maybe_important:
   | kImportantToken maybe_whitespace { $$ = true; }
   ;
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Declarations.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 // Consume a declaration.
 //   http://www.w3.org/TR/css3-syntax/#consume-a-declaration0
 maybe_declaration:
     /* empty */ { $$ = NULL; }
+  | kBackgroundToken maybe_whitespace colon background_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorPropertyName,
@@ -833,6 +885,11 @@ declaration_block:
   }
   ;
 
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Rules.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
 // A style rule is a qualified rule that associates a selector list with a list
 // of property declarations.
 //   http://www.w3.org/TR/css3-syntax/#style-rule
@@ -874,6 +931,11 @@ rule_list:
     /* empty */
   | rule_list rule
   ;
+
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Entry points.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 // To parse a stylesheet, consume a list of rules.
 //   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
