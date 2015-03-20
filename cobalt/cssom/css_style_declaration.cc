@@ -69,6 +69,12 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
       }
       return NULL;
 
+    case 10:
+      if (LowerCaseEqualsASCII(property_name, kBackgroundPropertyName)) {
+        return background();
+      }
+      return NULL;
+
     case 11:
       if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
         return font_family();
@@ -135,6 +141,12 @@ void CSSStyleDeclaration::SetPropertyValue(
       }
       break;
 
+    case 10:
+      if (LowerCaseEqualsASCII(property_name, kBackgroundPropertyName)) {
+        set_background(property_value);
+      }
+      break;
+
     case 11:
       if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
         set_font_family(property_value);
@@ -164,6 +176,7 @@ void CSSStyleDeclaration::SetPropertyValue(
 }
 
 void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
+  set_background(rhs.background());
   set_background_color(rhs.background_color());
   set_border_radius(rhs.border_radius());
   set_color(rhs.color());
