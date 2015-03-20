@@ -145,6 +145,7 @@
         'testing/switches.cc',
         'testing/switches.h',
         'text_test.cc',
+        'time_ranges_test.cc',
       ],
       'dependencies': [
         'dom',
