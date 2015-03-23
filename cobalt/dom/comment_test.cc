@@ -31,17 +31,15 @@ namespace dom {
 
 class CommentTest : public ::testing::Test {
  protected:
-  CommentTest() {}
-  ~CommentTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  CommentTest();
+  ~CommentTest() OVERRIDE;
 };
 
-void CommentTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+CommentTest::CommentTest() {
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+}
 
-void CommentTest::TearDown() {
+CommentTest::~CommentTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
