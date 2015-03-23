@@ -182,7 +182,7 @@ void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
-Element::Element() {}
+Element::Element() : style_(new cssom::CSSStyleDeclaration()) {}
 
 Element::~Element() {}
 
