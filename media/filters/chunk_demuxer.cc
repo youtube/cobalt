@@ -13,6 +13,9 @@
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "base/string_util.h"
+#if LOG_MEDIA_SOURCE_ACTIVITIES
+#include "base/stringprintf.h"
+#endif  // LOG_MEDIA_SOURCE_ACTIVITIES
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
@@ -29,6 +32,20 @@
 using base::TimeDelta;
 
 namespace media {
+
+namespace {
+
+std::string GetMediaSourceLogDesc(const char* desc_with_format,
+                                  DemuxerStream::Type type) {
+#if LOG_MEDIA_SOURCE_ACTIVITIES
+  return base::StringPrintf(desc_with_format,
+                            type == DemuxerStream::AUDIO ? "audio" : "video");
+#else  // LOG_MEDIA_SOURCE_ACTIVITIES
+  return "";
+#endif  // LOG_MEDIA_SOURCE_ACTIVITIES
+}
+
+}  // namespace
 
 struct CodecInfo {
   const char* pattern;
@@ -369,6 +386,10 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   if (buffers.empty())
     return false;
 
+  LogMediaSourceTimeRanges(
+      GetMediaSourceLogDesc("before append buffers to %s stream", type()),
+      GetBufferedRanges(kInfiniteDuration()));
+
   ClosureQueue closures;
   {
     base::AutoLock auto_lock(lock_);
@@ -380,6 +401,14 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
     }
     CreateReadDoneClosures_Locked(&closures);
   }
+
+  LogMediaSourceTimeRanges(
+      GetMediaSourceLogDesc("after append buffers to %s stream", type()),
+      GetBufferedRanges(kInfiniteDuration()));
+
+#if LOG_MEDIA_SOURCE_ACTIVITIES
+  LOG(INFO) << "";  // Extra empty line to indicate the end of append in log.
+#endif  // LOG_MEDIA_SOURCE_ACTIVITIES
 
   for (ClosureQueue::iterator it = closures.begin(); it != closures.end(); ++it)
     it->Run();
@@ -869,6 +898,11 @@ bool ChunkDemuxer::AppendData(const std::string& id,
                               const uint8* data,
                               size_t length) {
   DVLOG(1) << "AppendData(" << id << ", " << length << ")";
+
+#if LOG_MEDIA_SOURCE_ACTIVITIES
+  LOG(INFO) << "======== append " << length << " bytes to stream " << id
+            << " ========";
+#endif  // LOG_MEDIA_SOURCE_ACTIVITIES
 
   DCHECK(!id.empty());
 
