@@ -18,15 +18,15 @@ interface CSSStyleDeclaration {
   // TODO(***REMOVED***): b/19829526. attribute type should be DOMString instead of
   // PropertyValue according to spec.
   //   http://dev.w3.org/csswg/cssom/#the-cssstyledeclaration-interface
-  attribute PropertyValue backgroundColor;
-  attribute PropertyValue color;
-  attribute PropertyValue display;
-  attribute PropertyValue fontFamily;
-  attribute PropertyValue fontSize;
-  attribute PropertyValue height;
-  attribute PropertyValue overflow;
-  attribute PropertyValue transform;
-  attribute PropertyValue width;
+  [TreatNullAs=EmptyString] attribute PropertyValue? backgroundColor;
+  [TreatNullAs=EmptyString] attribute PropertyValue? color;
+  [TreatNullAs=EmptyString] attribute PropertyValue? display;
+  [TreatNullAs=EmptyString] attribute PropertyValue? fontFamily;
+  [TreatNullAs=EmptyString] attribute PropertyValue? fontSize;
+  [TreatNullAs=EmptyString] attribute PropertyValue? height;
+  [TreatNullAs=EmptyString] attribute PropertyValue? overflow;
+  [TreatNullAs=EmptyString] attribute PropertyValue? transform;
+  [TreatNullAs=EmptyString] attribute PropertyValue? width;
 
   PropertyValue getPropertyValue(DOMString propertyName);
   void setPropertyValue(DOMString propertyName, PropertyValue propertyValue);

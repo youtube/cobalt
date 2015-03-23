@@ -19,6 +19,7 @@
 
 #include "base/optional.h"
 #include "base/string_piece.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -105,6 +106,13 @@ class Element : public Node {
 
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
+  // TODO(***REMOVED***): Remove this when auto type binding is supported for JS.
+  // b/19898684 is fired to track this issue.
+  // This function is just for HTMLElement.
+  virtual const scoped_refptr<cssom::CSSStyleDeclaration>& style() {
+    return style_;
+  }
+
  protected:
   Element();
   ~Element() OVERRIDE;
@@ -123,6 +131,9 @@ class Element : public Node {
   // A weak pointer to a DOMTOkenList containing the the classes of the element.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<DOMTokenList> class_list_;
+
+  // TODO(***REMOVED***): Remove style_ when auto type binding is supported for JS.
+  scoped_refptr<cssom::CSSStyleDeclaration> style_;
 };
 
 }  // namespace dom
