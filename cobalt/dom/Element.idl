@@ -26,4 +26,8 @@ interface Element : Node {
   boolean hasAttribute(DOMString name);
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
+
+  // TODO(***REMOVED***): style should be on HTMLElement. Remove this when auto type
+  // binding is supported for JS. b/19898684 is fired to track this issue.
+  readonly attribute CSSStyleDeclaration style;
 };

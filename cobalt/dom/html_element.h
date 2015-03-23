@@ -41,7 +41,9 @@ class HTMLElement : public Element {
   // Web API: ElementCSSInlineStyle
   // Extended in CSSOM specification.
   //   http://dev.w3.org/csswg/cssom/#the-elementcssinlinestyle-interface
-  const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
+  const scoped_refptr<cssom::CSSStyleDeclaration>& style() OVERRIDE {
+    return style_;
+  }
 
   // Custom, not in any spec: Element.
   scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }

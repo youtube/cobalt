@@ -48,6 +48,7 @@ Constructor
 Global
 IndexedGetter
 PutForwards=*
+TreatNullAs=NullString|EmptyString
 Unforgeable
 
 # Ignored attributes. We do not perform any additional logic in the bindings
