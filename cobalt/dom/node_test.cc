@@ -32,17 +32,13 @@ namespace dom {
 
 class NodeTest : public ::testing::Test {
  protected:
-  NodeTest() {}
-  ~NodeTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  NodeTest();
+  ~NodeTest() OVERRIDE;
 };
 
-void NodeTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+NodeTest::NodeTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
-void NodeTest::TearDown() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+NodeTest::~NodeTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 //////////////////////////////////////////////////////////////////////////
 // Test cases

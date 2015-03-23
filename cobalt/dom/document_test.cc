@@ -52,21 +52,18 @@ class StubCSSParser : public cssom::CSSParser {
 
 class DocumentTest : public ::testing::Test {
  protected:
-  DocumentTest() : html_element_factory_(NULL, new StubCSSParser(), NULL) {}
-  ~DocumentTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  DocumentTest();
+  ~DocumentTest() OVERRIDE;
 
   HTMLElementFactory html_element_factory_;
 };
 
-void DocumentTest::SetUp() {
+DocumentTest::DocumentTest()
+    : html_element_factory_(NULL, new StubCSSParser(), NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
-void DocumentTest::TearDown() {
+DocumentTest::~DocumentTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 

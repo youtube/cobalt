@@ -35,17 +35,15 @@ namespace dom {
 
 class ElementTest : public ::testing::Test {
  protected:
-  ElementTest() {}
-  ~ElementTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  ElementTest();
+  ~ElementTest() OVERRIDE;
 };
 
-void ElementTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+ElementTest::ElementTest() {
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+}
 
-void ElementTest::TearDown() {
+ElementTest::~ElementTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 

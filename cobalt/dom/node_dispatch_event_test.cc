@@ -85,12 +85,8 @@ void ExpectNoHandleEventCall(
 
 class NodeDispatchEventTest : public ::testing::Test {
  protected:
-  NodeDispatchEventTest() {}
-  ~NodeDispatchEventTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  NodeDispatchEventTest();
+  ~NodeDispatchEventTest() OVERRIDE;
 
   scoped_refptr<Node> grand_parent_;
   scoped_refptr<Node> parent_;
@@ -99,7 +95,7 @@ class NodeDispatchEventTest : public ::testing::Test {
   scoped_refptr<NiceMockEventListener> event_listener_bubbling_;
 };
 
-void NodeDispatchEventTest::SetUp() {
+NodeDispatchEventTest::NodeDispatchEventTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 
   grand_parent_ = FakeNode::Create();
@@ -116,7 +112,7 @@ void NodeDispatchEventTest::SetUp() {
   child_->AddEventListener("fired", event_listener_capture_, true);
 }
 
-void NodeDispatchEventTest::TearDown() {
+NodeDispatchEventTest::~NodeDispatchEventTest() {
   grand_parent_ = NULL;
   parent_ = NULL;
   child_ = NULL;
