@@ -30,17 +30,13 @@ namespace dom {
 
 class TextTest : public ::testing::Test {
  protected:
-  TextTest() {}
-  ~TextTest() OVERRIDE {}
-
-  // testing::Test:
-  void SetUp() OVERRIDE;
-  void TearDown() OVERRIDE;
+  TextTest();
+  ~TextTest() OVERRIDE;
 };
 
-void TextTest::SetUp() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+TextTest::TextTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
-void TextTest::TearDown() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+TextTest::~TextTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 //////////////////////////////////////////////////////////////////////////
 // Test cases
