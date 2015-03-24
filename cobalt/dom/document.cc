@@ -157,13 +157,22 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchOnLoad() {
   DCHECK_GT(loading_counter_, 0);
   if (--loading_counter_ == 0 && should_dispatch_on_load_) {
     should_dispatch_on_load_ = false;
-    FOR_EACH_OBSERVER(DocumentObserver, observers_, OnLoad());
     // TODO(***REMOVED***): We should also fire event on onload attribute when set.
     base::MessageLoopProxy::current()->PostTask(
         FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
                               base::AsWeakPtr<Document>(this),
                               make_scoped_refptr(new Event("load"))));
+
+    // After all JavaScript OnLoad event handlers have executed, signal to any
+    // Document observers know that an OnLoad event has occurred.
+    base::MessageLoopProxy::current()->PostTask(
+        FROM_HERE, base::Bind(&Document::SignalOnLoadToObservers,
+                              base::AsWeakPtr<Document>(this)));
   }
+}
+
+void Document::SignalOnLoadToObservers() {
+  FOR_EACH_OBSERVER(DocumentObserver, observers_, OnLoad());
 }
 
 void Document::RecordMutation() {
