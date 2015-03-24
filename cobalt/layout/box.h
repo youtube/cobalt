@@ -61,8 +61,16 @@ class Box {
   }
 
   // Reflects the used values of left, top, right, bottom, width, and height.
-  math::RectF& used_frame() { return used_frame_; }
-  const math::RectF& used_frame() const { return used_frame_; }
+  math::SizeF& used_size() { return used_size_; }
+  const math::SizeF& used_size() const { return used_size_; }
+
+  math::PointF& offset() { return offset_; }
+  const math::PointF& offset() const { return offset_; }
+
+  void set_height_below_baseline(float value) {
+    height_below_baseline_ = value;
+  }
+  float height_below_baseline() const { return height_below_baseline_; }
 
   // Lays out the box and all its descendants recursively.
   virtual void Layout(const LayoutOptions& options) = 0;
@@ -83,7 +91,16 @@ class Box {
   const scoped_refptr<cssom::CSSStyleDeclaration> computed_style_;
   UsedStyleProvider* const used_style_provider_;
 
-  math::RectF used_frame_;
+  // The width and height of this box.
+  math::SizeF used_size_;
+
+  // Describes how far above the bottom of the box the baseline is at.
+  // For text, this will be dependent on the string.  For most other objects,
+  // this will be equal to zero.
+  float height_below_baseline_;
+
+  // Where the box should be positioned relative to its parent.
+  math::PointF offset_;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
