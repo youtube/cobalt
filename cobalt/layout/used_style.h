@@ -82,7 +82,7 @@ class UsedHeightProvider : public cssom::PropertyValueVisitor {
 
 class UsedWidthProvider : public cssom::PropertyValueVisitor {
  public:
-  explicit UsedWidthProvider(ContainingBlock* containing_block);
+  explicit UsedWidthProvider(float total_child_width);
 
   void VisitFontWeight(cssom::FontWeightValue* font_weight) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
@@ -95,7 +95,7 @@ class UsedWidthProvider : public cssom::PropertyValueVisitor {
   float used_width() const { return used_width_; }
 
  private:
-  ContainingBlock* const containing_block_;
+  float const total_child_width_;
   float used_width_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedWidthProvider);

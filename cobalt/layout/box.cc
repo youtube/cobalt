@@ -30,7 +30,8 @@ Box::Box(ContainingBlock* containing_block,
          UsedStyleProvider* used_style_provider)
     : containing_block_(containing_block),
       computed_style_(computed_style),
-      used_style_provider_(used_style_provider) {}
+      used_style_provider_(used_style_provider),
+      height_below_baseline_(0.0f) {}
 
 void Box::AddToRenderTree(
     render_tree::CompositionNode::Builder* composition_node_builder) {
@@ -42,14 +43,13 @@ void Box::AddToRenderTree(
     scoped_ptr<render_tree::Brush> used_background_brush(
         new render_tree::SolidColorBrush(used_background_color));
     composition_node_builder->AddChild(
-        new render_tree::RectNode(used_frame().size(),
-                                  used_background_brush.Pass()),
+        new render_tree::RectNode(used_size(), used_background_brush.Pass()),
         GetTransform());
   }
 }
 
 math::Matrix3F Box::GetTransform() {
-  return math::TranslateMatrix(used_frame_.x(), used_frame_.y());
+  return math::TranslateMatrix(offset_.x(), offset_.y());
 }
 
 }  // namespace layout
