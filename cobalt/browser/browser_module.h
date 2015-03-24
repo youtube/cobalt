@@ -17,37 +17,28 @@
 #ifndef BROWSER_BROWSER_MODULE_H_
 #define BROWSER_BROWSER_MODULE_H_
 
-#include "cobalt/browser/input_device_adapter.h"
-#include "cobalt/css_parser/parser.h"
-#include "cobalt/dom/window.h"
+#include "cobalt/browser/web_module.h"
+#include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
-#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/renderer/renderer_module.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/script_runner.h"
-#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace browser {
 
 // BrowserModule hosts all major components of the Cobalt browser application.
 // It also contains all of the glue components required to connect the
-// different subsystems together.  By constructing a BrowserModule object in
-// platform specific code, platform-specific options can be specified.
+// different subsystems together.
 class BrowserModule {
  public:
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
     renderer::RendererModule::Options renderer_module_options;
-    GURL url;
+    WebModule::Options web_module_options;
   };
 
   BrowserModule(const std::string& user_agent, const Options& options);
   ~BrowserModule();
-
-  renderer::RendererModule* renderer_module() { return &renderer_module_; }
 
  private:
   // Glue function to deal with the production of a render tree, and will
@@ -55,33 +46,24 @@ class BrowserModule {
   void OnRenderTreeProduced(
       const scoped_refptr<render_tree::Node>& render_tree);
 
+  // Glue function to deal with the production of an input event from the
+  // input device, and manage handing it off to the web module for
+  // interpretation.
+  void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
+
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
 
-  scoped_ptr<css_parser::Parser> css_parser_;
+  // Sets up everything to do with web page management, from loading and
+  // parsing the web page and all referenced files to laying it out.  The
+  // web module will ultimately produce a render tree that can be passed
+  // into the renderer module.
+  WebModule web_module_;
 
-  // JavaScript engine for the browser.
-  scoped_ptr<script::JavaScriptEngine> javascript_engine_;
-
-  // JavaScript Global Object for the browser. There should be one per window,
-  // but since there is only one window, we can have one per browser.
-  scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
-
-  // Interface for the document to execute JavaScript code.
-  scoped_ptr<script::ScriptRunner> script_runner_;
-
-  // FetcherFactory that is used to create a fetcher according to URL.
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-
-  // The Window object wraps all DOM-related components.
-  scoped_refptr<dom::Window> window_;
-
-  // Triggers layout whenever the document changes.
-  layout::LayoutManager layout_manager_;
-
-  // Wraps input device and dom interaction logic.
-  InputDeviceAdapter input_device_adapter_;
+  // Wraps input device and produces input events that can be passed into
+  // the web module.
+  scoped_ptr<input::InputDeviceManager> input_device_manager_;
 };
 
 }  // namespace browser

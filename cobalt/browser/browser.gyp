@@ -49,14 +49,10 @@
         'application.h',
         'browser_module.cc',
         'browser_module.h',
-        'dummy_render_tree_source.cc',
-        'dummy_render_tree_source.h',
-        'input_device_adapter.cc',
-        'input_device_adapter.h',
         'switches.cc',
         'switches.h',
-        'web_content.cc',
-        'web_content.h',
+        'web_module.cc',
+        'web_module.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -72,34 +68,5 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
-
-    {
-      'target_name': 'browser_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'web_content_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'browser',
-      ],
-    },
-
-    {
-      'target_name': 'browser_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'browser_test',
-      ],
-      'variables': {
-        'executable_name': 'browser_test',
-      },
-      'includes': [ '../build/deploy.gypi' ],
-    },
-
   ],
 }
