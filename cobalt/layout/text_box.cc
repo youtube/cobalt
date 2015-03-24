@@ -17,6 +17,7 @@
 #include "cobalt/layout/text_box.h"
 
 #include "cobalt/layout/used_style.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/text_node.h"
 
@@ -29,12 +30,13 @@ TextBox::TextBox(
     UsedStyleProvider* converter, const base::StringPiece& text)
     : Box(containing_block, computed_style, converter),
       text_(text),
-      trimmed_(false) {}
+      trimmed_(false),
+      leading_x_pixels_(0) {}
 
 void TextBox::Layout(const LayoutOptions& options) {
   trimmed_ = options.beginning_of_line && text_ == " ";
   if (trimmed_) {
-    used_frame().set_size(math::SizeF());
+    used_size() = math::SizeF();
   } else {
     scoped_refptr<render_tree::Font> used_font =
         used_style_provider()->GetUsedFont(computed_style()->font_family(),
@@ -42,12 +44,17 @@ void TextBox::Layout(const LayoutOptions& options) {
     // TODO(***REMOVED***): Figure out how to handle text bounds with negative x().
     //               Does it mean that the first letter like "W" should overlap
     //               with the preceding text or we should additionally shift
-    //               entire word by -x()?
+    //               entire word by -x()?  Currently we save -x() as
+    //               leading_x_pixels_ and shift the entire word by it.
     // TODO(***REMOVED***): Figure out why Skia returns zero bounds for whitespace
     //               characters.
     // TODO(***REMOVED***): Line height should be calculated from font metrics,
     //               not from actual text bounds.
-    used_frame() = used_font->GetBounds(text_ == " " ? "i" : text_.as_string());
+    math::RectF text_frame =
+        used_font->GetBounds(text_ == " " ? "i" : text_.as_string());
+    used_size() = text_frame.size();
+    set_height_below_baseline(used_size().height() + text_frame.y());
+    leading_x_pixels_ = -text_frame.x();
   }
 }
 
@@ -65,7 +72,9 @@ void TextBox::AddToRenderTree(
   render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
   composition_node_builder->AddChild(
       new render_tree::TextNode(text_.as_string(), used_font, used_color),
-      GetTransform());
+      GetTransform() * math::TranslateMatrix(
+                           leading_x_pixels_,
+                           used_size().height() - height_below_baseline()));
 }
 
 }  // namespace layout

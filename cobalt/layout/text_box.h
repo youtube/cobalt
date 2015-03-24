@@ -43,6 +43,9 @@ class TextBox : public Box {
  private:
   const base::StringPiece text_;
   bool trimmed_;
+
+  // Gives how much we should translate forward the render tree text node by.
+  float leading_x_pixels_;
 };
 
 }  // namespace layout
