@@ -351,10 +351,17 @@ bool RenderTreePixelTester::TestTree(
   // the synthesized image.
   int expected_width;
   int expected_height;
+  FilePath expected_output_file = expected_results_directory_.Append(
+      ModifyBaseFileName(expected_base_filename, "-expected", "png"));
+  if (!file_util::PathExists(expected_output_file)) {
+    DLOG(WARNING) << "Expected pixel test output file \""
+                  << expected_output_file.value() << "\" cannot be found.";
+    // If the expected output file does not exist, we cannot continue, so
+    // return in failure.
+    return false;
+  }
   scoped_array<uint8_t> expected_image_pixels =
-      DecodePNGToRGBA(expected_results_directory_.Append(ModifyBaseFileName(
-                          expected_base_filename, "-expected", "png")),
-                      &expected_width, &expected_height);
+      DecodePNGToRGBA(expected_output_file, &expected_width, &expected_height);
 
   DCHECK_EQ(test_surface_->GetSurfaceInfo().width, expected_width);
   DCHECK_EQ(test_surface_->GetSurfaceInfo().height, expected_height);
