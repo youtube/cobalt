@@ -37,7 +37,8 @@ LayoutManager::LayoutManager(
 
 LayoutManager::~LayoutManager() { document_->RemoveObserver(this); }
 
-void LayoutManager::OnLoad() {}
+void LayoutManager::OnLoad() {
+}
 
 void LayoutManager::OnMutation() {
   // Chrome lays out and renders the entire document, not just <body>.
