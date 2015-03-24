@@ -56,6 +56,7 @@
         'style_sheet.h',
         'style_sheet_list.cc',
         'style_sheet_list.h',
+        'transform_function.cc',
         'transform_function.h',
         'transform_function_visitor.h',
         'transform_list_value.cc',
