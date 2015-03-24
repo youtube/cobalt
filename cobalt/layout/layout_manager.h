@@ -34,20 +34,33 @@ class LayoutManager : public dom::DocumentObserver {
   typedef base::Callback<void(const scoped_refptr<render_tree::Node>&)>
       OnRenderTreeProducedCallback;
 
+  // Specifies what event should trigger a layout, and hence what event
+  // will result in a render tree being produced and passed in a call to
+  // on_render_tree_produced_callback_.
+  enum LayoutTrigger {
+    kOnDocumentMutation,
+    kOnDocumentLoad,
+  };
+
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 render_tree::ResourceProvider* resource_provider,
-                const OnRenderTreeProducedCallback& on_render_tree_produced);
+                const OnRenderTreeProducedCallback& on_render_tree_produced,
+                LayoutTrigger layout_trigger);
   ~LayoutManager();
 
   void OnLoad() OVERRIDE;
   void OnMutation() OVERRIDE;
 
  private:
+  void DoLayoutAndProduceRenderTree();
+
   const scoped_refptr<dom::Window> window_;
   const scoped_refptr<dom::Document> document_;
   const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
+
+  const LayoutTrigger layout_trigger_;
 
   DISALLOW_COPY_AND_ASSIGN(LayoutManager);
 };

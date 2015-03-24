@@ -141,6 +141,8 @@ class Document : public Node {
 
   GURL& url_as_gurl() { return url_; }
 
+  void SignalOnLoadToObservers();
+
   // Must be called by all descendants of the document on their modification.
   // TODO(***REMOVED***): Provide more granularity, model after mutation observers
   //               (see http://www.w3.org/TR/dom/#mutation-observers).
