@@ -51,6 +51,9 @@ class BoxGenerator : public dom::NodeVisitor {
   //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
   ContainingBlock* GetOrGenerateContainingBlock(
       const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style);
+  // Helper method used by GetOrGenerateContainingBlock().
+  ContainingBlock* GenerateContainingBlock(
+      const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style);
 
   void GenerateWordBox(
       std::string::const_iterator* text_iterator,

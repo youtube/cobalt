@@ -20,6 +20,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -120,24 +121,21 @@ void BoxGenerator::Visit(dom::Text* text) {
 
 ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+  // Check to see if we should create a containing block based on the value
+  // of the "display" property.
   // Computed value of "display" property is guaranteed to be the keyword.
   cssom::KeywordValue* display =
       base::polymorphic_downcast<cssom::KeywordValue*>(
           computed_style->display().get());
-
   switch (display->value()) {
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kInlineBlock: {
-      scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
-          containing_block_, computed_style, used_style_provider_));
-      ContainingBlock* saved_child_containing_block =
-          child_containing_block.get();
-      containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
-      return saved_child_containing_block;
-    }
+      return GenerateContainingBlock(computed_style);
+    } break;
 
-    case cssom::KeywordValue::kInline:
-    return containing_block_;
+    case cssom::KeywordValue::kInline: {
+      return containing_block_;
+    } break;
 
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kHidden:
@@ -149,6 +147,15 @@ ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
       NOTREACHED();
       return NULL;
   }
+}
+
+ContainingBlock* BoxGenerator::GenerateContainingBlock(
+    const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+  scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
+      containing_block_, computed_style, used_style_provider_));
+  ContainingBlock* saved_child_containing_block = child_containing_block.get();
+  containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
+  return saved_child_containing_block;
 }
 
 void BoxGenerator::GenerateWordBox(
