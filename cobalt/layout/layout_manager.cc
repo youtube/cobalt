@@ -25,22 +25,33 @@ namespace layout {
 LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
     render_tree::ResourceProvider* resource_provider,
-    const OnRenderTreeProducedCallback& on_render_tree_produced)
+    const OnRenderTreeProducedCallback& on_render_tree_produced,
+    LayoutTrigger layout_trigger)
     : window_(window),
       document_(window->document()),
       viewport_size_(math::SizeF(static_cast<float>(window_->inner_width()),
                                  static_cast<float>(window_->inner_height()))),
       resource_provider_(resource_provider),
-      on_render_tree_produced_callback_(on_render_tree_produced) {
+      on_render_tree_produced_callback_(on_render_tree_produced),
+      layout_trigger_(layout_trigger) {
   document_->AddObserver(this);
 }
 
 LayoutManager::~LayoutManager() { document_->RemoveObserver(this); }
 
 void LayoutManager::OnLoad() {
+  if (layout_trigger_ == kOnDocumentLoad) {
+    DoLayoutAndProduceRenderTree();
+  }
 }
 
 void LayoutManager::OnMutation() {
+  if (layout_trigger_ == kOnDocumentMutation) {
+    DoLayoutAndProduceRenderTree();
+  }
+}
+
+void LayoutManager::DoLayoutAndProduceRenderTree() {
   // Chrome lays out and renders the entire document, not just <body>.
   // This enables rendering of <head>, but it's such an obscure feature,
   // it does not make sense to implement it in Cobalt.

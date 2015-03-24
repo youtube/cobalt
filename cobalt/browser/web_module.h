@@ -47,7 +47,10 @@ class WebModule {
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
+    Options() : layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+
     GURL url;
+    layout::LayoutManager::LayoutTrigger layout_trigger;
   };
 
   WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
