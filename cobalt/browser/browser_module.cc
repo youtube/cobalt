@@ -33,29 +33,24 @@ const int kInitialHeight = 1080;
 BrowserModule::BrowserModule(const std::string& user_agent,
                              const Options& options)
     : renderer_module_(options.renderer_module_options),
-      css_parser_(css_parser::Parser::Create()),
-      javascript_engine_(script::JavaScriptEngine::CreateEngine()),
-      global_object_proxy_(javascript_engine_->CreateGlobalObject()),
-      script_runner_(
-          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      fetcher_factory_(new loader::FetcherFactory()),
-      window_(new dom::Window(kInitialWidth, kInitialHeight, css_parser_.get(),
-                              fetcher_factory_.get(), script_runner_.get(),
-                              options.url, user_agent)),
-      layout_manager_(window_.get(),
-                      renderer_module_.pipeline()->GetResourceProvider(),
-                      base::Bind(&BrowserModule::OnRenderTreeProduced,
-                                 base::Unretained(this))),
-      input_device_adapter_(window_.get()) {
-  // TODO(***REMOVED***): Temporarily bind the document here for Cobalt Oxide.
-  global_object_proxy_->Bind("document", window_->document());
-}
+      web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
+                             base::Unretained(this)),
+                  math::Size(kInitialWidth, kInitialHeight), user_agent,
+                  renderer_module_.pipeline()->GetResourceProvider(),
+                  options.web_module_options),
+      input_device_manager_(input::InputDeviceManager::Create(base::Bind(
+          &BrowserModule::OnKeyEventProduced, base::Unretained(this)))) {}
 
 BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree) {
   renderer_module_.pipeline()->Submit(render_tree);
+}
+
+void BrowserModule::OnKeyEventProduced(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
+  web_module_.InjectEvent(event);
 }
 
 }  // namespace browser

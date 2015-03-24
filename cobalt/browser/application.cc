@@ -105,7 +105,7 @@ Application::Application()
   DLOG(INFO) << "User Agent: " << user_agent;
   // Create the main components of our browser.
   BrowserModule::Options options;
-  options.url = GURL(url);
+  options.web_module_options.url = GURL(url);
   browser_module_.reset(new BrowserModule(user_agent, options));
 }
 
