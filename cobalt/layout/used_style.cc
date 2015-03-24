@@ -101,8 +101,8 @@ void UsedHeightProvider::VisitTransformList(
   NOTREACHED();
 }
 
-UsedWidthProvider::UsedWidthProvider(ContainingBlock* containing_block)
-    : containing_block_(containing_block) {}
+UsedWidthProvider::UsedWidthProvider(float total_child_width)
+    : total_child_width_(total_child_width) {}
 
 void UsedWidthProvider::VisitFontWeight(
     cssom::FontWeightValue* /*font_weight*/) {
@@ -112,8 +112,7 @@ void UsedWidthProvider::VisitFontWeight(
 void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
-      DCHECK_NE(static_cast<ContainingBlock*>(NULL), containing_block_);
-      used_width_ = containing_block_->used_frame().width();
+      used_width_ = total_child_width_;
       break;
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
