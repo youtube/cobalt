@@ -17,6 +17,8 @@
 #ifndef CSSOM_TRANSFORM_FUNCTION_H_
 #define CSSOM_TRANSFORM_FUNCTION_H_
 
+#include "cobalt/math/matrix3_f.h"
+
 namespace cobalt {
 namespace cssom {
 
@@ -32,6 +34,12 @@ class TransformFunction {
 
   virtual ~TransformFunction() {}
 };
+
+// Applies the specified transformation to the in/out matrix parameter.
+// The transform function is converted to a matrix and then appended to
+// the passed in matrix.
+void PostMultiplyMatrixByTransform(TransformFunction* function,
+                                   math::Matrix3F* matrix);
 
 }  // namespace cssom
 }  // namespace cobalt
