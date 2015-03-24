@@ -37,8 +37,8 @@ WebModule::WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
                               window_dimensions.height(), css_parser_.get(),
                               fetcher_factory_.get(), script_runner_.get(),
                               options.url, user_agent)),
-      layout_manager_(window_.get(), resource_provider,
-                      on_render_tree_produced) {
+      layout_manager_(window_.get(), resource_provider, on_render_tree_produced,
+                      options.layout_trigger) {
   global_object_proxy_->SetGlobalInterface(window_);
 }
 
