@@ -149,7 +149,6 @@
           '_DEBUG',
           'COBALT_BUILD_TYPE_DEBUG',
           '__LB_SHELL__FORCE_LOGGING__',
-          '__LB_SHELL__ENABLE_CONSOLE__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
         ],
       }, # end of debug_base
@@ -162,7 +161,6 @@
           'NDEBUG',
           'COBALT_BUILD_TYPE_DEVEL',
           '__LB_SHELL__FORCE_LOGGING__',
-          '__LB_SHELL__ENABLE_CONSOLE__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
         ],
       }, # end of devel_base
@@ -175,7 +173,6 @@
           'NDEBUG',
           'COBALT_BUILD_TYPE_QA',
           '__LB_SHELL__FOR_QA__',
-          '__LB_SHELL__ENABLE_CONSOLE__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
         ],
       }, # end of devel_base
