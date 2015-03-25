@@ -351,6 +351,8 @@
         'filters/video_frame_generator.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
+        'player/buffered_data_source.cc',
+        'player/buffered_data_source.h',
         'player/crypto/key_systems.h',
         'player/crypto/key_systems.cc',
         'player/crypto/proxy_decryptor.cc',

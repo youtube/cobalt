@@ -9,9 +9,10 @@
 #include <string>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop.h"
 #include "base/synchronization/lock.h"
-#include "media/base/data_source.h"
 #include "media/base/decryptor_client.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
@@ -21,6 +22,7 @@
 #include "media/filters/ffmpeg_video_decoder.h"
 #endif
 #include "media/filters/skcanvas_video_renderer.h"
+#include "media/player/buffered_data_source.h"
 
 class SkCanvas;
 
@@ -36,26 +38,9 @@ namespace media {
 
 class VideoFrame;
 class VideoRendererBase;
+class WebMediaPlayerImpl;
 
 typedef ShellVideoDecoder VideoDecoderType;
-
-enum Preload {
-  kPreloadNone,
-  kPreloadMetaData,
-  kPreloadAuto,
-};
-
-// TODO(***REMOVED***) : Implement this and move it into its own files to support
-// progressive playback.
-class BufferedDataSource : public DataSource {
- public:
-  virtual void SetPreload(Preload preload) = 0;
-  virtual bool HasSingleOrigin() = 0;
-  virtual bool DidPassCORSAccessCheck() const = 0;
-  virtual void Abort() = 0;
-};
-
-class WebMediaPlayerImpl;
 
 // Acts as a thread proxy between the various threads used for multimedia and
 // the render thread that WebMediaPlayerImpl is running on.
