@@ -180,19 +180,6 @@ void ShellAudioSink::Play() {
   pause_requested_ = false;
 }
 
-void ShellAudioSink::SetPlaybackRate(float rate) {
-  // if playback rate is 0.0 pause, if it's 1.0 go, if it's other
-  // numbers issue a warning
-  if (rate == 0.0f) {
-    Pause(false);
-  } else if (rate == 1.0f) {
-    Play();
-  } else {
-    DLOG(WARNING) << "audio sink got unsupported playback rate: " << rate;
-    Play();
-  }
-}
-
 bool ShellAudioSink::SetVolume(double volume) {
   return audio_streamer_->SetVolume(this, volume);
 }
