@@ -30,6 +30,11 @@ scoped_refptr<HTMLStyleElement> HTMLStyleElement::Create(
   return make_scoped_refptr(new HTMLStyleElement(css_parser));
 }
 
+const std::string& HTMLStyleElement::tag_name() const {
+  static const std::string kStyleTagString(kTagName);
+  return kStyleTagString;
+}
+
 void HTMLStyleElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
