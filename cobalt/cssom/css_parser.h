@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
@@ -40,10 +41,7 @@ class CSSParser {
 
   // Parses entire stylesheet.
   virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-      const std::string& file_name, const std::string& input) = 0;
-  virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheetWithBeginLine(
-      const std::string& file_name, const std::string& input,
-      int begin_line) = 0;
+      const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // TODO(***REMOVED***): Implement other entry points.
 

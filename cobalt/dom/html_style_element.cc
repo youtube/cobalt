@@ -28,18 +28,23 @@ HTMLStyleElement::HTMLStyleElement(HTMLElementFactory* html_element_factory,
                                    cssom::CSSParser* css_parser)
     : HTMLElement(html_element_factory),
       css_parser_(css_parser),
-      line_number_(0) {}
+      content_location_("[object HTMLStyleElement]", 1, 1) {}
 
 const std::string& HTMLStyleElement::tag_name() const {
   static const std::string kStyleTagString(kTagName);
   return kStyleTagString;
 }
 
+void HTMLStyleElement::SetOpeningTagLocation(
+    const base::SourceLocation& opening_tag_location) {
+  content_location_ = opening_tag_location;
+  ++content_location_.column_number;  // CSS code starts after ">".
+}
+
 void HTMLStyleElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      css_parser_->ParseStyleSheetWithBeginLine(owner_document()->url(),
-                                                text_content(), line_number_);
+      css_parser_->ParseStyleSheet(text_content(), content_location_);
   owner_document()->style_sheets()->Append(style_sheet);
   // TODO(***REMOVED***): List of style sheets should be managed by the document, so we
   // don't have to report the mutation manually. Moreover, it's a CSSOM

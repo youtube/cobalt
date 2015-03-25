@@ -18,6 +18,7 @@
 #define DOM_HTML_ELEMENT_H_
 
 #include "base/string_piece.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/element.h"
 
@@ -60,6 +61,10 @@ class HTMLElement : public Element {
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
   virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
+
+  // Points to ">" of opening tag.
+  virtual void SetOpeningTagLocation(
+      const base::SourceLocation& opening_tag_location);
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of

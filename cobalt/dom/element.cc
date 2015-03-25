@@ -85,8 +85,11 @@ void Element::set_inner_html(const std::string& inner_html) {
   }
 
   // Use DOMDecoder to parse the HTML and generate children nodes.
+  // TODO(***REMOVED***): Replace "Element" in the source location with the name
+  //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
-      this, html_element_factory_, base::Callback<void(void)>(),
+      base::SourceLocation("[object Element]", 1, 1), this,
+      html_element_factory_, base::Callback<void(void)>(),
       base::Bind(&Element::InnerHTMLError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());

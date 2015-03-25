@@ -54,6 +54,9 @@ HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory)
       style_(new cssom::CSSStyleDeclaration()),
       computed_style_(new cssom::CSSStyleDeclaration()) {}
 
+void HTMLElement::SetOpeningTagLocation(
+    const base::SourceLocation& /*opening_tag_location*/) {}
+
 HTMLElement::~HTMLElement() {}
 
 }  // namespace dom

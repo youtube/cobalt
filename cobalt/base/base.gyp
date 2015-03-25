@@ -18,12 +18,13 @@
       'target_name': 'base',
       'type': 'static_library',
       'sources': [
+        '<(DEPTH)/lbshell/src/lb_reuse_allocator.cc',
         'cobalt_paths.h',
         'compiler.h',
-        'init_cobalt.h',
         'init_cobalt.cc',
+        'init_cobalt.h',
         'polymorphic_downcast.h',
-        '<(DEPTH)/lbshell/src/lb_reuse_allocator.cc',
+        'source_location.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
