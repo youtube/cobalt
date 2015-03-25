@@ -29,7 +29,7 @@
 
 namespace {
 
-scoped_array<float> s_audio_sink_buffer;
+scoped_ptr_malloc<float> s_audio_sink_buffer;
 size_t s_audio_sink_buffer_size_in_float;
 
 }  // namespace
