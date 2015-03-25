@@ -48,6 +48,24 @@
     },
 
     {
+      # This target provides functionality for testing that rasterization
+      # results for a given render tree match up with a pre-existing
+      # "expected output" image that is stored offline as a file.
+      'target_name': 'render_tree_pixel_tester',
+      'type': 'static_library',
+      'sources': [
+        'render_tree_pixel_tester.cc',
+        'render_tree_pixel_tester.h',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
+        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
+        'renderer',
+      ],
+    },
+
+    {
       'target_name': 'renderer_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -59,11 +77,9 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/skia.gyp:skia',
-        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        'renderer',
+        'render_tree_pixel_tester',
       ],
       'actions': [
         {
