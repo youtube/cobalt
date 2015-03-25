@@ -29,10 +29,8 @@ class Parser : public cssom::CSSParser {
   ~Parser();
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-      const std::string& file_name, const std::string& input) OVERRIDE;
-  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheetWithBeginLine(
-      const std::string& file_name, const std::string& input,
-      int begin_line) OVERRIDE;
+      const std::string& input,
+      const base::SourceLocation& input_location) OVERRIDE;
 
  private:
   typedef base::Callback<void(const std::string& message)> OnMessageCallback;

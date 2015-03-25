@@ -81,7 +81,7 @@ void HTMLLinkElement::Obtain() {
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      css_parser_->ParseStyleSheet(href(), content);
+      css_parser_->ParseStyleSheet(content, base::SourceLocation(href(), 1, 1));
   owner_document()->style_sheets()->Append(style_sheet);
   // TODO(***REMOVED***): List of style sheets should be managed by the document, so we
   // don't have to report the mutation manually. Moreover, it's a CSSOM
