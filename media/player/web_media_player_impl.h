@@ -127,7 +127,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   virtual void SetRate(float rate);
   virtual void SetVolume(float volume);
   virtual void SetVisible(bool visible);
-  virtual void SetPreload(WebMediaPlayer::Preload preload);
   virtual bool GetTotalBytesKnown();
   virtual const Ranges<base::TimeDelta>& Buffered();
   virtual float MaxTimeSeekable() const;
@@ -159,7 +158,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   virtual bool HasSingleSecurityOrigin() const;
   virtual bool DidPassCORSAccessCheck() const;
-  virtual WebMediaPlayer::MovieLoadType GetMovieLoadType() const;
 
   virtual float MediaTimeForTimeValue(float timeValue) const;
 

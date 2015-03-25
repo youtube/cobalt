@@ -292,9 +292,8 @@ void WebMediaPlayerImpl::Load(const GURL& url, CORSMode cors_mode) {
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
 
-  // Handle any volume/preload changes that occured before load().
+  // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
-  SetPreload(GetClient()->Preload());
 
   SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
@@ -320,23 +319,16 @@ void WebMediaPlayerImpl::Load(const GURL& url, CORSMode cors_mode) {
 // TODO(***REMOVED***) : Enable progressive playback when a proper URL fetcher is
 // available.
 // Otherwise it's a regular request which requires resolving the URL first.
-#if 0
-  proxy_->set_data_source(
-      new BufferedDataSource(main_loop_, frame_, media_log_,
-                             base::Bind(&WebMediaPlayerImpl::NotifyDownloading,
-                                        AsWeakPtr())));
+  proxy_->set_data_source(new BufferedDataSource(main_loop_));
   proxy_->data_source()->Initialize(
-      url, static_cast<BufferedResourceLoader::CORSMode>(cors_mode),
-      base::Bind(
-          &WebMediaPlayerImpl::DataSourceInitialized,
-          AsWeakPtr(), url));
+      url,
+      base::Bind(&WebMediaPlayerImpl::DataSourceInitialized, AsWeakPtr(), url));
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   BuildDefaultCollection(proxy_->data_source(),
                          message_loop,
                          filter_collection_.get());
-#endif  // 0
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -471,24 +463,6 @@ void WebMediaPlayerImpl::SetVisible(bool visible) {
   return;
 }
 
-// TODO(***REMOVED***) : Eliminate the duplicated enums.
-#define COMPILE_ASSERT_MATCHING_ENUM(name)                              \
-  COMPILE_ASSERT(                                                       \
-      static_cast<int>(WebMediaPlayer::name) == static_cast<int>(name), \
-      mismatching_enums)
-COMPILE_ASSERT_MATCHING_ENUM(kPreloadNone);
-COMPILE_ASSERT_MATCHING_ENUM(kPreloadMetaData);
-COMPILE_ASSERT_MATCHING_ENUM(kPreloadAuto);
-#undef COMPILE_ASSERT_MATCHING_ENUM
-
-void WebMediaPlayerImpl::SetPreload(WebMediaPlayer::Preload preload) {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  if (proxy_ && proxy_->data_source()) {
-    proxy_->data_source()->SetPreload(static_cast<media::Preload>(preload));
-  }
-}
-
 bool WebMediaPlayerImpl::GetTotalBytesKnown() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
@@ -604,15 +578,6 @@ bool WebMediaPlayerImpl::HasSingleSecurityOrigin() const {
 
 bool WebMediaPlayerImpl::DidPassCORSAccessCheck() const {
   return proxy_ && proxy_->DidPassCORSAccessCheck();
-}
-
-WebMediaPlayer::MovieLoadType WebMediaPlayerImpl::GetMovieLoadType() const {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  // Disable seeking while streaming.
-  if (proxy_ && proxy_->data_source() && proxy_->data_source()->IsStreaming())
-    return WebMediaPlayer::kMovieLoadTypeLiveStream;
-  return WebMediaPlayer::kMovieLoadTypeUnknown;
 }
 
 float WebMediaPlayerImpl::MediaTimeForTimeValue(float timeValue) const {

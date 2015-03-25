@@ -10,10 +10,13 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "media/base/ranges.h"
+#include "media/base/video_frame.h"
 #include "ui/gfx/size.h"
 
 namespace media {
@@ -36,19 +39,6 @@ class WebMediaPlayer {
     kReadyStateHaveCurrentData,
     kReadyStateHaveFutureData,
     kReadyStateHaveEnoughData,
-  };
-
-  enum MovieLoadType {
-    kMovieLoadTypeUnknown,
-    kMovieLoadTypeDownload,
-    kMovieLoadTypeStoredStream,
-    kMovieLoadTypeLiveStream,
-  };
-
-  enum Preload {
-    kPreloadNone,
-    kPreloadMetaData,
-    kPreloadAuto,
   };
 
   enum AddIdStatus {
@@ -92,8 +82,6 @@ class WebMediaPlayer {
   virtual void SetRate(float rate) = 0;
   virtual void SetVolume(float volume) = 0;
   virtual void SetVisible(bool visible) = 0;
-  virtual void SetPreload(Preload preload) {};
-  virtual bool TotalBytesKnown() = 0;
   virtual const Ranges<base::TimeDelta>& Buffered() = 0;
   virtual float MaxTimeSeekable() const = 0;
 
@@ -122,7 +110,6 @@ class WebMediaPlayer {
 
   virtual bool HasSingleSecurityOrigin() const = 0;
   virtual bool DidPassCORSAccessCheck() const = 0;
-  virtual MovieLoadType GetMovieLoadType() const = 0;
 
   virtual float MediaTimeForTimeValue(float timeValue) const = 0;
 
@@ -211,36 +198,48 @@ class WebMediaPlayerClient {
   virtual void DurationChanged() = 0;
   virtual void RateChanged() = 0;
   virtual void SizeChanged() = 0;
-  virtual void SetOpaque(bool opaque) = 0;
+  // TODO(***REMOVED***) : Revisit the necessity of the following function.
+  virtual void SetOpaque(bool opaque) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
   virtual void PlaybackStateChanged() = 0;
-  virtual WebMediaPlayer::Preload Preload() const = 0;
   virtual void SourceOpened() = 0;
   virtual std::string SourceURL() const = 0;
+  // TODO(***REMOVED***) : Make the EME related functions pure virtual again once
+  // we have proper EME implementation. Currently empty implementation are
+  // provided to make media temporarily work.
   virtual void KeyAdded(const std::string& key_system,
-                        const std::string& session_id) = 0;
+                        const std::string& session_id) {
+    NOTIMPLEMENTED();
+  }
   virtual void KeyError(const std::string& key_system,
                         const std::string& session_id,
                         MediaKeyErrorCode,
-                        unsigned short system_code) = 0;
+                        unsigned short system_code) {
+    NOTIMPLEMENTED();
+  }
   virtual void KeyMessage(const std::string& key_system,
                           const std::string& session_id,
                           const unsigned char* message,
                           unsigned message_length,
-                          const std::string& default_url) = 0;
+                          const std::string& default_url) {
+    NOTIMPLEMENTED();
+  }
   virtual void KeyMessage(const std::string& key_system,
                           const std::string& session_id,
                           const unsigned char* message,
-                          unsigned message_length);
+                          unsigned message_length) {
+    NOTIMPLEMENTED();
+  }
   virtual void KeyNeeded(const std::string& key_system,
                          const std::string& session_id,
                          const unsigned char* init_data,
-                         unsigned init_data_length) = 0;
-  // The returned pointer is valid until closeHelperPlugin() is called.
-  // Returns 0 if the plugin could not be instantiated.
-  virtual void CloseHelperPlugin() = 0;
-  virtual void DisableAcceleratedCompositing() = 0;
+                         unsigned init_data_length) {
+    NOTIMPLEMENTED();
+  }
+  // TODO(***REMOVED***) : Revisit the necessity of the following functions.
+  virtual void CloseHelperPlugin() { NOTREACHED(); }
+  virtual void DisableAcceleratedCompositing() { NOTREACHED(); }
 
  protected:
   ~WebMediaPlayerClient() {}
@@ -248,7 +247,7 @@ class WebMediaPlayerClient {
 
 // An interface to allow a WebMediaPlayerImpl to communicate changes of state
 // to objects that need to know.
-class WebMediaPlayerDelegate {
+class WebMediaPlayerDelegate : base::SupportsWeakPtr<WebMediaPlayerDelegate> {
  public:
   WebMediaPlayerDelegate() {}
 
