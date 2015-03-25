@@ -21,6 +21,8 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_script_element.h"
+#include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
@@ -38,6 +40,11 @@ BoxGenerator::BoxGenerator(ContainingBlock* containing_block,
 void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
+
+  if (element->tag_name() == dom::HTMLScriptElement::kTagName ||
+      element->tag_name() == dom::HTMLStyleElement::kTagName) {
+    return;
+  }
 
   // If element is the root of layout tree, use the style of initial containing
   // block as the style of its parent.
