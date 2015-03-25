@@ -64,10 +64,10 @@ Value ClampToRange(Value min_value, Value max_value, Value value) {
 // provides a low-level API used by semantic actions in grammar.y.
 class ParserImpl {
  public:
-  ParserImpl(const std::string& file_name, const std::string& input,
+  ParserImpl(const std::string& input,
+             const base::SourceLocation& input_location,
              const Parser::OnMessageCallback& on_warning_callback,
-             const Parser::OnMessageCallback& on_error_callback,
-             int begin_line);
+             const Parser::OnMessageCallback& on_error_callback);
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
 
@@ -88,8 +88,8 @@ class ParserImpl {
                             const YYLTYPE& source_location,
                             const std::string& message);
 
-  const std::string file_path_;
   const std::string input_;
+  const base::SourceLocation input_location_;
   const Parser::OnMessageCallback on_warning_callback_;
   const Parser::OnMessageCallback on_error_callback_;
 
@@ -99,21 +99,18 @@ class ParserImpl {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
 
-  int begin_line_;
-
   friend int yyparse(ParserImpl* parser_impl);
 };
 
-ParserImpl::ParserImpl(const std::string& file_path, const std::string& input,
+ParserImpl::ParserImpl(const std::string& input,
+                       const base::SourceLocation& input_location,
                        const Parser::OnMessageCallback& on_warning_callback,
-                       const Parser::OnMessageCallback& on_error_callback,
-                       int begin_line)
-    : file_path_(file_path),
-      input_(input),
+                       const Parser::OnMessageCallback& on_error_callback)
+    : input_(input),
+      input_location_(input_location),
       scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
-      on_error_callback_(on_error_callback),
-      begin_line_(begin_line) {}
+      on_error_callback_(on_error_callback) {}
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
                             const std::string& message) {
@@ -128,11 +125,16 @@ void ParserImpl::LogError(const YYLTYPE& source_location,
 std::string ParserImpl::FormatMessage(const std::string& message_type,
                                       const YYLTYPE& source_location,
                                       const std::string& message) {
+  // Adjust source location for CSS embedded in HTML.
+  int line_number = source_location.first_line;
+  int column_number = source_location.first_column;
+  base::AdjustForStartLocation(input_location_.line_number,
+                               input_location_.column_number, &line_number,
+                               &column_number);
+
   std::stringstream message_stream;
-  message_stream << file_path_ << ":"
-                 << begin_line_ + source_location.first_line - 1 << ":"
-                 << source_location.first_column << ": " << message_type << ": "
-                 << message;
+  message_stream << input_location_.file_path << ":" << line_number << ":"
+                 << column_number << ": " << message_type << ": " << message;
   return message_stream.str();
 }
 
@@ -204,16 +206,9 @@ Parser::Parser(const OnMessageCallback& on_warning_callback,
 Parser::~Parser() {}
 
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
-    const std::string& file_name, const std::string& input) {
-  ParserImpl parser_impl(file_name, input, on_warning_callback_,
-                         on_error_callback_, 1);
-  return parser_impl.ParseStyleSheet();
-}
-
-scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheetWithBeginLine(
-    const std::string& file_name, const std::string& input, int begin_line) {
-  ParserImpl parser_impl(file_name, input, on_warning_callback_,
-                         on_error_callback_, begin_line);
+    const std::string& input, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(input, input_location, on_warning_callback_,
+                         on_error_callback_);
   return parser_impl.ParseStyleSheet();
 }
 
