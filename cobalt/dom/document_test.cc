@@ -36,12 +36,8 @@ namespace dom {
 
 class StubCSSParser : public cssom::CSSParser {
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-      const std::string& file_name, const std::string& input) OVERRIDE {
-    return new cssom::CSSStyleSheet();
-  }
-  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheetWithBeginLine(
-      const std::string& file_name, const std::string& input,
-      int begin_line) OVERRIDE {
+      const std::string& input,
+      const base::SourceLocation& input_location) OVERRIDE {
     return new cssom::CSSStyleSheet();
   }
 };

@@ -47,16 +47,18 @@ class HTMLStyleElement : public HTMLElement {
   // From HTMLElement.
   scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE { return this; }
 
+  void SetOpeningTagLocation(
+      const base::SourceLocation& opening_tag_location) OVERRIDE;
+
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
-
-  void set_line_number(int line_number) { line_number_ = line_number; }
 
  private:
   ~HTMLStyleElement() OVERRIDE;
 
   cssom::CSSParser* const css_parser_;
-  int line_number_;
+
+  base::SourceLocation content_location_;
 };
 
 }  // namespace dom
