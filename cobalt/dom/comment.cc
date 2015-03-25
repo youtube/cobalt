@@ -24,6 +24,11 @@ scoped_refptr<Comment> Comment::Create(const base::StringPiece& comment) {
   return make_scoped_refptr(new Comment(comment));
 }
 
+const std::string& Comment::node_name() const {
+  static const std::string kCommentName("#comment");
+  return kCommentName;
+}
+
 Comment::Comment(const base::StringPiece& comment)
     : comment_(comment.begin(), comment.end()) {}
 
