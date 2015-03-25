@@ -59,23 +59,21 @@ class MEDIA_EXPORT ShellAudioSink
   static ShellAudioSink* Create(ShellAudioStreamer* audio_streamer);
 
   // AudioRendererSink implementation
-  virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Pause(bool flush) OVERRIDE;
-  virtual void Play() OVERRIDE;
-  virtual void SetPlaybackRate(float rate);
-  virtual bool SetVolume(double volume) OVERRIDE;
-  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
+  void Initialize(const AudioParameters& params,
+                  RenderCallback* callback) OVERRIDE;
+  void Start() OVERRIDE;
+  void Stop() OVERRIDE;
+  void Pause(bool flush) OVERRIDE;
+  void Play() OVERRIDE;
+  bool SetVolume(double volume) OVERRIDE;
+  void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
 
   // ShellAudioStream implementation
-  virtual bool PauseRequested() const;
-  virtual bool PullFrames(uint32_t* offset_in_frame,
-                          uint32_t* total_frames) OVERRIDE;
-  virtual void ConsumeFrames(uint32_t frame_played) OVERRIDE;
-  virtual const AudioParameters& GetAudioParameters() const OVERRIDE;
-  virtual AudioBus* GetAudioBus() OVERRIDE;
+  bool PauseRequested() const OVERRIDE;
+  bool PullFrames(uint32_t* offset_in_frame, uint32_t* total_frames) OVERRIDE;
+  void ConsumeFrames(uint32_t frame_played) OVERRIDE;
+  const AudioParameters& GetAudioParameters() const OVERRIDE;
+  AudioBus* GetAudioBus() OVERRIDE;
 
   // useful for jitter tracking
   void SetClockBiasMs(int64 time_ms);
