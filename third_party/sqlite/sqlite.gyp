@@ -174,6 +174,12 @@
                 '-Wno-tautological-compare',
               ],
             }],
+            ['clang==1 and OS=="lb_shell" and target_arch=="linux"', {
+              'cflags': [
+                # Only recent versions of clang have this warning.
+                '-Wno-pointer-bool-conversion',
+              ],
+            }],
           ],
         }],
       ],
