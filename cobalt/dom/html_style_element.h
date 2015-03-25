@@ -35,10 +35,7 @@ class HTMLStyleElement : public HTMLElement {
   static scoped_refptr<HTMLStyleElement> Create(cssom::CSSParser* css_parser);
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE {
-    static const std::string kStyleTagString(kTagName);
-    return kStyleTagString;
-  }
+  const std::string& tag_name() const OVERRIDE;
 
   // Web API: HTMLStyleElement
   std::string type() const { return GetAttribute("type").value_or(""); }
