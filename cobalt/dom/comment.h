@@ -33,10 +33,7 @@ class Comment : public Node {
 
   // Web API: Node
   //
-  const std::string& node_name() const OVERRIDE {
-    static const std::string kCommentName("#comment");
-    return kCommentName;
-  }
+  const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
 
   std::string text_content() const OVERRIDE { return comment_; }
