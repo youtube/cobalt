@@ -23,6 +23,7 @@
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
@@ -90,6 +91,9 @@ class WebModule {
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
+
+  // Controls all media playback related objects/resources.
+  scoped_ptr<media::MediaModule> media_module_;
 };
 
 }  // namespace browser
