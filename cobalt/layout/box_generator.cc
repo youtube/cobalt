@@ -31,10 +31,13 @@
 namespace cobalt {
 namespace layout {
 
-BoxGenerator::BoxGenerator(ContainingBlock* containing_block,
-                           UsedStyleProvider* used_style_provider)
+BoxGenerator::BoxGenerator(
+    ContainingBlock* containing_block,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    UsedStyleProvider* used_style_provider)
     : containing_block_(containing_block),
       used_style_provider_(used_style_provider),
+      user_agent_style_sheet_(user_agent_style_sheet),
       is_root_(false) {}
 
 void BoxGenerator::Visit(dom::Element* element) {
@@ -64,7 +67,8 @@ void BoxGenerator::Visit(dom::Element* element) {
     parent_computed_style = parent_html_element->computed_style();
   }
 
-  UpdateComputedStyleOf(html_element, parent_computed_style);
+  UpdateComputedStyleOf(html_element, parent_computed_style,
+                        user_agent_style_sheet_);
 
   ContainingBlock* child_containing_block =
       GetOrGenerateContainingBlock(html_element->computed_style());
@@ -73,6 +77,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(child_containing_block,
+                                     user_agent_style_sheet_,
                                      used_style_provider_);
     child_node->Accept(&child_box_generator);
   }

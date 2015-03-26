@@ -21,6 +21,7 @@
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace layout {
@@ -38,7 +39,8 @@ namespace layout {
 scoped_refptr<render_tree::Node> Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
-    render_tree::ResourceProvider* resource_provider);
+    render_tree::ResourceProvider* resource_provider,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
 }  // namespace layout
 }  // namespace cobalt
