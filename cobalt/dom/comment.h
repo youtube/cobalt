@@ -29,7 +29,7 @@ namespace dom {
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-comment
 class Comment : public Node {
  public:
-  static scoped_refptr<Comment> Create(const base::StringPiece& comment);
+  explicit Comment(const base::StringPiece& comment);
 
   // Web API: Node
   //
@@ -49,7 +49,6 @@ class Comment : public Node {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
  private:
-  explicit Comment(const base::StringPiece& comment);
   ~Comment() OVERRIDE {}
 
   bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;

@@ -19,27 +19,22 @@
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<Comment> Comment::Create(const base::StringPiece& comment) {
-  return make_scoped_refptr(new Comment(comment));
-}
+Comment::Comment(const base::StringPiece& comment)
+    : comment_(comment.begin(), comment.end()) {}
 
 const std::string& Comment::node_name() const {
   static const std::string kCommentName("#comment");
   return kCommentName;
 }
 
-Comment::Comment(const base::StringPiece& comment)
-    : comment_(comment.begin(), comment.end()) {}
+void Comment::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
+
+void Comment::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 bool Comment::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
   // Can't attach children nodes to a comment node.
   return false;
 }
-
-void Comment::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
-
-void Comment::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 }  // namespace dom
 }  // namespace cobalt

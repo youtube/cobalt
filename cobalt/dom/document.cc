@@ -40,7 +40,7 @@ Document::Document(HTMLElementFactory* html_element_factory,
     : html_element_factory_(html_element_factory),
       location_(new Location(options.url)),
       url_(options.url),
-      style_sheets_(cssom::StyleSheetList::Create()),
+      style_sheets_(new cssom::StyleSheetList()),
       loading_counter_(0),
       should_dispatch_on_load_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
@@ -79,7 +79,7 @@ scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
 }
 
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
-  return Text::Create(text);
+  return new Text(text);
 }
 
 scoped_refptr<Element> Document::GetElementById(const std::string& id) const {

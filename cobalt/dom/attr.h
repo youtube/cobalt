@@ -40,9 +40,8 @@ class Attr : public script::Wrappable,
              public base::SupportsWeakPtr<Attr> {
  public:
   // If container is NULL, the Attr will be created in a detached state.
-  static scoped_refptr<Attr> Create(
-      const std::string& name, const std::string& value,
-      const scoped_refptr<const NamedNodeMap>& container);
+  Attr(const std::string& name, const std::string& value,
+       const scoped_refptr<const NamedNodeMap>& container);
 
   // Web API: Attr
   const std::string& name() const { return name_; }
@@ -55,8 +54,6 @@ class Attr : public script::Wrappable,
   void set_value(const std::string& value);
 
  private:
-  Attr(const std::string& name, const std::string& value,
-       const scoped_refptr<const NamedNodeMap>& container);
   ~Attr();
 
   // Used by NamedNodeMap to set the value of Attr without triggering an

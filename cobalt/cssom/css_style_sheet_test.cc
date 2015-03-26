@@ -27,7 +27,7 @@ namespace cssom {
 
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
-  CSSStyleSheetTest() : css_style_sheet_(CSSStyleSheet::Create()) {}
+  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet()) {}
   ~CSSStyleSheetTest() OVERRIDE {}
 
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;

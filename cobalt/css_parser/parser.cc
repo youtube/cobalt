@@ -137,7 +137,7 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 }
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
-  style_sheet_ = cssom::CSSStyleSheet::Create();
+  style_sheet_ = new cssom::CSSStyleSheet();
 
   // For more information on error codes
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
