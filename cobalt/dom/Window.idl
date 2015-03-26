@@ -31,6 +31,4 @@
   // animations spec.
   //   http://www.w3.org/TR/animation-timing/
   // long requestAnimationFrame(FrameRequestCallback callback);
-
-  // TODO(***REMOVED***): Investigate need to add eval() in idl.
 };
