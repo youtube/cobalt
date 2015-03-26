@@ -26,11 +26,12 @@ namespace dom {
 // static
 const char* HTMLLinkElement::kTagName = "link";
 
-// static
-scoped_refptr<HTMLLinkElement> HTMLLinkElement::Create(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser) {
-  return make_scoped_refptr(new HTMLLinkElement(fetcher_factory, css_parser));
-}
+HTMLLinkElement::HTMLLinkElement(HTMLElementFactory* html_element_factory,
+                                 loader::FetcherFactory* fetcher_factory,
+                                 cssom::CSSParser* css_parser)
+    : HTMLElement(html_element_factory),
+      fetcher_factory_(fetcher_factory),
+      css_parser_(css_parser) {}
 
 const std::string& HTMLLinkElement::tag_name() const {
   static const std::string kLinkTagString(kTagName);
@@ -41,10 +42,6 @@ void HTMLLinkElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
   Obtain();
 }
-
-HTMLLinkElement::HTMLLinkElement(loader::FetcherFactory* fetcher_factory,
-                                 cssom::CSSParser* css_parser)
-    : fetcher_factory_(fetcher_factory), css_parser_(css_parser) {}
 
 HTMLLinkElement::~HTMLLinkElement() {}
 

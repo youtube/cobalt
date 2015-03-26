@@ -53,12 +53,12 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   //   a2
   //     d1
   //     d2
-  scoped_refptr<Node> a1 = node->AppendChild(Element::Create());
-  scoped_refptr<Node> a2 = node->AppendChild(Element::Create());
-  scoped_refptr<Node> b1 = a1->AppendChild(Element::Create());
-  scoped_refptr<Node> c1 = b1->AppendChild(Element::Create());
-  scoped_refptr<Node> d1 = a2->AppendChild(Element::Create());
-  scoped_refptr<Node> d2 = a2->AppendChild(Element::Create());
+  scoped_refptr<Node> a1 = node->AppendChild(new Element());
+  scoped_refptr<Node> a2 = node->AppendChild(new Element());
+  scoped_refptr<Node> b1 = a1->AppendChild(new Element());
+  scoped_refptr<Node> c1 = b1->AppendChild(new Element());
+  scoped_refptr<Node> d1 = a2->AppendChild(new Element());
+  scoped_refptr<Node> d2 = a2->AppendChild(new Element());
 
   scoped_refptr<HTMLCollection> collection =
       node->GetElementsByClassName("class");

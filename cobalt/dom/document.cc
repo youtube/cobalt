@@ -71,7 +71,7 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
 }
 
-scoped_refptr<Element> Document::CreateElement() { return Element::Create(); }
+scoped_refptr<Element> Document::CreateElement() { return new Element(); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
   DCHECK(html_element_factory_ != NULL);

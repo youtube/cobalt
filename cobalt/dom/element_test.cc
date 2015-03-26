@@ -16,8 +16,11 @@
 
 #include "cobalt/dom/element.h"
 
+#include "base/run_loop.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_token_list.h"
+#include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
@@ -52,7 +55,7 @@ ElementTest::~ElementTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(ElementTest, CreateElement) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
   ASSERT_NE(NULL, element);
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
@@ -74,7 +77,7 @@ TEST_F(ElementTest, CreateElement) {
 }
 
 TEST_F(ElementTest, AsElement) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
   scoped_refptr<Text> text = Text::Create("text");
   scoped_refptr<Node> node = element;
 
@@ -83,7 +86,7 @@ TEST_F(ElementTest, AsElement) {
 }
 
 TEST_F(ElementTest, AttributeMethods) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
 
   element->SetAttribute("a", "1");
   EXPECT_TRUE(element->HasAttribute("a"));
@@ -104,7 +107,7 @@ TEST_F(ElementTest, AttributeMethods) {
 }
 
 TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
   scoped_refptr<NamedNodeMap> attributes = element->attributes();
 
   // Start with nothing.
@@ -168,7 +171,7 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
 }
 
 TEST_F(ElementTest, AttributesPropertySet) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
 
   scoped_refptr<Attr> attribute = Attr::Create("a", "1", NULL);
   EXPECT_EQ("1", attribute->value());
@@ -185,8 +188,8 @@ TEST_F(ElementTest, AttributesPropertySet) {
 }
 
 TEST_F(ElementTest, AttributesPropertyTransfer) {
-  scoped_refptr<Element> element1 = Element::Create();
-  scoped_refptr<Element> element2 = Element::Create();
+  scoped_refptr<Element> element1 = new Element();
+  scoped_refptr<Element> element2 = new Element();
 
   scoped_refptr<NamedNodeMap> attributes1 = element1->attributes();
   scoped_refptr<NamedNodeMap> attributes2 = element2->attributes();
@@ -221,7 +224,7 @@ TEST_F(ElementTest, AttributesPropertyTransfer) {
 }
 
 TEST_F(ElementTest, ClassList) {
-  scoped_refptr<Element> element = Element::Create();
+  scoped_refptr<Element> element = new Element();
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   element->set_class_name("  a             a b d");
   EXPECT_EQ(4, class_list->length());
@@ -256,45 +259,55 @@ TEST_F(ElementTest, ClassList) {
 }
 
 TEST_F(ElementTest, ParentNodeAllExceptChilden) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
   testing::TestParentNodeAllExceptChilden(root);
 }
 
 TEST_F(ElementTest, ParentNodeChildren) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
   testing::TestParentNodeChildren(root);
 }
 
 TEST_F(ElementTest, GetElementsByClassName) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
   testing::TestGetElementsByClassName(root);
 }
 
 // TODO(***REMOVED***): This test should be on HTMLElement.
 /*
 TEST_F(ElementTest, GetElementsByTagName) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
   testing::TestGetElementsByTagName(root);
 }
 */
 
 TEST_F(ElementTest, InnerHTML) {
-  scoped_refptr<Element> root = Element::Create();
+  HTMLElementFactory html_element_factory(NULL, NULL, NULL);
+  scoped_refptr<Element> root = new Element(&html_element_factory);
 
+  // Manually construct the DOM tree and compare serialization result:
+  // root
+  //   element_a
+  //     text
+  //     element_b1
+  //     text
+  //     element_b2
+  //     text
+  //
   scoped_refptr<Element> element_a =
-      root->AppendChild(Element::Create())->AsElement();
+      root->AppendChild(new Element(NULL))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(Text::Create("\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(Element::Create())->AsElement();
+      element_a->AppendChild(new Element(NULL))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
   element_a->AppendChild(Text::Create("\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(Element::Create())->AsElement();
+      element_a->AppendChild(new Element(NULL))->AsElement();
   element_b2->AppendChild(Text::Create("Text"));
 
   element_a->AppendChild(Text::Create("\n"));
@@ -304,8 +317,79 @@ TEST_F(ElementTest, InnerHTML) {
       "  <#element just_key></#element>\n"
       "  <#element>Text</#element>\n"
       "</#element>";
-
   EXPECT_EQ(kExpectedHTML, root->inner_html());
+
+  // Setting inner HTML should remove all previous children.
+  root->AppendChild(new Element(NULL));
+  root->set_inner_html("");
+  EXPECT_FALSE(root->HasChildNodes());
+
+  // After setting valid HTML, check whether the children are set up correctly.
+  // The expected structure is:
+  // root
+  //   element_1
+  //     text_2
+  //     element_3
+  //     text_4
+  //     element_5
+  //       text_6
+  //     text_7
+  //   text_8
+  //   element_9
+  //     text_10
+  //     comment_11
+  //     text_12
+  //
+  const char* kAnotherHTML =
+      "<div key=\"value\">\n"
+      "  <div just_key></div>\n"
+      "  <div>Text</div>\n"
+      "</div>\n"
+      "<div>\n"
+      "  This is the second div under root.\n"
+      "  <!--Comment-->\n"
+      "</div>";
+  root->set_inner_html(kAnotherHTML);
+
+  EXPECT_EQ(2, root->ChildElementCount());
+  EXPECT_TRUE(root->first_child()->IsElement());
+
+  scoped_refptr<Element> element_1 = root->first_child()->AsElement();
+  EXPECT_TRUE(element_1->HasAttribute("key"));
+  EXPECT_EQ("value", element_1->GetAttribute("key").value_or(""));
+  EXPECT_TRUE(element_1->first_child()->IsText());
+  EXPECT_TRUE(element_1->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_2 = element_1->first_child()->AsText();
+  EXPECT_TRUE(text_2->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_3 = text_2->next_sibling()->AsElement();
+  EXPECT_TRUE(element_3->HasAttributes());
+  EXPECT_TRUE(element_3->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_4 = element_3->next_sibling()->AsText();
+  EXPECT_TRUE(text_4->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_5 = text_4->next_sibling()->AsElement();
+  EXPECT_TRUE(element_5->first_child()->IsText());
+  EXPECT_EQ("Text", element_5->first_child()->AsText()->text_content());
+  EXPECT_TRUE(element_5->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_8 = element_1->next_sibling()->AsText();
+  EXPECT_TRUE(text_8->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_9 = text_8->next_sibling()->AsElement();
+  EXPECT_TRUE(element_9->first_child()->IsText());
+
+  scoped_refptr<Text> text_10 = element_9->first_child()->AsText();
+  EXPECT_TRUE(text_10->next_sibling()->IsComment());
+
+  scoped_refptr<Comment> comment_11 = text_10->next_sibling()->AsComment();
+  EXPECT_EQ("Comment", comment_11->text_content());
+  EXPECT_TRUE(comment_11->next_sibling()->IsText());
+
+  // Compare serialization result with the original HTML.
+  EXPECT_EQ(kAnotherHTML, root->inner_html());
 }
 
 }  // namespace dom

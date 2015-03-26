@@ -150,11 +150,11 @@ TEST_F(DocumentTest, GetElementById) {
   //       c1
   //   a2
   //     d1
-  scoped_refptr<Node> a1 = root->AppendChild(Element::Create());
-  scoped_refptr<Node> a2 = root->AppendChild(Element::Create());
-  scoped_refptr<Node> b1 = a1->AppendChild(Element::Create());
-  scoped_refptr<Node> c1 = b1->AppendChild(Element::Create());
-  scoped_refptr<Node> d1 = a2->AppendChild(Element::Create());
+  scoped_refptr<Node> a1 = root->AppendChild(new Element());
+  scoped_refptr<Node> a2 = root->AppendChild(new Element());
+  scoped_refptr<Node> b1 = a1->AppendChild(new Element());
+  scoped_refptr<Node> c1 = b1->AppendChild(new Element());
+  scoped_refptr<Node> d1 = a2->AppendChild(new Element());
 
   EXPECT_EQ(NULL, root->GetElementById("id"));
 
@@ -175,8 +175,8 @@ TEST_F(DocumentTest, OwnerDocument) {
   //     element2
   scoped_refptr<Document> document = make_scoped_refptr(
       new Document(&html_element_factory_, Document::Options()));
-  scoped_refptr<Node> element1 = Element::Create();
-  scoped_refptr<Node> element2 = Element::Create();
+  scoped_refptr<Node> element1 = new Element();
+  scoped_refptr<Node> element2 = new Element();
 
   EXPECT_EQ(NULL, document->owner_document());
   EXPECT_EQ(NULL, element1->owner_document());

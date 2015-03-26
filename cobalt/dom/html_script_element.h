@@ -30,14 +30,14 @@ namespace dom {
 
 // The script element allows authors to include dynamic script and data blocks
 // in their documents.
-//    http://www.w3.org/TR/html/scripting-1.html#the-script-element
+//   http://www.w3.org/TR/html/scripting-1.html#the-script-element
 class HTMLScriptElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLScriptElement> Create(
-      loader::FetcherFactory* fetcher_factory,
-      script::ScriptRunner* script_runner);
+  HTMLScriptElement(HTMLElementFactory* html_element_factory,
+                    loader::FetcherFactory* fetcher_factory,
+                    script::ScriptRunner* script_runner);
 
   // Web API: Element
   //
@@ -66,8 +66,6 @@ class HTMLScriptElement : public HTMLElement {
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  HTMLScriptElement(loader::FetcherFactory* fetcher_factory,
-                    script::ScriptRunner* script_runner);
   ~HTMLScriptElement() OVERRIDE;
 
   // From the spec: HTMLScriptElement.
