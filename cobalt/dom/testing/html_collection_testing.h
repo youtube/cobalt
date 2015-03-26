@@ -126,9 +126,6 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   EXPECT_EQ(b1, collection->Item(1));
 }
 
-// TODO(***REMOVED***): This part is rewritten using HTMLElement, since now only
-// HTMLElement has tags. But this means this test should be outside dom. Or it
-// can be moved into html/.
 template <typename T>
 void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   const scoped_refptr<Node> kNullNode;

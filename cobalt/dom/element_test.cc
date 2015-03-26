@@ -273,13 +273,10 @@ TEST_F(ElementTest, GetElementsByClassName) {
   testing::TestGetElementsByClassName(root);
 }
 
-// TODO(***REMOVED***): This test should be on HTMLElement.
-/*
 TEST_F(ElementTest, GetElementsByTagName) {
   scoped_refptr<Element> root = new Element();
   testing::TestGetElementsByTagName(root);
 }
-*/
 
 TEST_F(ElementTest, InnerHTML) {
   HTMLElementFactory html_element_factory(NULL, NULL, NULL);
