@@ -133,7 +133,7 @@
 // will generate non-working code.
 //
 // In optimized builds, both implementations generate the same assembly so we
-// choose the one that adheres to the standard. ☃
+// choose the one that adheres to the standard.
 //
 //
 // COMPARED TO C++11
