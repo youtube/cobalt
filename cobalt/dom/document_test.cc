@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/document.h"
 
+#include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -39,6 +41,15 @@ class StubCSSParser : public cssom::CSSParser {
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE {
     return new cssom::CSSStyleSheet();
+  }
+  scoped_refptr<cssom::CSSStyleDeclaration> ParseListOfDeclarations(
+      const std::string& input) OVERRIDE {
+    return scoped_refptr<cssom::CSSStyleDeclaration>();
+  }
+  scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
+      const std::string& property_name,
+      const std::string& property_value) OVERRIDE {
+    return scoped_refptr<cssom::PropertyValue>();
   }
 };
 

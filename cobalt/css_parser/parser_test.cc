@@ -82,6 +82,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> GetStyleOfOnlyRuleInStyleSheet(
 }  // namespace
 
 // TODO(***REMOVED***): Test every reduction that has semantic action.
+// TODO(***REMOVED***): Enable tests which test ParsePropertyValue and
+//               ParseListOfDeclarations functions.
 
 TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
@@ -212,6 +214,7 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
           "}\n",
           base::SourceLocation("[object ParserTest]", 1, 1)));
 
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
@@ -675,6 +678,58 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
           base::SourceLocation("[object ParserTest]", 1, 1)));
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+}
+
+TEST_F(ParserTest, DISABLED_ParsesPropertyValue) {
+  scoped_refptr<cssom::PropertyValue> property =
+      parser_.ParsePropertyValue("background", "rgba(0, 0, 0, .8)");
+
+  scoped_refptr<cssom::RGBAColorValue> background =
+      dynamic_cast<cssom::RGBAColorValue*>(property.get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background);
+  EXPECT_EQ(0x000000cc, background->value());
+}
+
+TEST_F(ParserTest, DISABLED_ParseListOfDeclarations) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseListOfDeclarations(
+          "color: rgba(255, 128, 1, 0.5);"
+          "border-radius: 0.2em;"
+          "font-family: \"Droid Sans\";"
+          "font-size: 100px;");
+
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_EQ(0xff80017f, color->value());
+
+  scoped_refptr<cssom::LengthValue> border_radius =
+      dynamic_cast<cssom::LengthValue*>(style->border_radius().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), border_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
+
+  scoped_refptr<cssom::StringValue> font_family =
+      dynamic_cast<cssom::StringValue*>(style->font_family().get());
+  ASSERT_NE(scoped_refptr<cssom::StringValue>(), font_family);
+  EXPECT_EQ("Droid Sans", font_family->value());
+
+  scoped_refptr<cssom::LengthValue> font_size =
+      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
+  EXPECT_FLOAT_EQ(100, font_size->value());
+  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_image());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->display());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->font_weight());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->height());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->opacity());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->overflow());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->transform());
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->width());
 }
 
 }  // namespace css_parser
