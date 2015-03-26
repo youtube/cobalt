@@ -156,8 +156,7 @@ scoped_refptr<HTMLCollection> HTMLCollection::CreateWithChildElements(
   if (!base) {
     return NULL;
   }
-  return make_scoped_refptr(
-      new NodeCollection<NodeChildrenIterator>(base, base::Bind(&IsElement)));
+  return new NodeCollection<NodeChildrenIterator>(base, base::Bind(&IsElement));
 }
 
 // static
@@ -166,8 +165,8 @@ scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByClassName(
   if (!base) {
     return NULL;
   }
-  return make_scoped_refptr(new NodeCollection<NodeDescendantsIterator>(
-      base, base::Bind(&IsElementWithClassName, name)));
+  return new NodeCollection<NodeDescendantsIterator>(
+      base, base::Bind(&IsElementWithClassName, name));
 }
 
 // static
@@ -176,8 +175,8 @@ scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByTagName(
   if (!base) {
     return NULL;
   }
-  return make_scoped_refptr(new NodeCollection<NodeDescendantsIterator>(
-      base, base::Bind(&IsElementWithTagName, name)));
+  return new NodeCollection<NodeDescendantsIterator>(
+      base, base::Bind(&IsElementWithTagName, name));
 }
 
 }  // namespace dom
