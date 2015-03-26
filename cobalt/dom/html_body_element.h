@@ -25,12 +25,12 @@ namespace dom {
 class Document;
 
 // The body element represents the content of the document.
-//    http://www.w3.org/TR/html/sections.html#the-body-element
+//   http://www.w3.org/TR/html/sections.html#the-body-element
 class HTMLBodyElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLBodyElement> Create();
+  explicit HTMLBodyElement(HTMLElementFactory* html_element_factory);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -39,7 +39,6 @@ class HTMLBodyElement : public HTMLElement {
   scoped_refptr<HTMLBodyElement> AsHTMLBodyElement() OVERRIDE { return this; }
 
  private:
-  HTMLBodyElement();
   ~HTMLBodyElement() OVERRIDE;
 
   void AttachToDocument(Document* document) OVERRIDE;
