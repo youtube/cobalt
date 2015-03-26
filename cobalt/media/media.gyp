@@ -18,12 +18,40 @@
       'target_name': 'media',
       'type': 'static_library',
       'sources': [
+        'media_module.h',
+        'media_module_<(actual_target_arch).cc',
       ],
-      'dependencies': [
-        '<(DEPTH)/media/media.gyp:media',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/media/media.gyp:media',
+      'conditions': [
+        ['target_arch == "ps3"', {
+          # TODO(***REMOVED***) : Find a better place to put lbshell files and add
+          #                   support for other platforms like Linux.
+          'sources': [
+            'shell_dummy_raw_video_decoder_ps3.cc',
+            '<(lbshell_root)/src/lb_memory_pool.cc',
+            '<(lbshell_root)/src/lb_memory_pool.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_media_platform_ps3.cc',
+          ],
+          'include_dirs': [
+            '<(lbshell_root)/src',
+            '<(lbshell_root)/src/platform/<(target_arch)',
+          ],
+          'dependencies': [
+            '<(DEPTH)/media/media.gyp:media',
+            # For resampler
+            '<(lbshell_root)/build/platforms/ps3.gyp:spurs_tasks',
+          ],
+          'export_dependent_settings': [
+            '<(DEPTH)/media/media.gyp:media',
+          ],
+        }],
       ],
     },
   ],
