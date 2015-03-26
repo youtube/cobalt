@@ -27,10 +27,6 @@ interface Element : Node {
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
 
-  // TODO(***REMOVED***): style should be on HTMLElement. Remove this when auto type
-  // binding is supported for JS. b/19898684 is fired to track this issue.
-  readonly attribute CSSStyleDeclaration style;
-
   // Below are from partial interface Element in DOM Parsing and Serialization spec.
   //   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#extensions-to-the-element-interface
   [TreatNullAs=EmptyString] attribute DOMString innerHTML;
