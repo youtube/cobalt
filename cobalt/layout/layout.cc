@@ -60,13 +60,15 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
 scoped_refptr<render_tree::Node> Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   UsedStyleProvider used_style_provider(resource_provider);
 
   scoped_ptr<ContainingBlock> initial_containing_block =
       CreateInitialContainingBlock(viewport_size, &used_style_provider);
 
   BoxGenerator box_generator(initial_containing_block.get(),
+                             user_agent_style_sheet,
                              &used_style_provider);
   box_generator.set_is_root(true);
   root_element->Accept(&box_generator);
