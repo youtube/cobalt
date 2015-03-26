@@ -212,5 +212,20 @@ scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
   return parser_impl.ParseStyleSheet();
 }
 
+scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseListOfDeclarations(
+    const std::string& /*input*/) {
+  // TODO(***REMOVED***): Implement this.
+  NOTREACHED();
+  return scoped_refptr<cssom::CSSStyleDeclaration>();
+}
+
+scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
+    const std::string& /*property_name*/,
+    const std::string& /*property_value*/) {
+  // TODO(***REMOVED***): Implement this.
+  NOTREACHED();
+  return scoped_refptr<cssom::PropertyValue>();
+}
+
 }  // namespace css_parser
 }  // namespace cobalt

@@ -94,6 +94,9 @@ scoped_refptr<PropertyValue> CSSStyleDeclaration::GetPropertyValue(
       if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
         return background_color();
       }
+      if (LowerCaseEqualsASCII(property_name, kBackgroundImagePropertyName)) {
+        return background_image();
+      }
       return NULL;
 
     default:
@@ -164,6 +167,9 @@ void CSSStyleDeclaration::SetPropertyValue(
     case 16:
       if (LowerCaseEqualsASCII(property_name, kBackgroundColorPropertyName)) {
         set_background_color(property_value);
+      } else if (LowerCaseEqualsASCII(property_name,
+                                      kBackgroundImagePropertyName)) {
+        set_background_image(property_value);
       }
       break;
 
@@ -178,6 +184,7 @@ void CSSStyleDeclaration::SetPropertyValue(
 void CSSStyleDeclaration::AssignFrom(const CSSStyleDeclaration& rhs) {
   set_background(rhs.background());
   set_background_color(rhs.background_color());
+  set_background_image(rhs.background_image());
   set_border_radius(rhs.border_radius());
   set_color(rhs.color());
   set_display(rhs.display());
