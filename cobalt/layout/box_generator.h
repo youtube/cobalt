@@ -18,6 +18,7 @@
 #define LAYOUT_BOX_GENERATOR_H_
 
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/node.h"
 
@@ -31,8 +32,10 @@ class UsedStyleProvider;
 // As a side-effect, computed styles of processed elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
-  BoxGenerator(ContainingBlock* containing_block,
-               UsedStyleProvider* used_style_provider);
+  BoxGenerator(
+      ContainingBlock* containing_block,
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+      UsedStyleProvider* used_style_provider);
 
   void set_is_root(bool is_root) { is_root_ = is_root; }
 
@@ -59,6 +62,7 @@ class BoxGenerator : public dom::NodeVisitor {
       const std::string::const_iterator& text_end_iterator,
       const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style);
 
+  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   ContainingBlock* const containing_block_;
   UsedStyleProvider* const used_style_provider_;
   bool is_root_;

@@ -52,7 +52,46 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
+        'embed_resources_as_header_files',
       ],
+    },
+
+    {
+      # This target takes all files in the embedded_resources directory (e.g.
+      # the user agent style sheet) and embeds them as header files for
+      # inclusion into the binary.
+      'target_name': 'embed_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/lbshell/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/layout/embedded_resources.h',
+        'input_directory': 'embedded_resources',
+      },
+      'sources': [
+        '<(input_directory)/user_agent_style_sheet.css',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'LayoutEmbeddedResources', '<(input_directory)', '<(output_path)'],
+          'message': 'Embedding layout resources in "<(input_directory)" into header file, "<(output_path)".',
+          'msvs_cygwin_shell': 1,
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
     },
 
     {
