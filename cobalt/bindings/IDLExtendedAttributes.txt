@@ -55,7 +55,7 @@ PrimaryGlobal
 # also used in Cobalt to expose interfaces used in unit tests to a TestWindow
 # global interface, rather than the default Window global interface.
 # http://heycam.github.io/webidl/#Exposed
-Exposed=TestWindow
+Exposed=TestWindow|Window|Worker
 
 # Not yet supported
 Constructor
