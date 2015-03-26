@@ -35,6 +35,12 @@ class MediaError : public script::Wrappable {
     kMediaErrSrcNotSupported = 4,
   };
 
+  // Custom, not in any spec.
+  //
+  explicit MediaError(Code code) : code_(code) {}
+
+  // Web API: MediaError
+  //
   Code code() const { return code_; }
 
  private:
