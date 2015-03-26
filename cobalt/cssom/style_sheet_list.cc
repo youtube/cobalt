@@ -23,10 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
-// static
-scoped_refptr<StyleSheetList> StyleSheetList::Create() {
-  return make_scoped_refptr(new StyleSheetList());
-}
+StyleSheetList::StyleSheetList() {}
 
 scoped_refptr<CSSStyleSheet> StyleSheetList::Item(unsigned int index) const {
   return index < style_sheets_.size() ? style_sheets_[index] : NULL;
@@ -40,8 +37,6 @@ unsigned int StyleSheetList::length() const {
 void StyleSheetList::Append(const scoped_refptr<CSSStyleSheet>& style_sheet) {
   style_sheets_.push_back(style_sheet);
 }
-
-StyleSheetList::StyleSheetList() {}
 
 StyleSheetList::~StyleSheetList() {}
 

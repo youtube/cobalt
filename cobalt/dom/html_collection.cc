@@ -146,10 +146,6 @@ bool IsElementWithTagName(const std::string& tag_name, Node* node) {
 // HTMLCollection
 /////////////////////////////////////////////////////////////////////////////
 
-HTMLCollection::HTMLCollection() { Stats::GetInstance()->Add(this); }
-
-HTMLCollection::~HTMLCollection() { Stats::GetInstance()->Remove(this); }
-
 // static
 scoped_refptr<HTMLCollection> HTMLCollection::CreateWithChildElements(
     const scoped_refptr<const Node>& base) {
@@ -178,6 +174,10 @@ scoped_refptr<HTMLCollection> HTMLCollection::CreateWithElementsByTagName(
   return new NodeCollection<NodeDescendantsIterator>(
       base, base::Bind(&IsElementWithTagName, name));
 }
+
+HTMLCollection::HTMLCollection() { Stats::GetInstance()->Add(this); }
+
+HTMLCollection::~HTMLCollection() { Stats::GetInstance()->Remove(this); }
 
 }  // namespace dom
 }  // namespace cobalt

@@ -27,7 +27,7 @@ namespace dom {
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
 class Text : public Node {
  public:
-  static scoped_refptr<Text> Create(const base::StringPiece& text);
+  explicit Text(const base::StringPiece& text);
 
   // Web API: Node
   //
@@ -53,7 +53,6 @@ class Text : public Node {
   const std::string& text() const { return text_; }
 
  private:
-  explicit Text(const base::StringPiece& text);
   ~Text() OVERRIDE {}
 
   bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;

@@ -23,11 +23,11 @@ namespace cobalt {
 namespace cssom {
 
 TEST(StyleSheetListTest, ItemAccess) {
-  scoped_refptr<StyleSheetList> style_sheet_list = StyleSheetList::Create();
+  scoped_refptr<StyleSheetList> style_sheet_list = new StyleSheetList();
   ASSERT_EQ(0, style_sheet_list->length());
   ASSERT_EQ(NULL, style_sheet_list->Item(0).get());
 
-  scoped_refptr<CSSStyleSheet> style_sheet = CSSStyleSheet::Create();
+  scoped_refptr<CSSStyleSheet> style_sheet = new CSSStyleSheet();
   style_sheet_list->Append(style_sheet);
   ASSERT_EQ(1, style_sheet_list->length());
   ASSERT_EQ(style_sheet, style_sheet_list->Item(0));

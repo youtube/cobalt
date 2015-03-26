@@ -45,8 +45,8 @@ TextTest::~TextTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 TEST_F(TextTest, CheckAttach) {
   scoped_refptr<Element> root = new Element();
 
-  scoped_refptr<Node> text = root->AppendChild(Text::Create("text"));
-  scoped_refptr<Node> other_text = Text::Create("other_text");
+  scoped_refptr<Node> text = root->AppendChild(new Text("text"));
+  scoped_refptr<Node> other_text = new Text("other_text");
 
   // Checks that we can't attach text nodes to other text nodes.
   EXPECT_EQ(NULL, text->AppendChild(other_text));
@@ -56,9 +56,9 @@ TEST_F(TextTest, CheckAttach) {
 TEST_F(TextTest, TextContent) {
   scoped_refptr<Element> root = new Element();
 
-  root->AppendChild(new Element())->AppendChild(Text::Create("This "));
-  root->AppendChild(new Element())->AppendChild(Text::Create("is "));
-  root->AppendChild(new Element())->AppendChild(Text::Create("Sparta."));
+  root->AppendChild(new Element())->AppendChild(new Text("This "));
+  root->AppendChild(new Element())->AppendChild(new Text("is "));
+  root->AppendChild(new Element())->AppendChild(new Text("Sparta."));
   EXPECT_EQ("This is Sparta.", root->text_content());
 
   const char* kTextContent = "New text content";

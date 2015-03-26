@@ -33,7 +33,7 @@ class CSSStyleSheet;
 class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
                     public script::Wrappable {
  public:
-  static scoped_refptr<CSSRuleList> Create(
+  explicit CSSRuleList(
       const scoped_refptr<const CSSStyleSheet>& css_style_sheet);
 
   // Web API: CSSRuleList
@@ -47,8 +47,6 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   unsigned int length() const;
 
  private:
-  explicit CSSRuleList(
-      const scoped_refptr<const CSSStyleSheet>& css_style_sheet);
   ~CSSRuleList();
 
   scoped_refptr<const CSSStyleSheet> css_style_sheet_;

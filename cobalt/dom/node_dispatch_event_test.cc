@@ -98,9 +98,9 @@ class NodeDispatchEventTest : public ::testing::Test {
 NodeDispatchEventTest::NodeDispatchEventTest() {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 
-  grand_parent_ = FakeNode::Create();
-  parent_ = grand_parent_->AppendChild(FakeNode::Create());
-  child_ = parent_->AppendChild(FakeNode::Create());
+  grand_parent_ = new FakeNode();
+  parent_ = grand_parent_->AppendChild(new FakeNode());
+  child_ = parent_->AppendChild(new FakeNode());
   event_listener_capture_ = new NiceMockEventListener;
   event_listener_bubbling_ = new NiceMockEventListener;
 

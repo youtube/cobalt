@@ -78,7 +78,7 @@ TEST_F(ElementTest, CreateElement) {
 
 TEST_F(ElementTest, AsElement) {
   scoped_refptr<Element> element = new Element();
-  scoped_refptr<Text> text = Text::Create("text");
+  scoped_refptr<Text> text = new Text("text");
   scoped_refptr<Node> node = element;
 
   EXPECT_EQ(element, node->AsElement());
@@ -173,7 +173,7 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
 TEST_F(ElementTest, AttributesPropertySet) {
   scoped_refptr<Element> element = new Element();
 
-  scoped_refptr<Attr> attribute = Attr::Create("a", "1", NULL);
+  scoped_refptr<Attr> attribute = new Attr("a", "1", NULL);
   EXPECT_EQ("1", attribute->value());
 
   attribute->set_value("2");
@@ -183,7 +183,7 @@ TEST_F(ElementTest, AttributesPropertySet) {
   EXPECT_EQ(NULL, attributes->SetNamedItem(attribute));
   EXPECT_EQ(std::string("2"), element->GetAttribute("a"));
 
-  attributes->SetNamedItem(Attr::Create("a", "3", NULL));
+  attributes->SetNamedItem(new Attr("a", "3", NULL));
   EXPECT_EQ(std::string("3"), element->GetAttribute("a"));
 }
 
@@ -298,19 +298,19 @@ TEST_F(ElementTest, InnerHTML) {
       root->AppendChild(new Element(NULL))->AsElement();
   element_a->SetAttribute("key", "value");
 
-  element_a->AppendChild(Text::Create("\n  "));
+  element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b1 =
       element_a->AppendChild(new Element(NULL))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
-  element_a->AppendChild(Text::Create("\n  "));
+  element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b2 =
       element_a->AppendChild(new Element(NULL))->AsElement();
-  element_b2->AppendChild(Text::Create("Text"));
+  element_b2->AppendChild(new Text("Text"));
 
-  element_a->AppendChild(Text::Create("\n"));
+  element_a->AppendChild(new Text("\n"));
 
   const char* kExpectedHTML =
       "<#element key=\"value\">\n"
