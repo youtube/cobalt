@@ -27,12 +27,14 @@ namespace dom {
 // static
 const char* HTMLScriptElement::kTagName = "script";
 
-// static
-scoped_refptr<HTMLScriptElement> HTMLScriptElement::Create(
-    loader::FetcherFactory* fetcher_factory,
-    script::ScriptRunner* script_runner) {
-  return make_scoped_refptr(
-      new HTMLScriptElement(fetcher_factory, script_runner));
+HTMLScriptElement::HTMLScriptElement(HTMLElementFactory* html_element_factory,
+                                     loader::FetcherFactory* fetcher_factory,
+                                     script::ScriptRunner* script_runner)
+    : HTMLElement(html_element_factory),
+      fetcher_factory_(fetcher_factory),
+      script_runner_(script_runner),
+      is_already_started_(false) {
+  DCHECK(script_runner_);
 }
 
 const std::string& HTMLScriptElement::tag_name() const {
@@ -70,14 +72,6 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
     // Immediately execute the script.
     script_runner_->Execute(text());
   }
-}
-
-HTMLScriptElement::HTMLScriptElement(loader::FetcherFactory* fetcher_factory,
-                                     script::ScriptRunner* script_runner)
-    : fetcher_factory_(fetcher_factory),
-      script_runner_(script_runner),
-      is_already_started_(false) {
-  DCHECK(script_runner_);
 }
 
 HTMLScriptElement::~HTMLScriptElement() {}

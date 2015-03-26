@@ -32,7 +32,8 @@ class HTMLStyleElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLStyleElement> Create(cssom::CSSParser* css_parser);
+  HTMLStyleElement(HTMLElementFactory* html_element_factory,
+                   cssom::CSSParser* css_parser);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -52,7 +53,6 @@ class HTMLStyleElement : public HTMLElement {
   void set_line_number(int line_number) { line_number_ = line_number; }
 
  private:
-  explicit HTMLStyleElement(cssom::CSSParser* css_parser);
   ~HTMLStyleElement() OVERRIDE;
 
   cssom::CSSParser* const css_parser_;

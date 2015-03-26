@@ -17,19 +17,23 @@
 #include "cobalt/dom/element.h"
 
 #include "base/string_util.h"
+#include "cobalt/dom/dom_decoder.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_serializer.h"
 #include "cobalt/dom/named_node_map.h"
 
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<Element> Element::Create() {
-  return make_scoped_refptr(new Element());
-}
+Element::Element()
+    : html_element_factory_(NULL), style_(new cssom::CSSStyleDeclaration()) {}
+
+Element::Element(HTMLElementFactory* html_element_factory)
+    : html_element_factory_(html_element_factory),
+      style_(new cssom::CSSStyleDeclaration()) {}
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
@@ -58,6 +62,8 @@ scoped_refptr<DOMTokenList> Element::class_list() {
   return class_list;
 }
 
+// Algorithm for inner_html:
+//   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#widl-Element-innerHTML
 std::string Element::inner_html() const {
   std::stringstream html_stream;
 
@@ -65,6 +71,26 @@ std::string Element::inner_html() const {
   serializer.SerializeDescendantsOnly(this);
 
   return html_stream.str();
+}
+
+// Algorithm for set_inner_html:
+//   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#widl-Element-innerHTML
+void Element::set_inner_html(const std::string& inner_html) {
+  // Remove all children.
+  scoped_refptr<Node> child = first_child();
+  while (child) {
+    scoped_refptr<Node> next_child = child->next_sibling();
+    RemoveChild(child);
+    child = next_child;
+  }
+
+  // Use DOMDecoder to parse the HTML and generate children nodes.
+  DOMDecoder dom_decoder(
+      this, html_element_factory_, base::Callback<void(void)>(),
+      base::Bind(&Element::InnerHTMLError, base::Unretained(this)),
+      DOMDecoder::kDocumentFragment);
+  dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());
+  dom_decoder.Finish();
 }
 
 // Algorithm for GetAttribute:
@@ -182,9 +208,12 @@ void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
-Element::Element() : style_(new cssom::CSSStyleDeclaration()) {}
-
 Element::~Element() {}
+
+void Element::InnerHTMLError(const std::string& error) {
+  // TODO(***REMOVED***): Report line / column number.
+  LOG(WARNING) << "Error in inner HTML: " << error;
+}
 
 }  // namespace dom
 }  // namespace cobalt

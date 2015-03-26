@@ -30,7 +30,7 @@ class HTMLSpanElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLSpanElement> Create();
+  explicit HTMLSpanElement(HTMLElementFactory* html_element_factory);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -39,7 +39,6 @@ class HTMLSpanElement : public HTMLElement {
   scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() OVERRIDE { return this; }
 
  private:
-  HTMLSpanElement();
   ~HTMLSpanElement() OVERRIDE;
 };
 

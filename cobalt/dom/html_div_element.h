@@ -25,12 +25,12 @@ namespace dom {
 // The div element has no special meaning at all. It represents its children. It
 // can be used with the class, lang, and title attributes to mark up semantics
 // common to a group of consecutive elements.
-//    http://www.w3.org/TR/html/grouping-content.html#the-div-element
+//   http://www.w3.org/TR/html/grouping-content.html#the-div-element
 class HTMLDivElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLDivElement> Create();
+  explicit HTMLDivElement(HTMLElementFactory* html_element_factory);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -39,7 +39,6 @@ class HTMLDivElement : public HTMLElement {
   scoped_refptr<HTMLDivElement> AsHTMLDivElement() OVERRIDE { return this; }
 
  private:
-  HTMLDivElement();
   ~HTMLDivElement() OVERRIDE;
 };
 

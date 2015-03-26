@@ -25,12 +25,12 @@ namespace dom {
 class Document;
 
 // The html element represents the root of an HTML document.
-//    http://www.w3.org/TR/html/semantics.html#the-html-element
+//   http://www.w3.org/TR/html/semantics.html#the-html-element
 class HTMLHtmlElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLHtmlElement> Create();
+  explicit HTMLHtmlElement(HTMLElementFactory* html_element_factory);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -39,7 +39,6 @@ class HTMLHtmlElement : public HTMLElement {
   scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() OVERRIDE { return this; }
 
  private:
-  HTMLHtmlElement();
   ~HTMLHtmlElement() OVERRIDE;
 
   void AttachToDocument(Document* document) OVERRIDE;
