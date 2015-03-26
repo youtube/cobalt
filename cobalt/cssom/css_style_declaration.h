@@ -85,6 +85,14 @@ class CSSStyleDeclaration : public script::Wrappable {
     background_color_ = background_color;
   }
 
+  const scoped_refptr<PropertyValue>& background_image() const {
+    return background_image_;
+  }
+  void set_background_image(
+      const scoped_refptr<PropertyValue>& background_image) {
+    background_image_ = background_image;
+  }
+
   const scoped_refptr<PropertyValue>& border_radius() const {
     return border_radius_;
   }
@@ -142,6 +150,18 @@ class CSSStyleDeclaration : public script::Wrappable {
   const scoped_refptr<PropertyValue>& width() const { return width_; }
   void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
+  // TODO(***REMOVED***): The getter of css_text returns the result of serializing the
+  // declarations, which is not required for Performance Spike. This should be
+  // handled propertly afterwards.
+  const std::string css_text() const {
+    NOTREACHED();
+    return NULL;
+  }
+  void set_css_text(const std::string& /*css_text*/) {
+    // TODO(***REMOVED***): send css_text to CSS parser.
+    NOTREACHED();
+  }
+
   // Custom, not in any spec.
   //
 
@@ -152,6 +172,7 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   scoped_refptr<PropertyValue> background_;
   scoped_refptr<PropertyValue> background_color_;
+  scoped_refptr<PropertyValue> background_image_;
   scoped_refptr<PropertyValue> border_radius_;
   scoped_refptr<PropertyValue> color_;
   scoped_refptr<PropertyValue> display_;
