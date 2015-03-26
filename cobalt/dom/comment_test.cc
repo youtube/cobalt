@@ -48,7 +48,7 @@ CommentTest::~CommentTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(CommentTest, CommentCheckAttach) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
 
   scoped_refptr<Node> comment = root->AppendChild(Comment::Create("comment"));
   scoped_refptr<Node> text = Text::Create("text");
@@ -59,7 +59,7 @@ TEST_F(CommentTest, CommentCheckAttach) {
 }
 
 TEST_F(CommentTest, TextContentHasNoComments) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
 
   root->AppendChild(Text::Create("t1"));
   root->AppendChild(Comment::Create("comment"));
@@ -69,7 +69,7 @@ TEST_F(CommentTest, TextContentHasNoComments) {
 }
 
 TEST_F(CommentTest, InnerHTML) {
-  scoped_refptr<Element> root = Element::Create();
+  scoped_refptr<Element> root = new Element();
 
   root->AppendChild(Text::Create("t1"));
   root->AppendChild(Comment::Create("comment"));

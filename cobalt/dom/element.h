@@ -28,6 +28,7 @@ namespace dom {
 class DOMTokenList;
 class HTMLCollection;
 class HTMLElement;
+class HTMLElementFactory;
 class NamedNodeMap;
 
 // The Element interface represents an object of a Document. This interface
@@ -37,7 +38,8 @@ class Element : public Node {
  public:
   typedef base::hash_map<std::string, std::string> AttributeMap;
 
-  static scoped_refptr<Element> Create();
+  Element();
+  explicit Element(HTMLElementFactory* html_element_factory);
 
   // Web API: Node
   //
@@ -83,7 +85,7 @@ class Element : public Node {
   //   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#extensions-to-the-element-interface
   //
   std::string inner_html() const;
-  // TODO(***REMOVED***): Implement set_inner_html()
+  void set_inner_html(const std::string& inner_html);
 
   // Web API: Selectors API Level 1 (partial interface)
   // This interface is extended in the spec Selectors API Level 1.
@@ -114,7 +116,6 @@ class Element : public Node {
   }
 
  protected:
-  Element();
   ~Element() OVERRIDE;
 
   // Getting and setting boolean attribute.
@@ -123,6 +124,9 @@ class Element : public Node {
   void SetBooleanAttribute(const std::string& name, bool value);
 
  private:
+  // Callback for error when parsing inner HTML.
+  void InnerHTMLError(const std::string& error);
+
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
@@ -131,6 +135,9 @@ class Element : public Node {
   // A weak pointer to a DOMTOkenList containing the the classes of the element.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<DOMTokenList> class_list_;
+
+  // Reference to HTML element factory, used for setting inner HTML attribute.
+  HTMLElementFactory* html_element_factory_;
 
   // TODO(***REMOVED***): Remove style_ when auto type binding is supported for JS.
   scoped_refptr<cssom::CSSStyleDeclaration> style_;

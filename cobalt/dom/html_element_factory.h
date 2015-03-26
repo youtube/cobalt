@@ -43,6 +43,11 @@ class HTMLElementFactory {
       const base::StringPiece& tag_name);
 
  private:
+  typedef base::Callback<scoped_refptr<HTMLElement>()>
+      CreateHTMLElementTCallback;
+  typedef base::hash_map<base::StringPiece, CreateHTMLElementTCallback>
+      TagNameToCreateHTMLElementTCallbackMap;
+
   template <typename T>
   scoped_refptr<HTMLElement> CreateHTMLElementT();
 
@@ -50,10 +55,6 @@ class HTMLElementFactory {
   cssom::CSSParser* const css_parser_;
   script::ScriptRunner* const script_runner_;
 
-  typedef base::Callback<scoped_refptr<HTMLElement>()>
-      CreateHTMLElementTCallback;
-  typedef base::hash_map<base::StringPiece, CreateHTMLElementTCallback>
-      TagNameToCreateHTMLElementTCallbackMap;
   TagNameToCreateHTMLElementTCallbackMap
       tag_name_to_create_html_element_t_callback_map_;
 

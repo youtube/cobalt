@@ -34,8 +34,9 @@ class HTMLLinkElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLLinkElement> Create(
-      loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser);
+  HTMLLinkElement(HTMLElementFactory* html_element_factory,
+                  loader::FetcherFactory* fetcher_factory,
+                  cssom::CSSParser* css_parser);
 
   // Web API: Element
   //
@@ -60,8 +61,6 @@ class HTMLLinkElement : public HTMLElement {
   void AttachToDocument(Document* document) OVERRIDE;
 
  private:
-  HTMLLinkElement(loader::FetcherFactory* fetcher_factory,
-                  cssom::CSSParser* css_parser);
   ~HTMLLinkElement() OVERRIDE;
 
   // From the spec: HTMLLinkElement.

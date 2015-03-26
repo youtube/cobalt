@@ -24,11 +24,11 @@ namespace dom {
 // static
 const char* HTMLStyleElement::kTagName = "style";
 
-// static
-scoped_refptr<HTMLStyleElement> HTMLStyleElement::Create(
-    cssom::CSSParser* css_parser) {
-  return make_scoped_refptr(new HTMLStyleElement(css_parser));
-}
+HTMLStyleElement::HTMLStyleElement(HTMLElementFactory* html_element_factory,
+                                   cssom::CSSParser* css_parser)
+    : HTMLElement(html_element_factory),
+      css_parser_(css_parser),
+      line_number_(0) {}
 
 const std::string& HTMLStyleElement::tag_name() const {
   static const std::string kStyleTagString(kTagName);
@@ -47,9 +47,6 @@ void HTMLStyleElement::AttachToDocument(Document* document) {
   // method into two methods to have a better event granularity.
   owner_document()->RecordMutation();
 }
-
-HTMLStyleElement::HTMLStyleElement(cssom::CSSParser* css_parser)
-    : css_parser_(css_parser), line_number_(0) {}
 
 HTMLStyleElement::~HTMLStyleElement() {}
 

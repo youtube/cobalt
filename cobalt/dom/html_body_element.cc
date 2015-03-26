@@ -24,19 +24,15 @@ namespace dom {
 // static
 const char* HTMLBodyElement::kTagName = "body";
 
-// static
-scoped_refptr<HTMLBodyElement> HTMLBodyElement::Create() {
-  return make_scoped_refptr(new HTMLBodyElement());
-}
-
-HTMLBodyElement::HTMLBodyElement() {}
-
-HTMLBodyElement::~HTMLBodyElement() {}
+HTMLBodyElement::HTMLBodyElement(HTMLElementFactory* html_element_factory)
+    : HTMLElement(html_element_factory) {}
 
 const std::string& HTMLBodyElement::tag_name() const {
   static const std::string kBodyTagString(kTagName);
   return kBodyTagString;
 }
+
+HTMLBodyElement::~HTMLBodyElement() {}
 
 void HTMLBodyElement::AttachToDocument(Document* document) {
   Node::AttachToDocument(document);
