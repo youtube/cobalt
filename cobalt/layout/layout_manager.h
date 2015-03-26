@@ -19,6 +19,8 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/window.h"
@@ -45,6 +47,7 @@ class LayoutManager : public dom::DocumentObserver {
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
+                cssom::CSSParser* css_parser,
                 LayoutTrigger layout_trigger);
   ~LayoutManager();
 
@@ -59,7 +62,7 @@ class LayoutManager : public dom::DocumentObserver {
   const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
-
+  const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const LayoutTrigger layout_trigger_;
 
   DISALLOW_COPY_AND_ASSIGN(LayoutManager);
