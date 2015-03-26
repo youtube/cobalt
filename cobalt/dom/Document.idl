@@ -24,11 +24,15 @@ interface Document : Node {
   [NewObject] Element createElement(DOMString localName);
   [NewObject] Text createTextNode(DOMString data);
 
-  // TODO(***REMOVED***): Add optional (?) to body, head when supported.
-  // TODO(***REMOVED***): Enable location when supported.
-  // [PutForwards=href, Unforgeable] readonly attribute Location? location;
-  readonly attribute HTMLHeadElement head;
-  attribute HTMLBodyElement body;
+  // Below are from partial interface Document in HTML5 spec.
+  //   http://www.w3.org/TR/html5/dom.html#the-document-object
+  [PutForwards=href, Unforgeable] readonly attribute Location? location;
+  // body attribute is changed, from the spec's:
+  //   attribute HTMLElement? body;
+  // This is because we don't support frameset element, body has to be an
+  // HTMLBodyElement.
+  attribute HTMLBodyElement? body;
+  readonly attribute HTMLHeadElement? head;
 
   // TODO(***REMOVED***): b/19866057. Add styleSheets to a partial interface when
   // supported.
