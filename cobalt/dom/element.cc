@@ -41,7 +41,7 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
   scoped_refptr<NamedNodeMap> named_node_map = named_node_map_.get();
   if (!named_node_map) {
     // Create a new instance and store a weak reference.
-    named_node_map = NamedNodeMap::Create(this);
+    named_node_map = new NamedNodeMap(this);
     named_node_map_ = named_node_map->AsWeakPtr();
   }
   return named_node_map;
@@ -56,7 +56,7 @@ scoped_refptr<DOMTokenList> Element::class_list() {
   scoped_refptr<DOMTokenList> class_list = class_list_.get();
   if (!class_list) {
     // Create a new instance and store a weak reference.
-    class_list = DOMTokenList::Create(this, "class");
+    class_list = new DOMTokenList(this, "class");
     class_list_ = class_list->AsWeakPtr();
   }
   return class_list;

@@ -23,11 +23,10 @@
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<Attr> Attr::Create(
-    const std::string& name, const std::string& value,
-    const scoped_refptr<const NamedNodeMap>& container) {
-  return make_scoped_refptr(new Attr(name, value, container));
+Attr::Attr(const std::string& name, const std::string& value,
+           const scoped_refptr<const NamedNodeMap>& container)
+    : name_(name), value_(value), container_(container) {
+  Stats::GetInstance()->Add(this);
 }
 
 void Attr::set_value(const std::string& value) {
@@ -35,12 +34,6 @@ void Attr::set_value(const std::string& value) {
   if (container_) {
     container_->element()->SetAttribute(name_, value_);
   }
-}
-
-Attr::Attr(const std::string& name, const std::string& value,
-           const scoped_refptr<const NamedNodeMap>& container)
-    : name_(name), value_(value), container_(container) {
-  Stats::GetInstance()->Add(this);
 }
 
 Attr::~Attr() { Stats::GetInstance()->Remove(this); }

@@ -26,10 +26,18 @@
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<DOMTokenList> DOMTokenList::Create(
-    const scoped_refptr<Element>& element, const std::string& attr_name) {
-  return new DOMTokenList(element, attr_name);
+DOMTokenList::DOMTokenList(const scoped_refptr<Element>& element,
+                           const std::string& attr_name)
+    : element_(element),
+      attr_name_(attr_name),
+      element_node_generation_(Node::kInvalidNodeGeneration) {
+  // The current implementation relies on nodes calling UpdateNodeGeneration()
+  // each time the class is changed. This results in DOMTokenList only working
+  // for class attribute. DOMTokenList is only used by Element::class_list(),
+  // and it is not likely to be used anywhere else. Therefore DCHECK is used to
+  // guarantee attr_name is always "class".
+  DCHECK_EQ(attr_name, "class");
+  Stats::GetInstance()->Add(this);
 }
 
 // Algorithm for length:
@@ -118,20 +126,6 @@ void DOMTokenList::Remove(const std::string& token) {
 
   // 4. Run the update steps.
   UpdateSteps();
-}
-
-DOMTokenList::DOMTokenList(const scoped_refptr<Element>& element,
-                           const std::string& attr_name)
-    : element_(element),
-      attr_name_(attr_name),
-      element_node_generation_(Node::kInvalidNodeGeneration) {
-  // The current implementation relies on nodes calling UpdateNodeGeneration()
-  // each time the class is changed. This results in DOMTokenList only working
-  // for class attribute. DOMTokenList is only used by Element::class_list(),
-  // and it is not likely to be used anywhere else. Therefore DCHECK is used to
-  // guarantee attr_name is always "class".
-  DCHECK_EQ(attr_name, "class");
-  Stats::GetInstance()->Add(this);
 }
 
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }

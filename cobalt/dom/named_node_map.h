@@ -45,10 +45,10 @@ class Element;
 class NamedNodeMap : public base::RefCounted<NamedNodeMap>,
                      public base::SupportsWeakPtr<NamedNodeMap> {
  public:
-  static scoped_refptr<NamedNodeMap> Create(
-      const scoped_refptr<Element>& element);
+  explicit NamedNodeMap(const scoped_refptr<Element>& element);
 
   // Web API: NamedNodeMap
+  //
   unsigned int length() const;
 
   scoped_refptr<Attr> Item(unsigned int item);
@@ -57,13 +57,13 @@ class NamedNodeMap : public base::RefCounted<NamedNodeMap>,
   scoped_refptr<Attr> RemoveNamedItem(const std::string& name);
 
   // Custom, not in any spec.
+  //
   void SetAttributeInternal(const std::string& name, const std::string& value);
   void RemoveAttributeInternal(const std::string& name);
 
   scoped_refptr<Element> element() const { return element_; }
 
  private:
-  explicit NamedNodeMap(const scoped_refptr<Element>& element);
   ~NamedNodeMap();
 
   void ConstructProxyAttributes();
