@@ -46,7 +46,7 @@ class Window : public EventTarget {
          const std::string& user_agent);
 
   // Web API: Window
-  scoped_refptr<Window> window() { return make_scoped_refptr(this); }
+  scoped_refptr<Window> window() { return this; }
   const scoped_refptr<Document>& document() const;
   scoped_refptr<Location> location() const;
   const scoped_refptr<Navigator>& navigator() const;
