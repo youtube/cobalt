@@ -23,11 +23,11 @@ namespace cobalt {
 namespace cssom {
 
 TEST(CSSRuleListTest, ItemAccess) {
-  scoped_refptr<CSSRuleList> rule_list = CSSRuleList::Create();
+  scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
   ASSERT_EQ(0, rule_list->length());
   ASSERT_TRUE(rule_list->Item(0) == NULL);
 
-  scoped_refptr<CSSRule> rule = CSSStyleRule::Create();
+  scoped_refptr<CSSRule> rule = new CSSStyleRule();
   rule_list->Append(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));

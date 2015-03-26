@@ -24,10 +24,9 @@
 namespace cobalt {
 namespace cssom {
 
-scoped_refptr<CSSRuleList> CSSRuleList::Create(
-    const scoped_refptr<const CSSStyleSheet>& css_style_sheet) {
-  return make_scoped_refptr(new CSSRuleList(css_style_sheet));
-}
+CSSRuleList::CSSRuleList(
+    const scoped_refptr<const CSSStyleSheet>& css_style_sheet)
+    : css_style_sheet_(css_style_sheet) {}
 
 scoped_refptr<CSSStyleRule> CSSRuleList::Item(unsigned int index) const {
   return index < css_style_sheet_->css_rules_.size()
@@ -40,10 +39,6 @@ unsigned int CSSRuleList::length() const {
            std::numeric_limits<unsigned int>::max());
   return static_cast<unsigned int>(css_style_sheet_->css_rules_.size());
 }
-
-CSSRuleList::CSSRuleList(
-    const scoped_refptr<const CSSStyleSheet>& css_style_sheet)
-    : css_style_sheet_(css_style_sheet) {}
 
 CSSRuleList::~CSSRuleList() {}
 

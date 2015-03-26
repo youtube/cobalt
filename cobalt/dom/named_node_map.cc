@@ -25,46 +25,10 @@
 namespace cobalt {
 namespace dom {
 
-// static
-scoped_refptr<NamedNodeMap> NamedNodeMap::Create(
-    const scoped_refptr<Element>& element) {
-  return make_scoped_refptr(new NamedNodeMap(element));
-}
-
 NamedNodeMap::NamedNodeMap(const scoped_refptr<Element>& element)
     : element_(element) {
   ConstructProxyAttributes();
   Stats::GetInstance()->Add(this);
-}
-
-NamedNodeMap::~NamedNodeMap() { Stats::GetInstance()->Remove(this); }
-
-void NamedNodeMap::ConstructProxyAttributes() {
-  // Construct the attribute name vector.
-  attribute_names_.clear();
-  const Element::AttributeMap& attribute_map = element_->attribute_map();
-  for (Element::AttributeMap::const_iterator iter = attribute_map.begin();
-       iter != attribute_map.end(); ++iter) {
-    attribute_names_.push_back(iter->first);
-  }
-
-  // There's no need to create the ProxyAttributeMap since it'll be created
-  // on demand when accessed by the user.
-}
-
-scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(
-    const std::string& name) const {
-  ProxyAttributeMap::iterator iter = proxy_attributes_.find(name);
-  if (iter != proxy_attributes_.end() && iter->second) {
-    return iter->second.get();
-  }
-
-  // We don't have an existing Attr object so we create a new once instead.
-  base::optional<std::string> value = element_->GetAttribute(name);
-  scoped_refptr<Attr> attribute = Attr::Create(name, value.value_or(""), this);
-  proxy_attributes_[name] = attribute->AsWeakPtr();
-
-  return attribute;
 }
 
 unsigned int NamedNodeMap::length() const { return attribute_names_.size(); }
@@ -172,6 +136,36 @@ void NamedNodeMap::RemoveAttributeInternal(const std::string& name) {
     }
     proxy_attributes_.erase(iter);
   }
+}
+
+NamedNodeMap::~NamedNodeMap() { Stats::GetInstance()->Remove(this); }
+
+void NamedNodeMap::ConstructProxyAttributes() {
+  // Construct the attribute name vector.
+  attribute_names_.clear();
+  const Element::AttributeMap& attribute_map = element_->attribute_map();
+  for (Element::AttributeMap::const_iterator iter = attribute_map.begin();
+       iter != attribute_map.end(); ++iter) {
+    attribute_names_.push_back(iter->first);
+  }
+
+  // There's no need to create the ProxyAttributeMap since it'll be created
+  // on demand when accessed by the user.
+}
+
+scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(
+    const std::string& name) const {
+  ProxyAttributeMap::iterator iter = proxy_attributes_.find(name);
+  if (iter != proxy_attributes_.end() && iter->second) {
+    return iter->second.get();
+  }
+
+  // We don't have an existing Attr object so we create a new once instead.
+  base::optional<std::string> value = element_->GetAttribute(name);
+  scoped_refptr<Attr> attribute = new Attr(name, value.value_or(""), this);
+  proxy_attributes_[name] = attribute->AsWeakPtr();
+
+  return attribute;
 }
 
 }  // namespace dom
