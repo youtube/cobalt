@@ -31,6 +31,11 @@ class Parser : public cssom::CSSParser {
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
+  scoped_refptr<cssom::CSSStyleDeclaration> ParseListOfDeclarations(
+      const std::string& input) OVERRIDE;
+  scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
+      const std::string& property_name,
+      const std::string& property_value) OVERRIDE;
 
  private:
   typedef base::Callback<void(const std::string& message)> OnMessageCallback;
