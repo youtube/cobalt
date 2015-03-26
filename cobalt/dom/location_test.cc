@@ -25,13 +25,12 @@ namespace dom {
 TEST(LocationTest, LocationTest) {
   scoped_refptr<Location> location;
 
-  location = make_scoped_refptr(
-      new Location(GURL("http://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location =
+      new Location(GURL("http://user:pass@google.com:99/foo;bar?q=a#ref"));
   EXPECT_EQ("http://user:pass@google.com:99/foo;bar?q=a#ref", location->href());
   EXPECT_EQ("?q=a", location->search());
 
-  location = make_scoped_refptr(
-      new Location(GURL("http://user:pass@google.com:99/foo;bar#ref")));
+  location = new Location(GURL("http://user:pass@google.com:99/foo;bar#ref"));
   EXPECT_EQ("http://user:pass@google.com:99/foo;bar#ref", location->href());
   EXPECT_EQ("", location->search());
 }

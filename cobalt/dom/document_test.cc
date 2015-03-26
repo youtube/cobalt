@@ -72,24 +72,23 @@ DocumentTest::~DocumentTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(DocumentTest, Create) {
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
   ASSERT_NE(NULL, document);
 
   EXPECT_EQ(Node::kDocumentNode, document->node_type());
   EXPECT_EQ("#document", document->node_name());
 
   GURL url("http://a valid url");
-  document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options(url)));
+  document = new Document(&html_element_factory_, Document::Options(url));
   EXPECT_EQ(url.spec(), document->url());
   EXPECT_EQ(url.spec(), document->document_uri());
   EXPECT_EQ(url, document->url_as_gurl());
 }
 
 TEST_F(DocumentTest, CreateElement) {
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
   scoped_refptr<Element> element = document->CreateElement();
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
@@ -103,8 +102,8 @@ TEST_F(DocumentTest, CreateElement) {
 }
 
 TEST_F(DocumentTest, CreateTextNode) {
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
   scoped_refptr<Text> text = document->CreateTextNode("test_text");
 
   EXPECT_EQ(Node::kTextNode, text->node_type());
@@ -116,32 +115,32 @@ TEST_F(DocumentTest, CreateTextNode) {
 }
 
 TEST_F(DocumentTest, ParentNodeAllExceptChilden) {
-  scoped_refptr<Document> root = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> root =
+      new Document(&html_element_factory_, Document::Options());
   testing::TestParentNodeAllExceptChilden(root);
 }
 
 TEST_F(DocumentTest, ParentNodeChildren) {
-  scoped_refptr<Document> root = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> root =
+      new Document(&html_element_factory_, Document::Options());
   testing::TestParentNodeChildren(root);
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
-  scoped_refptr<Document> root = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> root =
+      new Document(&html_element_factory_, Document::Options());
   testing::TestGetElementsByClassName(root);
 }
 
 TEST_F(DocumentTest, GetElementsByTagName) {
-  scoped_refptr<Document> root = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> root =
+      new Document(&html_element_factory_, Document::Options());
   testing::TestGetElementsByTagName(root);
 }
 
 TEST_F(DocumentTest, GetElementById) {
-  scoped_refptr<Document> root = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> root =
+      new Document(&html_element_factory_, Document::Options());
 
   // Construct a tree:
   // root
@@ -173,8 +172,8 @@ TEST_F(DocumentTest, OwnerDocument) {
   // document
   //   element1
   //     element2
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
   scoped_refptr<Node> element1 = new Element();
   scoped_refptr<Node> element2 = new Element();
 
@@ -193,14 +192,14 @@ TEST_F(DocumentTest, OwnerDocument) {
 }
 
 TEST_F(DocumentTest, Location) {
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
   EXPECT_NE(scoped_refptr<Location>(), document->location());
 }
 
 TEST_F(DocumentTest, StyleSheets) {
-  scoped_refptr<Document> document = make_scoped_refptr(
-      new Document(&html_element_factory_, Document::Options()));
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
 
   scoped_refptr<HTMLElement> element1 =
       html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);

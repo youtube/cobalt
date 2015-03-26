@@ -29,7 +29,7 @@ namespace dom {
 // static
 scoped_refptr<DOMTokenList> DOMTokenList::Create(
     const scoped_refptr<Element>& element, const std::string& attr_name) {
-  return make_scoped_refptr(new DOMTokenList(element, attr_name));
+  return new DOMTokenList(element, attr_name);
 }
 
 // Algorithm for length:
