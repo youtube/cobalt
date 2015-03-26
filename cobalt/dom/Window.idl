@@ -18,8 +18,8 @@
 /*sealed*/ interface Window : EventTarget {
   // [Unforgeable] readonly attribute WindowProxy window;
   [Unforgeable] readonly attribute Document document;
-  // [PutForwards=href, Unforgeable] readonly attribute Location location;
-  // readonly attribute Navigator navigator;
+  [PutForwards=href, Unforgeable] readonly attribute Location location;
+  readonly attribute Navigator navigator;
 
   // Below are from partial interface Window in CSSOM View Module spec.
   //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
