@@ -47,6 +47,7 @@ NoInterfaceObject
 Constructor
 Global
 IndexedGetter
+TreatNullAs=*
 PutForwards=*
 TreatNullAs=NullString|EmptyString
 Unforgeable

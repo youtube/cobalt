@@ -24,17 +24,13 @@ namespace dom {
 // static
 const char* HTMLHeadElement::kTagName = "head";
 
-// static
-scoped_refptr<HTMLHeadElement> HTMLHeadElement::Create() {
-  return make_scoped_refptr(new HTMLHeadElement());
-}
+HTMLHeadElement::HTMLHeadElement(HTMLElementFactory* html_element_factory)
+    : HTMLElement(html_element_factory) {}
 
 const std::string& HTMLHeadElement::tag_name() const {
   static const std::string kHeadTagString(kTagName);
   return kHeadTagString;
 }
-
-HTMLHeadElement::HTMLHeadElement() {}
 
 HTMLHeadElement::~HTMLHeadElement() {}
 

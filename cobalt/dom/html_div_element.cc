@@ -22,17 +22,13 @@ namespace dom {
 // static
 const char* HTMLDivElement::kTagName = "div";
 
-// static
-scoped_refptr<HTMLDivElement> HTMLDivElement::Create() {
-  return make_scoped_refptr(new HTMLDivElement());
-}
+HTMLDivElement::HTMLDivElement(HTMLElementFactory* html_element_factory)
+    : HTMLElement(html_element_factory) {}
 
 const std::string& HTMLDivElement::tag_name() const {
   static const std::string kDivTagString(kTagName);
   return kDivTagString;
 }
-
-HTMLDivElement::HTMLDivElement() {}
 
 HTMLDivElement::~HTMLDivElement() {}
 

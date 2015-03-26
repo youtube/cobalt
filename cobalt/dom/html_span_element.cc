@@ -22,19 +22,15 @@ namespace dom {
 // static
 const char* HTMLSpanElement::kTagName = "span";
 
-// static
-scoped_refptr<HTMLSpanElement> HTMLSpanElement::Create() {
-  return make_scoped_refptr(new HTMLSpanElement());
-}
-
-HTMLSpanElement::HTMLSpanElement() {}
-
-HTMLSpanElement::~HTMLSpanElement() {}
+HTMLSpanElement::HTMLSpanElement(HTMLElementFactory* html_element_factory)
+    : HTMLElement(html_element_factory) {}
 
 const std::string& HTMLSpanElement::tag_name() const {
   static const std::string kSpanTagString(kTagName);
   return kSpanTagString;
 }
+
+HTMLSpanElement::~HTMLSpanElement() {}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -26,6 +26,7 @@ namespace dom {
 
 class HTMLBodyElement;
 class HTMLDivElement;
+class HTMLElementFactory;
 class HTMLHeadElement;
 class HTMLHtmlElement;
 class HTMLLinkElement;
@@ -68,7 +69,7 @@ class HTMLElement : public Element {
   }
 
  protected:
-  HTMLElement();
+  explicit HTMLElement(HTMLElementFactory* html_element_factory);
   ~HTMLElement() OVERRIDE;
 
  private:

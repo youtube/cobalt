@@ -49,8 +49,9 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-HTMLElement::HTMLElement()
-    : style_(new cssom::CSSStyleDeclaration()),
+HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory)
+    : Element(html_element_factory),
+      style_(new cssom::CSSStyleDeclaration()),
       computed_style_(new cssom::CSSStyleDeclaration()) {}
 
 HTMLElement::~HTMLElement() {}

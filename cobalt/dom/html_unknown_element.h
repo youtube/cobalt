@@ -29,14 +29,13 @@ namespace dom {
 //   http://www.w3.org/TR/html/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
-  static scoped_refptr<HTMLUnknownElement> Create(
-      const base::StringPiece& tag_name);
+  HTMLUnknownElement(HTMLElementFactory* html_element_factory,
+                     const base::StringPiece& tag_name);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
 
  private:
-  explicit HTMLUnknownElement(const base::StringPiece& tag_name);
   ~HTMLUnknownElement() OVERRIDE;
 
   std::string tag_name_;

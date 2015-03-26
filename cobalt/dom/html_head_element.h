@@ -25,12 +25,12 @@ namespace dom {
 class Document;
 
 // The head element represents a collection of metadata for the Document.
-//    http://www.w3.org/TR/html/document-metadata.html#the-head-element
+//   http://www.w3.org/TR/html/document-metadata.html#the-head-element
 class HTMLHeadElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  static scoped_refptr<HTMLHeadElement> Create();
+  explicit HTMLHeadElement(HTMLElementFactory* html_element_factory);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -39,7 +39,6 @@ class HTMLHeadElement : public HTMLElement {
   scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() OVERRIDE { return this; }
 
  private:
-  HTMLHeadElement();
   ~HTMLHeadElement() OVERRIDE;
 
   void AttachToDocument(Document* document) OVERRIDE;
