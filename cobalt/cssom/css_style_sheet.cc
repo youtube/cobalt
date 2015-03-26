@@ -22,16 +22,14 @@
 namespace cobalt {
 namespace cssom {
 
-scoped_refptr<CSSStyleSheet> CSSStyleSheet::Create() {
-  return make_scoped_refptr(new CSSStyleSheet());
-}
+CSSStyleSheet::CSSStyleSheet() {}
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (css_rule_list_) {
     return css_rule_list_.get();
   }
 
-  scoped_refptr<CSSRuleList> css_rule_list = CSSRuleList::Create(this);
+  scoped_refptr<CSSRuleList> css_rule_list = new CSSRuleList(this);
   css_rule_list_ = css_rule_list->AsWeakPtr();
   return css_rule_list;
 }
@@ -39,8 +37,6 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
 void CSSStyleSheet::AppendRule(const scoped_refptr<CSSStyleRule>& css_rule) {
   css_rules_.push_back(css_rule);
 }
-
-CSSStyleSheet::CSSStyleSheet() {}
 
 CSSStyleSheet::~CSSStyleSheet() {}
 

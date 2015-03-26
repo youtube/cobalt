@@ -50,8 +50,8 @@ CommentTest::~CommentTest() {
 TEST_F(CommentTest, CommentCheckAttach) {
   scoped_refptr<Element> root = new Element();
 
-  scoped_refptr<Node> comment = root->AppendChild(Comment::Create("comment"));
-  scoped_refptr<Node> text = Text::Create("text");
+  scoped_refptr<Node> comment = root->AppendChild(new Comment("comment"));
+  scoped_refptr<Node> text = new Text("text");
 
   // Checks that we can't attach text nodes to comment nodes.
   EXPECT_EQ(NULL, comment->AppendChild(text));
@@ -61,9 +61,9 @@ TEST_F(CommentTest, CommentCheckAttach) {
 TEST_F(CommentTest, TextContentHasNoComments) {
   scoped_refptr<Element> root = new Element();
 
-  root->AppendChild(Text::Create("t1"));
-  root->AppendChild(Comment::Create("comment"));
-  root->AppendChild(Text::Create("t2"));
+  root->AppendChild(new Text("t1"));
+  root->AppendChild(new Comment("comment"));
+  root->AppendChild(new Text("t2"));
 
   EXPECT_EQ("t1t2", root->text_content());
 }
@@ -71,9 +71,9 @@ TEST_F(CommentTest, TextContentHasNoComments) {
 TEST_F(CommentTest, InnerHTML) {
   scoped_refptr<Element> root = new Element();
 
-  root->AppendChild(Text::Create("t1"));
-  root->AppendChild(Comment::Create("comment"));
-  root->AppendChild(Text::Create("t2"));
+  root->AppendChild(new Text("t1"));
+  root->AppendChild(new Comment("comment"));
+  root->AppendChild(new Text("t2"));
 
   EXPECT_EQ("t1<!--comment-->t2", root->inner_html());
 }

@@ -35,7 +35,7 @@ class CSSStyleSheet;
 // than CSS, Cobalt is hard-coded to support CSS only.
 class StyleSheetList : public script::Wrappable {
  public:
-  static scoped_refptr<StyleSheetList> Create();
+  StyleSheetList();
 
   // Web API: StyleSheetList
   //
@@ -52,7 +52,6 @@ class StyleSheetList : public script::Wrappable {
   void Append(const scoped_refptr<CSSStyleSheet>& style_sheet);
 
  private:
-  StyleSheetList();
   ~StyleSheetList();
 
   std::vector<scoped_refptr<CSSStyleSheet> > style_sheets_;

@@ -266,7 +266,7 @@ void Node::set_text_content(const std::string& value) {
   while (HasChildNodes()) {
     RemoveChild(first_child());
   }
-  AppendChild(Text::Create(value));
+  AppendChild(new Text(value));
 }
 
 scoped_refptr<HTMLCollection> Node::Children() {

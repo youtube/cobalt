@@ -45,16 +45,16 @@ NodeTest::~NodeTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(NodeTest, CreateNode) {
-  scoped_refptr<Node> node = FakeNode::Create();
+  scoped_refptr<Node> node = new FakeNode();
   ASSERT_NE(NULL, node);
 }
 
 TEST_F(NodeTest, AppendChild) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->AppendChild(FakeNode::Create());
+  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode());
   ASSERT_NE(NULL, child1);
-  scoped_refptr<Node> child2 = root->AppendChild(FakeNode::Create());
+  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
   ASSERT_NE(NULL, child2);
 
   // Properly handle NULL input.
@@ -65,10 +65,10 @@ TEST_F(NodeTest, AppendChild) {
 }
 
 TEST_F(NodeTest, AppendChildTwice) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->AppendChild(FakeNode::Create());
-  scoped_refptr<Node> child2 = root->AppendChild(FakeNode::Create());
+  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode());
+  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
 
   // Append child1 for the second time.
   root->AppendChild(child1);
@@ -78,11 +78,11 @@ TEST_F(NodeTest, AppendChildTwice) {
 }
 
 TEST_F(NodeTest, Contains) {
-  scoped_refptr<Node> root = FakeNode::Create();
-  scoped_refptr<Node> node = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
+  scoped_refptr<Node> node = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->AppendChild(FakeNode::Create());
-  scoped_refptr<Node> child2 = root->AppendChild(FakeNode::Create());
+  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode());
+  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
 
   EXPECT_TRUE(root->Contains(child1));
   EXPECT_TRUE(root->Contains(child2));
@@ -92,10 +92,10 @@ TEST_F(NodeTest, Contains) {
 }
 
 TEST_F(NodeTest, AppendChildWithParent) {
-  scoped_refptr<Node> root1 = FakeNode::Create();
-  scoped_refptr<Node> root2 = FakeNode::Create();
+  scoped_refptr<Node> root1 = new FakeNode();
+  scoped_refptr<Node> root2 = new FakeNode();
 
-  scoped_refptr<Node> child = FakeNode::Create();
+  scoped_refptr<Node> child = new FakeNode();
   root1->AppendChild(child);
   root2->AppendChild(child);
 
@@ -106,29 +106,29 @@ TEST_F(NodeTest, AppendChildWithParent) {
 }
 
 TEST_F(NodeTest, InsertBefore) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->InsertBefore(FakeNode::Create(), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
   ASSERT_NE(NULL, child1);
-  scoped_refptr<Node> child3 = root->InsertBefore(FakeNode::Create(), NULL);
+  scoped_refptr<Node> child3 = root->InsertBefore(new FakeNode(), NULL);
   ASSERT_NE(NULL, child3);
-  scoped_refptr<Node> child2 = root->InsertBefore(FakeNode::Create(), child3);
+  scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), child3);
   ASSERT_NE(NULL, child2);
 
   // Properly handle NULL input.
   EXPECT_EQ(NULL, root->InsertBefore(NULL, NULL));
   // Properly handle a reference node that is not a child of root.
-  EXPECT_EQ(NULL, root->InsertBefore(FakeNode::Create(), FakeNode::Create()));
+  EXPECT_EQ(NULL, root->InsertBefore(new FakeNode(), new FakeNode()));
 
   scoped_refptr<Node> children[] = {child1, child2, child3};
   ExpectNodeChildrenEq(children, root);
 }
 
 TEST_F(NodeTest, InsertBeforeTwice) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->InsertBefore(FakeNode::Create(), NULL);
-  scoped_refptr<Node> child2 = root->InsertBefore(FakeNode::Create(), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
+  scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), NULL);
 
   EXPECT_NE(NULL, root->InsertBefore(child2, child1));
 
@@ -137,10 +137,10 @@ TEST_F(NodeTest, InsertBeforeTwice) {
 }
 
 TEST_F(NodeTest, InsertBeforeSelf) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->InsertBefore(FakeNode::Create(), NULL);
-  scoped_refptr<Node> child2 = root->InsertBefore(FakeNode::Create(), NULL);
+  scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
+  scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), NULL);
 
   EXPECT_NE(NULL, root->InsertBefore(child2, child2));
 
@@ -149,11 +149,11 @@ TEST_F(NodeTest, InsertBeforeSelf) {
 }
 
 TEST_F(NodeTest, RemoveChild) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
-  scoped_refptr<Node> child1 = root->AppendChild(FakeNode::Create());
-  scoped_refptr<Node> child2 = root->AppendChild(FakeNode::Create());
-  scoped_refptr<Node> child3 = root->AppendChild(FakeNode::Create());
+  scoped_refptr<Node> child1 = root->AppendChild(new FakeNode());
+  scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
+  scoped_refptr<Node> child3 = root->AppendChild(new FakeNode());
 
   EXPECT_NE(NULL, root->RemoveChild(child1));
   EXPECT_NE(NULL, root->RemoveChild(child3));
@@ -168,11 +168,11 @@ TEST_F(NodeTest, RemoveChild) {
 }
 
 TEST_F(NodeTest, HasChildNodes) {
-  scoped_refptr<Node> root = FakeNode::Create();
+  scoped_refptr<Node> root = new FakeNode();
 
   EXPECT_FALSE(root->HasChildNodes());
 
-  root->AppendChild(FakeNode::Create());
+  root->AppendChild(new FakeNode());
   EXPECT_TRUE(root->HasChildNodes());
 }
 

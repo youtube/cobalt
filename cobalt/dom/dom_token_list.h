@@ -33,8 +33,8 @@ class Element;
 class DOMTokenList : public script::Wrappable,
                      public base::SupportsWeakPtr<DOMTokenList> {
  public:
-  static scoped_refptr<DOMTokenList> Create(
-      const scoped_refptr<Element>& element, const std::string& attr_name);
+  DOMTokenList(const scoped_refptr<Element>& element,
+               const std::string& attr_name);
 
   // Web API: DOMTokenList
   //
@@ -46,8 +46,6 @@ class DOMTokenList : public script::Wrappable,
   void Remove(const std::string& token);
 
  private:
-  DOMTokenList(const scoped_refptr<Element>& element,
-               const std::string& attr_name);
   ~DOMTokenList();
 
   // Web API: DOMTokenList.

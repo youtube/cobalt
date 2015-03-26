@@ -32,7 +32,7 @@ class CSSStyleRule;
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
 class CSSStyleSheet : public StyleSheet {
  public:
-  static scoped_refptr<CSSStyleSheet> Create();
+  CSSStyleSheet();
 
   // Web API: CSSStyleSheet
   //
@@ -42,11 +42,9 @@ class CSSStyleSheet : public StyleSheet {
 
   // Custom, not in any spec.
   //
-
   void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
 
  private:
-  CSSStyleSheet();
   ~CSSStyleSheet() OVERRIDE;
 
   typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
