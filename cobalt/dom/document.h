@@ -101,12 +101,6 @@ class Document : public Node {
   //
   scoped_refptr<Location> location() const;
 
-  // The IDL of body attribute has been changed from the spec's:
-  //    attribute HTMLElement? body;
-  // To:
-  //    attribute HTMLBodyElement? body;
-  // This is because we don’t support frameset element. The body has to be an
-  // HTMLBodyElement.
   scoped_refptr<HTMLBodyElement> body() const;
   void set_body(const scoped_refptr<HTMLBodyElement>& value);
 
