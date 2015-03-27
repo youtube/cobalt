@@ -31,7 +31,7 @@ namespace {
 
 template <typename T>
 class NumericTypeBindingsTest
-    : public BindingsTestBase<T, NumericTypesTestInterface> {
+    : public InterfaceBindingsTest<T, NumericTypesTestInterface> {
  public:
 };
 

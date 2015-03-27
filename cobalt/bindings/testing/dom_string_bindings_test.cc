@@ -26,7 +26,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<DOMStringTestInterface> DOMStringBindingsTest;
+typedef InterfaceBindingsTest<DOMStringTestInterface> DOMStringBindingsTest;
 }  // namespace
 
 TEST_F(DOMStringBindingsTest, GetProperty) {

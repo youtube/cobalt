@@ -27,7 +27,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<BooleanTypeTestInterface> BooleanTypeBindingsTest;
+typedef InterfaceBindingsTest<BooleanTypeTestInterface> BooleanTypeBindingsTest;
 }  // namespace
 
 // Boolean conversion algorithm: http://www.w3.org/TR/WebIDL/#es-boolean

@@ -27,7 +27,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<NullableTypesTestInterface> NullableTypesBindingsTest;
+typedef InterfaceBindingsTest<NullableTypesTestInterface>
+    NullableTypesBindingsTest;
 }  // namespace
 
 TEST_F(NullableTypesBindingsTest, GetNullProperty) {
