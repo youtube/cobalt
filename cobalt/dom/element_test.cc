@@ -348,7 +348,7 @@ TEST_F(ElementTest, InnerHTML) {
       "</div>";
   root->set_inner_html(kAnotherHTML);
 
-  EXPECT_EQ(2, root->ChildElementCount());
+  EXPECT_EQ(2, root->child_element_count());
   EXPECT_TRUE(root->first_child()->IsElement());
 
   scoped_refptr<Element> element_1 = root->first_child()->AsElement();

@@ -149,10 +149,10 @@ class Node : public EventTarget {
   // The ParentNode interface contains methods that are particular to Node
   // objects that can have children:
   //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
-  scoped_refptr<HTMLCollection> Children();
-  scoped_refptr<Element> FirstElementChild();
-  scoped_refptr<Element> LastElementChild();
-  unsigned int ChildElementCount();
+  scoped_refptr<HTMLCollection> children();
+  scoped_refptr<Element> first_element_child();
+  scoped_refptr<Element> last_element_child();
+  unsigned int child_element_count();
 
   // Custom, not in any spec.
   //
