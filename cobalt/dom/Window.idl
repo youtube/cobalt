@@ -20,15 +20,4 @@
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
-
-  // Below are from partial interface Window in CSSOM View Module spec.
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
-  // The following two types are changed from double to long.
-  readonly attribute long innerWidth;
-  readonly attribute long innerHeight;
-
-  // Below are from partial interface Window in Timing control for script-based
-  // animations spec.
-  //   http://www.w3.org/TR/animation-timing/
-  // long requestAnimationFrame(FrameRequestCallback callback);
 };
