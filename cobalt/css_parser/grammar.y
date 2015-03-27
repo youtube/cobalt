@@ -54,6 +54,7 @@
 %token kBackgroundColorToken            // background-color
 %token kBorderRadiusToken               // border-radius
 %token kColorToken                      // color
+%token kDisplayToken                    // display
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
 %token kFontWeightToken                 // font-weight
@@ -64,10 +65,13 @@
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kBlockToken                      // block
 %token kBoldToken                       // bold
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
+%token kInlineToken                     // inline
+%token kInlineBlockToken                // inline-block
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
 %token kVisibleToken                    // visible
@@ -216,10 +220,10 @@
 %type <property_value> background_property_value background_color_property_value
                        border_radius_property_value color color_property_value
                        common_values final_background_layer
-                       font_family_property_value font_family_name
-                       font_size_property_value font_weight_property_value
-                       opacity_property_value overflow_property_value
-                       transform_property_value
+                       display_property_value font_family_property_value
+                       font_family_name font_size_property_value
+                       font_weight_property_value opacity_property_value
+                       overflow_property_value transform_property_value
 %destructor { $$->Release(); } <property_value>
 
 %type <real> alpha number
@@ -307,6 +311,9 @@ identifier_token:
   | kColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
   }
+  | kDisplayToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kDisplayPropertyName);
+  }
   | kFontFamilyToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontFamilyPropertyName);
   }
@@ -326,6 +333,9 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
   }
   // Property values.
+  | kBlockToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBlockKeywordName);
+  }
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
   }
@@ -334,6 +344,12 @@ identifier_token:
   }
   | kInheritToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInheritKeywordName);
+  }
+  | kInlineToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInlineKeywordName);
+  }
+  | kInlineBlockToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kInlineBlockKeywordName);
   }
   | kInitialToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
@@ -621,6 +637,24 @@ color_property_value:
   | common_values
   ;
 
+// Controls the generation of boxes.
+//   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+display_property_value:
+    kBlockToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBlock().get());
+  }
+  | kInlineToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetInline().get());
+  }
+  | kInlineBlockToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetInlineBlock().get());
+  }
+  | kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | common_values
+  ;
+
 // Font family names other than generic families must be given quoted
 // as strings.
 //   http://www.w3.org/TR/css3-fonts/#family-name-value
@@ -794,6 +828,12 @@ maybe_declaration:
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kColorPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kDisplayToken maybe_whitespace colon display_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kDisplayPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
