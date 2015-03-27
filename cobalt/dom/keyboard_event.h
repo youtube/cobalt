@@ -32,10 +32,10 @@ class KeyboardEvent : public UIEventWithKeyState {
   // Web API: KeyboardEvent
   //
   enum KeyLocationCode {
-    kLocationStandard = 0x00,
-    kLocationLeft = 0x01,
-    kLocationRight = 0x02,
-    kLocationNumpad = 0x03,
+    kDomKeyLocationStandard = 0x00,
+    kDomKeyLocationLeft = 0x01,
+    kDomKeyLocationRight = 0x02,
+    kDomKeyLocationNumpad = 0x03,
   };
 
   KeyboardEvent(KeyLocationCode location, Type type, unsigned int modifiers,
