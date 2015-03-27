@@ -27,7 +27,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<OperationsTestInterface> OperationsBindingsTest;
+typedef InterfaceBindingsTest<OperationsTestInterface> OperationsBindingsTest;
 }  // namespace
 
 TEST_F(OperationsBindingsTest, VoidFunction) {
