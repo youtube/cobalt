@@ -34,7 +34,7 @@ TextBox::TextBox(
       leading_x_pixels_(0) {}
 
 void TextBox::Layout(const LayoutOptions& options) {
-  trimmed_ = options.beginning_of_line && text_ == " ";
+  trimmed_ = options.is_beginning_of_line && text_ == " ";
   if (trimmed_) {
     used_size() = math::SizeF();
   } else {
