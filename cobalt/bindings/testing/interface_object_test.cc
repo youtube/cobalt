@@ -27,8 +27,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<ArbitraryInterface> InterfaceObjectTest;
-typedef BindingsTestBase<NoInterfaceObjectInterface> NoInterfaceObjectTest;
+typedef InterfaceBindingsTest<ArbitraryInterface> InterfaceObjectTest;
+typedef InterfaceBindingsTest<NoInterfaceObjectInterface> NoInterfaceObjectTest;
 }  // namespace
 
 // Spec for interface object: http://www.w3.org/TR/WebIDL/#interface-object
