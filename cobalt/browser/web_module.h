@@ -55,7 +55,7 @@ class WebModule {
 
   WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
                 on_render_tree_produced,
-            const math::Size& window_dimensions, const std::string& user_agent,
+            const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             const Options& options);
   ~WebModule();
@@ -63,6 +63,8 @@ class WebModule {
   // Call this to inject a key event into the web module which will ultimately
   // make its way to the DOM's Document object and handled appropriately.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
+
+  static std::string GetUserAgent();
 
  private:
   // Ensures that all calls to the WebModule are made from the same thread.
