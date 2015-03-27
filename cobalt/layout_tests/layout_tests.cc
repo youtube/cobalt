@@ -146,7 +146,7 @@ TEST_P(LayoutTest, LayoutTest) {
 
   // Create the web module.
   browser::WebModule web_module(
-      callback_function, kTestViewportSize, "USER AGENT(Layout Tests)",
+      callback_function, kTestViewportSize,
       pixel_tester.GetResourceProvider(), web_module_options);
 
   // Start the WebModule wheels churning.  This will initiate the required loads

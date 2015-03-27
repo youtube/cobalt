@@ -30,12 +30,11 @@ const int kInitialHeight = 1080;
 
 }  // namespace
 
-BrowserModule::BrowserModule(const std::string& user_agent,
-                             const Options& options)
+BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
       web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
                              base::Unretained(this)),
-                  math::Size(kInitialWidth, kInitialHeight), user_agent,
+                  math::Size(kInitialWidth, kInitialHeight),
                   renderer_module_.pipeline()->GetResourceProvider(),
                   options.web_module_options),
       input_device_manager_(input::InputDeviceManager::Create(base::Bind(
