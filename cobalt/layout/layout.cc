@@ -76,7 +76,7 @@ scoped_refptr<render_tree::Node> Layout(
   root_element->Accept(&box_generator);
 
   LayoutOptions layout_options;
-  layout_options.beginning_of_line = true;
+  layout_options.is_beginning_of_line = true;
   initial_containing_block->Layout(layout_options);
 
   render_tree::CompositionNode::Builder render_tree_root_builder;

@@ -23,8 +23,10 @@
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
+#include "cobalt/layout/specified_style.h"
 #include "cobalt/layout/text_box.h"
 
 namespace cobalt {
@@ -150,6 +152,17 @@ ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
   }
 }
 
+const scoped_refptr<cssom::CSSStyleDeclaration>&
+BoxGenerator::GetAnonymousInlineBoxStyle(
+    const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style) {
+  if (!anonymous_inline_box_style_) {
+    anonymous_inline_box_style_ = new cssom::CSSStyleDeclaration();
+    PromoteToSpecifiedStyle(anonymous_inline_box_style_, parent_computed_style);
+    PromoteToComputedStyle(anonymous_inline_box_style_);
+  }
+  return anonymous_inline_box_style_;
+}
+
 ContainingBlock* BoxGenerator::GenerateContainingBlock(
     const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
   scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
@@ -173,7 +186,8 @@ void BoxGenerator::GenerateWordBox(
   DCHECK(word_start_iterator != word_end_iterator);
 
   scoped_ptr<TextBox> word_box(new TextBox(
-      containing_block_, parent_computed_style, used_style_provider_,
+      containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
+      used_style_provider_,
       base::StringPiece(word_start_iterator, word_end_iterator)));
   containing_block_->AddChildBox(word_box.PassAs<Box>());
 }
@@ -192,7 +206,8 @@ void BoxGenerator::GenerateWhitespaceBox(
   DCHECK(whitespace_start_iterator != whitespace_end_iterator);
 
   scoped_ptr<TextBox> whitespace_box(new TextBox(
-      containing_block_, parent_computed_style, used_style_provider_, " "));
+      containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
+      used_style_provider_, " "));
   // TODO(***REMOVED***): Do not add whitespace box if the last child is already
   //               a whitespace box.
   containing_block_->AddChildBox(whitespace_box.PassAs<Box>());
