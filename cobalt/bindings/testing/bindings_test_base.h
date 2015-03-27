@@ -28,16 +28,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-template <class MockT, class BaseClass = MockT>
+template <class MockT>
 class BindingsTestBase : public ::testing::Test {
- public:
+ protected:
   BindingsTestBase()
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_object_proxy_(engine_->CreateGlobalObject()),
         // Use StrictMock so TESTING will fail if unexpected method is called.
         test_mock_(new ::testing::StrictMock<MockT>()) {
-    global_object_proxy_->Bind("test",
-                               make_scoped_refptr<BaseClass>((test_mock_)));
   }
 
   bool EvaluateScript(const std::string& script, std::string* out_result) {
@@ -47,10 +45,34 @@ class BindingsTestBase : public ::testing::Test {
   }
   MockT& test_mock() { return *test_mock_.get(); }
 
- private:
+ protected:
   const scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
   const scoped_refptr<MockT> test_mock_;
+};
+
+// Use this fixture to create a new MockT object with a BaseClass wrapper, and
+// bind the wrapper to the javascript variable "test".
+template <class MockT, class BaseClass = MockT>
+class InterfaceBindingsTest : public BindingsTestBase<MockT> {
+ public:
+  InterfaceBindingsTest() {
+    global_object_proxy_->Bind("test",
+                               make_scoped_refptr<BaseClass>((test_mock_)));
+  }
+};
+
+// Use this fixture to create a new MockT object with bindings defined for the
+// BaseClass wrapper. Bindings for properties on the BaseClass object will be
+// added to the global object, and the MockT object will be set as the global
+// interface's implementation.
+template <class MockT, class BaseClass = MockT>
+class GlobalBindingsTestBase : public BindingsTestBase<MockT> {
+ public:
+  GlobalBindingsTestBase() {
+    global_object_proxy_->SetGlobalInterface(
+        make_scoped_refptr<BaseClass>(test_mock_));
+  }
 };
 
 }  // namespace testing

@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
+#include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/test_window_mock.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/source_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,30 +27,8 @@ namespace bindings {
 namespace testing {
 
 namespace {
-
-class GlobalInterfaceBindingsTest : public ::testing::Test {
- public:
-  GlobalInterfaceBindingsTest()
-      : engine_(script::JavaScriptEngine::CreateEngine()),
-        // Use StrictMock so TESTING will fail if unexpected method is called.
-        window_mock_(new ::testing::StrictMock<TestWindowMock>()),
-        global_object_proxy_(engine_->CreateGlobalObject()) {
-    global_object_proxy_->SetGlobalInterface(
-        make_scoped_refptr<TestWindow>(window_mock_));
-  }
-
-  bool EvaluateScript(const std::string& script, std::string* out_result) {
-    scoped_refptr<script::SourceCode> source =
-        script::SourceCode::CreateSourceCode(script);
-    return global_object_proxy_->EvaluateScript(source, out_result);
-  }
-  TestWindowMock& test_mock() { return *window_mock_.get(); }
-
- private:
-  const scoped_ptr<script::JavaScriptEngine> engine_;
-  const scoped_refptr<TestWindowMock> window_mock_;
-  const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
-};
+typedef GlobalBindingsTestBase<TestWindowMock, TestWindow>
+    GlobalInterfaceBindingsTest;
 }  // namespace
 
 TEST_F(GlobalInterfaceBindingsTest, GlobalOperation) {
