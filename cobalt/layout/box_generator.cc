@@ -22,8 +22,6 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/html_script_element.h"
-#include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
@@ -45,11 +43,6 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
 
-  if (element->tag_name() == dom::HTMLScriptElement::kTagName ||
-      element->tag_name() == dom::HTMLStyleElement::kTagName) {
-    return;
-  }
-
   // If element is the root of layout tree, use the style of initial containing
   // block as the style of its parent.
   scoped_refptr<cssom::CSSStyleDeclaration> parent_computed_style;
@@ -70,6 +63,14 @@ void BoxGenerator::Visit(dom::Element* element) {
 
   UpdateComputedStyleOf(html_element, parent_computed_style,
                         user_agent_style_sheet_);
+
+  if (html_element->computed_style()->display() ==
+      cssom::KeywordValue::GetNone()) {
+    // If the element has the display property of its style set to "none",
+    // then it should not participate in layout, and we are done here.
+    // http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    return;
+  }
 
   ContainingBlock* child_containing_block =
       GetOrGenerateContainingBlock(html_element->computed_style());
