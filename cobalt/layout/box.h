@@ -29,7 +29,7 @@ class UsedStyleProvider;
 
 struct LayoutOptions {
   // Indicates whether box is first on the line.
-  bool beginning_of_line;
+  bool is_beginning_of_line;
 };
 
 // Base class for all boxes.
