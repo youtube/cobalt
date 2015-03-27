@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-// From the spec CSS Object Model (CSSOM)
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
+// From the spec CSSOM View Module
+//   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
 
-[NoInterfaceObject]
-interface ElementCSSInlineStyle {
-  [SameObject] readonly attribute CSSStyleDeclaration style;
+partial interface Window {
+  // The following two types are changed from double to long.
+  readonly attribute long innerWidth;
+  readonly attribute long innerHeight;
 };
-
-// TODO(***REMOVED***): style should be on HTMLElement. Revert this to HTMLElement when
-// auto type binding is supported for JS. b/19898684 is fired to track this
-// issue.
-Element implements ElementCSSInlineStyle;

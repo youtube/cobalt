@@ -23,20 +23,4 @@ interface Document : Node {
   HTMLCollection getElementsByClassName(DOMString classNames);
   [NewObject] Element createElement(DOMString localName);
   [NewObject] Text createTextNode(DOMString data);
-
-  // Below are from partial interface Document in HTML5 spec.
-  //   http://www.w3.org/TR/html5/dom.html#the-document-object
-  [PutForwards=href, Unforgeable] readonly attribute Location? location;
-  // body attribute is changed, from the spec's:
-  //   attribute HTMLElement? body;
-  // This is because we don't support frameset element, body has to be an
-  // HTMLBodyElement.
-  attribute HTMLBodyElement? body;
-  readonly attribute HTMLHeadElement? head;
-
-  // TODO(***REMOVED***): b/19866057. Add styleSheets to a partial interface when
-  // supported.
-  // Web API: CSS Object Model (partial interface)
-  //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
-  readonly attribute StyleSheetList styleSheets;
 };
