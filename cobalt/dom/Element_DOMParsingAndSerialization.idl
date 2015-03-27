@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-// From the spec CSS Object Model (CSSOM)
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
+// From the spec DOM Parsing and Serialization
+//   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#extensions-to-the-element-interface
 
-[NoInterfaceObject]
-interface ElementCSSInlineStyle {
-  [SameObject] readonly attribute CSSStyleDeclaration style;
+partial interface Element {
+  [TreatNullAs=EmptyString] attribute DOMString innerHTML;
 };
-
-// TODO(***REMOVED***): style should be on HTMLElement. Revert this to HTMLElement when
-// auto type binding is supported for JS. b/19898684 is fired to track this
-// issue.
-Element implements ElementCSSInlineStyle;

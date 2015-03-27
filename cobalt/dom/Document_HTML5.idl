@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-// From the spec CSS Object Model (CSSOM)
-//   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
+// From the spec HTML5
+//   http://www.w3.org/TR/html5/dom.html#the-document-object
 
-[NoInterfaceObject]
-interface ElementCSSInlineStyle {
-  [SameObject] readonly attribute CSSStyleDeclaration style;
+[OverrideBuiltins]
+partial /*sealed*/ interface Document {
+  [PutForwards=href, Unforgeable] readonly attribute Location? location;
+  // body attribute is changed, from the spec's:
+  //   attribute HTMLElement? body;
+  // This is because we don't support frameset element, body has to be an
+  // HTMLBodyElement.
+  attribute HTMLBodyElement? body;
+  readonly attribute HTMLHeadElement? head;
 };
-
-// TODO(***REMOVED***): style should be on HTMLElement. Revert this to HTMLElement when
-// auto type binding is supported for JS. b/19898684 is fired to track this
-// issue.
-Element implements ElementCSSInlineStyle;
