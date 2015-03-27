@@ -37,8 +37,10 @@ class BrowserModule {
     WebModule::Options web_module_options;
   };
 
-  BrowserModule(const std::string& user_agent, const Options& options);
+  explicit BrowserModule(const Options& options);
   ~BrowserModule();
+
+  static std::string GetUserAgent() { return WebModule::GetUserAgent(); }
 
  private:
   // Glue function to deal with the production of a render tree, and will
