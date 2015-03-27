@@ -401,6 +401,62 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
   EXPECT_EQ(0xff80017f, color->value());
 }
 
+TEST_F(ParserTest, ParsesBlockDisplay) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+          "div {\n"
+          "  display: block;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  EXPECT_EQ(cssom::KeywordValue::GetBlock(), style->display());
+}
+
+TEST_F(ParserTest, ParsesInlineDisplay) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+          "span {\n"
+          "  display: inline;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  EXPECT_EQ(cssom::KeywordValue::GetInline(), style->display());
+}
+
+TEST_F(ParserTest, ParsesInlineBlockDisplay) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+          "marquee {\n"
+          "  display: inline-block;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  EXPECT_EQ(cssom::KeywordValue::GetInlineBlock(), style->display());
+}
+
+TEST_F(ParserTest, ParsesNoneDisplay) {
+  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
+  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+          "head {\n"
+          "  display: none;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->display());
+}
+
 TEST_F(ParserTest, ParsesFontFamily) {
   EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
