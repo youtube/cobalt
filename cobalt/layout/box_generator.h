@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.`
  */
 
 #ifndef LAYOUT_BOX_GENERATOR_H_
@@ -54,6 +54,12 @@ class BoxGenerator : public dom::NodeVisitor {
   // Helper method used by GetOrGenerateContainingBlock().
   ContainingBlock* GenerateContainingBlock(
       const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style);
+  // If an anonymous box is being generated, we will need to compute its
+  // style based on rules specified here:
+  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous
+  // This method caches the result in anonymous_inline_box_style_.
+  const scoped_refptr<cssom::CSSStyleDeclaration>& GetAnonymousInlineBoxStyle(
+      const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style);
 
   void GenerateWordBox(
       std::string::const_iterator* text_iterator,
@@ -69,6 +75,9 @@ class BoxGenerator : public dom::NodeVisitor {
   ContainingBlock* const containing_block_;
   UsedStyleProvider* const used_style_provider_;
   bool is_root_;
+
+  // See GetAnonymousInlineBoxStyle().
+  scoped_refptr<cssom::CSSStyleDeclaration> anonymous_inline_box_style_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
