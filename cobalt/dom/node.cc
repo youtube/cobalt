@@ -269,11 +269,11 @@ void Node::set_text_content(const std::string& value) {
   AppendChild(new Text(value));
 }
 
-scoped_refptr<HTMLCollection> Node::Children() {
+scoped_refptr<HTMLCollection> Node::children() {
   return HTMLCollection::CreateWithChildElements(this);
 }
 
-scoped_refptr<Element> Node::FirstElementChild() {
+scoped_refptr<Element> Node::first_element_child() {
   Node* child = first_child();
   while (child) {
     scoped_refptr<Element> element = child->AsElement();
@@ -285,7 +285,7 @@ scoped_refptr<Element> Node::FirstElementChild() {
   return NULL;
 }
 
-scoped_refptr<Element> Node::LastElementChild() {
+scoped_refptr<Element> Node::last_element_child() {
   Node* child = last_child();
   while (child) {
     scoped_refptr<Element> element = child->AsElement();
@@ -297,7 +297,7 @@ scoped_refptr<Element> Node::LastElementChild() {
   return NULL;
 }
 
-unsigned int Node::ChildElementCount() {
+unsigned int Node::child_element_count() {
   unsigned int num_elements = 0;
   const Node* child = first_child();
   while (child) {
