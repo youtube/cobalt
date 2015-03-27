@@ -1065,6 +1065,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 7:
+      if (IsEqualToCssIdentifier(name.begin, "display")) {
+        *property_name_token = kDisplayToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "opacity")) {
         *property_name_token = kOpacityToken;
         return true;
@@ -1143,9 +1147,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, "block")) {
+        *property_value_token = kBlockToken;
+        return true;
+      }
+      return false;
+
     case 6:
       if (IsEqualToCssIdentifier(name.begin, "hidden")) {
         *property_value_token = kHiddenToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "inline")) {
+        *property_value_token = kInlineToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, "normal")) {
@@ -1165,6 +1180,13 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, "visible")) {
         *property_value_token = kVisibleToken;
+        return true;
+      }
+      return false;
+
+    case 12:
+      if (IsEqualToCssIdentifier(name.begin, "inline-block")) {
+        *property_value_token = kInlineBlockToken;
         return true;
       }
       return false;
