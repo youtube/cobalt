@@ -82,8 +82,6 @@ scoped_refptr<cssom::CSSStyleDeclaration> GetStyleOfOnlyRuleInStyleSheet(
 }  // namespace
 
 // TODO(***REMOVED***): Test every reduction that has semantic action.
-// TODO(***REMOVED***): Enable tests which test ParsePropertyValue and
-//               ParseListOfDeclarations functions.
 
 TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
@@ -680,23 +678,14 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
-TEST_F(ParserTest, DISABLED_ParsesPropertyValue) {
-  scoped_refptr<cssom::PropertyValue> property =
-      parser_.ParsePropertyValue("background", "rgba(0, 0, 0, .8)");
-
-  scoped_refptr<cssom::RGBAColorValue> background =
-      dynamic_cast<cssom::RGBAColorValue*>(property.get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background);
-  EXPECT_EQ(0x000000cc, background->value());
-}
-
-TEST_F(ParserTest, DISABLED_ParseListOfDeclarations) {
+TEST_F(ParserTest, DISABLED_ParseDeclarationList) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      parser_.ParseListOfDeclarations(
+      parser_.ParseDeclarationList(
           "color: rgba(255, 128, 1, 0.5);"
           "border-radius: 0.2em;"
           "font-family: \"Droid Sans\";"
-          "font-size: 100px;");
+          "font-size: 100px;",
+          base::SourceLocation("[object ParserTest]", 1, 1));
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
@@ -730,6 +719,47 @@ TEST_F(ParserTest, DISABLED_ParseListOfDeclarations) {
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->overflow());
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->transform());
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->width());
+}
+
+TEST_F(ParserTest, ParsePropertyValue_ParsesValidPropertyValue) {
+  scoped_refptr<cssom::RGBAColorValue> color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          parser_.ParsePropertyValue(
+                      "color", "#c0ffee",
+                      base::SourceLocation("[object ParserTest]", 1, 1)).get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+}
+
+TEST_F(ParserTest, ParsePropertyValue_WarnsAboutImportant) {
+  EXPECT_CALL(parser_observer_,
+              OnError(
+                  "[object ParserTest]:1:1: error: !important is not allowed "
+                  "in property value"));
+
+  scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
+      "color", "#f0000d !important",
+      base::SourceLocation("[object ParserTest]", 1, 1));
+  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+}
+
+TEST_F(ParserTest, ParsePropertyValue_WarnsAboutTrailingSemicolon) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:8: error: unrecoverable syntax error"));
+
+  scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
+      "color", "#baaaad;", base::SourceLocation("[object ParserTest]", 1, 1));
+  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+}
+
+TEST_F(ParserTest, ParsePropertyValue_WarnsAboutInvalidPropertyValue) {
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: unsupported value"));
+
+  scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
+      "color", "spring grass",
+      base::SourceLocation("[object ParserTest]", 1, 1));
+  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
 }  // namespace css_parser

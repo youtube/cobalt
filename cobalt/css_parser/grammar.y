@@ -40,6 +40,11 @@
 // Tokens returned by a scanner.
 //
 
+// Entry point tokens, injected by the parser in order to choose the path
+// within a grammar, never appear in the source code.
+%token kStyleSheetEntryPointToken
+%token kPropertyValueEntryPointToken
+
 // Tokens without a value.
 %token kEndOfFileToken 0                // null
 %token kWhitespaceToken                 // tab, space, CR, LF
@@ -195,7 +200,7 @@
 //
 
 // A top-level rule.
-%start stylesheet
+%start entry_point
 
 %union { bool important; }
 %type <important> maybe_important
@@ -979,4 +984,24 @@ rule_list:
 
 // To parse a stylesheet, consume a list of rules.
 //   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
-stylesheet: maybe_whitespace rule_list ;
+stylesheet: rule_list ;
+
+// Parser entry points.
+//   http://dev.w3.org/csswg/css-syntax/#parser-entry-points
+entry_point:
+  // Parses the entire stylesheet.
+    kStyleSheetEntryPointToken maybe_whitespace stylesheet
+  // Parses the property value.
+  // This is a Cobalt's equivalent of a "list of component values".
+  | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
+    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    if (property_declaration != NULL) {
+      if (property_declaration->important) {
+        parser_impl->LogError(@1,
+                              "!important is not allowed in property value");
+      } else {
+        parser_impl->set_property_value(property_declaration->value);
+      }
+    }
+  }
+  ;

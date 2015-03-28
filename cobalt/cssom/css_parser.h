@@ -19,13 +19,15 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class CSSStyleDeclaration;
+class CSSStyleSheet;
+class PropertyValue;
 
 // An abstraction of CSS parser. The parser turns a string in UTF-8 encoding
 // into one of CSSOM objects. Created CSSOM objects should be self-contained
@@ -41,13 +43,22 @@ class CSSParser {
   // (see http://dev.w3.org/csswg/css-syntax/#parser-entry-points):
   //
 
-  // Parses entire stylesheet.
+  // Parses the entire stylesheet.
+  // Always returns non-NULL style sheet, even if an error occurred.
   virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& input, const base::SourceLocation& input_location) = 0;
-  virtual scoped_refptr<cssom::CSSStyleDeclaration> ParseListOfDeclarations(
-      const std::string& input) = 0;
+
+  // Parses the contents of a HTMLElement.style attribute.
+  // Always returns non-NULL declaration, even if an error occurred.
+  virtual scoped_refptr<cssom::CSSStyleDeclaration> ParseDeclarationList(
+      const std::string& input, const base::SourceLocation& input_location) = 0;
+
+  // Parses the property value.
+  // This is a Cobalt's equivalent of a "list of component values".
+  // May return NULL which is considered a valid property value.
   virtual scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
-      const std::string& property_name, const std::string& property_value) = 0;
+      const std::string& property_name, const std::string& property_value,
+      const base::SourceLocation& property_location) = 0;
 
   // TODO(***REMOVED***): Implement other entry points.
 
