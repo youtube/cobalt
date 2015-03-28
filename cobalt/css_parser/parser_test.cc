@@ -51,17 +51,15 @@ class ParserTest : public ::testing::Test {
   ~ParserTest() OVERRIDE {}
 
  protected:
-  const scoped_ptr<MockParserObserver> parser_observer_;
-  const scoped_ptr<Parser> parser_;
+  ::testing::StrictMock<MockParserObserver> parser_observer_;
+  Parser parser_;
 };
 
 ParserTest::ParserTest()
-    : parser_observer_(new MockParserObserver()),
-      parser_(
-          new Parser(base::Bind(&MockParserObserver::OnWarning,
-                                base::Unretained(parser_observer_.get())),
-                     base::Bind(&MockParserObserver::OnError,
-                                base::Unretained(parser_observer_.get())))) {}
+    : parser_(base::Bind(&MockParserObserver::OnWarning,
+                         base::Unretained(&parser_observer_)),
+              base::Bind(&MockParserObserver::OnError,
+                         base::Unretained(&parser_observer_))) {}
 
 namespace {
 
@@ -86,46 +84,40 @@ scoped_refptr<cssom::CSSStyleDeclaration> GetStyleOfOnlyRuleInStyleSheet(
 // TODO(***REMOVED***): Test every reduction that has semantic action.
 
 TEST_F(ParserTest, ParsesEmptyInput) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnError("[object ParserTest]:1:1: error: unrecoverable syntax error"));
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "@casino-royale", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnError("[object ParserTest]:10:18: error: unrecoverable syntax error"));
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "cucumber", base::SourceLocation("[object ParserTest]", 10, 10));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnError("[object ParserTest]:11:9: error: unrecoverable syntax error"));
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "\n"
       "cucumber",
       base::SourceLocation("[object ParserTest]", 10, 10));
@@ -134,21 +126,17 @@ TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
 }
 
 TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "<!-- body {} -->", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   ASSERT_EQ(1, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidAtToken) {
-  EXPECT_CALL(*parser_observer_,
+  EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @cobalt-magic; div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
@@ -156,11 +144,10 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
-  EXPECT_CALL(*parser_observer_,
+  EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @charset 'utf-8'; div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
@@ -168,11 +155,10 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
-  EXPECT_CALL(*parser_observer_,
+  EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_->ParseStyleSheet(
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} !important {} div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
@@ -180,11 +166,8 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
 }
 
 TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".double-size {\n"
           "  -moz-transform: scale(2);\n"
           "  -ms-transform: scale(2);\n"
@@ -197,16 +180,15 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
-  EXPECT_CALL(*parser_observer_, OnWarning(
-                                     "[object ParserTest]:2:3: warning: "
-                                     "unsupported property -webkit-pony"));
+  EXPECT_CALL(parser_observer_, OnWarning(
+                                    "[object ParserTest]:2:3: warning: "
+                                    "unsupported property -webkit-pony"));
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnWarning("[object ParserTest]:3:3: warning: unsupported property pony"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".friendship {\n"
           "  -webkit-pony: rainbowdash;\n"
           "  pony: rainbowdash;\n"
@@ -219,12 +201,11 @@ TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
 
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnWarning("[object ParserTest]:2:21: warning: unsupported value"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".champs-elysees {\n"
           "  background-color: morning haze over Paris;\n"
           "  color: #fff;\n"
@@ -236,12 +217,11 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
 
 TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnWarning("[object ParserTest]:2:3: warning: invalid declaration"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".friday-night-submit {\n"
           "  1px;\n"
           "  color: #fff;\n"
@@ -254,11 +234,8 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
 // TODO(***REMOVED***): Test selectors.
 
 TEST_F(ParserTest, ParsesInherit) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".like-father-like-son {\n"
           "  background-color: inherit;\n"
           "}\n",
@@ -268,11 +245,8 @@ TEST_F(ParserTest, ParsesInherit) {
 }
 
 TEST_F(ParserTest, ParsesInitial) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".reset {\n"
           "  background-color: initial;\n"
           "}\n",
@@ -282,11 +256,8 @@ TEST_F(ParserTest, ParsesInitial) {
 }
 
 TEST_F(ParserTest, ParsesBackground) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".playlist {\n"
           "  background: rgba(0, 0, 0, .8);\n"
           "}\n",
@@ -299,11 +270,8 @@ TEST_F(ParserTest, ParsesBackground) {
 }
 
 TEST_F(ParserTest, ParsesBackgroundColor) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".clean {\n"
           "  background-color: #fff;\n"
           "}\n",
@@ -316,11 +284,8 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
 }
 
 TEST_F(ParserTest, ParsesBorderRadius) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".rounded {\n"
           "  border-radius: 0.2em;\n"
           "}\n",
@@ -334,11 +299,8 @@ TEST_F(ParserTest, ParsesBorderRadius) {
 }
 
 TEST_F(ParserTest, Parses3DigitColor) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".dark {\n"
           "  color: #123;\n"
           "}\n",
@@ -351,11 +313,8 @@ TEST_F(ParserTest, Parses3DigitColor) {
 }
 
 TEST_F(ParserTest, Parses6DigitColor) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".logo {\n"
           "  color: #0047ab;  /* Cobalt blue */\n"
           "}\n",
@@ -368,11 +327,8 @@ TEST_F(ParserTest, Parses6DigitColor) {
 }
 
 TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".sparta {\n"
           "  color: rgb(300, 0, -300);\n"
           "}\n",
@@ -385,11 +341,8 @@ TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
 }
 
 TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".dimmed {\n"
           "  color: rgba(255, 128, 1, 0.5);\n"
           "}\n",
@@ -402,11 +355,8 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
 }
 
 TEST_F(ParserTest, ParsesBlockDisplay) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           "div {\n"
           "  display: block;\n"
           "}\n",
@@ -416,11 +366,8 @@ TEST_F(ParserTest, ParsesBlockDisplay) {
 }
 
 TEST_F(ParserTest, ParsesInlineDisplay) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           "span {\n"
           "  display: inline;\n"
           "}\n",
@@ -430,11 +377,8 @@ TEST_F(ParserTest, ParsesInlineDisplay) {
 }
 
 TEST_F(ParserTest, ParsesInlineBlockDisplay) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           "marquee {\n"
           "  display: inline-block;\n"
           "}\n",
@@ -444,11 +388,8 @@ TEST_F(ParserTest, ParsesInlineBlockDisplay) {
 }
 
 TEST_F(ParserTest, ParsesNoneDisplay) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           "head {\n"
           "  display: none;\n"
           "}\n",
@@ -458,11 +399,8 @@ TEST_F(ParserTest, ParsesNoneDisplay) {
 }
 
 TEST_F(ParserTest, ParsesFontFamily) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".nexus {\n"
           "  font-family: \"Droid Sans\";\n"
           "}\n",
@@ -477,11 +415,8 @@ TEST_F(ParserTest, ParsesFontFamily) {
 // TODO(***REMOVED***): Test other length units, including negative ones.
 
 TEST_F(ParserTest, ParsesFontSize) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".large {\n"
           "  font-size: 100px;\n"
           "}\n",
@@ -495,11 +430,8 @@ TEST_F(ParserTest, ParsesFontSize) {
 }
 
 TEST_F(ParserTest, ParsesNormalFontWeight) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".normal {\n"
           "  font-weight: normal;\n"
           "}\n",
@@ -509,11 +441,8 @@ TEST_F(ParserTest, ParsesNormalFontWeight) {
 }
 
 TEST_F(ParserTest, ParsesBoldFontWeight) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".bold {\n"
           "  font-weight: bold;\n"
           "}\n",
@@ -523,11 +452,8 @@ TEST_F(ParserTest, ParsesBoldFontWeight) {
 }
 
 TEST_F(ParserTest, ParsesOpacity) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".translucent {\n"
           "  opacity: 0.5;\n"
           "}\n",
@@ -540,11 +466,8 @@ TEST_F(ParserTest, ParsesOpacity) {
 }
 
 TEST_F(ParserTest, ClampsOpacityToZero) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".transparent {\n"
           "  opacity: -3.14;\n"
           "}\n",
@@ -557,11 +480,8 @@ TEST_F(ParserTest, ClampsOpacityToZero) {
 }
 
 TEST_F(ParserTest, ClampsOpacityToOne) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".opaque {\n"
           "  opacity: 2.72;\n"
           "}\n",
@@ -574,11 +494,8 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
 }
 
 TEST_F(ParserTest, ParsesHiddenOverflow) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".hidden {\n"
           "  overflow: hidden;\n"
           "}\n",
@@ -588,11 +505,8 @@ TEST_F(ParserTest, ParsesHiddenOverflow) {
 }
 
 TEST_F(ParserTest, ParsesVisibleOverflow) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".visible {\n"
           "  overflow: visible;\n"
           "}\n",
@@ -602,11 +516,8 @@ TEST_F(ParserTest, ParsesVisibleOverflow) {
 }
 
 TEST_F(ParserTest, ParsesNoneTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".normal-state {\n"
           "  transform: none;\n"
           "}\n",
@@ -616,11 +527,8 @@ TEST_F(ParserTest, ParsesNoneTransform) {
 }
 
 TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".isotropic-scale {\n"
           "  transform: scale(1.5);\n"
           "}\n",
@@ -643,11 +551,8 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
 // TODO(***REMOVED***): Test non-zero lengths without units.
 
 TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".anisotropic-scale {\n"
           "  transform: scale(16, 9);\n"
           "}\n",
@@ -666,11 +571,8 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
 }
 
 TEST_F(ParserTest, ParsesTranslateXTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".translate-x {\n"
           "  transform: translateX(0);\n"
           "}\n",
@@ -693,11 +595,8 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
 }
 
 TEST_F(ParserTest, ParsesTranslateYTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".translate-y {\n"
           "  transform: translateY(30em);\n"
           "}\n",
@@ -720,11 +619,8 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
 }
 
 TEST_F(ParserTest, ParsesTranslateZTransform) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".translate-z {\n"
           "  transform: translateZ(-22px);\n"
           "}\n",
@@ -747,11 +643,8 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
 }
 
 TEST_F(ParserTest, ParsesMultipleTransforms) {
-  EXPECT_CALL(*parser_observer_, OnWarning(_)).Times(0);
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".multiple-transforms {\n"
           "  transform: scale(2) translateZ(10px);\n"
           "}\n",
@@ -769,13 +662,12 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
 
 TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_CALL(
-      *parser_observer_,
+      parser_observer_,
       OnWarning(
           "[object ParserTest]:2:27: warning: invalid transform function"));
-  EXPECT_CALL(*parser_observer_, OnError(_)).Times(0);
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_->ParseStyleSheet(
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
           ".black-hole {\n"
           "  transform: scale(0.001) warp(spacetime);\n"
           "  color: #000;\n"
