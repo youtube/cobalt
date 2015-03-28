@@ -17,6 +17,7 @@
 #ifndef CSS_PARSER_SCANNER_H_
 #define CSS_PARSER_SCANNER_H_
 
+#include <deque>
 #include <string>
 
 #include "base/basictypes.h"
@@ -60,6 +61,11 @@ class Scanner {
   // iterator accordingly. Guaranteed to succeed because unrecognized characters
   // are returned as is (and are expected to trigger a parser error).
   Token Scan(TokenValue* token_value, YYLTYPE* token_location);
+
+  // Token injection, used by the parser to choose an entry point.
+  void PrependToken(Token token);
+  bool DetectPropertyNameToken(const std::string& property_name,
+                               Token* property_name_token) const;
 
  private:
   // Parsing modes are the equivalent of Flex start conditions:
@@ -176,6 +182,8 @@ class Scanner {
 
   int line_number_;
   const char* line_start_;
+
+  std::deque<Token> prepended_tokens_;
 
   DISALLOW_COPY_AND_ASSIGN(Scanner);
 };

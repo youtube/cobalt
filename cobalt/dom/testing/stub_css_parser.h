@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CSS_PARSER_PARSER_H_
-#define CSS_PARSER_PARSER_H_
+#ifndef DOM_TESTING_STUB_CSS_PARSER_H_
+#define DOM_TESTING_STUB_CSS_PARSER_H_
 
-#include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
 
 namespace cobalt {
-namespace css_parser {
+namespace dom {
+namespace testing {
 
-class Parser : public cssom::CSSParser {
- public:
-  static scoped_ptr<Parser> Create();
-  ~Parser();
-
+class StubCSSParser : public cssom::CSSParser {
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
@@ -39,22 +35,10 @@ class Parser : public cssom::CSSParser {
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) OVERRIDE;
-
- private:
-  typedef base::Callback<void(const std::string& message)> OnMessageCallback;
-
-  Parser(const OnMessageCallback& on_warning_callback,
-         const OnMessageCallback& on_error_callback);
-
-  const OnMessageCallback on_warning_callback_;
-  const OnMessageCallback on_error_callback_;
-
-  friend class ParserImpl;
-  friend class ParserTest;
-  DISALLOW_COPY_AND_ASSIGN(Parser);
 };
 
-}  // namespace css_parser
+}  // namespace testing
+}  // namespace dom
 }  // namespace cobalt
 
-#endif  // CSS_PARSER_PARSER_H_
+#endif  // DOM_TESTING_STUB_CSS_PARSER_H_
