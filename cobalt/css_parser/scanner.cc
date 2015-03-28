@@ -346,6 +346,13 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     token_location->first_column =
         static_cast<int>(input_iterator_ - line_start_) + 1;
 
+    // Return all prepended tokens before actual input.
+    if (!prepended_tokens_.empty()) {
+      Token prepended_token = prepended_tokens_.front();
+      prepended_tokens_.pop_front();
+      return prepended_token;
+    }
+
     char first_character(*input_iterator_);
     CharacterType character_type(first_character >= 0
                                      ? kTypesOfAsciiCharacters[first_character]
@@ -408,6 +415,15 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
         break;
     }
   }
+}
+
+void Scanner::PrependToken(Token token) { prepended_tokens_.push_back(token); }
+
+bool Scanner::DetectPropertyNameToken(const std::string& property_name,
+                                      Token* property_name_token) const {
+  return DetectPropertyNameToken(
+      TrivialStringPiece::FromCString(property_name.c_str()),
+      property_name_token);
 }
 
 Token Scanner::ScanFromCaselessU(TokenValue* token_value) {

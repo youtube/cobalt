@@ -17,6 +17,7 @@
 #include "cobalt/dom/html_link_element.h"
 
 #include "base/bind.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
 #include "googleurl/src/gurl.h"
 
