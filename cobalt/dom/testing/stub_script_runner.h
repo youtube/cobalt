@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SWITCHES_H_
-#define BROWSER_SWITCHES_H_
+#ifndef DOM_TESTING_STUB_SCRIPT_RUNNER_H_
+#define DOM_TESTING_STUB_SCRIPT_RUNNER_H_
+
+#include "cobalt/script/script_runner.h"
 
 namespace cobalt {
-namespace browser {
-namespace switches {
+namespace dom {
+namespace testing {
 
-extern const char kInitialURL[];
+class StubScriptRunner : public script::ScriptRunner {
+ public:
+  void Execute(const std::string& script_utf8) OVERRIDE;
+};
 
-}  // namespace switches
-}  // namespace browser
+}  // namespace testing
+}  // namespace dom
 }  // namespace cobalt
 
-#endif  // BROWSER_SWITCHES_H_
+#endif  // DOM_TESTING_STUB_SCRIPT_RUNNER_H_
