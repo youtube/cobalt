@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/html_style_element.h"
 
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
 
 namespace cobalt {

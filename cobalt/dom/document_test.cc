@@ -17,7 +17,6 @@
 #include "cobalt/dom/document.h"
 
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -26,32 +25,12 @@
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/parent_node_testing.h"
+#include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
-
-//////////////////////////////////////////////////////////////////////////
-// Stubs
-//////////////////////////////////////////////////////////////////////////
-
-class StubCSSParser : public cssom::CSSParser {
-  scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
-      const std::string& input,
-      const base::SourceLocation& input_location) OVERRIDE {
-    return new cssom::CSSStyleSheet();
-  }
-  scoped_refptr<cssom::CSSStyleDeclaration> ParseListOfDeclarations(
-      const std::string& input) OVERRIDE {
-    return scoped_refptr<cssom::CSSStyleDeclaration>();
-  }
-  scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
-      const std::string& property_name,
-      const std::string& property_value) OVERRIDE {
-    return scoped_refptr<cssom::PropertyValue>();
-  }
-};
 
 //////////////////////////////////////////////////////////////////////////
 // DocumentTest
@@ -62,11 +41,12 @@ class DocumentTest : public ::testing::Test {
   DocumentTest();
   ~DocumentTest() OVERRIDE;
 
+  testing::StubCSSParser stub_css_parser_;
   HTMLElementFactory html_element_factory_;
 };
 
 DocumentTest::DocumentTest()
-    : html_element_factory_(NULL, new StubCSSParser(), NULL) {
+    : html_element_factory_(NULL, &stub_css_parser_, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 

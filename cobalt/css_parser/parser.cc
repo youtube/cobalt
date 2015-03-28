@@ -29,6 +29,7 @@
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -70,6 +71,8 @@ class ParserImpl {
              const Parser::OnMessageCallback& on_error_callback);
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
+  scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
+      const std::string& property_name);
 
   Scanner& scanner() { return scanner_; }
 
@@ -82,8 +85,14 @@ class ParserImpl {
   void LogError(const YYLTYPE& source_location, const std::string& message);
 
   cssom::CSSStyleSheet& style_sheet() const { return *style_sheet_; }
+  void set_property_value(
+      const scoped_refptr<cssom::PropertyValue>& property_value) {
+    property_value_ = property_value;
+  }
 
  private:
+  bool Parse();
+
   std::string FormatMessage(const std::string& message_type,
                             const YYLTYPE& source_location,
                             const std::string& message);
@@ -97,7 +106,9 @@ class ParserImpl {
   Scanner scanner_;
   YYLTYPE last_syntax_error_location_;
 
+  // Parsing results, only one of them may be non-NULL.
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
+  scoped_refptr<cssom::PropertyValue> property_value_;
 
   friend int yyparse(ParserImpl* parser_impl);
 };
@@ -112,6 +123,32 @@ ParserImpl::ParserImpl(const std::string& input,
       on_warning_callback_(on_warning_callback),
       on_error_callback_(on_error_callback) {}
 
+scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
+  style_sheet_ = new cssom::CSSStyleSheet();
+
+  scanner_.PrependToken(kStyleSheetEntryPointToken);
+  Parse();
+
+  return style_sheet_;
+}
+
+scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
+    const std::string& property_name) {
+  Token property_name_token;
+  bool known_property_name =
+      scanner_.DetectPropertyNameToken(property_name, &property_name_token);
+  DCHECK(known_property_name);
+
+  scanner_.PrependToken(kPropertyValueEntryPointToken);
+  scanner_.PrependToken(property_name_token);
+  scanner_.PrependToken(':');
+  if (!Parse()) {
+    return NULL;
+  }
+
+  return property_value_;
+}
+
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
                             const std::string& message) {
   on_warning_callback_.Run(FormatMessage("warning", source_location, message));
@@ -120,6 +157,24 @@ void ParserImpl::LogWarning(const YYLTYPE& source_location,
 void ParserImpl::LogError(const YYLTYPE& source_location,
                           const std::string& message) {
   on_error_callback_.Run(FormatMessage("error", source_location, message));
+}
+
+bool ParserImpl::Parse() {
+  // For more information on error codes
+  // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
+  int error_code(yyparse(this));
+  switch (error_code) {
+    case 0:
+      // Parsed successfully or was able to recover from errors.
+      return true;
+    case 1:
+      // Failed to recover from errors.
+      LogError(last_syntax_error_location_, "unrecoverable syntax error");
+      return false;
+    default:
+      NOTREACHED();
+      return false;
+  }
 }
 
 std::string ParserImpl::FormatMessage(const std::string& message_type,
@@ -136,28 +191,6 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
   message_stream << input_location_.file_path << ":" << line_number << ":"
                  << column_number << ": " << message_type << ": " << message;
   return message_stream.str();
-}
-
-scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
-  style_sheet_ = new cssom::CSSStyleSheet();
-
-  // For more information on error codes
-  // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
-  int error_code(yyparse(this));
-  switch (error_code) {
-    case 0:
-      // Parsed successfully or was able to recover from errors.
-      break;
-    case 1:
-      // Failed to recover from errors.
-      LogError(last_syntax_error_location_, "unrecoverable syntax error");
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-
-  return style_sheet_;
 }
 
 // This function is only used to record a location of unrecoverable
@@ -212,19 +245,20 @@ scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
   return parser_impl.ParseStyleSheet();
 }
 
-scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseListOfDeclarations(
-    const std::string& /*input*/) {
+scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseDeclarationList(
+    const std::string& /*input*/,
+    const base::SourceLocation& /*input_location*/) {
   // TODO(***REMOVED***): Implement this.
   NOTREACHED();
-  return scoped_refptr<cssom::CSSStyleDeclaration>();
+  return NULL;
 }
 
 scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
-    const std::string& /*property_name*/,
-    const std::string& /*property_value*/) {
-  // TODO(***REMOVED***): Implement this.
-  NOTREACHED();
-  return scoped_refptr<cssom::PropertyValue>();
+    const std::string& property_name, const std::string& property_value,
+    const base::SourceLocation& property_location) {
+  ParserImpl parser_impl(property_value, property_location,
+                         on_warning_callback_, on_error_callback_);
+  return parser_impl.ParsePropertyValue(property_name);
 }
 
 }  // namespace css_parser
