@@ -17,7 +17,6 @@
 #ifndef BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 #define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"

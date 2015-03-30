@@ -34,6 +34,9 @@ class JavaScriptEngine {
   // Create a new JavaScript global object.
   virtual scoped_refptr<GlobalObjectProxy> CreateGlobalObject() = 0;
 
+  // Kick off the engine's garbage collection synchronously.
+  virtual void CollectGarbage() = 0;
+
  protected:
   virtual ~JavaScriptEngine() {}
   friend class scoped_ptr<JavaScriptEngine>;
