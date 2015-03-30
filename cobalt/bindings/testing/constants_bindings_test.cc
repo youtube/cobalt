@@ -16,9 +16,6 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/test_window_mock.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/global_object_proxy.h"
-#include "cobalt/script/source_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
