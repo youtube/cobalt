@@ -15,10 +15,12 @@
  */
 
 #include <vector>
+#include <ostream>
 
 #include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/string_util.h"
@@ -86,7 +88,7 @@ void AcceptRenderTreeForTest(const FilePath& test_html_path,
                              renderer::RenderTreePixelTester* pixel_tester,
                              base::RunLoop* run_loop, bool* result,
                              const scoped_refptr<render_tree::Node>& tree) {
-  *result = pixel_tester->TestTree(tree, test_html_path.RemoveExtension());
+  *result = pixel_tester->TestTree(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
 
@@ -96,16 +98,46 @@ void AcceptRenderTreeForRebaseline(
     const FilePath& test_html_path,
     renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
     const scoped_refptr<render_tree::Node>& tree) {
-  pixel_tester->Rebaseline(tree, test_html_path.RemoveExtension());
+  pixel_tester->Rebaseline(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+}
+
+GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
+  return GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
+              base_file_path.AddExtension("html").value());
 }
 }  // namespace
 
-class LayoutTest : public ::testing::TestWithParam<FilePath> {};
+struct TestInfo {
+  TestInfo(const FilePath& base_file_path,
+           const GURL& url) :
+      base_file_path(base_file_path),
+      url(url) {}
+
+  // The base_file_path gives a path (relative to the root layout_tests
+  // directory) to the test base filename from which all related files (such
+  // as the source HTML file and the expected output PNG file) can be
+  // derived.  This essentially acts as the test's identifier.
+  FilePath base_file_path;
+
+  // The URL is what the layout tests will load and render to produce the
+  // actual output.  It is commonly computed from base_file_path (via
+  // GetURLFromBaseFilePath()), but it can also be stated explicitly in the case
+  // that it is external from the layout_tests.
+  GURL url;
+};
+
+// Define operator<< so that this test parameter can be printed by gtest if
+// a test fails.
+std::ostream& operator<<(std::ostream& out, const TestInfo& test_info) {
+  return out << test_info.base_file_path.value();
+}
+
+class LayoutTest : public ::testing::TestWithParam<TestInfo> {};
 TEST_P(LayoutTest, LayoutTest) {
   // Output the name of the current input file so that it is visible in test
   // output.
-  std::cout << "(" << GetParam().value() << ")" << std::endl;
+  std::cout << "(" << GetParam() << ")" << std::endl;
 
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.
@@ -129,9 +161,7 @@ TEST_P(LayoutTest, LayoutTest) {
   // Setup the WebModule options.  In particular, we specify here the URL of
   // the test that we wish to run.
   browser::WebModule::Options web_module_options;
-  web_module_options.url =
-      GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
-           GetParam().value());
+  web_module_options.url = GetParam().url;
   web_module_options.layout_trigger = layout::LayoutManager::kOnDocumentLoad;
 
   // Setup the function that should be called whenever the WebModule produces
@@ -140,10 +170,12 @@ TEST_P(LayoutTest, LayoutTest) {
   bool result = false;
   layout::LayoutManager::OnRenderTreeProducedCallback callback_function(
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)
-          ? base::Bind(&AcceptRenderTreeForRebaseline, GetParam(),
+          ? base::Bind(&AcceptRenderTreeForRebaseline,
+                       GetParam().base_file_path,
                        &pixel_tester, &run_loop)
-          : base::Bind(&AcceptRenderTreeForTest, GetParam(), &pixel_tester,
-                       &run_loop, &result));
+          : base::Bind(&AcceptRenderTreeForTest,
+                       GetParam().base_file_path,
+                       &pixel_tester, &run_loop, &result));
 
   // Create the web module.
   browser::WebModule web_module(
@@ -164,6 +196,41 @@ TEST_P(LayoutTest, LayoutTest) {
 }
 
 namespace {
+base::optional<TestInfo> ParseTestCaseLine(
+    const FilePath& top_level,
+    const std::string& line_string) {
+  // Split the line up by commas, of which there may be none.
+  std::vector<std::string> test_case_tokens;
+  Tokenize(line_string, ",", &test_case_tokens);
+  if (test_case_tokens.empty() || test_case_tokens.size() > 2) {
+    return base::nullopt;
+  }
+
+  // Extract the test case file path as the first element before a comma, if
+  // there is one.
+  std::string base_file_path_string;
+  TrimWhitespaceASCII(test_case_tokens[0], TRIM_ALL, &base_file_path_string);
+  if (base_file_path_string.empty()) {
+    return base::nullopt;
+  }
+  FilePath base_file_path(top_level.Append(base_file_path_string));
+
+  if (test_case_tokens.size() == 1) {
+    // If there is no comma, determine the URL from the file path.
+    return TestInfo(base_file_path, GetURLFromBaseFilePath(base_file_path));
+  } else {
+    // If there is a comma, the string that comes after it contains the
+    // explicitly specified URL.  Extract that and use it as the test URL.
+    DCHECK_EQ(2, test_case_tokens.size());
+    std::string url_string;
+    TrimWhitespaceASCII(test_case_tokens[1], TRIM_ALL, &url_string);
+    if (url_string.empty()) {
+      return base::nullopt;
+    }
+    return TestInfo(base_file_path, GURL(url_string));
+  }
+}
+
 // Load the file "layout_tests.txt" within the top-level directory and parse it.
 // The file should contain a list of file paths (one per line) relative to the
 // top level directory which the file lives.  These paths are returned as a
@@ -172,9 +239,8 @@ namespace {
 // instantiations for different types of layout tests.  For example there may
 // be an instantiation for Cobalt-specific layout tests, and another for
 // CSS test suite tests.
-std::vector<FilePath> EnumerateLayoutTests(const std::string& top_level) {
-  FilePath top_level_path(top_level);
-  FilePath test_dir(GetTestInputRootDirectory().Append(top_level_path));
+std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
+  FilePath test_dir(GetTestInputRootDirectory().Append(top_level));
   FilePath layout_tests_list_file(
       test_dir.Append(FILE_PATH_LITERAL("layout_tests.txt")));
 
@@ -182,26 +248,26 @@ std::vector<FilePath> EnumerateLayoutTests(const std::string& top_level) {
   if (!file_util::ReadFileToString(layout_tests_list_file,
                                    &layout_test_list_string)) {
     DLOG(ERROR) << "Could not open '" << layout_tests_list_file.value() << "'.";
-    return std::vector<FilePath>();
+    return std::vector<TestInfo>();
   } else {
     // Tokenize the file contents into lines, and then read each line one by
     // one as the name of the test file.
-    std::vector<std::string> tokens;
-    Tokenize(layout_test_list_string, "\n\r", &tokens);
+    std::vector<std::string> line_tokens;
+    Tokenize(layout_test_list_string, "\n\r", &line_tokens);
 
-    std::vector<FilePath> file_path_list;
-    for (std::vector<std::string>::const_iterator iter = tokens.begin();
-         iter != tokens.end(); ++iter) {
-      // For each line, trim the whitespace and if the line is not empty, count
-      // it as a layout test.
-      std::string whitespace_trimmed_line;
-      TrimWhitespaceASCII(
-          *iter, TRIM_ALL, &whitespace_trimmed_line);
-      if (!whitespace_trimmed_line.empty()) {
-        file_path_list.push_back(top_level_path.Append(*iter));
+    std::vector<TestInfo> test_info_list;
+    for (std::vector<std::string>::const_iterator iter = line_tokens.begin();
+         iter != line_tokens.end(); ++iter) {
+      base::optional<TestInfo> parsed_test_info =
+          ParseTestCaseLine(FilePath(top_level), *iter);
+      if (!parsed_test_info) {
+        DLOG(WARNING) << "Ignoring invalid test case line: " << iter->c_str();
+        continue;
+      } else {
+        test_info_list.push_back(*parsed_test_info);
       }
     }
-    return file_path_list;
+    return test_info_list;
   }
 }
 }  // namespace
