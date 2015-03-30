@@ -21,6 +21,7 @@
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalObject.h"
@@ -28,6 +29,8 @@
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
+
+class JSCObjectOwner;
 
 // JSCGlobalObject is JavaScriptCore's Global Object in Cobalt. It inherits from
 // JSC::GlobalObject so we can use this wherever a JSC::GlobalObject would be
@@ -46,14 +49,29 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   void CacheObject(const JSC::ClassInfo* class_info,
                    JSC::JSObject* object);
 
+  // Register a JavaScript object to which a reference is being held from
+  // Cobalt. As long as the JSCObjectOwner has not been deleted, the
+  // underlying JS object will not be garbage collected.
+  scoped_refptr<JSCObjectOwner> RegisterObjectOwner(JSC::JSObject* js_object);
+
   // JavaScriptCore stuff
   static const JSC::ClassInfo s_info;
+
   // Classes that inherit from JSC::GlobalObject set this flag, and set a
   // finalizer method on creation.
   static const bool needsDestruction = false;
+
   // Statically override this to ensure that we visit objects that this
-  // object it references, to ensure that they are not garbage collected.
-  static void visitChildren(JSC::JSCell* cell, JSC::SlotVisitor& visitor);  // NOLINT
+  // object holds handles to. This is generally called by JSCs garbage
+  // collector.
+  static void visitChildren(JSC::JSCell* cell,
+                            JSC::SlotVisitor& visitor) {  // NOLINT
+    // Cast the JSC::JSCell* to a JSCGlobalObject, and call the non-static
+    // visit_children function.
+    ASSERT_GC_OBJECT_INHERITS(cell, &s_info);
+    JSCGlobalObject* this_object = JSC::jsCast<JSCGlobalObject*>(cell);
+    this_object->visit_children(&visitor);
+  }
 
   // static override. This will be called when this object is garbage collected.
   static void destroy(JSC::JSCell* cell) {
@@ -70,6 +88,9 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
  private:
   JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure);
 
+  // Called from the public static visitChildren method, defined above.
+  void visit_children(JSC::SlotVisitor* visitor);
+
 #if defined(__LB_LINUX__)
   struct hash_function {
     std::size_t operator()(const JSC::ClassInfo* class_info) const {
@@ -85,8 +106,10 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
                          JSC::WriteBarrier<JSC::JSObject> > CachedObjectMap;
 #endif
 
-  CachedObjectMap cached_objects_;
+  typedef std::list<base::WeakPtr<JSCObjectOwner> > JSCObjectOwnerList;
 
+  CachedObjectMap cached_objects_;
+  JSCObjectOwnerList owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
 };
 

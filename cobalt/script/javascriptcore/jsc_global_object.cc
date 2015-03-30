@@ -17,6 +17,7 @@
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 
 #include "base/logging.h"
+#include "cobalt/script/javascriptcore/jsc_object_owner.h"
 
 namespace cobalt {
 namespace script {
@@ -64,16 +65,35 @@ void JSCGlobalObject::CacheObject(const JSC::ClassInfo* class_info,
       << "Object was already registered for this ClassInfo";
 }
 
-// static
-void JSCGlobalObject::visitChildren(JSC::JSCell* cell,
-                                    JSC::SlotVisitor& visitor) {  // NOLINT
-  JSCGlobalObject* this_object = static_cast<JSCGlobalObject*>(cell);
-  ASSERT_GC_OBJECT_INHERITS(this_object, &s_info);
-  JSC::JSGlobalObject::visitChildren(this_object, visitor);
-  CachedObjectMap::iterator it;
-  for (it = this_object->cached_objects_.begin();
-       it != this_object->cached_objects_.end(); ++it) {
-    visitor.append(&(it->second));
+scoped_refptr<JSCObjectOwner> JSCGlobalObject::RegisterObjectOwner(
+    JSC::JSObject* js_object) {
+  DCHECK(js_object);
+  scoped_refptr<JSCObjectOwner> object_owner = new JSCObjectOwner(
+      JSC::WriteBarrier<JSC::JSObject>(this->globalData(), this, js_object));
+  owned_objects_.push_back(object_owner->AsWeakPtr());
+  return object_owner;
+}
+
+void JSCGlobalObject::visit_children(JSC::SlotVisitor* visitor) {
+  JSC::JSGlobalObject::visitChildren(this, *visitor);
+
+  for (CachedObjectMap::iterator it = cached_objects_.begin();
+       it != cached_objects_.end(); ++it) {
+    visitor->append(&(it->second));
+  }
+
+  // If the object being pointed to by the weak handle has been deleted, then
+  // there are no more references to the JavaScript object in Cobalt. It is
+  // safe to be garbage collected.
+  for (JSCObjectOwnerList::iterator it = owned_objects_.begin();
+       it != owned_objects_.end();) {
+    base::WeakPtr<JSCObjectOwner>& owner_weak = *it;
+    if (owner_weak) {
+      visitor->append(&(owner_weak->js_object()));
+      ++it;
+    } else {
+      it = owned_objects_.erase(it);
+    }
   }
 }
 
