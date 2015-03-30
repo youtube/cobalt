@@ -60,6 +60,8 @@ class InterfaceBindingsTest : public BindingsTestBase<MockT> {
     global_object_proxy_->Bind("test",
                                make_scoped_refptr<BaseClass>((test_mock_)));
   }
+  using BindingsTestBase<MockT>::global_object_proxy_;
+  using BindingsTestBase<MockT>::test_mock_;
 };
 
 // Use this fixture to create a new MockT object with bindings defined for the
@@ -73,6 +75,8 @@ class GlobalBindingsTestBase : public BindingsTestBase<MockT> {
     global_object_proxy_->SetGlobalInterface(
         make_scoped_refptr<BaseClass>(test_mock_));
   }
+  using BindingsTestBase<MockT>::global_object_proxy_;
+  using BindingsTestBase<MockT>::test_mock_;
 };
 
 }  // namespace testing
