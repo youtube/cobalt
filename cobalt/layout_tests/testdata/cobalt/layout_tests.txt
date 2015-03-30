@@ -1,4 +1,4 @@
-block-and-inline-block-display.html
-cobalt-oxide.html
-simple-transform-text.html
-user-agent-style-sheet-display.html
+block-and-inline-block-display
+cobalt-oxide, file:///cobalt/dom/testdata/cobalt-oxide/cobalt-oxide.html
+simple-transform-text
+user-agent-style-sheet-display
