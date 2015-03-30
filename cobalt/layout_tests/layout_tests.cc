@@ -21,6 +21,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/string_util.h"
 #include "cobalt/math/size.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/web_module.h"
@@ -163,29 +164,45 @@ TEST_P(LayoutTest, LayoutTest) {
 }
 
 namespace {
-// Enumerate all files in the top level directory, counting each ".html"
-// file found as a separate test, and returning it in the vector of layout_tests
-// to execute.  The top_level parameter allows one to make different test case
+// Load the file "layout_tests.txt" within the top-level directory and parse it.
+// The file should contain a list of file paths (one per line) relative to the
+// top level directory which the file lives.  These paths are returned as a
+// vector of file paths relative to the input directory.
+// The top_level parameter allows one to make different test case
 // instantiations for different types of layout tests.  For example there may
 // be an instantiation for Cobalt-specific layout tests, and another for
 // CSS test suite tests.
 std::vector<FilePath> EnumerateLayoutTests(const std::string& top_level) {
-  FilePath test_dir(GetTestInputRootDirectory().Append(top_level));
+  FilePath top_level_path(top_level);
+  FilePath test_dir(GetTestInputRootDirectory().Append(top_level_path));
+  FilePath layout_tests_list_file(
+      test_dir.Append(FILE_PATH_LITERAL("layout_tests.txt")));
 
-  std::vector<FilePath> tests;
-  file_util::FileEnumerator files(test_dir, true,
-                                  file_util::FileEnumerator::FILES);
-  for (FilePath next_file = files.Next(); !next_file.empty();
-       next_file = files.Next()) {
-    if (next_file.Extension() == ".html") {
-      FilePath path_relative_to_input_directory;
-      CHECK(GetTestInputRootDirectory().AppendRelativePath(
-          next_file, &path_relative_to_input_directory));
-      tests.push_back(path_relative_to_input_directory);
+  std::string layout_test_list_string;
+  if (!file_util::ReadFileToString(layout_tests_list_file,
+                                   &layout_test_list_string)) {
+    DLOG(ERROR) << "Could not open '" << layout_tests_list_file.value() << "'.";
+    return std::vector<FilePath>();
+  } else {
+    // Tokenize the file contents into lines, and then read each line one by
+    // one as the name of the test file.
+    std::vector<std::string> tokens;
+    Tokenize(layout_test_list_string, "\n\r", &tokens);
+
+    std::vector<FilePath> file_path_list;
+    for (std::vector<std::string>::const_iterator iter = tokens.begin();
+         iter != tokens.end(); ++iter) {
+      // For each line, trim the whitespace and if the line is not empty, count
+      // it as a layout test.
+      std::string whitespace_trimmed_line;
+      TrimWhitespaceASCII(
+          *iter, TRIM_ALL, &whitespace_trimmed_line);
+      if (!whitespace_trimmed_line.empty()) {
+        file_path_list.push_back(top_level_path.Append(*iter));
+      }
     }
+    return file_path_list;
   }
-
-  return tests;
 }
 }  // namespace
 
