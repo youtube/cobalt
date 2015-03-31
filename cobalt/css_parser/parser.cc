@@ -72,8 +72,11 @@ class ParserImpl {
  public:
   ParserImpl(const std::string& input,
              const base::SourceLocation& input_location,
+             cssom::CSSParser* css_parser,
              const Parser::OnMessageCallback& on_warning_callback,
              const Parser::OnMessageCallback& on_error_callback);
+
+  cssom::CSSParser* const css_parser() { return css_parser_; }
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
   scoped_refptr<cssom::CSSStyleDeclaration> ParseDeclarationList();
@@ -114,6 +117,9 @@ class ParserImpl {
   const Parser::OnMessageCallback on_warning_callback_;
   const Parser::OnMessageCallback on_error_callback_;
 
+  // The CSSParser that created ParserImpl.
+  cssom::CSSParser* const css_parser_;
+
   StringPool string_pool_;
   Scanner scanner_;
   YYLTYPE last_syntax_error_location_;
@@ -129,10 +135,12 @@ class ParserImpl {
 
 ParserImpl::ParserImpl(const std::string& input,
                        const base::SourceLocation& input_location,
+                       cssom::CSSParser* css_parser,
                        const Parser::OnMessageCallback& on_warning_callback,
                        const Parser::OnMessageCallback& on_error_callback)
     : input_(input),
       input_location_(input_location),
+      css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
       on_error_callback_(on_error_callback) {}
@@ -145,8 +153,9 @@ scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
 
 scoped_refptr<cssom::CSSStyleDeclaration> ParserImpl::ParseDeclarationList() {
   scanner_.PrependToken(kDeclarationListEntryPointToken);
-  return Parse() ? declaration_list_
-                 : make_scoped_refptr(new cssom::CSSStyleDeclaration());
+  return Parse()
+             ? declaration_list_
+             : make_scoped_refptr(new cssom::CSSStyleDeclaration(css_parser_));
 }
 
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
@@ -253,14 +262,14 @@ Parser::~Parser() {}
 
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
-  ParserImpl parser_impl(input, input_location, on_warning_callback_,
+  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
                          on_error_callback_);
   return parser_impl.ParseStyleSheet();
 }
 
 scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
-  ParserImpl parser_impl(input, input_location, on_warning_callback_,
+  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
                          on_error_callback_);
   return parser_impl.ParseDeclarationList();
 }
@@ -268,7 +277,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseDeclarationList(
 scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location) {
-  ParserImpl parser_impl(property_value, property_location,
+  ParserImpl parser_impl(property_value, property_location, this,
                          on_warning_callback_, on_error_callback_);
   return parser_impl.ParsePropertyValue(property_name);
 }

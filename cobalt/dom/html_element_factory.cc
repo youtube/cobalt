@@ -33,25 +33,20 @@ namespace dom {
 
 template <typename T>
 scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT() {
-  return new T(this);
+  return new T(this, css_parser_);
 }
 
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>() {
-  return new HTMLLinkElement(this, fetcher_factory_, css_parser_);
+  return new HTMLLinkElement(this, css_parser_, fetcher_factory_);
 }
 
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
-  return new HTMLScriptElement(this, fetcher_factory_, script_runner_);
-}
-
-template <>
-scoped_refptr<HTMLElement>
-HTMLElementFactory::CreateHTMLElementT<HTMLStyleElement>() {
-  return new HTMLStyleElement(this, css_parser_);
+  return new HTMLScriptElement(this, css_parser_, fetcher_factory_,
+                               script_runner_);
 }
 
 HTMLElementFactory::HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
@@ -99,7 +94,7 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
     return iter->second.Run();
   } else {
     // TODO(***REMOVED***): Report unknown HTML tag.
-    return new HTMLUnknownElement(this, tag_name);
+    return new HTMLUnknownElement(this, css_parser_, tag_name);
   }
 }
 

@@ -30,7 +30,8 @@ class HTMLBodyElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLBodyElement(HTMLElementFactory* html_element_factory);
+  HTMLBodyElement(HTMLElementFactory* html_element_factory,
+                  cssom::CSSParser* css_parser);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;

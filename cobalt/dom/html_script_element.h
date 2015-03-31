@@ -36,6 +36,7 @@ class HTMLScriptElement : public HTMLElement {
   static const char* kTagName;
 
   HTMLScriptElement(HTMLElementFactory* html_element_factory,
+                    cssom::CSSParser* css_parser,
                     loader::FetcherFactory* fetcher_factory,
                     script::ScriptRunner* script_runner);
 

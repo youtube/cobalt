@@ -45,7 +45,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   ASSERT_EQ(NULL, rule_list->Item(0).get());
 
   scoped_refptr<CSSStyleRule> rule =
-      new CSSStyleRule(Selectors(), new CSSStyleDeclaration());
+      new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
   css_style_sheet_->AppendRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));

@@ -56,8 +56,6 @@ class HTMLStyleElement : public HTMLElement {
  private:
   ~HTMLStyleElement() OVERRIDE;
 
-  cssom::CSSParser* const css_parser_;
-
   base::SourceLocation content_location_;
 };
 

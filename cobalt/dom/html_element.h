@@ -19,6 +19,7 @@
 
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/element.h"
 
@@ -74,8 +75,13 @@ class HTMLElement : public Element {
   }
 
  protected:
-  explicit HTMLElement(HTMLElementFactory* html_element_factory);
+  HTMLElement(HTMLElementFactory* html_element_factory,
+              cssom::CSSParser* css_parser);
   ~HTMLElement() OVERRIDE;
+
+  void AttachToDocument(Document* document) OVERRIDE;
+
+  cssom::CSSParser* const css_parser_;
 
  private:
   scoped_refptr<cssom::CSSStyleDeclaration> style_;

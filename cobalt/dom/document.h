@@ -19,6 +19,7 @@
 
 #include "base/observer_list.h"
 #include "base/string_piece.h"
+#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/node.h"
 #include "googleurl/src/gurl.h"
@@ -57,7 +58,7 @@ class DocumentObserver {
 // In the spec, "A document is assumed to be an XML document unless it is
 // flagged as being an HTML document". In Cobalt it is always considered as HTML
 // document.
-class Document : public Node {
+class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
     Options() {}
@@ -147,6 +148,9 @@ class Document : public Node {
   // TODO(***REMOVED***): Provide more granularity, model after mutation observers
   //               (see http://www.w3.org/TR/dom/#mutation-observers).
   void RecordMutation();
+
+  // Override cssom::MutationObserver.
+  void OnMutation() OVERRIDE;
 
  private:
   ~Document() OVERRIDE;
