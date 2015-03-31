@@ -28,11 +28,10 @@ namespace dom {
 const char* HTMLLinkElement::kTagName = "link";
 
 HTMLLinkElement::HTMLLinkElement(HTMLElementFactory* html_element_factory,
-                                 loader::FetcherFactory* fetcher_factory,
-                                 cssom::CSSParser* css_parser)
-    : HTMLElement(html_element_factory),
-      fetcher_factory_(fetcher_factory),
-      css_parser_(css_parser) {}
+                                 cssom::CSSParser* css_parser,
+                                 loader::FetcherFactory* fetcher_factory)
+    : HTMLElement(html_element_factory, css_parser),
+      fetcher_factory_(fetcher_factory) {}
 
 const std::string& HTMLLinkElement::tag_name() const {
   static const std::string kLinkTagString(kTagName);
@@ -40,7 +39,7 @@ const std::string& HTMLLinkElement::tag_name() const {
 }
 
 void HTMLLinkElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   Obtain();
 }
 
@@ -84,11 +83,6 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(content, base::SourceLocation(href(), 1, 1));
   owner_document()->style_sheets()->Append(style_sheet);
-  // TODO(***REMOVED***): List of style sheets should be managed by the document, so we
-  // don't have to report the mutation manually. Moreover, it's a CSSOM
-  // mutation, not a DOM mutation, so we may want to split the RecordMutation()
-  // method into two methods to have a better event granularity.
-  owner_document()->RecordMutation();
   StopLoading();
 }
 

@@ -156,7 +156,7 @@ const scoped_refptr<cssom::CSSStyleDeclaration>&
 BoxGenerator::GetAnonymousInlineBoxStyle(
     const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style) {
   if (!anonymous_inline_box_style_) {
-    anonymous_inline_box_style_ = new cssom::CSSStyleDeclaration();
+    anonymous_inline_box_style_ = new cssom::CSSStyleDeclaration(NULL);
     PromoteToSpecifiedStyle(anonymous_inline_box_style_, parent_computed_style);
     PromoteToComputedStyle(anonymous_inline_box_style_);
   }

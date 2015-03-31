@@ -23,7 +23,8 @@
 namespace cobalt {
 namespace cssom {
 
-StyleSheetList::StyleSheetList() {}
+StyleSheetList::StyleSheetList(MutationObserver* observer)
+    : mutation_observer_(observer) {}
 
 scoped_refptr<CSSStyleSheet> StyleSheetList::Item(unsigned int index) const {
   return index < style_sheets_.size() ? style_sheets_[index] : NULL;
@@ -36,6 +37,9 @@ unsigned int StyleSheetList::length() const {
 
 void StyleSheetList::Append(const scoped_refptr<CSSStyleSheet>& style_sheet) {
   style_sheets_.push_back(style_sheet);
+  if (mutation_observer_) {
+    mutation_observer_->OnMutation();
+  }
 }
 
 StyleSheetList::~StyleSheetList() {}

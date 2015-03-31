@@ -28,9 +28,10 @@ namespace dom {
 const char* HTMLScriptElement::kTagName = "script";
 
 HTMLScriptElement::HTMLScriptElement(HTMLElementFactory* html_element_factory,
+                                     cssom::CSSParser* css_parser,
                                      loader::FetcherFactory* fetcher_factory,
                                      script::ScriptRunner* script_runner)
-    : HTMLElement(html_element_factory),
+    : HTMLElement(html_element_factory, css_parser),
       fetcher_factory_(fetcher_factory),
       script_runner_(script_runner),
       is_already_started_(false) {
@@ -59,7 +60,7 @@ std::string HTMLScriptElement::text() const {
 }
 
 void HTMLScriptElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   if (HasAttribute("src")) {
     // In Cobalt we only support asynchronous execution of loaded script, so the
     // async attribute should be present alongside src.

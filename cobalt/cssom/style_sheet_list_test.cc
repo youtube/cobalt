@@ -23,7 +23,7 @@ namespace cobalt {
 namespace cssom {
 
 TEST(StyleSheetListTest, ItemAccess) {
-  scoped_refptr<StyleSheetList> style_sheet_list = new StyleSheetList();
+  scoped_refptr<StyleSheetList> style_sheet_list = new StyleSheetList(NULL);
   ASSERT_EQ(0, style_sheet_list->length());
   ASSERT_EQ(NULL, style_sheet_list->Item(0).get());
 

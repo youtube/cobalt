@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLHtmlElement::kTagName = "html";
 
-HTMLHtmlElement::HTMLHtmlElement(HTMLElementFactory* html_element_factory)
-    : HTMLElement(html_element_factory) {}
+HTMLHtmlElement::HTMLHtmlElement(HTMLElementFactory* html_element_factory,
+                                 cssom::CSSParser* css_parser)
+    : HTMLElement(html_element_factory, css_parser) {}
 
 const std::string& HTMLHtmlElement::tag_name() const {
   static const std::string kHtmlTagString(kTagName);
@@ -35,7 +36,7 @@ const std::string& HTMLHtmlElement::tag_name() const {
 HTMLHtmlElement::~HTMLHtmlElement() {}
 
 void HTMLHtmlElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   this->owner_document()->SetHtmlInternal(this);
 }
 

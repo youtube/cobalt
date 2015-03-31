@@ -49,6 +49,7 @@
         'length_value.h',
         'number_value.cc',
         'number_value.h',
+        'mutation_observer.h',
         'property_names.cc',
         'property_names.h',
         'property_value.h',

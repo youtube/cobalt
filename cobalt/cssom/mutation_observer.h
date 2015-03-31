@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/html_div_element.h"
+#ifndef CSSOM_MUTATION_OBSERVER_H_
+#define CSSOM_MUTATION_OBSERVER_H_
 
 namespace cobalt {
-namespace dom {
+namespace cssom {
 
-// static
-const char* HTMLDivElement::kTagName = "div";
+class MutationObserver {
+ public:
+  virtual void OnMutation() = 0;
+};
 
-HTMLDivElement::HTMLDivElement(HTMLElementFactory* html_element_factory,
-                               cssom::CSSParser* css_parser)
-    : HTMLElement(html_element_factory, css_parser) {}
-
-const std::string& HTMLDivElement::tag_name() const {
-  static const std::string kDivTagString(kTagName);
-  return kDivTagString;
-}
-
-HTMLDivElement::~HTMLDivElement() {}
-
-}  // namespace dom
+}  // namespace cssom
 }  // namespace cobalt
+
+#endif  // CSSOM_MUTATION_OBSERVER_H_
