@@ -56,6 +56,8 @@
         'html_html_element.h',
         'html_link_element.cc',
         'html_link_element.h',
+        'html_media_element.cc',
+        'html_media_element.h',
         'html_parser.cc',
         'html_parser.h',
         'html_script_element.cc',
@@ -97,6 +99,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
