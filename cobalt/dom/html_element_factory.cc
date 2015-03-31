@@ -22,6 +22,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
+#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -73,6 +74,9 @@ HTMLElementFactory::HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
                  base::Unretained(this));
   tag_name_to_create_html_element_t_callback_map_[HTMLLinkElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>,
+                 base::Unretained(this));
+  tag_name_to_create_html_element_t_callback_map_[HTMLMediaElement::kTagName] =
+      base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLMediaElement>,
                  base::Unretained(this));
   tag_name_to_create_html_element_t_callback_map_[HTMLScriptElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>,
