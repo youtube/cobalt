@@ -25,7 +25,7 @@ namespace dom {
 class Document;
 
 // The head element represents a collection of metadata for the Document.
-//   http://www.w3.org/TR/html/document-metadata.html#the-head-element
+//   http://www.w3.org/TR/html5/document-metadata.html#the-head-element
 class HTMLHeadElement : public HTMLElement {
  public:
   static const char* kTagName;
