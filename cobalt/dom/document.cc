@@ -40,7 +40,7 @@ Document::Document(HTMLElementFactory* html_element_factory,
     : html_element_factory_(html_element_factory),
       location_(new Location(options.url)),
       url_(options.url),
-      style_sheets_(new cssom::StyleSheetList()),
+      style_sheets_(new cssom::StyleSheetList(this)),
       loading_counter_(0),
       should_dispatch_on_load_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
@@ -180,6 +180,8 @@ void Document::RecordMutation() {
   //               asynchronously.
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
+
+void Document::OnMutation() { RecordMutation(); }
 
 Document::~Document() {}
 

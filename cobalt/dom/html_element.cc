@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_head_element.h"
@@ -49,15 +50,22 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory)
+HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory,
+                         cssom::CSSParser* css_parser)
     : Element(html_element_factory),
-      style_(new cssom::CSSStyleDeclaration()),
-      computed_style_(new cssom::CSSStyleDeclaration()) {}
+      css_parser_(css_parser),
+      style_(new cssom::CSSStyleDeclaration(css_parser)),
+      computed_style_(new cssom::CSSStyleDeclaration(NULL)) {}
 
 void HTMLElement::SetOpeningTagLocation(
     const base::SourceLocation& /*opening_tag_location*/) {}
 
 HTMLElement::~HTMLElement() {}
+
+void HTMLElement::AttachToDocument(Document* document) {
+  Node::AttachToDocument(document);
+  style_->set_mutation_observer(document);
+}
 
 }  // namespace dom
 }  // namespace cobalt

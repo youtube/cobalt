@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLBodyElement::kTagName = "body";
 
-HTMLBodyElement::HTMLBodyElement(HTMLElementFactory* html_element_factory)
-    : HTMLElement(html_element_factory) {}
+HTMLBodyElement::HTMLBodyElement(HTMLElementFactory* html_element_factory,
+                                 cssom::CSSParser* css_parser)
+    : HTMLElement(html_element_factory, css_parser) {}
 
 const std::string& HTMLBodyElement::tag_name() const {
   static const std::string kBodyTagString(kTagName);
@@ -35,7 +36,7 @@ const std::string& HTMLBodyElement::tag_name() const {
 HTMLBodyElement::~HTMLBodyElement() {}
 
 void HTMLBodyElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   this->owner_document()->SetBodyInternal(this);
 }
 

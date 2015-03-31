@@ -27,13 +27,25 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSParser;
+class MutationObserver;
+
+// TODO(***REMOVED***): Seperate CSSStyleDeclaration into two class. One is dealing
+// with std::string which is required for JavaScript and the other is dealing
+// with PropertyValue which is easier to manipulate inside Cobalt.
+
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
 // upon the source of the CSSStyleDeclaration instance.
 //   http://dev.w3.org/csswg/cssom/#the-cssstyledeclaration-interface
 class CSSStyleDeclaration : public script::Wrappable {
  public:
-  CSSStyleDeclaration();
+  // String type properties are used in JavaScript according to spec,
+  // but PropertyValue type is used inside Cobalt for easy manipulation.
+  // Introducing |css_parser| helps for parsing JavaScript strings to
+  // PropertyValue and CSSStyleDeclaration.
+  // |css_parser| can be null if only dealing with PropertyValue.
+  explicit CSSStyleDeclaration(CSSParser* css_parser);
 
   // Intentionally allowing compiler to generate copy constructor
   // and assignment operator.
@@ -150,22 +162,18 @@ class CSSStyleDeclaration : public script::Wrappable {
   const scoped_refptr<PropertyValue>& width() const { return width_; }
   void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
-  // TODO(***REMOVED***): The getter of css_text returns the result of serializing the
-  // declarations, which is not required for Performance Spike. This should be
-  // handled propertly afterwards.
-  const std::string css_text() const {
-    NOTREACHED();
-    return NULL;
-  }
-  void set_css_text(const std::string& /*css_text*/) {
-    // TODO(***REMOVED***): send css_text to CSS parser.
-    NOTREACHED();
-  }
+
+  const std::string css_text() const;
+  void set_css_text(const std::string& css_text);
 
   // Custom, not in any spec.
   //
 
   void AssignFrom(const CSSStyleDeclaration& rhs);
+
+  void set_mutation_observer(MutationObserver* observer) {
+    mutation_observer_ = observer;
+  }
 
  private:
   ~CSSStyleDeclaration();
@@ -184,6 +192,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   scoped_refptr<PropertyValue> overflow_;
   scoped_refptr<PropertyValue> transform_;
   scoped_refptr<PropertyValue> width_;
+
+  cssom::CSSParser* const css_parser_;
+  MutationObserver* mutation_observer_;
 };
 
 }  // namespace cssom

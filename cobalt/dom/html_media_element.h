@@ -43,7 +43,8 @@ class HTMLMediaElement : public HTMLElement,
  public:
   static const char kTagName[];
 
-  explicit HTMLMediaElement(HTMLElementFactory* html_element_factory);
+  HTMLMediaElement(HTMLElementFactory* html_element_factory,
+                   cssom::CSSParser* css_parser);
 
   // Web API: Element
   //

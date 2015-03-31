@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -35,7 +36,8 @@ class CSSStyleSheet;
 // than CSS, Cobalt is hard-coded to support CSS only.
 class StyleSheetList : public script::Wrappable {
  public:
-  StyleSheetList();
+  // If no layout mutation reporting needed, |observer| can be null.
+  explicit StyleSheetList(MutationObserver* observer);
 
   // Web API: StyleSheetList
   //
@@ -55,6 +57,7 @@ class StyleSheetList : public script::Wrappable {
   ~StyleSheetList();
 
   std::vector<scoped_refptr<CSSStyleSheet> > style_sheets_;
+  MutationObserver* const mutation_observer_;
 
   DISALLOW_COPY_AND_ASSIGN(StyleSheetList);
 };

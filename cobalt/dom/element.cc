@@ -28,12 +28,10 @@
 namespace cobalt {
 namespace dom {
 
-Element::Element()
-    : html_element_factory_(NULL), style_(new cssom::CSSStyleDeclaration()) {}
+Element::Element() : html_element_factory_(NULL) {}
 
 Element::Element(HTMLElementFactory* html_element_factory)
-    : html_element_factory_(html_element_factory),
-      style_(new cssom::CSSStyleDeclaration()) {}
+    : html_element_factory_(html_element_factory) {}
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
