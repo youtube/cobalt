@@ -285,7 +285,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   scoped_ptr<FilterCollection> filter_collection_;
 #if defined(LB_USE_SHELL_PIPELINE)
   scoped_refptr<ShellPipeline> pipeline_;
-  scoped_ptr<VideoFrame> punch_out_video_frame_;
+  scoped_refptr<VideoFrame> punch_out_video_frame_;
 #else   // defined(LB_USE_SHELL_PIPELINE)
   scoped_refptr<Pipeline> pipeline_;
 #endif  // defined(LB_USE_SHELL_PIPELINE)

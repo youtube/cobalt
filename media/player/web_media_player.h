@@ -194,15 +194,15 @@ class WebMediaPlayerClient {
   virtual void VolumeChanged(float volume) = 0;
   virtual void MuteChanged(bool mute) = 0;
   virtual void TimeChanged() = 0;
-  virtual void Repaint() = 0;
   virtual void DurationChanged() = 0;
   virtual void RateChanged() = 0;
   virtual void SizeChanged() = 0;
+  virtual void PlaybackStateChanged() = 0;
+  virtual void Repaint() = 0;
   // TODO(***REMOVED***) : Revisit the necessity of the following function.
   virtual void SetOpaque(bool opaque) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
-  virtual void PlaybackStateChanged() = 0;
   virtual void SourceOpened() = 0;
   virtual std::string SourceURL() const = 0;
   // TODO(***REMOVED***) : Make the EME related functions pure virtual again once

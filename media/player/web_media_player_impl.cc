@@ -220,7 +220,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // of the video to the pipeline. On XB1 the pipeline gets the natural size of
   // the video from the MediaEngine so we set this to gfx::Size() to avoid
   // propagating the frame size through the media stack.
-  punch_out_video_frame_.VideoFrame::CreatePunchOutFrame(gfx::Size());
+  punch_out_video_frame_ = VideoFrame::CreatePunchOutFrame(gfx::Size());
 #endif  // defined(LB_USE_SHELL_PIPELINE)
 }
 
