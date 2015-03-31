@@ -44,6 +44,12 @@
  *     but is done here due to performance. Move it to an other layer
  *     is schema construction via an API is implemented.
  */
+
+#if defined(COBALT_WIN)
+// file contains characters cannot be represented in the current code page.
+#pragma warning(disable: 4819)
+#endif
+
 #define IN_LIBXML
 #include "libxml.h"
 
