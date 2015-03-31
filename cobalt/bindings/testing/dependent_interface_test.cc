@@ -26,7 +26,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef BindingsTestBase<TargetInterface> DependentInterfaceTest;
+typedef InterfaceBindingsTest<TargetInterface> DependentInterfaceTest;
 }  // namespace
 
 TEST_F(DependentInterfaceTest, PartialInterfaceFunctionExists) {
