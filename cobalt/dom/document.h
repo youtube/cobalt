@@ -97,7 +97,7 @@ class Document : public Node {
   scoped_refptr<Element> GetElementById(const std::string& id) const;
 
   // Web API: HTML5 (partial interface)
-  //   http://www.w3.org/TR/html/dom.html#the-document-object
+  //   http://www.w3.org/TR/html5/dom.html#the-document-object
   //
   scoped_refptr<Location> location() const;
 

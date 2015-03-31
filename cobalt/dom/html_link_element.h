@@ -29,7 +29,7 @@ namespace cobalt {
 namespace dom {
 
 // The link element allows authors to link their document to other resources.
-//   http://www.w3.org/TR/html/document-metadata.html#the-link-element
+//   http://www.w3.org/TR/html5/document-metadata.html#the-link-element
 class HTMLLinkElement : public HTMLElement {
  public:
   static const char* kTagName;
