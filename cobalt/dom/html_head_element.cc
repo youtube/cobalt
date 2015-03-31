@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLHeadElement::kTagName = "head";
 
-HTMLHeadElement::HTMLHeadElement(HTMLElementFactory* html_element_factory)
-    : HTMLElement(html_element_factory) {}
+HTMLHeadElement::HTMLHeadElement(HTMLElementFactory* html_element_factory,
+                                 cssom::CSSParser* css_parser)
+    : HTMLElement(html_element_factory, css_parser) {}
 
 const std::string& HTMLHeadElement::tag_name() const {
   static const std::string kHeadTagString(kTagName);
@@ -35,7 +36,7 @@ const std::string& HTMLHeadElement::tag_name() const {
 HTMLHeadElement::~HTMLHeadElement() {}
 
 void HTMLHeadElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   this->owner_document()->SetHeadInternal(this);
 }
 

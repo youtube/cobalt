@@ -17,13 +17,21 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "base/string_util.h"
+#include "cobalt/base/source_location.h"
+#include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/property_names.h"
-#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
 
-CSSStyleDeclaration::CSSStyleDeclaration() {}
+namespace {
+const base::SourceLocation kSourceLocation =
+    base::SourceLocation("[object CSSStyleDeclaration]", 1, 1);
+}  // namespace
+
+CSSStyleDeclaration::CSSStyleDeclaration(cssom::CSSParser* css_parser)
+    : css_parser_(css_parser), mutation_observer_(NULL) {}
 
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
@@ -178,6 +186,27 @@ void CSSStyleDeclaration::SetPropertyValue(
       // property, terminate this algorithm.
       //   http://dev.w3.org/csswg/cssom/#dom-cssstyledeclaration-setproperty
       break;
+  }
+}
+
+// TODO(***REMOVED***): The getter of css_text returns the result of serializing the
+// declarations, which is not required for Performance Spike. This should be
+// handled propertly afterwards.
+const std::string CSSStyleDeclaration::css_text() const {
+  NOTREACHED();
+  return NULL;
+}
+
+void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
+  scoped_refptr<CSSStyleDeclaration> declaration =
+      css_parser_->ParseDeclarationList(css_text, kSourceLocation);
+  if (declaration) {
+    AssignFrom(*declaration.get());
+
+    if (mutation_observer_) {
+      // Trigger layout update.
+      mutation_observer_->OnMutation();
+    }
   }
 }
 
