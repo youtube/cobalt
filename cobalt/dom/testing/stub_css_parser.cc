@@ -31,7 +31,7 @@ scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
 
 scoped_refptr<cssom::CSSStyleDeclaration> StubCSSParser::ParseDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
-  return new cssom::CSSStyleDeclaration();
+  return new cssom::CSSStyleDeclaration(NULL);
 }
 
 scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(

@@ -27,8 +27,7 @@ const char* HTMLStyleElement::kTagName = "style";
 
 HTMLStyleElement::HTMLStyleElement(HTMLElementFactory* html_element_factory,
                                    cssom::CSSParser* css_parser)
-    : HTMLElement(html_element_factory),
-      css_parser_(css_parser),
+    : HTMLElement(html_element_factory, css_parser),
       content_location_("[object HTMLStyleElement]", 1, 1) {}
 
 const std::string& HTMLStyleElement::tag_name() const {
@@ -43,15 +42,10 @@ void HTMLStyleElement::SetOpeningTagLocation(
 }
 
 void HTMLStyleElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
+  HTMLElement::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(text_content(), content_location_);
   owner_document()->style_sheets()->Append(style_sheet);
-  // TODO(***REMOVED***): List of style sheets should be managed by the document, so we
-  // don't have to report the mutation manually. Moreover, it's a CSSOM
-  // mutation, not a DOM mutation, so we may want to split the RecordMutation()
-  // method into two methods to have a better event granularity.
-  owner_document()->RecordMutation();
 }
 
 HTMLStyleElement::~HTMLStyleElement() {}

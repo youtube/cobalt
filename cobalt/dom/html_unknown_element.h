@@ -30,6 +30,7 @@ namespace dom {
 class HTMLUnknownElement : public HTMLElement {
  public:
   HTMLUnknownElement(HTMLElementFactory* html_element_factory,
+                     cssom::CSSParser* css_parser,
                      const base::StringPiece& tag_name);
 
   // Web API: Element

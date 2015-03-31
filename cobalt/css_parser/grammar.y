@@ -984,7 +984,7 @@ semicolon: ';' maybe_whitespace ;
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
 declaration_list:
     maybe_declaration {
-    $$ = AddRef(new cssom::CSSStyleDeclaration());
+    $$ = AddRef(new cssom::CSSStyleDeclaration(parser_impl->css_parser()));
 
     scoped_ptr<PropertyDeclaration> property($1);
     if (property) {

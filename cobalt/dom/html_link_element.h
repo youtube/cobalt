@@ -35,8 +35,8 @@ class HTMLLinkElement : public HTMLElement {
   static const char* kTagName;
 
   HTMLLinkElement(HTMLElementFactory* html_element_factory,
-                  loader::FetcherFactory* fetcher_factory,
-                  cssom::CSSParser* css_parser);
+                  cssom::CSSParser* css_parser,
+                  loader::FetcherFactory* fetcher_factory);
 
   // Web API: Element
   //
@@ -74,8 +74,6 @@ class HTMLLinkElement : public HTMLElement {
   loader::FetcherFactory* fetcher_factory_;
   // The loader.
   scoped_ptr<loader::Loader> loader_;
-  // An abstraction of CSS parser.
-  cssom::CSSParser* const css_parser_;
   // Thread checker.
   base::ThreadChecker thread_checker_;
 };
