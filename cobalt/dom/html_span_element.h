@@ -25,7 +25,7 @@ namespace dom {
 // The span element doesn't mean anything on its own, but can be useful
 // when used together with the global attributes, e.g. class, lang, or dir.
 // It represents its children.
-//    http://www.w3.org/TR/html/grouping-content.html#the-span-element
+//    http://www.w3.org/TR/html5/grouping-content.html#the-span-element
 class HTMLSpanElement : public HTMLElement {
  public:
   static const char* kTagName;

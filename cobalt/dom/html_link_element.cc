@@ -47,7 +47,7 @@ void HTMLLinkElement::AttachToDocument(Document* document) {
 HTMLLinkElement::~HTMLLinkElement() {}
 
 // Algorithm for Obtain:
-//   http://www.w3.org/TR/html/document-metadata.html#concept-link-obtain
+//   http://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());

@@ -25,7 +25,7 @@ namespace dom {
 class Document;
 
 // The body element represents the content of the document.
-//   http://www.w3.org/TR/html/sections.html#the-body-element
+//   http://www.w3.org/TR/html5/sections.html#the-body-element
 class HTMLBodyElement : public HTMLElement {
  public:
   static const char* kTagName;
