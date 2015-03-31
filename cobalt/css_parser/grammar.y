@@ -381,13 +381,18 @@ type_selector_token:
 
 // The universal selector represents an element with any name.
 //   http://dev.w3.org/csswg/selectors-4/#universal-selector
-universal_selector_token: '*' { $$ = NULL; } ;  // TODO(***REMOVED***): Implement.
+universal_selector_token: '*' {
+    parser_impl->LogWarning(@1, "universal selector is not implemented yet");
+    $$ = NULL;  // TODO(***REMOVED***): Implement.
+  }
+  ;
 
 // The class selector represents an element belonging to the class identified
 // by the identifier.
 //   http://dev.w3.org/csswg/selectors-4/#class-selector
 class_selector_token:
     '.' identifier_token {
+    parser_impl->LogWarning(@1, "class selector is not implemented yet");
     $$ = NULL;  // TODO(***REMOVED***): Implement.
   }
   ;
@@ -396,9 +401,14 @@ class_selector_token:
 // that matches the identifier in the ID selector.
 //   http://dev.w3.org/csswg/selectors-4/#id-selector
 id_selector_token:
-    kIdSelectorToken { $$ = NULL; }  // TODO(***REMOVED***): Implement.
-  | kHexToken { $$ = NULL; }  // TODO(***REMOVED***): Implement, check it doesn't start
-                              //               with number.
+    kIdSelectorToken {
+    parser_impl->LogWarning(@1, "id selector is not implemented yet");
+    $$ = NULL;  // TODO(***REMOVED***): Implement.
+  }
+  | kHexToken {
+    parser_impl->LogWarning(@1, "id selector is not implemented yet");
+    $$ = NULL;  // TODO(***REMOVED***): Implement, check it doesn't start with number.
+  }
   ;
 
 // The pseudo-class concept is introduced to permit selection based
@@ -409,6 +419,7 @@ id_selector_token:
 // TODO(***REMOVED***): Replace identifier with token.
 pseudo_class_token:
     ':' identifier_token {
+    parser_impl->LogWarning(@1, "pseudo-class selector is not implemented yet");
     $$ = NULL;  // TODO(***REMOVED***): Implement.
   }
   ;
