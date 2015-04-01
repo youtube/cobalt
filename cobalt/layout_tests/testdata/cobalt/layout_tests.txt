@@ -2,4 +2,5 @@ block-and-inline-block-display
 cobalt-oxide, file:///cobalt/dom/testdata/cobalt-oxide/cobalt-oxide.html
 fixed-width-divs-with-background-color
 simple-transform-text
+transform-with-background-color
 user-agent-style-sheet-display
