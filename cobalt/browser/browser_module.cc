@@ -34,6 +34,7 @@ BrowserModule::BrowserModule(const Options& options)
     : renderer_module_(options.renderer_module_options),
       web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
                              base::Unretained(this)),
+                  WebModule::ErrorCallback(),
                   math::Size(kInitialWidth, kInitialHeight),
                   renderer_module_.pipeline()->GetResourceProvider(),
                   options.web_module_options),

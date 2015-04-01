@@ -61,7 +61,7 @@ class FileFetcher : public Fetcher {
 
   void ReadNextChunk();
   void CloseFile();
-  const std::string& PlatformFileErrorToString(base::PlatformFileError error);
+  const char* PlatformFileErrorToString(base::PlatformFileError error);
 
   // Callbacks for FileUtilProxy functions.
   void DidCreateOrOpen(base::PlatformFileError error,
