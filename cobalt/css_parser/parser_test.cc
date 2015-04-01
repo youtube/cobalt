@@ -87,7 +87,7 @@ TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
@@ -98,7 +98,7 @@ TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "@casino-royale", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
@@ -109,7 +109,7 @@ TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "cucumber", base::SourceLocation("[object ParserTest]", 10, 10));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
@@ -122,14 +122,14 @@ TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
       "cucumber",
       base::SourceLocation("[object ParserTest]", 10, 10));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "<!-- body {} -->", base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidAtToken) {
@@ -140,7 +140,7 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
       "body {} @cobalt-magic; div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
@@ -151,7 +151,7 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
       "body {} @charset 'utf-8'; div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
@@ -162,7 +162,57 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
       "body {} !important {} div {}",
       base::SourceLocation("[object ParserTest]", 1, 1));
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules()->length());
+}
+
+TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "color: #0047ab;  /* Cobalt blue */\n"
+          "font-size: 100px;\n",
+          base::SourceLocation("[object ParserTest]", 1, 1));
+
+  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
+  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+}
+
+TEST_F(ParserTest, ParsesDeclarationListWithoutTrailingSemicolon) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "color: #0047ab;\n"
+          "font-size: 100px\n",
+          base::SourceLocation("[object ParserTest]", 1, 1));
+
+  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
+  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+}
+
+TEST_F(ParserTest, ParsesDeclarationListWithEmptyDeclaration) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "color: #0047ab;\n"
+          ";\n"
+          "font-size: 100px;\n",
+          base::SourceLocation("[object ParserTest]", 1, 1));
+
+  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
+  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+}
+
+TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:2:1: warning: invalid declaration"));
+
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "color: #0047ab;\n"
+          "1px;\n"
+          "font-size: 100px;\n",
+          base::SourceLocation("[object ParserTest]", 1, 1));
+
+  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
+  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
 }
 
 TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
@@ -213,22 +263,6 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
           base::SourceLocation("[object ParserTest]", 1, 1)));
 
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
-  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
-}
-
-TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
-  EXPECT_CALL(
-      parser_observer_,
-      OnWarning("[object ParserTest]:2:3: warning: invalid declaration"));
-
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".friday-night-submit {\n"
-          "  1px;\n"
-          "  color: #fff;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
-
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
@@ -708,56 +742,13 @@ TEST_F(ParserTest, ParsesWidth) {
   EXPECT_EQ(cssom::kPixelsUnit, width->unit());
 }
 
-TEST_F(ParserTest, DISABLED_ParseDeclarationList) {
-  scoped_refptr<cssom::CSSStyleDeclaration> style =
-      parser_.ParseDeclarationList(
-          "color: rgba(255, 128, 1, 0.5);"
-          "border-radius: 0.2em;"
-          "font-family: \"Droid Sans\";"
-          "font-size: 100px;",
-          base::SourceLocation("[object ParserTest]", 1, 1));
-
-  scoped_refptr<cssom::RGBAColorValue> color =
-      dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
-  EXPECT_EQ(0xff80017f, color->value());
-
-  scoped_refptr<cssom::LengthValue> border_radius =
-      dynamic_cast<cssom::LengthValue*>(style->border_radius().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), border_radius);
-  EXPECT_FLOAT_EQ(0.2f, border_radius->value());
-  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
-
-  scoped_refptr<cssom::StringValue> font_family =
-      dynamic_cast<cssom::StringValue*>(style->font_family().get());
-  ASSERT_NE(scoped_refptr<cssom::StringValue>(), font_family);
-  EXPECT_EQ("Droid Sans", font_family->value());
-
-  scoped_refptr<cssom::LengthValue> font_size =
-      dynamic_cast<cssom::LengthValue*>(style->font_size().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
-  EXPECT_FLOAT_EQ(100, font_size->value());
-  EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
-
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_image());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->display());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->font_weight());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->height());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->opacity());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->overflow());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->transform());
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->width());
-}
-
 TEST_F(ParserTest, ParsePropertyValue_ParsesValidPropertyValue) {
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
           parser_.ParsePropertyValue(
                       "color", "#c0ffee",
                       base::SourceLocation("[object ParserTest]", 1, 1)).get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
 }
 
 TEST_F(ParserTest, ParsePropertyValue_WarnsAboutImportant) {
@@ -769,7 +760,7 @@ TEST_F(ParserTest, ParsePropertyValue_WarnsAboutImportant) {
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
       "color", "#f0000d !important",
       base::SourceLocation("[object ParserTest]", 1, 1));
-  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
 TEST_F(ParserTest, ParsePropertyValue_WarnsAboutTrailingSemicolon) {
@@ -779,7 +770,7 @@ TEST_F(ParserTest, ParsePropertyValue_WarnsAboutTrailingSemicolon) {
 
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
       "color", "#baaaad;", base::SourceLocation("[object ParserTest]", 1, 1));
-  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
 TEST_F(ParserTest, ParsePropertyValue_WarnsAboutInvalidPropertyValue) {
@@ -789,7 +780,7 @@ TEST_F(ParserTest, ParsePropertyValue_WarnsAboutInvalidPropertyValue) {
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
       "color", "spring grass",
       base::SourceLocation("[object ParserTest]", 1, 1));
-  ASSERT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
 }  // namespace css_parser
