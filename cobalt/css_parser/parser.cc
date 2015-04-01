@@ -73,6 +73,7 @@ class ParserImpl {
              const Parser::OnMessageCallback& on_error_callback);
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
+  scoped_refptr<cssom::CSSStyleDeclaration> ParseDeclarationList();
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name);
 
@@ -86,7 +87,13 @@ class ParserImpl {
   void LogWarning(const YYLTYPE& source_location, const std::string& message);
   void LogError(const YYLTYPE& source_location, const std::string& message);
 
-  cssom::CSSStyleSheet& style_sheet() const { return *style_sheet_; }
+  void set_style_sheet(const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
+    style_sheet_ = style_sheet;
+  }
+  void set_declaration_list(
+      const scoped_refptr<cssom::CSSStyleDeclaration>& declaration_list) {
+    declaration_list_ = declaration_list;
+  }
   void set_property_value(
       const scoped_refptr<cssom::PropertyValue>& property_value) {
     property_value_ = property_value;
@@ -108,8 +115,10 @@ class ParserImpl {
   Scanner scanner_;
   YYLTYPE last_syntax_error_location_;
 
-  // Parsing results, only one of them may be non-NULL.
+  // Parsing results, named after entry points.
+  // Only one of them may be non-NULL.
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
+  scoped_refptr<cssom::CSSStyleDeclaration> declaration_list_;
   scoped_refptr<cssom::PropertyValue> property_value_;
 
   friend int yyparse(ParserImpl* parser_impl);
@@ -126,12 +135,15 @@ ParserImpl::ParserImpl(const std::string& input,
       on_error_callback_(on_error_callback) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
-  style_sheet_ = new cssom::CSSStyleSheet();
-
   scanner_.PrependToken(kStyleSheetEntryPointToken);
-  Parse();
+  return Parse() ? style_sheet_
+                 : make_scoped_refptr(new cssom::CSSStyleSheet());
+}
 
-  return style_sheet_;
+scoped_refptr<cssom::CSSStyleDeclaration> ParserImpl::ParseDeclarationList() {
+  scanner_.PrependToken(kDeclarationListEntryPointToken);
+  return Parse() ? declaration_list_
+                 : make_scoped_refptr(new cssom::CSSStyleDeclaration());
 }
 
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
@@ -144,11 +156,7 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
   scanner_.PrependToken(kPropertyValueEntryPointToken);
   scanner_.PrependToken(property_name_token);
   scanner_.PrependToken(':');
-  if (!Parse()) {
-    return NULL;
-  }
-
-  return property_value_;
+  return Parse() ? property_value_ : NULL;
 }
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
@@ -248,11 +256,10 @@ scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
 }
 
 scoped_refptr<cssom::CSSStyleDeclaration> Parser::ParseDeclarationList(
-    const std::string& /*input*/,
-    const base::SourceLocation& /*input_location*/) {
-  // TODO(***REMOVED***): Implement this.
-  NOTREACHED();
-  return NULL;
+    const std::string& input, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(input, input_location, on_warning_callback_,
+                         on_error_callback_);
+  return parser_impl.ParseDeclarationList();
 }
 
 scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(

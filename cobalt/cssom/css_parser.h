@@ -55,12 +55,11 @@ class CSSParser {
 
   // Parses the property value.
   // This is a Cobalt's equivalent of a "list of component values".
+  // |property_name| must be a valid CSS property name (see property_names.h).
   // May return NULL which is considered a valid property value.
   virtual scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) = 0;
-
-  // TODO(***REMOVED***): Implement other entry points.
 
  protected:
   ~CSSParser() {}
