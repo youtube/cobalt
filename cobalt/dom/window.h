@@ -40,10 +40,12 @@ class Navigator;
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
 class Window : public EventTarget {
  public:
+  typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
          script::ScriptRunner* script_runner, const GURL& url,
-         const std::string& user_agent);
+         const std::string& user_agent,
+         const ErrorCallback& error_callback);
 
   // Web API: Window
   scoped_refptr<Window> window() { return this; }
