@@ -75,8 +75,9 @@ std::string WebModule::GetUserAgent() {
   return user_agent;
 }
 
-WebModule::WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
-                         on_render_tree_produced,
+WebModule::WebModule(const OnRenderTreeProducedCallback&
+                         render_tree_produced_callback,
+                     const ErrorCallback& error_callback,
                      const math::Size& window_dimensions,
                      render_tree::ResourceProvider* resource_provider,
                      const Options& options)
@@ -89,9 +90,11 @@ WebModule::WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
       window_(new dom::Window(window_dimensions.width(),
                               window_dimensions.height(), css_parser_.get(),
                               fetcher_factory_.get(), script_runner_.get(),
-                              options.url, GetUserAgent())),
-      layout_manager_(window_.get(), resource_provider, on_render_tree_produced,
-                      css_parser_.get(), options.layout_trigger),
+                              options.url, GetUserAgent(),
+                              error_callback)),
+      layout_manager_(window_.get(), resource_provider,
+                      render_tree_produced_callback, css_parser_.get(),
+                      options.layout_trigger),
       media_module_(media::MediaModule::Create()) {
   global_object_proxy_->SetGlobalInterface(window_);
 }
