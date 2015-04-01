@@ -16,6 +16,8 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 
+#include <list>
+
 #include "config.h"
 #undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
 
