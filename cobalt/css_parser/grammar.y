@@ -370,9 +370,9 @@ identifier_token:
   }
   ;
 
-// A type selector is the name of a document language element type written as
-// an identifier.
-//   http://dev.w3.org/csswg/selectors-4/#type-selector
+// A type selector represents an instance of the element type in
+// the document tree.
+//   http://www.w3.org/TR/selectors4/#type-selector
 type_selector_token:
     identifier_token {
     $$ = new cssom::TypeSelector($1.ToString());
@@ -387,13 +387,12 @@ universal_selector_token: '*' {
   }
   ;
 
-// The class selector represents an element belonging to the class identified
-// by the identifier.
-//   http://dev.w3.org/csswg/selectors-4/#class-selector
+// The class selector represents an element belonging to the class identified by
+// the identifier.
+//   http://www.w3.org/TR/selectors4/#class-selector
 class_selector_token:
     '.' identifier_token {
-    parser_impl->LogWarning(@1, "class selector is not implemented yet");
-    $$ = NULL;  // TODO(***REMOVED***): Implement.
+    $$ = new cssom::TypeSelector($2.ToString());
   }
   ;
 
