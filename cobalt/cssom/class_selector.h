@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TYPE_SELECTOR_H_
-#define CSSOM_TYPE_SELECTOR_H_
+#ifndef CSSOM_CLASS_SELECTOR_H_
+#define CSSOM_CLASS_SELECTOR_H_
 
 #include <string>
 
@@ -26,26 +26,26 @@
 namespace cobalt {
 namespace cssom {
 
-// A type selector represents an instance of the element type in
-// the document tree.
-//   http://www.w3.org/TR/selectors4/#type-selector
-class TypeSelector : public Selector {
+// The class selector represents an element belonging to the class identified by
+// the identifier.
+//   http://www.w3.org/TR/selectors4/#class-selector
+class ClassSelector : public Selector {
  public:
-  explicit TypeSelector(const std::string& element_name)
-      : element_name_(element_name) {}
-  ~TypeSelector() OVERRIDE {}
+  explicit ClassSelector(const std::string& class_name)
+      : class_name_(class_name) {}
+  ~ClassSelector() OVERRIDE {}
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  const std::string& element_name() const { return element_name_; }
+  const std::string& class_name() const { return class_name_; }
 
  private:
-  const std::string element_name_;
+  const std::string class_name_;
 
-  DISALLOW_COPY_AND_ASSIGN(TypeSelector);
+  DISALLOW_COPY_AND_ASSIGN(ClassSelector);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TYPE_SELECTOR_H_
+#endif  // CSSOM_CLASS_SELECTOR_H_
