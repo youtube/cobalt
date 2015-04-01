@@ -65,22 +65,22 @@ void FileFetcher::CloseFile() {
   }
 }
 
-const std::string& FileFetcher::PlatformFileErrorToString(
+const char* FileFetcher::PlatformFileErrorToString(
     base::PlatformFileError error) {
-  static const std::string kPlatformFileOk = "PLATFORM_FILE_OK";
-  static const std::string kPlatformFileErrorNotFound =
+  static const char* kPlatformFileOk = "PLATFORM_FILE_OK";
+  static const char* kPlatformFileErrorNotFound =
       "PLATFORM_FILE_ERROR_NOT_FOUND";
-  static const std::string kPlatformFileErrorInUse =
+  static const char* kPlatformFileErrorInUse =
       "PLATFORM_FILE_ERROR_IN_USE";
-  static const std::string kPlatformFileErrorAccessDenied =
+  static const char* kPlatformFileErrorAccessDenied =
       "PLATFORM_FILE_ERROR_ACCESS_DENIED";
-  static const std::string kPlatformFileErrorSecurity =
+  static const char* kPlatformFileErrorSecurity =
       "PLATFORM_FILE_ERROR_SECURITY";
-  static const std::string kPlatformFileErrorInvalidUrl =
+  static const char* kPlatformFileErrorInvalidUrl =
       "PLATFORM_FILE_ERROR_INVALID_URL";
-  static const std::string kPlatformFileErrorAbort =
+  static const char* kPlatformFileErrorAbort =
       "PLATFORM_FILE_ERROR_ABORT";
-  static const std::string kPlatformFileErrorNotDefined =
+  static const char* kPlatformFileErrorNotDefined =
       "Platform file error not defined";
 
   switch (error) {

@@ -28,7 +28,8 @@ namespace dom {
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                loader::FetcherFactory* fetcher_factory,
                script::ScriptRunner* script_runner, const GURL& url,
-               const std::string& user_agent)
+               const std::string& user_agent,
+               const ErrorCallback& error_callback)
     : width_(width),
       height_(height),
       html_element_factory_(
@@ -38,7 +39,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       document_builder_(new DocumentBuilder(
           document_, url, fetcher_factory, html_element_factory_.get(),
           DocumentBuilder::DoneCallbackType(),
-          DocumentBuilder::ErrorCallbackType())),
+          error_callback)),
       navigator_(new Navigator(user_agent)) {}
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
