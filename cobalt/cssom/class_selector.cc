@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SELECTOR_VISITOR_H_
-#define CSSOM_SELECTOR_VISITOR_H_
+#include "cobalt/cssom/class_selector.h"
+
+#include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-class ClassSelector;
-class TypeSelector;
-
-// Type-safe branching on a class hierarchy of CSS selectors,
-// implemented after a classical GoF pattern (see
-// http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
-class SelectorVisitor {
- public:
-  virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
-  virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
-
- protected:
-  ~SelectorVisitor() {}
-};
+void ClassSelector::Accept(SelectorVisitor* visitor) {
+  visitor->VisitClassSelector(this);
+}
 
 }  // namespace cssom
 }  // namespace cobalt
-
-#endif  // CSSOM_SELECTOR_VISITOR_H_
