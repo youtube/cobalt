@@ -54,8 +54,11 @@ class WebModule {
     layout::LayoutManager::LayoutTrigger layout_trigger;
   };
 
-  WebModule(const layout::LayoutManager::OnRenderTreeProducedCallback&
-                on_render_tree_produced,
+  typedef layout::LayoutManager::OnRenderTreeProducedCallback
+      OnRenderTreeProducedCallback;
+  typedef base::Callback<void(const std::string&)> ErrorCallback;
+  WebModule(const OnRenderTreeProducedCallback& render_tree_produced_callback,
+            const ErrorCallback& error_callback,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             const Options& options);

@@ -102,6 +102,13 @@ void AcceptRenderTreeForRebaseline(
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
 
+void AcceptDocumentError(base::RunLoop* run_loop, const std::string& error) {
+  // If an error occurs while loading a document (i.e. this function is called)
+  // then the test has failed, and we will NOT set the result variable to true.
+  std::cout << "Error loading document: " << error.c_str() << std::endl;
+  MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
+}
+
 GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
   return GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
               base_file_path.AddExtension("html").value());
@@ -168,7 +175,7 @@ TEST_P(LayoutTest, LayoutTest) {
   // a new render tree.  Essentially, we decide here if we are rebaselining or
   // actually testing, and setup the appropriate callback.
   bool result = false;
-  layout::LayoutManager::OnRenderTreeProducedCallback callback_function(
+  browser::WebModule::OnRenderTreeProducedCallback callback_function(
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)
           ? base::Bind(&AcceptRenderTreeForRebaseline,
                        GetParam().base_file_path,
@@ -179,8 +186,9 @@ TEST_P(LayoutTest, LayoutTest) {
 
   // Create the web module.
   browser::WebModule web_module(
-      callback_function, kTestViewportSize,
-      pixel_tester.GetResourceProvider(), web_module_options);
+      callback_function, base::Bind(&AcceptDocumentError, &run_loop),
+      kTestViewportSize, pixel_tester.GetResourceProvider(),
+      web_module_options);
 
   // Start the WebModule wheels churning.  This will initiate the required loads
   // as well as eventually any JavaScript execution that needs to take place.
