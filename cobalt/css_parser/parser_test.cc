@@ -452,6 +452,21 @@ TEST_F(ParserTest, ParsesBoldFontWeight) {
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
 }
 
+TEST_F(ParserTest, ParsesHeight) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
+          ".fixed-height {\n"
+          "  height: 100px;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  scoped_refptr<cssom::LengthValue> height =
+      dynamic_cast<cssom::LengthValue*>(style->height().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), height);
+  EXPECT_FLOAT_EQ(100, height->value());
+  EXPECT_EQ(cssom::kPixelsUnit, height->unit());
+}
+
 TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
       GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
@@ -676,6 +691,21 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
           base::SourceLocation("[object ParserTest]", 1, 1)));
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+}
+
+TEST_F(ParserTest, ParsesWidth) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
+          ".fixed-width {\n"
+          "  width: 100px;\n"
+          "}\n",
+          base::SourceLocation("[object ParserTest]", 1, 1)));
+
+  scoped_refptr<cssom::LengthValue> width =
+      dynamic_cast<cssom::LengthValue*>(style->width().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), width);
+  EXPECT_FLOAT_EQ(100, width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, width->unit());
 }
 
 TEST_F(ParserTest, DISABLED_ParseDeclarationList) {
