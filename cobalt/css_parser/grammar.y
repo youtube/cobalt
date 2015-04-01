@@ -43,6 +43,7 @@
 // Entry point tokens, injected by the parser in order to choose the path
 // within a grammar, never appear in the source code.
 %token kStyleSheetEntryPointToken
+%token kDeclarationListEntryPointToken
 %token kPropertyValueEntryPointToken
 
 // Tokens without a value.
@@ -236,6 +237,10 @@
 
 %type <real> alpha number
 
+%union { cssom::CSSStyleSheet* style_sheet; }
+%type <style_sheet> rule_list style_sheet
+%destructor { $$->Release(); } <style_sheet>
+
 %union { cssom::Selector* selector; }
 %type <selector> class_selector_token complex_selector compound_selector_token
                  id_selector_token pseudo_class_token simple_selector_token
@@ -254,6 +259,10 @@
 %union { cssom::CSSStyleDeclaration* style_declaration; }
 %type <style_declaration> declaration_block declaration_list
 %destructor { $$->Release(); } <style_declaration>
+
+%union { cssom::CSSStyleRule* style_rule; }
+%type <style_rule> at_rule qualified_rule rule style_rule
+%destructor { $$->Release(); } <style_rule>
 
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters transform_function
@@ -293,6 +302,8 @@ at_rule:
     scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
     // TODO(***REMOVED***): Implement.
+    parser_impl->LogWarning(@1, "@font-face is not implemented yet");
+    $$ = NULL;
   }
   ;
 
@@ -989,9 +1000,7 @@ style_rule:
     scoped_ptr<cssom::CSSStyleRule::Selectors> selectors($1);
     scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
-    scoped_refptr<cssom::CSSStyleRule> style_rule =
-        new cssom::CSSStyleRule(selectors->Pass(), style);
-    parser_impl->style_sheet().AppendRule(style_rule);
+    $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
   }
   ;
 
@@ -1012,15 +1021,25 @@ invalid_rule:
 // Consume a list of rules.
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
 rule:
-    kSgmlCommentDelimiterToken maybe_whitespace
+    kSgmlCommentDelimiterToken maybe_whitespace { $$ = NULL; }
   | at_rule
   | qualified_rule
-  | invalid_rule
+  | invalid_rule { $$ = NULL; }
   ;
 
 rule_list:
-    /* empty */
-  | rule_list rule
+    /* empty */ {
+    $$ = AddRef(new cssom::CSSStyleSheet());
+  }
+  | rule_list rule {
+    scoped_refptr<cssom::CSSStyleRule> style_rule =
+        MakeScopedRefPtrAndRelease($2);
+    if (style_rule) {
+      $$->AppendRule(style_rule);
+    }
+
+    $$ = $1;
+  }
   ;
 
 
@@ -1030,13 +1049,23 @@ rule_list:
 
 // To parse a stylesheet, consume a list of rules.
 //   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
-stylesheet: rule_list ;
+style_sheet: rule_list ;
 
 // Parser entry points.
 //   http://dev.w3.org/csswg/css-syntax/#parser-entry-points
 entry_point:
   // Parses the entire stylesheet.
-    kStyleSheetEntryPointToken maybe_whitespace stylesheet
+    kStyleSheetEntryPointToken maybe_whitespace style_sheet {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_style_sheet(style_sheet);
+  }
+  // Parses the contents of a HTMLElement.style attribute.
+  | kDeclarationListEntryPointToken maybe_whitespace declaration_list {
+    scoped_refptr<cssom::CSSStyleDeclaration> declaration_list =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_declaration_list(declaration_list);
+  }
   // Parses the property value.
   // This is a Cobalt's equivalent of a "list of component values".
   | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
