@@ -1078,6 +1078,17 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kColorToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, "width")) {
+        *property_name_token = kWidthToken;
+        return true;
+      }
+      return false;
+
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, "height")) {
+        *property_name_token = kHeightToken;
+        return true;
+      }
       return false;
 
     case 7:
