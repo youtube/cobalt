@@ -63,9 +63,11 @@
 %token kFontFamilyToken                 // font-family
 %token kFontSizeToken                   // font-size
 %token kFontWeightToken                 // font-weight
+%token kHeightToken                     // height
 %token kOpacityToken                    // opacity
 %token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
+%token kWidthToken                      // width
 
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
@@ -224,11 +226,12 @@
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> background_property_value background_color_property_value
                        border_radius_property_value color color_property_value
-                       common_values final_background_layer
-                       display_property_value font_family_property_value
+                       common_values display_property_value
+                       final_background_layer font_family_property_value
                        font_family_name font_size_property_value
-                       font_weight_property_value opacity_property_value
-                       overflow_property_value transform_property_value
+                       font_weight_property_value height_property_value
+                       opacity_property_value overflow_property_value
+                       transform_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
 
 %type <real> alpha number
@@ -328,6 +331,9 @@ identifier_token:
   | kFontWeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kFontWeightPropertyName);
   }
+  | kHeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kHeightPropertyName);
+  }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
   }
@@ -336,6 +342,9 @@ identifier_token:
   }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+  }
+  | kWidthToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
   }
   // Property values.
   | kBlockToken {
@@ -708,6 +717,12 @@ font_weight_property_value:
   | common_values
   ;
 
+// The height of an element's box.
+height_property_value:
+    length { $$ = $1; }
+  | common_values
+  ;
+
 // Specifies how to blend the element (including its descendants)
 // into the current composite rendering.
 //   http://www.w3.org/TR/css3-color/#transparency
@@ -808,6 +823,12 @@ transform_property_value:
   | common_values
   ;
 
+// The width of an element's box.
+width_property_value:
+    length { $$ = $1; }
+  | common_values
+  ;
+
 maybe_important:
     /* empty */ { $$ = false; }
   | kImportantToken maybe_whitespace { $$ = true; }
@@ -870,6 +891,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kHeightToken maybe_whitespace colon height_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kHeightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kOpacityPropertyName,
@@ -885,6 +912,12 @@ maybe_declaration:
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransformPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kWidthToken maybe_whitespace colon width_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kWidthPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
