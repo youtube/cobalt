@@ -152,6 +152,8 @@ class Scanner {
                                Token* property_name_token) const;
   bool DetectPropertyValueToken(const TrivialStringPiece& name,
                                 Token* property_value_token) const;
+  bool DetectPseudoClassNameToken(const TrivialStringPiece& name,
+                                  Token* pseudo_class_name_token) const;
   bool DetectSupportsToken(const TrivialStringPiece& name,
                            Token* supports_token) const;
   bool DetectKnownFunctionTokenAndMaybeChangeParsingMode(

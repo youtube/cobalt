@@ -24,6 +24,7 @@
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/pseudo_class_names.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
@@ -446,14 +447,22 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
   bool has_escape;
   ScanIdentifier(&token_value->string, &has_escape);
 
-  Token property_name_token;
-  if (DetectPropertyNameToken(token_value->string, &property_name_token)) {
-    return property_name_token;
-  }
+  if (LIKELY(!has_escape)) {
+    Token property_name_token;
+    if (DetectPropertyNameToken(token_value->string, &property_name_token)) {
+      return property_name_token;
+    }
 
-  Token property_value_token;
-  if (DetectPropertyValueToken(token_value->string, &property_value_token)) {
-    return property_value_token;
+    Token property_value_token;
+    if (DetectPropertyValueToken(token_value->string, &property_value_token)) {
+      return property_value_token;
+    }
+
+    Token pseudo_class_name_token;
+    if (DetectPseudoClassNameToken(token_value->string,
+                                   &pseudo_class_name_token)) {
+      return pseudo_class_name_token;
+    }
   }
 
   if (UNLIKELY(*input_iterator_ == '(')) {
@@ -1218,6 +1227,24 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 12:
       if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
         *property_value_token = kInlineBlockToken;
+        return true;
+      }
+      return false;
+  }
+
+  return false;
+}
+
+// WARNING: every time a new value token is introduced, it should be added
+//          to |identifier_token| rule in grammar.y.
+bool Scanner::DetectPseudoClassNameToken(const TrivialStringPiece& name,
+                                         Token* property_value_token) const {
+  DCHECK_GT(name.size(), 0);
+
+  switch (name.size()) {
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEmptyPseudoClassName)) {
+        *property_value_token = kEmptyToken;
         return true;
       }
       return false;
