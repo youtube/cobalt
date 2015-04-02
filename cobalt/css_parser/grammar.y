@@ -84,6 +84,11 @@
 %token kNormalToken                     // normal
 %token kVisibleToken                    // visible
 
+// Pseudo-class name tokens.
+// WARNING: every time a new name token is introduced, it should be added
+//          to |identifier_token| rule below.
+%token kEmptyToken                      // empty
+
 // Attribute matching tokens.
 %token kIncludesToken                   // ~=
 %token kDashMatchToken                  // |=
@@ -388,6 +393,10 @@ identifier_token:
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
   }
+  // Pseudo-class names.
+  | kEmptyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEmptyPseudoClassName);
+  }
   ;
 
 // A type selector represents an instance of the element type in the document
@@ -436,17 +445,25 @@ id_selector_token:
 // information that lies outside of the document tree or that can be awkward or
 // impossible to express using the other simple selectors.
 //   http://www.w3.org/TR/selectors4/#pseudo-classes
-//
-// TODO(***REMOVED***): Replace identifier with token.
 pseudo_class_token:
-    ':' identifier_token {
-    parser_impl->LogWarning(@1, "pseudo-class selector is not implemented yet");
-    $$ = NULL;  // TODO(***REMOVED***): Implement.
+  // The :empty pseudo-class represents an element that has no children. In
+  // terms of the document tree, only element nodes and content nodes (such as
+  // DOM text nodes, CDATA nodes, and entity references) whose data has a
+  // non-zero length must be considered as affecting emptiness; comments,
+  // processing instructions, and other nodes must not affect whether an element
+  // is considered empty or not.
+  //   http://www.w3.org/TR/selectors4/#empty-pseudo
+    ':' kEmptyToken {
+    $$ = new cssom::EmptyPseudoClass();
+    break;
+  }
+  | ':' errors {
+    parser_impl->LogWarning(@1, "unsupported pseudo-class");
+    $$ = NULL;
   }
   ;
 
-// A simple selector is either a type selector, universal selector, attribute
-// selector, class selector, ID selector, or pseudo-class.
+// A simple selector represents an aspect of an element to be matched against.
 //   http://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
     type_selector_token
