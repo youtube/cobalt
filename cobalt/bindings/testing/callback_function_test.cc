@@ -70,6 +70,92 @@ TEST_F(CallbackFunctionTest, ScriptFunctionIsNotGarbageCollected) {
   EXPECT_STREQ("true", result.c_str());
 }
 
+TEST_F(CallbackFunctionTest, CallbackWithOneParameter) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("var callback_value;", NULL));
+
+  // Store a handle to the callback passed from script.
+  CallbackFunctionInterface::FunctionWithOneParameter function_with_parameter;
+  EXPECT_CALL(test_mock(), TakesFunctionWithOneParameter(_))
+      .WillOnce(SaveArg<0>(&function_with_parameter));
+  EXPECT_TRUE(EvaluateScript(
+      "test.takesFunctionWithOneParameter(function(value) { "
+      "callback_value = value });",
+      NULL));
+  ASSERT_FALSE(function_with_parameter.is_null());
+
+  // Run the callback, and check that the value was passed through to script.
+  function_with_parameter.Run(5);
+  EXPECT_TRUE(EvaluateScript("callback_value;", &result));
+  EXPECT_STREQ("5", result.c_str());
+}
+
+TEST_F(CallbackFunctionTest, CallbackWithSeveralParameters) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("var value1;", NULL));
+  EXPECT_TRUE(EvaluateScript("var value2;", NULL));
+  EXPECT_TRUE(EvaluateScript("var value3;", NULL));
+
+  // Store a handle to the callback passed from script.
+  CallbackFunctionInterface::FunctionWithSeveralParameters
+      function_with_several_parameters;
+  EXPECT_CALL(test_mock(), TakesFunctionWithSeveralParameters(_))
+      .WillOnce(SaveArg<0>(&function_with_several_parameters));
+  EXPECT_TRUE(EvaluateScript(
+      "test.takesFunctionWithSeveralParameters("
+      "function(param1, param2, param3) { "
+      "value1 = param1; value2 = param2; value3 = param3; });",
+      NULL));
+  ASSERT_FALSE(function_with_several_parameters.is_null());
+
+  // Execute the callback
+  scoped_refptr<ArbitraryInterface> some_object =
+      new ::testing::StrictMock<ArbitraryInterface>();
+  function_with_several_parameters.Run(3.14, "some string", some_object);
+
+  // Verify that each parameter got passed to script as expected.
+  EXPECT_TRUE(EvaluateScript("value1;", &result));
+  EXPECT_STREQ("3.14", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("value2;", &result));
+  EXPECT_STREQ("some string", result.c_str());
+
+  EXPECT_CALL((*some_object.get()), ArbitraryFunction());
+  EXPECT_TRUE(EvaluateScript("value3.arbitraryFunction();", NULL));
+}
+
+TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("var value1;", NULL));
+  EXPECT_TRUE(EvaluateScript("var value2;", NULL));
+  EXPECT_TRUE(EvaluateScript("var value3;", NULL));
+
+  // Store a handle to the callback passed from script.
+  CallbackFunctionInterface::FunctionWithNullableParameters
+      function_with_nullable_parameters;
+  EXPECT_CALL(test_mock(), TakesFunctionWithNullableParameters(_))
+      .WillOnce(SaveArg<0>(&function_with_nullable_parameters));
+  EXPECT_TRUE(EvaluateScript(
+      "test.takesFunctionWithNullableParameters("
+      "function(param1, param2, param3) { "
+      "value1 = param1; value2 = param2; value3 = param3; });",
+      NULL));
+  ASSERT_FALSE(function_with_nullable_parameters.is_null());
+
+  // Execute the callback
+  function_with_nullable_parameters.Run(base::nullopt, base::nullopt, NULL);
+
+  // Verify that each parameter got passed to script as expected.
+  EXPECT_TRUE(EvaluateScript("value1;", &result));
+  EXPECT_STREQ("null", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("value2;", &result));
+  EXPECT_STREQ("null", result.c_str());
+
+  EXPECT_TRUE(EvaluateScript("value3;", &result));
+  EXPECT_STREQ("null", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
