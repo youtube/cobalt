@@ -16,7 +16,7 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_GLOBAL_OBJECT_H_
 
-#include <list>
+#include <vector>
 
 #include "config.h"
 #undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
@@ -108,10 +108,10 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
                          JSC::WriteBarrier<JSC::JSObject> > CachedObjectMap;
 #endif
 
-  typedef std::list<base::WeakPtr<JSCObjectOwner> > JSCObjectOwnerList;
+  typedef std::vector<base::WeakPtr<JSCObjectOwner> > JSCObjectOwnerVector;
 
   CachedObjectMap cached_objects_;
-  JSCObjectOwnerList owned_objects_;
+  JSCObjectOwnerVector owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
 };
 
