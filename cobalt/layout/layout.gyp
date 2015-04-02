@@ -98,6 +98,7 @@
       'target_name': 'layout_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'declared_style_test.cc',
         'layout_test.cc',
       ],
       'dependencies': [
