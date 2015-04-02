@@ -401,7 +401,7 @@ universal_selector_token: '*' {
 //   http://www.w3.org/TR/selectors4/#class-selector
 class_selector_token:
     '.' identifier_token {
-    $$ = new cssom::TypeSelector($2.ToString());
+    $$ = new cssom::ClassSelector($2.ToString());
   }
   ;
 
