@@ -21,6 +21,7 @@ namespace cobalt {
 namespace cssom {
 
 class ClassSelector;
+class EmptyPseudoClass;
 class IdSelector;
 class TypeSelector;
 
@@ -30,6 +31,7 @@ class TypeSelector;
 class SelectorVisitor {
  public:
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
+  virtual void VisitEmptyPseudoClass(EmptyPseudoClass* empty_pseudo_class) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
 
