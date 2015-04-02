@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TYPE_SELECTOR_H_
-#define CSSOM_TYPE_SELECTOR_H_
+#ifndef CSSOM_ID_SELECTOR_H_
+#define CSSOM_ID_SELECTOR_H_
 
 #include <string>
 
@@ -26,26 +26,25 @@
 namespace cobalt {
 namespace cssom {
 
-// A type selector represents an instance of the element type in the document
-// tree.
-//   http://www.w3.org/TR/selectors4/#type-selector
-class TypeSelector : public Selector {
+// An ID selector represents an element instance that has an identifier that
+// matches the identifier in the ID selector.
+//   http://www.w3.org/TR/selectors4/#id-selector
+class IdSelector : public Selector {
  public:
-  explicit TypeSelector(const std::string& element_name)
-      : element_name_(element_name) {}
-  ~TypeSelector() OVERRIDE {}
+  explicit IdSelector(const std::string& id) : id_(id) {}
+  ~IdSelector() OVERRIDE {}
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  const std::string& element_name() const { return element_name_; }
+  const std::string& id() const { return id_; }
 
  private:
-  const std::string element_name_;
+  const std::string id_;
 
-  DISALLOW_COPY_AND_ASSIGN(TypeSelector);
+  DISALLOW_COPY_AND_ASSIGN(IdSelector);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TYPE_SELECTOR_H_
+#endif  // CSSOM_ID_SELECTOR_H_

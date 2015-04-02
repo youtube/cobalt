@@ -35,6 +35,8 @@
         'css_style_sheet.h',
         'font_weight_value.cc',
         'font_weight_value.h',
+        'id_selector.cc',
+        'id_selector.h',
         'keyword_names.cc',
         'keyword_names.h',
         'keyword_value.cc',
