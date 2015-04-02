@@ -17,6 +17,7 @@
 #include "cobalt/cssom/selector_visitor.h"
 
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -28,6 +29,8 @@ namespace cssom {
 class MockSelectorVisitor : public SelectorVisitor {
  public:
   MOCK_METHOD1(VisitClassSelector, void(ClassSelector* class_selector));
+  MOCK_METHOD1(VisitEmptyPseudoClass,
+               void(EmptyPseudoClass* empty_pseudo_class));
   MOCK_METHOD1(VisitIdSelector, void(IdSelector* id_selector));
   MOCK_METHOD1(VisitTypeSelector, void(TypeSelector* type_selector));
 };
@@ -37,6 +40,13 @@ TEST(SelectorVisitorTest, VisitsClassSelector) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitClassSelector(&class_selector));
   class_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsEmptyPseudoClass) {
+  EmptyPseudoClass empty_pseudo_class;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitEmptyPseudoClass(&empty_pseudo_class));
+  empty_pseudo_class.Accept(&mock_visitor);
 }
 
 TEST(SelectorVisitorTest, VisitsIdSelector) {
