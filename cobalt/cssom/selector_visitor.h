@@ -21,6 +21,7 @@ namespace cobalt {
 namespace cssom {
 
 class ClassSelector;
+class IdSelector;
 class TypeSelector;
 
 // Type-safe branching on a class hierarchy of CSS selectors,
@@ -29,6 +30,7 @@ class TypeSelector;
 class SelectorVisitor {
  public:
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
+  virtual void VisitIdSelector(IdSelector* id_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
 
  protected:

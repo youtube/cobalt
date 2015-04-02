@@ -379,8 +379,8 @@ identifier_token:
   }
   ;
 
-// A type selector represents an instance of the element type in
-// the document tree.
+// A type selector represents an instance of the element type in the document
+// tree.
 //   http://www.w3.org/TR/selectors4/#type-selector
 type_selector_token:
     identifier_token {
@@ -389,7 +389,7 @@ type_selector_token:
   ;
 
 // The universal selector represents an element with any name.
-//   http://dev.w3.org/csswg/selectors-4/#universal-selector
+//   http://www.w3.org/TR/selectors4/#universal-selector
 universal_selector_token: '*' {
     parser_impl->LogWarning(@1, "universal selector is not implemented yet");
     $$ = NULL;  // TODO(***REMOVED***): Implement.
@@ -405,24 +405,26 @@ class_selector_token:
   }
   ;
 
-// An ID selector represents an element instance that has an identifier
-// that matches the identifier in the ID selector.
-//   http://dev.w3.org/csswg/selectors-4/#id-selector
+// An ID selector represents an element instance that has an identifier that
+// matches the identifier in the ID selector.
+//   http://www.w3.org/TR/selectors4/#id-selector
 id_selector_token:
     kIdSelectorToken {
-    parser_impl->LogWarning(@1, "id selector is not implemented yet");
-    $$ = NULL;  // TODO(***REMOVED***): Implement.
+    $$ = new cssom::IdSelector($1.ToString());
   }
   | kHexToken {
-    parser_impl->LogWarning(@1, "id selector is not implemented yet");
-    $$ = NULL;  // TODO(***REMOVED***): Implement, check it doesn't start with number.
+    if (IsAsciiDigit(*$1.begin)) {
+      YYERROR;
+    } else {
+      $$ = new cssom::IdSelector($1.ToString());
+    }
   }
   ;
 
-// The pseudo-class concept is introduced to permit selection based
-// on information that lies outside of the document tree or that can be awkward
-// or impossible to express using the other simple selectors.
-//   http://dev.w3.org/csswg/selectors-4/#pseudo_class
+// The pseudo-class concept is introduced to permit selection based on
+// information that lies outside of the document tree or that can be awkward or
+// impossible to express using the other simple selectors.
+//   http://www.w3.org/TR/selectors4/#pseudo-classes
 //
 // TODO(***REMOVED***): Replace identifier with token.
 pseudo_class_token:
@@ -432,8 +434,9 @@ pseudo_class_token:
   }
   ;
 
-// A simple selector represents an aspect of an element to be matched against.
-//   http://dev.w3.org/csswg/selectors-4/#simple
+// A simple selector is either a type selector, universal selector, attribute
+// selector, class selector, ID selector, or pseudo-class.
+//   http://www.w3.org/TR/selectors4/#simple
 simple_selector_token:
     type_selector_token
   | universal_selector_token
@@ -442,9 +445,9 @@ simple_selector_token:
   | pseudo_class_token
   ;
 
-// A compound selector is a sequence of simple selectors that are not separated
-// by a combinator.
-//   http://dev.w3.org/csswg/selectors-4/#compound
+// A compound selector is a chain of simple selectors that are not separated by
+// a combinator.
+//   http://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
     simple_selector_token
   | compound_selector_token simple_selector_token {
@@ -453,18 +456,18 @@ compound_selector_token:
   }
   ;
 
-// A combinator represents a particular kind of relationship between the
-// elements matched by the compound selectors on either side.
-//   http://dev.w3.org/csswg/selectors-4/#combinator
+// A combinator is punctuation that represents a particular kind of relationship
+// between the compound selectors on either side
+//   http://www.w3.org/TR/selectors4/#combinator
 combinator:
     kWhitespaceToken
   | '>' maybe_whitespace
   | '+' maybe_whitespace
   ;
 
-// A complex selector is a sequence of one or more compound selectors separated
-// by combinators.
-//   http://dev.w3.org/csswg/selectors-4/#complex
+// A complex selector is a chain of one or more compound selectors separated by
+// combinators.
+//   http://www.w3.org/TR/selectors4/#complex
 complex_selector:
     compound_selector_token
   | complex_selector combinator compound_selector_token {
@@ -475,7 +478,7 @@ complex_selector:
   ;
 
 // A selector list is a comma-separated list of selectors.
-//   http://dev.w3.org/csswg/selectors-4/#grouping
+//   http://www.w3.org/TR/selectors4/#selector-list
 selector_list:
     complex_selector {
     $$ = new cssom::CSSStyleRule::Selectors();
