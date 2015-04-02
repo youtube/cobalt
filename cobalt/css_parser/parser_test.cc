@@ -53,39 +53,21 @@ class ParserTest : public ::testing::Test {
  protected:
   ::testing::StrictMock<MockParserObserver> parser_observer_;
   Parser parser_;
+  const base::SourceLocation source_location_;
 };
 
 ParserTest::ParserTest()
     : parser_(base::Bind(&MockParserObserver::OnWarning,
                          base::Unretained(&parser_observer_)),
               base::Bind(&MockParserObserver::OnError,
-                         base::Unretained(&parser_observer_))) {}
-
-namespace {
-
-scoped_refptr<cssom::CSSStyleDeclaration> GetStyleOfOnlyRuleInStyleSheet(
-    const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
-  CHECK_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-
-  scoped_refptr<cssom::CSSRuleList> css_rules = style_sheet->css_rules();
-  CHECK_EQ(1u, css_rules->length());
-
-  scoped_refptr<cssom::CSSStyleRule> style_rule = css_rules->Item(0);
-  CHECK_NE(scoped_refptr<cssom::CSSStyleRule>(), style_rule);
-
-  scoped_refptr<cssom::CSSStyleDeclaration> style = style_rule->style();
-  CHECK_NE(scoped_refptr<cssom::CSSStyleDeclaration>(), style);
-
-  return style;
-}
-
-}  // namespace
+                         base::Unretained(&parser_observer_))),
+      source_location_("[object ParserTest]", 1, 1) {}
 
 // TODO(***REMOVED***): Test every reduction that has semantic action.
 
 TEST_F(ParserTest, ParsesEmptyInput) {
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "", base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
@@ -95,8 +77,8 @@ TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
       parser_observer_,
       OnError("[object ParserTest]:1:1: error: unrecoverable syntax error"));
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "@casino-royale", base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("@casino-royale", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
@@ -126,8 +108,8 @@ TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
 }
 
 TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "<!-- body {} -->", base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("<!-- body {} -->", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(1, style_sheet->css_rules()->length());
 }
@@ -137,8 +119,7 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "body {} @cobalt-magic; div {}",
-      base::SourceLocation("[object ParserTest]", 1, 1));
+      "body {} @cobalt-magic; div {}", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
@@ -148,8 +129,7 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "body {} @charset 'utf-8'; div {}",
-      base::SourceLocation("[object ParserTest]", 1, 1));
+      "body {} @charset 'utf-8'; div {}", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
@@ -158,9 +138,8 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:9: warning: invalid rule"));
 
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
-      "body {} !important {} div {}",
-      base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("body {} !important {} div {}", source_location_);
   ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
   EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
@@ -170,7 +149,7 @@ TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
       parser_.ParseDeclarationList(
           "color: #0047ab;  /* Cobalt blue */\n"
           "font-size: 100px;\n",
-          base::SourceLocation("[object ParserTest]", 1, 1));
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
   EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
@@ -181,7 +160,7 @@ TEST_F(ParserTest, ParsesDeclarationListWithoutTrailingSemicolon) {
       parser_.ParseDeclarationList(
           "color: #0047ab;\n"
           "font-size: 100px\n",
-          base::SourceLocation("[object ParserTest]", 1, 1));
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
   EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
@@ -193,7 +172,7 @@ TEST_F(ParserTest, ParsesDeclarationListWithEmptyDeclaration) {
           "color: #0047ab;\n"
           ";\n"
           "font-size: 100px;\n",
-          base::SourceLocation("[object ParserTest]", 1, 1));
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
   EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
@@ -209,7 +188,7 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
           "color: #0047ab;\n"
           "1px;\n"
           "font-size: 100px;\n",
-          base::SourceLocation("[object ParserTest]", 1, 1));
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
   EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
@@ -217,34 +196,30 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
 
 TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".double-size {\n"
-          "  -moz-transform: scale(2);\n"
-          "  -ms-transform: scale(2);\n"
-          "  -o-transform: scale(2);\n"
-          "  transform: scale(2);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList(
+          "-moz-transform: scale(2);\n"
+          "-ms-transform: scale(2);\n"
+          "-o-transform: scale(2);\n"
+          "transform: scale(2);\n",
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->transform());
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
   EXPECT_CALL(parser_observer_, OnWarning(
-                                    "[object ParserTest]:2:3: warning: "
+                                    "[object ParserTest]:1:1: warning: "
                                     "unsupported property -webkit-pony"));
   EXPECT_CALL(
       parser_observer_,
-      OnWarning("[object ParserTest]:3:3: warning: unsupported property pony"));
+      OnWarning("[object ParserTest]:2:1: warning: unsupported property pony"));
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".friendship {\n"
-          "  -webkit-pony: rainbowdash;\n"
-          "  pony: rainbowdash;\n"
-          "  color: #9edbf9;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList(
+          "-webkit-pony: rainbowdash;\n"
+          "pony: rainbowdash;\n"
+          "color: #9edbf9;\n",
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
@@ -252,15 +227,13 @@ TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
   EXPECT_CALL(
       parser_observer_,
-      OnWarning("[object ParserTest]:2:21: warning: unsupported value"));
+      OnWarning("[object ParserTest]:1:19: warning: unsupported value"));
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".champs-elysees {\n"
-          "  background-color: morning haze over Paris;\n"
-          "  color: #fff;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList(
+          "background-color: morning haze over Paris;\n"
+          "color: #fff;\n",
+          source_location_);
 
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
@@ -270,33 +243,24 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
 
 TEST_F(ParserTest, ParsesInherit) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".like-father-like-son {\n"
-          "  background-color: inherit;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("background-color: inherit;",
+                                   source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_color());
 }
 
 TEST_F(ParserTest, ParsesInitial) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".reset {\n"
-          "  background-color: initial;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("background-color: initial;",
+                                   source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
 }
 
 TEST_F(ParserTest, ParsesBackground) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".playlist {\n"
-          "  background: rgba(0, 0, 0, .8);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("background: rgba(0, 0, 0, .8);",
+                                   source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> background =
       dynamic_cast<cssom::RGBAColorValue*>(style->background().get());
@@ -306,11 +270,7 @@ TEST_F(ParserTest, ParsesBackground) {
 
 TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".clean {\n"
-          "  background-color: #fff;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("background-color: #fff;", source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
@@ -320,11 +280,7 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
 
 TEST_F(ParserTest, ParsesBorderRadius) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".rounded {\n"
-          "  border-radius: 0.2em;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("border-radius: 0.2em;", source_location_);
 
   scoped_refptr<cssom::LengthValue> border_radius =
       dynamic_cast<cssom::LengthValue*>(style->border_radius().get());
@@ -335,11 +291,7 @@ TEST_F(ParserTest, ParsesBorderRadius) {
 
 TEST_F(ParserTest, Parses3DigitColor) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".dark {\n"
-          "  color: #123;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("color: #123;", source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
@@ -349,11 +301,8 @@ TEST_F(ParserTest, Parses3DigitColor) {
 
 TEST_F(ParserTest, Parses6DigitColor) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".logo {\n"
-          "  color: #0047ab;  /* Cobalt blue */\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("color: #0047ab;  /* Cobalt blue */\n",
+                                   source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
@@ -363,11 +312,8 @@ TEST_F(ParserTest, Parses6DigitColor) {
 
 TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".sparta {\n"
-          "  color: rgb(300, 0, -300);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("color: rgb(300, 0, -300);",
+                                   source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
@@ -377,11 +323,8 @@ TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
 
 TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".dimmed {\n"
-          "  color: rgba(255, 128, 1, 0.5);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("color: rgba(255, 128, 1, 0.5);",
+                                   source_location_);
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
@@ -391,55 +334,36 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
 
 TEST_F(ParserTest, ParsesBlockDisplay) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          "div {\n"
-          "  display: block;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("display: block;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetBlock(), style->display());
 }
 
 TEST_F(ParserTest, ParsesInlineDisplay) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          "span {\n"
-          "  display: inline;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("display: inline;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInline(), style->display());
 }
 
 TEST_F(ParserTest, ParsesInlineBlockDisplay) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          "marquee {\n"
-          "  display: inline-block;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("display: inline-block;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInlineBlock(), style->display());
 }
 
 TEST_F(ParserTest, ParsesNoneDisplay) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          "head {\n"
-          "  display: none;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("display: none;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->display());
 }
 
 TEST_F(ParserTest, ParsesFontFamily) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".nexus {\n"
-          "  font-family: \"Droid Sans\";\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("font-family: \"Droid Sans\";",
+                                   source_location_);
 
   scoped_refptr<cssom::StringValue> font_family =
       dynamic_cast<cssom::StringValue*>(style->font_family().get());
@@ -451,11 +375,7 @@ TEST_F(ParserTest, ParsesFontFamily) {
 
 TEST_F(ParserTest, ParsesFontSize) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".large {\n"
-          "  font-size: 100px;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("font-size: 100px;", source_location_);
 
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(style->font_size().get());
@@ -466,33 +386,21 @@ TEST_F(ParserTest, ParsesFontSize) {
 
 TEST_F(ParserTest, ParsesNormalFontWeight) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".normal {\n"
-          "  font-weight: normal;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("font-weight: normal;", source_location_);
 
   EXPECT_EQ(cssom::FontWeightValue::GetNormalAka400(), style->font_weight());
 }
 
 TEST_F(ParserTest, ParsesBoldFontWeight) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".bold {\n"
-          "  font-weight: bold;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("font-weight: bold;", source_location_);
 
   EXPECT_EQ(cssom::FontWeightValue::GetBoldAka700(), style->font_weight());
 }
 
 TEST_F(ParserTest, ParsesHeight) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".fixed-height {\n"
-          "  height: 100px;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("height: 100px;", source_location_);
 
   scoped_refptr<cssom::LengthValue> height =
       dynamic_cast<cssom::LengthValue*>(style->height().get());
@@ -503,11 +411,7 @@ TEST_F(ParserTest, ParsesHeight) {
 
 TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".translucent {\n"
-          "  opacity: 0.5;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("opacity: 0.5;", source_location_);
 
   scoped_refptr<cssom::NumberValue> translucent =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
@@ -517,11 +421,7 @@ TEST_F(ParserTest, ParsesOpacity) {
 
 TEST_F(ParserTest, ClampsOpacityToZero) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".transparent {\n"
-          "  opacity: -3.14;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("opacity: -3.14;", source_location_);
 
   scoped_refptr<cssom::NumberValue> transparent =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
@@ -531,11 +431,7 @@ TEST_F(ParserTest, ClampsOpacityToZero) {
 
 TEST_F(ParserTest, ClampsOpacityToOne) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".opaque {\n"
-          "  opacity: 2.72;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("opacity: 2.72;", source_location_);
 
   scoped_refptr<cssom::NumberValue> opaque =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
@@ -545,44 +441,28 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
 
 TEST_F(ParserTest, ParsesHiddenOverflow) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".hidden {\n"
-          "  overflow: hidden;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("overflow: hidden;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetHidden(), style->overflow());
 }
 
 TEST_F(ParserTest, ParsesVisibleOverflow) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".visible {\n"
-          "  overflow: visible;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("overflow: visible;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetVisible(), style->overflow());
 }
 
 TEST_F(ParserTest, ParsesNoneTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".normal-state {\n"
-          "  transform: none;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: none;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->transform());
 }
 
 TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".isotropic-scale {\n"
-          "  transform: scale(1.5);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: scale(1.5);", source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -602,11 +482,8 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
 
 TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".anisotropic-scale {\n"
-          "  transform: scale(16, 9);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: scale(16, 9);",
+                                   source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -622,11 +499,8 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
 
 TEST_F(ParserTest, ParsesTranslateXTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".translate-x {\n"
-          "  transform: translateX(0);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: translateX(0);",
+                                   source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -646,11 +520,8 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
 
 TEST_F(ParserTest, ParsesTranslateYTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".translate-y {\n"
-          "  transform: translateY(30em);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: translateY(30em);",
+                                   source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -670,11 +541,8 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
 
 TEST_F(ParserTest, ParsesTranslateZTransform) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".translate-z {\n"
-          "  transform: translateZ(-22px);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: translateZ(-22px);",
+                                   source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -694,11 +562,8 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
 
 TEST_F(ParserTest, ParsesMultipleTransforms) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".multiple-transforms {\n"
-          "  transform: scale(2) translateZ(10px);\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("transform: scale(2) translateZ(10px);",
+                                   source_location_);
 
   scoped_refptr<cssom::TransformListValue> transform_list =
       dynamic_cast<cssom::TransformListValue*>(style->transform().get());
@@ -714,26 +579,20 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_CALL(
       parser_observer_,
       OnWarning(
-          "[object ParserTest]:2:27: warning: invalid transform function"));
+          "[object ParserTest]:1:25: warning: invalid transform function"));
 
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".black-hole {\n"
-          "  transform: scale(0.001) warp(spacetime);\n"
-          "  color: #000;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList(
+          "transform: scale(0.001) warp(spacetime);\n"
+          "color: #000;\n",
+          source_location_);
 
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
 TEST_F(ParserTest, ParsesWidth) {
   scoped_refptr<cssom::CSSStyleDeclaration> style =
-      GetStyleOfOnlyRuleInStyleSheet(parser_.ParseStyleSheet(
-          ".fixed-width {\n"
-          "  width: 100px;\n"
-          "}\n",
-          base::SourceLocation("[object ParserTest]", 1, 1)));
+      parser_.ParseDeclarationList("width: 100px;", source_location_);
 
   scoped_refptr<cssom::LengthValue> width =
       dynamic_cast<cssom::LengthValue*>(style->width().get());
@@ -742,44 +601,41 @@ TEST_F(ParserTest, ParsesWidth) {
   EXPECT_EQ(cssom::kPixelsUnit, width->unit());
 }
 
-TEST_F(ParserTest, ParsePropertyValue_ParsesValidPropertyValue) {
+TEST_F(ParserTest, ParsesValidPropertyValue) {
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(
-          parser_.ParsePropertyValue(
-                      "color", "#c0ffee",
-                      base::SourceLocation("[object ParserTest]", 1, 1)).get());
+          parser_.ParsePropertyValue("color", "#c0ffee", source_location_)
+              .get());
   EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
 }
 
-TEST_F(ParserTest, ParsePropertyValue_WarnsAboutImportant) {
+TEST_F(ParserTest, WarnsAboutImportantInPropertyValue) {
   EXPECT_CALL(parser_observer_,
               OnError(
                   "[object ParserTest]:1:1: error: !important is not allowed "
                   "in property value"));
 
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
-      "color", "#f0000d !important",
-      base::SourceLocation("[object ParserTest]", 1, 1));
+      "color", "#f0000d !important", source_location_);
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
-TEST_F(ParserTest, ParsePropertyValue_WarnsAboutTrailingSemicolon) {
+TEST_F(ParserTest, FailsIfPropertyValueHasTrailingSemicolon) {
   EXPECT_CALL(
       parser_observer_,
       OnError("[object ParserTest]:1:8: error: unrecoverable syntax error"));
 
-  scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
-      "color", "#baaaad;", base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::PropertyValue> null_value =
+      parser_.ParsePropertyValue("color", "#baaaad;", source_location_);
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
-TEST_F(ParserTest, ParsePropertyValue_WarnsAboutInvalidPropertyValue) {
+TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:1: warning: unsupported value"));
 
-  scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
-      "color", "spring grass",
-      base::SourceLocation("[object ParserTest]", 1, 1));
+  scoped_refptr<cssom::PropertyValue> null_value =
+      parser_.ParsePropertyValue("color", "spring grass", source_location_);
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
 }
 
