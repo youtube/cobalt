@@ -85,14 +85,18 @@ void JSCGlobalObject::visit_children(JSC::SlotVisitor* visitor) {
   // If the object being pointed to by the weak handle has been deleted, then
   // there are no more references to the JavaScript object in Cobalt. It is
   // safe to be garbage collected.
-  for (JSCObjectOwnerList::iterator it = owned_objects_.begin();
+  for (JSCObjectOwnerVector::iterator it = owned_objects_.begin();
        it != owned_objects_.end();) {
     base::WeakPtr<JSCObjectOwner>& owner_weak = *it;
     if (owner_weak) {
       visitor->append(&(owner_weak->js_object()));
       ++it;
     } else {
-      it = owned_objects_.erase(it);
+      // Erase this by overwriting the current element with the last element
+      // to avoid copying the other elements in the vector when deleting from
+      // the middle.
+      *it = owned_objects_.back();
+      owned_objects_.pop_back();
     }
   }
 }
