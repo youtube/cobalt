@@ -32,6 +32,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
