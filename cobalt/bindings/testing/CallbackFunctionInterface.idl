@@ -17,6 +17,12 @@
 [Exposed=TestWindow]
 interface CallbackFunctionInterface {
   void takesVoidFunction(VoidFunction cb);
+  void takesFunctionWithOneParameter(FunctionWithOneParameter cb);
+  void takesFunctionWithSeveralParameters(FunctionWithSeveralParameters cb);
+  void takesFunctionWithNullableParameters(FunctionWithNullableParameters cb);
 };
 
 callback VoidFunction = void();
+callback FunctionWithOneParameter = void(long param);
+callback FunctionWithSeveralParameters = void(double param1, DOMString param2, ArbitraryInterface param3);
+callback FunctionWithNullableParameters = void(boolean? param1, DOMString? param2, ArbitraryInterface? param3);
