@@ -146,6 +146,12 @@ TEST_P(LayoutTest, LayoutTest) {
   // output.
   std::cout << "(" << GetParam() << ")" << std::endl;
 
+  // Setup a message loop for the current thread since we will be constructing
+  // a WebModule, which requires a message loop to exist for the current
+  // thread.
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.
   renderer::RenderTreePixelTester::Options pixel_tester_options;
@@ -158,12 +164,6 @@ TEST_P(LayoutTest, LayoutTest) {
   renderer::RenderTreePixelTester pixel_tester(
       kTestViewportSize, GetTestInputRootDirectory(),
       GetTestOutputRootDirectory(), pixel_tester_options);
-
-  // Setup a message loop for the current thread since we will be constructing
-  // a WebModule, which requires a message loop to exist for the current
-  // thread.
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  base::RunLoop run_loop;
 
   // Setup the WebModule options.  In particular, we specify here the URL of
   // the test that we wish to run.

@@ -51,20 +51,14 @@ RendererModule::RendererModule(const Options& options) {
     graphics_context_ = graphics_system_->CreateGraphicsContext();
   }
 
-  // Create a rasterizer to rasterize our render trees.
-  scoped_ptr<renderer::Rasterizer> rasterizer;
-  {
-    TRACE_EVENT0("cobalt::renderer", "Create Rasterizer");
-    rasterizer =
-        options.create_rasterizer_function.Run(graphics_context_.get());
-  }
-
-  // Setup the threaded rendering pipeline and fit our newly created rasterizer
-  // into it, and direct it to render directly to the display.
+  // Setup the threaded rendering pipeline and pass it the rasterizer creator
+  // function so that it can create a rasterizer on its own thread.
+  // Direct it to render directly to the display.
   {
     TRACE_EVENT0("cobalt::renderer", "new renderer::Pipeline()");
-    pipeline_ = make_scoped_ptr(
-        new renderer::Pipeline(rasterizer.Pass(), display_->GetRenderTarget()));
+    pipeline_ = make_scoped_ptr(new renderer::Pipeline(
+        base::Bind(options.create_rasterizer_function, graphics_context_.get()),
+        display_->GetRenderTarget()));
   }
 }
 
