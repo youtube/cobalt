@@ -43,6 +43,8 @@ class EventListener : public script::Wrappable {
   // Used by addEventListener/removeEventListener to check if two event
   // listeners are the same.
   virtual bool EqualTo(const EventListener& that) = 0;
+  // Whether this is an event listener set as an attribute.
+  virtual bool IsAttribute() const = 0;
 };
 
 }  // namespace dom
