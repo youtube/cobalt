@@ -27,18 +27,15 @@ using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Property;
 
-// Use NiceMock as we don't care about EqualTo or MarkJSObjectAsNotCollectable
-// calls on the listener in most cases.
-typedef ::testing::NiceMock<cobalt::dom::testing::MockEventListener>
-    NiceMockEventListener;
-
 namespace cobalt {
 namespace dom {
+
+using testing::MockEventListener;
 
 class EventQueueTest : public ::testing::Test {
  protected:
   void ExpectHandleEventCallWithEventAndTarget(
-      const scoped_refptr<NiceMockEventListener>& listener,
+      const scoped_refptr<MockEventListener>& listener,
       const scoped_refptr<Event>& event,
       const scoped_refptr<EventTarget>& target) {
     // Note that we must pass the raw pointer to avoid reference counting issue.
@@ -49,7 +46,7 @@ class EventQueueTest : public ::testing::Test {
         .RetiresOnSaturation();
   }
   void ExpectNoHandleEventCall(
-      const scoped_refptr<NiceMockEventListener>& listener) {
+      const scoped_refptr<MockEventListener>& listener) {
     EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
   }
   MessageLoop message_loop_;
@@ -58,8 +55,8 @@ class EventQueueTest : public ::testing::Test {
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("event");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
 
   event_target->AddEventListener("event", event_listener, false);
@@ -72,8 +69,8 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("event");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
@@ -87,8 +84,8 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("event");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
@@ -107,8 +104,8 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
   scoped_refptr<EventTarget> event_target_1 = new EventTarget;
   scoped_refptr<EventTarget> event_target_2 = new EventTarget;
   scoped_refptr<Event> event = new Event("event");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
   EventQueue event_queue(event_target_1.get());
 
   event->set_target(event_target_2);

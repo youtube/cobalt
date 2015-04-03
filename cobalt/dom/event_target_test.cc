@@ -31,18 +31,16 @@ using ::testing::Property;
 namespace cobalt {
 namespace dom {
 
-namespace {
+using testing::MockEventListener;
 
-// Use NiceMock as we don't care about EqualTo or MarkJSObjectAsNotCollectable
-// calls on the listener in most cases.
-typedef ::testing::NiceMock<testing::MockEventListener> NiceMockEventListener;
+namespace {
 
 class TestScriptObjectHandleVisitor : public script::ScriptObjectHandleVisitor {
  private:
   void Visit(script::ScriptObjectHandle* handle) OVERRIDE{};
 };
 
-void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
+void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
                            const scoped_refptr<EventTarget>& target) {
   // Note that we must pass the raw pointer to avoid reference counting issue.
@@ -56,7 +54,7 @@ void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
       .RetiresOnSaturation();
 }
 
-void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
+void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
                            const scoped_refptr<EventTarget>& target,
                            void (Event::*function)(void)) {
@@ -72,8 +70,7 @@ void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
       .RetiresOnSaturation();
 }
 
-void ExpectNoHandleEventCall(
-    const scoped_refptr<NiceMockEventListener>& listener) {
+void ExpectNoHandleEventCall(const scoped_refptr<MockEventListener>& listener) {
   EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
 }
 
@@ -82,8 +79,8 @@ void ExpectNoHandleEventCall(
 TEST(EventTargetTest, SingleEventListenerFired) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
 
   ExpectHandleEventCall(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
@@ -93,8 +90,8 @@ TEST(EventTargetTest, SingleEventListenerFired) {
 TEST(EventTargetTest, SingleEventListenerNotFired) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
 
   ExpectNoHandleEventCall(event_listener);
   event_target->AddEventListener("notfired", event_listener, false);
@@ -106,12 +103,12 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
 TEST(EventTargetTest, MultipleEventListeners) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener_fired_1 =
-      new NiceMockEventListener;
-  scoped_refptr<NiceMockEventListener> event_listener_fired_2 =
-      new NiceMockEventListener;
-  scoped_refptr<NiceMockEventListener> event_listener_not_fired =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener_fired_1 =
+      MockEventListener::CreateAsNonAttribute();
+  scoped_refptr<MockEventListener> event_listener_fired_2 =
+      MockEventListener::CreateAsNonAttribute();
+  scoped_refptr<MockEventListener> event_listener_not_fired =
+      MockEventListener::CreateAsNonAttribute();
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_fired_1, event, event_target);
@@ -129,8 +126,8 @@ TEST(EventTargetTest, MultipleEventListeners) {
 TEST(EventTargetTest, AddRemoveEventListener) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
 
   ExpectHandleEventCall(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
@@ -145,13 +142,44 @@ TEST(EventTargetTest, AddRemoveEventListener) {
   EXPECT_TRUE(event_target->DispatchEvent(event));
 }
 
+// Test if attribute event listener works.
+TEST(EventTargetTest, AttributeListener) {
+  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<Event> event = new Event("fired");
+  scoped_refptr<MockEventListener> non_attribute_event_listener =
+      MockEventListener::CreateAsNonAttribute();
+  scoped_refptr<MockEventListener> attribute_event_listener_1 =
+      MockEventListener::CreateAsAttribute();
+  scoped_refptr<MockEventListener> attribute_event_listener_2 =
+      MockEventListener::CreateAsAttribute();
+
+  event_target->AddEventListener("fired", non_attribute_event_listener, false);
+
+  ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
+  ExpectHandleEventCall(attribute_event_listener_1, event, event_target);
+  event_target->SetAttributeEventListener("fired", attribute_event_listener_1);
+  EXPECT_TRUE(event_target->DispatchEvent(event));
+
+  ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
+  ExpectNoHandleEventCall(attribute_event_listener_1);
+  ExpectHandleEventCall(attribute_event_listener_2, event, event_target);
+  event_target->SetAttributeEventListener("fired", attribute_event_listener_2);
+  EXPECT_TRUE(event_target->DispatchEvent(event));
+
+  ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
+  ExpectNoHandleEventCall(attribute_event_listener_1);
+  ExpectNoHandleEventCall(attribute_event_listener_2);
+  event_target->SetAttributeEventListener("fired", NULL);
+  EXPECT_TRUE(event_target->DispatchEvent(event));
+}
+
 // Test if one event listener can be used by multiple events.
 TEST(EventTargetTest, EventListenerReuse) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event_1 = new Event("fired_1");
   scoped_refptr<Event> event_2 = new Event("fired_2");
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
 
   ExpectHandleEventCall(event_listener, event_1, event_target);
   ExpectHandleEventCall(event_listener, event_2, event_target);
@@ -180,10 +208,10 @@ TEST(EventTargetTest, EventListenerReuse) {
 TEST(EventTargetTest, StopPropagation) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener_fired_1 =
-      new NiceMockEventListener;
-  scoped_refptr<NiceMockEventListener> event_listener_fired_2 =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener_fired_1 =
+      MockEventListener::CreateAsNonAttribute();
+  scoped_refptr<MockEventListener> event_listener_fired_2 =
+      MockEventListener::CreateAsNonAttribute();
 
   InSequence in_sequence;
   ExpectHandleEventCall(event_listener_fired_1, event, event_target,
@@ -199,10 +227,10 @@ TEST(EventTargetTest, StopPropagation) {
 TEST(EventTargetTest, StopImmediatePropagation) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
-  scoped_refptr<NiceMockEventListener> event_listener_fired_1 =
-      new NiceMockEventListener;
-  scoped_refptr<NiceMockEventListener> event_listener_fired_2 =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener_fired_1 =
+      MockEventListener::CreateAsNonAttribute();
+  scoped_refptr<MockEventListener> event_listener_fired_2 =
+      MockEventListener::CreateAsNonAttribute();
 
   ExpectHandleEventCall(event_listener_fired_1, event, event_target,
                         &Event::StopImmediatePropagation);
@@ -217,8 +245,8 @@ TEST(EventTargetTest, StopImmediatePropagation) {
 TEST(EventTargetTest, PreventDefault) {
   scoped_refptr<Event> event;
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<NiceMockEventListener> event_listener_fired =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener_fired =
+      MockEventListener::CreateAsNonAttribute();
 
   event_target->AddEventListener("fired", event_listener_fired, false);
   event = new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
@@ -236,8 +264,8 @@ TEST(EventTargetTest, PreventDefault) {
 // it is called on the EventTarget.
 TEST(EventTargetTest, MarkJSObjectAsNotCollectable) {
   scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<NiceMockEventListener> event_listener =
-      new NiceMockEventListener;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
   TestScriptObjectHandleVisitor script_object_handle_visitor;
 
   EXPECT_CALL(*event_listener,
