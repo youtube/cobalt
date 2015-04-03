@@ -30,9 +30,9 @@ namespace {
 const float kRefreshRate = 60.0f;
 }  // namespace
 
-Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer,
+Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target)
-    : rasterizer_(rasterizer.Pass()),
+    : rasterizer_created_event_(true, false),
       render_target_(render_target),
       refresh_rate_(kRefreshRate),
       rasterizer_thread_(base::in_place, "Rasterizer") {
@@ -43,6 +43,10 @@ Pipeline::Pipeline(scoped_ptr<Rasterizer> rasterizer,
   // when CalledOnValidThread() is called on rasterizer_thread_checker_ below.
   rasterizer_thread_checker_.DetachFromThread();
   rasterizer_thread_->Start();
+  rasterizer_thread_->message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&Pipeline::InitializeRasterizerThread, base::Unretained(this),
+                 create_rasterizer_function));
 }
 
 Pipeline::~Pipeline() {
@@ -54,6 +58,35 @@ Pipeline::~Pipeline() {
       base::Bind(&Pipeline::ShutdownRasterizerThread, base::Unretained(this)));
 
   rasterizer_thread_ = base::nullopt;
+}
+
+void Pipeline::InitializeRasterizerThread(
+    const CreateRasterizerFunction& create_rasterizer_function) {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::InitializeRasterizerThread");
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  rasterizer_ = create_rasterizer_function.Run();
+  rasterizer_created_event_.Signal();
+}
+
+void Pipeline::ShutdownRasterizerThread() {
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  // Stop and shutdown the raterizer timer.
+  refresh_rate_timer_ = base::nullopt;
+
+  // Do not retain any more references to the current render tree (which
+  // may refer to rasterizer resources) or animations which may refer to
+  // render trees.
+  current_animations_ = NULL;
+  current_tree_ = NULL;
+
+  // Finally, destroy the rasterizer.
+  rasterizer_.reset();
+}
+
+render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
+  rasterizer_created_event_.Wait();
+  return rasterizer_->GetResourceProvider();
 }
 
 void Pipeline::Submit(const scoped_refptr<Node>& render_tree) {
@@ -127,20 +160,6 @@ void Pipeline::RasterizeCurrentTree() {
 
   // Rasterize the animated render tree.
   rasterizer_->Submit(animated_render_tree, render_target_);
-}
-
-void Pipeline::ShutdownRasterizerThread() {
-  TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  // Stop and shutdown the raterizer timer.
-  refresh_rate_timer_ = base::nullopt;
-
-  // Do not retain any more references to the current render tree (which
-  // may refer to rasterizer resources).
-  current_tree_ = NULL;
-
-  // Finally, destroy the rasterizer.
-  rasterizer_.reset();
 }
 
 }  // namespace renderer
