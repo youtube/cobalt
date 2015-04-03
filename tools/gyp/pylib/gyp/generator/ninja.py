@@ -1822,8 +1822,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.rule(
       'link',
       description='LINK $out',
-      command=(ld_cmd +' $ldflags -o $out %s '
-               '-Wl,--start-group $in $solibs -Wl,--end-group $libs' % rpath))
+      command=(ld_cmd +' @$out.rsp'),
+      rspfile='$out.rsp',
+      rspfile_content=('$ldflags -o $out %s -Wl,--start-group $in $solibs '
+                       '-Wl,--end-group $libs' % rpath))
   elif flavor in ['win', 'xb1', 'xb360']:
     master_ninja.rule(
         'alink',
