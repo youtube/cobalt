@@ -55,13 +55,19 @@ class MockRasterizer : public Rasterizer {
   int* submission_count_;
 };
 
+namespace {
+scoped_ptr<Rasterizer> CreateMockRasterizer(int* submission_count) {
+  return scoped_ptr<Rasterizer>(new MockRasterizer(submission_count));
+}
+}  // namespace
+
 class RendererPipelineTest : public ::testing::Test {
  protected:
   RendererPipelineTest() {
     submission_count_ = 0;
     start_time_ = base::Time::Now();
     pipeline_.reset(new Pipeline(
-        scoped_ptr<Rasterizer>(new MockRasterizer(&submission_count_)), NULL));
+        base::Bind(&CreateMockRasterizer, &submission_count_), NULL));
     refresh_rate_ = pipeline_->refresh_rate();
 
     // We create a render tree here composed of only a single, empty
