@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
@@ -41,7 +42,13 @@ namespace renderer {
 // to a specific frequency, such as 60hz, the refresh rate of most displays.
 class Pipeline {
  public:
-  Pipeline(scoped_ptr<Rasterizer> rasterizer,
+  typedef base::Callback<scoped_ptr<Rasterizer>()> CreateRasterizerFunction;
+
+  // Using the provided rasterizer creation function, a rasterizer will be
+  // created within the Pipeline on a separate rasterizer thread.  Thus,
+  // the rasterizer created by the provided function should only reference
+  // thread safe objects.
+  Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
            const scoped_refptr<backend::RenderTarget>& render_target);
   ~Pipeline();
 
@@ -62,9 +69,7 @@ class Pipeline {
   // Returns a thread-safe object from which one can produce renderer resources
   // like images and fonts which can be referenced by render trees that are
   // subsequently submitted to this pipeline.
-  render_tree::ResourceProvider* GetResourceProvider() {
-    return rasterizer_->GetResourceProvider();
-  }
+  render_tree::ResourceProvider* GetResourceProvider();
 
  private:
   // All private data members should be accessed only on the rasterizer thread,
@@ -83,6 +88,11 @@ class Pipeline {
   // the render target.
   void RasterizeCurrentTree();
 
+  // This method is executed on the rasterizer thread and is responsible for
+  // constructing the rasterizer.
+  void InitializeRasterizerThread(
+      const CreateRasterizerFunction& create_rasterizer_function);
+
   // This method is executed on the rasterizer thread to shutdown anything that
   // needs to be shutdown from there.
   void ShutdownRasterizerThread();
@@ -94,6 +104,7 @@ class Pipeline {
   // effectively the last stage of the pipeline, responsible for rasterizing
   // the final render tree and submitting it to the render target.
   scoped_ptr<Rasterizer> rasterizer_;
+  base::WaitableEvent rasterizer_created_event_;
 
   // The render_target that all submitted render trees will be rasterized to.
   scoped_refptr<backend::RenderTarget> render_target_;

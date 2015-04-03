@@ -73,6 +73,7 @@
         'rasterizer_test.cc',
         'rasterizer_test_fixture.cc',
         'rasterizer_test_fixture.h',
+        'resource_provider_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
