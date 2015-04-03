@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/event_listener.h"
 
+#include "base/memory/ref_counted.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
@@ -27,18 +28,37 @@ namespace testing {
 
 class MockEventListener : public EventListener {
  public:
-  MockEventListener() {
-    // We expect that EqualTo has its default behavior in most cases.
-    ON_CALL(*this, EqualTo(::testing::_))
-        .WillByDefault(::testing::Invoke(this, &MockEventListener::IsEqual));
+  static scoped_refptr<MockEventListener> CreateAsAttribute() {
+    class MockAttributeEventListener : public MockEventListener {
+     public:
+      MockAttributeEventListener() : MockEventListener(true) {}
+    };
+    return new ::testing::NiceMock<MockAttributeEventListener>;
+  }
+
+  static scoped_refptr<MockEventListener> CreateAsNonAttribute() {
+    class MockNonAttributeEventListener : public MockEventListener {
+     public:
+      MockNonAttributeEventListener() : MockEventListener(false) {}
+    };
+    return new ::testing::NiceMock<MockNonAttributeEventListener>;
   }
 
   MOCK_METHOD1(HandleEvent, void(const scoped_refptr<Event>&));
-  MOCK_METHOD1(EqualTo, bool(const EventListener&));
   MOCK_METHOD1(MarkJSObjectAsNotCollectable,
                void(script::ScriptObjectHandleVisitor*));
+  MOCK_METHOD1(EqualTo, bool(const EventListener&));
+  MOCK_CONST_METHOD0(IsAttribute, bool());
 
  private:
+  explicit MockEventListener(bool is_attribute) {
+    // We expect that EqualTo has its default behavior in most cases.
+    ON_CALL(*this, EqualTo(::testing::_))
+        .WillByDefault(::testing::Invoke(this, &MockEventListener::IsEqual));
+    ON_CALL(*this, IsAttribute())
+        .WillByDefault(::testing::Return(is_attribute));
+  }
+
   bool IsEqual(const EventListener& that) const { return this == &that; }
 };
 

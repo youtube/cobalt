@@ -32,13 +32,11 @@ using ::testing::Property;
 namespace cobalt {
 namespace dom {
 
+using testing::MockEventListener;
+
 namespace {
 
-// Use NiceMock as we don't care about EqualTo or MarkJSObjectAsNotCollectable
-// calls on the listener in most cases.
-typedef ::testing::NiceMock<testing::MockEventListener> NiceMockEventListener;
-
-void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
+void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
                            const scoped_refptr<EventTarget>& target,
                            const scoped_refptr<EventTarget>& current_target,
@@ -54,7 +52,7 @@ void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
       .RetiresOnSaturation();
 }
 
-void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
+void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
                            const scoped_refptr<EventTarget>& target,
                            const scoped_refptr<EventTarget>& current_target,
@@ -72,11 +70,6 @@ void ExpectHandleEventCall(const scoped_refptr<NiceMockEventListener>& listener,
       .RetiresOnSaturation();
 }
 
-void ExpectNoHandleEventCall(
-    const scoped_refptr<NiceMockEventListener>& listener) {
-  EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
-}
-
 }  // namespace
 
 //////////////////////////////////////////////////////////////////////////
@@ -91,8 +84,8 @@ class NodeDispatchEventTest : public ::testing::Test {
   scoped_refptr<Node> grand_parent_;
   scoped_refptr<Node> parent_;
   scoped_refptr<Node> child_;
-  scoped_refptr<NiceMockEventListener> event_listener_capture_;
-  scoped_refptr<NiceMockEventListener> event_listener_bubbling_;
+  scoped_refptr<MockEventListener> event_listener_capture_;
+  scoped_refptr<MockEventListener> event_listener_bubbling_;
 };
 
 NodeDispatchEventTest::NodeDispatchEventTest() {
@@ -101,8 +94,8 @@ NodeDispatchEventTest::NodeDispatchEventTest() {
   grand_parent_ = new FakeNode();
   parent_ = grand_parent_->AppendChild(new FakeNode());
   child_ = parent_->AppendChild(new FakeNode());
-  event_listener_capture_ = new NiceMockEventListener;
-  event_listener_bubbling_ = new NiceMockEventListener;
+  event_listener_capture_ = MockEventListener::CreateAsNonAttribute();
+  event_listener_bubbling_ = MockEventListener::CreateAsNonAttribute();
 
   grand_parent_->AddEventListener("fired", event_listener_bubbling_, false);
   grand_parent_->AddEventListener("fired", event_listener_capture_, true);

@@ -22,21 +22,18 @@ namespace dom {
 void EventTarget::AddEventListener(const std::string& type,
                                    const scoped_refptr<EventListener>& listener,
                                    bool use_capture) {
-  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
-       iter != event_listener_infos_.end(); ++iter) {
-    if (iter->type == type && iter->listener->EqualTo(*listener) &&
-        iter->use_capture == use_capture) {
-      return;
-    }
-  }
+  DCHECK(listener);
+  DCHECK(!listener->IsAttribute());
 
-  EventListenerInfo info = {type, listener, use_capture};
-  event_listener_infos_.push_back(info);
+  AddEventListenerInternal(type, listener, use_capture);
 }
 
 void EventTarget::RemoveEventListener(
     const std::string& type, const scoped_refptr<EventListener>& listener,
     bool use_capture) {
+  DCHECK(listener);
+  DCHECK(!listener->IsAttribute());
+
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if (iter->type == type && iter->listener->EqualTo(*listener) &&
@@ -55,6 +52,29 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   FireEventOnListeners(event);
   event->set_event_phase(Event::kNone);
   return !event->default_prevented();
+}
+
+void EventTarget::SetAttributeEventListener(
+    const std::string& type, const scoped_refptr<EventListener>& listener) {
+  // Remove existing attribute listener of the same type.
+  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if (iter->type == type && iter->listener->IsAttribute()) {
+      event_listener_infos_.erase(iter);
+      break;
+    }
+  }
+
+  if (!listener) {
+    return;
+  }
+
+  DCHECK(listener->IsAttribute());
+  if (!listener->IsAttribute()) {
+    return;
+  }
+
+  AddEventListenerInternal(type, listener, false);
 }
 
 void EventTarget::MarkJSObjectAsNotCollectable(
@@ -94,6 +114,23 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   }
 
   event->set_current_target(NULL);
+}
+
+void EventTarget::AddEventListenerInternal(
+    const std::string& type, const scoped_refptr<EventListener>& listener,
+    bool use_capture) {
+  DCHECK(listener);
+
+  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if (iter->type == type && iter->listener->EqualTo(*listener) &&
+        iter->use_capture == use_capture) {
+      return;
+    }
+  }
+
+  EventListenerInfo info = {type, listener, use_capture};
+  event_listener_infos_.push_back(info);
 }
 
 }  // namespace dom
