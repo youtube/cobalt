@@ -51,6 +51,10 @@ class EventTarget : public script::Wrappable,
 
   // Custom, not in any spec.
   //
+  // Set an event listener assigned as an attribute. Overwrite the existing one
+  // if there is any.
+  void SetAttributeEventListener(const std::string& type,
+                                 const scoped_refptr<EventListener>& listener);
   // MarkJSObjectAsNotCollectable gives contained event listeners a chance to
   // mark contained JS objects as in use so they won't be collected by GC.
   void MarkJSObjectAsNotCollectable(script::ScriptObjectHandleVisitor* visitor);
@@ -68,6 +72,10 @@ class EventTarget : public script::Wrappable,
     bool use_capture;
   };
   typedef std::vector<EventListenerInfo> EventListenerInfos;
+
+  void AddEventListenerInternal(const std::string& type,
+                                const scoped_refptr<EventListener>& listener,
+                                bool use_capture);
 
   EventListenerInfos event_listener_infos_;
 };
