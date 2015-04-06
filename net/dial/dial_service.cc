@@ -41,157 +41,113 @@ DialService::DialService()
     , http_server_(NULL)
     , udp_server_(NULL)
     , is_running_(false) {
-  // DialService is lazy, so we can start in the constructor
-  // and always have a messageloop.
   thread_->StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  message_loop_proxy()->PostTask(FROM_HERE,
+      base::Bind(&DialService::OnInitialize, base::Unretained(this)));
 }
 
 DialService::~DialService() {
-  DLOG_IF(FATAL, is_running()) << "Dial server is still running when "
-                                  "destroying the service.";
+  Terminate();
 }
 
-MessageLoop* DialService::GetMessageLoop() {
+scoped_refptr<base::MessageLoopProxy> DialService::message_loop_proxy() const {
   DCHECK(thread_->IsRunning());
-  return thread_->message_loop();
+  return thread_->message_loop_proxy();
 }
 
-std::string DialService::GetHttpHostAddress() const {
-  IPEndPoint addr;
-  ignore_result(GetLocalAddress(&addr));
-  return addr.ToString();
+const std::string& DialService::http_host_address() const {
+    DCHECK_EQ(is_running(), true);
+    return http_host_address_;
 }
 
-void DialService::StartService() {
-  if (is_running_) {
-    return; // Already running
-  }
-
-  GetMessageLoop()->PostTask(FROM_HERE,
-      base::Bind(&DialService::SpinUpServices, base::Unretained(this)));
-}
-
-void DialService::StopService() {
-  GetMessageLoop()->PostTask(FROM_HERE,
-      base::Bind(&DialService::SpinDownServices, base::Unretained(this)));
-}
-
-// Syncrhonized call to stop the service.
 void DialService::Terminate() {
-  // Should be called from a different thread.
-  DCHECK(!CurrentThreadIsValid());
+  DCHECK(!IsOnServiceThread());
+  if (!is_running_) {
+    return;
+  }
+  is_running_ = false;
+  message_loop_proxy()->PostTask(FROM_HERE,
+      base::Bind(&DialService::OnTerminate, base::Unretained(this)));
 
-  if (thread_) {
-    thread_->Stop();
-    thread_.reset();
+  // Stop() will wait for all pending tasks.
+  thread_->Stop();
+  thread_.reset();
+}
+
+bool DialService::Register(DialServiceHandler* handler) {
+  DCHECK(!IsOnServiceThread());
+
+  message_loop_proxy()->PostTask(FROM_HERE,
+      base::Bind(&DialService::OnRegister, base::Unretained(this),
+                 base::Unretained(handler)));
+  return true;
+}
+
+bool DialService::Deregister(DialServiceHandler* handler) {
+  DCHECK(!IsOnServiceThread());
+
+  message_loop_proxy()->PostTask(FROM_HERE,
+      base::Bind(&DialService::OnDeregister, base::Unretained(this),
+                 base::Unretained(handler)));
+  return true;
+}
+
+void DialService::OnInitialize() {
+  DCHECK(IsOnServiceThread());
+  DCHECK_EQ(is_running_, false);
+  DCHECK(!http_server_.get());
+  DCHECK(!udp_server_.get());
+
+  // Create servers
+  http_server_ = new DialHttpServer();
+  if (!http_server_->Start()) {
+    http_server_ = NULL;
+    DLOG(ERROR) << "HTTP server failed to start.";
+    return;
   }
 
-  DLOG_IF(WARNING, http_server_ || udp_server_)
-      << "Force Terminating Dial Server.";
+  udp_server_.reset(new DialUdpServer());
+  if (!udp_server_->Start(http_server_->location_url(), kUdpServerAgent)) {
+    DLOG(ERROR) << "UDP server failed to start.";
+    // switch off the http_server too.
+    http_server_->Stop();
+    http_server_ = NULL;
+    udp_server_.reset();
+    return;
+  }
 
-  if (http_server_.get()) {
+  // Compute HTTP local address and cache it.
+  IPEndPoint addr;
+  http_server_->GetLocalAddress(&addr);
+  http_host_address_ = addr.ToString();
+
+  DLOG(INFO) << "Dial Server is now running on " << http_host_address_;
+  is_running_ = true;
+}
+
+void DialService::OnTerminate() {
+  DCHECK(IsOnServiceThread());
+  if (http_server_) {
     http_server_->Stop();
     http_server_ = NULL;
   }
-  if (udp_server_.get()) {
+  if (udp_server_) {
     udp_server_->Stop();
     udp_server_.reset();
   }
 }
 
-void DialService::SpinUpServices() {
-  DCHECK(CurrentThreadIsValid());
-
-  // Do nothing.
-  if (is_running_) return;
-
-  DCHECK(!http_server_.get());
-  DCHECK(!udp_server_.get());
-
-  http_server_ = new DialHttpServer();
-  udp_server_.reset(new DialUdpServer());
-
-  // Create servers
-  if (!http_server_->Start())
-    return;
-
-  if (!udp_server_->Start(http_server_->location_url(), kUdpServerAgent)) {
-    // switch off the http_server too.
-    http_server_->Stop();
-    return;
-  }
-
-  DLOG(INFO) << "Dial Server is now running.";
-  is_running_ = true;
-}
-
-void DialService::SpinDownServices() {
-  DCHECK(CurrentThreadIsValid());
-
-  // Do nothing
-  if (!is_running_) return;
-
-  DLOG(INFO) << "Dial Server is shutting down.";
-  bool http_ret = http_server_->Stop();
-  bool udp_ret = udp_server_->Stop();
-
-  // running is false when both Stops() return true;
-  is_running_ = !(http_ret && udp_ret);
-
-  http_server_ = NULL;
-  udp_server_.reset();
-
-  // Check that both are in same state.
-  DCHECK(http_ret == udp_ret);
-}
-
-bool DialService::Register(DialServiceHandler* handler) {
-  if (!handler)
-    return false;
-
-  const std::string& path = handler->service_name();
-  if (path.empty())
-    return false;
-
-  GetMessageLoop()->PostTask(FROM_HERE,
-      base::Bind(&DialService::AddToHandlerMap, base::Unretained(this),
-                 base::Unretained(handler)));
-  return true;
-}
-
-void DialService::AddToHandlerMap(DialServiceHandler* handler) {
-  const std::string& path = handler->service_name();
-
-  DCHECK(CurrentThreadIsValid());
-  DCHECK(!path.empty());
+void DialService::OnRegister(DialServiceHandler* handler) {
+  DCHECK(IsOnServiceThread());
   DCHECK(handler);
-
-  // Don't replace.
-  std::pair<ServiceHandlerMap::iterator, bool> it =
-      handlers_.insert(std::make_pair(path, handler));
-  VLOG(1) << "Attempt to insert handler for path: " << path
-             << (it.second ? " succeeded" : " failed");
-
-  if (it.second && !is_running()) {
-    SpinUpServices();
+  const std::string& path = handler->service_name();
+  if (!path.empty()) {
+    handlers_[path] = handler;
   }
 }
 
-bool DialService::Deregister(DialServiceHandler* handler) {
-  if (handler == NULL || handler->service_name().empty()) {
-    return false;
-  }
-
-  GetMessageLoop()->PostTask(FROM_HERE,
-      base::Bind(&DialService::RemoveFromHandlerMap, base::Unretained(this),
-                 base::Unretained(handler)));
-  return true;
-}
-
-void DialService::RemoveFromHandlerMap(DialServiceHandler* handler) {
-  // At this point, |handler| might already been deleted, so just remove the
-  // reference to it in |handlers_|.
-  DCHECK(CurrentThreadIsValid());
+void DialService::OnDeregister(DialServiceHandler* handler) {
+  DCHECK(IsOnServiceThread());
   DCHECK(handler);
 
   for (ServiceHandlerMap::iterator it = handlers_.begin();
@@ -201,16 +157,12 @@ void DialService::RemoveFromHandlerMap(DialServiceHandler* handler) {
       break;
     }
   }
-
-  if (handlers_.empty() && is_running()) {
-    SpinDownServices();
-  }
 }
 
 DialServiceHandler* DialService::GetHandler(const std::string& request_path,
                                             std::string* handler_path) {
 
-  DCHECK(CurrentThreadIsValid());
+  DCHECK(IsOnServiceThread());
   DCHECK(handler_path != NULL);
 
   VLOG(1) << "Requesting Handler for path: " << request_path;
@@ -231,6 +183,7 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path,
   if (it == handlers_.end()) {
     return NULL;
   }
+  DCHECK(it->second);
 
   // for the remaining portion, extract it out as the handler path.
   *handler_path = path.substr(pos).as_string();
@@ -243,11 +196,8 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path,
     *handler_path = std::string("/");
   }
 
-  // at this point, it gotta start with '/'
-  DCHECK_EQ('/', (*handler_path)[0]);
+  DCHECK_EQ('/', handler_path->at(0));
 
-  // This should not be NULL at this point.
-  DCHECK(it->second);
   return it->second;
 }
 
