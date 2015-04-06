@@ -46,7 +46,6 @@ const int kDialHttpServerPort = 0; // Random Port.
 
 DialHttpServer::DialHttpServer()
     : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)) {
-
 }
 
 DialHttpServer::~DialHttpServer() {
@@ -195,8 +194,7 @@ bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
 static void ReceivedResponse(int conn_id, HttpServer* http_server,
                              HttpServerResponseInfo* response, bool ok) {
   DCHECK(response);
-  DCHECK_EQ(DialService::GetInstance()->GetMessageLoop(),
-            MessageLoop::current());
+  DCHECK(DialService::GetInstance()->IsOnServiceThread());
 
   if (http_server) {
     if (!ok) {
@@ -216,10 +214,9 @@ static void ReceivedResponse(int conn_id, HttpServer* http_server,
 void DialHttpServer::AsyncReceivedResponse(int conn_id,
     HttpServerResponseInfo* response, bool ok) {
   // Should not be called from the same thread. Call ReceivedResponse instead.
-  DCHECK_NE(DialService::GetInstance()->GetMessageLoop(),
-            MessageLoop::current());
+  DCHECK(!DialService::GetInstance()->IsOnServiceThread());
   VLOG(1) << "Received response from JS.";
-  DialService::GetInstance()->GetMessageLoop()->PostTask(FROM_HERE,
+  DialService::GetInstance()->message_loop_proxy()->PostTask(FROM_HERE,
       base::Bind(ReceivedResponse, conn_id, http_server_, response, ok));
 }
 
