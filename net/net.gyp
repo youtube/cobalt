@@ -1551,6 +1551,7 @@
         'cookies/parsed_cookie_unittest.cc',
         'dial/dial_http_server_unittest.cc',
         'dial/dial_service_unittest.cc',
+        'dial/dial_test_helpers.cc',
         'dial/dial_test_helpers.h',
         'dial/dial_udp_server_unittests.cc',
         'disk_cache/addr_unittest.cc',

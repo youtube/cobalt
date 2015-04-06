@@ -33,28 +33,32 @@ namespace net {
 class NET_EXPORT DialService {
  public:
   static DialService* GetInstance();
+  ~DialService();
+  // Called at program exit or in DialService destructor.
+  void Terminate();
 
-  virtual ~DialService();
-
-  void StartService();
-  void StopService();
   bool Register(DialServiceHandler* handler);
   bool Deregister(DialServiceHandler* handler);
-  void Terminate();
 
   DialServiceHandler* GetHandler(const std::string& service_name,
                                  std::string* remaining_handler);
 
-  bool is_running() const { return is_running_; }
-  std::string GetHttpHostAddress() const;
-
-  MessageLoop* GetMessageLoop();
-
-  int GetLocalAddress(IPEndPoint* addr) const {
-    DCHECK(is_running());
-    return http_server_->GetLocalAddress(addr);
+  bool is_running() const {
+    return is_running_;
   }
 
+  const std::string& http_host_address() const;
+
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy() const;
+
+  bool IsOnServiceThread() const {
+    return thread_ && thread_->message_loop_proxy()->BelongsToCurrentThread();
+  }
+
+  // Expose the DialHttpServer for unit tests.
+  scoped_refptr<net::DialHttpServer> http_server() const {
+    return http_server_;
+  }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
@@ -63,20 +67,18 @@ class NET_EXPORT DialService {
   friend struct base::DefaultLazyInstanceTraits<DialService>;
   DialService();
 
-  void SpinUpServices();
-  void SpinDownServices();
-  void AddToHandlerMap(DialServiceHandler*);
-  void RemoveFromHandlerMap(DialServiceHandler*);
-
-  bool CurrentThreadIsValid() const {
-    return MessageLoop::current() == thread_->message_loop();
-  }
+  // Called on the dial_service thread's message loop.
+  void OnInitialize();
+  void OnTerminate();
+  void OnRegister(DialServiceHandler*);
+  void OnDeregister(DialServiceHandler*);
 
   scoped_ptr<base::Thread> thread_;
   scoped_refptr<net::DialHttpServer> http_server_;
   scoped_ptr<net::DialUdpServer> udp_server_;
   typedef std::map<std::string, DialServiceHandler*> ServiceHandlerMap;
   ServiceHandlerMap handlers_;
+  std::string http_host_address_;
   bool is_running_;
 };
 

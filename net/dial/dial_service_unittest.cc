@@ -16,20 +16,20 @@ namespace net {
 
 class DialServiceTest : public testing::Test {
  protected:
-  scoped_ptr<DialService> service;
+  scoped_ptr<DialService> service_;
 
   virtual void TearDown() OVERRIDE {
-    service.reset();
+    service_.reset();
   }
 
   void WaitUntilIdle() {
-    net::WaitUntilIdle(service->GetMessageLoop());
+    net::WaitUntilIdle(service_->message_loop_proxy());
   }
 
   void PostGetHandlerTest(const std::string& path,
                           const std::string&  exp_path,
                           const DialServiceHandler* exp_handler) {
-    service->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+    service_->message_loop_proxy()->PostTask(FROM_HERE, base::Bind(
         &DialServiceTest::DoGetHandlerTest, base::Unretained(this),
         path, exp_path, exp_handler));
     WaitUntilIdle();
@@ -38,32 +38,29 @@ class DialServiceTest : public testing::Test {
   void DoGetHandlerTest(const std::string& path,
                         const std::string& exp_path,
                         const DialServiceHandler* exp_handler) {
-    EXPECT_EQ(MessageLoop::current(), service->GetMessageLoop());
+    EXPECT_TRUE(service_->IsOnServiceThread());
 
     std::string ret_path;
-    DialServiceHandler* ret_handler = service->GetHandler(path, &ret_path);
+    DialServiceHandler* ret_handler = service_->GetHandler(path, &ret_path);
     EXPECT_EQ(ret_path, exp_path);
     EXPECT_EQ(ret_handler, exp_handler);
   }
 };
 
 TEST_F(DialServiceTest, GetHandler) {
-  service.reset(new DialService());
+  service_.reset(new DialService());
 
-  MockServiceHandler foo_handler;
-  MockServiceHandler baz_handler;
-  ON_CALL(foo_handler, service_name()).WillByDefault(Return("Foo"));
-  ON_CALL(baz_handler, service_name()).WillByDefault(Return("Baz"));
+  MockServiceHandler foo_handler("Foo");
+  MockServiceHandler baz_handler("Baz");
+  EXPECT_FALSE(service_->is_running());
 
-  EXPECT_FALSE(service->is_running());
-
-  service->Register(&foo_handler);
+  service_->Register(&foo_handler);
   WaitUntilIdle();
-  EXPECT_TRUE(service->is_running());
+  EXPECT_TRUE(service_->is_running());
 
-  service->Register(&baz_handler);
+  service_->Register(&baz_handler);
   WaitUntilIdle();
-  EXPECT_TRUE(service->is_running());
+  EXPECT_TRUE(service_->is_running());
 
   PostGetHandlerTest("/apps/Foo/run", "/run", &foo_handler);
   PostGetHandlerTest("/apps/Baz/404", "/404", &baz_handler);
@@ -78,44 +75,44 @@ TEST_F(DialServiceTest, GetHandler) {
   PostGetHandlerTest("/apps/FooBar/", "", NULL);
   PostGetHandlerTest("/apps/BarFoo/", "", NULL);
 
-  service->Deregister(&foo_handler);
+  service_->Deregister(&foo_handler);
   WaitUntilIdle();
-  EXPECT_TRUE(service->is_running());
+  EXPECT_TRUE(service_->is_running());
 
-  service->Deregister(&baz_handler);
+  service_->Deregister(&baz_handler);
   WaitUntilIdle();
-  EXPECT_FALSE(service->is_running());
+  service_->Terminate();
+  EXPECT_FALSE(service_->is_running());
 }
 
 // Test the case where Deregister is called and immediately after the handler
 // is destroyed. This makes a call to the dial_service thread with a pointer
 // that is destroyed. Make sure that it handles appropriately.
 TEST_F(DialServiceTest, DestructedHandler) {
-  service.reset(new DialService());
+  service_.reset(new DialService());
 
-  MockServiceHandler* foo_handler = new MockServiceHandler();
-  ON_CALL(*foo_handler, service_name()).WillByDefault(Return("Foo"));
-
-  EXPECT_TRUE(service->Register(foo_handler));
+  MockServiceHandler* foo_handler = new MockServiceHandler("Foo");
+  EXPECT_TRUE(service_->Register(foo_handler));
   WaitUntilIdle();
-  EXPECT_TRUE(service->is_running());
+  EXPECT_TRUE(service_->is_running());
 
   // Put a wait on the dial service thread.
-  service->GetMessageLoop()->PostTask(FROM_HERE,
+  service_->message_loop_proxy()->PostTask(FROM_HERE,
       base::Bind(&base::PlatformThread::Sleep,
                  base::TimeDelta::FromMilliseconds(10)));
 
   // Immediately delete foo_handler after calling Deregister.
-  EXPECT_TRUE(service->Deregister(foo_handler));
+  EXPECT_TRUE(service_->Deregister(foo_handler));
   delete foo_handler;
 
   // Make sure that the actual Deregister method has not kicked in.
-  EXPECT_TRUE(service->is_running());
+  EXPECT_TRUE(service_->is_running());
 
   // Let all tasks complete on the dial service thread.
   WaitUntilIdle();
 
-  EXPECT_FALSE(service->is_running());
+  service_->Terminate();
+  EXPECT_FALSE(service_->is_running());
 }
 
 } // namespace net
