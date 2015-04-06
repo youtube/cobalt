@@ -42,8 +42,8 @@ class DialHttpServerTest : public testing::Test {
   IPEndPoint addr_;
   scoped_refptr<HttpNetworkSession> session_;
   scoped_ptr<HttpNetworkTransaction> client_;
-  MockServiceHandler foo_handler;
-  MessageLoop* gtest_message_loop_;
+  scoped_ptr<MockServiceHandler> handler_;
+  scoped_refptr<base::MessageLoopProxy> gtest_message_loop_;
 
   std::string response_body_;
   std::string mime_type_;
@@ -51,14 +51,18 @@ class DialHttpServerTest : public testing::Test {
   std::vector<std::string> headers_;
   bool succeeded_;
 
+  DialHttpServerTest() {
+    handler_.reset(new MockServiceHandler("Foo"));
+  }
+
   void StartHttpServer() {
-    gtest_message_loop_ = MessageLoop::current();
+    gtest_message_loop_ = MessageLoop::current()->message_loop_proxy();
 
-    ON_CALL(foo_handler, service_name()).WillByDefault(Return("Foo"));
-    DialService::GetInstance()->Register(&foo_handler);
-    net::WaitUntilIdle(DialService::GetInstance()->GetMessageLoop());
+    DialService::GetInstance()->Register(handler_.get());
+    net::WaitUntilIdle(DialService::GetInstance()->message_loop_proxy());
 
-    ASSERT_EQ(OK, DialService::GetInstance()->GetLocalAddress(&addr_));
+    ASSERT_EQ(OK,
+        DialService::GetInstance()->http_server()->GetLocalAddress(&addr_));
     ASSERT_NE(0, addr_.port());
   }
 
@@ -79,8 +83,12 @@ class DialHttpServerTest : public testing::Test {
 
   virtual void TearDown() OVERRIDE {
     // make sure all messages on DialService are executed.
-    DialService::GetInstance()->Deregister(&foo_handler);
-    net::WaitUntilIdle(DialService::GetInstance()->GetMessageLoop());
+    DialService::GetInstance()->Deregister(handler_.get());
+    net::WaitUntilIdle(DialService::GetInstance()->message_loop_proxy());
+    const HttpNetworkSession::Params& params = session_->params();
+    delete params.proxy_service;
+    delete params.http_server_properties;
+    delete params.host_resolver;
   }
 
   const HttpResponseInfo* GetResponse(const HttpRequestInfo& req) {
@@ -110,8 +118,7 @@ class DialHttpServerTest : public testing::Test {
                const HttpServerRequestInfo& request,
                HttpServerResponseInfo* response,
                const base::Callback<void(bool)>& on_completion) {
-    ASSERT_EQ(MessageLoop::current(),
-              DialService::GetInstance()->GetMessageLoop());
+    ASSERT_TRUE(DialService::GetInstance()->IsOnServiceThread());
 
     response->body = response_body_;
     response->mime_type = mime_type_;
@@ -229,7 +236,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   this->headers_.push_back("X-Test-Header: Baz");
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
-  EXPECT_CALL(foo_handler, handleRequest(Eq("/bar"), _, _, _)).WillOnce(
+  EXPECT_CALL(*handler_.get(), handleRequest(Eq("/bar"), _, _, _)).WillOnce(
       DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
@@ -249,8 +256,9 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
   this->response_code_ = HTTP_OK;
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/?throw=1");
-  EXPECT_CALL(foo_handler, handleRequest(Eq("/?throw=1"), _, _, _)).WillOnce(
-      DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
+  EXPECT_CALL(*handler_.get(),
+      handleRequest(Eq("/?throw=1"), _, _, _)).WillOnce(
+          DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
   EXPECT_EQ(HTTP_NOT_FOUND, resp->headers->response_code());
@@ -258,8 +266,9 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
 
 TEST_F(DialHttpServerTest, CallbackHandleRequestReturnsFalse) {
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/false/app");
-  EXPECT_CALL(foo_handler, handleRequest(Eq("/false/app"), _, _, _)).WillOnce(
-      Return(false));
+  EXPECT_CALL(*handler_.get(),
+      handleRequest(Eq("/false/app"), _, _, _)).WillOnce(
+          Return(false));
 
   const HttpResponseInfo* resp = GetResponse(req);
   EXPECT_EQ(HTTP_NOT_FOUND, resp->headers->response_code());
