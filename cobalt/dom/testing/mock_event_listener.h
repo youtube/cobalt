@@ -29,19 +29,11 @@ namespace testing {
 class MockEventListener : public EventListener {
  public:
   static scoped_refptr<MockEventListener> CreateAsAttribute() {
-    class MockAttributeEventListener : public MockEventListener {
-     public:
-      MockAttributeEventListener() : MockEventListener(true) {}
-    };
-    return new ::testing::NiceMock<MockAttributeEventListener>;
+    return new ::testing::NiceMock<MockEventListener>(true);
   }
 
   static scoped_refptr<MockEventListener> CreateAsNonAttribute() {
-    class MockNonAttributeEventListener : public MockEventListener {
-     public:
-      MockNonAttributeEventListener() : MockEventListener(false) {}
-    };
-    return new ::testing::NiceMock<MockNonAttributeEventListener>;
+    return new ::testing::NiceMock<MockEventListener>(false);
   }
 
   MOCK_METHOD1(HandleEvent, void(const scoped_refptr<Event>&));
@@ -50,7 +42,7 @@ class MockEventListener : public EventListener {
   MOCK_METHOD1(EqualTo, bool(const EventListener&));
   MOCK_CONST_METHOD0(IsAttribute, bool());
 
- private:
+ protected:
   explicit MockEventListener(bool is_attribute) {
     // We expect that EqualTo has its default behavior in most cases.
     ON_CALL(*this, EqualTo(::testing::_))
@@ -59,6 +51,7 @@ class MockEventListener : public EventListener {
         .WillByDefault(::testing::Return(is_attribute));
   }
 
+ private:
   bool IsEqual(const EventListener& that) const { return this == &that; }
 };
 
