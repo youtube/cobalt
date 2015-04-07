@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-[Exposed=TestWindow]
 interface ConstantsInterface {
   const unsigned long INTEGER_CONSTANT = 5;
   const double DOUBLE_CONSTANT = 2.718;
