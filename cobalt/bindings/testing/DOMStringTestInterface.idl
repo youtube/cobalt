@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-[Exposed=TestWindow]
 interface DOMStringTestInterface {
   attribute DOMString property;
   readonly attribute DOMString readOnlyProperty;
