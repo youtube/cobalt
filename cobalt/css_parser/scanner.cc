@@ -22,6 +22,8 @@
 #include "cobalt/base/compiler.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
+#include "cobalt/cssom/keyword_names.h"
+#include "cobalt/cssom/property_names.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
@@ -1074,79 +1076,81 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
   switch (name.size()) {
     case 5:
-      if (IsEqualToCssIdentifier(name.begin, "color")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kColorPropertyName)) {
         *property_name_token = kColorToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "width")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kWidthPropertyName)) {
         *property_name_token = kWidthToken;
         return true;
       }
       return false;
 
     case 6:
-      if (IsEqualToCssIdentifier(name.begin, "height")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kHeightPropertyName)) {
         *property_name_token = kHeightToken;
         return true;
       }
       return false;
 
     case 7:
-      if (IsEqualToCssIdentifier(name.begin, "display")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kDisplayPropertyName)) {
         *property_name_token = kDisplayToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "opacity")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kOpacityPropertyName)) {
         *property_name_token = kOpacityToken;
         return true;
       }
       return false;
 
     case 8:
-      if (IsEqualToCssIdentifier(name.begin, "overflow")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kOverflowPropertyName)) {
         *property_name_token = kOverflowToken;
         return true;
       }
       return false;
 
     case 9:
-      if (IsEqualToCssIdentifier(name.begin, "font-size")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFontSizePropertyName)) {
         *property_name_token = kFontSizeToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "transform")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTransformPropertyName)) {
         *property_name_token = kTransformToken;
         return true;
       }
       return false;
 
     case 10:
-      if (IsEqualToCssIdentifier(name.begin, "background")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBackgroundPropertyName)) {
         *property_name_token = kBackgroundToken;
         return true;
       }
       return false;
 
     case 11:
-      if (IsEqualToCssIdentifier(name.begin, "font-family")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFontFamilyPropertyName)) {
         *property_name_token = kFontFamilyToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "font-weight")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFontWeightPropertyName)) {
         *property_name_token = kFontWeightToken;
         return true;
       }
       return false;
 
     case 13:
-      if (IsEqualToCssIdentifier(name.begin, "border-radius")) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kBorderRadiusPropertyName)) {
         *property_name_token = kBorderRadiusToken;
         return true;
       }
       return false;
 
     case 16:
-      if (IsEqualToCssIdentifier(name.begin, "background-color")) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kBackgroundColorPropertyName)) {
         *property_name_token = kBackgroundColorToken;
         return true;
       }
@@ -1164,55 +1168,55 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
 
   switch (name.size()) {
     case 4:
-      if (IsEqualToCssIdentifier(name.begin, "bold")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBoldKeywordName)) {
         *property_value_token = kBoldToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "none")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNoneKeywordName)) {
         *property_value_token = kNoneToken;
         return true;
       }
       return false;
 
     case 5:
-      if (IsEqualToCssIdentifier(name.begin, "block")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBlockKeywordName)) {
         *property_value_token = kBlockToken;
         return true;
       }
       return false;
 
     case 6:
-      if (IsEqualToCssIdentifier(name.begin, "hidden")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kHiddenKeywordName)) {
         *property_value_token = kHiddenToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "inline")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInlineKeywordName)) {
         *property_value_token = kInlineToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "normal")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNormalKeywordName)) {
         *property_value_token = kNormalToken;
         return true;
       }
       return false;
 
     case 7:
-      if (IsEqualToCssIdentifier(name.begin, "inherit")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInheritKeywordName)) {
         *property_value_token = kInheritToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "initial")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInitialKeywordName)) {
         *property_value_token = kInitialToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, "visible")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kVisibleKeywordName)) {
         *property_value_token = kVisibleToken;
         return true;
       }
       return false;
 
     case 12:
-      if (IsEqualToCssIdentifier(name.begin, "inline-block")) {
+      if (IsEqualToCssIdentifier(name.begin, cssom::kInlineBlockKeywordName)) {
         *property_value_token = kInlineBlockToken;
         return true;
       }
