@@ -59,17 +59,12 @@ class UsedStyleProvider {
 render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
 
-class UsedHeightProvider : public cssom::PropertyValueVisitor {
+class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit UsedHeightProvider(float total_child_height);
 
-  void VisitFontWeight(cssom::FontWeightValue* font_weight) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitNumber(cssom::NumberValue* number) OVERRIDE;
-  void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
-  void VisitString(cssom::StringValue* string) OVERRIDE;
-  void VisitTransformList(cssom::TransformListValue* transform_list) OVERRIDE;
 
   float used_height() const { return used_height_; }
 
@@ -80,17 +75,12 @@ class UsedHeightProvider : public cssom::PropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
 };
 
-class UsedWidthProvider : public cssom::PropertyValueVisitor {
+class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit UsedWidthProvider(float total_child_width);
 
-  void VisitFontWeight(cssom::FontWeightValue* font_weight) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitNumber(cssom::NumberValue* number) OVERRIDE;
-  void VisitRGBAColor(cssom::RGBAColorValue* color) OVERRIDE;
-  void VisitString(cssom::StringValue* string) OVERRIDE;
-  void VisitTransformList(cssom::TransformListValue* transform_list) OVERRIDE;
 
   float used_width() const { return used_width_; }
 

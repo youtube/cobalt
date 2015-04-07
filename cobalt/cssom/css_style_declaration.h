@@ -159,6 +159,22 @@ class CSSStyleDeclaration : public script::Wrappable {
     transform_ = transform;
   }
 
+  const scoped_refptr<PropertyValue>& transition_duration() const {
+    return transition_duration_;
+  }
+  void set_transition_duration(
+      const scoped_refptr<PropertyValue>& transition_duration) {
+    transition_duration_ = transition_duration;
+  }
+
+  const scoped_refptr<PropertyValue>& transition_property() const {
+    return transition_property_;
+  }
+  void set_transition_property(
+      const scoped_refptr<PropertyValue>& transition_property) {
+    transition_property_ = transition_property;
+  }
+
   const scoped_refptr<PropertyValue>& width() const { return width_; }
   void set_width(const scoped_refptr<PropertyValue>& width) { width_ = width; }
 
@@ -177,6 +193,8 @@ class CSSStyleDeclaration : public script::Wrappable {
 
  private:
   ~CSSStyleDeclaration();
+  scoped_refptr<PropertyValue>* GetPropertyValueReference(
+      const std::string& property_name);
 
   scoped_refptr<PropertyValue> background_;
   scoped_refptr<PropertyValue> background_color_;
@@ -191,6 +209,8 @@ class CSSStyleDeclaration : public script::Wrappable {
   scoped_refptr<PropertyValue> opacity_;
   scoped_refptr<PropertyValue> overflow_;
   scoped_refptr<PropertyValue> transform_;
+  scoped_refptr<PropertyValue> transition_duration_;
+  scoped_refptr<PropertyValue> transition_property_;
   scoped_refptr<PropertyValue> width_;
 
   cssom::CSSParser* const css_parser_;
