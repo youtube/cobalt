@@ -14,7 +14,24 @@
  * limitations under the License.
  */
 
-interface DerivedInterface : BaseInterface {
-  readonly attribute DOMString derivedAttribute;
-  void derivedOperation();
+#ifndef BINDINGS_TESTING_WINDOW_H_
+#define BINDINGS_TESTING_WINDOW_H_
+
+#include "cobalt/script/wrappable.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+class Window : public script::Wrappable {
+ public:
+  virtual void WindowOperation() {}
+  virtual std::string window_property() { return ""; }
+  virtual void set_window_property(const std::string&) {}
 };
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
+
+#endif  // BINDINGS_TESTING_WINDOW_H_

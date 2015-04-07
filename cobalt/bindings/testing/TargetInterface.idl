@@ -14,6 +14,5 @@
  * limitations under the License.
  */
 
-[Exposed=TestWindow]
 interface TargetInterface {
 };
