@@ -75,9 +75,6 @@ class MEDIA_EXPORT ShellAudioSink
   const AudioParameters& GetAudioParameters() const OVERRIDE;
   AudioBus* GetAudioBus() OVERRIDE;
 
-  // useful for jitter tracking
-  void SetClockBiasMs(int64 time_ms);
-
  private:
   // Config the audio bus that will be sent to the AudioRenderer. It reueses
   // the memory occupied by the sink audio bus (audio_bus_).
@@ -104,13 +101,6 @@ class MEDIA_EXPORT ShellAudioSink
   uint64_t render_frame_cursor_;
   // advanced by ConsumeSamples() as the Streamer reports playback advancing
   uint64_t output_frame_cursor_;
-
-  // For jitter logging we only keep track of rendered frames, so if we
-  // seek or have another audio discontinuity the rendered frame count
-  // will become different than the audio clock. Store a bias here so
-  // that if the rendered frame count becomes reset we have some hope
-  // of tracking the audio clock still.
-  uint64_t clock_bias_frames_;
 
   scoped_refptr<ShellBufferFactory> buffer_factory_;
   ShellAudioStreamer* audio_streamer_;
