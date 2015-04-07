@@ -68,6 +68,8 @@
 %token kOpacityToken                    // opacity
 %token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
+%token kTransitionDurationToken         // transition-duration
+%token kTransitionPropertyToken         // transition-property
 %token kWidthToken                      // width
 
 // Property value tokens.
@@ -219,6 +221,9 @@
 %type <length> length
 %destructor { $$->Release(); } <length>
 
+%union { cssom::Time time; }
+%type <time> time
+
 %union { PropertyDeclaration* property_declaration; }
 %type <property_declaration> maybe_declaration
 %destructor { delete $$; } <property_declaration>
@@ -237,7 +242,9 @@
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
                        opacity_property_value overflow_property_value
-                       transform_property_value width_property_value
+                       transform_property_value
+                       transition_duration_property_value
+                       transition_property_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
 
 %type <real> alpha number
@@ -264,6 +271,7 @@
 %type <sign> maybe_sign_token
 
 %type <string> identifier_token
+%type <string> animatable_property_token
 
 %union { cssom::CSSStyleDeclaration* style_declaration; }
 %type <style_declaration> declaration_block declaration_list
@@ -280,6 +288,14 @@
 %union { cssom::TransformListValue::TransformFunctions* transform_functions; }
 %type <transform_functions> transform_list
 %destructor { delete $$; } <transform_functions>
+
+%union { cssom::TimeListValue::TimeList* time_list; }
+%type <time_list> comma_separated_time_list
+%destructor { delete $$; } <time_list>
+
+%union { cssom::PropertyNameListValue::PropertyNameList* property_name_list; }
+%type <property_name_list> comma_separated_animatable_property_name_list
+%destructor { delete $$; } <property_name_list>
 
 %%
 
@@ -362,6 +378,14 @@ identifier_token:
   }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+  }
+  | kTransitionDurationToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::kTransitionDurationPropertyName);
+  }
+  | kTransitionPropertyToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::kTransitionPropertyPropertyName);
   }
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
@@ -521,9 +545,9 @@ selector_list:
     $$ = new cssom::Selectors();
     $$->push_back($1);
   }
-  | selector_list ',' maybe_whitespace complex_selector {
+  | selector_list comma complex_selector {
     $$ = $1;
-    $$->push_back($4);
+    $$->push_back($3);
   }
   ;
 
@@ -593,7 +617,28 @@ length:
   }
   ;
 
+// Time units (used by animations and transitions).
+//   http://www.w3.org/TR/css3-values/#time
+time:
+    number {
+    $$.value = $1;
+    $$.unit = cssom::kSecondsUnit;
+    if ($1 != 0) {
+      parser_impl->LogWarning(
+          @1, "non-zero time is not allowed without unit identifier");
+    }
+  }
+  | maybe_sign_token kSecondsToken maybe_whitespace {
+    $$.value = $1 * $2;
+    $$.unit = cssom::kSecondsUnit;
+  }
+  | maybe_sign_token kMillisecondsToken maybe_whitespace {
+    $$.value = $1 * $2;
+    $$.unit = cssom::kMillisecondsUnit;
+  }
+
 colon: ':' maybe_whitespace ;
+comma: ',' maybe_whitespace ;
 
 // All properties accept the CSS-wide keywords.
 //   http://www.w3.org/TR/css3-values/#common-keywords
@@ -641,23 +686,22 @@ color:
   }
   // RGB color model.
   //   http://www.w3.org/TR/css3-color/#rgb-color
-  | kRGBFunctionToken maybe_whitespace integer ',' maybe_whitespace
-      integer ',' maybe_whitespace integer ')' maybe_whitespace {
+  | kRGBFunctionToken maybe_whitespace integer comma
+      integer comma integer ')' maybe_whitespace {
     int r = ClampToRange(0, 255, $3);
-    int g = ClampToRange(0, 255, $6);
-    int b = ClampToRange(0, 255, $9);
+    int g = ClampToRange(0, 255, $5);
+    int b = ClampToRange(0, 255, $7);
     $$ = AddRef(new cssom::RGBAColorValue(
         (r << 24) | (g << 16) | (b << 8) | 0xff));
   }
   // RGB color model with opacity.
   //   http://www.w3.org/TR/css3-color/#rgba-color
-  | kRGBAFunctionToken maybe_whitespace integer ',' maybe_whitespace
-      integer ',' maybe_whitespace integer ',' maybe_whitespace
-      alpha ')' maybe_whitespace {
+  | kRGBAFunctionToken maybe_whitespace integer comma integer comma integer
+      comma alpha ')' maybe_whitespace {
     int r = ClampToRange(0, 255, $3);
-    int g = ClampToRange(0, 255, $6);
-    int b = ClampToRange(0, 255, $9);
-    float a = $12;  // Already clamped.
+    int g = ClampToRange(0, 255, $5);
+    int b = ClampToRange(0, 255, $7);
+    float a = $9;  // Already clamped.
     $$ = AddRef(new cssom::RGBAColorValue((r << 24) | (g << 16) | (b << 8) |
         static_cast<uint32_t>(a * 0xff)));
   }
@@ -790,8 +834,8 @@ scale_function_parameters:
     number {
     $$ = new cssom::ScaleFunction($1, $1);
   }
-  | number ',' maybe_whitespace number {
-    $$ = new cssom::ScaleFunction($1, $4);
+  | number comma number {
+    $$ = new cssom::ScaleFunction($1, $3);
   }
   ;
 
@@ -863,6 +907,65 @@ transform_property_value:
   | common_values
   ;
 
+// One ore more time values separated by commas.
+//   http://www.w3.org/TR/css3-transitions/#transition-duration
+comma_separated_time_list:
+    time {
+    $$ = new cssom::TimeListValue::TimeList();
+    $$->push_back($1);
+  }
+  | comma_separated_time_list comma time {
+    $$ = $1;
+    $$->push_back($3);
+  }
+  ;
+
+// Parse a list of time values.
+//   http://www.w3.org/TR/css3-transitions/#transition-duration
+transition_duration_property_value:
+    comma_separated_time_list {
+    scoped_ptr<cssom::TimeListValue::TimeList> time_list($1);
+    $$ = time_list
+         ? AddRef(new cssom::TimeListValue(time_list.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
+// One or more property names separated by commas.
+//   http://www.w3.org/TR/css3-transitions/#transition-property
+// TODO(***REMOVED***): Support error handling of strings being used in the list
+//               of property names that are not animatable properties.  In this
+//               case, a NULL value should be inserted in the list.  This is
+//               difficult/messy without reduction priorities which are not
+//               available in Bison 2.
+comma_separated_animatable_property_name_list:
+    animatable_property_token maybe_whitespace {
+    $$ = new cssom::PropertyNameListValue::PropertyNameList();
+    $$->push_back($1.begin);
+  }
+  | comma_separated_animatable_property_name_list comma
+    animatable_property_token maybe_whitespace {
+    $$ = $1;
+    $$->push_back($3.begin);
+  }
+
+// Parse a list of references to property names.
+//   http://www.w3.org/TR/css3-transitions/#transition-property
+transition_property_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | comma_separated_animatable_property_name_list {
+    scoped_ptr<cssom::PropertyNameListValue::PropertyNameList>
+        property_name_list($1);
+    $$ = property_name_list
+         ? AddRef(new cssom::PropertyNameListValue(property_name_list.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
 // The width of an element's box.
 width_property_value:
     length { $$ = $1; }
@@ -872,6 +975,34 @@ width_property_value:
 maybe_important:
     /* empty */ { $$ = false; }
   | kImportantToken maybe_whitespace { $$ = true; }
+  ;
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Animatable properties.
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
+// Some property name identifiers can be specified as animations, either by
+// CSS animations or CSS transitions.  We explicitly list them here for use
+// in animatable property lists.
+// Note that for Cobalt we modify this list to contain only the properties that
+// are supported for animations in Cobalt.
+//   http://www.w3.org/TR/css3-transitions/#animatable-css
+animatable_property_token:
+    kBackgroundColorToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
+  }
+  | kBorderRadiusToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
+  }
+  | kColorToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
+  }
+  | kOpacityToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
+  }
+  | kTransformToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+  }
   ;
 
 
@@ -952,6 +1083,18 @@ maybe_declaration:
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransformPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransitionDurationToken maybe_whitespace colon
+      transition_duration_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDurationPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransitionPropertyToken maybe_whitespace colon
+      transition_property_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionPropertyPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
