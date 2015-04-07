@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-[Exposed=TestWindow]
 interface CallbackFunctionInterface {
   void takesVoidFunction(VoidFunction cb);
   void takesFunctionWithOneParameter(FunctionWithOneParameter cb);

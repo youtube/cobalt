@@ -14,7 +14,25 @@
  * limitations under the License.
  */
 
-interface DerivedInterface : BaseInterface {
-  readonly attribute DOMString derivedAttribute;
-  void derivedOperation();
+#ifndef BINDINGS_TESTING_WINDOW_MOCK_H_
+#define BINDINGS_TESTING_WINDOW_MOCK_H_
+
+#include "cobalt/bindings/testing/window.h"
+#include "testing/gmock/include/gmock/gmock.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+class WindowMock : public Window {
+ public:
+  MOCK_METHOD0(WindowOperation, void());
+  MOCK_METHOD0(window_property, std::string());
+  MOCK_METHOD1(set_window_property, void(const std::string&));
 };
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
+
+#endif  // BINDINGS_TESTING_WINDOW_MOCK_H_

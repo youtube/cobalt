@@ -15,7 +15,7 @@
  */
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
-#include "cobalt/bindings/testing/test_window_mock.h"
+#include "cobalt/bindings/testing/window_mock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,7 +26,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef GlobalBindingsTestBase<TestWindowMock, TestWindow>
+typedef GlobalBindingsTestBase<WindowMock, Window>
     ConstantsBindingsTest;
 }  // namespace
 
