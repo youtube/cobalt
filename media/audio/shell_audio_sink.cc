@@ -72,7 +72,6 @@ ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
     , rebuffer_num_frames_(0)
     , render_frame_cursor_(0)
     , output_frame_cursor_(0)
-    , clock_bias_frames_(0)
     , audio_streamer_(audio_streamer) {
   buffer_factory_ = ShellBufferFactory::Instance();
 }
@@ -276,8 +275,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 
 void ShellAudioSink::ConsumeFrames(uint32_t frame_played) {
   TRACE_EVENT1("media_stack", "ShellAudioSink::ConsumeFrames()", "audio_clock",
-               ((output_frame_cursor_ + clock_bias_frames_) * 1000) /
-                   audio_parameters_.sample_rate());
+               (output_frame_cursor_ * 1000) / audio_parameters_.sample_rate());
   // Called by the Streamer thread to indicate where the hardware renderer
   // is in playback
   if (frame_played > 0) {
@@ -294,12 +292,6 @@ AudioBus* ShellAudioSink::GetAudioBus() {
 
 const AudioParameters& ShellAudioSink::GetAudioParameters() const {
   return audio_parameters_;
-}
-
-void ShellAudioSink::SetClockBiasMs(int64 time_ms) {
-  // only prudent to do this when paused
-  DCHECK(pause_requested_);
-  clock_bias_frames_ = (time_ms * audio_parameters_.sample_rate()) / 1000;
 }
 
 void ShellAudioSink::SetupRenderAudioBus() {
