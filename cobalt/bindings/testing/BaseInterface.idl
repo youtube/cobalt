@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-[Exposed=TestWindow]
 interface BaseInterface {
   readonly attribute DOMString baseAttribute;
   void baseOperation();

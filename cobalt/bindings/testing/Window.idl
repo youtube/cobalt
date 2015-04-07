@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-interface DerivedInterface : BaseInterface {
-  readonly attribute DOMString derivedAttribute;
-  void derivedOperation();
+[
+  PrimaryGlobal,
+] interface Window {
+  void windowOperation();
+  attribute DOMString windowProperty;
 };

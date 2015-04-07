@@ -15,7 +15,7 @@
  */
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
-#include "cobalt/bindings/testing/test_window_mock.h"
+#include "cobalt/bindings/testing/window_mock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,7 +27,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef GlobalBindingsTestBase<TestWindowMock, TestWindow>
+typedef GlobalBindingsTestBase<WindowMock, Window>
     GlobalInterfaceBindingsTest;
 }  // namespace
 
@@ -50,13 +50,13 @@ TEST_F(GlobalInterfaceBindingsTest, GlobalProperty) {
 TEST_F(GlobalInterfaceBindingsTest, GlobalPrototypeIsSet) {
   std::string result;
   EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(this) === TestWindow.prototype;", &result));
+      "Object.getPrototypeOf(this) === Window.prototype;", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
 TEST_F(GlobalInterfaceBindingsTest, GlobalInterfaceConstructorIsSet) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript("this.constructor === TestWindow;", &result));
+  EXPECT_TRUE(EvaluateScript("this.constructor === Window;", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
@@ -73,10 +73,10 @@ TEST_F(GlobalInterfaceBindingsTest, PropertiesAndOperationsAreOwnProperties) {
       EvaluateScript("this.hasOwnProperty(\"windowOperation\");", &result));
   EXPECT_STREQ("true", result.c_str());
   EXPECT_TRUE(EvaluateScript(
-      "TestWindow.prototype.hasOwnProperty(\"windowProperty\");", &result));
+      "Window.prototype.hasOwnProperty(\"windowProperty\");", &result));
   EXPECT_STREQ("false", result.c_str());
   EXPECT_TRUE(EvaluateScript(
-      "TestWindow.prototype.hasOwnProperty(\"windowOperation\");", &result));
+      "Window.prototype.hasOwnProperty(\"windowOperation\");", &result));
   EXPECT_STREQ("false", result.c_str());
 }
 
