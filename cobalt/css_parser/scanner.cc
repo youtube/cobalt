@@ -1164,6 +1164,19 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       return false;
+
+    case 19:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kTransitionDurationPropertyName)) {
+        *property_name_token = kTransitionDurationToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kTransitionPropertyPropertyName)) {
+        *property_name_token = kTransitionPropertyToken;
+        return true;
+      }
+      return false;
   }
 
   return false;

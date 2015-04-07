@@ -25,10 +25,13 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_name_list_value.h"
+#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -637,6 +640,89 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
   scoped_refptr<cssom::PropertyValue> null_value =
       parser_.ParsePropertyValue("color", "spring grass", source_location_);
   EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+}
+
+TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
+  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
+      dynamic_cast<cssom::PropertyNameListValue*>(
+          parser_.ParsePropertyValue(
+              "transition-property", "color", source_location_).get());
+  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+            property_name_list.get());
+
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
+}
+
+TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
+  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
+      dynamic_cast<cssom::PropertyNameListValue*>(
+          parser_.ParsePropertyValue(
+              "transition-property", "color, transform , background-color",
+              source_location_).get());
+  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+            property_name_list.get());
+
+  ASSERT_EQ(3, property_name_list->value().size());
+  EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[2]);
+}
+
+TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "transition-property: none;", source_location_);
+
+  scoped_refptr<cssom::KeywordValue> transition_property =
+      dynamic_cast<cssom::KeywordValue*>(style->transition_property().get());
+  EXPECT_EQ(cssom::KeywordValue::GetNone().get(), transition_property.get());
+}
+
+
+TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
+  scoped_refptr<cssom::TimeListValue> time_list_value =
+      dynamic_cast<cssom::TimeListValue*>(
+          parser_.ParsePropertyValue(
+              "transition-duration", "1s", source_location_).get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+
+  ASSERT_EQ(1, time_list_value->value().size());
+  EXPECT_FLOAT_EQ(1, time_list_value->value()[0].value);
+  EXPECT_EQ(cssom::kSecondsUnit, time_list_value->value()[0].unit);
+}
+
+TEST_F(ParserTest, ParsesTimeListWithMultipleValues) {
+  scoped_refptr<cssom::TimeListValue> time_list_value =
+      dynamic_cast<cssom::TimeListValue*>(
+          parser_.ParsePropertyValue(
+              "transition-duration", "2s, 1ms, 0, 2ms",
+              source_location_).get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+
+  ASSERT_EQ(4, time_list_value->value().size());
+  EXPECT_FLOAT_EQ(2, time_list_value->value()[0].value);
+  EXPECT_EQ(cssom::kSecondsUnit, time_list_value->value()[0].unit);
+  EXPECT_FLOAT_EQ(1, time_list_value->value()[1].value);
+  EXPECT_EQ(cssom::kMillisecondsUnit, time_list_value->value()[1].unit);
+  EXPECT_FLOAT_EQ(0, time_list_value->value()[2].value);
+  EXPECT_FLOAT_EQ(2, time_list_value->value()[3].value);
+  EXPECT_EQ(cssom::kMillisecondsUnit, time_list_value->value()[3].unit);
+}
+
+TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
+  scoped_refptr<cssom::CSSStyleDeclaration> style =
+      parser_.ParseDeclarationList(
+          "transition-duration: 1s;", source_location_);
+
+  scoped_refptr<cssom::TimeListValue> transition_duration =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  EXPECT_NE(static_cast<cssom::TimeListValue*>(NULL),
+            transition_duration.get());
+  ASSERT_EQ(1, transition_duration->value().size());
+  EXPECT_FLOAT_EQ(1, transition_duration->value()[0].value);
+  EXPECT_EQ(cssom::kSecondsUnit, transition_duration->value()[0].unit);
 }
 
 }  // namespace css_parser
