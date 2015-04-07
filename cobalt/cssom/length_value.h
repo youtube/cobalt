@@ -28,7 +28,7 @@ namespace cobalt {
 namespace cssom {
 
 // TODO(***REMOVED***): Add more units.
-enum Unit {
+enum LengthUnit {
   kFontSizesAkaEmUnit,
   kPixelsUnit,
 };
@@ -38,18 +38,18 @@ enum Unit {
 // See http://www.w3.org/TR/css3-values/#lengths for details.
 class LengthValue : public PropertyValue {
  public:
-  LengthValue(float value, Unit unit) : value_(value), unit_(unit) {}
+  LengthValue(float value, LengthUnit unit) : value_(value), unit_(unit) {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   float value() const { return value_; }
-  Unit unit() const { return unit_; }
+  LengthUnit unit() const { return unit_; }
 
  private:
   ~LengthValue() OVERRIDE {}
 
   const float value_;
-  const Unit unit_;
+  const LengthUnit unit_;
 
   DISALLOW_COPY_AND_ASSIGN(LengthValue);
 };

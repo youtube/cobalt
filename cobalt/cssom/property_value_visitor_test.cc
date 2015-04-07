@@ -20,8 +20,10 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -36,8 +38,11 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
+  MOCK_METHOD1(VisitPropertyNameList,
+               void(PropertyNameListValue* property_name_list_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
+  MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitTransformList,
                void(cssom::TransformListValue* transform_list_value));
 };
@@ -71,6 +76,16 @@ TEST(PropertyValueVisitorTest, VisitsNumberValue) {
   number_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsPropertyNameListValue) {
+  scoped_refptr<PropertyNameListValue> property_name_list_value =
+      new PropertyNameListValue(
+          make_scoped_ptr(new PropertyNameListValue::PropertyNameList()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitPropertyNameList(property_name_list_value.get()));
+  property_name_list_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
   scoped_refptr<RGBAColorValue> color_value = new RGBAColorValue(0x0047abff);
   MockPropertyValueVisitor mock_visitor;
@@ -83,6 +98,14 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitString(string_value.get()));
   string_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
+  scoped_refptr<TimeListValue> time_list_value =
+      new TimeListValue(make_scoped_ptr(new TimeListValue::TimeList()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitTimeList(time_list_value.get()));
+  time_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTransformListValue) {

@@ -55,11 +55,6 @@ render_tree::ColorRGBA GetUsedColor(
 UsedHeightProvider::UsedHeightProvider(float total_child_height)
     : total_child_height_(total_child_height) {}
 
-void UsedHeightProvider::VisitFontWeight(
-    cssom::FontWeightValue* /*font_weight*/) {
-  NOTREACHED();
-}
-
 void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
@@ -84,30 +79,9 @@ void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
   used_height_ = length->value();
 }
 
-void UsedHeightProvider::VisitNumber(cssom::NumberValue* /*number*/) {
-  NOTREACHED();
-}
-
-void UsedHeightProvider::VisitRGBAColor(cssom::RGBAColorValue* /*color*/) {
-  NOTREACHED();
-}
-
-void UsedHeightProvider::VisitString(cssom::StringValue* /*string*/) {
-  NOTREACHED();
-}
-
-void UsedHeightProvider::VisitTransformList(
-    cssom::TransformListValue* /*transform_list*/) {
-  NOTREACHED();
-}
 
 UsedWidthProvider::UsedWidthProvider(float total_child_width)
     : total_child_width_(total_child_width) {}
-
-void UsedWidthProvider::VisitFontWeight(
-    cssom::FontWeightValue* /*font_weight*/) {
-  NOTREACHED();
-}
 
 void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
@@ -131,23 +105,6 @@ void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit())
       << "TODO(***REMOVED***): Implement other units";
   used_width_ = length->value();
-}
-
-void UsedWidthProvider::VisitNumber(cssom::NumberValue* /*number*/) {
-  NOTREACHED();
-}
-
-void UsedWidthProvider::VisitRGBAColor(cssom::RGBAColorValue* /*color*/) {
-  NOTREACHED();
-}
-
-void UsedWidthProvider::VisitString(cssom::StringValue* /*string*/) {
-  NOTREACHED();
-}
-
-void UsedWidthProvider::VisitTransformList(
-    cssom::TransformListValue* /*transform_list*/) {
-  NOTREACHED();
 }
 
 }  // namespace layout
