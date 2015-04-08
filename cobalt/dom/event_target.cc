@@ -77,14 +77,6 @@ void EventTarget::SetAttributeEventListener(
   AddEventListenerInternal(type, listener, false);
 }
 
-void EventTarget::MarkJSObjectAsNotCollectable(
-    script::ScriptObjectHandleVisitor* visitor) {
-  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
-       iter != event_listener_infos_.end(); ++iter) {
-    iter->listener->MarkJSObjectAsNotCollectable(visitor);
-  }
-}
-
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   DCHECK(event->IsBeingDispatched());
   DCHECK(event->target());
