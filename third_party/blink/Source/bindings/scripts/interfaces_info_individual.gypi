@@ -46,6 +46,7 @@
       '<(static_idl_files_list)',
       '<@(static_idl_files)',
       '<@(generated_idl_files)',
+      '<@(dependency_idl_files)',
     ],
     'outputs': [
       '<(interfaces_info_file)',
@@ -61,6 +62,8 @@
       '<(root_directory)',
       '--idl-files-list',
       '<(static_idl_files_list)',
+      '--dependency-idl-files',
+      '<(dependency_idl_files)',
       '--interfaces-info-file',
       '<(interfaces_info_file)',
       '--component-info-file',
