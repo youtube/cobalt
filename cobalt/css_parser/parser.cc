@@ -28,6 +28,7 @@
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"

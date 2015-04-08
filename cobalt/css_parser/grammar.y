@@ -247,12 +247,16 @@
 %destructor { $$->Release(); } <style_sheet>
 
 %union { cssom::Selector* selector; }
-%type <selector> class_selector_token complex_selector compound_selector_token
-                 id_selector_token pseudo_class_token simple_selector_token
-                 type_selector_token universal_selector_token
+%type <selector> class_selector_token complex_selector id_selector_token
+                 pseudo_class_token simple_selector_token type_selector_token
+                 universal_selector_token
 %destructor { delete $$; } <selector>
 
-%union { cssom::CSSStyleRule::Selectors* selectors; }
+%union { cssom::CompoundSelector* compound_selector; }
+%type <compound_selector> compound_selector_token
+%destructor { delete $$; } <compound_selector>
+
+%union { cssom::Selectors* selectors; }
 %type <selectors> selector_list
 %destructor { delete $$; } <selectors>
 
@@ -477,10 +481,13 @@ simple_selector_token:
 // a combinator.
 //   http://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
-    simple_selector_token
+    simple_selector_token {
+    $$ = new cssom::CompoundSelector();
+    $$->push_back($1);
+  }
   | compound_selector_token simple_selector_token {
-    scoped_ptr<cssom::Selector> simple_selector($2);
-    $$ = $1;  // TODO(***REMOVED***): Implement.
+    $$ = $1;
+    $$->push_back($2);
   }
   ;
 
@@ -497,7 +504,9 @@ combinator:
 // combinators.
 //   http://www.w3.org/TR/selectors4/#complex
 complex_selector:
-    compound_selector_token
+    compound_selector_token {
+    $$ = $1;
+  }
   | complex_selector combinator compound_selector_token {
     scoped_ptr<cssom::Selector> compound_selector($3);
     $$ = $1;  // TODO(***REMOVED***): Implement.
@@ -509,7 +518,7 @@ complex_selector:
 //   http://www.w3.org/TR/selectors4/#selector-list
 selector_list:
     complex_selector {
-    $$ = new cssom::CSSStyleRule::Selectors();
+    $$ = new cssom::Selectors();
     $$->push_back($1);
   }
   | selector_list ',' maybe_whitespace complex_selector {
@@ -1014,7 +1023,7 @@ declaration_block:
 //   http://www.w3.org/TR/css3-syntax/#style-rule
 style_rule:
     selector_list declaration_block {
-    scoped_ptr<cssom::CSSStyleRule::Selectors> selectors($1);
+    scoped_ptr<cssom::Selectors> selectors($1);
     scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
     $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
