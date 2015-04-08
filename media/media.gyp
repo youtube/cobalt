@@ -1007,6 +1007,7 @@
             'audio/shell_audio_sink_unittest.cc',
             'base/mock_shell_data_source_reader.h',
             'base/shell_buffer_factory_unittest.cc',
+            'filters/shell_audio_renderer_unittest.cc',
             'filters/shell_mp4_map_unittest.cc',
             'filters/shell_rbsp_stream_unittest.cc',
           ],
@@ -1040,13 +1041,6 @@
         'base/mock_filters.h',
         'base/test_helpers.cc',
         'base/test_helpers.h',
-      ],
-      'conditions': [
-        ['OS == "lb_shell"', {
-          'sources/': [
-            ['exclude', 'base/mock_audio_renderer_sink'],
-          ],
-        }],
       ],
     },
   ],
