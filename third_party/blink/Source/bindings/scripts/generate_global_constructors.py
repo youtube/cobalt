@@ -170,6 +170,9 @@ def main():
     # Write partial interfaces containing constructor attributes for each
     # global interface.
     for interface_name, idl_filename in interface_name_idl_filename:
+        # Work around gyp's path relativization for this parameter that is not
+        # a path, but gets interpreted as such.
+        interface_name = os.path.basename(interface_name)
         constructors = interface_name_to_constructors(interface_name)
         write_global_constructors_partial_interface(
             interface_name,
