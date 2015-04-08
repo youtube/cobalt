@@ -24,7 +24,6 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
-#include "cobalt/script/script_object_handle_visitor.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -55,9 +54,6 @@ class EventTarget : public script::Wrappable,
   // if there is any.
   void SetAttributeEventListener(const std::string& type,
                                  const scoped_refptr<EventListener>& listener);
-  // MarkJSObjectAsNotCollectable gives contained event listeners a chance to
-  // mark contained JS objects as in use so they won't be collected by GC.
-  void MarkJSObjectAsNotCollectable(script::ScriptObjectHandleVisitor* visitor);
 
  protected:
   // This function sends the event to the event listeners attached to the
