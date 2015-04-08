@@ -192,6 +192,11 @@ def compute_global_type_info():
         if 'GarbageCollected' in inherited_extended_attributes:
             garbage_collected_interfaces.add(interface_name)
 
+    # Record a list of all interface names
+    interfaces_info['all_interfaces'] = set(
+        interface_name for interface_name, info in interfaces_info.iteritems()
+            if not info['is_dependency'])
+
     interfaces_info['ancestors'] = ancestors
     interfaces_info['callback_interfaces'] = callback_interfaces
     interfaces_info['dictionaries'] = dictionaries
