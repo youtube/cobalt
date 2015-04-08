@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/script/script_object_handle_visitor.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -37,9 +36,6 @@ class EventListener : public script::Wrappable {
 
   // Custom, not in any spec.
   //
-  // Marks necessary JS objects as in use so they won't be collected by GC.
-  virtual void MarkJSObjectAsNotCollectable(
-      script::ScriptObjectHandleVisitor* visitor) = 0;
   // Used by addEventListener/removeEventListener to check if two event
   // listeners are the same.
   virtual bool EqualTo(const EventListener& that) = 0;
