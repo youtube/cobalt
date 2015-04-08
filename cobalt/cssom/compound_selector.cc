@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_SELECTOR_H_
-#define CSSOM_SELECTOR_H_
+#include "cobalt/cssom/compound_selector.h"
 
-#include "base/memory/scoped_vector.h"
+#include "cobalt/cssom/selector_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-class SelectorVisitor;
-
-struct Selector {
-  virtual ~Selector() {}
-
-  virtual void Accept(SelectorVisitor* visitor) = 0;
-};
-
-typedef ScopedVector<Selector> Selectors;
+void CompoundSelector::Accept(SelectorVisitor* visitor) {
+  visitor->VisitCompoundSelector(this);
+}
 
 }  // namespace cssom
 }  // namespace cobalt
-
-#endif  // CSSOM_SELECTOR_H_
