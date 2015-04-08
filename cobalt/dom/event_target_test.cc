@@ -17,7 +17,6 @@
 #include "cobalt/dom/event_target.h"
 
 #include "cobalt/dom/testing/mock_event_listener.h"
-#include "cobalt/script/script_object_handle_visitor.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -34,11 +33,6 @@ namespace dom {
 using testing::MockEventListener;
 
 namespace {
-
-class TestScriptObjectHandleVisitor : public script::ScriptObjectHandleVisitor {
- private:
-  void Visit(script::ScriptObjectHandle* handle) OVERRIDE{};
-};
 
 void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
@@ -258,26 +252,6 @@ TEST(EventTargetTest, PreventDefault) {
   ExpectHandleEventCall(event_listener_fired, event, event_target,
                         &Event::PreventDefault);
   EXPECT_FALSE(event_target->DispatchEvent(event));
-}
-
-// Test MarkJSObjectAsNotCollectable on added event listener is called when
-// it is called on the EventTarget.
-TEST(EventTargetTest, MarkJSObjectAsNotCollectable) {
-  scoped_refptr<EventTarget> event_target = new EventTarget;
-  scoped_refptr<MockEventListener> event_listener =
-      MockEventListener::CreateAsNonAttribute();
-  TestScriptObjectHandleVisitor script_object_handle_visitor;
-
-  EXPECT_CALL(*event_listener,
-              MarkJSObjectAsNotCollectable(&script_object_handle_visitor))
-      .Times(::testing::AtLeast(1));
-  event_target->AddEventListener("fired", event_listener, false);
-  event_target->MarkJSObjectAsNotCollectable(&script_object_handle_visitor);
-
-  EXPECT_CALL(*event_listener, MarkJSObjectAsNotCollectable(
-                                   &script_object_handle_visitor)).Times(0);
-  event_target->RemoveEventListener("fired", event_listener, false);
-  event_target->MarkJSObjectAsNotCollectable(&script_object_handle_visitor);
 }
 
 }  // namespace dom

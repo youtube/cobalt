@@ -110,7 +110,7 @@ class Event : public script::Wrappable {
   //
   virtual scoped_ptr<script::ScriptObjectHandle> CreateWrapper(
       EventWrapperCreator* creator) {
-    DCHECK(!get_wrapper_handle());
+    DCHECK(!get_wrapper_handle() || !get_wrapper_handle()->IsValidHandle());
     return creator->CreateWrapper(this);
   }
 

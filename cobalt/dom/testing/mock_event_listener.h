@@ -37,8 +37,6 @@ class MockEventListener : public EventListener {
   }
 
   MOCK_METHOD1(HandleEvent, void(const scoped_refptr<Event>&));
-  MOCK_METHOD1(MarkJSObjectAsNotCollectable,
-               void(script::ScriptObjectHandleVisitor*));
   MOCK_METHOD1(EqualTo, bool(const EventListener&));
   MOCK_CONST_METHOD0(IsAttribute, bool());
 

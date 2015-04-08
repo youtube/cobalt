@@ -35,11 +35,11 @@ class Wrappable : public base::RefCounted<Wrappable> {
  public:
   ScriptObjectHandle* GetOrCreateWrapper(
       ScriptObjectHandleCreator* handle_creator) {
-    if (!wrapper_handle_.get()) {
+    if (!wrapper_handle_.get() || !wrapper_handle_->IsValidHandle()) {
       scoped_ptr<ScriptObjectHandle> new_wrapper_handle =
           handle_creator->CreateHandle();
       DCHECK(new_wrapper_handle.get());
-      DCHECK(!wrapper_handle_.get());
+      DCHECK(!wrapper_handle_.get() || !wrapper_handle_->IsValidHandle());
       wrapper_handle_ = new_wrapper_handle.Pass();
     }
     return wrapper_handle_.get();
