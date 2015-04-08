@@ -64,6 +64,7 @@ def parse_options():
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--cache-directory', help='cache directory')
     parser.add_option('--idl-files-list', help='file listing IDL files')
+    parser.add_option('--dependency-idl-files', help='list of dependency IDL files')
     parser.add_option('--interfaces-info-file', help='interface info pickle file')
     parser.add_option('--component-info-file', help='component wide info pickle file')
     parser.add_option('--write-file-only-if-changed', type='int', help='if true, do not write an output file if it would be identical to the existing one, which avoids unnecessary rebuilds in ninja')
@@ -174,7 +175,7 @@ class InterfaceInfoCollector(object):
         if this_include_path:
             paths_dict['include_paths'].append(this_include_path)
 
-    def collect_info(self, idl_filename):
+    def collect_info(self, idl_filename, is_dependency=False):
         """Reads an idl file and collects information which is required by the
         binding code generation."""
         definitions = self.reader.read_idl_file(idl_filename)
@@ -191,6 +192,7 @@ class InterfaceInfoCollector(object):
                 # so these should be minimized; currently only targets of
                 # [PutForwards].
                 'referenced_interfaces': get_put_forward_interfaces_from_definition(definition),
+                'is_dependency': is_dependency,
             }
         elif definitions.dictionaries:
             definition = next(definitions.dictionaries.itervalues())
@@ -273,7 +275,10 @@ def main():
     info_collector = InterfaceInfoCollector(options.root_directory,
         options.extended_attributes, options.cache_directory)
     for idl_filename in idl_files:
-        info_collector.collect_info(idl_filename)
+        is_dependency = False
+        if options.dependency_idl_files:
+          is_dependency = idl_filename in options.dependency_idl_files
+        info_collector.collect_info(idl_filename, is_dependency)
 
     write_pickle_file(options.interfaces_info_file,
                       info_collector.get_info_as_dict(),
