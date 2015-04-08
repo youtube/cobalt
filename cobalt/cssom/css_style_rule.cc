@@ -17,7 +17,6 @@
 #include "cobalt/cssom/css_style_rule.h"
 
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {

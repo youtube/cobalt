@@ -23,6 +23,8 @@
       'sources': [
         'class_selector.cc',
         'class_selector.h',
+        'compound_selector.cc',
+        'compound_selector.h',
         'css_parser.h',
         'css_rule.h',
         'css_rule_list.cc',

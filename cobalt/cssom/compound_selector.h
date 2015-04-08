@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,37 +14,38 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_STYLE_RULE_H_
-#define CSSOM_CSS_STYLE_RULE_H_
+#ifndef CSSOM_COMPOUND_SELECTOR_H_
+#define CSSOM_COMPOUND_SELECTOR_H_
 
-#include "base/memory/scoped_vector.h"
-#include "cobalt/cssom/css_rule.h"
+#include <string>
+
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleDeclaration;
-
-// The CSSStyleRule interface represents a style rule.
-//   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
-class CSSStyleRule : public CSSRule {
+// A compound selector is a chain of simple selectors that are not separated by
+// a combinator.
+//   http://www.w3.org/TR/selectors4/#compound
+class CompoundSelector : public Selector {
  public:
-  CSSStyleRule(Selectors selectors,
-               const scoped_refptr<CSSStyleDeclaration>& style);
+  CompoundSelector() {}
+  ~CompoundSelector() OVERRIDE {}
 
-  const Selectors& selectors() const { return selectors_; }
+  void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  const scoped_refptr<CSSStyleDeclaration>& style();
+  void push_back(Selector* selector) { selectors_.push_back(selector); }
+
+  const Selectors& selectors() { return selectors_; }
 
  private:
-  ~CSSStyleRule() OVERRIDE;
-
   Selectors selectors_;
-  scoped_refptr<CSSStyleDeclaration> style_;
+  DISALLOW_COPY_AND_ASSIGN(CompoundSelector);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_STYLE_RULE_H_
+#endif  // CSSOM_COMPOUND_SELECTOR_H_

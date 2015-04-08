@@ -35,6 +35,7 @@
 //     nesting of included classes.
 
 #include "cobalt/css_parser/trivial_string_piece.h"
+#include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
