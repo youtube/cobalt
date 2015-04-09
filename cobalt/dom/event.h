@@ -19,7 +19,6 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
-#include "cobalt/dom/event_wrapper_creator.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -104,14 +103,6 @@ class Event : public script::Wrappable {
   // true. This implies the outside loop will be break too.
   bool immediate_propagation_stopped() const {
     return immediate_propagation_stopped_;
-  }
-
-  // Custom, not in any spec.
-  //
-  virtual scoped_ptr<script::ScriptObjectHandle> CreateWrapper(
-      EventWrapperCreator* creator) {
-    DCHECK(!get_wrapper_handle() || !get_wrapper_handle()->IsValidHandle());
-    return creator->CreateWrapper(this);
   }
 
   DEFINE_WRAPPABLE_TYPE(Event);
