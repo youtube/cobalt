@@ -26,8 +26,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef GlobalBindingsTestBase<WindowMock, Window>
-    ConstantsBindingsTest;
+typedef BindingsTestBase ConstantsBindingsTest;
 }  // namespace
 
 TEST_F(ConstantsBindingsTest, DefinedOnConstructor) {

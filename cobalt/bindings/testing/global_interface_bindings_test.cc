@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/window_mock.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -27,8 +28,13 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef GlobalBindingsTestBase<WindowMock, Window>
-    GlobalInterfaceBindingsTest;
+class GlobalInterfaceBindingsTest : public BindingsTestBase {
+ protected:
+  GlobalInterfaceBindingsTest() : BindingsTestBase(new WindowMock()) {}
+  WindowMock& test_mock() {
+    return *base::polymorphic_downcast<WindowMock*>(window_.get());
+  }
+};
 }  // namespace
 
 TEST_F(GlobalInterfaceBindingsTest, GlobalOperation) {

@@ -17,6 +17,7 @@
 #ifndef BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 #define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
+#include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
@@ -27,14 +28,20 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
-template <class MockT>
 class BindingsTestBase : public ::testing::Test {
  protected:
   BindingsTestBase()
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_object_proxy_(engine_->CreateGlobalObject()),
-        // Use StrictMock so TESTING will fail if unexpected method is called.
-        test_mock_(new ::testing::StrictMock<MockT>()) {
+        window_(new Window()) {
+    global_object_proxy_->SetGlobalInterface(window_);
+  }
+
+  explicit BindingsTestBase(const scoped_refptr<Window> window)
+      : engine_(script::JavaScriptEngine::CreateEngine()),
+        global_object_proxy_(engine_->CreateGlobalObject()),
+        window_(window) {
+    global_object_proxy_->SetGlobalInterface(window_);
   }
 
   bool EvaluateScript(const std::string& script, std::string* out_result) {
@@ -42,40 +49,28 @@ class BindingsTestBase : public ::testing::Test {
         script::SourceCode::CreateSourceCode(script);
     return global_object_proxy_->EvaluateScript(source, out_result);
   }
-  MockT& test_mock() { return *test_mock_.get(); }
 
  protected:
   const scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
-  const scoped_refptr<MockT> test_mock_;
+  const scoped_refptr<Window> window_;
 };
 
 // Use this fixture to create a new MockT object with a BaseClass wrapper, and
 // bind the wrapper to the javascript variable "test".
 template <class MockT, class BaseClass = MockT>
-class InterfaceBindingsTest : public BindingsTestBase<MockT> {
+class InterfaceBindingsTest : public BindingsTestBase {
  public:
-  InterfaceBindingsTest() {
+  InterfaceBindingsTest()
+      // Use StrictMock so TESTING will fail if unexpected method is called.
+      : test_mock_(new ::testing::StrictMock<MockT>()) {
     global_object_proxy_->Bind("test",
                                make_scoped_refptr<BaseClass>((test_mock_)));
   }
-  using BindingsTestBase<MockT>::global_object_proxy_;
-  using BindingsTestBase<MockT>::test_mock_;
-};
 
-// Use this fixture to create a new MockT object with bindings defined for the
-// BaseClass wrapper. Bindings for properties on the BaseClass object will be
-// added to the global object, and the MockT object will be set as the global
-// interface's implementation.
-template <class MockT, class BaseClass = MockT>
-class GlobalBindingsTestBase : public BindingsTestBase<MockT> {
- public:
-  GlobalBindingsTestBase() {
-    global_object_proxy_->SetGlobalInterface(
-        make_scoped_refptr<BaseClass>(test_mock_));
-  }
-  using BindingsTestBase<MockT>::global_object_proxy_;
-  using BindingsTestBase<MockT>::test_mock_;
+  MockT& test_mock() { return *test_mock_.get(); }
+
+  const scoped_refptr<MockT> test_mock_;
 };
 
 }  // namespace testing
