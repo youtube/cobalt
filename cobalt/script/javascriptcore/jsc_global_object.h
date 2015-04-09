@@ -21,9 +21,11 @@
 #include "config.h"
 #undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
 
+#include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalObject.h"
@@ -56,6 +58,13 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   // underlying JS object will not be garbage collected.
   scoped_refptr<JSCObjectOwner> RegisterObjectOwner(JSC::JSObject* js_object);
 
+  scoped_refptr<Wrappable> global_interface() { return global_interface_; }
+  void set_global_interface(const scoped_refptr<Wrappable>& global_interface) {
+    global_interface_ = global_interface;
+  }
+
+  const WrapperFactory& wrapper_factory() { return wrapper_factory_; }
+
   // JavaScriptCore stuff
   static const JSC::ClassInfo s_info;
 
@@ -82,16 +91,16 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
     static_cast<JSCGlobalObject*>(cell)->~JSCGlobalObject();
   }
 
-  scoped_refptr<Wrappable> global_interface() { return global_interface_; }
-  void set_global_interface(const scoped_refptr<Wrappable>& global_interface) {
-    global_interface_ = global_interface;
-  }
-
  private:
   JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure);
 
   // Called from the public static visitChildren method, defined above.
   void visit_children(JSC::SlotVisitor* visitor);
+
+  // Defined in the bindings for the PrimaryGlobal object
+  // TODO(***REMOVED***) Preferably the definition would be generated elsewhere so
+  // that we are not required to have a PrimaryGlobal object.
+  void RegisterWrapperTypes(WrapperFactory* wrapper_factory);
 
 #if defined(__LB_LINUX__)
   struct hash_function {
@@ -113,6 +122,7 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   CachedObjectMap cached_objects_;
   JSCObjectOwnerVector owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
+  WrapperFactory wrapper_factory_;
 };
 
 }  // namespace javascriptcore
