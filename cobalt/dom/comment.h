@@ -48,6 +48,8 @@ class Comment : public Node {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
+  DEFINE_WRAPPABLE_TYPE(Comment);
+
  private:
   ~Comment() OVERRIDE {}
 

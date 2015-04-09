@@ -28,6 +28,8 @@ class ArbitraryInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(ArbitraryFunction, void());
   MOCK_METHOD0(arbitrary_property, std::string());
+
+  DEFINE_WRAPPABLE_TYPE(ArbitraryInterface);
 };
 
 }  // namespace testing

@@ -114,6 +114,8 @@ class Event : public script::Wrappable {
     return creator->CreateWrapper(this);
   }
 
+  DEFINE_WRAPPABLE_TYPE(Event);
+
  private:
   std::string type_;
 

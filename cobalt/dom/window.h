@@ -58,6 +58,8 @@ class Window : public EventTarget {
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
 
+  DEFINE_WRAPPABLE_TYPE(Window);
+
  private:
   ~Window() OVERRIDE;
 

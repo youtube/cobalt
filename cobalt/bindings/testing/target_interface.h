@@ -28,6 +28,8 @@ class TargetInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(ImplementedInterfaceFunction, void());
   MOCK_METHOD0(PartialInterfaceFunction, void());
+
+  DEFINE_WRAPPABLE_TYPE(TargetInterface);
 };
 
 }  // namespace testing

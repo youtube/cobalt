@@ -178,6 +178,8 @@ class Node : public EventTarget {
   virtual void Accept(NodeVisitor* visitor) = 0;
   virtual void Accept(ConstNodeVisitor* visitor) const = 0;
 
+  DEFINE_WRAPPABLE_TYPE(Node);
+
  protected:
   Node();
   virtual ~Node();

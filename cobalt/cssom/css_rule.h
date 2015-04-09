@@ -28,6 +28,9 @@ namespace cssom {
 // that inherits from this interface.
 //   http://dev.w3.org/csswg/cssom/#the-cssrule-interface
 class CSSRule : public script::Wrappable {
+ public:
+  DEFINE_WRAPPABLE_TYPE(CSSRule);
+
  protected:
   CSSRule() {}
   virtual ~CSSRule() {}

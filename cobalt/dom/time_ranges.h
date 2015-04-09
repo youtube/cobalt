@@ -51,6 +51,8 @@ class TimeRanges : public script::Wrappable {
   // ranges that is closest to time.
   double Nearest(double time) const;
 
+  DEFINE_WRAPPABLE_TYPE(TimeRanges);
+
  private:
   class TimeRange {
    public:

@@ -27,6 +27,8 @@ namespace testing {
 class NoInterfaceObjectInterface : public script::Wrappable {
  public:
   // No implementation.
+
+  DEFINE_WRAPPABLE_TYPE(NoInterfaceObjectInterface);
 };
 
 }  // namespace testing

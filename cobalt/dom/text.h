@@ -52,6 +52,8 @@ class Text : public Node {
   // to avoid dangling string iterators.
   const std::string& text() const { return text_; }
 
+  DEFINE_WRAPPABLE_TYPE(Text);
+
  private:
   ~Text() OVERRIDE {}
 

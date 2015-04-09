@@ -31,6 +31,8 @@ class PropertyValue : public script::Wrappable {
  public:
   virtual void Accept(PropertyValueVisitor* visitor) = 0;
 
+  DEFINE_WRAPPABLE_TYPE(PropertyValue);
+
  protected:
   virtual ~PropertyValue() {}
 };

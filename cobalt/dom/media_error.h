@@ -43,6 +43,8 @@ class MediaError : public script::Wrappable {
   //
   Code code() const { return code_; }
 
+  DEFINE_WRAPPABLE_TYPE(MediaError);
+
  private:
   Code code_;
 };

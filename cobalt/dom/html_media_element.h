@@ -112,6 +112,8 @@ class HTMLMediaElement : public HTMLElement,
   bool muted() const;
   void set_muted(bool muted);
 
+  DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
+
  private:
   static const char kMediaSourceUrlProtocol[];
   static const double kMaxTimeupdateEventFrequency;

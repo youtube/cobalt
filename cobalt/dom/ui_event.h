@@ -37,6 +37,8 @@ class UIEvent : public Event {
     kKeyUp,
   };
 
+  DEFINE_WRAPPABLE_TYPE(UIEvent);
+
  protected:
   explicit UIEvent(Type type);
   ~UIEvent() OVERRIDE {}

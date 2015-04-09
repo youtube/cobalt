@@ -53,6 +53,8 @@ class StyleSheetList : public script::Wrappable {
   //
   void Append(const scoped_refptr<CSSStyleSheet>& style_sheet);
 
+  DEFINE_WRAPPABLE_TYPE(StyleSheetList);
+
  private:
   ~StyleSheetList();
 
