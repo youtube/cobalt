@@ -16,7 +16,8 @@
 #ifndef SCRIPT_WRAPPABLE_H_
 #define SCRIPT_WRAPPABLE_H_
 
-#include "base/callback.h"
+#include "base/bind.h"
+#include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -31,23 +32,43 @@ class Wrappable : public base::RefCounted<Wrappable> {
   class Type {
    public:
     explicit Type(intptr_t value) : value_(value) {}
+    bool operator==(const Type& other) const {
+      return this->value_ == other.value_;
+    }
+
+#if defined(__LB_LINUX__)
+    struct hash_function {
+      std::size_t operator()(const Wrappable::Type& wrappable_type) const {
+        return BASE_HASH_NAMESPACE::hash<intptr_t>()(wrappable_type.value_);
+      }
+    };
+#else
+    struct hash_compare : public BASE_HASH_NAMESPACE::hash_compare<intptr_t> {
+      typedef BASE_HASH_NAMESPACE::hash_compare<intptr_t> Base;
+      size_t operator()(const Wrappable::Type& key) const {
+        return static_cast<size_t>(key.value_);
+      }
+      bool operator()(const Wrappable::Type& key1,
+                      const Wrappable::Type& key2) const {
+        return Base::operator()(key1.value_, key2.value_);
+      }
+    };
+#endif
 
    private:
     intptr_t value_;
   };
 
-  ScriptObjectHandle* GetOrCreateWrapper(
-      ScriptObjectHandleCreator* handle_creator) {
-    if (!wrapper_handle_.get() || !wrapper_handle_->IsValidHandle()) {
-      scoped_ptr<ScriptObjectHandle> new_wrapper_handle =
-          handle_creator->CreateHandle();
-      DCHECK(new_wrapper_handle.get());
-      DCHECK(!wrapper_handle_.get() || !wrapper_handle_->IsValidHandle());
-      wrapper_handle_ = new_wrapper_handle.Pass();
+  typedef base::Callback<scoped_ptr<ScriptObjectHandle>(
+      const scoped_refptr<Wrappable>&)> CreateWrapperFunction;
+
+  ScriptObjectHandle* GetWrapperHandle(
+      const CreateWrapperFunction& create_wrapper_function) {
+    if (!wrapper_handle_ || !wrapper_handle_->IsValidHandle()) {
+      wrapper_handle_ = create_wrapper_function.Run(this);
     }
-    return wrapper_handle_.get();
-  }
-  ScriptObjectHandle* get_wrapper_handle() const {
+    DCHECK(wrapper_handle_.get());
+    DCHECK(wrapper_handle_->IsValidHandle());
     return wrapper_handle_.get();
   }
 

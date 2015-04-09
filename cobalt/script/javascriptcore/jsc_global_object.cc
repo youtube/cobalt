@@ -44,7 +44,9 @@ JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
 
 JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
                                  JSC::Structure* structure)
-    : JSC::JSGlobalObject(*global_data, structure) {}
+    : JSC::JSGlobalObject(*global_data, structure), wrapper_factory_(this) {
+  RegisterWrapperTypes(&wrapper_factory_);
+}
 
 JSC::JSObject* JSCGlobalObject::GetCachedObject(
     const JSC::ClassInfo* class_info) {
