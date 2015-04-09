@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include "base/time.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -32,6 +33,19 @@ enum TimeUnit {
 struct Time {
   float value;
   TimeUnit unit;
+
+  base::TimeDelta ToTimeDelta() const {
+    switch (unit) {
+      case kSecondsUnit:
+        return base::TimeDelta::FromMilliseconds(
+            static_cast<int64>(value * base::Time::kMillisecondsPerSecond));
+      case kMillisecondsUnit:
+        return base::TimeDelta::FromMilliseconds(static_cast<int64>(value));
+      default:
+        NOTREACHED();
+        return base::TimeDelta();
+    }
+  }
 
   bool operator==(const Time& other) const {
     return value == other.value && unit == other.unit;
@@ -48,6 +62,15 @@ class TimeListValue : public PropertyValue {
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const TimeList& value() const { return *value_; }
+
+  // Returns the time at the given list index, modulos the list size.  This
+  // is used when matching transition property durations with transition
+  // property names (the CSS property "transition-property"), in which case the
+  // specification says that the time values list should repeat (hence the
+  // modulos) until it is the same size as the property names list.
+  const Time& time_at_index(int index) {
+    return value()[index % value().size()];
+  }
 
   bool operator==(const TimeListValue& other) const {
     return *value_ == *other.value_;

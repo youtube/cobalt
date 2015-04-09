@@ -46,9 +46,11 @@ BrowserModule::BrowserModule(const Options& options)
 BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
-    const scoped_refptr<render_tree::Node>& render_tree) {
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+        node_animations_map) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  renderer_module_.pipeline()->Submit(render_tree);
+  renderer_module_.pipeline()->Submit(render_tree, node_animations_map);
 }
 
 void BrowserModule::OnKeyEventProduced(

@@ -46,7 +46,9 @@ class BrowserModule {
   // Glue function to deal with the production of a render tree, and will
   // manage handing it off to the renderer.
   void OnRenderTreeProduced(
-      const scoped_refptr<render_tree::Node>& render_tree);
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+          node_animations_map);
 
   // Glue function to deal with the production of an input event from the
   // input device, and manage handing it off to the web module for

@@ -55,10 +55,16 @@ class RectNode : public Node {
     scoped_ptr<Brush> background_brush;
   };
 
-  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush) :
-      data_(size, background_brush.Pass()) {}
-  explicit RectNode(const Builder& builder) : data_(builder) {}
-  explicit RectNode(Builder::Moved builder) : data_(builder) {}
+  RectNode(const math::SizeF& size, scoped_ptr<Brush> background_brush)
+      : data_(size, background_brush.Pass()) {
+    DCheckData(data_);
+  }
+  explicit RectNode(const Builder& builder) : data_(builder) {
+    DCheckData(data_);
+  }
+  explicit RectNode(Builder::Moved builder) : data_(builder) {
+    DCheckData(data_);
+  }
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
@@ -66,6 +72,10 @@ class RectNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
+  void DCheckData(const Builder& data) {
+    DCHECK_NE(static_cast<Brush*>(NULL), data.background_brush.get());
+  }
+
   const Builder data_;
 };
 

@@ -18,6 +18,7 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -26,6 +27,8 @@
 #include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/initial_style.h"
 #include "cobalt/layout/used_style.h"
+
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace layout {
@@ -58,10 +61,11 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
       InitialStyle::GetInstance()->transform());
   PromoteToComputedStyle(initial_containing_block_computed_style, NULL);
   return make_scoped_ptr(new ContainingBlock(
-      NULL, initial_containing_block_computed_style, used_style_provider));
+      NULL, initial_containing_block_computed_style,
+      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
 }
 
-scoped_refptr<render_tree::Node> Layout(
+RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider,
@@ -82,9 +86,13 @@ scoped_refptr<render_tree::Node> Layout(
   layout_options.is_beginning_of_line = true;
   initial_containing_block->Layout(layout_options);
 
+  NodeAnimationsMap::Builder node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
-  initial_containing_block->AddToRenderTree(&render_tree_root_builder);
-  return new render_tree::CompositionNode(render_tree_root_builder.Pass());
+  initial_containing_block->AddToRenderTree(&render_tree_root_builder,
+                                            &node_animations_map_builder);
+  return RenderTreeWithAnimations(
+      new render_tree::CompositionNode(render_tree_root_builder.Pass()),
+      new NodeAnimationsMap(node_animations_map_builder.Pass()));
 }
 
 }  // namespace layout

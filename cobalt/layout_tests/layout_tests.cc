@@ -84,10 +84,12 @@ FilePath GetTestInputRootDirectory() {
 // boolean result of the test in the result output parameter.  May generate
 // output files if pixel_tester is constructed with options specifying that it
 // do so upon tests.
-void AcceptRenderTreeForTest(const FilePath& test_html_path,
-                             renderer::RenderTreePixelTester* pixel_tester,
-                             base::RunLoop* run_loop, bool* result,
-                             const scoped_refptr<render_tree::Node>& tree) {
+void AcceptRenderTreeForTest(
+    const FilePath& test_html_path,
+    renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
+    bool* result, const scoped_refptr<render_tree::Node>& tree,
+    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+        node_animations_map) {
   *result = pixel_tester->TestTree(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
@@ -97,7 +99,9 @@ void AcceptRenderTreeForTest(const FilePath& test_html_path,
 void AcceptRenderTreeForRebaseline(
     const FilePath& test_html_path,
     renderer::RenderTreePixelTester* pixel_tester, base::RunLoop* run_loop,
-    const scoped_refptr<render_tree::Node>& tree) {
+    const scoped_refptr<render_tree::Node>& tree,
+    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+        node_animations_map) {
   pixel_tester->Rebaseline(tree, test_html_path);
   MessageLoop::current()->PostTask(FROM_HERE, run_loop->QuitClosure());
 }
