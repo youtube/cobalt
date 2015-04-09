@@ -52,9 +52,9 @@ class TextDecoder : public Decoder {
   }
 
  private:
+  base::ThreadChecker thread_checker_;
   std::string text_;
   TextCallback callback_;
-  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace loader
