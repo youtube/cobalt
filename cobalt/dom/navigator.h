@@ -35,6 +35,8 @@ class Navigator : public script::Wrappable {
   // Web API: Navigator
   const std::string& user_agent() const;
 
+  DEFINE_WRAPPABLE_TYPE(Navigator);
+
  private:
   ~Navigator() OVERRIDE {}
 

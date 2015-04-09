@@ -39,6 +39,8 @@ class HTMLBodyElement : public HTMLElement {
   // Custom, not in any spec.
   scoped_refptr<HTMLBodyElement> AsHTMLBodyElement() OVERRIDE { return this; }
 
+  DEFINE_WRAPPABLE_TYPE(HTMLBodyElement);
+
  private:
   ~HTMLBodyElement() OVERRIDE;
 

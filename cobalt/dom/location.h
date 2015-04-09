@@ -40,6 +40,8 @@ class Location : public script::Wrappable {
   std::string search() const;
   void set_search(const std::string& search) { NOTIMPLEMENTED(); }
 
+  DEFINE_WRAPPABLE_TYPE(Location);
+
  private:
   ~Location() OVERRIDE {}
 

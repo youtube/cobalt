@@ -41,6 +41,8 @@ class EventListener : public script::Wrappable {
   virtual bool EqualTo(const EventListener& that) = 0;
   // Whether this is an event listener set as an attribute.
   virtual bool IsAttribute() const = 0;
+
+  DEFINE_WRAPPABLE_TYPE(EventListener);
 };
 
 }  // namespace dom

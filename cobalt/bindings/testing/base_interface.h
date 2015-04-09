@@ -28,6 +28,8 @@ class BaseInterface : public script::Wrappable {
  public:
   MOCK_METHOD0(base_attribute, std::string());
   MOCK_METHOD0(BaseOperation, void());
+
+  DEFINE_WRAPPABLE_TYPE(BaseInterface);
 };
 
 }  // namespace testing

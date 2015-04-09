@@ -74,6 +74,8 @@ class HTMLElement : public Element {
     return computed_style_;
   }
 
+  DEFINE_WRAPPABLE_TYPE(HTMLElement);
+
  protected:
   HTMLElement(HTMLElementFactory* html_element_factory,
               cssom::CSSParser* css_parser);

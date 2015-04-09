@@ -45,6 +45,8 @@ class CallbackFunctionInterface : public script::Wrappable {
                void(const FunctionWithSeveralParameters&));
   MOCK_METHOD1(TakesFunctionWithNullableParameters,
                void(const FunctionWithNullableParameters&));
+
+  DEFINE_WRAPPABLE_TYPE(CallbackFunctionInterface);
 };
 
 }  // namespace testing

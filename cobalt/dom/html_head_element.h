@@ -39,6 +39,8 @@ class HTMLHeadElement : public HTMLElement {
   // Custom, not in any spec.
   scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() OVERRIDE { return this; }
 
+  DEFINE_WRAPPABLE_TYPE(HTMLHeadElement);
+
  private:
   ~HTMLHeadElement() OVERRIDE;
 
