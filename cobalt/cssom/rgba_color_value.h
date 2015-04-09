@@ -34,6 +34,9 @@ namespace cssom {
 //   - hsl(120, 75%, 75%)
 //   - fuchsia
 //
+// The data is maintained as a 32 bit integer layed out as RRGGBBAA, with
+// the red bytes being the most significant.
+//
 // Applies to properties such as background-color, color, etc.
 //
 // See http://www.w3.org/TR/css3-color/#rgb-color for details.
@@ -41,9 +44,18 @@ class RGBAColorValue : public PropertyValue {
  public:
   explicit RGBAColorValue(uint32_t value) : value_(value) {}
 
+  RGBAColorValue(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+      : value_(static_cast<uint32_t>(r << 24) | static_cast<uint32_t>(g << 16) |
+               static_cast<uint32_t>(b << 8) | static_cast<uint32_t>(a << 0)) {}
+
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   uint32_t value() const { return value_; }
+
+  uint8_t r() const { return static_cast<uint8_t>((value_ >> 24) & 0xFF); }
+  uint8_t g() const { return static_cast<uint8_t>((value_ >> 16) & 0xFF); }
+  uint8_t b() const { return static_cast<uint8_t>((value_ >> 8) & 0xFF); }
+  uint8_t a() const { return static_cast<uint8_t>((value_ >> 0) & 0xFF); }
 
   bool operator==(const RGBAColorValue& other) const {
     return value_ == other.value_;

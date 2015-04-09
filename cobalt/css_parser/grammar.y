@@ -696,22 +696,21 @@ color:
   //   http://www.w3.org/TR/css3-color/#rgb-color
   | kRGBFunctionToken maybe_whitespace integer comma
       integer comma integer ')' maybe_whitespace {
-    int r = ClampToRange(0, 255, $3);
-    int g = ClampToRange(0, 255, $5);
-    int b = ClampToRange(0, 255, $7);
-    $$ = AddRef(new cssom::RGBAColorValue(
-        (r << 24) | (g << 16) | (b << 8) | 0xff));
+    uint8_t r = ClampToRange(0, 255, $3);
+    uint8_t g = ClampToRange(0, 255, $5);
+    uint8_t b = ClampToRange(0, 255, $7);
+    $$ = AddRef(new cssom::RGBAColorValue(r, g, b, 0xff));
   }
   // RGB color model with opacity.
   //   http://www.w3.org/TR/css3-color/#rgba-color
   | kRGBAFunctionToken maybe_whitespace integer comma integer comma integer
       comma alpha ')' maybe_whitespace {
-    int r = ClampToRange(0, 255, $3);
-    int g = ClampToRange(0, 255, $5);
-    int b = ClampToRange(0, 255, $7);
+    uint8_t r = ClampToRange(0, 255, $3);
+    uint8_t g = ClampToRange(0, 255, $5);
+    uint8_t b = ClampToRange(0, 255, $7);
     float a = $9;  // Already clamped.
-    $$ = AddRef(new cssom::RGBAColorValue((r << 24) | (g << 16) | (b << 8) |
-        static_cast<uint32_t>(a * 0xff)));
+    $$ = AddRef(
+        new cssom::RGBAColorValue(r, g, b, static_cast<uint8_t>(a * 0xff)));
   }
   ;
 
