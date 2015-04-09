@@ -54,8 +54,7 @@ HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory,
                          cssom::CSSParser* css_parser)
     : Element(html_element_factory),
       css_parser_(css_parser),
-      style_(new cssom::CSSStyleDeclaration(css_parser)),
-      computed_style_(new cssom::CSSStyleDeclaration(NULL)) {}
+      style_(new cssom::CSSStyleDeclaration(css_parser)) {}
 
 void HTMLElement::SetOpeningTagLocation(
     const base::SourceLocation& /*opening_tag_location*/) {}

@@ -25,6 +25,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -34,7 +35,9 @@ namespace layout {
 // Produces the render tree each time when the document needs layout update.
 class LayoutManager : public dom::DocumentObserver {
  public:
-  typedef base::Callback<void(const scoped_refptr<render_tree::Node>&)>
+  typedef base::Callback<
+      void(const scoped_refptr<render_tree::Node>&,
+           const scoped_refptr<render_tree::animations::NodeAnimationsMap>&)>
       OnRenderTreeProducedCallback;
 
   // Specifies what event should trigger a layout, and hence what event

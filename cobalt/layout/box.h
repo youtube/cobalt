@@ -18,7 +18,9 @@
 #define LAYOUT_BOX_H_
 
 #include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 
 namespace cobalt {
@@ -41,6 +43,7 @@ class Box {
  public:
   Box(ContainingBlock* containing_block,
       const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet& transitions,
       UsedStyleProvider* used_style_provider);
 
   virtual ~Box() {}
@@ -77,7 +80,9 @@ class Box {
 
   // Converts layout subtree into render subtree.
   virtual void AddToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder);
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animation_map_builder);
 
  protected:
   UsedStyleProvider* used_style_provider() const {
@@ -89,6 +94,7 @@ class Box {
  private:
   ContainingBlock* const containing_block_;
   const scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
+  const cssom::TransitionSet& transitions_;
   UsedStyleProvider* const used_style_provider_;
 
   // The width and height of this box.

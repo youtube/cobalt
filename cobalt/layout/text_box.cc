@@ -27,8 +27,9 @@ namespace layout {
 TextBox::TextBox(
     ContainingBlock* containing_block,
     const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
-    UsedStyleProvider* converter, const base::StringPiece& text)
-    : Box(containing_block, computed_style, converter),
+    const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
+    const base::StringPiece& text)
+    : Box(containing_block, computed_style, transitions, converter),
       text_(text),
       trimmed_(false),
       leading_x_pixels_(0) {}
@@ -59,12 +60,14 @@ void TextBox::Layout(const LayoutOptions& options) {
 }
 
 void TextBox::AddToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder) {
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder) {
   if (trimmed_) {
     return;
   }
 
-  Box::AddToRenderTree(composition_node_builder);
+  Box::AddToRenderTree(composition_node_builder, node_animations_map_builder);
 
   scoped_refptr<render_tree::Font> used_font =
       used_style_provider()->GetUsedFont(computed_style()->font_family(),

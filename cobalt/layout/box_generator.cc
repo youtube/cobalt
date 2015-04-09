@@ -74,8 +74,8 @@ void BoxGenerator::Visit(dom::Element* element) {
     return;
   }
 
-  ContainingBlock* child_containing_block =
-      GetOrGenerateContainingBlock(html_element->computed_style()->data());
+  ContainingBlock* child_containing_block = GetOrGenerateContainingBlock(
+      html_element->computed_style()->data(), *html_element->transitions());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
@@ -127,7 +127,8 @@ void BoxGenerator::Visit(dom::Text* text) {
 }
 
 ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet& transitions) {
   // Check to see if we should create a containing block based on the value
   // of the "display" property.
   // Computed value of "display" property is guaranteed to be the keyword.
@@ -137,7 +138,7 @@ ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
   switch (display->value()) {
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kInlineBlock: {
-      return GenerateContainingBlock(computed_style);
+      return GenerateContainingBlock(computed_style, transitions);
     } break;
 
     case cssom::KeywordValue::kInline: {
@@ -168,9 +169,10 @@ BoxGenerator::GetAnonymousInlineBoxStyle(const scoped_refptr<
 }
 
 ContainingBlock* BoxGenerator::GenerateContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet& transitions) {
   scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
-      containing_block_, computed_style, used_style_provider_));
+      containing_block_, computed_style, transitions, used_style_provider_));
   ContainingBlock* saved_child_containing_block = child_containing_block.get();
   containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
   return saved_child_containing_block;
@@ -192,7 +194,7 @@ void BoxGenerator::GenerateWordBox(
 
   scoped_ptr<TextBox> word_box(new TextBox(
       containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
-      used_style_provider_,
+      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider_,
       base::StringPiece(word_start_iterator, word_end_iterator)));
   containing_block_->AddChildBox(word_box.PassAs<Box>());
 }
@@ -213,7 +215,7 @@ void BoxGenerator::GenerateWhitespaceBox(
 
   scoped_ptr<TextBox> whitespace_box(new TextBox(
       containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
-      used_style_provider_, " "));
+      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider_, " "));
   // TODO(***REMOVED***): Do not add whitespace box if the last child is already
   //               a whitespace box.
   containing_block_->AddChildBox(whitespace_box.PassAs<Box>());

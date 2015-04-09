@@ -116,7 +116,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   // Custom, not in any spec.
   //
 
-  scoped_refptr<CSSStyleDeclarationData> data() { return data_; }
+  const scoped_refptr<CSSStyleDeclarationData>& data() { return data_; }
+  void set_data(const scoped_refptr<CSSStyleDeclarationData>& data) {
+    data_ = data;
+  }
 
   void set_mutation_observer(MutationObserver* observer) {
     mutation_observer_ = observer;
