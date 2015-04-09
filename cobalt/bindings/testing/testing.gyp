@@ -73,7 +73,7 @@
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         # generated_bindings target is defined in javascriptcore_bindings.gypi
-        #'generated_bindings',
+        'generated_bindings',
       ],
     },
 
