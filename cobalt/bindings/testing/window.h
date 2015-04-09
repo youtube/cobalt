@@ -28,6 +28,8 @@ class Window : public script::Wrappable {
   virtual void WindowOperation() {}
   virtual std::string window_property() { return ""; }
   virtual void set_window_property(const std::string&) {}
+
+  DEFINE_WRAPPABLE_TYPE(Window);
 };
 
 }  // namespace testing

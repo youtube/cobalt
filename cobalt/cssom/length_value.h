@@ -45,6 +45,8 @@ class LengthValue : public PropertyValue {
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
 
+  DEFINE_WRAPPABLE_TYPE(LengthValue);
+
  private:
   ~LengthValue() OVERRIDE {}
 

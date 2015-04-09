@@ -57,6 +57,8 @@ class KeyboardEvent : public UIEventWithKeyState {
     return creator->CreateWrapper(make_scoped_refptr(this));
   }
 
+  DEFINE_WRAPPABLE_TYPE(KeyboardEvent);
+
  private:
   ~KeyboardEvent() OVERRIDE {}
 

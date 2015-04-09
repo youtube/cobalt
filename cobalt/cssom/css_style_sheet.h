@@ -44,6 +44,8 @@ class CSSStyleSheet : public StyleSheet {
   //
   void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
 
+  DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
+
  private:
   ~CSSStyleSheet() OVERRIDE;
 

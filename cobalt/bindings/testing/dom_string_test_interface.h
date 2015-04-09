@@ -34,6 +34,8 @@ class DOMStringTestInterface : public script::Wrappable {
 
   // readonly attribute DOMString readOnlyProperty
   MOCK_CONST_METHOD0(read_only_property, std::string());
+
+  DEFINE_WRAPPABLE_TYPE(DOMStringTestInterface);
 };
 
 }  // namespace testing

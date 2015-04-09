@@ -28,6 +28,8 @@ class ConstantsInterface : public script::Wrappable {
  public:
   static const uint32_t kIntegerConstant = 5;
   static const double kDoubleConstant;
+
+  DEFINE_WRAPPABLE_TYPE(ConstantsInterface);
 };
 
 }  // namespace testing
