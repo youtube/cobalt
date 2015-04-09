@@ -115,6 +115,8 @@ class Element : public Node {
     return style_;
   }
 
+  DEFINE_WRAPPABLE_TYPE(Element);
+
  protected:
   ~Element() OVERRIDE;
 

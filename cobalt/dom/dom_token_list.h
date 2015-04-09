@@ -45,6 +45,8 @@ class DOMTokenList : public script::Wrappable,
   void Add(const std::string& token);
   void Remove(const std::string& token);
 
+  DEFINE_WRAPPABLE_TYPE(DOMTokenList);
+
  private:
   ~DOMTokenList();
 

@@ -26,13 +26,16 @@
 namespace cobalt {
 namespace script {
 
-// Objects that can be bound to a JavaScript object must inherit from Wrappable.
-// The Wrappable class holds a handle to this Wrappable objects corresponding
-// JavaScript wrapper object, if such an object exists. This allows us to
-// maintain a one-to-one mapping between implementation objects and wrapper
-// objects.
 class Wrappable : public base::RefCounted<Wrappable> {
  public:
+  class Type {
+   public:
+    explicit Type(intptr_t value) : value_(value) {}
+
+   private:
+    intptr_t value_;
+  };
+
   ScriptObjectHandle* GetOrCreateWrapper(
       ScriptObjectHandleCreator* handle_creator) {
     if (!wrapper_handle_.get() || !wrapper_handle_->IsValidHandle()) {
@@ -48,6 +51,11 @@ class Wrappable : public base::RefCounted<Wrappable> {
     return wrapper_handle_.get();
   }
 
+  // Used for RTTI on wrappable types. This is implemented within the
+  // DEFINE_WRAPPABLE_TYPE macro, defined below, which should be added to the
+  // class definition of each wrappable type.
+  virtual Type GetWrappableType() = 0;
+
  protected:
   virtual ~Wrappable() { }
 
@@ -59,5 +67,26 @@ class Wrappable : public base::RefCounted<Wrappable> {
 
 }  // namespace script
 }  // namespace cobalt
+
+// This macro should be added with public accessibility in a class that inherits
+// from Wrappable. It is used to implement RTTI that will be used by the
+// bindings layer to downcast a wrappable class if necessary before creating
+// the JS wrapper.
+//
+// The address of the static variable 'dummy' will be unique for each definition
+// of the WrappableClass::WrappableType() function, which means that it can be
+// used to uniquely identify a class.
+// Using the interface name as a part of the static function allows us to ensure
+// at compile time that the static method is defined for a given type, and not
+// just on one of its ancestors.
+#define DEFINE_WRAPPABLE_TYPE(INTERFACE_NAME)                   \
+  static Wrappable::Type INTERFACE_NAME##WrappableType() {      \
+    static int dummy = 0;                                       \
+    return Wrappable::Type(reinterpret_cast<intptr_t>(&dummy)); \
+  }                                                             \
+  Wrappable::Type GetWrappableType() OVERRIDE {                 \
+    return INTERFACE_NAME##WrappableType();                     \
+  }
+
 
 #endif  // SCRIPT_WRAPPABLE_H_

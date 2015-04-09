@@ -36,6 +36,8 @@ class OperationsTestInterface : public script::Wrappable {
   MOCK_METHOD1(VoidFunctionStringArg, void(const std::string&));
   MOCK_METHOD1(VoidFunctionObjectArg,
                void(const scoped_refptr<ArbitraryInterface>&));
+
+  DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
 };
 
 }  // namespace testing

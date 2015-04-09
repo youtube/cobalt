@@ -60,6 +60,8 @@ class NumericTypesTestInterface : public script::Wrappable {
   virtual void DoubleArgumentOperation(double value) {}
   virtual double double_property() { return 0; }
   virtual void set_double_property(double value) {}
+
+  DEFINE_WRAPPABLE_TYPE(NumericTypesTestInterface);
 };
 
 // Inheriting from an instantiation of this class allows for the mocking

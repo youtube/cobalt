@@ -30,6 +30,8 @@ class BooleanTypeTestInterface : public script::Wrappable {
   MOCK_METHOD1(BooleanArgumentOperation, void(bool));
   MOCK_METHOD0(boolean_property, bool());
   MOCK_METHOD1(set_boolean_property, void(bool));
+
+  DEFINE_WRAPPABLE_TYPE(BooleanTypeTestInterface);
 };
 
 }  // namespace testing

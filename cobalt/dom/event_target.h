@@ -55,6 +55,8 @@ class EventTarget : public script::Wrappable,
   void SetAttributeEventListener(const std::string& type,
                                  const scoped_refptr<EventListener>& listener);
 
+  DEFINE_WRAPPABLE_TYPE(EventTarget);
+
  protected:
   // This function sends the event to the event listeners attached to the
   // current event target. It takes stop immediate propagation flag into

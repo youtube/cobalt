@@ -27,6 +27,8 @@ class DerivedInterface : public BaseInterface {
  public:
   MOCK_METHOD0(derived_attribute, std::string());
   MOCK_METHOD0(DerivedOperation, void());
+
+  DEFINE_WRAPPABLE_TYPE(DerivedInterface);
 };
 
 }  // namespace testing

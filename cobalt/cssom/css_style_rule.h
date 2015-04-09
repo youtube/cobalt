@@ -37,6 +37,8 @@ class CSSStyleRule : public CSSRule {
 
   const scoped_refptr<CSSStyleDeclaration>& style();
 
+  DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
+
  private:
   ~CSSStyleRule() OVERRIDE;
 

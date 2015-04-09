@@ -34,6 +34,8 @@ class NumberValue : public PropertyValue {
 
   float value() const { return value_; }
 
+  DEFINE_WRAPPABLE_TYPE(NumberValue);
+
  private:
   ~NumberValue() OVERRIDE {}
 

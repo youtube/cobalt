@@ -46,6 +46,8 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   // Returns the number of CSSRule objects represented by the collection.
   unsigned int length() const;
 
+  DEFINE_WRAPPABLE_TYPE(CSSRuleList);
+
  private:
   ~CSSRuleList();
 
