@@ -33,12 +33,15 @@ class TextBox : public Box {
  public:
   TextBox(ContainingBlock* containing_block,
           const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
-          UsedStyleProvider* converter, const base::StringPiece& text);
+          const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
+          const base::StringPiece& text);
 
   void Layout(const LayoutOptions& options) OVERRIDE;
 
   void AddToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder) OVERRIDE;
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) OVERRIDE;
 
  private:
   const base::StringPiece text_;

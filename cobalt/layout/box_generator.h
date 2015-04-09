@@ -19,6 +19,7 @@
 
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/node.h"
 
@@ -50,10 +51,12 @@ class BoxGenerator : public dom::NodeVisitor {
   // Element with "display: inline;" continue to use the old containing block.
   //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
   ContainingBlock* GetOrGenerateContainingBlock(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style);
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet& transitions);
   // Helper method used by GetOrGenerateContainingBlock().
   ContainingBlock* GenerateContainingBlock(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style);
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet& transitions);
   // If an anonymous box is being generated, we will need to compute its
   // style based on rules specified here:
   //   http://www.w3.org/TR/CSS21/visuren.html#anonymous

@@ -21,6 +21,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/dom/element.h"
 
 namespace cobalt {
@@ -71,6 +72,12 @@ class HTMLElement : public Element {
   const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style() {
     return computed_style_;
   }
+  void set_computed_style(
+      const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+    computed_style_ = computed_style;
+  }
+
+  cssom::TransitionSet* transitions() { return &transitions_; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
@@ -84,8 +91,13 @@ class HTMLElement : public Element {
   cssom::CSSParser* const css_parser_;
 
  private:
+  void UpdateTransitions(const cssom::CSSStyleDeclarationData* source,
+                         const cssom::CSSStyleDeclarationData* destination);
+
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
   scoped_refptr<cssom::CSSStyleDeclaration> computed_style_;
+
+  cssom::TransitionSet transitions_;
 };
 
 }  // namespace dom

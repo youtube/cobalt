@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/html_element.h"
 #include "cobalt/math/size_f.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -33,10 +34,21 @@ namespace layout {
 // (http://www.w3.org/TR/CSS2/visuren.html) as recommended by a newer draft
 // (http://dev.w3.org/csswg/css-box/) which is undergoing active changes.
 
+struct RenderTreeWithAnimations {
+  RenderTreeWithAnimations(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+          animations)
+      : render_tree(render_tree), animations(animations) {}
+
+  scoped_refptr<render_tree::Node> render_tree;
+  scoped_refptr<render_tree::animations::NodeAnimationsMap> animations;
+};
+
 // Main entry point to the layout engine.
-// Produces the render tree which is a result of recursive layout of
-// the given HTML element.
-scoped_refptr<render_tree::Node> Layout(
+// Produces the render tree (along with corresponding animations) which is a
+// result of recursive layout of the given HTML element.
+RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider,
