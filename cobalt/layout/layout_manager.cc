@@ -106,9 +106,12 @@ void LayoutManager::DoLayoutAndProduceRenderTree() {
   // This enables rendering of <head>, but it's such an obscure feature,
   // it does not make sense to implement it in Cobalt.
   if (document_->body()) {
-    on_render_tree_produced_callback_.Run(
+    RenderTreeWithAnimations render_tree_with_animations =
         layout::Layout(document_->body(), viewport_size_, resource_provider_,
-                       user_agent_style_sheet_));
+                       user_agent_style_sheet_);
+    on_render_tree_produced_callback_.Run(
+        render_tree_with_animations.render_tree,
+        render_tree_with_animations.animations);
     layout_dirty_ = false;
   }
 }
