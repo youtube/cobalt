@@ -70,12 +70,13 @@ class HTMLLinkElement : public HTMLElement {
   void OnLoadingError(const std::string& error);
   void StopLoading();
 
+  // Thread checker ensures all calls to DOM element are made from the same
+  // thread that it is created in.
+  base::ThreadChecker thread_checker_;
   // FetcherFactory that is used to create a fetcher according to url.
   loader::FetcherFactory* fetcher_factory_;
   // The loader.
   scoped_ptr<loader::Loader> loader_;
-  // Thread checker.
-  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace dom
