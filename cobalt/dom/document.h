@@ -152,6 +152,8 @@ class Document : public Node, public cssom::MutationObserver {
   // Override cssom::MutationObserver.
   void OnMutation() OVERRIDE;
 
+  DEFINE_WRAPPABLE_TYPE(Document);
+
  private:
   ~Document() OVERRIDE;
 

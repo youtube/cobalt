@@ -191,6 +191,8 @@ class CSSStyleDeclaration : public script::Wrappable {
     mutation_observer_ = observer;
   }
 
+  DEFINE_WRAPPABLE_TYPE(CSSStyleDeclaration);
+
  private:
   ~CSSStyleDeclaration();
   scoped_refptr<PropertyValue>* GetPropertyValueReference(

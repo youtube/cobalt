@@ -29,6 +29,8 @@ class StyleSheet : public script::Wrappable {
  public:
   virtual ~StyleSheet() {}
 
+  DEFINE_WRAPPABLE_TYPE(StyleSheet);
+
  protected:
   StyleSheet() {}
 

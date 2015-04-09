@@ -53,6 +53,8 @@ class Attr : public script::Wrappable,
   const std::string& value() const { return value_; }
   void set_value(const std::string& value);
 
+  DEFINE_WRAPPABLE_TYPE(Attr);
+
  private:
   ~Attr();
 

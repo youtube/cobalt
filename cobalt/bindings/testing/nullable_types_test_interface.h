@@ -51,6 +51,8 @@ class NullableTypesTestInterface : public script::Wrappable {
   MOCK_METHOD1(NullableNumericArgument, void(base::optional<int32_t>));
   MOCK_METHOD1(NullableStringArgument, void(base::optional<std::string>));
   MOCK_METHOD1(NullableObjectArgument, void(scoped_refptr<ArbitraryInterface>));
+
+  DEFINE_WRAPPABLE_TYPE(NullableTypesTestInterface);
 };
 
 }  // namespace testing

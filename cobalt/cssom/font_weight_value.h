@@ -59,6 +59,8 @@ class FontWeightValue : public PropertyValue {
 
   Value value() const { return value_; }
 
+  DEFINE_WRAPPABLE_TYPE(FontWeightValue);
+
  private:
   ~FontWeightValue() OVERRIDE {}
 

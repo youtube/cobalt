@@ -45,6 +45,8 @@ class RGBAColorValue : public PropertyValue {
 
   uint32_t value() const { return value_; }
 
+  DEFINE_WRAPPABLE_TYPE(RGBAColorValue);
+
  private:
   ~RGBAColorValue() OVERRIDE {}
 

@@ -38,6 +38,8 @@ class StringValue : public PropertyValue {
 
   const std::string& value() const { return value_; }
 
+  DEFINE_WRAPPABLE_TYPE(StringValue);
+
  private:
   ~StringValue() OVERRIDE {}
 
