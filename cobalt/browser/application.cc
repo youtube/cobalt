@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "cobalt/browser/switches.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace browser {
@@ -43,12 +44,16 @@ std::string GetInitialURL() {
 
 Application::Application()
     : ui_message_loop_(MessageLoop::TYPE_UI) {
-  std::string url = GetInitialURL();
+  GURL url = GURL(GetInitialURL());
+  if (!url.is_valid()) {
+    DLOG(INFO) << "Initial URL is not valid, using empty URL.";
+    url = GURL();
+  }
   DLOG(INFO) << "Initial URL: " << url;
   DLOG(INFO) << "User Agent: " << BrowserModule::GetUserAgent();
   // Create the main components of our browser.
   BrowserModule::Options options;
-  options.web_module_options.url = GURL(url);
+  options.web_module_options.url = url;
   browser_module_.reset(new BrowserModule(options));
 }
 

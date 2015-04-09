@@ -76,6 +76,9 @@ class HTMLScriptElement : public HTMLElement {
   void OnLoadingError(const std::string& error);
   void StopLoading();
 
+  // Thread checker ensures all calls to DOM element are made from the same
+  // thread that it is created in.
+  base::ThreadChecker thread_checker_;
   // FetcherFactory that is used to create a fetcher according to url.
   loader::FetcherFactory* fetcher_factory_;
   // The loader.
@@ -84,8 +87,6 @@ class HTMLScriptElement : public HTMLElement {
   script::ScriptRunner* script_runner_;
   // Whether the script has been started.
   bool is_already_started_;
-  // Thread checker.
-  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace dom
