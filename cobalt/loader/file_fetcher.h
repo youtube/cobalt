@@ -69,6 +69,9 @@ class FileFetcher : public Fetcher {
   void DidRead(base::PlatformFileError error, const char* data,
                int num_bytes_read);
 
+  // Thread checker ensures all calls to the FileFetcher are made from the same
+  // thread that it is created in.
+  base::ThreadChecker thread_checker_;
   // Size of the buffer that FileFetcher will use to load data.
   int buffer_size_;
   // Handle of the input file.
@@ -79,8 +82,6 @@ class FileFetcher : public Fetcher {
   scoped_refptr<base::MessageLoopProxy> io_message_loop_;
   // Used internally to support callbacks with weak references to self.
   base::WeakPtrFactory<FileFetcher> weak_ptr_factory_;
-  // Used to verify that methods are called from the creator thread.
-  base::ThreadChecker thread_checker_;
 };
 
 }  // namespace loader
