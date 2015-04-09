@@ -71,7 +71,8 @@ class WebModule {
   static std::string GetUserAgent();
 
  private:
-  // Ensures that all calls to the WebModule are made from the same thread.
+  // Thread checker ensures all calls to the WebModule are made from the same
+  // thread that it is created in.
   base::ThreadChecker thread_checker_;
 
   scoped_ptr<css_parser::Parser> css_parser_;

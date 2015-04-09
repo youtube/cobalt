@@ -36,10 +36,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           new HTMLElementFactory(fetcher_factory, css_parser, script_runner)),
       document_(
           new Document(html_element_factory_.get(), Document::Options(url))),
-      document_builder_(new DocumentBuilder(
-          document_, url, fetcher_factory, html_element_factory_.get(),
-          DocumentBuilder::DoneCallbackType(),
-          error_callback)),
+      document_builder_(new DocumentBuilder(document_, url, fetcher_factory,
+                                            html_element_factory_.get(),
+                                            base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)) {}
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
