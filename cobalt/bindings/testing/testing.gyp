@@ -23,14 +23,17 @@
     # be an implementation declared in a header that lives in the same
     # directory of each IDL.
     'source_idl_files': [
+        'AnonymousGetterSetterInterface.idl',
         'ArbitraryInterface.idl',
         'BaseInterface.idl',
         'BooleanTypeTestInterface.idl',
         'CallbackFunctionInterface.idl',
         'ConstantsInterface.idl',
+        'DerivedGetterSetterInterface.idl',
         'DerivedInterface.idl',
         'DOMStringTestInterface.idl',
         'InheritanceTestInterface.idl',
+        'GetterSetterInterface.idl',
         'NoInterfaceObjectInterface.idl',
         'NullableTypesTestInterface.idl',
         'NumericTypesTestInterface.idl',
@@ -86,6 +89,7 @@
         'callback_function_test.cc',
         'dependent_interface_test.cc',
         'dom_string_bindings_test.cc',
+        'getter_setter_test.cc',
         'global_interface_bindings_test.cc',
         'inheritance_bindings_test.cc',
         'interface_object_test.cc',
