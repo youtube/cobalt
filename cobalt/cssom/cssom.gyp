@@ -31,6 +31,8 @@
         'css_rule_list.h',
         'css_style_declaration.cc',
         'css_style_declaration.h',
+        'css_style_declaration_data.cc',
+        'css_style_declaration_data.h',
         'css_style_rule.cc',
         'css_style_rule.h',
         'css_style_sheet.cc',
@@ -90,6 +92,7 @@
       'target_name': 'cssom_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'css_style_declaration_data_test.cc',
         'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',
         'keyword_value_test.cc',

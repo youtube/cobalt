@@ -17,7 +17,7 @@
 #ifndef LAYOUT_BOX_H_
 #define LAYOUT_BOX_H_
 
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/composition_node.h"
 
@@ -40,7 +40,7 @@ struct LayoutOptions {
 class Box {
  public:
   Box(ContainingBlock* containing_block,
-      const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style,
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
       UsedStyleProvider* used_style_provider);
 
   virtual ~Box() {}
@@ -56,7 +56,7 @@ class Box {
   // or hard-to-parallelize operations, such as resolving network requests or
   // retrieving values other than from the element and its parent.
   //   http://www.w3.org/TR/css-cascade-3/#computed
-  scoped_refptr<cssom::CSSStyleDeclaration> computed_style() const {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style() const {
     return computed_style_;
   }
 
@@ -88,7 +88,7 @@ class Box {
 
  private:
   ContainingBlock* const containing_block_;
-  const scoped_refptr<cssom::CSSStyleDeclaration> computed_style_;
+  const scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   UsedStyleProvider* const used_style_provider_;
 
   // The width and height of this box.

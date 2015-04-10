@@ -16,7 +16,7 @@
 
 #include "cobalt/dom/testing/stub_css_parser.h"
 
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/property_value.h"
 
@@ -29,9 +29,10 @@ scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
   return new cssom::CSSStyleSheet();
 }
 
-scoped_refptr<cssom::CSSStyleDeclaration> StubCSSParser::ParseDeclarationList(
+scoped_refptr<cssom::CSSStyleDeclarationData>
+StubCSSParser::ParseDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
-  return new cssom::CSSStyleDeclaration(NULL);
+  return new cssom::CSSStyleDeclarationData();
 }
 
 scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(

@@ -18,6 +18,7 @@
 #define CSSOM_PROPERTY_VALUE_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -30,6 +31,13 @@ class PropertyValueVisitor;
 class PropertyValue : public script::Wrappable {
  public:
   virtual void Accept(PropertyValueVisitor* visitor) = 0;
+
+  // TODO(***REMOVED***): |ToString| should be pure virtual function and supported for
+  // each value type.
+  virtual base::optional<std::string> ToString() {
+    NOTIMPLEMENTED() << "Should be supported for each value type.";
+    return base::nullopt;
+  }
 
   DEFINE_WRAPPABLE_TYPE(PropertyValue);
 

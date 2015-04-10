@@ -34,230 +34,189 @@ class MockCSSParser : public CSSParser {
                scoped_refptr<CSSStyleSheet>(const std::string&,
                                             const base::SourceLocation&));
   MOCK_METHOD2(ParseDeclarationList,
-               scoped_refptr<CSSStyleDeclaration>(const std::string&,
-                                                  const base::SourceLocation&));
+               scoped_refptr<CSSStyleDeclarationData>(
+                   const std::string&, const base::SourceLocation&));
   MOCK_METHOD3(ParsePropertyValue,
                scoped_refptr<PropertyValue>(const std::string&,
                                             const std::string&,
                                             const base::SourceLocation&));
 };
 
-TEST(CSSStyleDeclarationTest, BackgroundSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+// TODO(***REMOVED***): Add PropertyValue getter tests and property setter tests when
+// fully support converting PropertyValue to std::string.
+TEST(CSSStyleDeclarationTest, PropertyValueSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->background());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kBackgroundPropertyName));
-
-  style->set_background(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->background());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBackgroundPropertyName));
-
-  style->SetPropertyValue(kBackgroundPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->background());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBackgroundPropertyName));
+  const std::string background = "rgba(0, 0, 0, .8)";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kBackgroundPropertyName, background, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->SetPropertyValue(kBackgroundPropertyName, background);
 }
 
-TEST(CSSStyleDeclarationTest, BackgroundColorSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, BackgroundSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->background_color());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kBackgroundColorPropertyName));
-
-  style->set_background_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->background_color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBackgroundColorPropertyName));
-
-  style->SetPropertyValue(kBackgroundColorPropertyName,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->background_color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBackgroundColorPropertyName));
+  const std::string background = "rgba(0, 0, 0, .8)";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kBackgroundPropertyName, background, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_background(background);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRadiusSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, BackgroundColorSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->border_radius());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kBorderRadiusPropertyName));
-
-  style->set_border_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_radius());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderRadiusPropertyName));
-
-  style->SetPropertyValue(kBorderRadiusPropertyName,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_radius());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderRadiusPropertyName));
+  const std::string background_color = "#fff";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kBackgroundColorPropertyName,
+                                             background_color, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_background_color(background_color);
 }
 
-TEST(CSSStyleDeclarationTest, ColorSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->color());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kColorPropertyName));
-
-  style->set_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kColorPropertyName));
-
-  style->SetPropertyValue(kColorPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kColorPropertyName));
+  const std::string background_image = "url('images/sample.png')";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kBackgroundImagePropertyName,
+                                             background_image, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_background_image(background_image);
 }
 
-TEST(CSSStyleDeclarationTest, DisplaySettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, BorderRadiusdSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->display());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kDisplayPropertyName));
-
-  style->set_display(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->display());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kDisplayPropertyName));
-
-  style->SetPropertyValue(kDisplayPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->display());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kDisplayPropertyName));
+  const std::string border_radius = "0.2em";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kBorderRadiusPropertyName, border_radius, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_border_radius(border_radius);
 }
 
-TEST(CSSStyleDeclarationTest, FontFamilySettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, ColorSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->font_family());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kFontFamilyPropertyName));
-
-  style->set_font_family(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->font_family());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kFontFamilyPropertyName));
-
-  style->SetPropertyValue(kFontFamilyPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->font_family());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kFontFamilyPropertyName));
+  const std::string color = "rgba(0, 0, 0, .8)";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kColorPropertyName, color, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_color(color);
 }
 
-TEST(CSSStyleDeclarationTest, FontSizeSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, DisplaySetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->font_size());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kFontSizePropertyName));
-
-  style->set_font_size(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->font_size());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kFontSizePropertyName));
-
-  style->SetPropertyValue(kFontSizePropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->font_size());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kFontSizePropertyName));
+  const std::string display = "inline-block";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kDisplayPropertyName, display, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_display(display);
 }
 
-TEST(CSSStyleDeclarationTest, HeightSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, FontFamilySetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->height());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kHeightPropertyName));
-
-  style->set_height(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->height());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kHeightPropertyName));
-
-  style->SetPropertyValue(kHeightPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->height());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kHeightPropertyName));
+  const std::string font_family = "Droid Sans";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kFontFamilyPropertyName, font_family, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_font_family(font_family);
 }
 
-TEST(CSSStyleDeclarationTest, OpacitySettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, FontSizeSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->opacity());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kOpacityPropertyName));
-
-  style->set_opacity(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->opacity());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kOpacityPropertyName));
-
-  style->SetPropertyValue(kOpacityPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->opacity());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kOpacityPropertyName));
+  const std::string font_size = "100px";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kFontSizePropertyName, font_size, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_font_size(font_size);
 }
 
-TEST(CSSStyleDeclarationTest, OverflowSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, FontWeightSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->overflow());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kOverflowPropertyName));
-
-  style->set_overflow(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->overflow());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kOverflowPropertyName));
-
-  style->SetPropertyValue(kOverflowPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->overflow());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kOverflowPropertyName));
+  const std::string font_weight = "normal";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kFontWeightPropertyName, font_weight, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_font_weight(font_weight);
 }
 
-TEST(CSSStyleDeclarationTest, TransformSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, HeightSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->transform());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kTransformPropertyName));
-
-  style->set_transform(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->transform());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kTransformPropertyName));
-
-  style->SetPropertyValue(kTransformPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->transform());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kTransformPropertyName));
+  const std::string height = "100px";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kHeightPropertyName, height, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_height(height);
 }
 
-TEST(CSSStyleDeclarationTest, WidthSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSStyleDeclaration> style = new CSSStyleDeclaration(NULL);
+TEST(CSSStyleDeclarationTest, OpacitySetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(scoped_refptr<PropertyValue>(), style->width());
-  EXPECT_EQ(scoped_refptr<PropertyValue>(),
-            style->GetPropertyValue(kWidthPropertyName));
+  const std::string opacity = "0.5";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kOpacityPropertyName, opacity, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_opacity(opacity);
+}
 
-  style->set_width(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->width());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kWidthPropertyName));
+TEST(CSSStyleDeclarationTest, OverflowSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
 
-  style->SetPropertyValue(kWidthPropertyName, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->width());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kWidthPropertyName));
+  const std::string overflow = "visible";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kOverflowPropertyName, overflow, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_overflow(overflow);
+}
+
+TEST(CSSStyleDeclarationTest, TransformSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string transform = "scale(1.5)";
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kTransformPropertyName, transform, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_transform(transform);
+}
+
+TEST(CSSStyleDeclarationTest, WidthSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string width = "100px";
+  EXPECT_CALL(css_parser, ParsePropertyValue(kWidthPropertyName, width, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  style->set_width(width);
 }
 
 TEST(CSSStyleDeclarationTest, CSSTextSetter) {
@@ -267,7 +226,7 @@ TEST(CSSStyleDeclarationTest, CSSTextSetter) {
 
   const std::string css_text = "font-size: 100px; color: #0047ab;";
   EXPECT_CALL(css_parser, ParseDeclarationList(css_text, _))
-      .WillOnce(testing::Return(scoped_refptr<CSSStyleDeclaration>()));
+      .WillOnce(testing::Return(scoped_refptr<CSSStyleDeclarationData>()));
   style->set_css_text(css_text);
 }
 
