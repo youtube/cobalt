@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleDeclaration;
+class CSSStyleDeclarationData;
 class CSSStyleSheet;
 class PropertyValue;
 
@@ -50,7 +50,7 @@ class CSSParser {
 
   // Parses the contents of a HTMLElement.style attribute.
   // Always returns non-NULL declaration, even if an error occurred.
-  virtual scoped_refptr<cssom::CSSStyleDeclaration> ParseDeclarationList(
+  virtual scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the property value.
