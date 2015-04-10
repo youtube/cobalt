@@ -367,8 +367,15 @@ template <typename T> struct DecayArray<T[]> {
 // crashes).
 template <typename T>
 inline T Invalid() {
+#if defined(COBALT_WIN)
+#pragma warning(push)
+#pragma warning(disable : 6011)  // dereferencing NULL pointer.
+#endif
   return const_cast<typename remove_reference<T>::type&>(
       *static_cast<volatile typename remove_reference<T>::type*>(NULL));
+#if defined(COBALT_WIN)
+#pragma warning(pop)
+#endif
 }
 template <>
 inline void Invalid<void>() {}
