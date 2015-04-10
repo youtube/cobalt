@@ -273,8 +273,12 @@
 %type <string> identifier_token
 %type <string> animatable_property_token
 
+%union { cssom::CSSStyleDeclarationData* style_declaration_data; }
+%type <style_declaration_data> declaration_list
+%destructor { $$->Release(); } <style_declaration_data>
+
 %union { cssom::CSSStyleDeclaration* style_declaration; }
-%type <style_declaration> declaration_block declaration_list
+%type <style_declaration> declaration_block
 %destructor { $$->Release(); } <style_declaration>
 
 %union { cssom::CSSStyleRule* style_rule; }
@@ -1127,7 +1131,7 @@ semicolon: ';' maybe_whitespace ;
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
 declaration_list:
     maybe_declaration {
-    $$ = AddRef(new cssom::CSSStyleDeclaration(parser_impl->css_parser()));
+    $$ = AddRef(new cssom::CSSStyleDeclarationData());
 
     scoped_ptr<PropertyDeclaration> property($1);
     if (property) {
@@ -1152,7 +1156,7 @@ declaration_list:
 
 declaration_block:
     '{' maybe_whitespace declaration_list '}' maybe_whitespace {
-    $$ = $3;
+    $$ = AddRef(new cssom::CSSStyleDeclaration($3, parser_impl->css_parser()));
   }
   ;
 
@@ -1231,7 +1235,7 @@ entry_point:
   }
   // Parses the contents of a HTMLElement.style attribute.
   | kDeclarationListEntryPointToken maybe_whitespace declaration_list {
-    scoped_refptr<cssom::CSSStyleDeclaration> declaration_list =
+    scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_declaration_list(declaration_list);
   }

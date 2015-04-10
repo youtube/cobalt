@@ -26,7 +26,7 @@ namespace cobalt {
 namespace layout {
 
 Box::Box(ContainingBlock* containing_block,
-         const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style,
+         const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
          UsedStyleProvider* used_style_provider)
     : containing_block_(containing_block),
       computed_style_(computed_style),
