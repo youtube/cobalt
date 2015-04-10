@@ -32,7 +32,7 @@ namespace layout {
 class TextBox : public Box {
  public:
   TextBox(ContainingBlock* containing_block,
-          const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style,
+          const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
           UsedStyleProvider* converter, const base::StringPiece& text);
 
   void Layout(const LayoutOptions& options) OVERRIDE;
