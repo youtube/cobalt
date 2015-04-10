@@ -35,9 +35,10 @@ namespace layout {
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
     const math::SizeF& viewport_size, UsedStyleProvider* used_style_provider) {
-  scoped_refptr<cssom::CSSStyleDeclaration>
+  scoped_refptr<cssom::CSSStyleDeclarationData>
       initial_containing_block_computed_style =
-          new cssom::CSSStyleDeclaration(NULL);
+          new cssom::CSSStyleDeclarationData();
+
   initial_containing_block_computed_style->set_background_color(
       new cssom::RGBAColorValue(0xffffffff));
   initial_containing_block_computed_style->set_color(

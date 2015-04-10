@@ -47,7 +47,7 @@ void BoxGenerator::Visit(dom::Element* element) {
 
   // If element is the root of layout tree, use the style of initial containing
   // block as the style of its parent.
-  scoped_refptr<cssom::CSSStyleDeclaration> parent_computed_style;
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style;
   if (is_root_) {
     parent_computed_style = containing_block_->computed_style();
   } else {
@@ -60,13 +60,13 @@ void BoxGenerator::Visit(dom::Element* element) {
         parent_element->AsHTMLElement();
     DCHECK_NE(scoped_refptr<dom::HTMLElement>(), parent_html_element);
 
-    parent_computed_style = parent_html_element->computed_style();
+    parent_computed_style = parent_html_element->computed_style()->data();
   }
 
   UpdateComputedStyleOf(html_element, parent_computed_style,
                         user_agent_style_sheet_);
 
-  if (html_element->computed_style()->display() ==
+  if (html_element->computed_style()->data()->display() ==
       cssom::KeywordValue::GetNone()) {
     // If the element has the display property of its style set to "none",
     // then it should not participate in layout, and we are done here.
@@ -75,7 +75,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   }
 
   ContainingBlock* child_containing_block =
-      GetOrGenerateContainingBlock(html_element->computed_style());
+      GetOrGenerateContainingBlock(html_element->computed_style()->data());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
@@ -96,8 +96,12 @@ void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 // Text node produces a list of alternating whitespace and text boxes.
 // TODO(b/19716102): Implement word breaking according to Unicode algorithm.
 void BoxGenerator::Visit(dom::Text* text) {
-  scoped_refptr<cssom::CSSStyleDeclaration> parent_computed_style =
-      text->parent_node()->AsElement()->AsHTMLElement()->computed_style();
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style =
+      text->parent_node()
+          ->AsElement()
+          ->AsHTMLElement()
+          ->computed_style()
+          ->data();
 
   std::string::const_iterator text_iterator = text->text().begin();
   std::string::const_iterator text_end_iterator = text->text().end();
@@ -123,7 +127,7 @@ void BoxGenerator::Visit(dom::Text* text) {
 }
 
 ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
   // Check to see if we should create a containing block based on the value
   // of the "display" property.
   // Computed value of "display" property is guaranteed to be the keyword.
@@ -152,11 +156,11 @@ ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
   }
 }
 
-const scoped_refptr<cssom::CSSStyleDeclaration>&
-BoxGenerator::GetAnonymousInlineBoxStyle(
-    const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style) {
+const scoped_refptr<cssom::CSSStyleDeclarationData>&
+BoxGenerator::GetAnonymousInlineBoxStyle(const scoped_refptr<
+    cssom::CSSStyleDeclarationData>& parent_computed_style) {
   if (!anonymous_inline_box_style_) {
-    anonymous_inline_box_style_ = new cssom::CSSStyleDeclaration(NULL);
+    anonymous_inline_box_style_ = new cssom::CSSStyleDeclarationData();
     PromoteToSpecifiedStyle(anonymous_inline_box_style_, parent_computed_style);
     PromoteToComputedStyle(anonymous_inline_box_style_);
   }
@@ -164,7 +168,7 @@ BoxGenerator::GetAnonymousInlineBoxStyle(
 }
 
 ContainingBlock* BoxGenerator::GenerateContainingBlock(
-    const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
   scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
       containing_block_, computed_style, used_style_provider_));
   ContainingBlock* saved_child_containing_block = child_containing_block.get();
@@ -175,7 +179,8 @@ ContainingBlock* BoxGenerator::GenerateContainingBlock(
 void BoxGenerator::GenerateWordBox(
     std::string::const_iterator* text_iterator,
     const std::string::const_iterator& text_end_iterator,
-    const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+        parent_computed_style) {
   std::string::const_iterator word_start_iterator = *text_iterator;
   std::string::const_iterator& word_end_iterator = *text_iterator;
 
@@ -195,7 +200,8 @@ void BoxGenerator::GenerateWordBox(
 void BoxGenerator::GenerateWhitespaceBox(
     std::string::const_iterator* text_iterator,
     const std::string::const_iterator& text_end_iterator,
-    const scoped_refptr<cssom::CSSStyleDeclaration>& parent_computed_style) {
+    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+        parent_computed_style) {
   std::string::const_iterator whitespace_start_iterator = *text_iterator;
   std::string::const_iterator& whitespace_end_iterator = *text_iterator;
 
