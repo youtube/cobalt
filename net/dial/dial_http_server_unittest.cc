@@ -39,6 +39,7 @@ using ::testing::Return;
 // Test fixture
 class DialHttpServerTest : public testing::Test {
  public:
+  scoped_ptr<DialService> dial_service_;
   IPEndPoint addr_;
   scoped_refptr<HttpNetworkSession> session_;
   scoped_ptr<HttpNetworkTransaction> client_;
@@ -58,11 +59,10 @@ class DialHttpServerTest : public testing::Test {
   void StartHttpServer() {
     gtest_message_loop_ = MessageLoop::current()->message_loop_proxy();
 
-    DialService::GetInstance()->Register(handler_.get());
-    net::WaitUntilIdle(DialService::GetInstance()->message_loop_proxy());
+    dial_service_->Register(handler_.get());
+    net::WaitUntilIdle(dial_service_->message_loop_proxy());
 
-    ASSERT_EQ(OK,
-        DialService::GetInstance()->http_server()->GetLocalAddress(&addr_));
+    ASSERT_EQ(OK, dial_service_->http_server()->GetLocalAddress(&addr_));
     ASSERT_NE(0, addr_.port());
   }
 
@@ -77,14 +77,15 @@ class DialHttpServerTest : public testing::Test {
   }
 
   virtual void SetUp() OVERRIDE {
+    dial_service_.reset(new DialService);
     StartHttpServer();
     InitHttpClientLibrary();
   }
 
   virtual void TearDown() OVERRIDE {
     // make sure all messages on DialService are executed.
-    DialService::GetInstance()->Deregister(handler_.get());
-    net::WaitUntilIdle(DialService::GetInstance()->message_loop_proxy());
+    dial_service_->Deregister(handler_.get());
+    net::WaitUntilIdle(dial_service_->message_loop_proxy());
     const HttpNetworkSession::Params& params = session_->params();
     delete params.proxy_service;
     delete params.http_server_properties;
@@ -116,17 +117,17 @@ class DialHttpServerTest : public testing::Test {
   // thread.
   void Capture(const std::string& path,
                const HttpServerRequestInfo& request,
-               HttpServerResponseInfo* response,
-               const base::Callback<void(bool)>& on_completion) {
-    ASSERT_TRUE(DialService::GetInstance()->IsOnServiceThread());
-
+               const DialServiceHandler::CompletionCB& on_completion) {
+    ASSERT_TRUE(dial_service_->IsOnServiceThread());
+    scoped_ptr<HttpServerResponseInfo> response(new HttpServerResponseInfo);
     response->body = response_body_;
     response->mime_type = mime_type_;
     response->response_code = response_code_;
     response->headers = headers_;
 
-    gtest_message_loop_->PostTask(FROM_HERE,
-                                  base::Bind(on_completion, succeeded_));
+    gtest_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(on_completion, base::Passed(&response), succeeded_));
     net::WaitUntilIdle(gtest_message_loop_);
   }
 
@@ -236,7 +237,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   this->headers_.push_back("X-Test-Header: Baz");
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
-  EXPECT_CALL(*handler_.get(), handleRequest(Eq("/bar"), _, _, _)).WillOnce(
+  EXPECT_CALL(*handler_.get(), handleRequest(Eq("/bar"), _, _)).WillOnce(
       DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
@@ -257,7 +258,7 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/?throw=1");
   EXPECT_CALL(*handler_.get(),
-      handleRequest(Eq("/?throw=1"), _, _, _)).WillOnce(
+      handleRequest(Eq("/?throw=1"), _, _)).WillOnce(
           DoAll(Invoke(this, &DialHttpServerTest::Capture), Return(true)));
 
   const HttpResponseInfo* resp = GetResponse(req);
@@ -267,7 +268,7 @@ TEST_F(DialHttpServerTest, CallbackExceptionInServiceHandler) {
 TEST_F(DialHttpServerTest, CallbackHandleRequestReturnsFalse) {
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/false/app");
   EXPECT_CALL(*handler_.get(),
-      handleRequest(Eq("/false/app"), _, _, _)).WillOnce(
+      handleRequest(Eq("/false/app"), _, _)).WillOnce(
           Return(false));
 
   const HttpResponseInfo* resp = GetResponse(req);
