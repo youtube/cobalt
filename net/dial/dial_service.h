@@ -32,10 +32,8 @@ namespace net {
 
 class NET_EXPORT DialService {
  public:
-  static DialService* GetInstance();
+  DialService();
   ~DialService();
-  // Called at program exit or in DialService destructor.
-  void Terminate();
 
   bool Register(DialServiceHandler* handler);
   bool Deregister(DialServiceHandler* handler);
@@ -64,8 +62,8 @@ class NET_EXPORT DialService {
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, GetHandler);
   FRIEND_TEST_ALL_PREFIXES(DialServiceTest, DestructedHandler);
 
-  friend struct base::DefaultLazyInstanceTraits<DialService>;
-  DialService();
+  // Called in DialService destructor.
+  void Terminate();
 
   // Called on the dial_service thread's message loop.
   void OnInitialize();
@@ -80,6 +78,8 @@ class NET_EXPORT DialService {
   ServiceHandlerMap handlers_;
   std::string http_host_address_;
   bool is_running_;
+
+  DISALLOW_COPY_AND_ASSIGN(DialService);
 };
 
 } // namespace net

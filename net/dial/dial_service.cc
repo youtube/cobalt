@@ -17,8 +17,8 @@
 #include "dial_service.h"
 
 #include "base/bind.h"
-#include "base/stringprintf.h"
 #include "base/string_piece.h"
+#include "base/stringprintf.h"
 #include "net/server/http_server_request_info.h"
 #include "net/url_request/url_request.h"
 
@@ -26,22 +26,13 @@ namespace net {
 
 static const std::string kUdpServerAgent = "Steel/2.0 UPnP/1.1";
 
-namespace {
-static base::LazyInstance<DialService> g_instance =
-    LAZY_INSTANCE_INITIALIZER;
-}
-
-// static
-DialService* DialService::GetInstance() {
-  return g_instance.Pointer();
-}
-
 DialService::DialService()
     : thread_(new base::Thread("dial_service"))
     , http_server_(NULL)
     , udp_server_(NULL)
     , is_running_(false) {
-  thread_->StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  base::Thread::Options thread_options(MessageLoop::TYPE_IO, 64 * 1024);
+  thread_->StartWithOptions(thread_options);
   message_loop_proxy()->PostTask(FROM_HERE,
       base::Bind(&DialService::OnInitialize, base::Unretained(this)));
 }
@@ -98,23 +89,9 @@ void DialService::OnInitialize() {
   DCHECK(!http_server_.get());
   DCHECK(!udp_server_.get());
 
-  // Create servers
-  http_server_ = new DialHttpServer();
-  if (!http_server_->Start()) {
-    http_server_ = NULL;
-    DLOG(ERROR) << "HTTP server failed to start.";
-    return;
-  }
-
-  udp_server_.reset(new DialUdpServer());
-  if (!udp_server_->Start(http_server_->location_url(), kUdpServerAgent)) {
-    DLOG(ERROR) << "UDP server failed to start.";
-    // switch off the http_server too.
-    http_server_->Stop();
-    http_server_ = NULL;
-    udp_server_.reset();
-    return;
-  }
+  http_server_ = new DialHttpServer(this);
+  udp_server_.reset(new DialUdpServer(http_server_->location_url(),
+                                      kUdpServerAgent));
 
   // Compute HTTP local address and cache it.
   IPEndPoint addr;
@@ -127,14 +104,8 @@ void DialService::OnInitialize() {
 
 void DialService::OnTerminate() {
   DCHECK(IsOnServiceThread());
-  if (http_server_) {
-    http_server_->Stop();
-    http_server_ = NULL;
-  }
-  if (udp_server_) {
-    udp_server_->Stop();
-    udp_server_.reset();
-  }
+  http_server_ = NULL;
+  udp_server_.reset();
 }
 
 void DialService::OnRegister(DialServiceHandler* handler) {
