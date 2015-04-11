@@ -5,13 +5,13 @@
 #include "dial_http_server.h"
 
 #include "base/bind.h"
-#include "base/stringprintf.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/dial/dial_system_config.h"
 #include "net/dial/dial_service.h"
 #include "net/dial/dial_service_handler.h"
+#include "net/dial/dial_system_config.h"
 #include "net/server/http_server_request_info.h"
 
 #if defined(__LB_SHELL__)
@@ -44,47 +44,34 @@ const static std::string kAppsPrefix = "/apps/";
 
 const int kDialHttpServerPort = 0; // Random Port.
 
-DialHttpServer::DialHttpServer()
-    : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)) {
+DialHttpServer::DialHttpServer(DialService* dial_service)
+    : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)),
+      dial_service_(dial_service) {
+  DCHECK(dial_service);
+  Start();
 }
 
 DialHttpServer::~DialHttpServer() {
+  Stop();
 }
 
-bool DialHttpServer::Start() {
-  if (http_server_ != NULL) {
-    // already running.
-    return true;
-  }
+void DialHttpServer::Start() {
+  DCHECK(dial_service_->IsOnServiceThread());
+  DCHECK(!http_server_);
   DCHECK(server_url_.empty());
 
   http_server_ = new HttpServer(*factory_, this);
-  if (http_server_ == NULL) {
-    return false;
-  }
-
   ConfigureApplicationUrl();
   DCHECK(!server_url_.empty());
-  return true;
 }
 
-bool DialHttpServer::Stop() {
-  if (http_server_ == NULL) {
-    // not running
-    return true;
-  }
+void DialHttpServer::Stop() {
+  DCHECK(dial_service_->IsOnServiceThread());
+  DCHECK(http_server_);
   DCHECK(!server_url_.empty());
-
-  http_server_ = NULL;
-  server_url_.clear();
-  return true;
 }
 
 int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
-  if (http_server_ == NULL) {
-    return ERR_FAILED;
-  }
-
   // get the port information
   int ret = http_server_->GetLocalAddress(addr);
 
@@ -115,8 +102,8 @@ void DialHttpServer::OnHttpRequest(int conn_id,
       // TODO: Remove hardcoded YouTube by remembering the running application.
       http_server_->Send302(conn_id, application_url() + "YouTube");
 
-    } else if (!CallbackJsHttpRequest(conn_id, info)) {
-      // If handled by Js, let it pass. Otherwise, send 404.
+    } else if (!DispatchToHandler(conn_id, info)) {
+      // If handled, let it pass. Otherwise, send 404.
       http_server_->Send404(conn_id);
     }
   } else {
@@ -169,56 +156,51 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   http_server_->Send(conn_id, HTTP_OK, data, kXmlMimeType, headers);
 }
 
-bool DialHttpServer::CallbackJsHttpRequest(int conn_id,
-                                           const HttpServerRequestInfo& info) {
+bool DialHttpServer::DispatchToHandler(int conn_id,
+                                       const HttpServerRequestInfo& info) {
+  // See if DialService has a handler for this request.
+  // In Steel, that will be an instance of H5vccDialServiceHandlerImpl.
+  DCHECK(dial_service_->IsOnServiceThread());
   std::string handler_path;
   DialServiceHandler* handler =
-      DialService::GetInstance()->GetHandler(info.path, &handler_path);
+      dial_service_->GetHandler(info.path, &handler_path);
   if (handler == NULL) {
     return false;
   }
 
   VLOG(1) << "Dispatching request to DialServiceHandler: " << info.path;
-  HttpServerResponseInfo* response = new HttpServerResponseInfo();
-
-  bool ret = handler->handleRequest(handler_path, info, response,
-      base::Bind(&DialHttpServer::AsyncReceivedResponse, this, conn_id,
-                 response));
-  if (!ret) {
-    delete response;
-  }
+  bool ret = handler->handleRequest(handler_path, info,
+      base::Bind(&DialHttpServer::AsyncReceivedResponse, this, conn_id));
   return ret;
 }
 
-// Runs on the dial service message loop.
-static void ReceivedResponse(int conn_id, HttpServer* http_server,
-                             HttpServerResponseInfo* response, bool ok) {
+void DialHttpServer::OnReceivedResponse(
+    int conn_id,
+    scoped_ptr<HttpServerResponseInfo> response,
+    bool ok) {
   DCHECK(response);
-  DCHECK(DialService::GetInstance()->IsOnServiceThread());
+  DCHECK(dial_service_->IsOnServiceThread());
 
-  if (http_server) {
-    if (!ok) {
-      http_server->Send404(conn_id);
-    } else {
-      http_server->Send(conn_id,
-                        static_cast<HttpStatusCode>(response->response_code),
-                        response->body,
-                        response->mime_type,
-                        response->headers);
-    }
+  if (!ok) {
+    http_server_->Send404(conn_id);
+  } else {
+    http_server_->Send(conn_id,
+                       static_cast<HttpStatusCode>(response->response_code),
+                       response->body,
+                       response->mime_type,
+                       response->headers);
   }
-  delete response;
 }
 
-// This runs on JS thread. Free it up ASAP.
-void DialHttpServer::AsyncReceivedResponse(int conn_id,
-    HttpServerResponseInfo* response, bool ok) {
-  // Should not be called from the same thread. Call ReceivedResponse instead.
-  DCHECK(!DialService::GetInstance()->IsOnServiceThread());
-  VLOG(1) << "Received response from JS.";
-  DialService::GetInstance()->message_loop_proxy()->PostTask(FROM_HERE,
-      base::Bind(ReceivedResponse, conn_id, http_server_, response, ok));
+void DialHttpServer::AsyncReceivedResponse(
+    int conn_id,
+    scoped_ptr<HttpServerResponseInfo> response,
+    bool ok) {
+  // Should be called from WebKit.
+  DCHECK(!dial_service_->IsOnServiceThread());
+  dial_service_->message_loop_proxy()->PostTask(FROM_HERE,
+      base::Bind(&DialHttpServer::OnReceivedResponse, this, conn_id,
+                 base::Passed(&response), ok));
 }
 
 } // namespace net
-

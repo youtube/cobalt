@@ -39,16 +39,16 @@ class HttpServerResponseInfo {
 
 class DialServiceHandler {
  public:
+  typedef base::Callback<void(scoped_ptr<HttpServerResponseInfo>, bool)>
+      CompletionCB;
+  virtual ~DialServiceHandler() {}
   virtual bool handleRequest(const std::string& path,
                              const HttpServerRequestInfo& request,
-                             HttpServerResponseInfo* response,
-                             const base::Callback<void(bool)>& on_completion)
-      = 0;
+                             const CompletionCB& completion_cb) = 0;
   virtual const std::string service_name() const  = 0;
-  virtual ~DialServiceHandler() { }
 };
 
 } // namespace net
 
-#endif // SRC_DIAL_SERVICE_HANDLER_H_
+#endif  // SRC_DIAL_SERVICE_HANDLER_H_
 
