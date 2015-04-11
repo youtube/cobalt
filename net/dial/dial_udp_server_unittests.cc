@@ -9,7 +9,7 @@
 namespace net {
 
 TEST(DialUdpServerTest, ParseSearchRequest) {
-  DialUdpServer server;
+  DialUdpServer server("fake_location", "fake_server_agent");
   struct TestData {
     std::string received_data;
     bool result;

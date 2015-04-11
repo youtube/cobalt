@@ -41,14 +41,20 @@ IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
 
 }  // namespace
 
-DialUdpServer::DialUdpServer()
+DialUdpServer::DialUdpServer(const std::string& location_url,
+                             const std::string& server_agent)
   : factory_(new DialUdpSocketFactory()),
+    location_url_(location_url),
+    server_agent_(server_agent),
     thread_("dial_udp_server"),
     is_running_(false) {
+  DCHECK(!location_url_.empty());
   thread_.StartWithOptions(base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  Start();
 }
 
 DialUdpServer::~DialUdpServer() {
+  Stop();
 }
 
 void DialUdpServer::CreateAndBind() {
@@ -64,26 +70,17 @@ void DialUdpServer::Shutdown() {
   socket_ = NULL;
 }
 
-bool DialUdpServer::Start(const std::string& location_url,
-                          const std::string& server_agent) {
-  if (is_running_) {
-    return true;
-  }
+void DialUdpServer::Start() {
+  DCHECK(!is_running_);
   is_running_ = true;
-
-  DCHECK(!location_url.empty());
-
-  location_url_ = location_url;
-  server_agent_ = server_agent;
   thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
       &DialUdpServer::CreateAndBind, base::Unretained(this)));
-  return true;
 }
 
-bool DialUdpServer::Stop() {
+void DialUdpServer::Stop() {
+  DCHECK(is_running_);
   thread_.message_loop()->PostTask(FROM_HERE, base::Bind(
       &DialUdpServer::Shutdown, base::Unretained(this)));
-  return true;
 }
 
 void DialUdpServer::DidClose(UDPListenSocket* server) {

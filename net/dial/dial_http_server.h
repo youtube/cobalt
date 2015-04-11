@@ -17,17 +17,22 @@
 
 namespace net {
 
-class IPEndPoint;
+class DialService;
 class HttpResponseInfo;
+class IPEndPoint;
 
+// This class is created and owned by DialService and is not meant to be
+// used externally.
+// All functions run on the DialService's message loop, except for
+// the callback AsyncReceivedResponse() which is eventually called
+// by a DialServiceHandler.
+// It's refcounted threadsafe so we can safely bind it to the callback we pass
+// to DialServiceHandler::handleRequest().
 class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
     public base::RefCountedThreadSafe<DialHttpServer> {
  public:
-  DialHttpServer();
+  explicit DialHttpServer(DialService* dial_service);
   virtual ~DialHttpServer();
-
-  bool Start();
-  bool Stop();
 
   // HttpServer::Delegate implementation
   virtual void OnHttpRequest(int conn_id,
@@ -58,18 +63,33 @@ class NET_EXPORT DialHttpServer : public HttpServer::Delegate,
   int GetLocalAddress(IPEndPoint* addr);
 
  private:
+  void Start();
+  void Stop();
+
   void ConfigureApplicationUrl();
 
   // Send the DIAL Device Description Manifest to the client.
   void SendDeviceDescriptionManifest(int conn_id);
 
-  // Callbacks Javascript Handlers, if any.
-  bool CallbackJsHttpRequest(int conn_id, const HttpServerRequestInfo& info);
-  void AsyncReceivedResponse(int, HttpServerResponseInfo*, bool);
+  // Query DIAL service for a handler for the given request.
+  // Return false if no handler found, true if handleRequest() was issued
+  // to the handler.
+  bool DispatchToHandler(int conn_id, const HttpServerRequestInfo& info);
+
+  // Callback from WebKit thread when the HTTP task is complete.
+  // Post the response info to DIAL service thread.
+  void AsyncReceivedResponse(
+      int conn_id, scoped_ptr<HttpServerResponseInfo> response, bool ok);
+  // Handles DIAL response.
+  void OnReceivedResponse(
+      int conn_id, scoped_ptr<HttpServerResponseInfo> response, bool ok);
 
   scoped_ptr<TCPListenSocketFactory> factory_;
   scoped_refptr<HttpServer> http_server_;
   std::string server_url_;
+  // DialService owns this object and has application lifetime.
+  DialService* dial_service_;
+  DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };
 
 } // namespace net
