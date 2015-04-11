@@ -256,14 +256,22 @@
 %destructor { $$->Release(); } <style_sheet>
 
 %union { cssom::Selector* selector; }
-%type <selector> class_selector_token complex_selector id_selector_token
-                 pseudo_class_token simple_selector_token type_selector_token
+%type <selector> class_selector_token id_selector_token pseudo_class_token
+                 simple_selector_token type_selector_token
                  universal_selector_token
 %destructor { delete $$; } <selector>
 
 %union { cssom::CompoundSelector* compound_selector; }
 %type <compound_selector> compound_selector_token
 %destructor { delete $$; } <compound_selector>
+
+%union { cssom::Combinator* combinator; }
+%type <combinator> combinator
+%destructor { delete $$; } <combinator>
+
+%union { cssom::ComplexSelector* complex_selector; }
+%type <complex_selector> complex_selector
+%destructor { delete $$; } <complex_selector>
 
 %union { cssom::Selectors* selectors; }
 %type <selectors> selector_list
@@ -516,21 +524,30 @@ simple_selector_token:
 compound_selector_token:
     simple_selector_token {
     $$ = new cssom::CompoundSelector();
-    $$->push_back($1);
+    $$->AppendSelector(make_scoped_ptr($1));
   }
   | compound_selector_token simple_selector_token {
     $$ = $1;
-    $$->push_back($2);
+    $$->AppendSelector(scoped_ptr<cssom::Selector>($2));
   }
   ;
 
 // A combinator is punctuation that represents a particular kind of relationship
-// between the compound selectors on either side
+// between the selectors on either side.
 //   http://www.w3.org/TR/selectors4/#combinator
 combinator:
-    kWhitespaceToken
-  | '>' maybe_whitespace
-  | '+' maybe_whitespace
+    kWhitespaceToken {
+    $$ = new cssom::DescendantCombinator();
+  }
+  | '>' maybe_whitespace {
+    $$ = new cssom::ChildCombinator();
+  }
+  | '+' maybe_whitespace {
+    $$ = new cssom::NextSiblingCombinator();
+  }
+  | '~' maybe_whitespace {
+    $$ = new cssom::FollowingSiblingCombinator();
+  }
   ;
 
 // A complex selector is a chain of one or more compound selectors separated by
@@ -538,11 +555,12 @@ combinator:
 //   http://www.w3.org/TR/selectors4/#complex
 complex_selector:
     compound_selector_token {
-    $$ = $1;
+    $$ = new cssom::ComplexSelector();
+    $$->AppendSelector(make_scoped_ptr($1));
   }
   | complex_selector combinator compound_selector_token {
-    scoped_ptr<cssom::Selector> compound_selector($3);
-    $$ = $1;  // TODO(***REMOVED***): Implement.
+    $$ = $1;
+    $$->AppendCombinatorAndSelector(make_scoped_ptr($2), make_scoped_ptr($3));
   }
   | complex_selector kWhitespaceToken
   ;
