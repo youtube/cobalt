@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/selector.h"
 
 namespace cobalt {
@@ -36,7 +37,9 @@ class CompoundSelector : public Selector {
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  void push_back(Selector* selector) { selectors_.push_back(selector); }
+  void AppendSelector(scoped_ptr<Selector> selector) {
+    selectors_.push_back(selector.release());
+  }
 
   const Selectors& selectors() { return selectors_; }
 
