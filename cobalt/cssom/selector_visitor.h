@@ -20,7 +20,9 @@
 namespace cobalt {
 namespace cssom {
 
+class AdjacentSelector;
 class ClassSelector;
+class ComplexSelector;
 class CompoundSelector;
 class EmptyPseudoClass;
 class IdSelector;
@@ -31,14 +33,20 @@ class TypeSelector;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class SelectorVisitor {
  public:
-  // Simple selectors
+  // Simple selectors.
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
   virtual void VisitEmptyPseudoClass(EmptyPseudoClass* empty_pseudo_class) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;
   virtual void VisitTypeSelector(TypeSelector* type_selector) = 0;
 
-  // Compound selector
+  // Compound selector.
   virtual void VisitCompoundSelector(CompoundSelector* compound_selector) = 0;
+
+  // Adjacent selector.
+  virtual void VisitAdjacentSelector(AdjacentSelector* adjacent_selector) = 0;
+
+  // Complex selector.
+  virtual void VisitComplexSelector(ComplexSelector* complex_selector) = 0;
 
  protected:
   ~SelectorVisitor() {}
