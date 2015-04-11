@@ -23,12 +23,9 @@ class HttpServerRequestInfo;
 
 class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
  public:
-  DialUdpServer();
+  DialUdpServer(const std::string& location_url,
+                const std::string& server_agent);
   virtual ~DialUdpServer();
-
-  bool Start(const std::string& location_url,
-             const std::string& server_agent);
-  bool Stop();
 
   // UDPListenSocket::Delegate
   virtual void DidRead(UDPListenSocket* server,
@@ -40,6 +37,9 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);
+
+  void Start();
+  void Stop();
 
   // Create the listen socket. Runs on a separate thread.
   void CreateAndBind();

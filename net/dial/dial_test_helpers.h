@@ -15,11 +15,10 @@ namespace net {
 class MockServiceHandler : public DialServiceHandler {
  public:
   MockServiceHandler(const std::string& service_name);
-  MOCK_METHOD4(handleRequest, bool(const std::string&,
-                                   const HttpServerRequestInfo&,
-                                   HttpServerResponseInfo*,
-                                   const base::Callback<void(bool)>&));
-  const std::string service_name() const OVERRIDE {
+  MOCK_METHOD3(handleRequest, bool(const std::string&,
+                              const HttpServerRequestInfo& request,
+                              const CompletionCB& completion_cb));
+    const std::string service_name() const OVERRIDE {
     return service_name_;
   }
  private:
