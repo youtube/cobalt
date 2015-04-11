@@ -16,7 +16,9 @@
 
 #include "cobalt/cssom/selector_visitor.h"
 
+#include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
@@ -37,6 +39,9 @@ class MockSelectorVisitor : public SelectorVisitor {
 
   MOCK_METHOD1(VisitCompoundSelector,
                void(CompoundSelector* compound_selector));
+  MOCK_METHOD1(VisitAdjacentSelector,
+               void(AdjacentSelector* adjacent_selector));
+  MOCK_METHOD1(VisitComplexSelector, void(ComplexSelector* complex_selector));
 };
 
 TEST(SelectorVisitorTest, VisitsClassSelector) {
@@ -72,6 +77,20 @@ TEST(SelectorVisitorTest, VisitCompoundSelector) {
   MockSelectorVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitCompoundSelector(&compound_selector));
   compound_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitAdjacentSelector) {
+  AdjacentSelector adjacent_selector;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitAdjacentSelector(&adjacent_selector));
+  adjacent_selector.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitComplexSelector) {
+  ComplexSelector complex_selector;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitComplexSelector(&complex_selector));
+  complex_selector.Accept(&mock_visitor);
 }
 
 }  // namespace cssom
