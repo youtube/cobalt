@@ -132,6 +132,7 @@ class Node : public EventTarget {
 
   scoped_refptr<Document> owner_document();
   scoped_refptr<Node> parent_node() const { return parent_.get(); }
+  scoped_refptr<Element> parent_element() const;
   scoped_refptr<Node> next_sibling() const { return next_sibling_; }
   scoped_refptr<Node> previous_sibling() const {
     return previous_sibling_.get();
@@ -147,12 +148,19 @@ class Node : public EventTarget {
 
   // Web API: ParentNode (implements)
   // The ParentNode interface contains methods that are particular to Node
-  // objects that can have children:
+  // objects that can have children.
   //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-parentnode
   scoped_refptr<HTMLCollection> children();
   scoped_refptr<Element> first_element_child();
   scoped_refptr<Element> last_element_child();
   unsigned int child_element_count();
+
+  // Web API: NonDocumentTypeChildNode (implements)
+  // The NonDocumentTypeChildNode interface contains methods that are particular
+  // to Node objects that can have a parent.
+  //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-nondocumenttypechildnode
+  scoped_refptr<Element> previous_element_sibling();
+  scoped_refptr<Element> next_element_sibling();
 
   // Custom, not in any spec.
   //
