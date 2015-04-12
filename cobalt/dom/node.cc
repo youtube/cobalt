@@ -247,6 +247,10 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
 
 scoped_refptr<Document> Node::owner_document() { return owner_document_.get(); }
 
+scoped_refptr<Element> Node::parent_element() const {
+  return parent_ ? parent_->AsElement() : NULL;
+}
+
 std::string Node::text_content() const {
   std::string content;
 
@@ -276,9 +280,8 @@ scoped_refptr<HTMLCollection> Node::children() {
 scoped_refptr<Element> Node::first_element_child() {
   Node* child = first_child();
   while (child) {
-    scoped_refptr<Element> element = child->AsElement();
-    if (element) {
-      return element;
+    if (child->IsElement()) {
+      return child->AsElement();
     }
     child = child->next_sibling();
   }
@@ -288,9 +291,8 @@ scoped_refptr<Element> Node::first_element_child() {
 scoped_refptr<Element> Node::last_element_child() {
   Node* child = last_child();
   while (child) {
-    scoped_refptr<Element> element = child->AsElement();
-    if (element) {
-      return element;
+    if (child->IsElement()) {
+      return child->AsElement();
     }
     child = child->previous_sibling();
   }
@@ -307,6 +309,28 @@ unsigned int Node::child_element_count() {
     child = child->next_sibling();
   }
   return num_elements;
+}
+
+scoped_refptr<Element> Node::previous_element_sibling() {
+  Node* sibling = previous_sibling();
+  while (sibling) {
+    if (sibling->IsElement()) {
+      return sibling->AsElement();
+    }
+    sibling = sibling->previous_sibling();
+  }
+  return NULL;
+}
+
+scoped_refptr<Element> Node::next_element_sibling() {
+  Node* sibling = next_sibling();
+  while (sibling) {
+    if (sibling->IsElement()) {
+      return sibling->AsElement();
+    }
+    sibling = sibling->next_sibling();
+  }
+  return NULL;
 }
 
 scoped_refptr<Comment> Node::AsComment() { return NULL; }
