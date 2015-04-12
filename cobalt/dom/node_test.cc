@@ -17,6 +17,8 @@
 #include "cobalt/dom/node.h"
 
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/element.h"
+#include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
@@ -25,6 +27,12 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
+
+const scoped_refptr<Node> kNullNode;
+const scoped_refptr<HTMLCollection> kNullCollection;
+
+}  // namespace
 
 //////////////////////////////////////////////////////////////////////////
 // NodeTest
@@ -174,6 +182,72 @@ TEST_F(NodeTest, HasChildNodes) {
 
   root->AppendChild(new FakeNode());
   EXPECT_TRUE(root->HasChildNodes());
+}
+
+TEST_F(NodeTest, ParentElement) {
+  scoped_refptr<Node> node = new FakeNode();
+  EXPECT_EQ(NULL, node->parent_element());
+
+  scoped_refptr<Node> root = new FakeNode();
+  root->AppendChild(node);
+  EXPECT_EQ(NULL, node->parent_element());
+
+  root->RemoveChild(node);
+  scoped_refptr<Element> parent_element = new Element();
+  parent_element->AppendChild(node);
+  EXPECT_EQ(parent_element, node->parent_element());
+}
+
+TEST_F(NodeTest, ParentNode) {
+  scoped_refptr<Node> node = new FakeNode();
+  node->AppendChild(new Text("first"));
+  scoped_refptr<Element> child1 = node->AppendChild(new Element())->AsElement();
+  node->AppendChild(new Text("middle"));
+  scoped_refptr<Element> child2 = node->AppendChild(new Element())->AsElement();
+  node->AppendChild(new Text("last"));
+  child1->SetAttribute("id", "1");
+  child2->SetAttribute("id", "2");
+  scoped_refptr<HTMLCollection> children = node->children();
+
+  // Check the result of the methods on ParentNode.
+  EXPECT_EQ(2, node->child_element_count());
+  EXPECT_EQ(child1, node->first_element_child());
+  EXPECT_EQ(child2, node->last_element_child());
+  ASSERT_NE(kNullCollection, children);
+  EXPECT_EQ(2, children->length());
+  EXPECT_EQ(child1, children->Item(0));
+  EXPECT_EQ(child2, children->Item(1));
+  EXPECT_EQ(kNullNode, children->Item(2));
+  EXPECT_EQ(child1, children->NamedItem("1"));
+  EXPECT_EQ(child2, children->NamedItem("2"));
+  EXPECT_EQ(kNullNode, children->NamedItem("3"));
+
+  // Remove a child and make sure that the children collection was updated
+  // accordingly.
+  node->RemoveChild(child2);
+  EXPECT_EQ(1, children->length());
+  EXPECT_EQ(child1, children->Item(0));
+  EXPECT_EQ(kNullNode, children->Item(1));
+  EXPECT_EQ(child1, children->NamedItem("1"));
+  EXPECT_EQ(kNullNode, children->NamedItem("2"));
+}
+
+TEST_F(NodeTest, NonDocumentTypeChildNode) {
+  scoped_refptr<Node> node = new FakeNode();
+  node->AppendChild(new Text("first"));
+  scoped_refptr<Element> child1 = node->AppendChild(new Element())->AsElement();
+  node->AppendChild(new Text("middle"));
+  scoped_refptr<Element> child2 = node->AppendChild(new Element())->AsElement();
+  scoped_refptr<Element> child3 = node->AppendChild(new Element())->AsElement();
+  node->AppendChild(new Text("last"));
+  scoped_refptr<HTMLCollection> children = node->children();
+
+  EXPECT_EQ(kNullNode, child1->previous_element_sibling());
+  EXPECT_EQ(child1, child2->previous_element_sibling());
+  EXPECT_EQ(child2, child3->previous_element_sibling());
+  EXPECT_EQ(child2, child1->next_element_sibling());
+  EXPECT_EQ(child3, child2->next_element_sibling());
+  EXPECT_EQ(kNullNode, child3->next_element_sibling());
 }
 
 }  // namespace dom
