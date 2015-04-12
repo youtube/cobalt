@@ -143,8 +143,6 @@
         'testing/gtest_workarounds.h',
         'testing/html_collection_testing.h',
         'testing/mock_event_listener.h',
-        'testing/parent_node_testing.cc',
-        'testing/parent_node_testing.h',
         'testing/stub_css_parser.cc',
         'testing/stub_css_parser.h',
         'testing/stub_script_runner.cc',

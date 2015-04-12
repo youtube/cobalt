@@ -25,7 +25,6 @@
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
-#include "cobalt/dom/testing/parent_node_testing.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -256,16 +255,6 @@ TEST_F(ElementTest, ClassList) {
   EXPECT_EQ(std::string("d"), class_list->Item(1));
   EXPECT_EQ(std::string("c"), class_list->Item(2));
   EXPECT_EQ(base::nullopt, class_list->Item(3));
-}
-
-TEST_F(ElementTest, ParentNodeAllExceptChilden) {
-  scoped_refptr<Element> root = new Element();
-  testing::TestParentNodeAllExceptChilden(root);
-}
-
-TEST_F(ElementTest, ParentNodeChildren) {
-  scoped_refptr<Element> root = new Element();
-  testing::TestParentNodeChildren(root);
 }
 
 TEST_F(ElementTest, GetElementsByClassName) {

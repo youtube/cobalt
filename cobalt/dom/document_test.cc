@@ -24,7 +24,6 @@
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
-#include "cobalt/dom/testing/parent_node_testing.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -99,18 +98,6 @@ TEST_F(DocumentTest, CreateTextNode) {
 
   // Make sure that the text is not attached to anything.
   EXPECT_EQ(NULL, text->owner_document());
-}
-
-TEST_F(DocumentTest, ParentNodeAllExceptChilden) {
-  scoped_refptr<Document> root =
-      new Document(&html_element_factory_, Document::Options());
-  testing::TestParentNodeAllExceptChilden(root);
-}
-
-TEST_F(DocumentTest, ParentNodeChildren) {
-  scoped_refptr<Document> root =
-      new Document(&html_element_factory_, Document::Options());
-  testing::TestParentNodeChildren(root);
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
