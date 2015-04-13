@@ -96,6 +96,7 @@
         'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',
         'keyword_value_test.cc',
+        'property_value_is_equal_test.cc',
         'property_value_visitor_test.cc',
         'selector_visitor_test.cc',
         'style_sheet_list_test.cc',

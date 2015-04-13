@@ -59,6 +59,11 @@ class FontWeightValue : public PropertyValue {
 
   Value value() const { return value_; }
 
+  bool operator==(const FontWeightValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(FontWeightValue);
   DEFINE_WRAPPABLE_TYPE(FontWeightValue);
 
  private:

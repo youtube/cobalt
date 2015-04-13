@@ -45,6 +45,11 @@ class RGBAColorValue : public PropertyValue {
 
   uint32_t value() const { return value_; }
 
+  bool operator==(const RGBAColorValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(RGBAColorValue);
   DEFINE_WRAPPABLE_TYPE(RGBAColorValue);
 
  private:

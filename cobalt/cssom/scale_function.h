@@ -36,6 +36,12 @@ class ScaleFunction : public TransformFunction {
   float x_factor() const { return x_factor_; }
   float y_factor() const { return y_factor_; }
 
+  bool operator==(const ScaleFunction& other) const {
+    return x_factor_ == other.x_factor_ && y_factor_ == other.y_factor_;
+  }
+
+  DEFINE_TRANSFORM_FUNCTION_TYPE(ScaleFunction);
+
  private:
   const float x_factor_;
   const float y_factor_;

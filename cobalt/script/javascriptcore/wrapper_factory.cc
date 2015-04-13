@@ -22,7 +22,7 @@ namespace script {
 namespace javascriptcore {
 
 void WrapperFactory::RegisterCreateWrapperMethod(
-    Wrappable::Type wrappable_type,
+    base::TypeId wrappable_type,
     const CreateWrapperFunction& create_function) {
   std::pair<CreateWrapperFunctionMap::iterator, bool> pib;
   pib =

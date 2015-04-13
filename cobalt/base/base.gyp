@@ -25,6 +25,7 @@
         'init_cobalt.h',
         'polymorphic_downcast.h',
         'source_location.h',
+        'type_id.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',

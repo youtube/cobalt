@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,11 +40,30 @@ class PropertyValue : public script::Wrappable {
     return base::nullopt;
   }
 
+  virtual bool IsEqual(const PropertyValue* other) const = 0;
+  virtual base::TypeId GetTypeId() const = 0;
+
   DEFINE_WRAPPABLE_TYPE(PropertyValue);
 
  protected:
   virtual ~PropertyValue() {}
 };
+
+// Used to provide type-safe equality checking even when the exact
+// PropertyValue type is unknown.  For any class T that is intended to be
+// a descendant of PropertyValue, it should call this macro in the public
+// section of its class declaration.
+#define DEFINE_PROPERTY_VALUE_TYPE(CLASS_NAME)                                \
+  bool IsEqual(const PropertyValue* other) const OVERRIDE {                   \
+    return base::GetTypeId<CLASS_NAME>() == other->GetTypeId() &&             \
+           *static_cast<const CLASS_NAME*>(this) ==                           \
+           *static_cast<const CLASS_NAME*>(other);                            \
+  }                                                                           \
+                                                                              \
+  base::TypeId GetTypeId() const OVERRIDE {                                   \
+    return base::GetTypeId<CLASS_NAME>();                                     \
+  }                                                                           \
+
 
 }  // namespace cssom
 }  // namespace cobalt
