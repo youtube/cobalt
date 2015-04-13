@@ -248,6 +248,8 @@
         'base/shell_media_platform.h',
         'base/shell_media_statistics.cc',
         'base/shell_media_statistics.h',
+        'base/shell_video_data_allocator.cc',
+        'base/shell_video_data_allocator.h',
         'base/sinc_resampler.cc',
         'base/sinc_resampler.h',
         'base/stream_parser.cc',
