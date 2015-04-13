@@ -22,6 +22,7 @@
 #include "base/bind.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/script/script_object_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
@@ -39,7 +40,7 @@ class WrapperFactory {
   typedef base::Callback<JSC::JSObject*(
       JSCGlobalObject*, const scoped_refptr<Wrappable>&)> CreateWrapperFunction;
   void RegisterCreateWrapperMethod(
-      Wrappable::Type wrappable_type,
+      base::TypeId wrappable_type,
       const CreateWrapperFunction& create_function);
   JSC::JSObject* GetWrapper(const scoped_refptr<Wrappable>& wrappable) const;
 
@@ -47,15 +48,8 @@ class WrapperFactory {
   scoped_ptr<ScriptObjectHandle> CreateWrapper(
       const scoped_refptr<Wrappable>& wrappable) const;
 
-#if defined(__LB_LINUX__)
-  typedef base::hash_map<Wrappable::Type, CreateWrapperFunction,
-                         Wrappable::Type::hash_function>
+  typedef base::hash_map<base::TypeId, CreateWrapperFunction>
       CreateWrapperFunctionMap;
-#else
-  typedef base::hash_map<Wrappable::Type, CreateWrapperFunction,
-                         Wrappable::Type::hash_compare>
-      CreateWrapperFunctionMap;
-#endif
   CreateWrapperFunctionMap create_functions_;
   JSCGlobalObject* global_object_;
 };

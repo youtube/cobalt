@@ -38,6 +38,11 @@ class StringValue : public PropertyValue {
 
   const std::string& value() const { return value_; }
 
+  bool operator==(const StringValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(StringValue);
   DEFINE_WRAPPABLE_TYPE(StringValue);
 
  private:

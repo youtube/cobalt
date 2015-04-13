@@ -37,6 +37,12 @@ class TranslateXFunction : public TransformFunction {
 
   const scoped_refptr<LengthValue>& offset() const { return offset_; }
 
+  bool operator==(const TranslateXFunction& other) const {
+    return *offset_ == *other.offset_;
+  }
+
+  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateXFunction);
+
  private:
   const scoped_refptr<LengthValue> offset_;
 
@@ -55,6 +61,12 @@ class TranslateYFunction : public TransformFunction {
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
   const scoped_refptr<LengthValue>& offset() const { return offset_; }
+
+  bool operator==(const TranslateYFunction& other) const {
+    return *offset_ == *other.offset_;
+  }
+
+  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateYFunction);
 
  private:
   const scoped_refptr<LengthValue> offset_;
@@ -75,6 +87,12 @@ class TranslateZFunction : public TransformFunction {
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
   const scoped_refptr<LengthValue>& offset() const { return offset_; }
+
+  bool operator==(const TranslateZFunction& other) const {
+    return *offset_ == *other.offset_;
+  }
+
+  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateZFunction);
 
  private:
   const scoped_refptr<LengthValue> offset_;

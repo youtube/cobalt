@@ -34,6 +34,12 @@ class NumberValue : public PropertyValue {
 
   float value() const { return value_; }
 
+
+  bool operator==(const NumberValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(NumberValue);
   DEFINE_WRAPPABLE_TYPE(NumberValue);
 
  private:

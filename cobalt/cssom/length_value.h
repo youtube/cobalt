@@ -45,6 +45,11 @@ class LengthValue : public PropertyValue {
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
 
+  bool operator==(const LengthValue& other) const {
+    return value_ == other.value_ && unit_ == other.unit_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(LengthValue);
   DEFINE_WRAPPABLE_TYPE(LengthValue);
 
  private:
