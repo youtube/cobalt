@@ -32,6 +32,10 @@ enum TimeUnit {
 struct Time {
   float value;
   TimeUnit unit;
+
+  bool operator==(const Time& other) const {
+    return value == other.value && unit == other.unit;
+  }
 };
 
 // A list of times that may be used to define things like animation durations.
@@ -44,6 +48,13 @@ class TimeListValue : public PropertyValue {
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const TimeList& value() const { return *value_; }
+
+  bool operator==(const TimeListValue& other) const {
+    return *value_ == *other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(TimeListValue);
+  DEFINE_WRAPPABLE_TYPE(TimeListValue);
 
  private:
   ~TimeListValue() OVERRIDE;

@@ -98,6 +98,13 @@ class KeywordValue : public PropertyValue {
 
   Value value() const { return value_; }
 
+  bool operator==(const KeywordValue& other) const {
+    return value_ == other.value_;
+  }
+
+  DEFINE_PROPERTY_VALUE_TYPE(KeywordValue);
+  DEFINE_WRAPPABLE_TYPE(KeywordValue);
+
  private:
   ~KeywordValue() OVERRIDE {}
 
