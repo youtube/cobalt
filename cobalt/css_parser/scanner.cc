@@ -1084,6 +1084,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
   DCHECK_GT(name.size(), 0);
 
   switch (name.size()) {
+    case 3:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAllPropertyName)) {
+        *property_name_token = kAllToken;
+        return true;
+      }
     case 5:
       if (IsEqualToCssIdentifier(name.begin, cssom::kColorPropertyName)) {
         *property_name_token = kColorToken;
