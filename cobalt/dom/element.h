@@ -19,7 +19,6 @@
 
 #include "base/optional.h"
 #include "base/string_piece.h"
-#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -108,13 +107,6 @@ class Element : public Node {
 
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
-  // TODO(***REMOVED***): Remove this when auto type binding is supported for JS.
-  // b/19898684 is fired to track this issue.
-  // This function is just for HTMLElement.
-  virtual const scoped_refptr<cssom::CSSStyleDeclaration>& style() {
-    return style_;
-  }
-
   DEFINE_WRAPPABLE_TYPE(Element);
 
  protected:
@@ -140,9 +132,6 @@ class Element : public Node {
 
   // Reference to HTML element factory, used for setting inner HTML attribute.
   HTMLElementFactory* html_element_factory_;
-
-  // TODO(***REMOVED***): Remove style_ when auto type binding is supported for JS.
-  scoped_refptr<cssom::CSSStyleDeclaration> style_;
 };
 
 }  // namespace dom
