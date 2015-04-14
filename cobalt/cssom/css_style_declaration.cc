@@ -36,6 +36,8 @@ class SourceLocationAdapter {
 
  private:
   const base::SourceLocation location_;
+
+  DISALLOW_COPY_AND_ASSIGN(SourceLocationAdapter);
 };
 
 // |kSourceLocationAdapter| will be lazily created on the first time it's
