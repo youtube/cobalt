@@ -22,7 +22,4 @@ interface ElementCSSInlineStyle {
   [SameObject] readonly attribute CSSStyleDeclaration style;
 };
 
-// TODO(***REMOVED***): style should be on HTMLElement. Revert this to HTMLElement when
-// auto type binding is supported for JS. b/19898684 is fired to track this
-// issue.
-Element implements ElementCSSInlineStyle;
+HTMLElement implements ElementCSSInlineStyle;
