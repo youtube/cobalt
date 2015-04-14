@@ -56,6 +56,7 @@
 // Property name tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kAllToken                        // all
 %token kBackgroundToken                 // background
 %token kBackgroundColorToken            // background-color
 %token kBorderRadiusToken               // border-radius
@@ -347,6 +348,9 @@ at_rule:
 identifier_token:
     kIdentifierToken
   // Property names.
+  | kAllToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAllPropertyName);
+  }
   | kBackgroundToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundPropertyName);
   }
@@ -992,7 +996,10 @@ maybe_important:
 // are supported for animations in Cobalt.
 //   http://www.w3.org/TR/css3-transitions/#animatable-css
 animatable_property_token:
-    kBackgroundColorToken {
+    kAllToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAllPropertyName);
+  }
+  | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
   }
   | kBorderRadiusToken {
