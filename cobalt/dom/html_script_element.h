@@ -66,6 +66,8 @@ class HTMLScriptElement : public HTMLElement {
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
 
+  DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
+
  private:
   ~HTMLScriptElement() OVERRIDE;
 
