@@ -670,6 +670,19 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
             property_name_list->value()[2]);
 }
 
+TEST_F(ParserTest, ParsesTransitionPropertyWithAllValue) {
+  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
+      dynamic_cast<cssom::PropertyNameListValue*>(
+          parser_.ParsePropertyValue(
+              "transition-property", "all",
+              source_location_).get());
+  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+            property_name_list.get());
+
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kAllPropertyName, property_name_list->value()[0]);
+}
+
 TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transition-property: none;",
@@ -679,7 +692,6 @@ TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
       dynamic_cast<cssom::KeywordValue*>(style->transition_property().get());
   EXPECT_EQ(cssom::KeywordValue::GetNone().get(), transition_property.get());
 }
-
 
 TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
