@@ -250,6 +250,8 @@
         'base/shell_media_statistics.h',
         'base/shell_video_data_allocator.cc',
         'base/shell_video_data_allocator.h',
+        'base/shell_video_frame_provider.cc',
+        'base/shell_video_frame_provider.h',
         'base/sinc_resampler.cc',
         'base/sinc_resampler.h',
         'base/stream_parser.cc',
