@@ -19,8 +19,9 @@
 
 #include <list>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/render_tree/animations/animation.h"
+#include "base/time.h"
 #include "cobalt/render_tree/movable.h"
 
 namespace cobalt {
@@ -34,18 +35,56 @@ namespace animations {
 // allows this object to safely persist while being shared between multiple
 // threads.
 
+template <typename T>
+class Animation {
+ public:
+  // An Animation<T>::Function represents a single animation that can be applied
+  // on any render_tree::Node object of the specified template type argument.
+  //
+  // As an example, one could create an animation that linearly interpolates
+  // between two color values on a TextNode object by first definining the
+  // animation function (assuming ColorRGBA has operator*() defined):
+  //
+  //   void InterpolateTextColor(
+  //       base::Time start_time,
+  //       ColorRGBA final_color, base::TimeDelta duration,
+  //       TextNode::Builder* text_node, base::Time time) {
+  //     base::TimeDelta time_elapsed = start_time - time;
+  //     if (time_elapsed < duration) {
+  //       double progress = time_elapsed.InSecondsF() / duration.InSecondsF();
+  //       text_node->color =
+  //           text_node->color * (1 - progress) + final_color * progress;
+  //     } else {
+  //       text_node->color = final_color;
+  //     }
+  //   }
+  //
+  // You can then use base::Bind to package this function into a base::Callback
+  // that matches the Animation<T>::Function signature:
+  //
+  //   AnimationList<TextNode>::Builder animation_list_builder;
+  //   animation_list_builder.push_back(
+  //       base::Bind(&InterpolateTextColor,
+  //                  base::Time::Now(), ColorRGBA(0.0f, 1.0f, 0.0f),
+  //                  base::TimeDelta::FromSeconds(1)));
+  //
+  // You can now create an AnimationList object from the AnimationList::Builder
+  // and ultimately add that to a NodeAnimationsMap object so that it can be
+  // mapped to a specific TextNode that it should be applied to.
+  typedef base::Callback<void(typename T::Builder*, base::Time)> Function;
+};
+
 // The AnimationListBase is used so that we can acquire a non-template handle
 // to an AnimationList, which helps reduce code required in node_animation.h by
 // letting us collect animation lists in a single collection, at the cost of
 // needing to type cast in a few places.
-
 class AnimationListBase : public base::RefCountedThreadSafe<AnimationListBase> {
  protected:
   virtual ~AnimationListBase() {}
   friend class base::RefCountedThreadSafe<AnimationListBase>;
 };
 
-// Since animation objects are templated on a specific render tree Node type,
+// Since animation functions are templated on a specific render tree Node type,
 // so must AnimationLists.
 template <typename T>
 class AnimationList : public AnimationListBase {
@@ -55,7 +94,7 @@ class AnimationList : public AnimationListBase {
   // because it is anticipated that AnimationLists will commonly have only
   // 1 element in them, since std::list does not make an attempt to reserve
   // capacity in advance, it can save on memory in these instances.
-  typedef std::list<scoped_refptr<Animation<T> > > InternalList;
+  typedef std::list<typename Animation<T>::Function> InternalList;
 
   // An object that provides a means to setting up a list before constructing
   // the immutable AnimationList.
@@ -64,7 +103,7 @@ class AnimationList : public AnimationListBase {
 
     Builder() {}
     explicit Builder(Moved moved) { animations.swap(moved->animations); }
-    explicit Builder(const scoped_refptr<Animation<T> >& single_animation) {
+    explicit Builder(const typename Animation<T>::Function& single_animation) {
       animations.push_back(single_animation);
     }
 
@@ -74,7 +113,8 @@ class AnimationList : public AnimationListBase {
   explicit AnimationList(typename Builder::Moved builder) : data_(builder) {}
   // Convenience constructor to allow for easy construction of AnimationLists
   // containing a single Animation.
-  explicit AnimationList(const scoped_refptr<Animation<T> >& single_animation)
+  explicit AnimationList(
+      const typename Animation<T>::Function& single_animation)
       : data_(single_animation) {}
 
   const Builder& data() const { return data_; }
