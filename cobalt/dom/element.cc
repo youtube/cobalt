@@ -17,6 +17,7 @@
 #include "cobalt/dom/element.h"
 
 #include "base/string_util.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_decoder.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_collection.h"
@@ -139,6 +140,10 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   if (named_node_map_) {
     named_node_map_->SetAttributeInternal(name_lower_case, value);
   }
+
+  if (owner_document()) {
+    owner_document()->RecordMutation();
+  }
 }
 
 // Algorithm for RemoveAttribute:
@@ -164,6 +169,10 @@ void Element::RemoveAttribute(const std::string& name) {
   }
   if (named_node_map_) {
     named_node_map_->RemoveAttributeInternal(name_lower_case);
+  }
+
+  if (owner_document()) {
+    owner_document()->RecordMutation();
   }
 }
 
