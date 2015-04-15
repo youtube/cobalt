@@ -98,10 +98,8 @@ struct hash<base::TypeId> {
     return base_hash(key.value_);
   }
 
-  hash<T*> base_hash;
+  hash<intptr_t> base_hash;
 };
-
-}  // namespace BASE_HASH_NAMESPACE
 
 //
 // Dinkumware-flavored hash functor.
