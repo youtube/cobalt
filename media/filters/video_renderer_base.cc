@@ -129,6 +129,12 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
+#if defined(__LB_SHELL__)
+  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
+      GetVideoFrameProvider();
+  if (frame_provider) { frame_provider->Stop(); }
+#endif  // defined(__LB_SHELL__)
+
   if (decrypting_demuxer_stream_) {
     decrypting_demuxer_stream_->Reset(base::Bind(
         &VideoRendererBase::StopDecoder, this, callback));
@@ -518,8 +524,13 @@ VideoRendererBase::~VideoRendererBase() {
   DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
 }
 
-void VideoRendererBase::FrameReady(VideoDecoder::Status status,
-                                   const scoped_refptr<VideoFrame>& frame) {
+void VideoRendererBase::FrameReady(
+    VideoDecoder::Status status,
+    const scoped_refptr<VideoFrame>& incoming_frame) {
+  // Make a copy as we may assign newly created punch out frame to `frame` when
+  // frame provider is available.
+  scoped_refptr<VideoFrame> frame(incoming_frame);
+
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);
 
@@ -563,6 +574,19 @@ void VideoRendererBase::FrameReady(VideoDecoder::Status status,
     base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
     return;
   }
+
+#if defined(__LB_SHELL__)
+  if (!frame->IsEndOfStream()) {
+    ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
+        GetVideoFrameProvider();
+    if (frame_provider) {
+      frame_provider->AddFrame(frame);
+      base::TimeDelta timestamp = frame->GetTimestamp();
+      frame = VideoFrame::CreatePunchOutFrame(frame->visible_rect().size());
+      frame->SetTimestamp(timestamp);
+    }
+  }
+#endif  // defined(__LB_SHELL__)
 
   // Discard frames until we reach our desired preroll timestamp.
   if (state_ == kPrerolling && !frame->IsEndOfStream() &&
@@ -731,6 +755,12 @@ void VideoRendererBase::AttemptFlush_Locked() {
 
   prerolling_delayed_frame_ = NULL;
   ready_frames_.clear();
+
+#if defined(__LB_SHELL__)
+  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
+      GetVideoFrameProvider();
+  if (frame_provider) { frame_provider->Flush(); }
+#endif  // defined(__LB_SHELL__)
 
   if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;
