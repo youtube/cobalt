@@ -100,7 +100,6 @@
       'sources': [
         'computed_style_test.cc',
         'declared_style_test.cc',
-        'layout_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
