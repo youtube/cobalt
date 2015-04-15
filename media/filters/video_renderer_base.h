@@ -108,7 +108,7 @@ class MEDIA_EXPORT VideoRendererBase
   // Callback from the video decoder delivering decoded video frames and
   // reporting video decoder status.
   void FrameReady(VideoDecoder::Status status,
-                  const scoped_refptr<VideoFrame>& frame);
+                  const scoped_refptr<VideoFrame>& incoming_frame);
 
   // Helper method for adding a frame to |ready_frames_|
   void AddReadyFrame(const scoped_refptr<VideoFrame>& frame);
