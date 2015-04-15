@@ -44,11 +44,13 @@ namespace scenes {
 
 namespace {
 
-void AnimateGrowingRectComposition(math::SizeF output_dimensions,
+void AnimateGrowingRectComposition(base::Time start_time,
+                                   const math::SizeF& output_dimensions,
                                    CompositionNode::Builder* composition_node,
-                                   base::TimeDelta time) {
+                                   base::Time time) {
   const float kGrowingRectPeriod = 5.0f;
-  float rect_size_scale = Sawtooth(time.InSecondsF() / kGrowingRectPeriod);
+  float rect_size_scale =
+      Sawtooth((time - start_time).InSecondsF() / kGrowingRectPeriod);
   SizeF rect_size(ScaleSize(output_dimensions, rect_size_scale));
 
   // Scale and translate the matrix based on how much time has passed.
@@ -81,13 +83,9 @@ RenderTreeWithAnimations CreateGrowingRectScene(
   scoped_refptr<CompositionNode> growing_rect_composition(
       new CompositionNode(growing_rect_scene_builder.Pass()));
 
-  animations.Add(
-      growing_rect_composition,
-      make_scoped_refptr(
-          new AnimationList<CompositionNode>(
-              make_scoped_refptr(new Animation<CompositionNode>(
-                  base::Bind(&AnimateGrowingRectComposition, output_dimensions),
-                  start_time)))));
+  animations.Add(growing_rect_composition,
+                 base::Bind(&AnimateGrowingRectComposition, start_time,
+                            output_dimensions));
 
   return RenderTreeWithAnimations(
       growing_rect_composition, new NodeAnimationsMap(animations.Pass()));

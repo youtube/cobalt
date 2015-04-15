@@ -47,15 +47,17 @@ namespace scenes {
 
 namespace {
 
-void AnimateMarqueeElement(int child_index, const RectF& text_bounds,
+void AnimateMarqueeElement(base::Time start_time, int child_index,
+                           const RectF& text_bounds,
                            const SizeF& output_dimensions,
                            CompositionNode::Builder* composition_node,
-                           base::TimeDelta time) {
+                           base::Time time) {
   // Calculate the animated x position of the text.
   const float kTextMarqueePeriod = 10.0f;
   float text_start_position = -text_bounds.right();
   float text_end_position = output_dimensions.width() - text_bounds.x();
-  float periodic_position = Sawtooth(time.InSecondsF() / kTextMarqueePeriod);
+  float periodic_position =
+      Sawtooth((time - start_time).InSecondsF() / kTextMarqueePeriod);
   float x_position =
       text_start_position +
       (text_end_position - text_start_position) * periodic_position;
@@ -103,18 +105,16 @@ RenderTreeWithAnimations CreateMarqueeScene(
           SizeF(text_bounds.width(), text_bounds.height()),
           scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(0.7f, 0.2f, 1.0f))))),
       TranslateMatrix(text_bounds.x(), y_position + text_bounds.y()));
-  marquee_animations.animations.push_back(new Animation<CompositionNode>(
-      base::Bind(&AnimateMarqueeElement, 0, text_bounds, output_dimensions),
-      start_time));
+  marquee_animations.animations.push_back(base::Bind(
+      &AnimateMarqueeElement, start_time, 0, text_bounds, output_dimensions));
 
   // Add the actual text node to our composition.
   marquee_scene_builder.AddChild(
       make_scoped_refptr(
           new TextNode(kMarqueeText, test_font, ColorRGBA(0.0f, 0.0f, 0.0f))),
       TranslateMatrix(0, y_position));
-  marquee_animations.animations.push_back(new Animation<CompositionNode>(
-      base::Bind(&AnimateMarqueeElement, 1, text_bounds, output_dimensions),
-      start_time));
+  marquee_animations.animations.push_back(base::Bind(
+      &AnimateMarqueeElement, start_time, 1, text_bounds, output_dimensions));
 
   scoped_refptr<CompositionNode> marquee_composition(
       new CompositionNode(marquee_scene_builder.Pass()));
