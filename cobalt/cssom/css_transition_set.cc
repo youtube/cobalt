@@ -57,8 +57,6 @@ int GetPropertyTransitionIndex(
 
   return -1;
 }
-
-
 }  // namespace
 
 TransitionSet::TransitionSet() {}
@@ -67,6 +65,16 @@ void TransitionSet::UpdateTransitions(
     const base::Time& current_time,
     const cssom::CSSStyleDeclarationData& source_computed_style,
     const cssom::CSSStyleDeclarationData& destination_computed_style) {
+  TimeListValue* transition_duration =
+      base::polymorphic_downcast<TimeListValue*>(
+          destination_computed_style.transition_duration().get());
+  if (transition_duration->value().size() == 1 &&
+      transition_duration->value()[0].value == 0.0f) {
+    // No need to process transitions if all their durations are set to
+    // 0, the initial value, so this will happen often.
+    return;
+  }
+
   // For each animatable property, check to see if there are any transitions
   // assigned to it.  If so, check to see if there are any existing transitions
   // that must be updated, otherwise introduce new transitions.
@@ -86,36 +94,139 @@ void TransitionSet::InsertOrReplaceInInternalMap(
   }
 }
 
+namespace {
+void SetReversingValues(
+    const base::Time& current_time, const Transition& old_transition,
+    const scoped_refptr<PropertyValue>& new_start_value,
+    const scoped_refptr<PropertyValue>& new_end_value,
+    scoped_refptr<PropertyValue>* new_reversing_adjusted_start_value,
+    float* new_reversing_shortening_factor) {
+  // This value is calculated as explained here:
+  //   http://www.w3.org/TR/css3-transitions/#reversing
+  // These calculations make a pleasant experience when reversing a transition
+  // half-way through by making the reverse transition occur over half as much
+  // time.
+  if (old_transition.reversing_adjusted_start_value()->IsEqual(new_end_value)) {
+    *new_reversing_shortening_factor =
+        std::min<float>(1.0f, std::max<float>(0.0f,
+            std::abs(old_transition.Progress(current_time) *
+                         old_transition.reversing_shortening_factor() +
+                     1 - old_transition.reversing_shortening_factor())));
+
+    *new_reversing_adjusted_start_value = old_transition.end_value();
+  } else {
+    *new_reversing_adjusted_start_value = new_start_value;
+    *new_reversing_shortening_factor = 1.0f;
+  }
+}
+
+base::TimeDelta ScaleTimeDelta(const base::TimeDelta& time_delta, float scale) {
+  return base::TimeDelta::FromMicroseconds(static_cast<int64>(
+      time_delta.InSecondsF() * scale * base::Time::kMicrosecondsPerSecond));
+}
+
+// Given that a new transition has started on a CSS value that had an active old
+// transition occurring on it, this function creates a new transition based on
+// the old transition's values (so that we can smoothly transition out of the
+// middle of an old transition).
+Transition CreateTransitionOverOldTransition(
+    const char* property_name, const base::Time& current_time,
+    const Transition& old_transition, const base::TimeDelta& duration,
+    const scoped_refptr<PropertyValue>& end_value) {
+  // Since we're updating an old transtion, we'll need to know the animated
+  // CSS style value from the old transition at this point in time.
+  scoped_refptr<PropertyValue> current_value_within_old_transition =
+      old_transition.Evaluate(current_time);
+
+  // If the new transition is a reversal fo the old transition, we need to
+  // setup reversing_adjusted_start_value and reversing_shortening_factor so
+  // that they can be used to reduce the new transition's duration.
+  scoped_refptr<PropertyValue> new_reversing_adjusted_start_value;
+  float new_reversing_shortening_factor;
+  SetReversingValues(current_time, old_transition,
+                     current_value_within_old_transition, end_value,
+                     &new_reversing_adjusted_start_value,
+                     &new_reversing_shortening_factor);
+
+  // TODO(***REMOVED***): Implement transition-delay property.
+  base::TimeDelta delay = base::TimeDelta();
+  if (delay < base::TimeDelta()) {
+    delay = ScaleTimeDelta(delay, new_reversing_shortening_factor);
+  }
+
+  return Transition(property_name, current_value_within_old_transition,
+                    end_value, current_time,
+                    ScaleTimeDelta(duration, new_reversing_shortening_factor),
+                    delay, TimingFunction(), new_reversing_adjusted_start_value,
+                    new_reversing_shortening_factor);
+}
+
+}  // namespace
+
 void TransitionSet::UpdateTransitionForProperty(
     const char* property_name, const base::Time& current_time,
-    const scoped_refptr<PropertyValue>& source_value,
-    const scoped_refptr<PropertyValue>& destination_value,
+    const scoped_refptr<PropertyValue>& start_value,
+    const scoped_refptr<PropertyValue>& end_value,
     const cssom::CSSStyleDeclarationData& transition_style) {
-  TimeListValue* transition_duration =
-      base::polymorphic_downcast<TimeListValue*>(
-          transition_style.transition_duration().get());
+  // This method essentially implements the logic defined at
+  //   http://www.w3.org/TR/css3-transitions/#starting
 
-  // This is not implemented according to the specifications yet, this will
-  // be done later.  Here, we check if the new CSS value is different from
-  // the original one.  If it is, we start a transition from the old one to
-  // the new one.
-  if (!source_value->IsEqual(destination_value)) {
-    int transition_index = GetPropertyTransitionIndex(
-        property_name, transition_style.transition_property());
-    // Is this property marked to transition?
-    if (transition_index != -1) {
-      base::TimeDelta duration =
-          transition_duration->time_at_index(transition_index).ToTimeDelta();
+  // Get the index of this property in the transition-property list, so we
+  // can know if the property should be animated (i.e. it is animated if it
+  // is in the list) and also how to match up transition-duration and other
+  // transition attributes to it.
+  int transition_index = GetPropertyTransitionIndex(
+      property_name, transition_style.transition_property());
 
-      // Only transition if the duration is not set to 0.
-      if (duration.InMilliseconds() != 0) {
-        InsertOrReplaceInInternalMap(
-            property_name,
-            Transition(property_name, source_value, destination_value,
-                       current_time, duration, base::TimeDelta(),
-                       TimingFunction(), source_value, 1.0f));
+  if (transition_index != -1) {
+    // The property should be animated, though we check now to see if the
+    // corresponding transition-duration is set to 0 or not, since 0 implies
+    // that it would not be animated.
+    TimeListValue* transition_duration =
+        base::polymorphic_downcast<TimeListValue*>(
+            transition_style.transition_duration().get());
+    base::TimeDelta duration =
+        transition_duration->time_at_index(transition_index).ToTimeDelta();
+
+    if (duration.InMilliseconds() != 0 && !start_value->IsEqual(end_value)) {
+      // The property has been modified and the transition should be animated.
+      // We now check if an active transition for this property already exists
+      // or not.
+      InternalTransitionMap::iterator found = transitions_.find(property_name);
+      if (found != transitions_.end() &&
+          current_time < found->second.EndTime()) {
+        // A transition is already ocurring, so we handle this case a bit
+        // differently depending on if we're reversing the previous transition
+        // or starting a completely different one.
+        found->second = CreateTransitionOverOldTransition(
+            property_name, current_time, found->second, duration, end_value);
+      } else {
+        // There is no transition on the object currently, so create a new
+        // one for it.
+        InsertOrReplaceInInternalMap(property_name,
+            Transition(
+                property_name, start_value, end_value, current_time, duration,
+                base::TimeDelta(), TimingFunction(), start_value, 1.0f));
+      }
+    } else {
+      // Check if there is an existing transition for this property and see
+      // if it has completed yet.  If so, remove it from the list of
+      // transformations.
+      // TODO(***REMOVED***): Fire off a transitionend event.
+      //   http://www.w3.org/TR/css3-transitions/#transitionend
+      const Transition* transition = GetTransitionForProperty(property_name);
+      if (transition != NULL) {
+        if (current_time >= transition->EndTime()) {
+          transitions_.erase(property_name);
+        }
       }
     }
+  } else {
+    // The property is not in the transition-property list, thus it should no
+    // longer be animated.  Remove the transition if it exists.  It does
+    // not generate a transitionend event, it does not pass go, it does not
+    // collect $200.
+    transitions_.erase(property_name);
   }
 }
 
