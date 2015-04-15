@@ -65,15 +65,16 @@ float RandRange(float lower, float upper) {
   return base::RandDouble() * (upper - lower) + lower;
 }
 
-void AnimateSprite(int child_index, const SpriteInfo& sprite_info,
-                   const SizeF& child_size,
+void AnimateSprite(base::Time start_time, int child_index,
+                   const SpriteInfo& sprite_info, const SizeF& child_size,
                    CompositionNode::Builder* composition_node,
-                   base::TimeDelta time) {
+                   base::Time time) {
   CompositionNode::ComposedChild* child =
       composition_node->GetChild(child_index);
 
   // Setup child node's scale and rotation and translation.
-  float theta = time.InSecondsF() * sprite_info.rotation_speed * 2 * M_PI;
+  float theta =
+      (time - start_time).InSecondsF() * sprite_info.rotation_speed * 2 * M_PI;
   child->transform = child->transform * RotateMatrix(theta) *
                      ScaleMatrix(sprite_info.scale) *
                      TranslateMatrix(  // Set child center as origin.
@@ -143,10 +144,9 @@ RenderTreeWithAnimations CreateSpinningSpritesScene(
             sprite_info.position.x() * output_dimensions.width(),
             sprite_info.position.y() * output_dimensions.height()));
 
-    sprite_animation_list.animations.push_back(new Animation<CompositionNode>(
-        base::Bind(&AnimateSprite, i, sprite_info,
-                   image_node->data().destination_size),
-        start_time));
+    sprite_animation_list.animations.push_back(
+        base::Bind(&AnimateSprite, base::Time::Now(), i, sprite_info,
+                   image_node->data().destination_size));
   }
 
   scoped_refptr<CompositionNode> spinning_sprites_composition(
