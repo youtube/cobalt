@@ -25,6 +25,7 @@ namespace cobalt {
 namespace cssom {
 
 class CSSStyleDeclaration;
+class StyleSheetList;
 
 // The CSSStyleRule interface represents a style rule.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
@@ -33,9 +34,15 @@ class CSSStyleRule : public CSSRule {
   CSSStyleRule(Selectors selectors,
                const scoped_refptr<CSSStyleDeclaration>& style);
 
+  // Web API: CSSStyleRule
+  const scoped_refptr<CSSStyleDeclaration>& style();
+
+  // Custom, not in any spec.
+  //
   const Selectors& selectors() const { return selectors_; }
 
-  const scoped_refptr<CSSStyleDeclaration>& style();
+  // From CSSRule.
+  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
 
