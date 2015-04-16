@@ -50,7 +50,6 @@ class LengthValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(LengthValue);
-  DEFINE_WRAPPABLE_TYPE(LengthValue);
 
  private:
   ~LengthValue() OVERRIDE {}

@@ -43,7 +43,6 @@ class StringValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(StringValue);
-  DEFINE_WRAPPABLE_TYPE(StringValue);
 
  private:
   ~StringValue() OVERRIDE {}

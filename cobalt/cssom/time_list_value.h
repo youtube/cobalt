@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "cobalt/cssom/property_value.h"
 
@@ -77,7 +78,6 @@ class TimeListValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(TimeListValue);
-  DEFINE_WRAPPABLE_TYPE(TimeListValue);
 
  private:
   ~TimeListValue() OVERRIDE;
