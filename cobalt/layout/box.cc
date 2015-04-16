@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/box.h"
 
+#include "base/bind.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"

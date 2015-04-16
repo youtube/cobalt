@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_transition.h"
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
