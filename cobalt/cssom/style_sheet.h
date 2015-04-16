@@ -23,11 +23,15 @@
 namespace cobalt {
 namespace cssom {
 
+class StyleSheetList;
+
 // The StyleSheet interface represents an abstract, base style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-stylesheet-interface
 class StyleSheet : public script::Wrappable {
  public:
   virtual ~StyleSheet() {}
+
+  virtual void AttachToStyleSheetList(StyleSheetList* style_sheet_list) = 0;
 
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
 

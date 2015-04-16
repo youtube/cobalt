@@ -27,6 +27,7 @@ namespace cssom {
 
 class CSSRuleList;
 class CSSStyleRule;
+class StyleSheetList;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
@@ -42,6 +43,10 @@ class CSSStyleSheet : public StyleSheet {
 
   // Custom, not in any spec.
   //
+
+  // From StyleSheet.
+  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
+
   void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
@@ -53,6 +58,8 @@ class CSSStyleSheet : public StyleSheet {
   CSSRules css_rules_;
 
   base::WeakPtr<CSSRuleList> css_rule_list_;
+
+  StyleSheetList* style_sheet_list_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

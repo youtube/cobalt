@@ -31,6 +31,7 @@ namespace cssom {
 
 class CSSParser;
 class MutationObserver;
+class StyleSheetList;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
@@ -120,6 +121,8 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_data(const scoped_refptr<CSSStyleDeclarationData>& data) {
     data_ = data;
   }
+
+  void AttachToStyleSheetList(StyleSheetList* style_sheet_list);
 
   void set_mutation_observer(MutationObserver* observer) {
     mutation_observer_ = observer;

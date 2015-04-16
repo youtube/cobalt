@@ -17,12 +17,13 @@
 #include "cobalt/cssom/css_style_sheet.h"
 
 #include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 
 namespace cobalt {
 namespace cssom {
 
-CSSStyleSheet::CSSStyleSheet() {}
+CSSStyleSheet::CSSStyleSheet() : style_sheet_list_(NULL) {}
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (css_rule_list_) {
@@ -34,8 +35,19 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   return css_rule_list;
 }
 
+void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
+  style_sheet_list_ = style_sheet_list;
+  for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
+       ++it) {
+    (*it)->AttachToStyleSheetList(style_sheet_list);
+  }
+}
+
 void CSSStyleSheet::AppendRule(const scoped_refptr<CSSStyleRule>& css_rule) {
   css_rules_.push_back(css_rule);
+  if (style_sheet_list_) {
+    css_rule->AttachToStyleSheetList(style_sheet_list_);
+  }
 }
 
 CSSStyleSheet::~CSSStyleSheet() {}

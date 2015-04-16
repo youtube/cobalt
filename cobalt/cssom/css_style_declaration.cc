@@ -21,6 +21,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
 namespace cssom {
@@ -325,6 +326,12 @@ void CSSStyleDeclaration::set_css_text(
     data_ = declaration;
     OnMutation();
   }
+}
+
+void CSSStyleDeclaration::AttachToStyleSheetList(
+    StyleSheetList* style_sheet_list) {
+  DCHECK(style_sheet_list != NULL);
+  mutation_observer_ = style_sheet_list->mutation_observer();
 }
 
 void CSSStyleDeclaration::OnMutation() {

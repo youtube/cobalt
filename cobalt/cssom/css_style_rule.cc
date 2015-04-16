@@ -21,13 +21,17 @@
 namespace cobalt {
 namespace cssom {
 
+CSSStyleRule::CSSStyleRule(Selectors selectors,
+                           const scoped_refptr<CSSStyleDeclaration>& style)
+    : selectors_(selectors.Pass()), style_(style) {}
+
 const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() {
   return style_;
 }
 
-CSSStyleRule::CSSStyleRule(Selectors selectors,
-                           const scoped_refptr<CSSStyleDeclaration>& style)
-    : selectors_(selectors.Pass()), style_(style) {}
+void CSSStyleRule::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
+  style_->AttachToStyleSheetList(style_sheet_list);
+}
 
 CSSStyleRule::~CSSStyleRule() {}
 
