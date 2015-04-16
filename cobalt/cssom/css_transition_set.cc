@@ -82,6 +82,9 @@ void TransitionSet::UpdateTransitions(
                               source_computed_style.background_color(),
                               destination_computed_style.background_color(),
                               destination_computed_style);
+  UpdateTransitionForProperty(
+      kTransformPropertyName, current_time, source_computed_style.transform(),
+      destination_computed_style.transform(), destination_computed_style);
 }
 
 void TransitionSet::InsertOrReplaceInInternalMap(
@@ -249,6 +252,12 @@ void TransitionSet::ApplyTransitions(
   if (background_color_transition) {
     target_style->set_background_color(
         background_color_transition->Evaluate(current_time));
+  }
+
+  const Transition* transform_transition =
+      GetTransitionForProperty(kTransformPropertyName);
+  if (transform_transition) {
+    target_style->set_transform(transform_transition->Evaluate(current_time));
   }
 }
 
