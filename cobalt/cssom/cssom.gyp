@@ -99,6 +99,8 @@
         'css_style_declaration_data_test.cc',
         'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',
+        'css_transition_set_test.cc',
+        'css_transition_test.cc',
         'keyword_value_test.cc',
         'property_value_is_equal_test.cc',
         'property_value_visitor_test.cc',
