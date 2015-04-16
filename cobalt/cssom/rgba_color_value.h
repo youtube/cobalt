@@ -62,7 +62,6 @@ class RGBAColorValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(RGBAColorValue);
-  DEFINE_WRAPPABLE_TYPE(RGBAColorValue);
 
  private:
   ~RGBAColorValue() OVERRIDE {}
