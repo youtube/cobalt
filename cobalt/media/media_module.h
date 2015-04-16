@@ -23,6 +23,7 @@
 namespace cobalt {
 namespace media {
 
+// TODO(***REMOVED***) : Collapse MediaModule into ShellMediaPlatform.
 class MediaModule {
  public:
   virtual ~MediaModule() {}
