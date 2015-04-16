@@ -162,7 +162,7 @@ BoxGenerator::GetAnonymousInlineBoxStyle(const scoped_refptr<
   if (!anonymous_inline_box_style_) {
     anonymous_inline_box_style_ = new cssom::CSSStyleDeclarationData();
     PromoteToSpecifiedStyle(anonymous_inline_box_style_, parent_computed_style);
-    PromoteToComputedStyle(anonymous_inline_box_style_);
+    PromoteToComputedStyle(anonymous_inline_box_style_, parent_computed_style);
   }
   return anonymous_inline_box_style_;
 }
