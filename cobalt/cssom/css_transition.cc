@@ -19,6 +19,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -41,13 +42,14 @@ Transition::Transition(
       start_value_(start_value),
       end_value_(end_value),
       start_time_(start_time),
-      duration_(duration),
+      duration_(duration < base::TimeDelta() ? base::TimeDelta() : duration),
       delay_(delay),
       timing_function_(timing_function),
       reversing_adjusted_start_value_(reversing_adjusted_start_value),
       reversing_shortening_factor_(reversing_shortening_factor) {
-  DCHECK_LT(0, duration_.InMicroseconds());
   DCHECK(start_value->GetTypeId() == end_value->GetTypeId());
+  DCHECK(start_value->GetTypeId() ==
+         reversing_adjusted_start_value->GetTypeId());
 }
 
 // This AnimatorVisitor allows us to define how to apply an animation to
@@ -55,6 +57,7 @@ Transition::Transition(
 // conceptually is a start CSS style value and an end CSS style value that are
 // of the same type.  Technically though, we can only visit on one of them, so
 // the end value is passed into the constructor and the start value is visited.
+//   http://www.w3.org/TR/css3-transitions/#animatable-types
 class AnimatorVisitor : public PropertyValueVisitor {
  public:
   AnimatorVisitor(const scoped_refptr<PropertyValue>& end_value, float progress)
@@ -106,9 +109,12 @@ void AnimatorVisitor::VisitLength(LengthValue* /*start_length_value*/) {
   animated_value_ = end_value_;
 }
 
-void AnimatorVisitor::VisitNumber(NumberValue* /*start_number_value*/) {
-  NOTIMPLEMENTED();
-  animated_value_ = end_value_;
+void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
+  const NumberValue& end_number_value =
+      *base::polymorphic_downcast<NumberValue*>(end_value_.get());
+
+  animated_value_ = scoped_refptr<PropertyValue>(new NumberValue(
+      Lerp(start_number_value->value(), end_number_value.value(), progress_)));
 }
 
 void AnimatorVisitor::VisitPropertyNameList(
@@ -118,14 +124,14 @@ void AnimatorVisitor::VisitPropertyNameList(
 }
 
 void AnimatorVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
-  const RGBAColorValue& dest_color_value =
+  const RGBAColorValue& end_color_value =
       *base::polymorphic_downcast<RGBAColorValue*>(end_value_.get());
 
   animated_value_ = scoped_refptr<PropertyValue>(new RGBAColorValue(
-      Lerp(start_color_value->r(), dest_color_value.r(), progress_),
-      Lerp(start_color_value->g(), dest_color_value.g(), progress_),
-      Lerp(start_color_value->b(), dest_color_value.b(), progress_),
-      Lerp(start_color_value->a(), dest_color_value.a(), progress_)));
+      Lerp(start_color_value->r(), end_color_value.r(), progress_),
+      Lerp(start_color_value->g(), end_color_value.g(), progress_),
+      Lerp(start_color_value->b(), end_color_value.b(), progress_),
+      Lerp(start_color_value->a(), end_color_value.a(), progress_)));
 }
 
 void AnimatorVisitor::VisitString(StringValue* /*start_string_value*/) {
