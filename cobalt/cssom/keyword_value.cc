@@ -17,7 +17,6 @@
 #include "cobalt/cssom/keyword_value.h"
 
 #include "base/lazy_instance.h"
-#include "base/threading/thread_checker.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -37,8 +36,6 @@ struct NonTrivialStaticFields {
         none_value(new KeywordValue(KeywordValue::kNone)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
-  base::ThreadChecker thread_checker;
-
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> block_value;
   const scoped_refptr<KeywordValue> hidden_value;
@@ -48,6 +45,9 @@ struct NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> inline_block_value;
   const scoped_refptr<KeywordValue> none_value;
   const scoped_refptr<KeywordValue> visible_value;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
 base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
@@ -56,47 +56,38 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 }  // namespace
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetAuto() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().auto_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().block_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetHidden() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().hidden_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetInherit() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().inherit_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetInitial() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().initial_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetInline() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().inline_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetInlineBlock() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().inline_block_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetNone() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().none_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetVisible() {
-  DCHECK(non_trivial_static_fields.Get().thread_checker.CalledOnValidThread());
   return non_trivial_static_fields.Get().visible_value;
 }
 

@@ -64,7 +64,6 @@ class FontWeightValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(FontWeightValue);
-  DEFINE_WRAPPABLE_TYPE(FontWeightValue);
 
  private:
   ~FontWeightValue() OVERRIDE {}

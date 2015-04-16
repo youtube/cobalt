@@ -103,7 +103,6 @@ class KeywordValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(KeywordValue);
-  DEFINE_WRAPPABLE_TYPE(KeywordValue);
 
  private:
   ~KeywordValue() OVERRIDE {}
