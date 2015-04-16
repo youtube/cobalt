@@ -40,7 +40,6 @@ class NumberValue : public PropertyValue {
   }
 
   DEFINE_PROPERTY_VALUE_TYPE(NumberValue);
-  DEFINE_WRAPPABLE_TYPE(NumberValue);
 
  private:
   ~NumberValue() OVERRIDE {}
