@@ -27,6 +27,7 @@
           #                   support for other platforms like Linux.
           'sources': [
             'shell_dummy_raw_video_decoder_ps3.cc',
+            'shell_media_platform_ps3.cc',
             '<(lbshell_root)/src/lb_memory_pool.cc',
             '<(lbshell_root)/src/lb_memory_pool.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.cc',
@@ -37,7 +38,6 @@
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.cc',
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_media_platform_ps3.cc',
           ],
           'include_dirs': [
             '<(lbshell_root)/src',
