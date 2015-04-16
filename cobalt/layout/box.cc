@@ -18,6 +18,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
@@ -44,6 +45,70 @@ Box::Box(
 
 Box::~Box() {}
 
+namespace {
+
+// Returns a matrix representing the transform on the object, relative to its
+// containing block, induced by its layout.  This will be a translation matrix
+// that essentially just offsets to the object's layed out (x,y) position.
+math::Matrix3F GetOffsetTransform(const math::PointF& offset) {
+  return math::TranslateMatrix(offset.x(), offset.y());
+}
+
+// Returns a matrix representing the transform on the object induced by its
+// CSS transform style property.  If the object does not have a transform
+// style property set, this will be the identity matrix.  Otherwise, it is
+// calculated from the property value and returned.  The transform-origin
+// style property will also be taken into account, and therefore the layed
+// out size of the object is also required in order to resolve a
+// percentage-based transform-origin.
+math::Matrix3F GetCSSTransform(
+    const cssom::PropertyValue* transform_property_value,
+    const math::SizeF& used_size) {
+  if (transform_property_value == cssom::KeywordValue::GetNone()) {
+    return math::Matrix3F::Identity();
+  }
+
+  const cssom::TransformListValue* transform =
+      base::polymorphic_downcast<const cssom::TransformListValue*>(
+          transform_property_value);
+  DCHECK(!transform->value().empty());
+
+  // Iterate through all transforms in the transform list appending them
+  // to our css_transform_matrix.
+  math::Matrix3F css_transform_matrix(math::Matrix3F::Identity());
+  for (cssom::TransformListValue::TransformFunctions::const_iterator iter =
+           transform->value().begin();
+       iter != transform->value().end(); ++iter) {
+    cssom::PostMultiplyMatrixByTransform(
+        const_cast<cssom::TransformFunction*>(*iter), &css_transform_matrix);
+  }
+
+  // Apply the CSS transformations, taking into account the CSS
+  // transform-origin property.
+  // TODO(***REMOVED***): We are not actually taking advantage of the
+  //               transform-origin property yet, instead we are just
+  //               assuming that it is the default, 50% 50%.
+  return math::TranslateMatrix(used_size.width() * 0.5f,
+                               used_size.height() * 0.5f) *
+         css_transform_matrix *
+         math::TranslateMatrix(-used_size.width() * 0.5f,
+                               -used_size.height() * 0.5f);
+}
+
+// Used within the animation callback for CSS transforms.  This will
+// set the transform of a single-child composition node to that specified by
+// the CSS transform of the provided CSS Style Declaration.
+void SetupCompositionNodeFromCSSSStyleTransform(
+    const math::SizeF& used_size,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    CompositionNode::Builder* composition_node_builder) {
+  DCHECK_EQ(1, composition_node_builder->composed_children().size());
+  composition_node_builder->GetChild(0)->transform =
+      GetCSSTransform(style->transform(), used_size);
+}
+
+}  // namespace
+
 void Box::AddToRenderTree(
     CompositionNode::Builder* parent_composition_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
@@ -60,9 +125,34 @@ void Box::AddToRenderTree(
   AddContentToRenderTree(&composition_node_builder,
                          node_animations_map_builder);
 
-  parent_composition_node_builder->AddChild(
-      new render_tree::CompositionNode(composition_node_builder.Pass()),
-      GetTransform());
+
+  if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
+    // If the CSS transform is animated, we cannot flatten it into the layout
+    // transform, thus we create a new composition node to separate it and
+    // animate that node only.
+    scoped_refptr<CompositionNode> css_transform_composition_node_builder =
+        new CompositionNode(composition_node_builder.Pass());
+
+    // Specifically animate only the composition node with the CSS transform.
+    AddTransitionAnimations<CompositionNode>(
+      base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
+                 used_frame().size()),
+      *computed_style(), css_transform_composition_node_builder, *transitions_,
+      node_animations_map_builder);
+
+    // Now add that transform node to the parent composition node, along with
+    // the application of the layout transform.
+    parent_composition_node_builder->AddChild(
+        css_transform_composition_node_builder,
+        GetOffsetTransform(used_frame().origin()));
+  } else {
+    // Add all child render nodes to the parent composition node, with the
+    // layout transform and CSS transform combined into one matrix.
+    parent_composition_node_builder->AddChild(
+        new CompositionNode(composition_node_builder.Pass()),
+        GetOffsetTransform(used_frame().origin()) *
+            GetCSSTransform(computed_style_->transform(), used_frame().size()));
+  }
 }
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
