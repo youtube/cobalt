@@ -49,9 +49,9 @@ ShellAudioRenderer* ShellAudioRenderer::Create(
 ShellAudioRendererImpl::ShellAudioRendererImpl(
     AudioRendererSink* sink, const SetDecryptorReadyCB& set_decryptor_ready_cb,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
-    : message_loop_(message_loop)
+    : sink_(sink)
     , set_decryptor_ready_cb_(set_decryptor_ready_cb)
-    , sink_(sink)
+    , message_loop_(message_loop)
     , state_(kUninitialized)
     , end_of_stream_state_(kWaitingForEOS)
     , decoded_audio_bus_(NULL)
@@ -231,6 +231,11 @@ void ShellAudioRendererImpl::OnDecoderSelected(
     const scoped_refptr<DecryptingDemuxerStream>& decrypting_demuxer_stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  if (sink_ == NULL) {
+    // Stop has been called, we shouldn't do anything further.
+    return;
+  }
+
   if (selected_decoder == NULL) {
     DLOG(WARNING) << "NULL decoder selected";
     init_cb_.Run(DECODER_ERROR_NOT_SUPPORTED);
@@ -280,6 +285,13 @@ void ShellAudioRendererImpl::Preroll(
 void ShellAudioRendererImpl::DoPreroll(
     base::TimeDelta time,
     const PipelineStatusCB& callback) {
+  // Stop() can be called immediately after Preroll() which will set the state
+  // to kStopping or kStopped. We shouldn't continue the preroll process in this
+  // case.
+  if (state_ == kStopping || state_ == kStopped) {
+    return;
+  }
+
   // Start will begin filling the AudioBus with data, and the Streamer
   // will be paused until data is full
   buffered_timestamp_ = base::TimeDelta::FromMicroseconds(0);
@@ -557,4 +569,3 @@ bool ShellAudioRendererImpl::ShouldQueueRead(State state) {
 }
 
 }  // namespace media
-

@@ -10,6 +10,8 @@
 #ifndef MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 #define MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 
+#define LOG_MEDIA_SOURCE_ACTIVITIES 0
+
 #include <deque>
 #include <list>
 #include <utility>
@@ -306,6 +308,9 @@ class MEDIA_EXPORT SourceBufferStream {
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };
+
+void LogMediaSourceTimeRanges(const std::string& desc,
+                              const Ranges<base::TimeDelta>& time_ranges);
 
 }  // namespace media
 

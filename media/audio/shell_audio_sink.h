@@ -59,26 +59,21 @@ class MEDIA_EXPORT ShellAudioSink
   static ShellAudioSink* Create(ShellAudioStreamer* audio_streamer);
 
   // AudioRendererSink implementation
-  virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Pause(bool flush) OVERRIDE;
-  virtual void Play() OVERRIDE;
-  virtual void SetPlaybackRate(float rate);
-  virtual bool SetVolume(double volume) OVERRIDE;
-  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
+  void Initialize(const AudioParameters& params,
+                  RenderCallback* callback) OVERRIDE;
+  void Start() OVERRIDE;
+  void Stop() OVERRIDE;
+  void Pause(bool flush) OVERRIDE;
+  void Play() OVERRIDE;
+  bool SetVolume(double volume) OVERRIDE;
+  void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
 
   // ShellAudioStream implementation
-  virtual bool PauseRequested() const;
-  virtual bool PullFrames(uint32_t* offset_in_frame,
-                          uint32_t* total_frames) OVERRIDE;
-  virtual void ConsumeFrames(uint32_t frame_played) OVERRIDE;
-  virtual const AudioParameters& GetAudioParameters() const OVERRIDE;
-  virtual AudioBus* GetAudioBus() OVERRIDE;
-
-  // useful for jitter tracking
-  void SetClockBiasMs(int64 time_ms);
+  bool PauseRequested() const OVERRIDE;
+  bool PullFrames(uint32_t* offset_in_frame, uint32_t* total_frames) OVERRIDE;
+  void ConsumeFrames(uint32_t frame_played) OVERRIDE;
+  const AudioParameters& GetAudioParameters() const OVERRIDE;
+  AudioBus* GetAudioBus() OVERRIDE;
 
  private:
   // Config the audio bus that will be sent to the AudioRenderer. It reueses
@@ -106,13 +101,6 @@ class MEDIA_EXPORT ShellAudioSink
   uint64_t render_frame_cursor_;
   // advanced by ConsumeSamples() as the Streamer reports playback advancing
   uint64_t output_frame_cursor_;
-
-  // For jitter logging we only keep track of rendered frames, so if we
-  // seek or have another audio discontinuity the rendered frame count
-  // will become different than the audio clock. Store a bias here so
-  // that if the rendered frame count becomes reset we have some hope
-  // of tracking the audio clock still.
-  uint64_t clock_bias_frames_;
 
   scoped_refptr<ShellBufferFactory> buffer_factory_;
   ShellAudioStreamer* audio_streamer_;

@@ -292,8 +292,10 @@ static base::TimeDelta kSeekToStartFudgeRoom() {
 // The maximum amount of data in bytes the stream will keep in memory.
 // 12MB: approximately 5 minutes of 320Kbps content.
 // 150MB: approximately 5 minutes of 4Mbps content.
+#if !defined(__LB_SHELL__)
 static const int kDefaultAudioMemoryLimit = 12 * 1024 * 1024;
 static const int kDefaultVideoMemoryLimit = 150 * 1024 * 1024;
+#endif
 
 namespace media {
 
@@ -618,14 +620,22 @@ void SourceBufferStream::GarbageCollectIfNeeded() {
   if (ranges_size <= memory_limit_)
     return;
 
+  LogMediaSourceTimeRanges("before garbage collect", GetBufferedTime());
+
   int bytes_to_free = ranges_size - memory_limit_;
 
   // Begin deleting from the front.
   int bytes_freed = FreeBuffers(bytes_to_free, false);
 
+  LogMediaSourceTimeRanges("after garbage collect from front",
+                           GetBufferedTime());
+
   // Begin deleting from the back.
-  if (bytes_to_free - bytes_freed > 0)
+  if (bytes_to_free - bytes_freed > 0) {
     FreeBuffers(bytes_to_free - bytes_freed, true);
+    LogMediaSourceTimeRanges("after garbage collect from back",
+                             GetBufferedTime());
+  }
 }
 
 int SourceBufferStream::FreeBuffers(int total_bytes_to_free,
@@ -1694,6 +1704,17 @@ base::TimeDelta SourceBufferRange::GetApproximateDuration() const {
   base::TimeDelta max_interbuffer_distance = interbuffer_distance_cb_.Run();
   DCHECK(max_interbuffer_distance != kNoTimestamp());
   return max_interbuffer_distance;
+}
+
+void LogMediaSourceTimeRanges(const std::string& desc,
+                              const Ranges<base::TimeDelta>& time_ranges) {
+#if LOG_MEDIA_SOURCE_ACTIVITIES
+  LOG(INFO) << ("======== " + desc + " ========");
+  for (size_t i = 0; i < time_ranges.size(); ++i)
+    LOG(INFO) << "\t\tRange " << i << " : "
+              << time_ranges.start(i).InMicroseconds() << " - "
+              << time_ranges.end(i).InMicroseconds();
+#endif  // LOG_MEDIA_SOURCE_ACTIVITIES
 }
 
 }  // namespace media

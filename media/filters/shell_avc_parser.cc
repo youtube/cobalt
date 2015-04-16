@@ -488,13 +488,13 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
                            16,   // AAC is always 16 bit
                            aac.channel_layout(),
                            aac.GetOutputSamplesPerSecond(false),
-#if defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
                            &aac.raw_data().front(),
                            aac.raw_data().size(),
-#else  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
                            NULL,
                            0,
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
                            false,
                            false);
 }

@@ -23,6 +23,7 @@
 #include "base/threading/thread.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/shell_buffer_factory.h"
+#include "media/base/shell_video_data_allocator.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/shell_video_decoder.h"
 
@@ -52,8 +53,7 @@ class ShellRawVideoDecoder {
   virtual bool UpdateConfig(const VideoDecoderConfig& config) = 0;
 
   static ShellRawVideoDecoder* Create(const VideoDecoderConfig& config,
-                                      media::Decryptor* decryptor,
-                                      bool was_encrypted);
+                                      Decryptor* decryptor, bool was_encrypted);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ShellRawVideoDecoder);

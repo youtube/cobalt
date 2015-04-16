@@ -40,8 +40,7 @@ class MEDIA_EXPORT AudioRendererSink
     // full and will not be requesting additional data until some is consumed.
     virtual void SinkFull() = 0;
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || \
-    defined(__LB_ANDROID__) || defined(__LB_PS4__)
+#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
     // Callback from the sink to the renderer to indicate that it has not
     // enough data to continue playback without playing past the end of
     // buffered data.

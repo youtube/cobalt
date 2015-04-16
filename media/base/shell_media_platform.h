@@ -23,6 +23,8 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_export.h"
+#include "media/base/shell_video_data_allocator.h"
+#include "media/base/shell_video_frame_provider.h"
 
 namespace media {
 
@@ -51,6 +53,15 @@ class MEDIA_EXPORT ShellMediaPlatform {
   // See implementation of SourceBufferStream for more details.
   virtual size_t GetSourceBufferStreamAudioMemoryLimit() const = 0;
   virtual size_t GetSourceBufferStreamVideoMemoryLimit() const = 0;
+
+  // TODO(***REMOVED***) : Make this pure virtual once all non-MS platforms are
+  //                   using ShellVideoDataAllocator.
+  virtual ShellVideoDataAllocator* GetVideoDataAllocator() {
+    NOTREACHED();
+    return NULL;
+  }
+
+  virtual ShellVideoFrameProvider* GetVideoFrameProvider() { return NULL; }
 
   // Total number of video frames which are populating in the pipeline when
   // prerolling.

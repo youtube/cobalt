@@ -143,7 +143,7 @@ TEST_F(AudioBusTest, WrapMemory) {
 
   // Verify the channel vectors lie within the provided memory block.
   EXPECT_GE(bus->channel(0), data.get());
-  EXPECT_LT(bus->channel(bus->channels() - 1) + bus->frames(),
+  EXPECT_LE(bus->channel(bus->channels() - 1) + bus->frames(),
             data.get() + data_size / sizeof(*data.get()));
 }
 

@@ -212,11 +212,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
                               aac.GetOutputSamplesPerSecond(has_sbr_),
-#if defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
                               &aac.raw_data().front(), aac.raw_data().size(),
-#else  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
                               NULL, 0,
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
                               is_audio_track_encrypted_, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
@@ -243,16 +243,21 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       is_video_track_encrypted_ = entry.sinf.info.track_encryption.is_encrypted;
       DVLOG(1) << "is_video_track_encrypted_: " << is_video_track_encrypted_;
 #if defined(__LB_SHELL__)
+      // VideoDecoderConfig::Matches() only compares things like profile and
+      // resolution. So it cannot catch the difference for subtle changes on
+      // things like interface mode. Now we send full sps/pps information as
+      // extra data as this also gets compared inside
+      // VideoDecoderConfig::Matches().
+      std::vector<uint8> param_sets;
+      RCHECK(AVC::ConvertConfigToAnnexB(entry.avcc, &param_sets));
       video_config.Initialize(kCodecH264,
                               H264PROFILE_MAIN,
                               VideoFrame::NATIVE_TEXTURE,
                               coded_size,
                               visible_rect,
                               natural_size,
-                              // No decoder-specific buffer needed for AVC;
-                              // SPS/PPS are embedded in the video stream
-                              NULL,
-                              0,
+                              &param_sets[0],
+                              param_sets.size(),
                               is_video_track_encrypted_,
                               true);
 #else
