@@ -55,7 +55,7 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
       new cssom::LengthValue(viewport_size.width(), cssom::kPixelsUnit));
   initial_containing_block_computed_style->set_transform(
       InitialStyle::GetInstance()->transform());
-  PromoteToComputedStyle(initial_containing_block_computed_style);
+  PromoteToComputedStyle(initial_containing_block_computed_style, NULL);
   return make_scoped_ptr(new ContainingBlock(
       NULL, initial_containing_block_computed_style, used_style_provider));
 }
