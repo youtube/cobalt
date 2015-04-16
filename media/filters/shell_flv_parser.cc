@@ -59,7 +59,8 @@ static const uint8 kCodecIDAVC = 7;
 // FLV AVCVIDEODATA tag constants
 static const uint8 kAVCPacketTypeSequenceHeader = 0;
 static const uint8 kAVCPacketTypeNALU = 1;
-static const uint8 kAVCPacketTypeEndOfSequence = 2;
+// Unused:
+// static const uint8 kAVCPacketTypeEndOfSequence = 2;
 
 // SCRIPTDATA parsing constants
 static const uint8 kAMF0NumberType = 0x00;
@@ -465,7 +466,8 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
     // might be worth trying to parse this as AMF3?
     return false;
   }
-  duration_ = base::TimeDelta::FromSeconds(duration_seconds);
+  duration_ = base::TimeDelta::FromMicroseconds(
+      duration_seconds * base::Time::kMicrosecondsPerSecond);
 
   // Try for the byterate too, but this is nonfatal if we can't get it.
   double byterate = 0;

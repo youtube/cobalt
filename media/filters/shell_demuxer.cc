@@ -159,7 +159,9 @@ base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
 void ShellDemuxerStream::FlushBuffers() {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
-  DCHECK(read_queue_.empty()) << "Read requests should be empty";
+  // TODO(***REMOVED***) : Investigate if the following warning is valid.
+  //                   See also b/19254849.
+  DLOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   last_buffer_timestamp_ = kNoTimestamp();
 }
@@ -192,7 +194,6 @@ ShellDemuxer::ShellDemuxer(
     , host_(NULL)
     , blocking_thread_("ShellDemuxerBlockingThread")
     , data_source_(data_source)
-    , read_has_failed_(false)
     , stopped_(false)
     , flushing_(false)
     , audio_reached_eos_(false)
@@ -304,7 +305,8 @@ void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
   // make sure we got back an AU of the correct type
   DCHECK(au->GetType() == type);
 
-  const char* event_type = type == DemuxerStream::AUDIO ? "audio" : "video";
+  const char* ALLOW_UNUSED event_type =
+      type == DemuxerStream::AUDIO ? "audio" : "video";
   TRACE_EVENT2("media_stack", "ShellDemuxer::RequestTask()", "type", event_type,
                "timestamp", au->GetTimestamp().InMicroseconds());
 
@@ -352,7 +354,7 @@ void ShellDemuxer::DownloadTask(scoped_refptr<DecoderBuffer> buffer) {
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
 
-  const char* event_type =
+  const char* ALLOW_UNUSED event_type =
       requested_au_->GetType() == DemuxerStream::AUDIO ? "audio" : "video";
   TRACE_EVENT2("media_stack", "ShellDemuxer::DownloadTask()",
                "type", event_type,

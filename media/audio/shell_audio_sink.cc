@@ -29,7 +29,7 @@
 
 namespace {
 
-scoped_array<float> s_audio_sink_buffer;
+scoped_ptr_malloc<float> s_audio_sink_buffer;
 size_t s_audio_sink_buffer_size_in_float;
 
 }  // namespace
@@ -72,7 +72,6 @@ ShellAudioSink::ShellAudioSink(ShellAudioStreamer* audio_streamer)
     , rebuffer_num_frames_(0)
     , render_frame_cursor_(0)
     , output_frame_cursor_(0)
-    , clock_bias_frames_(0)
     , audio_streamer_(audio_streamer) {
   buffer_factory_ = ShellBufferFactory::Instance();
 }
@@ -180,19 +179,6 @@ void ShellAudioSink::Play() {
   pause_requested_ = false;
 }
 
-void ShellAudioSink::SetPlaybackRate(float rate) {
-  // if playback rate is 0.0 pause, if it's 1.0 go, if it's other
-  // numbers issue a warning
-  if (rate == 0.0f) {
-    Pause(false);
-  } else if (rate == 1.0f) {
-    Play();
-  } else {
-    DLOG(WARNING) << "audio sink got unsupported playback rate: " << rate;
-    Play();
-  }
-}
-
 bool ShellAudioSink::SetVolume(double volume) {
   return audio_streamer_->SetVolume(this, volume);
 }
@@ -250,7 +236,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   } else {
     // We don't need new data from the renderer, but this will ping the
     // renderer and update the timer
-#if defined(__LB_WIIU__) || defined(__LB_ANDROID__) || defined(__LB_PS4__)
+#if defined(__LB_WIIU__) || defined(__LB_PS4__)
     // TODO(***REMOVED***) : Either remove this or make it generic across all
     // platforms.
     render_callback_->Render(NULL, buffered_time);
@@ -264,8 +250,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
     rebuffering_ = false;
   }
 
-#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || \
-    defined(__LB_ANDROID__) || defined(__LB_PS4__)
+#if defined(__LB_LINUX__) || defined(__LB_WIIU__) || defined(__LB_PS4__)
   const size_t kUnderflowThreshold = mp4::AAC::kSamplesPerFrame / 2;
   if (*total_frames < kUnderflowThreshold) {
     if (!rebuffering_) {
@@ -290,8 +275,7 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
 
 void ShellAudioSink::ConsumeFrames(uint32_t frame_played) {
   TRACE_EVENT1("media_stack", "ShellAudioSink::ConsumeFrames()", "audio_clock",
-               ((output_frame_cursor_ + clock_bias_frames_) * 1000) /
-                   audio_parameters_.sample_rate());
+               (output_frame_cursor_ * 1000) / audio_parameters_.sample_rate());
   // Called by the Streamer thread to indicate where the hardware renderer
   // is in playback
   if (frame_played > 0) {
@@ -308,12 +292,6 @@ AudioBus* ShellAudioSink::GetAudioBus() {
 
 const AudioParameters& ShellAudioSink::GetAudioParameters() const {
   return audio_parameters_;
-}
-
-void ShellAudioSink::SetClockBiasMs(int64 time_ms) {
-  // only prudent to do this when paused
-  DCHECK(pause_requested_);
-  clock_bias_frames_ = (time_ms * audio_parameters_.sample_rate()) / 1000;
 }
 
 void ShellAudioSink::SetupRenderAudioBus() {
