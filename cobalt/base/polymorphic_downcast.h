@@ -27,7 +27,7 @@ namespace base {
 template <typename Derived, typename Base>
 Derived polymorphic_downcast(Base base) {
 #if !defined(__LB_SHELL__FOR_RELEASE__)
-  DCHECK(dynamic_cast<Derived>(base));
+  DCHECK(dynamic_cast<Derived>(base) == base);
 #endif
   return static_cast<Derived>(base);
 }
