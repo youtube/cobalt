@@ -17,6 +17,7 @@
 #ifndef MEDIA_FILTERS_SHELL_AUDIO_RENDERER_H_
 #define MEDIA_FILTERS_SHELL_AUDIO_RENDERER_H_
 
+#include "base/message_loop_proxy.h"
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/decryptor.h"

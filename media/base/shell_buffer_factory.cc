@@ -81,7 +81,6 @@ bool ShellBufferFactory::AllocateBuffer(
     base::AutoLock lock(lock_);
     // We only service requests directly if there's no callbacks pending and
     // we can accommodate a buffer of the requested size
-    uint8* shell_buffer_bytes;
     if (pending_allocs_.size() == 0) {
       uint8* bytes = Allocate_Locked(size);
       if (bytes) {

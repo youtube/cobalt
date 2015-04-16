@@ -537,7 +537,6 @@ TEST_F(ShellMP4MapTest, GetSizeIterationTinyCache) {
     for (int i = 5; i < 12; ++i) {
       ResetMap();
       SetTestTable(kAtomType_stsz, i);
-      uint32 cache_entry_number = 0;
       sample_table_->ClearReadStatistics();
       for (uint32 j = 0; j < sample_table_->sample_count(); j++) {
         uint32 map_reported_size = 0;

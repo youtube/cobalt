@@ -252,6 +252,10 @@
         'base/shell_media_platform.h',
         'base/shell_media_statistics.cc',
         'base/shell_media_statistics.h',
+        'base/shell_video_data_allocator.cc',
+        'base/shell_video_data_allocator.h',
+        'base/shell_video_frame_provider.cc',
+        'base/shell_video_frame_provider.h',
         'base/sinc_resampler.cc',
         'base/sinc_resampler.h',
         'base/stream_parser.cc',
@@ -558,7 +562,7 @@
                 },
               },
             }],
-            ['target_arch=="android" or target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
+            ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
               'sources': [
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
@@ -1024,6 +1028,7 @@
             'audio/shell_audio_sink_unittest.cc',
             'base/mock_shell_data_source_reader.h',
             'base/shell_buffer_factory_unittest.cc',
+            'filters/shell_audio_renderer_unittest.cc',
             'filters/shell_mp4_map_unittest.cc',
             'filters/shell_rbsp_stream_unittest.cc',
           ],
@@ -1057,13 +1062,6 @@
         'base/mock_filters.h',
         'base/test_helpers.cc',
         'base/test_helpers.h',
-      ],
-      'conditions': [
-        ['OS == "lb_shell"', {
-          'sources/': [
-            ['exclude', 'base/mock_audio_renderer_sink'],
-          ],
-        }],
       ],
     },
   ],
@@ -1109,7 +1107,7 @@
                 'yuv_convert_simd_x86',
               ],
             }],
-            [ 'target_arch == "arm" or target_arch == "mipsel" or (OS == "lb_shell" and target_arch == "android")', {
+            [ 'target_arch == "arm" or target_arch == "mipsel"', {
               'dependencies': [
                 'yuv_convert_simd_c',
               ],
@@ -1406,7 +1404,7 @@
         },
       ],
     }],
-    ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
+    ['OS == "android"', {
       'targets': [
         {
           'target_name': 'media_player_jni_headers',
