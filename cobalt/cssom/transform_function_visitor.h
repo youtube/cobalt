@@ -20,6 +20,7 @@
 namespace cobalt {
 namespace cssom {
 
+class RotateFunction;
 class ScaleFunction;
 class TranslateXFunction;
 class TranslateYFunction;
@@ -30,6 +31,7 @@ class TranslateZFunction;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class TransformFunctionVisitor {
  public:
+  virtual void VisitRotate(RotateFunction* rotate_function) = 0;
   virtual void VisitScale(ScaleFunction* scale_function) = 0;
   virtual void VisitTranslateX(TranslateXFunction* translate_x_function) = 0;
   virtual void VisitTranslateY(TranslateYFunction* translate_y_function) = 0;

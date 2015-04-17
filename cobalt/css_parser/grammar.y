@@ -151,6 +151,7 @@
 %token kNthLastChildFunctionToken       // nth-last-child(
 %token kNthLastOfTypeFunctionToken      // nth-last-of-type(
 %token kNthOfTypeFunctionToken          // nth-of-type(
+%token kRotateFunctionToken             // rotate(
 %token kScaleFunctionToken              // scale(
 %token kTranslateXFunctionToken         // translateX(
 %token kTranslateYFunctionToken         // translateY(
@@ -249,7 +250,7 @@
                        transition_property_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
 
-%type <real> alpha number
+%type <real> alpha number angle
 
 %union { cssom::CSSStyleSheet* style_sheet; }
 %type <style_sheet> rule_list style_sheet
@@ -644,6 +645,23 @@ length:
   }
   ;
 
+// Angle units (returned synthetic value will always be in radians).
+//   http://www.w3.org/TR/css3-values/#angles
+angle:
+    maybe_sign_token kDegreesToken maybe_whitespace {
+    $$ = $1 * $2 * (2 * static_cast<float>(M_PI) / 360.0f);
+  }
+  | maybe_sign_token kGradiansToken maybe_whitespace {
+    $$ = $1 * $2 * (2 * static_cast<float>(M_PI) / 400.0f);
+  }
+  | maybe_sign_token kRadiansToken maybe_whitespace {
+    $$ = $1 * $2;
+  }
+  | maybe_sign_token kTurnsToken maybe_whitespace {
+    $$ = $1 * $2 * 2 * static_cast<float>(M_PI);
+  }
+  ;
+
 // Time units (used by animations and transitions).
 //   http://www.w3.org/TR/css3-values/#time
 time:
@@ -868,9 +886,15 @@ scale_function_parameters:
 // The set of allowed transform functions.
 //   http://www.w3.org/TR/css3-transforms/#transform-functions
 transform_function:
+  // Specifies a 2D rotation around the z-axis.
+  //   http://www.w3.org/TR/css3-transforms/#funcdef-rotate
+    kRotateFunctionToken maybe_whitespace angle ')'
+      maybe_whitespace {
+    $$ = new cssom::RotateFunction($3);
+  }
   // Specifies a 2D scale operation by the scaling vector.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
-    kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
+  | kScaleFunctionToken maybe_whitespace scale_function_parameters ')'
       maybe_whitespace {
     $$ = $3;
   }

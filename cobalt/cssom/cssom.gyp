@@ -82,6 +82,8 @@
         'pseudo_class_names.h',
         'rgba_color_value.cc',
         'rgba_color_value.h',
+        'rotate_function.cc',
+        'rotate_function.h',
         'scale_function.cc',
         'scale_function.h',
         'selector.h',

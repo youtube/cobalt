@@ -21,6 +21,7 @@
 #include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -206,6 +207,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   transform_list_a.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_a.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformListValue> value_a(new TransformListValue(
       transform_list_a.Pass()));
 
@@ -213,6 +215,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   transform_list_b.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_b.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformListValue> value_b(new TransformListValue(
       transform_list_b.Pass()));
 
@@ -224,6 +227,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
   transform_list_a.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
+  transform_list_a.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformListValue> value_a(new TransformListValue(
       transform_list_a.Pass()));
 
@@ -231,6 +235,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
   transform_list_b.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(1.0f, 2.0f));
+  transform_list_b.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformListValue> value_b(new TransformListValue(
       transform_list_b.Pass()));
 

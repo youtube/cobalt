@@ -29,6 +29,7 @@
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -461,6 +462,74 @@ TEST_F(ParserTest, ParsesNoneTransform) {
       parser_.ParseDeclarationList("transform: none;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetNone(), style->transform());
+}
+
+TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: rotate(180deg);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformListValue> transform_list =
+      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::RotateFunction* rotate_function =
+      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
+                  rotate_function->angle_in_radians());
+}
+
+TEST_F(ParserTest, ParsesRotateTransformInGradians) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: rotate(200grad);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformListValue> transform_list =
+      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::RotateFunction* rotate_function =
+      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
+                  rotate_function->angle_in_radians());
+}
+
+TEST_F(ParserTest, ParsesRotateTransformInRadians) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: rotate(3.141592653589793rad);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformListValue> transform_list =
+      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::RotateFunction* rotate_function =
+      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
+                  rotate_function->angle_in_radians());
+}
+
+TEST_F(ParserTest, ParsesRotateTransformInTurns) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: rotate(0.5turn);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformListValue> transform_list =
+      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::RotateFunction* rotate_function =
+      dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
+                  rotate_function->angle_in_radians());
 }
 
 TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
