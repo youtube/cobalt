@@ -17,6 +17,7 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/translate_function.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -27,11 +28,19 @@ namespace cssom {
 
 class MockTransformFunctionVisitor : public TransformFunctionVisitor {
  public:
+  MOCK_METHOD1(VisitRotate, void(RotateFunction* rotate_function));
   MOCK_METHOD1(VisitScale, void(ScaleFunction* scale_function));
   MOCK_METHOD1(VisitTranslateX, void(TranslateXFunction* translate_x_function));
   MOCK_METHOD1(VisitTranslateY, void(TranslateYFunction* translate_y_function));
   MOCK_METHOD1(VisitTranslateZ, void(TranslateZFunction* translate_z_function));
 };
+
+TEST(TransformFunctionVisitorTest, VisitsRotateFunction) {
+  RotateFunction rotate_function(1.0f);
+  MockTransformFunctionVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitRotate(&rotate_function));
+  rotate_function.Accept(&mock_visitor);
+}
 
 TEST(TransformFunctionVisitorTest, VisitsScaleFunction) {
   ScaleFunction scale_function(2, 2);
