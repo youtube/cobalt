@@ -46,6 +46,7 @@
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/translate_function.h"
