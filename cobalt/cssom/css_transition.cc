@@ -24,6 +24,7 @@
 #include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -113,6 +114,7 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   }
 
  private:
+  void VisitRotate(RotateFunction* rotate_function) OVERRIDE;
   void VisitScale(ScaleFunction* scale_function) OVERRIDE;
   void VisitTranslateX(TranslateXFunction* translate_x_function) OVERRIDE;
   void VisitTranslateY(TranslateYFunction* translate_y_function) OVERRIDE;
@@ -126,10 +128,21 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   scoped_ptr<TransformFunction> animated_;
 };
 
+void AnimateTransformFunction::VisitRotate(RotateFunction* rotate_function) {
+  const RotateFunction* rotate_end =
+      base::polymorphic_downcast<const RotateFunction*>(end_);
+
+  // The rotate function's identity is the value 0.
+  float end_angle = rotate_end ? rotate_end->angle_in_radians() : 0.0f;
+
+  animated_.reset(new RotateFunction(
+      Lerp(rotate_function->angle_in_radians(), end_angle, progress_)));
+}
+
 void AnimateTransformFunction::VisitScale(ScaleFunction* scale_function) {
   float end_x_factor, end_y_factor;
   if (end_ == NULL) {
-    // Use the scale identity function.
+    // Use the scale identity function, which is the value 1.
     end_x_factor = 1.0f;
     end_y_factor = 1.0f;
   } else {
@@ -139,7 +152,6 @@ void AnimateTransformFunction::VisitScale(ScaleFunction* scale_function) {
     end_y_factor = end_scale->y_factor();
   }
 
-  // The scale function's identity is the value 1.
   animated_.reset(new ScaleFunction(
       Lerp(scale_function->x_factor(), end_x_factor, progress_),
       Lerp(scale_function->y_factor(), end_y_factor, progress_)));

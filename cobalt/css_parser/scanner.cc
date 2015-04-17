@@ -1332,6 +1332,13 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       }
       return false;
 
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, "rotate")) {
+        *known_function_token = kRotateFunctionToken;
+        return true;
+      }
+      return false;
+
     case 9:
       if (IsEqualToCssIdentifier(name.begin, "nth-child")) {
         parsing_mode_ = kNthChildMode;
