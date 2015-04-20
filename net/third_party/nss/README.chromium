@@ -1,0 +1,90 @@
+Name: Network Security Services (NSS)
+URL: http://www.mozilla.org/projects/security/pki/nss/
+Version: 3.14
+Security Critical: Yes
+License: MPL 2
+License FILE: NOT_SHIPPED
+
+This directory includes a copy of NSS's libssl from the CVS repo at:
+  :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
+
+The same module appears in crypto/third_party/nss (and third_party/nss on some
+platforms), so we don't repeat the license file here.
+
+The snapshot was updated to the CVS tag: NSS_3_14_RTM
+
+Patches:
+
+  * Commenting out a couple of functions because they need NSS symbols
+    which may not exist in the system NSS library.
+    patches/versionskew.patch
+
+  * Send empty renegotiation info extension instead of SCSV unless TLS is
+    disabled.
+    patches/renegoscsv.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=549042
+
+  * Cache the peer's intermediate CA certificates in session ID, so that
+    they're available when we resume a session.
+    patches/cachecerts.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731478
+
+  * Add the SSL_PeerCertificateChain function
+    patches/peercertchain.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731485
+
+  * Add OCSP stapling support
+    patches/ocspstapling.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=360420
+
+  * Add support for client auth with native crypto APIs on Mac and Windows
+    patches/clientauth.patch
+    ssl/sslplatf.c
+
+  * Add a function to export whether the last handshake on a socket resumed a
+    previous session.
+    patches/didhandshakeresume.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731798
+
+  * Add a function to restart a handshake after a client certificate request.
+    patches/restartclientauth.patch
+
+  * Allow SSL_HandshakeNegotiatedExtension to be called before the handshake
+    is finished.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=681839
+    patches/negotiatedextension.patch
+
+  * Add function to retrieve TLS client cert types requested by server.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=51413
+    patches/getrequestedclientcerttypes.patch
+
+  * Enable False Start only when the server supports forward secrecy.
+    patches/falsestartnpn.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=810582
+    https://bugzilla.mozilla.org/show_bug.cgi?id=810583
+
+  * Add support for TLS Channel IDs
+    patches/channelid.patch
+
+  * Add support for extracting the tls-unique channel binding value
+    patches/tlsunique.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=563276
+
+  * Don't crash when the SSL keylog file cannot be opened.
+    patches/sslkeylogerror.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=810579
+
+  * Define the EC_POINT_FORM_UNCOMPRESSED macro. In NSS 3.13.2 the macro
+    definition was moved from the internal header ec.h to blapit.h. When
+    compiling against older system NSS headers, we need to define the macro.
+    patches/ecpointform.patch
+
+  * SSL_ExportKeyingMaterial should get the RecvBufLock and SSL3HandshakeLock.
+    This change was made in https://chromiumcodereview.appspot.com/10454066.
+    patches/secretexporterlocks.patch
+
+Apply the patches to NSS by running the patches/applypatches.sh script.  Read
+the comments at the top of patches/applypatches.sh for instructions.
+
+The ssl/bodge directory contains files taken from the NSS repo that we required
+for building libssl outside of its usual build environment.
