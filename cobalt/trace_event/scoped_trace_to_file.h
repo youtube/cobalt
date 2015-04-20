@@ -18,6 +18,7 @@
 #define TRACE_EVENT_SCOPED_TRACE_TO_FILE_H_
 
 #include "base/file_path.h"
+#include "base/time.h"
 
 namespace cobalt {
 namespace trace_event {
@@ -37,6 +38,15 @@ class ScopedTraceToFile {
  private:
   FilePath absolute_output_path_;
 };
+
+// Helper function to make it easy to start a trace and collect results even
+// if the scope is hard to define (for example if it is difficult to quit
+// from the application).
+// This function will start a trace when it is called, and after the specified
+// amount of time has passed, it wills top tracing and output the results to
+// the specified file.
+void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
+                            const base::TimeDelta& duration);
 
 }  // namespace trace_event
 }  // namespace cobalt

@@ -25,6 +25,7 @@
         # TODO(***REMOVED***): This is only for testing and should be removed for
         #               production build.
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
+        '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         'browser',
       ],
     },
