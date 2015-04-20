@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
@@ -176,6 +177,7 @@ void Document::SignalOnLoadToObservers() {
 }
 
 void Document::RecordMutation() {
+  TRACE_EVENT0("cobalt::dom", "Document::RecordMutation()");
   // TODO(***REMOVED***): Accumulate mutations and trigger the notification
   //               asynchronously.
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
