@@ -16,8 +16,10 @@
 
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 
+#include "base/bind.h"
 #include "base/debug/trace_event_impl.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/trace_event/json_file_outputter.h"
@@ -51,6 +53,23 @@ ScopedTraceToFile::~ScopedTraceToFile() {
     DLOG(WARNING) << "Error opening JSON tracing output file for writing: "
                   << absolute_output_path_.value();
   }
+}
+
+namespace {
+void EndTimedTrace(scoped_ptr<ScopedTraceToFile> trace) {
+  trace.reset();
+}
+}  // namespace
+
+void TraceToFileForDuration(const FilePath& output_path_relative_to_logs,
+                            const base::TimeDelta& duration) {
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(
+          &EndTimedTrace,
+          base::Passed(make_scoped_ptr(
+              new ScopedTraceToFile(output_path_relative_to_logs)))),
+      duration);
 }
 
 }  // namespace trace_event
