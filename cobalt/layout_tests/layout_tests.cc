@@ -188,6 +188,7 @@ TEST_P(LayoutTest, LayoutTest) {
   browser::WebModule web_module(
       callback_function, base::Bind(&AcceptDocumentError, &run_loop),
       kTestViewportSize, pixel_tester.GetResourceProvider(),
+      60.0f,  // Layout refresh rate. Doesn't matter much for layout tests.
       web_module_options);
 
   // Start the WebModule wheels churning.  This will initiate the required loads

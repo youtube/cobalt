@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
@@ -48,7 +49,8 @@ class LayoutManager : public dom::DocumentObserver {
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 cssom::CSSParser* css_parser,
-                LayoutTrigger layout_trigger);
+                LayoutTrigger layout_trigger,
+                float layout_refresh_rate);
   ~LayoutManager();
 
   void OnLoad() OVERRIDE;
@@ -64,6 +66,14 @@ class LayoutManager : public dom::DocumentObserver {
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const LayoutTrigger layout_trigger_;
+
+  // This flag indicates whether or not we should do a re-layout.  The flag
+  // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
+  // a layout is initiated and it is set back to false.  Events such as
+  // DOM mutations will set this flag back to true.
+  bool layout_dirty_;
+
+  base::Timer layout_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(LayoutManager);
 };

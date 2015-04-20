@@ -61,6 +61,7 @@ class WebModule {
             const ErrorCallback& error_callback,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
+            float layout_refresh_rate,
             const Options& options);
   ~WebModule();
 
