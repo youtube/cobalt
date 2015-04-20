@@ -17,6 +17,7 @@
 #include "cobalt/browser/browser_module.h"
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 
 namespace cobalt {
@@ -45,11 +46,13 @@ BrowserModule::~BrowserModule() {}
 
 void BrowserModule::OnRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   renderer_module_.pipeline()->Submit(render_tree);
 }
 
 void BrowserModule::OnKeyEventProduced(
     const scoped_refptr<dom::KeyboardEvent>& event) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
   web_module_.InjectEvent(event);
 }
 

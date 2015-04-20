@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/web_module.h"
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
@@ -102,6 +103,8 @@ WebModule::WebModule(const OnRenderTreeProducedCallback&
 WebModule::~WebModule() {}
 
 void WebModule::InjectEvent(const scoped_refptr<dom::Event>& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::InjectEvent()",
+               "type", event->type());
   // Forward the input event on to the DOM document.
   thread_checker_.CalledOnValidThread();
   window_->document()->DispatchEvent(event);
