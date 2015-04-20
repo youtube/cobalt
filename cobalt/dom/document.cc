@@ -178,8 +178,6 @@ void Document::SignalOnLoadToObservers() {
 
 void Document::RecordMutation() {
   TRACE_EVENT0("cobalt::dom", "Document::RecordMutation()");
-  // TODO(***REMOVED***): Accumulate mutations and trigger the notification
-  //               asynchronously.
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
 
