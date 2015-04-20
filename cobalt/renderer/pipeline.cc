@@ -135,6 +135,7 @@ void Pipeline::SetNewRenderTree(
     //               rasterizer submits based on a platform-specific VSync
     //               signal instead of relying on a timer that may or may not
     //               match the precise VSync interval of the hardware.
+    //               b/20423772
     const float timer_interval =
         base::Time::kMicrosecondsPerSecond * 1.0f / (kRefreshRate + 1.0f);
 
