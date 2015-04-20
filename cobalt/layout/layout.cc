@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/layout.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -65,6 +66,7 @@ scoped_refptr<render_tree::Node> Layout(
     const math::SizeF& viewport_size,
     render_tree::ResourceProvider* resource_provider,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  TRACE_EVENT0("cobalt::layout", "Layout()");
   UsedStyleProvider used_style_provider(resource_provider);
 
   scoped_ptr<ContainingBlock> initial_containing_block =
