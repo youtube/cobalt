@@ -81,6 +81,7 @@ WebModule::WebModule(const OnRenderTreeProducedCallback&
                      const ErrorCallback& error_callback,
                      const math::Size& window_dimensions,
                      render_tree::ResourceProvider* resource_provider,
+                     float layout_refresh_rate,
                      const Options& options)
     : css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
@@ -95,7 +96,8 @@ WebModule::WebModule(const OnRenderTreeProducedCallback&
                               error_callback)),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger),
+                      options.layout_trigger,
+                      layout_refresh_rate),
       media_module_(media::MediaModule::Create()) {
   global_object_proxy_->SetGlobalInterface(window_);
 }
