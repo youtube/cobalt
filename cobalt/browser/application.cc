@@ -19,7 +19,9 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
+#include "base/string_number_conversions.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -40,10 +42,31 @@ std::string GetInitialURL() {
   return std::string(kDefaultInitialURL);
 }
 
+base::TimeDelta GetTimedTraceDuration() {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  int duration_in_seconds;
+  if (command_line->HasSwitch(switches::kTimedTrace) &&
+      base::StringToInt(
+          command_line->GetSwitchValueASCII(switches::kTimedTrace),
+          &duration_in_seconds)) {
+    return base::TimeDelta::FromSeconds(duration_in_seconds);
+  } else {
+    return base::TimeDelta();
+  }
+}
+
 }  // namespace
 
 Application::Application()
     : ui_message_loop_(MessageLoop::TYPE_UI) {
+  // Check to see if a timed_trace has been set, indicating that we should
+  // begin a timed trace upon startup.
+  base::TimeDelta trace_duration = GetTimedTraceDuration();
+  if (trace_duration != base::TimeDelta()) {
+    trace_event::TraceToFileForDuration(
+        FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
+  }
+
   GURL url = GURL(GetInitialURL());
   if (!url.is_valid()) {
     DLOG(INFO) << "Initial URL is not valid, using empty URL.";
