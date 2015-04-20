@@ -22,6 +22,7 @@ namespace browser {
 namespace switches {
 
 extern const char kInitialURL[];
+extern const char kTimedTrace[];
 
 }  // namespace switches
 }  // namespace browser
