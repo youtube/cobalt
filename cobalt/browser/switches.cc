@@ -20,7 +20,16 @@ namespace cobalt {
 namespace browser {
 namespace switches {
 
+// Setting this switch defines the startup URL that Cobalt will use.  If no
+// value is set, a default URL will be used.
 const char kInitialURL[] = "url";
+
+// If this is set, then a trace (see base/debug/trace_eventh.h) is started on
+// Cobalt startup.  A value must also be specified for this switch, which is
+// the duration in seconds of how long the trace will be done for before ending
+// and saving the results to disk.  Results will be saved to the file
+// "timed_trace.json" in the log output directory.
+const char kTimedTrace[] = "timed_trace";
 
 }  // namespace switches
 }  // namespace browser
