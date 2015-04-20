@@ -38,6 +38,7 @@ BrowserModule::BrowserModule(const Options& options)
                   WebModule::ErrorCallback(),
                   math::Size(kInitialWidth, kInitialHeight),
                   renderer_module_.pipeline()->GetResourceProvider(),
+                  renderer_module_.pipeline()->refresh_rate(),
                   options.web_module_options),
       input_device_manager_(input::InputDeviceManager::Create(base::Bind(
           &BrowserModule::OnKeyEventProduced, base::Unretained(this)))) {}
