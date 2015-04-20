@@ -1,0 +1,37 @@
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:44:22.247069358 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:43:25.766243027 -0800
+@@ -917,6 +917,9 @@ SSL_IMPORT SECStatus SSL_HandshakeNegoti
+                                                       SSLExtensionType extId,
+                                                       PRBool *yes);
+ 
++SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
++                                                 PRBool *last_handshake_resumed);
++
+ /*
+ ** How long should we wait before retransmitting the next flight of
+ ** the DTLS handshake? Returns SECFailure if not DTLS or not in a
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:44:22.247069358 -0800
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:40:33.053714908 -0800
+@@ -1912,6 +1912,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *f
+     return SECSuccess;
+ }
+ 
++SECStatus
++SSL_HandshakeResumedSession(PRFileDesc *fd, PRBool *handshake_resumed) {
++    sslSocket *ss = ssl_FindSocket(fd);
++
++    if (!ss) {
++	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_HandshakeResumedSession",
++		 SSL_GETPID(), fd));
++	return SECFailure;
++    }
++
++    *handshake_resumed = ss->ssl3.hs.isResuming;
++    return SECSuccess;
++}
++
+ /************************************************************************/
+ /* The following functions are the TOP LEVEL SSL functions.
+ ** They all get called through the NSPRIOMethods table below.

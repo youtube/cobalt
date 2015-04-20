@@ -1,0 +1,15 @@
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-09-27 22:10:25.000000000 -0700
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:18:00.923858639 -0800
+@@ -4236,9 +4236,9 @@ ssl3_SendClientHello(sslSocket *ss, PRBo
+     	return SECFailure;	/* ssl3_config_match_init has set error code. */
+ 
+     /* HACK for SCSV in SSL 3.0.  On initial handshake, prepend SCSV,
+-     * only if we're willing to complete an SSL 3.0 handshake.
++     * only if TLS is disabled.
+      */
+-    if (!ss->firstHsDone && ss->vrange.min == SSL_LIBRARY_VERSION_3_0) {
++    if (!ss->firstHsDone && !isTLS) {
+ 	/* Must set this before calling Hello Extension Senders, 
+ 	 * to suppress sending of empty RI extension.
+ 	 */

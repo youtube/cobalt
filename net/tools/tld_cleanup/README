@@ -1,0 +1,22 @@
+When updating src/net/base/registry_controlled_domains/effective_tld_names.dat:
+
+1. Obtain the new effective_tld_names.dat, probably by downloading
+   http://goo.gl/Ji2bB
+
+2. Remove whitespace from the ends of the lines.
+
+3. Add the Chromium note back in.
+
+4. Build tld_cleanup.exe (the "(net)" > "tld_cleanup" project)
+
+5. Run it (no arguments needed), typically from src/build/Release or
+   src/build/Debug. It will re-generate
+   src/net/base/registry_controlled_domains/effective_tld_names.gperf.
+
+6. Run gperf on the new effective_tld_names.gperf:
+     gperf -a -L "C++" -C -c -o -t -k '*' -NFindDomain -D -m 5 \
+        effective_tld_names.gperf > effective_tld_names.cc
+   It will produce a new effective_tld_names.cc.
+
+7. Check in the updated effective_tld_names.dat, effective_tld_names.gperf,
+   and effective_tld_names.cc together.
