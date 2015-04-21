@@ -70,10 +70,15 @@ class TransitionSet {
       const scoped_refptr<PropertyValue>& destination_value,
       const cssom::CSSStyleDeclarationData& transition_style);
 
+  // Inserts or replaces an existing value in the internal map.  Essentially
+  // this method behaves like InternalTransitionMap::operator[], but does not
+  // require that the map value have a default constructor defined.
+  void InsertOrReplaceInInternalMap(
+      const char* property_name, const Transition& transition);
+
   // The value of our internal hash map is a base::optional type so that we
   // do not need to specify a default constructor on it.
-  typedef base::hash_map<const char*, base::optional<Transition> >
-      InternalTransitionMap;
+  typedef base::hash_map<const char*, Transition> InternalTransitionMap;
   InternalTransitionMap transitions_;
 };
 

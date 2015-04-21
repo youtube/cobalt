@@ -76,6 +76,16 @@ void TransitionSet::UpdateTransitions(
                               destination_computed_style);
 }
 
+void TransitionSet::InsertOrReplaceInInternalMap(
+    const char* property_name, const Transition& transition) {
+  InternalTransitionMap::iterator found = transitions_.find(property_name);
+  if (found == transitions_.end()) {
+    transitions_.insert(std::make_pair(property_name, transition));
+  } else {
+    found->second = transition;
+  }
+}
+
 void TransitionSet::UpdateTransitionForProperty(
     const char* property_name, const base::Time& current_time,
     const scoped_refptr<PropertyValue>& source_value,
@@ -99,9 +109,11 @@ void TransitionSet::UpdateTransitionForProperty(
 
       // Only transition if the duration is not set to 0.
       if (duration.InMilliseconds() != 0) {
-        transitions_[property_name] = Transition(
-            property_name, source_value, destination_value, current_time,
-            duration, base::TimeDelta(), TimingFunction(), source_value, 1.0f);
+        InsertOrReplaceInInternalMap(
+            property_name,
+            Transition(property_name, source_value, destination_value,
+                       current_time, duration, base::TimeDelta(),
+                       TimingFunction(), source_value, 1.0f));
       }
     }
   }
@@ -112,7 +124,7 @@ const Transition* TransitionSet::GetTransitionForProperty(
   InternalTransitionMap::const_iterator found = transitions_.find(property);
   if (found == transitions_.end()) return NULL;
 
-  return &found->second.value();
+  return &found->second;
 }
 
 void TransitionSet::ApplyTransitions(
