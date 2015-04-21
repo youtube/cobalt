@@ -26,11 +26,14 @@ namespace script {
 // http://www.w3.org/html/wg/drafts/html/master/webappapis.html#environment-settings-object
 class EnvironmentSettings {
  public:
-  // Currently empty until we have a better idea of what we actually need from
-  // this.
+  EnvironmentSettings() {}
+  virtual ~EnvironmentSettings() {}
 
  protected:
   friend class scoped_ptr<EnvironmentSettings>;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 };
 
 }  // namespace script

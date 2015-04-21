@@ -14,34 +14,21 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
+#include "cobalt/dom/dom_settings.h"
 
-#include "cobalt/dom/event_names.h"
+#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
 
-namespace {
+DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
+                         const scoped_refptr<Window>& window)
+    : fetcher_factory_(fetcher_factory), window_(window) {}
+DOMSettings::~DOMSettings() {}
 
-const std::string& GetEventTypeName(const UIEvent::Type& type) {
-  switch (type) {
-    case UIEvent::kKeyDown:
-      return EventNames::GetInstance()->keydown();
-    case UIEvent::kKeyPress:
-      return EventNames::GetInstance()->keypress();
-    case UIEvent::kKeyUp:
-      return EventNames::GetInstance()->keyup();
-    default:
-      break;
-  }
-
-  NOTREACHED();
-  return EventNames::GetInstance()->keydown();
+GURL DOMSettings::base_url() const {
+  return window()->document()->url_as_gurl();
 }
-
-}  // namespace
-
-UIEvent::UIEvent(Type type) : type_enum_(type), Event(GetEventTypeName(type)) {}
 
 }  // namespace dom
 }  // namespace cobalt
