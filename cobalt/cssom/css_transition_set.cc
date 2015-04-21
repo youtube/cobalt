@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/css_transition_set.h"
 
+#include <cmath>
+
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
