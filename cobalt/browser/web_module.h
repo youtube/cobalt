@@ -21,13 +21,13 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
@@ -93,9 +93,6 @@ class WebModule {
 
   scoped_ptr<css_parser::Parser> css_parser_;
 
-  // Environment Settings object
-  scoped_ptr<script::EnvironmentSettings> environment_settings_;
-
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -114,6 +111,9 @@ class WebModule {
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
+
+  // Environment Settings object
+  scoped_ptr<dom::DOMSettings> environment_settings_;
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
