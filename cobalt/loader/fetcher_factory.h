@@ -34,6 +34,8 @@ class FetcherFactory {
   scoped_ptr<Fetcher> CreateFetcher(
       const GURL& url, Fetcher::Handler* handler);
 
+  network::NetworkModule* network_module() const { return network_module_; }
+
  private:
   base::Thread io_thread_;
   network::NetworkModule* network_module_;
