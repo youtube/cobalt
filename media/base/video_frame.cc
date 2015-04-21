@@ -313,7 +313,7 @@ uint8* VideoFrame::data(size_t plane) const {
   return data_[plane];
 }
 
-uint32 VideoFrame::texture_id() const {
+uintptr_t VideoFrame::texture_id() const {
   DCHECK_EQ(format_, NATIVE_TEXTURE);
   return texture_id_;
 }
