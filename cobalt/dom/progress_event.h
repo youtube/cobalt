@@ -14,34 +14,37 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
+#ifndef DOM_PROGRESS_EVENT_H_
+#define DOM_PROGRESS_EVENT_H_
 
-#include "cobalt/dom/event_names.h"
+#include <string>
+
+#include "cobalt/dom/event.h"
 
 namespace cobalt {
 namespace dom {
 
-namespace {
+class ProgressEvent : public Event {
+ public:
+  explicit ProgressEvent(const std::string& type);
+  ProgressEvent(const std::string& type, uint64 loaded, uint64 total,
+                bool length_computable);
 
-const std::string& GetEventTypeName(const UIEvent::Type& type) {
-  switch (type) {
-    case UIEvent::kKeyDown:
-      return EventNames::GetInstance()->keydown();
-    case UIEvent::kKeyPress:
-      return EventNames::GetInstance()->keypress();
-    case UIEvent::kKeyUp:
-      return EventNames::GetInstance()->keyup();
-    default:
-      break;
-  }
+  bool length_computable() const { return length_computable_; }
+  uint64 loaded() const { return loaded_; }
+  uint64 total() const { return total_; }
 
-  NOTREACHED();
-  return EventNames::GetInstance()->keydown();
-}
+  DEFINE_WRAPPABLE_TYPE(ProgressEvent);
 
-}  // namespace
+ private:
+  uint64 loaded_;
+  uint64 total_;
+  bool length_computable_;
 
-UIEvent::UIEvent(Type type) : type_enum_(type), Event(GetEventTypeName(type)) {}
+  DISALLOW_COPY_AND_ASSIGN(ProgressEvent);
+};
 
 }  // namespace dom
 }  // namespace cobalt
+
+#endif  // DOM_PROGRESS_EVENT_H_

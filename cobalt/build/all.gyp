@@ -40,6 +40,7 @@
         '<(DEPTH)/cobalt/samples/samples.gyp:*',
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
+        '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
       ]
     }
   ],

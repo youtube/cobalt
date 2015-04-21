@@ -49,6 +49,8 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // net::URLFetcherDelegate interface
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
 
+  net::URLFetcher* url_fetcher() const { return url_fetcher_.get(); }
+
  private:
   // Thread checker ensures all calls to the NetFetcher are made from the same
   // thread that it is created in.

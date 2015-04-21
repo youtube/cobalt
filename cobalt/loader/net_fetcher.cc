@@ -37,11 +37,8 @@ NetFetcher::NetFetcher(const GURL& url, Handler* handler,
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  DLOG(INFO) << "URL Fetch complete: status: " << source->GetStatus().status();
-  DLOG(INFO) << "URL Fetch response code: " << source->GetResponseCode();
   std::string response_string;
   if (source->GetResponseAsString(&response_string)) {
-    DLOG(INFO) << "response string " << response_string;
     handler()->OnReceived(response_string.c_str(), response_string.length());
   } else {
     DLOG(INFO) << "GetResponseAsString() failed.";

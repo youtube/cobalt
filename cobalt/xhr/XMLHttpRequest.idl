@@ -1,0 +1,60 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/
+[
+    Constructor,
+    ConstructorCallWith=EnvironmentSettings
+] interface XMLHttpRequest : XMLHttpRequestEventTarget {
+
+    // values for readyState.
+    const unsigned short UNSENT = 0;
+    const unsigned short OPENED = 1;
+    const unsigned short HEADERS_RECEIVED = 2;
+    const unsigned short LOADING = 3;
+    const unsigned short DONE = 4;
+
+    void open(DOMString method, DOMString url);
+
+    void setRequestHeader(DOMString header, DOMString value);
+    // TODO(***REMOVED***): Wait for union types to be supported. Just allow DOMString for now.
+    // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
+    void send(optional DOMString? request_body);
+    void abort();
+    void overrideMimeType(DOMString mime_type);
+    DOMString getAllResponseHeaders();
+    DOMString? getResponseHeader(DOMString header);
+
+    readonly attribute unsigned short readyState;
+    attribute EventListener? onreadystatechange;
+
+    attribute unsigned long timeout;
+
+    attribute boolean withCredentials;
+
+    // TODO(***REMOVED***): Do we need to support uploads?
+    // readonly attribute XMLHttpRequestUpload upload;
+
+    readonly attribute DOMString responseText;
+    readonly attribute Document? responseXML;
+
+    attribute DOMString responseType;
+    // TODO(***REMOVED***): Use a union type for all the possible response types.
+    readonly attribute object response;
+
+    readonly attribute unsigned short status;
+    readonly attribute DOMString statusText;
+};
