@@ -83,7 +83,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // |read_pixels_cb| may be used to do (slow!) readbacks from the
   // texture to main memory.
   static scoped_refptr<VideoFrame> WrapNativeTexture(
-      uint32 texture_id,
+      uintptr_t texture_id,
       uint32 texture_target,
       const gfx::Size& coded_size,
       const gfx::Rect& visible_rect,
@@ -156,7 +156,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 
   // Returns the ID of the native texture wrapped by this frame.  Only valid to
   // call if this is a NATIVE_TEXTURE frame.
-  uint32 texture_id() const;
+  uintptr_t texture_id() const;
 
   // Returns the texture target. Only valid for NATIVE_TEXTURE frames.
   uint32 texture_target() const;
@@ -214,7 +214,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   uint8* data_[kMaxPlanes];
 
   // Native texture ID, if this is a NATIVE_TEXTURE frame.
-  uint32 texture_id_;
+  uintptr_t texture_id_;
   uint32 texture_target_;
   ReadPixelsCB read_pixels_cb_;
 
