@@ -39,7 +39,7 @@ class NumberValue : public PropertyValue {
     return value_ == other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(NumberValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(NumberValue);
 
  private:
   ~NumberValue() OVERRIDE {}

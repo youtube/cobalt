@@ -77,7 +77,7 @@ class TimeListValue : public PropertyValue {
     return *value_ == *other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(TimeListValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimeListValue);
 
  private:
   ~TimeListValue() OVERRIDE;

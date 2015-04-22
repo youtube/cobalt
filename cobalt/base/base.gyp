@@ -24,6 +24,7 @@
         'init_cobalt.cc',
         'init_cobalt.h',
         'polymorphic_downcast.h',
+        'polymorphic_equatable.h',
         'source_location.h',
         'type_id.h',
       ],
