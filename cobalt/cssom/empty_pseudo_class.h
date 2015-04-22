@@ -19,7 +19,6 @@
 
 #include <string>
 
-#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
 
@@ -37,6 +36,8 @@ class EmptyPseudoClass : public Selector {
  public:
   EmptyPseudoClass() {}
   ~EmptyPseudoClass() OVERRIDE {}
+
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
