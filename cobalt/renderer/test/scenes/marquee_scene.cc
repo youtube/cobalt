@@ -86,7 +86,7 @@ RenderTreeWithAnimations CreateMarqueeScene(
   // Load a font for use with text rendering.
   const float kFontSize = 40.0f;
   scoped_refptr<Font> test_font = resource_provider->GetPreInstalledFont(
-      "Droid Sans", ResourceProvider::kNormal, kFontSize);
+      "Droid Sans", render_tree::kNormal, kFontSize);
 
   // Use information about the string we are rendering to properly position
   // it in the vertical center of the screen and far enough offscreen that

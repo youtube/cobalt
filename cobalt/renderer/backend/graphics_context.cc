@@ -35,13 +35,14 @@ scoped_ptr<Texture> GraphicsContext::CreateTextureFromCopy(
   int image_source_pitch_in_bytes = texture_source_data->GetPitchInBytes();
   int bytes_per_pixel = SurfaceInfo::BytesPerPixel(surface_info.format);
 
-  DCHECK_LE(bytes_per_pixel * surface_info.width, image_source_pitch_in_bytes);
-  DCHECK_LE(bytes_per_pixel * surface_info.width, pitch_in_bytes);
+  DCHECK_LE(bytes_per_pixel * surface_info.size.width(),
+            image_source_pitch_in_bytes);
+  DCHECK_LE(bytes_per_pixel * surface_info.size.width(), pitch_in_bytes);
 
   // Copy the data specified by the user into the image source data memory.
-  CopyImageData(image_source_memory, image_source_pitch_in_bytes,
-                pixel_data, pitch_in_bytes,
-                surface_info.width * bytes_per_pixel, surface_info.height);
+  CopyImageData(image_source_memory, image_source_pitch_in_bytes, pixel_data,
+                pitch_in_bytes, surface_info.size.width() * bytes_per_pixel,
+                surface_info.size.height());
 
   // Finally wrap our filled out TextureData object in a Image and
   // return the result.

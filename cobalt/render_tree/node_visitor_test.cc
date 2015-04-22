@@ -16,6 +16,7 @@
 
 #include "cobalt/render_tree/node_visitor.h"
 
+#include "cobalt/math/size.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
@@ -53,8 +54,10 @@ TEST(NodeVisitorTest, VisitsComposition) {
 namespace {
 
 class DummyImage : public Image {
-  int GetWidth() const OVERRIDE { return 0; }
-  int GetHeight() const OVERRIDE { return 0; }
+  const cobalt::math::Size& GetSize() const OVERRIDE { return size_; }
+
+ private:
+  cobalt::math::Size size_;
 };
 
 class DummyBrush : public Brush {

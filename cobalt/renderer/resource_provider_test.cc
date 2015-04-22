@@ -46,10 +46,10 @@ class CreateImagesThread : public base::SimpleThread {
 
   void Run() OVERRIDE {
     for (int i = 0; i < num_images_to_create_; ++i) {
-      scoped_ptr<ResourceProvider::ImageData> image_data =
+      scoped_ptr<render_tree::ImageData> image_data =
           resource_provider_->AllocateImageData(
-              1, 1, ResourceProvider::ImageData::kPixelFormatRGBA8,
-              ResourceProvider::ImageData::kAlphaFormatPremultiplied);
+              math::Size(1, 1), render_tree::kPixelFormatRGBA8,
+              render_tree::kAlphaFormatPremultiplied);
 
       resource_provider_->CreateImage(image_data.Pass());
     }

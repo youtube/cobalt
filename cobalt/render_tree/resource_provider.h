@@ -38,72 +38,16 @@ class ResourceProvider {
  public:
   virtual ~ResourceProvider() {}
 
-  // ImageData is an interface for an object that contains an allocation
-  // of CPU-accessible memory that is intended to be passed in to CreateImage()
-  // so that it may be used by the GPU.
-  class ImageData {
-   public:
-    virtual ~ImageData() {}
-
-    // Formats of pixel data that we support creating images from.
-    enum PixelFormat {
-      kPixelFormatRGBA8,
-      kPixelFormatInvalid,
-    };
-    static int BytesPerPixel(PixelFormat pixel_format) {
-      switch (pixel_format) {
-        case kPixelFormatRGBA8:
-          return 4;
-        case kPixelFormatInvalid:
-        default: DLOG(FATAL) << "Unexpected pixel format.";
-      }
-      return -1;
-    }
-
-    enum AlphaFormat {
-      // Premultiplied alpha means that the RGB components (in terms of
-      // the range [0.0, 1.0]) have already been multiplied by the A component
-      // (also in the range [0.0, 1.0]).  Thus, it is expected that for all
-      // pixels, each component is less than or equal to the alpha component.
-      kAlphaFormatPremultiplied,
-
-      // This alpha format implies standard alpha, where each component is
-      // independent of the alpha.
-      kAlphaFormatUnpremultiplied,
-    };
-
-    // Returns information about the kind of data this ImageData is
-    // intended to store.
-    virtual int GetWidth() const = 0;
-    virtual int GetHeight() const = 0;
-    virtual PixelFormat GetPixelFormat() const = 0;
-    virtual AlphaFormat GetAlphaFormat() const = 0;
-    virtual int GetPitchInBytes() const = 0;
-
-    // Returns a pointer to the image data so that one can set pixel data as
-    // necessary.
-    virtual uint8_t* GetMemory() = 0;
-  };
-
   // This method can be used to create an ImageData object.
-  virtual scoped_ptr<ImageData> AllocateImageData(
-      int width, int height, ImageData::PixelFormat pixel_format,
-      ImageData::AlphaFormat alpha_format) = 0;
+  virtual scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
+                                                  PixelFormat pixel_format,
+                                                  AlphaFormat alpha_format) = 0;
 
   // This function will consume an ImageData object produced by a call to
   // AllocateImageData(), wrap it in a render_tree::Image that can be
   // used in a render tree, and return it to the caller.
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
-
-  // Used as a parameter to GetSystemFont() to describe the font style the
-  // caller is seeking.
-  enum FontStyle {
-    kNormal,
-    kBold,
-    kItalic,
-    kBoldItalic,
-  };
 
   // Given a set of font information, this method will return a font pre-loaded
   // on the system that fits the specified font parameters.
