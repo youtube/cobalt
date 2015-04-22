@@ -41,7 +41,7 @@ class TranslateXFunction : public TransformFunction {
     return *offset_ == *other.offset_;
   }
 
-  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateXFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TranslateXFunction);
 
  private:
   const scoped_refptr<LengthValue> offset_;
@@ -66,7 +66,7 @@ class TranslateYFunction : public TransformFunction {
     return *offset_ == *other.offset_;
   }
 
-  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateYFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TranslateYFunction);
 
  private:
   const scoped_refptr<LengthValue> offset_;
@@ -92,7 +92,7 @@ class TranslateZFunction : public TransformFunction {
     return *offset_ == *other.offset_;
   }
 
-  DEFINE_TRANSFORM_FUNCTION_TYPE(TranslateZFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TranslateZFunction);
 
  private:
   const scoped_refptr<LengthValue> offset_;

@@ -220,15 +220,15 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
 
   // If both start and end values are "none", then the animated value is
   // "none" also and we are done.
-  if (start_value->IsEqual(KeywordValue::GetNone()) &&
-      end_value->IsEqual(KeywordValue::GetNone())) {
+  if (start_value->Equals(*KeywordValue::GetNone()) &&
+      end_value->Equals(*KeywordValue::GetNone())) {
     return KeywordValue::GetNone();
   }
 
   // At this point, either start_value or end_value may be "none" (though not
   // both).  We shuffle things around here to ensure that start_value is always
   // not "none" so that subsequent code is simplified.
-  if (start_value->IsEqual(KeywordValue::GetNone())) {
+  if (start_value->Equals(*KeywordValue::GetNone())) {
     std::swap(start_value, end_value);
     progress = 1 - progress;
   }
@@ -238,7 +238,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
             ->value());
 
   const TransformListValue::TransformFunctions* end_functions =
-      end_value->IsEqual(KeywordValue::GetNone())
+      end_value->Equals(*KeywordValue::GetNone())
           ? NULL
           : &(base::polymorphic_downcast<const TransformListValue*>(end_value)
                   ->value());
@@ -282,7 +282,7 @@ void AnimatorVisitor::VisitFontWeight(
 }
 
 void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
-  if (start_keyword_value->IsEqual(end_value_)) {
+  if (start_keyword_value->Equals(*end_value_)) {
     animated_value_ = start_keyword_value;
   }
 
