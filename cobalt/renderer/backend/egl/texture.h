@@ -34,7 +34,7 @@ class TextureDataEGL : public TextureData {
 
   const SurfaceInfo& GetSurfaceInfo() const OVERRIDE { return surface_info_; }
   int GetPitchInBytes() const OVERRIDE {
-    return surface_info_.width * surface_info_.BytesPerPixel();
+    return surface_info_.size.width() * surface_info_.BytesPerPixel();
   }
 
   uint8_t* GetMemory() OVERRIDE { return static_cast<uint8_t*>(memory_.get()); }

@@ -24,12 +24,12 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-PBufferRenderTargetEGL::PBufferRenderTargetEGL(
-    EGLDisplay display, EGLConfig config, const math::Size& dimensions) :
-    display_(display),
-    config_(config),
-    surface_info_(dimensions.width(), dimensions.height(),
-                  SurfaceInfo::kFormatRGBA8) {
+PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
+                                               EGLConfig config,
+                                               const math::Size& dimensions)
+    : display_(display),
+      config_(config),
+      surface_info_(dimensions, SurfaceInfo::kFormatRGBA8) {
   EGLint surface_attrib_list[] = {
       EGL_WIDTH, dimensions.width(),
       EGL_HEIGHT, dimensions.height(),
