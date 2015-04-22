@@ -17,6 +17,9 @@
 #ifndef CSSOM_CSS_STYLE_RULE_H_
 #define CSSOM_CSS_STYLE_RULE_H_
 
+#include <utility>
+#include <vector>
+
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/selector.h"
@@ -39,10 +42,11 @@ class CSSStyleRule : public CSSRule {
 
   // Custom, not in any spec.
   //
-  const Selectors& selectors() const { return selectors_; }
 
   // From CSSRule.
   void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
+
+  const Selectors& selectors() const { return selectors_; }
 
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
 
@@ -52,6 +56,11 @@ class CSSStyleRule : public CSSRule {
   Selectors selectors_;
   scoped_refptr<CSSStyleDeclaration> style_;
 };
+
+typedef std::vector<scoped_refptr<cssom::CSSStyleRule> > Rules;
+typedef std::pair<scoped_refptr<cssom::CSSStyleRule>, cssom::Specificity>
+    RuleWithSpecificity;
+typedef std::vector<RuleWithSpecificity> RulesWithSpecificity;
 
 }  // namespace cssom
 }  // namespace cobalt

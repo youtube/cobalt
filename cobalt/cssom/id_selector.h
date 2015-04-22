@@ -34,6 +34,8 @@ class IdSelector : public Selector {
   explicit IdSelector(const std::string& id) : id_(id) {}
   ~IdSelector() OVERRIDE {}
 
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
+
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   const std::string& id() const { return id_; }

@@ -116,6 +116,7 @@
       'target_name': 'layout_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'cascaded_style_test.cc',
         'computed_style_test.cc',
         'declared_style_test.cc',
       ],

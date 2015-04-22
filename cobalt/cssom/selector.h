@@ -18,14 +18,22 @@
 #define CSSOM_SELECTOR_H_
 
 #include "base/memory/scoped_vector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
 
 class SelectorVisitor;
 
-struct Selector {
+// Selectors are patterns that match against elements in a tree, and as such
+// form one of several technologies that can be used to select nodes in an XML
+// document.
+//   http://www.w3.org/TR/selectors4/
+class Selector {
+ public:
   virtual ~Selector() {}
+
+  virtual Specificity GetSpecificity() const = 0;
 
   virtual void Accept(SelectorVisitor* visitor) = 0;
 };
