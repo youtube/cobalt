@@ -17,6 +17,7 @@
 #ifndef CSSOM_TRANSFORM_FUNCTION_H_
 #define CSSOM_TRANSFORM_FUNCTION_H_
 
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
@@ -28,30 +29,12 @@ class TransformFunctionVisitor;
 // Transform functions define how transformation is applied to the coordinate
 // system an HTML element renders in.
 //   http://www.w3.org/TR/css-transforms-1/#transform-functions
-class TransformFunction {
+class TransformFunction : public base::PolymorphicEquatable {
  public:
   virtual void Accept(TransformFunctionVisitor* visitor) = 0;
 
-  virtual bool IsEqual(const TransformFunction* other) const = 0;
-  virtual base::TypeId GetTypeId() const = 0;
-
   virtual ~TransformFunction() {}
 };
-
-// Used to provide type-safe equality checking even when the exact
-// TransformFunction type is unknown.  For any class T that is intended to be
-// a descendant of TransformFunction, it should call this macro in the public
-// section of its class declaration.
-#define DEFINE_TRANSFORM_FUNCTION_TYPE(CLASS_NAME)                            \
-  bool IsEqual(const TransformFunction* other) const OVERRIDE {               \
-    return base::GetTypeId<CLASS_NAME>() == other->GetTypeId() &&             \
-           *static_cast<const CLASS_NAME*>(this) ==                           \
-           *static_cast<const CLASS_NAME*>(other);                            \
-  }                                                                           \
-                                                                              \
-  base::TypeId GetTypeId() const OVERRIDE {                                   \
-    return base::GetTypeId<CLASS_NAME>();                                     \
-  }                                                                           \
 
 // Applies the specified transformation to the in/out matrix parameter.
 // The transform function is converted to a matrix and then appended to

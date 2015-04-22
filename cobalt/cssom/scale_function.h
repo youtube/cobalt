@@ -40,7 +40,7 @@ class ScaleFunction : public TransformFunction {
     return x_factor_ == other.x_factor_ && y_factor_ == other.y_factor_;
   }
 
-  DEFINE_TRANSFORM_FUNCTION_TYPE(ScaleFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(ScaleFunction);
 
  private:
   const float x_factor_;

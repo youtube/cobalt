@@ -164,10 +164,10 @@ TEST_F(TransitionSetTest, NoStyleChangesGeneratesNoTransitions) {
 // written.
 namespace {
 void CheckTransitionsEqual(const Transition& a, const Transition& b) {
-  EXPECT_TRUE(a.start_value()->IsEqual(b.start_value()));
-  EXPECT_TRUE(a.end_value()->IsEqual(b.end_value()));
-  EXPECT_TRUE(a.reversing_adjusted_start_value()->IsEqual(
-      b.reversing_adjusted_start_value()));
+  EXPECT_TRUE(a.start_value()->Equals(*b.start_value()));
+  EXPECT_TRUE(a.end_value()->Equals(*b.end_value()));
+  EXPECT_TRUE(a.reversing_adjusted_start_value()->Equals(
+      *b.reversing_adjusted_start_value()));
 
   EXPECT_EQ(a.duration(), b.duration());
   EXPECT_EQ(a.delay(), b.delay());

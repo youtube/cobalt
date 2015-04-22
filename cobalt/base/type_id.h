@@ -40,6 +40,10 @@ class TypeIdHelper {
   static bool dummy_;
 };
 
+// The compiler is required to allocate a different
+// TypeIdHelper<T>::dummy_ variable for each T used to instantiate
+// the template.  Therefore, the address of dummy_ is guaranteed to
+// be unique.
 template <typename T>
 bool TypeIdHelper<T>::dummy_ = false;
 
@@ -69,10 +73,6 @@ class TypeId {
 // same type argument is guaranteed to return the same ID.
 template <typename T>
 TypeId GetTypeId() {
-  // The compiler is required to allocate a different
-  // TypeIdHelper<T>::dummy_ variable for each T used to instantiate
-  // the template.  Therefore, the address of dummy_ is guaranteed to
-  // be unique.
   return
       TypeId(reinterpret_cast<intptr_t>(&(internal::TypeIdHelper<T>::dummy_)));
 }
