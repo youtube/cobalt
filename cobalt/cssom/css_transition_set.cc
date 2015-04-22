@@ -111,7 +111,7 @@ void SetReversingValues(
   // These calculations make a pleasant experience when reversing a transition
   // half-way through by making the reverse transition occur over half as much
   // time.
-  if (old_transition.reversing_adjusted_start_value()->IsEqual(new_end_value)) {
+  if (old_transition.reversing_adjusted_start_value()->Equals(*new_end_value)) {
     *new_reversing_shortening_factor =
         std::min<float>(1.0f, std::max<float>(0.0f,
             std::abs(old_transition.Progress(current_time) *
@@ -193,7 +193,7 @@ void TransitionSet::UpdateTransitionForProperty(
     base::TimeDelta duration =
         transition_duration->time_at_index(transition_index).ToTimeDelta();
 
-    if (duration.InMilliseconds() != 0 && !start_value->IsEqual(end_value)) {
+    if (duration.InMilliseconds() != 0 && !start_value->Equals(*end_value)) {
       // The property has been modified and the transition should be animated.
       // We now check if an active transition for this property already exists
       // or not.

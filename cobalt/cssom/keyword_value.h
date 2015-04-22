@@ -102,7 +102,7 @@ class KeywordValue : public PropertyValue {
     return value_ == other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(KeywordValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(KeywordValue);
 
  private:
   ~KeywordValue() OVERRIDE {}

@@ -41,7 +41,7 @@ TEST(PropertyValueIsEqualTest, DifferingTypes) {
   scoped_refptr<FontWeightValue> value_b(
       new FontWeightValue(FontWeightValue::kThinAka100));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 // Type-specific tests.
@@ -51,7 +51,7 @@ TEST(PropertyValueIsEqualTest, FontWeightsAreEqual) {
   scoped_refptr<FontWeightValue> value_b(
       new FontWeightValue(FontWeightValue::kThinAka100));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, FontWeightsAreNotEqual) {
@@ -60,7 +60,7 @@ TEST(PropertyValueIsEqualTest, FontWeightsAreNotEqual) {
   scoped_refptr<FontWeightValue> value_b(
       new FontWeightValue(FontWeightValue::kLightAka300));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, KeywordsAreEqual) {
@@ -69,7 +69,7 @@ TEST(PropertyValueIsEqualTest, KeywordsAreEqual) {
   scoped_refptr<KeywordValue> value_b(
       new KeywordValue(KeywordValue::kAuto));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, KeywordsAreNotEqual) {
@@ -78,7 +78,7 @@ TEST(PropertyValueIsEqualTest, KeywordsAreNotEqual) {
   scoped_refptr<KeywordValue> value_b(
       new KeywordValue(KeywordValue::kBlock));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, LengthsAreEqual) {
@@ -87,7 +87,7 @@ TEST(PropertyValueIsEqualTest, LengthsAreEqual) {
   scoped_refptr<LengthValue> value_b(
       new LengthValue(1.5f, kPixelsUnit));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, LengthsAreNotEqual) {
@@ -96,21 +96,21 @@ TEST(PropertyValueIsEqualTest, LengthsAreNotEqual) {
   scoped_refptr<LengthValue> value_b(
       new LengthValue(1.5f, kFontSizesAkaEmUnit));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, NumbersAreEqual) {
   scoped_refptr<NumberValue> value_a(new NumberValue(1.0f));
   scoped_refptr<NumberValue> value_b(new NumberValue(1.0f));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, NumbersAreNotEqual) {
   scoped_refptr<NumberValue> value_a(new NumberValue(1.0f));
   scoped_refptr<NumberValue> value_b(new NumberValue(2.0f));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreEqual) {
@@ -124,7 +124,7 @@ TEST(PropertyValueIsEqualTest, PropertyNameListsAreEqual) {
       new PropertyNameListValue(make_scoped_ptr(
           new PropertyNameListValue::PropertyNameList(property_list))));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
@@ -139,35 +139,35 @@ TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
       new PropertyNameListValue(make_scoped_ptr(
           new PropertyNameListValue::PropertyNameList(property_list))));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, RGBAColorsAreEqual) {
   scoped_refptr<RGBAColorValue> value_a(new RGBAColorValue(0x00ff00ff));
   scoped_refptr<RGBAColorValue> value_b(new RGBAColorValue(0x00ff00ff));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, RGBAColorsAreNotEqual) {
   scoped_refptr<RGBAColorValue> value_a(new RGBAColorValue(0x00ff00ff));
   scoped_refptr<RGBAColorValue> value_b(new RGBAColorValue(0xff00ff00));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, StringsAreEqual) {
   scoped_refptr<StringValue> value_a(new StringValue("foo"));
   scoped_refptr<StringValue> value_b(new StringValue("foo"));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, StringsAreNotEqual) {
   scoped_refptr<StringValue> value_a(new StringValue("foo"));
   scoped_refptr<StringValue> value_b(new StringValue("bar"));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TimeListsAreEqual) {
@@ -185,7 +185,7 @@ TEST(PropertyValueIsEqualTest, TimeListsAreEqual) {
   scoped_refptr<TimeListValue> value_b(new TimeListValue(make_scoped_ptr(
       new TimeListValue::TimeList(time_list))));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
@@ -208,7 +208,7 @@ TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
   scoped_refptr<TimeListValue> value_b(new TimeListValue(make_scoped_ptr(
       new TimeListValue::TimeList(time_list))));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
@@ -226,7 +226,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   scoped_refptr<TransformListValue> value_b(new TransformListValue(
       transform_list_b.Pass()));
 
-  EXPECT_TRUE(value_a->IsEqual(value_b));
+  EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
@@ -244,7 +244,7 @@ TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
   scoped_refptr<TransformListValue> value_b(new TransformListValue(
       transform_list_b.Pass()));
 
-  EXPECT_FALSE(value_a->IsEqual(value_b));
+  EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 }  // namespace cssom
