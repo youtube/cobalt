@@ -24,6 +24,15 @@
 namespace cobalt {
 namespace render_tree {
 
+// Used as a parameter to GetSystemFont() to describe the font style the
+// caller is seeking.
+enum FontStyle {
+  kNormal,
+  kBold,
+  kItalic,
+  kBoldItalic,
+};
+
 // The Font class is an abstract base class representing all information
 // required by the rasterizer to determine the font metrics for a given
 // string of text.  Typically this implies that a font typeface, size, and

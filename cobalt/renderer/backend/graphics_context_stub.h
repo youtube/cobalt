@@ -54,8 +54,7 @@ class GraphicsContextStub : public GraphicsContext {
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
       const math::Size& dimensions) OVERRIDE {
     return scoped_refptr<RenderTarget>(new RenderTargetStub(
-        SurfaceInfo(dimensions.width(), dimensions.height(),
-                    SurfaceInfo::kFormatRGBA8)));
+        SurfaceInfo(dimensions, SurfaceInfo::kFormatRGBA8)));
   }
   scoped_ptr<Texture> CreateTextureFromOffscreenRenderTarget(
       const scoped_refptr<RenderTarget>& render_target) OVERRIDE {
@@ -73,9 +72,9 @@ class GraphicsContextStub : public GraphicsContext {
         texture_stub->pixel_data();
 
     const SurfaceInfo& surface_info = pixel_data->surface_info();
-    size_t pixel_memory_size =
-        surface_info.width * surface_info.height *
-            SurfaceInfo::BytesPerPixel(surface_info.format);
+    size_t pixel_memory_size = surface_info.size.width() *
+                               surface_info.size.height() *
+                               SurfaceInfo::BytesPerPixel(surface_info.format);
 
     scoped_array<uint8_t> return_pixels(new uint8_t[pixel_memory_size]);
     memcpy(return_pixels.get(), pixel_data->memory(), pixel_memory_size);

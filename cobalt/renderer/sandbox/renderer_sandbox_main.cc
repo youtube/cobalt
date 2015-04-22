@@ -40,8 +40,7 @@ int main(int argc, char** argv) {
   cobalt::renderer::RendererModule renderer_module(renderer_module_options);
 
   cobalt::math::SizeF output_dimensions(
-      renderer_module.render_target()->GetSurfaceInfo().width,
-      renderer_module.render_target()->GetSurfaceInfo().height);
+      renderer_module.render_target()->GetSurfaceInfo().size);
 
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.
