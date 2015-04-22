@@ -63,7 +63,7 @@ class FontWeightValue : public PropertyValue {
     return value_ == other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(FontWeightValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(FontWeightValue);
 
  private:
   ~FontWeightValue() OVERRIDE {}

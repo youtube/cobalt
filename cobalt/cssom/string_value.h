@@ -42,7 +42,7 @@ class StringValue : public PropertyValue {
     return value_ == other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(StringValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(StringValue);
 
  private:
   ~StringValue() OVERRIDE {}

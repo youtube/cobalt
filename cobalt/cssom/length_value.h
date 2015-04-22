@@ -49,7 +49,7 @@ class LengthValue : public PropertyValue {
     return value_ == other.value_ && unit_ == other.unit_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(LengthValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LengthValue);
 
  private:
   ~LengthValue() OVERRIDE {}

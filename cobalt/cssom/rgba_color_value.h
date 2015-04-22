@@ -61,7 +61,7 @@ class RGBAColorValue : public PropertyValue {
     return value_ == other.value_;
   }
 
-  DEFINE_PROPERTY_VALUE_TYPE(RGBAColorValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RGBAColorValue);
 
  private:
   ~RGBAColorValue() OVERRIDE {}
