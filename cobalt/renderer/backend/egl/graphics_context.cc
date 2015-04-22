@@ -182,6 +182,23 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
   return texture.Pass();
 }
 
+scoped_ptr<RawTextureMemory> GraphicsContextEGL::AllocateRawTextureMemory(
+    size_t size_in_bytes, size_t alignment) {
+  // TODO(***REMOVED***): Needs an implementation.  We probably want to use PBuffers
+  //               for this, but it's not obvious right to me how to do that
+  //               in such a way that can be done from any thread (and thus
+  //               doesn't require a context to be current).
+  NOTREACHED();
+  return scoped_ptr<RawTextureMemory>();
+}
+
+scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromRawMemory(
+    const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
+    intptr_t offset, const SurfaceInfo& surface_info, int pitch_in_bytes) {
+  NOTREACHED();
+  return scoped_ptr<Texture>();
+}
+
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
     const math::Size& dimensions) {
   scoped_refptr<RenderTarget> render_target(new PBufferRenderTargetEGL(

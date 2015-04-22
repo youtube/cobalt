@@ -49,6 +49,30 @@ class ResourceProvider {
   virtual scoped_refptr<Image> CreateImage(
       scoped_ptr<ImageData> pixel_data) = 0;
 
+  // Returns a raw chunk of memory that can later be passed into a function like
+  // CreateMultiPlaneImageFromRawMemory() in order to create a texture.
+  // If possible, the memory returned will be GPU memory that can be directly
+  // addressable by the GPU as a texture.
+  // Creating textures through this method is discouraged since you must be
+  // aware of your platform's image alignment/pitch requirements in order to
+  // create a valid texture.  The function is useful in situations where, for
+  // example, a video decoder requires a raw chunk of memory to decode, but is
+  // not able to provide image format information until after it begins
+  // decoding.
+  virtual scoped_ptr<RawImageMemory> AllocateRawImageMemory(
+      size_t size_in_bytes, size_t alignment) = 0;
+
+  // Constructs a multi-plane image from a single contiguous chunk of raw
+  // image memory.  Data for all planes of the image must lie within
+  // raw_image_memory, and the descriptor's plane offset member will describe
+  // where a particular plane's data lies relative to raw_image_memory.
+  // Note that use of this function is discouraged, if possible, since filling
+  // out the descriptor requires knowledge of the specific platform's texture
+  // alignment/pitch requirements.
+  virtual scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
+      scoped_ptr<RawImageMemory> raw_image_memory,
+      const MultiPlaneImageDataDescriptor& descriptor) = 0;
+
   // Given a set of font information, this method will return a font pre-loaded
   // on the system that fits the specified font parameters.
   virtual scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
