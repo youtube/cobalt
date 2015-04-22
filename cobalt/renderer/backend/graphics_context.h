@@ -55,6 +55,28 @@ class GraphicsContext {
   virtual scoped_ptr<Texture> CreateTexture(
       scoped_ptr<TextureData> texture_data) = 0;
 
+  // This function can be used to allocate a chunk of memory that is potentially
+  // directly accessible by the GPU as a texture.  This would be used along
+  // with functions like CreateTextureFromRawMemory().  In general, one should
+  // use AllocateTextureData() instead, as it is not sensitive to platform
+  // specific details.
+  virtual scoped_ptr<RawTextureMemory> AllocateRawTextureMemory(
+      size_t size_in_bytes, size_t alignment) = 0;
+
+  // Creates a texture from a raw chunk of contiguous texture memory allocated
+  // via AllocateRawTextureMemory().  The RawTextureMemory return value of
+  // AllocateRawTextureMemory() must be converted to a ConstRawTextureMemory
+  // object before being passed to this function, to ensure that the data does
+  // not change once the GPU potentially has access to it.  offset specifies
+  // the offset from the beginning of raw_texture_memory the actual texture
+  // data begins at.  An example case where this method is useful is to support
+  // multi-plane image data, where the image data for all planes is stored in
+  // raw_texture_memory, but a separate texture is created for each different
+  // plane.
+  virtual scoped_ptr<Texture> CreateTextureFromRawMemory(
+      const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
+      intptr_t offset, const SurfaceInfo& surface_info, int pitch_in_bytes) = 0;
+
   // Constructs a texture from a pointer to raw memory.  This method will likely
   // require a pixel copy to take place, and it is recommended that
   // CreateTexture() be used instead, if possible.
