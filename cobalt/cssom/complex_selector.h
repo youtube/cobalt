@@ -35,6 +35,8 @@ class ComplexSelector : public Selector {
   ComplexSelector() {}
   ~ComplexSelector() OVERRIDE {}
 
+  Specificity GetSpecificity() const OVERRIDE;
+
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   AdjacentSelector* last_selector() { return last_selector_.get(); }

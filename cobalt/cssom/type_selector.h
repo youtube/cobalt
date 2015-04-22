@@ -35,6 +35,8 @@ class TypeSelector : public Selector {
       : element_name_(element_name) {}
   ~TypeSelector() OVERRIDE {}
 
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 0, 1); }
+
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   const std::string& element_name() const { return element_name_; }
