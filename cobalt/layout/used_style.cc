@@ -41,8 +41,7 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
 
   // TODO(***REMOVED***): Implement font style.
   return resource_provider_->GetPreInstalledFont(
-      font_family->value().c_str(), render_tree::ResourceProvider::kNormal,
-      font_size->value());
+      font_family->value().c_str(), render_tree::kNormal, font_size->value());
 }
 
 render_tree::ColorRGBA GetUsedColor(

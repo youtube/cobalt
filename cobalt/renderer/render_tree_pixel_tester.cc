@@ -316,9 +316,7 @@ void RenderTreePixelTester::Rebaseline(
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
   const SkBitmap actual_bitmap = CreateBitmapFromRGBAPixels(
-      math::SizeF(test_surface_->GetSurfaceInfo().width,
-                  test_surface_->GetSurfaceInfo().height),
-      test_image_pixels.get());
+      test_surface_->GetSurfaceInfo().size, test_image_pixels.get());
 
   FilePath output_base_filename(
       output_directory_.Append(expected_base_filename));
@@ -342,9 +340,7 @@ bool RenderTreePixelTester::TestTree(
   // Wrap the generated image's raw RGBA8 pixel data in a SkBitmap so that
   // we can manipulate it using Skia.
   const SkBitmap actual_bitmap = CreateBitmapFromRGBAPixels(
-      math::SizeF(test_surface_->GetSurfaceInfo().width,
-                  test_surface_->GetSurfaceInfo().height),
-      test_image_pixels.get());
+      test_surface_->GetSurfaceInfo().size, test_image_pixels.get());
 
   // Here we proceed with the the pixel tests.  We must first load the
   // expected output image from disk and use that to compare against
@@ -363,15 +359,13 @@ bool RenderTreePixelTester::TestTree(
   scoped_array<uint8_t> expected_image_pixels =
       DecodePNGToRGBA(expected_output_file, &expected_width, &expected_height);
 
-  DCHECK_EQ(test_surface_->GetSurfaceInfo().width, expected_width);
-  DCHECK_EQ(test_surface_->GetSurfaceInfo().height, expected_height);
+  DCHECK_EQ(test_surface_->GetSurfaceInfo().size.width(), expected_width);
+  DCHECK_EQ(test_surface_->GetSurfaceInfo().size.height(), expected_height);
 
   // We then wrap the expected image in a SkBitmap so that we can manipulate
   // it with Skia.
   const SkBitmap expected_bitmap = CreateBitmapFromRGBAPixels(
-      math::SizeF(test_surface_->GetSurfaceInfo().width,
-                  test_surface_->GetSurfaceInfo().height),
-      expected_image_pixels.get());
+      test_surface_->GetSurfaceInfo().size, expected_image_pixels.get());
 
   // Finally we perform the actual pixel tests on the bitmap given the
   // actual and expected bitmaps.  If it is requested that test details

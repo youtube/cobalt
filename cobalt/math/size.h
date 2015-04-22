@@ -22,7 +22,9 @@ class Size : public SizeBase<Size, int> {
 
   ~Size() {}
 
-  operator SizeF() const { return SizeF(width(), height()); }
+  operator SizeF() const {
+    return SizeF(static_cast<float>(width()), static_cast<float>(height()));
+  }
 
   std::string ToString() const;
 };

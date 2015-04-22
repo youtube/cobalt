@@ -35,7 +35,7 @@ class TextureDataStub : public TextureData {
     return pixel_data_->surface_info();
   }
   int GetPitchInBytes() const OVERRIDE {
-    return pixel_data_->surface_info().width *
+    return pixel_data_->surface_info().size.width() *
            SurfaceInfo::BytesPerPixel(pixel_data_->surface_info().format);
   }
   uint8_t* GetMemory() OVERRIDE { return pixel_data_->memory(); }

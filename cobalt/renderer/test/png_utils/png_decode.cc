@@ -237,16 +237,16 @@ scoped_refptr<cobalt::render_tree::Image> DecodePNGToRenderTreeImage(
   // Setup pointers to the rows in which libpng should read out the decoded png
   // image data to.
   // Currently, we decode all images to RGBA and load those.
-  scoped_ptr<render_tree::ResourceProvider::ImageData> data =
+  scoped_ptr<render_tree::ImageData> data =
       resource_provider->AllocateImageData(
-          png_read_context.width(), png_read_context.height(),
-          render_tree::ResourceProvider::ImageData::kPixelFormatRGBA8,
-          render_tree::ResourceProvider::ImageData::kAlphaFormatPremultiplied);
+          math::Size(png_read_context.width(), png_read_context.height()),
+          render_tree::kPixelFormatRGBA8,
+          render_tree::kAlphaFormatPremultiplied);
   std::vector<png_bytep> rows(png_read_context.height());
   uint8_t* row = data->GetMemory();
   for (int i = 0; i < png_read_context.height(); ++i) {
     rows[i] = row;
-    row += data->GetPitchInBytes();
+    row += data->GetDescriptor().pitch_in_bytes;
   }
 
   png_read_context.DecodeImageTo(rows);

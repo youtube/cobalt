@@ -235,10 +235,12 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
 
   const SurfaceInfo& surface_info = texture.GetSurfaceInfo();
 
-  scoped_array<uint8_t> pixels(new uint8_t[
-      surface_info.width * surface_info.height * surface_info.BytesPerPixel()]);
-  GL_CALL(glReadPixels(0, 0, surface_info.width, surface_info.height,
-                       GL_RGBA, GL_UNSIGNED_BYTE, pixels.get()));
+  scoped_array<uint8_t> pixels(
+      new uint8_t[surface_info.size.width() * surface_info.size.height() *
+                  surface_info.BytesPerPixel()]);
+  GL_CALL(glReadPixels(0, 0, surface_info.size.width(),
+                       surface_info.size.height(), GL_RGBA, GL_UNSIGNED_BYTE,
+                       pixels.get()));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
@@ -249,11 +251,12 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   // Vertically flip the resulting pixel data before returning so that the 0th
   // pixel is at the top-left.  While this is not a fast procedure, this
   // entire function is only intended to be used in debug/test code.
-  int pitch_in_bytes = surface_info.width * surface_info.BytesPerPixel();
+  int pitch_in_bytes = surface_info.size.width() * surface_info.BytesPerPixel();
 #if !defined(__LB_LINUX__)
   // Flip the pixels so that (0,0) is at the top-left.  The Mesa Gallium
   // EGL implementation on Linux seems to return already flipped pixels.
-  VerticallyFlipPixels(pixels.get(), pitch_in_bytes, surface_info.height);
+  VerticallyFlipPixels(pixels.get(), pitch_in_bytes,
+                       surface_info.size.height());
 #endif
 
   return pixels.Pass();
@@ -266,10 +269,10 @@ void GraphicsContextEGL::Frame::Clear(float red, float green, float blue,
                                       float alpha) {
   const SurfaceInfo& target_surface_info =
       owner_->render_target_->GetSurfaceInfo();
-  GL_CALL(
-      glViewport(0, 0, target_surface_info.width, target_surface_info.height));
-  GL_CALL(
-      glScissor(0, 0, target_surface_info.width, target_surface_info.height));
+  GL_CALL(glViewport(0, 0, target_surface_info.size.width(),
+                     target_surface_info.size.height()));
+  GL_CALL(glScissor(0, 0, target_surface_info.size.width(),
+                    target_surface_info.size.height()));
 
   GL_CALL(glClearColor(red, green, blue, alpha));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
@@ -282,10 +285,10 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
       owner_->render_target_->GetSurfaceInfo();
 
   // Render a texture as a full-screen quad to the output render target.
-  GL_CALL(
-      glViewport(0, 0, target_surface_info.width, target_surface_info.height));
-  GL_CALL(
-      glScissor(0, 0, target_surface_info.width, target_surface_info.height));
+  GL_CALL(glViewport(0, 0, target_surface_info.size.width(),
+                     target_surface_info.size.height()));
+  GL_CALL(glScissor(0, 0, target_surface_info.size.width(),
+                    target_surface_info.size.height()));
 
   GL_CALL(glUseProgram(owner_->blit_program_));
 

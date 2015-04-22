@@ -19,9 +19,69 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/size.h"
 
 namespace cobalt {
 namespace render_tree {
+
+// Formats of pixel data that we support creating images from.
+enum PixelFormat {
+  kPixelFormatRGBA8,
+  kPixelFormatInvalid,
+};
+
+inline int BytesPerPixel(PixelFormat pixel_format) {
+  switch (pixel_format) {
+    case kPixelFormatRGBA8:
+      return 4;
+    case kPixelFormatInvalid:
+    default:
+      DLOG(FATAL) << "Unexpected pixel format.";
+  }
+  return -1;
+}
+
+enum AlphaFormat {
+  // Premultiplied alpha means that the RGB components (in terms of
+  // the range [0.0, 1.0]) have already been multiplied by the A component
+  // (also in the range [0.0, 1.0]).  Thus, it is expected that for all
+  // pixels, each component is less than or equal to the alpha component.
+  kAlphaFormatPremultiplied,
+
+  // This alpha format implies standard alpha, where each component is
+  // independent of the alpha.
+  kAlphaFormatUnpremultiplied,
+};
+
+struct ImageDataDescriptor {
+  ImageDataDescriptor(const math::Size& size, PixelFormat pixel_format,
+                      AlphaFormat alpha_format, int pitch_in_bytes)
+      : size(size),
+        pixel_format(pixel_format),
+        alpha_format(alpha_format),
+        pitch_in_bytes(pitch_in_bytes) {}
+
+  math::Size size;
+  PixelFormat pixel_format;
+  AlphaFormat alpha_format;
+  int pitch_in_bytes;
+};
+
+// ImageData is an interface for an object that contains an allocation
+// of CPU-accessible memory that is intended to be passed in to CreateImage()
+// so that it may be used by the GPU.
+class ImageData {
+ public:
+  virtual ~ImageData() {}
+
+  // Returns information about the kind of data this ImageData is
+  // intended to store.
+  virtual const ImageDataDescriptor& GetDescriptor() const = 0;
+
+  // Returns a pointer to the image data so that one can set pixel data as
+  // necessary.
+  virtual uint8_t* GetMemory() = 0;
+};
 
 // The Image type is an abstract base class that represents a stored image
 // and all of its pixel information.  When constructing a render tree,
@@ -33,12 +93,10 @@ namespace render_tree {
 // it is being read by a rasterizer reading a submitted render tree.  Since
 // the rasterizer may only be compatible with specific concrete Image types,
 // it is expected that the object will be safely downcast by the rasterizer
-// to a rasterizer-specific Image type using base::Downcast().
-
+// to a rasterizer-specific Image type using base::polymorphic_downcast().
 class Image : public base::RefCountedThreadSafe<Image> {
  public:
-  virtual int GetWidth() const = 0;
-  virtual int GetHeight() const = 0;
+  virtual const math::Size& GetSize() const = 0;
 
  protected:
   virtual ~Image() {}
