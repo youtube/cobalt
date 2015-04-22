@@ -73,7 +73,7 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   eglQuerySurface(display_, surface_, EGL_HEIGHT, &egl_surface_height);
   // Querying for the texture format is unimplemented in Angle, so it is left
   // out for now and assumed to be EGL_TEXTURE_RGBA.
-  surface_info_ = SurfaceInfo(egl_surface_width, egl_surface_height,
+  surface_info_ = SurfaceInfo(math::Size(egl_surface_width, egl_surface_height),
                               SurfaceInfo::kFormatRGBA8);
 }
 

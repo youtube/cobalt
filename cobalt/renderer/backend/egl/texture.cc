@@ -45,7 +45,7 @@ GLenum SurfaceInfoFormatToGL(SurfaceInfo::Format format) {
 
 TextureDataEGL::TextureDataEGL(const SurfaceInfo& surface_info)
     : surface_info_(surface_info),
-      memory_(new uint8_t[GetPitchInBytes() * surface_info.height]) {}
+      memory_(new uint8_t[GetPitchInBytes() * surface_info.size.height()]) {}
 
 TextureEGL::TextureEGL(scoped_ptr<TextureDataEGL> texture_source_data,
                        bool bgra_supported) {
@@ -62,9 +62,9 @@ TextureEGL::TextureEGL(scoped_ptr<TextureDataEGL> texture_source_data,
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info_.width,
-                       surface_info_.height, 0, gl_format, GL_UNSIGNED_BYTE,
-                       texture_source_data->GetMemory()));
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info_.size.width(),
+                       surface_info_.size.height(), 0, gl_format,
+                       GL_UNSIGNED_BYTE, texture_source_data->GetMemory()));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 }
 
