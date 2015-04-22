@@ -35,6 +35,8 @@ class CompoundSelector : public Selector {
   CompoundSelector() {}
   ~CompoundSelector() OVERRIDE {}
 
+  Specificity GetSpecificity() const OVERRIDE;
+
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   void AppendSelector(scoped_ptr<Selector> selector) {

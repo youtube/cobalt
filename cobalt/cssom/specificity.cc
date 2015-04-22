@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/compound_selector.h"
-
-#include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
 
-Specificity CompoundSelector::GetSpecificity() const {
-  Specificity result;
-  for (Selectors::const_iterator selector_iterator = selectors_.begin();
-       selector_iterator != selectors_.end(); selector_iterator++) {
-    result.AddFrom((*selector_iterator)->GetSpecificity());
-  }
-  return result;
-}
+void Specificity::AddFrom(const Specificity& rhs) {
+  const int8 kMaxValue = kint8max;
 
-void CompoundSelector::Accept(SelectorVisitor* visitor) {
-  visitor->VisitCompoundSelector(this);
+  for (int i = 0; i < 3; ++i) {
+    if (v_[i] > kMaxValue - rhs.v_[i]) {
+      LOG(WARNING)
+          << "Specificity field exceeds and is clamped to the upper limit ("
+          << static_cast<int>(kMaxValue) << ").";
+      v_[i] = kMaxValue;
+    } else {
+      v_[i] += rhs.v_[i];
+    }
+  }
 }
 
 }  // namespace cssom

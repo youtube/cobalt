@@ -35,6 +35,8 @@ class ClassSelector : public Selector {
       : class_name_(class_name) {}
   ~ClassSelector() OVERRIDE {}
 
+  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
+
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
   const std::string& class_name() const { return class_name_; }
