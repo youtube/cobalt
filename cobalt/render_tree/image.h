@@ -111,7 +111,7 @@ class RawImageMemory {
 enum MultiPlaneImageFormat {
   // A YUV image where each channel, Y, U and V, is stored as a separate
   // single-channel image plane.
-  kMultiPlaneImageFormatYUV3Plane,
+  kMultiPlaneImageFormatYUV3PlaneBT709,
 };
 
 // Like the ImageDataDescriptor object, a MultiPlaneImageDataDescriptor
