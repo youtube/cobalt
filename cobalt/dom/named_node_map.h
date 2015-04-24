@@ -22,6 +22,8 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/wrappable.h"
+
 
 namespace cobalt {
 namespace dom {
@@ -42,7 +44,7 @@ class Element;
 //
 // Note that DOM4 deprecates this class and replaces it with a read-only
 // array of Attr objects.
-class NamedNodeMap : public base::RefCounted<NamedNodeMap>,
+class NamedNodeMap : public script::Wrappable,
                      public base::SupportsWeakPtr<NamedNodeMap> {
  public:
   explicit NamedNodeMap(const scoped_refptr<Element>& element);
@@ -61,7 +63,9 @@ class NamedNodeMap : public base::RefCounted<NamedNodeMap>,
   void SetAttributeInternal(const std::string& name, const std::string& value);
   void RemoveAttributeInternal(const std::string& name);
 
-  scoped_refptr<Element> element() const { return element_; }
+  scoped_refptr<Element> element() const;
+
+  DEFINE_WRAPPABLE_TYPE(NamedNodeMap);
 
  private:
   ~NamedNodeMap();
