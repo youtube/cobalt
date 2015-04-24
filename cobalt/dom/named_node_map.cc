@@ -138,6 +138,8 @@ void NamedNodeMap::RemoveAttributeInternal(const std::string& name) {
   }
 }
 
+scoped_refptr<Element> NamedNodeMap::element() const { return element_; }
+
 NamedNodeMap::~NamedNodeMap() { Stats::GetInstance()->Remove(this); }
 
 void NamedNodeMap::ConstructProxyAttributes() {
