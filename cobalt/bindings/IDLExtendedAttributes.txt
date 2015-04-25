@@ -59,7 +59,6 @@ Exposed=TestWindow|Window|Worker
 
 # Not yet supported
 Constructor
-IndexedGetter
 OverrideBuiltins
 PutForwards=*
 TreatNullAs=*
