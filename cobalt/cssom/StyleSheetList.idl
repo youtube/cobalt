@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-[IndexedGetter]
 interface StyleSheetList {
   readonly attribute unsigned long length;
-  CSSStyleSheet? item(unsigned long index);
+  getter CSSStyleSheet? item(unsigned long index);
 };
