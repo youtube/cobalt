@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "base/optional.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/mutation_observer.h"
@@ -54,65 +53,60 @@ class CSSStyleDeclaration : public script::Wrappable {
   // Web API: CSSStyleDeclaration
   //
 
-  base::optional<std::string> GetPropertyValue(
-      const std::string& property_name);
+  std::string GetPropertyValue(const std::string& property_name);
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value);
 
-  base::optional<std::string> background() const;
-  void set_background(const base::optional<std::string>& background);
+  std::string background() const;
+  void set_background(const std::string& background);
 
-  base::optional<std::string> background_color() const;
-  void set_background_color(
-      const base::optional<std::string>& background_color);
+  std::string background_color() const;
+  void set_background_color(const std::string& background_color);
 
-  base::optional<std::string> background_image() const;
-  void set_background_image(
-      const base::optional<std::string>& background_image);
+  std::string background_image() const;
+  void set_background_image(const std::string& background_image);
 
-  base::optional<std::string> border_radius() const;
-  void set_border_radius(const base::optional<std::string>& border_radius);
+  std::string border_radius() const;
+  void set_border_radius(const std::string& border_radius);
 
-  base::optional<std::string> color() const;
-  void set_color(const base::optional<std::string>& color);
+  std::string color() const;
+  void set_color(const std::string& color);
 
-  base::optional<std::string> display() const;
-  void set_display(const base::optional<std::string>& display);
+  std::string display() const;
+  void set_display(const std::string& display);
 
-  base::optional<std::string> font_family() const;
-  void set_font_family(const base::optional<std::string>& font_family);
+  std::string font_family() const;
+  void set_font_family(const std::string& font_family);
 
-  base::optional<std::string> font_size() const;
-  void set_font_size(const base::optional<std::string>& font_size);
+  std::string font_size() const;
+  void set_font_size(const std::string& font_size);
 
-  base::optional<std::string> font_weight() const;
-  void set_font_weight(const base::optional<std::string>& font_weight);
+  std::string font_weight() const;
+  void set_font_weight(const std::string& font_weight);
 
-  base::optional<std::string> height() const;
-  void set_height(const base::optional<std::string>& height);
+  std::string height() const;
+  void set_height(const std::string& height);
 
-  base::optional<std::string> opacity() const;
-  void set_opacity(const base::optional<std::string>& opacity);
+  std::string opacity() const;
+  void set_opacity(const std::string& opacity);
 
-  base::optional<std::string> overflow() const;
-  void set_overflow(const base::optional<std::string>& overflow);
+  std::string overflow() const;
+  void set_overflow(const std::string& overflow);
 
-  base::optional<std::string> transform() const;
-  void set_transform(const base::optional<std::string>& transform);
+  std::string transform() const;
+  void set_transform(const std::string& transform);
 
-  base::optional<std::string> transition_duration() const;
-  void set_transition_duration(
-      const base::optional<std::string>& transition_duration);
+  std::string transition_duration() const;
+  void set_transition_duration(const std::string& transition_duration);
 
-  base::optional<std::string> transition_property() const;
-  void set_transition_property(
-      const base::optional<std::string>& transition_property);
+  std::string transition_property() const;
+  void set_transition_property(const std::string& transition_property);
 
-  base::optional<std::string> width() const;
-  void set_width(const base::optional<std::string>& width);
+  std::string width() const;
+  void set_width(const std::string& width);
 
-  base::optional<std::string> css_text() const;
-  void set_css_text(const base::optional<std::string>& css_text);
+  std::string css_text() const;
+  void set_css_text(const std::string& css_text);
 
   // Custom, not in any spec.
   //
@@ -133,7 +127,7 @@ class CSSStyleDeclaration : public script::Wrappable {
  private:
   ~CSSStyleDeclaration();
 
-  void OnMutation();
+  void RecordMutation();
 
   scoped_refptr<CSSStyleDeclarationData> data_;
 
