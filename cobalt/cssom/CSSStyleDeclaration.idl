@@ -14,26 +14,30 @@
  * limitations under the License.
  */
 
+// The CSSStyleDeclaration interface represents a CSS declaration block,
+// including its underlying state, where this underlying state depends upon the
+// source of the CSSStyleDeclaration instance.
+//   http://dev.w3.org/csswg/cssom/#the-cssstyledeclaration-interface
 interface CSSStyleDeclaration {
-  [TreatNullAs=EmptyString] attribute DOMString? background;
-  [TreatNullAs=EmptyString] attribute DOMString? backgroundColor;
-  [TreatNullAs=EmptyString] attribute DOMString? backgroundImage;
-  [TreatNullAs=EmptyString] attribute DOMString? borderRadius;
-  [TreatNullAs=EmptyString] attribute DOMString? color;
-  [TreatNullAs=EmptyString] attribute DOMString? display;
-  [TreatNullAs=EmptyString] attribute DOMString? fontFamily;
-  [TreatNullAs=EmptyString] attribute DOMString? fontSize;
-  [TreatNullAs=EmptyString] attribute DOMString? fontWeight;
-  [TreatNullAs=EmptyString] attribute DOMString? height;
-  [TreatNullAs=EmptyString] attribute DOMString? opacity;
-  [TreatNullAs=EmptyString] attribute DOMString? overflow;
-  [TreatNullAs=EmptyString] attribute DOMString? transform;
-  [TreatNullAs=EmptyString] attribute DOMString? transitionDuration;
-  [TreatNullAs=EmptyString] attribute DOMString? transitionProperty;
-  [TreatNullAs=EmptyString] attribute DOMString? width;
+  [TreatNullAs=EmptyString] attribute DOMString background;
+  [TreatNullAs=EmptyString] attribute DOMString backgroundColor;
+  [TreatNullAs=EmptyString] attribute DOMString backgroundImage;
+  [TreatNullAs=EmptyString] attribute DOMString borderRadius;
+  [TreatNullAs=EmptyString] attribute DOMString color;
+  [TreatNullAs=EmptyString] attribute DOMString display;
+  [TreatNullAs=EmptyString] attribute DOMString fontFamily;
+  [TreatNullAs=EmptyString] attribute DOMString fontSize;
+  [TreatNullAs=EmptyString] attribute DOMString fontWeight;
+  [TreatNullAs=EmptyString] attribute DOMString height;
+  [TreatNullAs=EmptyString] attribute DOMString opacity;
+  [TreatNullAs=EmptyString] attribute DOMString overflow;
+  [TreatNullAs=EmptyString] attribute DOMString transform;
+  [TreatNullAs=EmptyString] attribute DOMString transitionDuration;
+  [TreatNullAs=EmptyString] attribute DOMString transitionProperty;
+  [TreatNullAs=EmptyString] attribute DOMString width;
 
-  [TreatNullAs=EmptyString] attribute DOMString? cssText;
+  [TreatNullAs=EmptyString] attribute DOMString cssText;
 
-  DOMString? getPropertyValue(DOMString property);
-  void setPropertyValue(DOMString property, [TreatNullAs=EmptyString] DOMString value);
+  DOMString getPropertyValue(DOMString property);
+  void setPropertyValue(DOMString property, DOMString value);
 };
