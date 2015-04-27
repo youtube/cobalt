@@ -28,24 +28,20 @@ namespace cssom {
 
 namespace {
 
-class SourceLocationAdapter {
- public:
-  SourceLocationAdapter()
-      : location_(base::SourceLocation("[object CSSStyleDeclaration]", 1, 1)) {}
+struct NonTrivialStaticFields {
+  NonTrivialStaticFields()
+      : location(base::SourceLocation("[object CSSStyleDeclaration]", 1, 1)) {}
 
-  const base::SourceLocation& location() const { return location_; }
+  const base::SourceLocation location;
 
  private:
-  const base::SourceLocation location_;
-
-  DISALLOW_COPY_AND_ASSIGN(SourceLocationAdapter);
+  DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
-// |kSourceLocationAdapter| will be lazily created on the first time it's
+// |non_trivial_static_fields| will be lazily created on the first time it's
 // accessed.
-base::LazyInstance<SourceLocationAdapter> kSourceLocationAdapter =
+base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 CSSStyleDeclaration::CSSStyleDeclaration(cssom::CSSParser* css_parser)
@@ -62,269 +58,248 @@ CSSStyleDeclaration::CSSStyleDeclaration(
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
 
 
-base::optional<std::string> CSSStyleDeclaration::GetPropertyValue(
+std::string CSSStyleDeclaration::GetPropertyValue(
     const std::string& property_name) {
   return data_->GetPropertyValue(property_name)
              ? data_->GetPropertyValue(property_name)->ToString()
-             : base::nullopt;
+             : "";
 }
 
 void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
                                            const std::string& property_value) {
   *data_->GetPropertyValueReference(property_name) =
       css_parser_->ParsePropertyValue(property_name, property_value,
-                                      kSourceLocationAdapter.Get().location());
+                                      non_trivial_static_fields.Get().location);
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::background() const {
-  return data_->background() ? data_->background()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::background() const {
+  return data_->background() ? data_->background()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_background(
-    const base::optional<std::string>& background) {
+void CSSStyleDeclaration::set_background(const std::string& background) {
   DCHECK(css_parser_);
   data_->set_background(css_parser_->ParsePropertyValue(
-      kBackgroundPropertyName, background.value(),
-      kSourceLocationAdapter.Get().location()));
+      kBackgroundPropertyName, background,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::background_color() const {
-  return data_->background_color() ? data_->background_color()->ToString()
-                                   : base::nullopt;
+std::string CSSStyleDeclaration::background_color() const {
+  return data_->background_color() ? data_->background_color()->ToString() : "";
 }
 
 void CSSStyleDeclaration::set_background_color(
-    const base::optional<std::string>& background_color) {
+    const std::string& background_color) {
   DCHECK(css_parser_);
   data_->set_background_color(css_parser_->ParsePropertyValue(
-      kBackgroundColorPropertyName, background_color.value(),
-      kSourceLocationAdapter.Get().location()));
+      kBackgroundColorPropertyName, background_color,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::background_image() const {
-  return data_->background_image() ? data_->background_image()->ToString()
-                                   : base::nullopt;
+std::string CSSStyleDeclaration::background_image() const {
+  return data_->background_image() ? data_->background_image()->ToString() : "";
 }
 
 void CSSStyleDeclaration::set_background_image(
-    const base::optional<std::string>& background_image) {
+    const std::string& background_image) {
   DCHECK(css_parser_);
   data_->set_background_image(css_parser_->ParsePropertyValue(
-      kBackgroundImagePropertyName, background_image.value(),
-      kSourceLocationAdapter.Get().location()));
+      kBackgroundImagePropertyName, background_image,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::border_radius() const {
-  return data_->border_radius() ? data_->border_radius()->ToString()
-                                : base::nullopt;
+std::string CSSStyleDeclaration::border_radius() const {
+  return data_->border_radius() ? data_->border_radius()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_border_radius(
-    const base::optional<std::string>& border_radius) {
+void CSSStyleDeclaration::set_border_radius(const std::string& border_radius) {
   DCHECK(css_parser_);
   data_->set_border_radius(css_parser_->ParsePropertyValue(
-      kBorderRadiusPropertyName, border_radius.value(),
-      kSourceLocationAdapter.Get().location()));
+      kBorderRadiusPropertyName, border_radius,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::color() const {
-  return data_->color() ? data_->color()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::color() const {
+  return data_->color() ? data_->color()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_color(const base::optional<std::string>& color) {
+void CSSStyleDeclaration::set_color(const std::string& color) {
   DCHECK(css_parser_);
-  data_->set_color(
-      css_parser_->ParsePropertyValue(kColorPropertyName, color.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_color(css_parser_->ParsePropertyValue(
+      kColorPropertyName, color, non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::display() const {
-  return data_->display() ? data_->display()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::display() const {
+  return data_->display() ? data_->display()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_display(
-    const base::optional<std::string>& display) {
+void CSSStyleDeclaration::set_display(const std::string& display) {
   DCHECK(css_parser_);
-  data_->set_display(
-      css_parser_->ParsePropertyValue(kDisplayPropertyName, display.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_display(css_parser_->ParsePropertyValue(
+      kDisplayPropertyName, display, non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::font_family() const {
-  return data_->font_family() ? data_->font_family()->ToString()
-                              : base::nullopt;
+std::string CSSStyleDeclaration::font_family() const {
+  return data_->font_family() ? data_->font_family()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_font_family(
-    const base::optional<std::string>& font_family) {
+void CSSStyleDeclaration::set_font_family(const std::string& font_family) {
   DCHECK(css_parser_);
   data_->set_font_family(css_parser_->ParsePropertyValue(
-      kFontFamilyPropertyName, font_family.value(),
-      kSourceLocationAdapter.Get().location()));
+      kFontFamilyPropertyName, font_family,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::font_size() const {
-  return data_->font_size() ? data_->font_size()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::font_size() const {
+  return data_->font_size() ? data_->font_size()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_font_size(
-    const base::optional<std::string>& font_size) {
+void CSSStyleDeclaration::set_font_size(const std::string& font_size) {
   DCHECK(css_parser_);
-  data_->set_font_size(
-      css_parser_->ParsePropertyValue(kFontSizePropertyName, font_size.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_font_size(css_parser_->ParsePropertyValue(
+      kFontSizePropertyName, font_size,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::font_weight() const {
-  return data_->font_weight() ? data_->font_weight()->ToString()
-                              : base::nullopt;
+std::string CSSStyleDeclaration::font_weight() const {
+  return data_->font_weight() ? data_->font_weight()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_font_weight(
-    const base::optional<std::string>& font_weight) {
+void CSSStyleDeclaration::set_font_weight(const std::string& font_weight) {
   DCHECK(css_parser_);
   data_->set_font_weight(css_parser_->ParsePropertyValue(
-      kFontWeightPropertyName, font_weight.value(),
-      kSourceLocationAdapter.Get().location()));
+      kFontWeightPropertyName, font_weight,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::height() const {
-  return data_->height() ? data_->height()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::height() const {
+  return data_->height() ? data_->height()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_height(
-    const base::optional<std::string>& height) {
+void CSSStyleDeclaration::set_height(const std::string& height) {
   DCHECK(css_parser_);
-  data_->set_height(
-      css_parser_->ParsePropertyValue(kHeightPropertyName, height.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_height(css_parser_->ParsePropertyValue(
+      kHeightPropertyName, height, non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::opacity() const {
-  return data_->opacity() ? data_->opacity()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::opacity() const {
+  return data_->opacity() ? data_->opacity()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_opacity(
-    const base::optional<std::string>& opacity) {
+void CSSStyleDeclaration::set_opacity(const std::string& opacity) {
   DCHECK(css_parser_);
-  data_->set_opacity(
-      css_parser_->ParsePropertyValue(kOpacityPropertyName, opacity.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_opacity(css_parser_->ParsePropertyValue(
+      kOpacityPropertyName, opacity, non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::overflow() const {
-  return data_->overflow() ? data_->overflow()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::overflow() const {
+  return data_->overflow() ? data_->overflow()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_overflow(
-    const base::optional<std::string>& overflow) {
+void CSSStyleDeclaration::set_overflow(const std::string& overflow) {
   DCHECK(css_parser_);
-  data_->set_overflow(
-      css_parser_->ParsePropertyValue(kOverflowPropertyName, overflow.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_overflow(css_parser_->ParsePropertyValue(
+      kOverflowPropertyName, overflow,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::transform() const {
-  return data_->transform() ? data_->transform()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::transform() const {
+  return data_->transform() ? data_->transform()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_transform(
-    const base::optional<std::string>& transform) {
+void CSSStyleDeclaration::set_transform(const std::string& transform) {
   DCHECK(css_parser_);
-  data_->set_transform(
-      css_parser_->ParsePropertyValue(kTransformPropertyName, transform.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_transform(css_parser_->ParsePropertyValue(
+      kTransformPropertyName, transform,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::transition_duration() const {
+std::string CSSStyleDeclaration::transition_duration() const {
   return data_->transition_duration() ? data_->transition_duration()->ToString()
-                                      : base::nullopt;
+                                      : "";
 }
 
 void CSSStyleDeclaration::set_transition_duration(
-    const base::optional<std::string>& transition_duration) {
+    const std::string& transition_duration) {
   DCHECK(css_parser_);
   data_->set_transition_duration(css_parser_->ParsePropertyValue(
-      kTransformPropertyName, transition_duration.value(),
-      kSourceLocationAdapter.Get().location()));
+      kTransformPropertyName, transition_duration,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::transition_property() const {
+std::string CSSStyleDeclaration::transition_property() const {
   return data_->transition_property() ? data_->transition_property()->ToString()
-                                      : base::nullopt;
+                                      : "";
 }
 
 void CSSStyleDeclaration::set_transition_property(
-    const base::optional<std::string>& transition_property) {
+    const std::string& transition_property) {
   DCHECK(css_parser_);
   data_->set_transition_property(css_parser_->ParsePropertyValue(
-      kTransformPropertyName, transition_property.value(),
-      kSourceLocationAdapter.Get().location()));
+      kTransformPropertyName, transition_property,
+      non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
-base::optional<std::string> CSSStyleDeclaration::width() const {
-  return data_->width() ? data_->width()->ToString() : base::nullopt;
+std::string CSSStyleDeclaration::width() const {
+  return data_->width() ? data_->width()->ToString() : "";
 }
 
-void CSSStyleDeclaration::set_width(const base::optional<std::string>& width) {
+void CSSStyleDeclaration::set_width(const std::string& width) {
   DCHECK(css_parser_);
-  data_->set_width(
-      css_parser_->ParsePropertyValue(kWidthPropertyName, width.value(),
-                                      kSourceLocationAdapter.Get().location()));
+  data_->set_width(css_parser_->ParsePropertyValue(
+      kWidthPropertyName, width, non_trivial_static_fields.Get().location));
 
-  OnMutation();
+  RecordMutation();
 }
 
 // TODO(***REMOVED***): The getter of css_text returns the result of serializing the
 // declarations, which is not required for Performance Spike. This should be
 // handled propertly afterwards.
-base::optional<std::string> CSSStyleDeclaration::css_text() const {
+std::string CSSStyleDeclaration::css_text() const {
   NOTREACHED();
-  return base::nullopt;
+  return "";
 }
 
-void CSSStyleDeclaration::set_css_text(
-    const base::optional<std::string>& css_text) {
+void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
   DCHECK(css_parser_);
   scoped_refptr<CSSStyleDeclarationData> declaration =
       css_parser_->ParseDeclarationList(
-          css_text.value(), kSourceLocationAdapter.Get().location());
+          css_text, non_trivial_static_fields.Get().location);
 
   if (declaration) {
     data_ = declaration;
-    OnMutation();
+    RecordMutation();
   }
 }
 
@@ -334,7 +309,7 @@ void CSSStyleDeclaration::AttachToStyleSheetList(
   mutation_observer_ = style_sheet_list->mutation_observer();
 }
 
-void CSSStyleDeclaration::OnMutation() {
+void CSSStyleDeclaration::RecordMutation() {
   if (mutation_observer_) {
     // Trigger layout update.
     mutation_observer_->OnMutation();
