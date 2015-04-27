@@ -18,7 +18,6 @@
 #define CSSOM_PROPERTY_VALUE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
 
 namespace cobalt {
@@ -34,10 +33,10 @@ class PropertyValue : public base::RefCountedThreadSafe<PropertyValue>,
   virtual void Accept(PropertyValueVisitor* visitor) = 0;
 
   // TODO(***REMOVED***): |ToString| should be pure virtual function and supported for
-  // each value type.
-  virtual base::optional<std::string> ToString() {
+  // each value type. Tracked in b/20425977.
+  virtual std::string ToString() {
     NOTIMPLEMENTED() << "Should be supported for each value type.";
-    return base::nullopt;
+    return "";
   }
 
  protected:
