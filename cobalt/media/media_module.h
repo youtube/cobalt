@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace media {
@@ -30,7 +31,8 @@ class MediaModule {
 
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
-  static scoped_ptr<MediaModule> Create();
+  static scoped_ptr<MediaModule> Create(
+      render_tree::ResourceProvider* resource_provider);
 
  protected:
   MediaModule() {}
