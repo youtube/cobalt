@@ -76,13 +76,11 @@ std::string WebModule::GetUserAgent() {
   return user_agent;
 }
 
-WebModule::WebModule(const OnRenderTreeProducedCallback&
-                         render_tree_produced_callback,
-                     const ErrorCallback& error_callback,
-                     const math::Size& window_dimensions,
-                     render_tree::ResourceProvider* resource_provider,
-                     float layout_refresh_rate,
-                     const Options& options)
+WebModule::WebModule(
+    const OnRenderTreeProducedCallback& render_tree_produced_callback,
+    const ErrorCallback& error_callback, const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const Options& options)
     : css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObject()),
@@ -92,13 +90,11 @@ WebModule::WebModule(const OnRenderTreeProducedCallback&
       window_(new dom::Window(window_dimensions.width(),
                               window_dimensions.height(), css_parser_.get(),
                               fetcher_factory_.get(), script_runner_.get(),
-                              options.url, GetUserAgent(),
-                              error_callback)),
+                              options.url, GetUserAgent(), error_callback)),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger,
-                      layout_refresh_rate),
-      media_module_(media::MediaModule::Create()) {
+                      options.layout_trigger, layout_refresh_rate),
+      media_module_(media::MediaModule::Create(resource_provider)) {
   global_object_proxy_->SetGlobalInterface(window_);
 }
 

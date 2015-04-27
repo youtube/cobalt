@@ -26,8 +26,10 @@
           # TODO(***REMOVED***) : Find a better place to put lbshell files and add
           #                   support for other platforms like Linux.
           'sources': [
-            'shell_dummy_raw_video_decoder_ps3.cc',
             'shell_media_platform_ps3.cc',
+            'shell_media_platform_ps3.h',
+            'shell_video_data_allocator_ps3.cc',
+            'shell_video_data_allocator_ps3.h',
             '<(lbshell_root)/src/lb_memory_pool.cc',
             '<(lbshell_root)/src/lb_memory_pool.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.cc',
@@ -36,8 +38,12 @@
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.cc',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_vdec_helper_ps3.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_vdec_helper_ps3.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.cc',
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.h',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.cc',
+            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.h',
           ],
           'include_dirs': [
             '<(lbshell_root)/src',
