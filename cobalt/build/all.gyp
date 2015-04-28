@@ -31,6 +31,7 @@
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
+        '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/rasterizer_skia/skia/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',

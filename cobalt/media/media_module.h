@@ -18,8 +18,12 @@
 #define MEDIA_MEDIA_MODULE_H_
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "media/base/shell_media_platform.h"
+#include "media/base/shell_video_frame_provider.h"
+#include "media/base/video_frame.h"
 
 namespace cobalt {
 namespace media {
@@ -27,8 +31,15 @@ namespace media {
 // TODO(***REMOVED***) : Collapse MediaModule into ShellMediaPlatform.
 class MediaModule {
  public:
+  typedef ::media::VideoFrame VideoFrame;
+
   virtual ~MediaModule() {}
 
+  scoped_refptr<VideoFrame> GetCurrentFrame() {
+    ::media::ShellVideoFrameProvider* provider =
+        ::media::ShellMediaPlatform::Instance()->GetVideoFrameProvider();
+    return provider ? provider->GetCurrentFrame() : NULL;
+  }
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
