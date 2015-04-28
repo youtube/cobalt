@@ -84,9 +84,10 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return buffer;
   }
 
- private:
+ protected:
   static void SetInstance(ShellMediaPlatform* shell_media_platform);
 
+ private:
   // Platform specific media Init and Tear down.
   virtual void InternalInitialize() const = 0;
   virtual void InternalTerminate() const = 0;
