@@ -43,6 +43,7 @@
 // Entry point tokens, injected by the parser in order to choose the path
 // within a grammar, never appear in the source code.
 %token kStyleSheetEntryPointToken
+%token kStyleRuleEntryPointToken
 %token kDeclarationListEntryPointToken
 %token kPropertyValueEntryPointToken
 
@@ -1238,6 +1239,12 @@ entry_point:
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_style_sheet(style_sheet);
+  }
+  // Parses the style rule.
+  | kStyleRuleEntryPointToken maybe_whitespace style_rule {
+    scoped_refptr<cssom::CSSStyleRule> style_rule =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_style_rule(style_rule);
   }
   // Parses the contents of a HTMLElement.style attribute.
   | kDeclarationListEntryPointToken maybe_whitespace declaration_list {

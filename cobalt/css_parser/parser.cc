@@ -79,6 +79,7 @@ class ParserImpl {
   cssom::CSSParser* const css_parser() { return css_parser_; }
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
+  scoped_refptr<cssom::CSSStyleRule> ParseStyleRule();
   scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList();
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name);
@@ -95,6 +96,9 @@ class ParserImpl {
 
   void set_style_sheet(const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
     style_sheet_ = style_sheet;
+  }
+  void set_style_rule(const scoped_refptr<cssom::CSSStyleRule>& style_rule) {
+    style_rule_ = style_rule;
   }
   void set_declaration_list(
       const scoped_refptr<cssom::CSSStyleDeclarationData>& declaration_list) {
@@ -127,6 +131,7 @@ class ParserImpl {
   // Parsing results, named after entry points.
   // Only one of them may be non-NULL.
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
+  scoped_refptr<cssom::CSSStyleRule> style_rule_;
   scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list_;
   scoped_refptr<cssom::PropertyValue> property_value_;
 
@@ -149,6 +154,12 @@ scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   scanner_.PrependToken(kStyleSheetEntryPointToken);
   return Parse() ? style_sheet_
                  : make_scoped_refptr(new cssom::CSSStyleSheet());
+}
+
+scoped_refptr<cssom::CSSStyleRule> ParserImpl::ParseStyleRule() {
+  scanner_.PrependToken(kStyleRuleEntryPointToken);
+  return Parse() ? style_rule_ : make_scoped_refptr(new cssom::CSSStyleRule(
+                                     cssom::Selectors(), NULL));
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData>
@@ -265,6 +276,13 @@ scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
                          on_error_callback_);
   return parser_impl.ParseStyleSheet();
+}
+
+scoped_refptr<cssom::CSSStyleRule> Parser::ParseStyleRule(
+    const std::string& input, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
+                         on_error_callback_);
+  return parser_impl.ParseStyleRule();
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData> Parser::ParseDeclarationList(
