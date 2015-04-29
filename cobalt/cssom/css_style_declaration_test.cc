@@ -17,6 +17,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_names.h"
@@ -33,6 +34,9 @@ class MockCSSParser : public CSSParser {
   MOCK_METHOD2(ParseStyleSheet,
                scoped_refptr<CSSStyleSheet>(const std::string&,
                                             const base::SourceLocation&));
+  MOCK_METHOD2(ParseStyleRule,
+               scoped_refptr<CSSStyleRule>(const std::string&,
+                                           const base::SourceLocation&));
   MOCK_METHOD2(ParseDeclarationList,
                scoped_refptr<CSSStyleDeclarationData>(
                    const std::string&, const base::SourceLocation&));
