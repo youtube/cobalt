@@ -23,9 +23,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
-#include "media/base/video_frame.h"
 #include "media/player/web_media_player.h"
-#include "media/player/web_media_player_impl.h"
 
 namespace cobalt {
 namespace media {
@@ -42,7 +40,7 @@ class MediaSandbox : public ::media::WebMediaPlayerClient {
   scoped_refptr<Image> GetCurrentFrame();
 
  private:
-  typedef ::media::WebMediaPlayerImpl WebMediaPlayerImpl;
+  typedef ::media::WebMediaPlayer WebMediaPlayer;
 
   // WebMediaPlayerClient methods
   void NetworkStateChanged() OVERRIDE {}
@@ -61,7 +59,7 @@ class MediaSandbox : public ::media::WebMediaPlayerClient {
   std::string SourceURL() const OVERRIDE { return ""; }
 
   scoped_ptr<MediaModule> media_module_;
-  scoped_ptr<WebMediaPlayerImpl> player_;
+  scoped_ptr<WebMediaPlayer> player_;
 };
 
 }  // namespace sandbox

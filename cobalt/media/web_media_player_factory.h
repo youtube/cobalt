@@ -14,31 +14,30 @@
  * limitations under the License.
  */
 
-#include "cobalt/media/sandbox/media_sandbox.h"
+#ifndef MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
+#define MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_
 
+#include "media/player/web_media_player.h"
 
 namespace cobalt {
 namespace media {
-namespace sandbox {
 
-using cobalt::render_tree::ResourceProvider;
-using ::media::VideoFrame;
-using ::media::WebMediaPlayerDelegate;
+class WebMediaPlayerFactory {
+ public:
+  typedef ::media::WebMediaPlayer WebMediaPlayer;
 
-MediaSandbox::MediaSandbox(ResourceProvider* resource_provider)
-    : media_module_(MediaModule::Create(resource_provider)),
-      player_(media_module_->CreateWebMediaPlayer(this)) {}
+  virtual scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      ::media::WebMediaPlayerClient* client) = 0;
 
-void MediaSandbox::LoadAndPlay(const GURL& url) {
-  player_->SetRate(1.0);
-  player_->Load(url, ::media::WebMediaPlayer::kCORSModeUnspecified);
-  player_->Play();
-}
+ protected:
+  WebMediaPlayerFactory() {}
+  ~WebMediaPlayerFactory() {}
 
-scoped_refptr<render_tree::Image> MediaSandbox::GetCurrentFrame() {
-  return media_module_->GetCurrentFrame();
-}
+ private:
+  DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerFactory);
+};
 
-}  // namespace sandbox
 }  // namespace media
 }  // namespace cobalt
+
+#endif  // MEDIA_WEB_MEDIA_PLAYER_FACTORY_H_

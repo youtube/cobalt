@@ -20,26 +20,27 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
-#include "media/base/video_frame.h"
 
 namespace cobalt {
 namespace media {
 
 // TODO(***REMOVED***) : Collapse MediaModule into ShellMediaPlatform.
-class MediaModule {
+class MediaModule : public WebMediaPlayerFactory {
  public:
-  typedef ::media::VideoFrame VideoFrame;
+  typedef render_tree::Image Image;
 
-  virtual ~MediaModule() {}
+  // Provide a default implementation to create a dummy WebMediaPlayer instance.
+  // Inherited class can override it and create real WebMediaPlayer accordingly.
+  scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      ::media::WebMediaPlayerClient* client) OVERRIDE;
 
-  scoped_refptr<VideoFrame> GetCurrentFrame() {
-    ::media::ShellVideoFrameProvider* provider =
-        ::media::ShellMediaPlatform::Instance()->GetVideoFrameProvider();
-    return provider ? provider->GetCurrentFrame() : NULL;
-  }
+  virtual scoped_refptr<Image> GetCurrentFrame() { return NULL; }
+
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(

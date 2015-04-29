@@ -18,8 +18,10 @@
       'target_name': 'media',
       'type': 'static_library',
       'sources': [
+        'media_module.cc',
         'media_module.h',
         'media_module_<(actual_target_arch).cc',
+        'web_media_player_factory.h',
       ],
       'conditions': [
         ['target_arch == "ps3"', {
