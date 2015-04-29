@@ -35,37 +35,32 @@ typedef InterfaceBindingsTest<NoInterfaceObjectInterface> NoInterfaceObjectTest;
 // Spec for interface prototype object:
 //     http://www.w3.org/TR/WebIDL/#interface-prototype-object
 
-// Interface object for non-callback interface is a function object.
-TEST_F(InterfaceObjectTest, DISABLED_InterfaceObjectIsGlobalProperty) {
-  // TODO(***REMOVED***): This is dependent on generating bindings for the
-  //     Global Object
-  NOTREACHED();
+// Interface object for non-callback interface is a global property.
+TEST_F(InterfaceObjectTest, InterfaceObjectIsGlobalProperty) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(
+      "this.hasOwnProperty(\"ArbitraryInterface\");", &result));
+  EXPECT_STREQ("true", result.c_str());
 }
 
 // Interface object for non-callback interface is a function object.
 TEST_F(InterfaceObjectTest, InterfaceObjectIsFunctionObject) {
-  // TODO(***REMOVED***): Once the Interface Object is exposed on the global
-  // object, get it from there directly rather than through the prototype.
   std::string result;
   EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test).constructor instanceof Function;", &result));
+      "ArbitraryInterface instanceof Function;", &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
 // The value of the "prototype" property must be the
 // 'interface prototype object'.
 TEST_F(InterfaceObjectTest, PrototypePropertyIsSet) {
-  // TODO(***REMOVED***): Once the Interface Object is exposed on the global
-  // object, get it from there directly rather than through the prototype.
   std::string result;
   EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test).constructor.hasOwnProperty(\"prototype\");",
-      &result));
+      "ArbitraryInterface.hasOwnProperty(\"prototype\");", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test).constructor.prototype == "
-      "Object.getPrototypeOf(test);",
+      "ArbitraryInterface.prototype == Object.getPrototypeOf(test);",
       &result));
   EXPECT_STREQ("true", result.c_str());
 }
@@ -84,9 +79,7 @@ TEST_F(InterfaceObjectTest, ConstructorPropertyExists) {
 
 // The interface prototype object must have a property named "constructor" whose
 // value is a reference the the interface object.
-TEST_F(InterfaceObjectTest, DISABLED_ConstructorPropertyIsInterfaceObject) {
-  // TODO(***REMOVED***): This is dependent on the Interface Object being bound to
-  //     a property on the Global Object.
+TEST_F(InterfaceObjectTest, ConstructorPropertyIsInterfaceObject) {
   std::string result;
   EXPECT_TRUE(EvaluateScript(
       "Object.getPrototypeOf(test).constructor === ArbitraryInterface;",
