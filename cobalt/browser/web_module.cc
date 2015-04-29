@@ -87,14 +87,14 @@ WebModule::WebModule(
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       fetcher_factory_(new loader::FetcherFactory()),
-      window_(new dom::Window(window_dimensions.width(),
-                              window_dimensions.height(), css_parser_.get(),
-                              fetcher_factory_.get(), script_runner_.get(),
-                              options.url, GetUserAgent(), error_callback)),
+      media_module_(media::MediaModule::Create(resource_provider)),
+      window_(new dom::Window(
+          window_dimensions.width(), window_dimensions.height(),
+          css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
+          script_runner_.get(), options.url, GetUserAgent(), error_callback)),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate),
-      media_module_(media::MediaModule::Create(resource_provider)) {
+                      options.layout_trigger, layout_refresh_rate) {
   global_object_proxy_->SetGlobalInterface(window_);
 }
 
