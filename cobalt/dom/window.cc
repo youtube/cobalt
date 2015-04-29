@@ -27,13 +27,15 @@ namespace dom {
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                loader::FetcherFactory* fetcher_factory,
+               media::WebMediaPlayerFactory* web_media_player_factory,
                script::ScriptRunner* script_runner, const GURL& url,
                const std::string& user_agent,
                const ErrorCallback& error_callback)
     : width_(width),
       height_(height),
-      html_element_factory_(
-          new HTMLElementFactory(fetcher_factory, css_parser, script_runner)),
+      html_element_factory_(new HTMLElementFactory(fetcher_factory, css_parser,
+                                                   web_media_player_factory,
+                                                   script_runner)),
       document_(
           new Document(html_element_factory_.get(), Document::Options(url))),
       document_builder_(new DocumentBuilder(document_, url, fetcher_factory,

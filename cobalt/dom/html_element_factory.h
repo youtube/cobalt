@@ -26,6 +26,7 @@
 #include "base/string_piece.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
 
 namespace cobalt {
@@ -36,6 +37,7 @@ class HTMLElementFactory {
  public:
   HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
                      cssom::CSSParser* css_parser,
+                     media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner);
   ~HTMLElementFactory();
 
@@ -53,6 +55,7 @@ class HTMLElementFactory {
 
   loader::FetcherFactory* const fetcher_factory_;
   cssom::CSSParser* const css_parser_;
+  media::WebMediaPlayerFactory* web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
 
   TagNameToCreateHTMLElementTCallbackMap

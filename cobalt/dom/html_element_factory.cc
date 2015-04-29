@@ -49,11 +49,19 @@ HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
                                script_runner_);
 }
 
-HTMLElementFactory::HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
-                                       cssom::CSSParser* css_parser,
-                                       script::ScriptRunner* script_runner)
+template <>
+scoped_refptr<HTMLElement>
+HTMLElementFactory::CreateHTMLElementT<HTMLMediaElement>() {
+  return new HTMLMediaElement(this, css_parser_, web_media_player_factory_);
+}
+
+HTMLElementFactory::HTMLElementFactory(
+    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    script::ScriptRunner* script_runner)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
+      web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner) {
   tag_name_to_create_html_element_t_callback_map_[HTMLBodyElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLBodyElement>,

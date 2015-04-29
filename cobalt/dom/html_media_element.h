@@ -26,6 +26,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
 #include "cobalt/dom/time_ranges.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "googleurl/src/gurl.h"
 #include "media/player/web_media_player.h"
 
@@ -39,12 +40,15 @@ typedef int ExceptionCode;
 // The HTMLMediaElement is used to play videos.
 //   http://www.w3.org/TR/html5/embedded-content-0.html#media-element
 class HTMLMediaElement : public HTMLElement,
-                         private media::WebMediaPlayerClient {
+                         private ::media::WebMediaPlayerClient {
  public:
+  typedef ::media::WebMediaPlayer WebMediaPlayer;
+
   static const char kTagName[];
 
   HTMLMediaElement(HTMLElementFactory* html_element_factory,
-                   cssom::CSSParser* css_parser);
+                   cssom::CSSParser* css_parser,
+                   media::WebMediaPlayerFactory* web_media_player_factory);
 
   // Web API: Element
   //
@@ -75,14 +79,14 @@ class HTMLMediaElement : public HTMLElement,
 
   // Ready state
   enum ReadyState {
-    kHaveNothing = media::WebMediaPlayer::kReadyStateHaveNothing,
-    kHaveMetadata = media::WebMediaPlayer::kReadyStateHaveMetadata,
-    kHaveCurrentData = media::WebMediaPlayer::kReadyStateHaveCurrentData,
-    kHaveFutureData = media::WebMediaPlayer::kReadyStateHaveFutureData,
-    kHaveEnoughData = media::WebMediaPlayer::kReadyStateHaveEnoughData,
+    kHaveNothing = WebMediaPlayer::kReadyStateHaveNothing,
+    kHaveMetadata = WebMediaPlayer::kReadyStateHaveMetadata,
+    kHaveCurrentData = WebMediaPlayer::kReadyStateHaveCurrentData,
+    kHaveFutureData = WebMediaPlayer::kReadyStateHaveFutureData,
+    kHaveEnoughData = WebMediaPlayer::kReadyStateHaveEnoughData,
   };
 
-  media::WebMediaPlayer::ReadyState ready_state() const;
+  WebMediaPlayer::ReadyState ready_state() const;
   bool seeking() const;
 
   // Playback state
@@ -127,7 +131,7 @@ class HTMLMediaElement : public HTMLElement,
                     const std::string& key_system);
   void ClearMediaPlayer();
   void NoneSupported();
-  void MediaLoadingFailed(media::WebMediaPlayer::NetworkState error);
+  void MediaLoadingFailed(WebMediaPlayer::NetworkState error);
 
   // Timers
   void OnLoadTimer();
@@ -153,8 +157,8 @@ class HTMLMediaElement : public HTMLElement,
   }
 
   // States
-  void SetReadyState(media::WebMediaPlayer::ReadyState state);
-  void SetNetworkState(media::WebMediaPlayer::NetworkState state);
+  void SetReadyState(WebMediaPlayer::ReadyState state);
+  void SetNetworkState(WebMediaPlayer::NetworkState state);
   void ChangeNetworkStateFromLoadingToIdle();
 
   // Playback
@@ -194,7 +198,8 @@ class HTMLMediaElement : public HTMLElement,
   void SourceOpened() OVERRIDE;
   std::string SourceURL() const OVERRIDE;
 
-  scoped_ptr<media::WebMediaPlayer> player_;
+  media::WebMediaPlayerFactory* web_media_player_factory_;
+  scoped_ptr<WebMediaPlayer> player_;
 
   std::string src_;
   std::string current_src_;
@@ -211,8 +216,8 @@ class HTMLMediaElement : public HTMLElement,
   float playback_rate_;
   float default_playback_rate_;
   NetworkState network_state_;
-  media::WebMediaPlayer::ReadyState ready_state_;
-  media::WebMediaPlayer::ReadyState ready_state_maximum_;
+  WebMediaPlayer::ReadyState ready_state_;
+  WebMediaPlayer::ReadyState ready_state_maximum_;
 
   float volume_;
   float last_seek_time_;
