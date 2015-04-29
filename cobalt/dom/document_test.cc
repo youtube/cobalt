@@ -45,7 +45,7 @@ class DocumentTest : public ::testing::Test {
 };
 
 DocumentTest::DocumentTest()
-    : html_element_factory_(NULL, &stub_css_parser_, NULL) {
+    : html_element_factory_(NULL, &stub_css_parser_, NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 

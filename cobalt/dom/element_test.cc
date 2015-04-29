@@ -268,7 +268,7 @@ TEST_F(ElementTest, GetElementsByTagName) {
 }
 
 TEST_F(ElementTest, InnerHTML) {
-  HTMLElementFactory html_element_factory(NULL, NULL, NULL);
+  HTMLElementFactory html_element_factory(NULL, NULL, NULL, NULL);
   scoped_refptr<Element> root = new Element(&html_element_factory);
 
   // Manually construct the DOM tree and compare serialization result:

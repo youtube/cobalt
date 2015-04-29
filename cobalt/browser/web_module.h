@@ -91,14 +91,14 @@ class WebModule {
   // FetcherFactory that is used to create a fetcher according to URL.
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
 
+  // Controls all media playback related objects/resources.
+  scoped_ptr<media::MediaModule> media_module_;
+
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
 
   // Triggers layout whenever the document changes.
   layout::LayoutManager layout_manager_;
-
-  // Controls all media playback related objects/resources.
-  scoped_ptr<media::MediaModule> media_module_;
 };
 
 }  // namespace browser

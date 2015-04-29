@@ -26,20 +26,21 @@
 #include "cobalt/dom/event.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
-#include "media/player/web_media_player_impl.h"
 
 namespace cobalt {
 namespace dom {
 
-using media::WebMediaPlayer;
+using ::media::WebMediaPlayer;
 
 const char HTMLMediaElement::kTagName[] = "video";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
-HTMLMediaElement::HTMLMediaElement(HTMLElementFactory* html_element_factory,
-                                   cssom::CSSParser* css_parser)
+HTMLMediaElement::HTMLMediaElement(
+    HTMLElementFactory* html_element_factory, cssom::CSSParser* css_parser,
+    media::WebMediaPlayerFactory* web_media_player_factory)
     : HTMLElement(html_element_factory, css_parser),
+      web_media_player_factory_(web_media_player_factory),
       load_state_(kWaitingForSource),
       async_event_queue_(this),
       playback_rate_(1.0f),
@@ -138,7 +139,7 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
     return canPlay;*/
 }
 
-media::WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
+WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
   return ready_state_;
 }
 
@@ -338,17 +339,7 @@ void HTMLMediaElement::set_muted(bool muted) {
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
-#if defined(__LB_PS3__)
-  scoped_ptr<media::MessageLoopFactory> message_loop_factory(
-      new media::MessageLoopFactory);
-  scoped_ptr<media::FilterCollection> collection(new media::FilterCollection);
-  player_.reset(new media::WebMediaPlayerImpl(
-      this, base::WeakPtr<media::WebMediaPlayerDelegate>(),
-      collection.release(), NULL, message_loop_factory.release(),
-      new media::MediaLog));
-#else   // defined(__LB_PS3__)
-  NOTREACHED();
-#endif  // defined(__LB_PS3__)
+  player_ = web_media_player_factory_->CreateWebMediaPlayer(this);
 }
 
 void HTMLMediaElement::ScheduleLoad() {
@@ -532,8 +523,7 @@ void HTMLMediaElement::NoneSupported() {
   ScheduleEvent("error");
 }
 
-void HTMLMediaElement::MediaLoadingFailed(
-    media::WebMediaPlayer::NetworkState error) {
+void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
   StopPeriodicTimers();
 
   if (error == WebMediaPlayer::kNetworkStateNetworkError &&
