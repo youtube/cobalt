@@ -22,6 +22,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
@@ -43,9 +44,9 @@ class Window : public EventTarget {
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
+         media::WebMediaPlayerFactory* web_media_player_factory,
          script::ScriptRunner* script_runner, const GURL& url,
-         const std::string& user_agent,
-         const ErrorCallback& error_callback);
+         const std::string& user_agent, const ErrorCallback& error_callback);
 
   // Web API: Window
   scoped_refptr<Window> window() { return this; }
