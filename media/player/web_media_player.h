@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -18,6 +19,10 @@
 #include "media/base/ranges.h"
 #include "media/base/video_frame.h"
 #include "ui/gfx/size.h"
+
+// Disable `unreferenced formal parameter` as we have many stub functions in
+// this file and we want to keep their parameters.
+MSVC_PUSH_DISABLE_WARNING(4100)
 
 namespace media {
 
@@ -265,5 +270,7 @@ class WebMediaPlayerDelegate : base::SupportsWeakPtr<WebMediaPlayerDelegate> {
 };
 
 }  // namespace media
+
+MSVC_POP_WARNING()
 
 #endif  // MEDIA_PLAYER_WEB_MEDIA_PLAYER_H_
