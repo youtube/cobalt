@@ -30,6 +30,9 @@ namespace javascriptcore {
 // handle to a Wrappable object, which is the base class of all objects that
 // can be referenced from JavaScript.
 class WrapperBase : public JSC::JSDestructibleObject {
+ public:
+  scoped_refptr<Wrappable>& wrappable() { return wrappable_; }
+
  protected:
   WrapperBase(JSC::JSGlobalData* global_data, JSC::Structure* structure,
               const scoped_refptr<Wrappable>& impl)
@@ -48,7 +51,6 @@ class WrapperBase : public JSC::JSDestructibleObject {
     static_cast<WrapperBase*>(cell)->~WrapperBase();
   }
 
-  scoped_refptr<Wrappable>& wrappable() { return wrappable_; }
 
  private:
   scoped_refptr<Wrappable> wrappable_;
