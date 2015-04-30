@@ -13,8 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-[PrimaryGlobal]
-interface Window : GlobalInterfaceParent {
-  void windowOperation();
-  attribute DOMString windowProperty;
+
+#ifndef BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
+#define BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
+
+#include "cobalt/script/wrappable.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+class GlobalInterfaceParent : public script::Wrappable {
+ public:
+  virtual void ParentOperation() {}
+
+  DEFINE_WRAPPABLE_TYPE(GlobalInterfaceParent);
 };
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
+
+#endif  // BINDINGS_TESTING_GLOBAL_INTERFACE_PARENT_H_
