@@ -1209,7 +1209,7 @@ rule:
 
 rule_list:
     /* empty */ {
-    $$ = AddRef(new cssom::CSSStyleSheet());
+    $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
   }
   | rule_list rule {
     scoped_refptr<cssom::CSSStyleRule> style_rule =
