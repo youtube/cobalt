@@ -16,4 +16,5 @@
 
 interface CSSStyleSheet : StyleSheet {
   [SameObject] readonly attribute CSSRuleList cssRules;
+  unsigned long insertRule(DOMString rule, unsigned long index);
 };
