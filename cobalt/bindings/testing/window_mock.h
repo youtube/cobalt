@@ -29,6 +29,8 @@ class WindowMock : public Window {
   MOCK_METHOD0(WindowOperation, void());
   MOCK_METHOD0(window_property, std::string());
   MOCK_METHOD1(set_window_property, void(const std::string&));
+
+  MOCK_METHOD0(ParentOperation, void());
 };
 
 }  // namespace testing
