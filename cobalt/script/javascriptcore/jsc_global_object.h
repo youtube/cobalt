@@ -59,11 +59,8 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   scoped_refptr<JSCObjectOwner> RegisterObjectOwner(JSC::JSObject* js_object);
 
   scoped_refptr<Wrappable> global_interface() { return global_interface_; }
-  void set_global_interface(const scoped_refptr<Wrappable>& global_interface) {
-    global_interface_ = global_interface;
-  }
 
-  const WrapperFactory& wrapper_factory() { return wrapper_factory_; }
+  const WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
   // JavaScriptCore stuff
   static const JSC::ClassInfo s_info;
@@ -91,16 +88,14 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
     static_cast<JSCGlobalObject*>(cell)->~JSCGlobalObject();
   }
 
- private:
-  JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure);
+ protected:
+  JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure,
+                  const scoped_refptr<Wrappable>& global_interface,
+                  scoped_ptr<WrapperFactory> wrapper_factory);
 
+ private:
   // Called from the public static visitChildren method, defined above.
   void visit_children(JSC::SlotVisitor* visitor);
-
-  // Defined in the bindings for the PrimaryGlobal object
-  // TODO(***REMOVED***) Preferably the definition would be generated elsewhere so
-  // that we are not required to have a PrimaryGlobal object.
-  void RegisterWrapperTypes(WrapperFactory* wrapper_factory);
 
 #if defined(__LB_LINUX__)
   struct hash_function {
@@ -122,7 +117,7 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   CachedObjectMap cached_objects_;
   JSCObjectOwnerVector owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
-  WrapperFactory wrapper_factory_;
+  scoped_ptr<WrapperFactory> wrapper_factory_;
 };
 
 }  // namespace javascriptcore

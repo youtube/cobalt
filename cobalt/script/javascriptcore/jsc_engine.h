@@ -31,7 +31,7 @@ namespace javascriptcore {
 class JSCEngine : public JavaScriptEngine {
  public:
   JSCEngine();
-  scoped_refptr<GlobalObjectProxy> CreateGlobalObject() OVERRIDE;
+  scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() OVERRIDE;
   void CollectGarbage() OVERRIDE;
   JSC::JSGlobalData* global_data() { return global_data_.get(); }
 

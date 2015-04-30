@@ -35,23 +35,22 @@ class JSCGlobalObject;
 
 class WrapperFactory {
  public:
-  explicit WrapperFactory(JSCGlobalObject* global_object)
-      : global_object_(global_object) {}
   typedef base::Callback<JSC::JSObject*(
       JSCGlobalObject*, const scoped_refptr<Wrappable>&)> CreateWrapperFunction;
   void RegisterCreateWrapperMethod(
       base::TypeId wrappable_type,
       const CreateWrapperFunction& create_function);
-  JSC::JSObject* GetWrapper(const scoped_refptr<Wrappable>& wrappable) const;
+  JSC::JSObject* GetWrapper(JSCGlobalObject* global_object,
+                            const scoped_refptr<Wrappable>& wrappable) const;
 
  private:
   scoped_ptr<ScriptObjectHandle> CreateWrapper(
+      JSCGlobalObject* global_object,
       const scoped_refptr<Wrappable>& wrappable) const;
 
   typedef base::hash_map<base::TypeId, CreateWrapperFunction>
       CreateWrapperFunctionMap;
   CreateWrapperFunctionMap create_functions_;
-  JSCGlobalObject* global_object_;
 };
 
 }  // namespace javascriptcore
