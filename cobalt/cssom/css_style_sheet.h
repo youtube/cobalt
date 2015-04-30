@@ -25,6 +25,7 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSParser;
 class CSSRuleList;
 class CSSStyleRule;
 class StyleSheetList;
@@ -34,12 +35,15 @@ class StyleSheetList;
 class CSSStyleSheet : public StyleSheet {
  public:
   CSSStyleSheet();
+  explicit CSSStyleSheet(CSSParser* css_parser);
 
   // Web API: CSSStyleSheet
   //
 
   // Returns a read-only, live object representing the CSS rules.
   scoped_refptr<CSSRuleList> css_rules();
+
+  unsigned int InsertRule(const std::string& rule, unsigned int index);
 
   // Custom, not in any spec.
   //
@@ -60,6 +64,7 @@ class CSSStyleSheet : public StyleSheet {
   base::WeakPtr<CSSRuleList> css_rule_list_;
 
   StyleSheetList* style_sheet_list_;
+  CSSParser* css_parser_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

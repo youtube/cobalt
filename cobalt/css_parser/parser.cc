@@ -153,7 +153,7 @@ ParserImpl::ParserImpl(const std::string& input,
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   scanner_.PrependToken(kStyleSheetEntryPointToken);
   return Parse() ? style_sheet_
-                 : make_scoped_refptr(new cssom::CSSStyleSheet());
+                 : make_scoped_refptr(new cssom::CSSStyleSheet(css_parser_));
 }
 
 scoped_refptr<cssom::CSSStyleRule> ParserImpl::ParseStyleRule() {
