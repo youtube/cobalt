@@ -34,6 +34,7 @@
         'DOMStringTestInterface.idl',
         'InheritanceTestInterface.idl',
         'GetterSetterInterface.idl',
+        'GlobalInterfaceParent.idl',
         'NoInterfaceObjectInterface.idl',
         'NullableTypesTestInterface.idl',
         'NumericTypesTestInterface.idl',

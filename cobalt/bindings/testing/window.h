@@ -17,13 +17,13 @@
 #ifndef BINDINGS_TESTING_WINDOW_H_
 #define BINDINGS_TESTING_WINDOW_H_
 
-#include "cobalt/script/wrappable.h"
+#include "cobalt/bindings/testing/global_interface_parent.h"
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class Window : public script::Wrappable {
+class Window : public GlobalInterfaceParent {
  public:
   virtual void WindowOperation() {}
   virtual std::string window_property() { return ""; }
