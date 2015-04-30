@@ -20,18 +20,46 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/selector.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace cssom {
 
+using ::testing::_;
+
+class MockCSSParser : public CSSParser {
+ public:
+  MOCK_METHOD2(ParseStyleSheet,
+               scoped_refptr<CSSStyleSheet>(const std::string&,
+                                            const base::SourceLocation&));
+  MOCK_METHOD2(ParseStyleRule,
+               scoped_refptr<CSSStyleRule>(const std::string&,
+                                           const base::SourceLocation&));
+  MOCK_METHOD2(ParseDeclarationList,
+               scoped_refptr<CSSStyleDeclarationData>(
+                   const std::string&, const base::SourceLocation&));
+  MOCK_METHOD3(ParsePropertyValue,
+               scoped_refptr<PropertyValue>(const std::string&,
+                                            const std::string&,
+                                            const base::SourceLocation&));
+};
+
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
-  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet()) {}
+  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {}
   ~CSSStyleSheetTest() OVERRIDE {}
 
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
+  MockCSSParser css_parser_;
 };
+
+TEST_F(CSSStyleSheetTest, InsertRule) {
+  const std::string css_text = "div { font-size: 100px; color: #0047ab; }";
+  EXPECT_CALL(css_parser_, ParseStyleRule(css_text, _))
+      .WillOnce(testing::Return(scoped_refptr<CSSStyleRule>()));
+  css_style_sheet_->InsertRule(css_text, 0);
+}
 
 TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
   scoped_refptr<CSSRuleList> rule_list_1 = css_style_sheet_->css_rules();

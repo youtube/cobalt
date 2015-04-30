@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -23,7 +24,10 @@
 namespace cobalt {
 namespace cssom {
 
-CSSStyleSheet::CSSStyleSheet() : style_sheet_list_(NULL) {}
+CSSStyleSheet::CSSStyleSheet() : style_sheet_list_(NULL), css_parser_(NULL) {}
+
+CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
+    : style_sheet_list_(NULL), css_parser_(css_parser) {}
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (css_rule_list_) {
@@ -33,6 +37,23 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   scoped_refptr<CSSRuleList> css_rule_list = new CSSRuleList(this);
   css_rule_list_ = css_rule_list->AsWeakPtr();
   return css_rule_list;
+}
+
+unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
+                                       unsigned int index) {
+  scoped_refptr<CSSStyleRule> css_rule = css_parser_->ParseStyleRule(
+      rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
+
+  if (index > css_rules()->length()) {
+    LOG(ERROR) << "IndexSizeError";
+    return 0;
+  }
+
+  css_rules_.insert(css_rules_.begin() + index, css_rule);
+  if (style_sheet_list_) {
+    css_rule->AttachToStyleSheetList(style_sheet_list_);
+  }
+  return index;
 }
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
