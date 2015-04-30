@@ -83,7 +83,7 @@ WebModule::WebModule(
     const Options& options)
     : css_parser_(css_parser::Parser::Create()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
-      global_object_proxy_(javascript_engine_->CreateGlobalObject()),
+      global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       fetcher_factory_(new loader::FetcherFactory()),
@@ -95,7 +95,7 @@ WebModule::WebModule(
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
                       options.layout_trigger, layout_refresh_rate) {
-  global_object_proxy_->SetGlobalInterface(window_);
+  global_object_proxy_->CreateGlobalObject(window_);
 }
 
 WebModule::~WebModule() {}

@@ -38,10 +38,10 @@ int main(int argc, char** argv) {
 
   // Create a new global object
   scoped_refptr<GlobalObjectProxy> global_object_proxy =
-      engine->CreateGlobalObject();
+      engine->CreateGlobalObjectProxy();
 
   scoped_refptr<Window> test_window = new Window();
-  global_object_proxy->SetGlobalInterface(test_window);
+  global_object_proxy->CreateGlobalObject(test_window);
 
   while (true) {
     // Interactive prompt.
