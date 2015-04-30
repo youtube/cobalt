@@ -107,6 +107,11 @@ TEST_F(GlobalInterfaceBindingsTest,
   EXPECT_STREQ("false", result.c_str());
 }
 
+TEST_F(GlobalInterfaceBindingsTest, CallParentInterfaceOperation) {
+  EXPECT_CALL(test_mock(), ParentOperation());
+  EXPECT_TRUE(EvaluateScript("parentOperation();", NULL));
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
