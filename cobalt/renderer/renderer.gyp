@@ -69,6 +69,7 @@
       'target_name': 'renderer_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'animations_test.cc',
         'pipeline_test.cc',
         'rasterizer_test.cc',
         'rasterizer_test_fixture.cc',
