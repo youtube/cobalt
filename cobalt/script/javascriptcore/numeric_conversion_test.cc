@@ -47,10 +47,14 @@ class NumericConversionTest : public ::testing::Test {
  public:
   NumericConversionTest()
       : engine_(JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObject()),
-        jsc_global_object_(base::polymorphic_downcast<JSCGlobalObjectProxy*>(
-                               global_object_proxy_.get())->global_object()),
-        exec_state_(jsc_global_object_->globalExec()) {}
+        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
+        jsc_global_object_(NULL),
+        exec_state_(NULL) {
+    global_object_proxy_->CreateGlobalObject();
+    jsc_global_object_ = base::polymorphic_downcast<JSCGlobalObjectProxy*>(
+                             global_object_proxy_.get())->global_object();
+    exec_state_ = jsc_global_object_->globalExec();
+  }
 
   void AddFunction(JSC::JSObject* object, const char* name,
                    JSC::NativeFunction function) {
@@ -64,7 +68,7 @@ class NumericConversionTest : public ::testing::Test {
 
   const scoped_ptr<JavaScriptEngine> engine_;
   const scoped_refptr<GlobalObjectProxy> global_object_proxy_;
-  JSCGlobalObject* const jsc_global_object_;
+  JSCGlobalObject* jsc_global_object_;
   JSC::ExecState* exec_state_;
 };
 

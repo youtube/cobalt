@@ -36,17 +36,20 @@ JSCGlobalObject* JSCGlobalObject::Create(JSC::JSGlobalData* global_data) {
       &s_info);
   JSCGlobalObject* global_object =
       new (NotNull, JSC::allocateCell<JSCGlobalObject>(global_data->heap))
-      JSCGlobalObject(global_data, structure);
+      JSCGlobalObject(global_data, structure, NULL,
+                      scoped_ptr<WrapperFactory>());
   global_object->finishCreation(*global_data);
   global_data->heap.addFinalizer(global_object, destroy);
   return global_object;
 }
 
 JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
-                                 JSC::Structure* structure)
-    : JSC::JSGlobalObject(*global_data, structure), wrapper_factory_(this) {
-  RegisterWrapperTypes(&wrapper_factory_);
-}
+                                 JSC::Structure* structure,
+                                 const scoped_refptr<Wrappable>& wrappable,
+                                 scoped_ptr<WrapperFactory> wrapper_factory)
+    : JSC::JSGlobalObject(*global_data, structure),
+      wrapper_factory_(wrapper_factory.Pass()),
+      global_interface_(wrappable) {}
 
 JSC::JSObject* JSCGlobalObject::GetCachedObject(
     const JSC::ClassInfo* class_info) {
