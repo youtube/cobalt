@@ -32,16 +32,16 @@ class BindingsTestBase : public ::testing::Test {
  protected:
   BindingsTestBase()
       : engine_(script::JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObject()),
+        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
         window_(new Window()) {
-    global_object_proxy_->SetGlobalInterface(window_);
+    global_object_proxy_->CreateGlobalObject(window_);
   }
 
   explicit BindingsTestBase(const scoped_refptr<Window> window)
       : engine_(script::JavaScriptEngine::CreateEngine()),
-        global_object_proxy_(engine_->CreateGlobalObject()),
+        global_object_proxy_(engine_->CreateGlobalObjectProxy()),
         window_(window) {
-    global_object_proxy_->SetGlobalInterface(window_);
+    global_object_proxy_->CreateGlobalObject(window_);
   }
 
   bool EvaluateScript(const std::string& script, std::string* out_result) {

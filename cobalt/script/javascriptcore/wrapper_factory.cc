@@ -33,16 +33,19 @@ void WrapperFactory::RegisterCreateWrapperMethod(
 
 
 JSC::JSObject* WrapperFactory::GetWrapper(
+    JSCGlobalObject* global_object,
     const scoped_refptr<Wrappable>& wrappable) const {
   if (!wrappable) {
     return NULL;
   }
 
   return JSCObjectHandle::GetJSObject(wrappable->GetWrapperHandle(
-      base::Bind(&WrapperFactory::CreateWrapper, base::Unretained(this))));
+      base::Bind(&WrapperFactory::CreateWrapper, base::Unretained(this),
+                 base::Unretained(global_object))));
 }
 
 scoped_ptr<ScriptObjectHandle> WrapperFactory::CreateWrapper(
+    JSCGlobalObject* global_object,
     const scoped_refptr<Wrappable>& wrappable) const {
   CreateWrapperFunctionMap::const_iterator it =
       create_functions_.find(wrappable->GetWrappableType());
@@ -51,7 +54,7 @@ scoped_ptr<ScriptObjectHandle> WrapperFactory::CreateWrapper(
     return scoped_ptr<ScriptObjectHandle>();
   }
   return make_scoped_ptr<ScriptObjectHandle>(new JSCObjectHandle(
-      JSC::PassWeak<JSC::JSObject>(it->second.Run(global_object_, wrappable))));
+      JSC::PassWeak<JSC::JSObject>(it->second.Run(global_object, wrappable))));
 }
 
 }  // namespace javascriptcore

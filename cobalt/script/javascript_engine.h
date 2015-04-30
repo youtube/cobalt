@@ -31,8 +31,8 @@ class JavaScriptEngine {
   // This function is defined per-implementation.
   static scoped_ptr<JavaScriptEngine> CreateEngine();
 
-  // Create a new JavaScript global object.
-  virtual scoped_refptr<GlobalObjectProxy> CreateGlobalObject() = 0;
+  // Create a new JavaScript global object proxy.
+  virtual scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() = 0;
 
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;

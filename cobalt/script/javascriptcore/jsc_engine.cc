@@ -29,13 +29,8 @@ JSCEngine::JSCEngine() {
   global_data_ = JSC::JSGlobalData::create(JSC::LargeHeap);
 }
 
-scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObject() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  JSC::JSLockHolder lock(global_data_.get());
-  javascriptcore::JSCGlobalObject* jsc_global_object =
-      javascriptcore::JSCGlobalObject::Create(global_data_.get());
-  return make_scoped_refptr<GlobalObjectProxy>(
-      new javascriptcore::JSCGlobalObjectProxy(jsc_global_object));
+scoped_refptr<GlobalObjectProxy> JSCEngine::CreateGlobalObjectProxy() {
+  return new JSCGlobalObjectProxy(global_data_.get());
 }
 
 void JSCEngine::CollectGarbage() {
