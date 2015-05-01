@@ -18,14 +18,14 @@
 #define DOM_TEXT_H_
 
 #include "base/string_piece.h"
-#include "cobalt/dom/node.h"
+#include "cobalt/dom/character_data.h"
 
 namespace cobalt {
 namespace dom {
 
 // The Text interface represents the textual content of Element or Attr.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
-class Text : public Node {
+class Text : public CharacterData {
  public:
   explicit Text(const base::StringPiece& text);
 
@@ -33,9 +33,6 @@ class Text : public Node {
   //
   const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kTextNode; }
-
-  std::string text_content() const OVERRIDE { return text_; }
-  void set_text_content(const std::string& text) OVERRIDE { text_ = text; }
 
   // Custom, not in any spec.
   //
@@ -46,20 +43,10 @@ class Text : public Node {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
-  // Unlike text_content() which returns a copy, returns a reference
-  // to the underlying sequence of characters. This can save copying in layout
-  // engine where text is broken into words. Should be used carefully
-  // to avoid dangling string iterators.
-  const std::string& text() const { return text_; }
-
   DEFINE_WRAPPABLE_TYPE(Text);
 
  private:
   ~Text() OVERRIDE {}
-
-  bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;
-
-  std::string text_;
 };
 
 }  // namespace dom

@@ -18,7 +18,7 @@
 #define DOM_COMMENT_H_
 
 #include "base/string_piece.h"
-#include "cobalt/dom/node.h"
+#include "cobalt/dom/character_data.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +27,7 @@ namespace dom {
 // it is generally not visually shown, such comments can be still retrieved
 // from the document.
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-comment
-class Comment : public Node {
+class Comment : public CharacterData {
  public:
   explicit Comment(const base::StringPiece& comment);
 
@@ -35,9 +35,6 @@ class Comment : public Node {
   //
   const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
-
-  std::string text_content() const OVERRIDE { return comment_; }
-  void set_text_content(const std::string& value) OVERRIDE { comment_ = value; }
 
   // Custom, not in any spec.
   //
@@ -52,10 +49,6 @@ class Comment : public Node {
 
  private:
   ~Comment() OVERRIDE {}
-
-  bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;
-
-  std::string comment_;
 };
 
 }  // namespace dom

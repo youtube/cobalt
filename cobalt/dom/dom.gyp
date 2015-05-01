@@ -21,6 +21,8 @@
       'sources': [
         'attr.cc',
         'attr.h',
+        'character_data.cc',
+        'character_data.h',
         'comment.cc',
         'comment.h',
         'document.cc',
