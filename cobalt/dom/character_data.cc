@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,5 +14,18 @@
  * limitations under the License.
  */
 
-[Constructor]
-interface Comment : CharacterData {};
+#include "cobalt/dom/character_data.h"
+
+namespace cobalt {
+namespace dom {
+
+CharacterData::CharacterData(const base::StringPiece& data)
+    : data_(data.begin(), data.end()) {}
+
+bool CharacterData::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
+  // Can't attach children nodes to a character data node (text or comment).
+  return false;
+}
+
+}  // namespace dom
+}  // namespace cobalt

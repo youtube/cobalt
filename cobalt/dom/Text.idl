@@ -15,4 +15,4 @@
  */
 
 [Constructor]
-interface Text {};
+interface Text : CharacterData {};

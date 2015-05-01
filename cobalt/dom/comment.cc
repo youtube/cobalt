@@ -19,8 +19,7 @@
 namespace cobalt {
 namespace dom {
 
-Comment::Comment(const base::StringPiece& comment)
-    : comment_(comment.begin(), comment.end()) {}
+Comment::Comment(const base::StringPiece& comment) : CharacterData(comment) {}
 
 const std::string& Comment::node_name() const {
   static const std::string kCommentName("#comment");
@@ -30,11 +29,6 @@ const std::string& Comment::node_name() const {
 void Comment::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Comment::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
-
-bool Comment::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
-  // Can't attach children nodes to a comment node.
-  return false;
-}
 
 }  // namespace dom
 }  // namespace cobalt
