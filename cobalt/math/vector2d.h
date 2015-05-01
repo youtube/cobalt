@@ -65,7 +65,9 @@ class Vector2d {
 
   std::string ToString() const;
 
-  operator Vector2dF() const { return Vector2dF(x_, y_); }
+  operator Vector2dF() const {
+    return Vector2dF(static_cast<float>(x_), static_cast<float>(y_));
+  }
 
  private:
   int x_;
