@@ -19,7 +19,7 @@
 namespace cobalt {
 namespace dom {
 
-Text::Text(const base::StringPiece& text) : text_(text.begin(), text.end()) {}
+Text::Text(const base::StringPiece& text) : CharacterData(text) {}
 
 const std::string& Text::node_name() const {
   static const std::string kTextName("#text");
@@ -29,11 +29,6 @@ const std::string& Text::node_name() const {
 void Text::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Text::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
-
-bool Text::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
-  // Can't attach children nodes to a text node.
-  return false;
-}
 
 }  // namespace dom
 }  // namespace cobalt
