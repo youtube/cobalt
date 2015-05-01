@@ -23,7 +23,9 @@ class Point : public PointBase<Point, int, Vector2d> {
 
   ~Point() {}
 
-  operator PointF() const { return PointF(x(), y()); }
+  operator PointF() const {
+    return PointF(static_cast<float>(x()), static_cast<float>(y()));
+  }
 
   // Returns a string representation of point.
   std::string ToString() const;

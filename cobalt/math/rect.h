@@ -48,7 +48,10 @@ class Rect : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
   ~Rect() {}
 
   operator RectF() const {
-    return RectF(origin().x(), origin().y(), size().width(), size().height());
+    return RectF(static_cast<float>(origin().x()),
+                 static_cast<float>(origin().y()),
+                 static_cast<float>(size().width()),
+                 static_cast<float>(size().height()));
   }
 
   std::string ToString() const;
@@ -83,10 +86,14 @@ Rect BoundingRect(const Point& p1, const Point& p2);
 
 inline Rect ScaleToEnclosingRect(const Rect& rect, float x_scale,
                                  float y_scale) {
-  int x = std::floor(rect.x() * x_scale);
-  int y = std::floor(rect.y() * y_scale);
-  int r = rect.width() == 0 ? x : std::ceil(rect.right() * x_scale);
-  int b = rect.height() == 0 ? y : std::ceil(rect.bottom() * y_scale);
+  int x = static_cast<int>(std::floor(rect.x() * x_scale));
+  int y = static_cast<int>(std::floor(rect.y() * y_scale));
+  int r = rect.width() == 0
+              ? x
+              : static_cast<int>(std::ceil(rect.right() * x_scale));
+  int b = rect.height() == 0
+              ? y
+              : static_cast<int>(std::ceil(rect.bottom() * y_scale));
   return Rect(x, y, r - x, b - y);
 }
 
@@ -96,10 +103,14 @@ inline Rect ScaleToEnclosingRect(const Rect& rect, float scale) {
 
 inline Rect ScaleToEnclosedRect(const Rect& rect, float x_scale,
                                 float y_scale) {
-  int x = std::ceil(rect.x() * x_scale);
-  int y = std::ceil(rect.y() * y_scale);
-  int r = rect.width() == 0 ? x : std::floor(rect.right() * x_scale);
-  int b = rect.height() == 0 ? y : std::floor(rect.bottom() * y_scale);
+  int x = static_cast<int>(std::ceil(rect.x() * x_scale));
+  int y = static_cast<int>(std::ceil(rect.y() * y_scale));
+  int r = rect.width() == 0
+              ? x
+              : static_cast<int>(std::floor(rect.right() * x_scale));
+  int b = rect.height() == 0
+              ? y
+              : static_cast<int>(std::floor(rect.bottom() * y_scale));
   return Rect(x, y, r - x, b - y);
 }
 
