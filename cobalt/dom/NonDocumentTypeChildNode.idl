@@ -20,3 +20,4 @@ interface NonDocumentTypeChildNode {
   readonly attribute Element? nextElementSibling;
 };
 Element implements NonDocumentTypeChildNode;
+CharacterData implements NonDocumentTypeChildNode;
