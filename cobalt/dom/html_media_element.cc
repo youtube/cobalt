@@ -113,6 +113,10 @@ void HTMLMediaElement::Load() {
   LoadInternal();
 }
 
+std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) const {
+  return "probably";
+}
+
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) const {
   return "probably";
