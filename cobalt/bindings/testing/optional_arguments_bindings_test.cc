@@ -27,67 +27,41 @@ namespace bindings {
 namespace testing {
 
 namespace {
-typedef InterfaceBindingsTest<OperationsTestInterface> OperationsBindingsTest;
+typedef InterfaceBindingsTest<OperationsTestInterface>
+    OptionalArgumentsBindingsTest;
 }  // namespace
 
-TEST_F(OperationsBindingsTest, VoidFunction) {
-  EXPECT_CALL(test_mock(), VoidFunctionNoArgs());
-
-  EXPECT_TRUE(EvaluateScript("test.voidFunctionNoArgs();", NULL));
-}
-
-TEST_F(OperationsBindingsTest, StringFunction) {
-  EXPECT_CALL(test_mock(), StringFunctionNoArgs())
-      .WillOnce(Return("mock_value"));
-
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("test.stringFunctionNoArgs();", &result));
-  EXPECT_STREQ("mock_value", result.c_str());
-}
-
-TEST_F(OperationsBindingsTest, ObjectFunction) {
-  scoped_refptr<ArbitraryInterface> object = new ArbitraryInterface();
-
-  EXPECT_CALL(test_mock(), ObjectFunctionNoArgs()).WillOnce(Return(object));
-  EXPECT_TRUE(
-      EvaluateScript("var object = test.objectFunctionNoArgs();", NULL));
-
-  EXPECT_CALL(*object, ArbitraryFunction());
-  EXPECT_TRUE(EvaluateScript("object.arbitraryFunction();", NULL));
-}
-
-TEST_F(OperationsBindingsTest, VoidFunctionStringArg) {
-  EXPECT_CALL(test_mock(), VoidFunctionStringArg("mock_value"));
-  EXPECT_TRUE(
-      EvaluateScript("test.voidFunctionStringArg(\"mock_value\");", NULL));
-}
-
-TEST_F(OperationsBindingsTest, VoidFunctionObjectArg) {
-  scoped_refptr<ArbitraryInterface> object = new ArbitraryInterface();
-
-  EXPECT_CALL(test_mock(), ObjectFunctionNoArgs()).WillOnce(Return(object));
-  EXPECT_TRUE(
-      EvaluateScript("var object = test.objectFunctionNoArgs();", NULL));
-
-  EXPECT_CALL(test_mock(), VoidFunctionObjectArg(object));
-  EXPECT_TRUE(EvaluateScript("test.voidFunctionObjectArg(object);", NULL));
-}
-
-TEST_F(OperationsBindingsTest, OptionalArguments) {
+TEST_F(OptionalArgumentsBindingsTest, SetNoOptionalArguments) {
   EXPECT_CALL(test_mock(), OptionalArguments(4));
   EXPECT_TRUE(EvaluateScript("test.optionalArguments(4);", NULL));
+}
 
+TEST_F(OptionalArgumentsBindingsTest, SetOneOptionalArguments) {
   EXPECT_CALL(test_mock(), OptionalArguments(4, 1));
   EXPECT_TRUE(EvaluateScript("test.optionalArguments(4, 1);", NULL));
+}
 
+TEST_F(OptionalArgumentsBindingsTest, SetAllOptionalArguments) {
   EXPECT_CALL(test_mock(), OptionalArguments(4, 1, -6));
   EXPECT_TRUE(EvaluateScript("test.optionalArguments(4, 1, -6);", NULL));
+}
 
+TEST_F(OptionalArgumentsBindingsTest, OptionalArgumentWithDefault) {
   EXPECT_CALL(test_mock(), OptionalArgumentWithDefault(2.718));
   EXPECT_TRUE(EvaluateScript("test.optionalArgumentWithDefault();", NULL));
+}
 
+TEST_F(OptionalArgumentsBindingsTest, SetOptionalArgumentWithDefault) {
   EXPECT_CALL(test_mock(), OptionalArgumentWithDefault(3.14));
   EXPECT_TRUE(EvaluateScript("test.optionalArgumentWithDefault(3.14);", NULL));
+}
+
+TEST_F(OptionalArgumentsBindingsTest, OptionalNullableArgumentsWithDefaults) {
+  EXPECT_CALL(test_mock(),
+              OptionalNullableArgumentsWithDefaults(
+                  base::optional<bool>(), scoped_refptr<ArbitraryInterface>()));
+  EXPECT_TRUE(
+      EvaluateScript("test.optionalNullableArgumentsWithDefaults();", NULL));
 }
 
 }  // namespace testing

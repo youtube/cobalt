@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -36,6 +37,15 @@ class OperationsTestInterface : public script::Wrappable {
   MOCK_METHOD1(VoidFunctionStringArg, void(const std::string&));
   MOCK_METHOD1(VoidFunctionObjectArg,
                void(const scoped_refptr<ArbitraryInterface>&));
+
+  MOCK_METHOD1(OptionalArguments, void(int32_t));
+  MOCK_METHOD2(OptionalArguments, void(int32_t, int32_t));
+  MOCK_METHOD3(OptionalArguments, void(int32_t, int32_t, int32_t));
+
+  MOCK_METHOD1(OptionalArgumentWithDefault, void(double));
+  MOCK_METHOD2(OptionalNullableArgumentsWithDefaults,
+               void(base::optional<bool>,
+                    const scoped_refptr<ArbitraryInterface>&));
 
   DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
 };
