@@ -18,66 +18,154 @@
 
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
-#include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/text_node.h"
 
 namespace cobalt {
 namespace layout {
 
 TextBox::TextBox(
-    ContainingBlock* containing_block,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
-    const base::StringPiece& text)
-    : Box(containing_block, computed_style, transitions, converter),
+    const std::string& text, bool has_leading_white_space,
+    bool has_trailing_white_space,
+    const scoped_refptr<render_tree::Font>& used_font)
+    : Box(computed_style),
       text_(text),
-      trimmed_(false),
-      leading_x_pixels_(0) {}
+      has_leading_white_space_(has_leading_white_space),
+      has_trailing_white_space_(has_trailing_white_space),
+      used_font_(used_font) {}
 
-void TextBox::Layout(const LayoutOptions& options) {
-  trimmed_ = options.is_beginning_of_line && text_ == " ";
-  if (trimmed_) {
-    used_size() = math::SizeF();
-  } else {
-    scoped_refptr<render_tree::Font> used_font =
-        used_style_provider()->GetUsedFont(computed_style()->font_family(),
-                                           computed_style()->font_size());
-    // TODO(***REMOVED***): Figure out how to handle text bounds with negative x().
-    //               Does it mean that the first letter like "W" should overlap
-    //               with the preceding text or we should additionally shift
-    //               entire word by -x()?  Currently we save -x() as
-    //               leading_x_pixels_ and shift the entire word by it.
-    // TODO(***REMOVED***): Figure out why Skia returns zero bounds for whitespace
-    //               characters.
-    // TODO(***REMOVED***): Line height should be calculated from font metrics,
-    //               not from actual text bounds.
-    math::RectF text_frame =
-        used_font->GetBounds(text_ == " " ? "i" : text_.as_string());
-    used_size() = text_frame.size();
-    set_height_below_baseline(used_size().height() + text_frame.y());
-    leading_x_pixels_ = -text_frame.x();
+Box::Level TextBox::GetLevel() const { return kInlineLevel; }
+
+void TextBox::Layout(const LayoutOptions& /*layout_options*/) {
+  // TODO(***REMOVED***): If this method is called on a box after the split, no layout
+  //               recalculation is necessary.
+
+  // TODO(***REMOVED***): Calculate the leading and line height based on font metrics:
+  //               http://www.w3.org/TR/CSS21/visudet.html#leading
+  NOTIMPLEMENTED();
+
+  render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
+
+  // Since Skia returns the bounding rectangle of a text, the width of any white
+  // space cannot be measured on its own.
+  space_width_ = used_font_->GetBounds("_ _").width() -
+                 used_font_->GetBounds("__").width();
+
+  // TODO(***REMOVED***): Skia knows how to measure the bounding box of the text,
+  //               while we need a layout box. For example, the bounding box
+  //               for the letter "i" is smaller than the layout box
+  //               (the layout box includes a thin white space around
+  //               the letter). Consider using Pango, Harfbuzz, or FreeType
+  //               instead.
+  math::RectF text_bounds = used_font_->GetBounds(text_);
+  used_frame().set_width(GetLeadingWhiteSpaceWidth() + text_bounds.width() +
+                         GetTrailingWhiteSpaceWidth());
+  text_x_ = -text_bounds.x();
+
+  // Half the leading is added above ascent (A) and the other half below
+  // descent (D), giving the glyph and its leading (L) a total height above
+  // the baseline of A' = A + L/2 and a total depth of D' = D + L/2.
+  //   http://www.w3.org/TR/CSS21/visudet.html#leading
+  used_frame().set_height(font_metrics.ascent + font_metrics.descent +
+                          font_metrics.leading);
+  height_above_baseline_ = font_metrics.ascent + font_metrics.leading / 2;
+}
+
+scoped_ptr<Box> TextBox::TrySplitAt(float /*available_width*/) {
+  // TODO(***REMOVED***): Split the text box at soft wrap opportunity.
+  //               http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity
+  // TODO(***REMOVED***): Implement "white-space: nowrap".
+  //               http://www.w3.org/TR/css3-text/#white-space
+  NOTIMPLEMENTED();
+
+  // TODO(***REMOVED***): Update the text bounds in the both parts of the original box
+  //               after the successful split.
+
+  return scoped_ptr<Box>();
+}
+
+bool TextBox::IsCollapsed() const {
+  return !has_leading_white_space_ && !has_trailing_white_space_ &&
+         text_.empty();
+}
+
+bool TextBox::HasLeadingWhiteSpace() const { return has_leading_white_space_; }
+
+bool TextBox::HasTrailingWhiteSpace() const {
+  return has_trailing_white_space_;
+}
+
+void TextBox::CollapseLeadingWhiteSpace() {
+  if (has_leading_white_space_) {
+    used_frame().set_width(used_frame().width() - GetLeadingWhiteSpaceWidth());
+    has_leading_white_space_ = false;
+
+    if (has_trailing_white_space_ && text_.empty()) {
+      CollapseTrailingWhiteSpace();
+    }
   }
 }
 
-void TextBox::AddToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) {
-  if (trimmed_) {
-    return;
+void TextBox::CollapseTrailingWhiteSpace() {
+  if (has_trailing_white_space_) {
+    used_frame().set_width(used_frame().width() - GetTrailingWhiteSpaceWidth());
+    has_trailing_white_space_ = false;
+
+    if (has_leading_white_space_ && text_.empty()) {
+      CollapseLeadingWhiteSpace();
+    }
   }
+}
 
-  Box::AddToRenderTree(composition_node_builder, node_animations_map_builder);
+bool TextBox::JustifiesLineExistence() const { return !text_.empty(); }
 
-  scoped_refptr<render_tree::Font> used_font =
-      used_style_provider()->GetUsedFont(computed_style()->font_family(),
-                                         computed_style()->font_size());
+bool TextBox::AffectsBaselineInBlockFormattingContext() const {
+  NOTREACHED() << "Should only be called in a block formatting context.";
+  return true;
+}
+
+float TextBox::GetHeightAboveBaseline() const { return height_above_baseline_; }
+
+void TextBox::AddContentToRenderTree(
+    render_tree::CompositionNode::Builder* composition_node_builder) const {
   render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
+
+  // Skia considers text coordinates to be a position of a baseline, offset
+  // the text node accordingly.
   composition_node_builder->AddChild(
-      new render_tree::TextNode(text_.as_string(), used_font, used_color),
-      GetTransform() * math::TranslateMatrix(
-                           leading_x_pixels_,
-                           used_size().height() - height_below_baseline()));
+      new render_tree::TextNode(text_, used_font_, used_color),
+      math::TranslateMatrix(GetLeadingWhiteSpaceWidth() + text_x_,
+                            height_above_baseline_));
+}
+
+bool TextBox::IsTransformable() const { return false; }
+
+void TextBox::DumpClassName(std::ostream* stream) const {
+  *stream << "TextBox ";
+}
+
+void TextBox::DumpProperties(std::ostream* stream) const {
+  Box::DumpProperties(stream);
+
+  *stream << std::boolalpha
+          << "has_leading_white_space=" << has_leading_white_space_ << " "
+          << "has_trailing_white_space=" << has_trailing_white_space_ << " "
+          << std::noboolalpha << "text_x=" << text_x_ << " ";
+}
+
+void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
+  Box::DumpChildrenWithIndent(stream, indent);
+
+  DumpIndent(stream, indent);
+  *stream << "\"" << text_ << "\"\n";
+}
+
+float TextBox::GetLeadingWhiteSpaceWidth() const {
+  return has_leading_white_space_ ? space_width_ : 0;
+}
+
+float TextBox::GetTrailingWhiteSpaceWidth() const {
+  return has_trailing_white_space_ && !text_.empty() ? space_width_ : 0;
 }
 
 }  // namespace layout

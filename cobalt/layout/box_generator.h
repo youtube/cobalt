@@ -17,73 +17,51 @@
 #ifndef LAYOUT_BOX_GENERATOR_H_
 #define LAYOUT_BOX_GENERATOR_H_
 
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "base/memory/scoped_vector.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
 namespace layout {
 
-class ContainingBlock;
+class Box;
 class UsedStyleProvider;
 
-// Given the node, generates corresponding boxes recursively.
-// As a side-effect, computed styles of processed elements are updated.
+// In the visual formatting model, each element in the document tree generates
+// zero or more boxes.
+//   http://www.w3.org/TR/CSS21/visuren.html#box-gen
+//
+// A box generator recursively visits an HTML subtree that starts with a given
+// element, creates a matching forest of boxes, and returns zero or more root
+// boxes.
+//
+// As a side-effect, computed styles of visited HTML elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
   BoxGenerator(
-      ContainingBlock* containing_block,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          parent_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      UsedStyleProvider* used_style_provider);
-
-  void set_is_root(bool is_root) { is_root_ = is_root; }
+      const UsedStyleProvider* used_style_provider);
 
   void Visit(dom::Comment* comment) OVERRIDE;
   void Visit(dom::Document* document) OVERRIDE;
   void Visit(dom::Element* element) OVERRIDE;
   void Visit(dom::Text* text) OVERRIDE;
 
+  // The result of a box generator is zero or more root boxes.
+  typedef ScopedVector<Box> Boxes;
+  Boxes PassBoxes() { return boxes_.Pass(); }
+
  private:
-  // Element with computed value of a "display" property being "block" or
-  // "inline-block" establishes the new containing block for its descendants.
-  // Element with "display: inline;" continue to use the old containing block.
-  //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
-  ContainingBlock* GetOrGenerateContainingBlock(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet& transitions);
-  // Helper method used by GetOrGenerateContainingBlock().
-  ContainingBlock* GenerateContainingBlock(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet& transitions);
-  // If an anonymous box is being generated, we will need to compute its
-  // style based on rules specified here:
-  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous
-  // This method caches the result in anonymous_inline_box_style_.
-  scoped_refptr<const cssom::CSSStyleDeclarationData>
-      GetAnonymousInlineBoxStyle(const scoped_refptr<
-          const cssom::CSSStyleDeclarationData>& parent_computed_style);
+  const scoped_refptr<const cssom::CSSStyleDeclarationData>
+      parent_computed_style_;
+  const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
+  const UsedStyleProvider* const used_style_provider_;
 
-  void GenerateWordBox(
-      std::string::const_iterator* text_iterator,
-      const std::string::const_iterator& text_end_iterator,
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-          parent_computed_style);
-
-  void GenerateWhitespaceBox(
-      std::string::const_iterator* text_iterator,
-      const std::string::const_iterator& text_end_iterator,
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-          parent_computed_style);
-
-  scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
-  ContainingBlock* const containing_block_;
-  UsedStyleProvider* const used_style_provider_;
-  bool is_root_;
-
-  // See GetAnonymousInlineBoxStyle().
-  scoped_refptr<cssom::CSSStyleDeclarationData> anonymous_inline_box_style_;
+  Boxes boxes_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
