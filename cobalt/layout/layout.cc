@@ -18,31 +18,32 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/initial_style.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 
 using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace layout {
 
+namespace {
+
 // The containing block in which the root element lives is a rectangle called
 // the initial containing block. For continuous media, it has the dimensions
 // of the viewport and is anchored at the canvas origin.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
-scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
-    const math::SizeF& viewport_size, UsedStyleProvider* used_style_provider) {
+scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+    const math::SizeF& viewport_size) {
   scoped_refptr<cssom::CSSStyleDeclarationData>
       initial_containing_block_computed_style =
           new cssom::CSSStyleDeclarationData();
-
   initial_containing_block_computed_style->set_background_color(
       new cssom::RGBAColorValue(0xffffffff));
   initial_containing_block_computed_style->set_color(
@@ -60,10 +61,12 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
   initial_containing_block_computed_style->set_transform(
       InitialStyle::GetInstance()->transform());
   PromoteToComputedStyle(initial_containing_block_computed_style, NULL);
-  return make_scoped_ptr(new ContainingBlock(
-      NULL, initial_containing_block_computed_style,
-      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
+
+  return make_scoped_ptr(
+      new BlockLevelBlockContainerBox(initial_containing_block_computed_style));
 }
+
+}  // namespace
 
 RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
@@ -71,28 +74,36 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
+
+  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
+      CreateInitialContainingBlock(viewport_size);
+
   UsedStyleProvider used_style_provider(resource_provider);
 
-  scoped_ptr<ContainingBlock> initial_containing_block =
-      CreateInitialContainingBlock(viewport_size, &used_style_provider);
+  BoxGenerator root_box_generator(initial_containing_block->computed_style(),
+                                  user_agent_style_sheet, &used_style_provider);
+  root_element->Accept(&root_box_generator);
+  BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
+  for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();
+       root_box_iterator != root_boxes.end(); ++root_box_iterator) {
+    // Transfer the ownership of the root box from |ScopedVector|
+    // to |scoped_ptr|.
+    scoped_ptr<Box> root_box(*root_box_iterator);
+    *root_box_iterator = NULL;
 
-  BoxGenerator box_generator(initial_containing_block.get(),
-                             user_agent_style_sheet,
-                             &used_style_provider);
-  box_generator.set_is_root(true);
-  root_element->Accept(&box_generator);
+    initial_containing_block->AddChild(root_box.Pass());
+  }
 
-  LayoutOptions layout_options;
-  layout_options.is_beginning_of_line = true;
-  initial_containing_block->Layout(layout_options);
+  initial_containing_block->Layout(LayoutOptions());
 
-  NodeAnimationsMap::Builder node_animations_map_builder;
+  render_tree::animations::NodeAnimationsMap::Builder
+      node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
-  initial_containing_block->AddToRenderTree(&render_tree_root_builder,
-                                            &node_animations_map_builder);
+  initial_containing_block->AddToRenderTree(&render_tree_root_builder);
   return RenderTreeWithAnimations(
       new render_tree::CompositionNode(render_tree_root_builder.Pass()),
-      new NodeAnimationsMap(node_animations_map_builder.Pass()));
+      new render_tree::animations::NodeAnimationsMap(
+          node_animations_map_builder.Pass()));
 }
 
 }  // namespace layout

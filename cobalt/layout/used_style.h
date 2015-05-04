@@ -61,15 +61,19 @@ render_tree::ColorRGBA GetUsedColor(
 
 class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit UsedHeightProvider(float total_child_height);
+  UsedHeightProvider() {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
 
   float used_height() const { return used_height_; }
 
+ protected:
+  virtual void VisitAuto() = 0;
+
+  void set_used_height(float used_height) { used_height_ = used_height; }
+
  private:
-  float const total_child_height_;
   float used_height_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
@@ -77,16 +81,25 @@ class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 
 class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit UsedWidthProvider(float total_child_width);
+  UsedWidthProvider() {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
 
   float used_width() const { return used_width_; }
 
+  bool width_depends_on_containing_block() const {
+    return width_depends_on_containing_block_;
+  }
+
+ protected:
+  virtual void VisitAuto() = 0;
+
+  void set_used_width(float used_width) { used_width_ = used_width; }
+
  private:
-  float const total_child_width_;
   float used_width_;
+  bool width_depends_on_containing_block_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedWidthProvider);
 };

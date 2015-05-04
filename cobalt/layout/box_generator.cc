@@ -16,205 +16,262 @@
 
 #include "cobalt/layout/box_generator.h"
 
-#include "base/string_util.h"
-#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/character_classification.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
-#include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/layout/block_container_box.h"
 #include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/containing_block.h"
 #include "cobalt/layout/html_elements.h"
-#include "cobalt/layout/specified_style.h"
+#include "cobalt/layout/inline_container_box.h"
 #include "cobalt/layout/text_box.h"
+#include "cobalt/layout/used_style.h"
+#include "third_party/icu/public/common/unicode/schriter.h"
+#include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace layout {
 
 BoxGenerator::BoxGenerator(
-    ContainingBlock* containing_block,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+        parent_computed_style,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    UsedStyleProvider* used_style_provider)
-    : containing_block_(containing_block),
-      used_style_provider_(used_style_provider),
+    const UsedStyleProvider* used_style_provider)
+    : parent_computed_style_(parent_computed_style),
       user_agent_style_sheet_(user_agent_style_sheet),
-      is_root_(false) {}
+      used_style_provider_(used_style_provider) {}
 
-void BoxGenerator::Visit(dom::Element* element) {
-  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
+namespace {
 
-  // If element is the root of layout tree, use the style of initial containing
-  // block as the style of its parent.
-  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style;
-  if (is_root_) {
-    parent_computed_style = containing_block_->computed_style();
-  } else {
-    // Only HTML elements should participate in layout.
-    scoped_refptr<dom::Node> parent_node = html_element->parent_node();
-    DCHECK_NE(scoped_refptr<dom::Node>(), parent_node);
-    scoped_refptr<dom::Element> parent_element = parent_node->AsElement();
-    DCHECK_NE(scoped_refptr<dom::Element>(), parent_element);
-    scoped_refptr<dom::HTMLElement> parent_html_element =
-        parent_element->AsHTMLElement();
-    DCHECK_NE(scoped_refptr<dom::HTMLElement>(), parent_html_element);
+class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  ContainerBoxGenerator(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
+      : computed_style_(computed_style) {}
 
-    parent_computed_style = parent_html_element->computed_style();
-  }
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
-  UpdateComputedStyleOf(html_element, parent_computed_style,
-                        user_agent_style_sheet_);
+  scoped_ptr<ContainerBox> PassContainerBox() { return container_box_.Pass(); }
 
-  if (html_element->computed_style()->display() ==
-      cssom::KeywordValue::GetNone()) {
-    // If the element has the display property of its style set to "none",
-    // then it should not participate in layout, and we are done here.
-    // http://www.w3.org/TR/CSS21/visuren.html#display-prop
-    return;
-  }
+ private:
+  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
 
-  ContainingBlock* child_containing_block = GetOrGenerateContainingBlock(
-      html_element->computed_style(), *html_element->transitions());
+  scoped_ptr<ContainerBox> container_box_;
+};
 
-  // Generate child boxes.
-  for (scoped_refptr<dom::Node> child_node = html_element->first_child();
-       child_node; child_node = child_node->next_sibling()) {
-    BoxGenerator child_box_generator(child_containing_block,
-                                     user_agent_style_sheet_,
-                                     used_style_provider_);
-    child_node->Accept(&child_box_generator);
-  }
-}
-
-// Comment does not generate boxes.
-void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
-
-// Document should not participate in layout.
-void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
-
-// Text node produces a list of alternating whitespace and text boxes.
-// TODO(b/19716102): Implement word breaking according to Unicode algorithm.
-void BoxGenerator::Visit(dom::Text* text) {
-  scoped_refptr<const cssom::CSSStyleDeclarationData> parent_computed_style =
-      text->parent_node()->AsElement()->AsHTMLElement()->computed_style();
-
-  std::string::const_iterator text_iterator = text->text().begin();
-  std::string::const_iterator text_end_iterator = text->text().end();
-
-  // Try to start with whitespace boxes.
-  if (text_iterator != text_end_iterator && IsAsciiWhitespace(*text_iterator)) {
-    GenerateWhitespaceBox(&text_iterator, text_end_iterator,
-                          parent_computed_style);
-  }
-
-  while (true) {
-    if (text_iterator == text_end_iterator) {
-      break;
-    }
-    GenerateWordBox(&text_iterator, text_end_iterator, parent_computed_style);
-
-    if (text_iterator == text_end_iterator) {
-      break;
-    }
-    GenerateWhitespaceBox(&text_iterator, text_end_iterator,
-                          parent_computed_style);
-  }
-}
-
-ContainingBlock* BoxGenerator::GetOrGenerateContainingBlock(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet& transitions) {
-  // Check to see if we should create a containing block based on the value
-  // of the "display" property.
-  // Computed value of "display" property is guaranteed to be the keyword.
-  cssom::KeywordValue* display =
-      base::polymorphic_downcast<cssom::KeywordValue*>(
-          computed_style->display().get());
-  switch (display->value()) {
+void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
+  // See http://www.w3.org/TR/CSS21/visuren.html#display-prop.
+  switch (keyword->value()) {
+    // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kInlineBlock: {
-      return GenerateContainingBlock(computed_style, transitions);
-    } break;
-
-    case cssom::KeywordValue::kInline: {
-      return containing_block_;
-    } break;
-
+      container_box_ =
+          make_scoped_ptr(new BlockLevelBlockContainerBox(computed_style_));
+      break;
+    // Generate one or more inline boxes. Note that more inline boxes may be
+    // generated when the original inline box is split due to participation
+    // in the formatting context.
+    case cssom::KeywordValue::kInline:
+      container_box_ = make_scoped_ptr(new InlineContainerBox(computed_style_));
+      break;
+    // Generate an inline-level block container box. The inside of
+    // an inline-block is formatted as a block box, and the element itself
+    // is formatted as an atomic inline-level box.
+    case cssom::KeywordValue::kInlineBlock:
+      container_box_ =
+          make_scoped_ptr(new InlineLevelBlockContainerBox(computed_style_));
+      break;
+    // The element generates no boxes and has no effect on layout.
+    case cssom::KeywordValue::kNone:
+      // Leave |container_box_| NULL.
+      break;
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
-      return NULL;
+      break;
   }
 }
 
-scoped_refptr<const cssom::CSSStyleDeclarationData>
-BoxGenerator::GetAnonymousInlineBoxStyle(const scoped_refptr<
-    const cssom::CSSStyleDeclarationData>& parent_computed_style) {
-  if (!anonymous_inline_box_style_) {
-    anonymous_inline_box_style_ = new cssom::CSSStyleDeclarationData();
-    PromoteToSpecifiedStyle(anonymous_inline_box_style_, parent_computed_style);
-    PromoteToComputedStyle(anonymous_inline_box_style_, parent_computed_style);
+}  // namespace
+
+void BoxGenerator::Visit(dom::Element* element) {
+  // Update and cache computed values of the given HTML element.
+  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
+  DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
+  UpdateComputedStyleOf(html_element, parent_computed_style_,
+                        user_agent_style_sheet_);
+
+  ContainerBoxGenerator container_box_generator(html_element->computed_style());
+  html_element->computed_style()->display()->Accept(&container_box_generator);
+  scoped_ptr<ContainerBox> container_box_before_split =
+      container_box_generator.PassContainerBox();
+  if (container_box_before_split == NULL) {
+    // The element with "display: none" generates no boxes and has no effect
+    // on layout. Descendant elements do not generate any boxes either.
+    // This behavior cannot be overridden by setting the "display" property on
+    // the descendants.
+    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    return;
   }
-  return anonymous_inline_box_style_;
+  ContainerBox* container_box = container_box_before_split.get();
+  boxes_.push_back(container_box_before_split.release());
+
+  // Generate child boxes.
+  for (scoped_refptr<dom::Node> child_node = html_element->first_child();
+       child_node; child_node = child_node->next_sibling()) {
+    BoxGenerator child_box_generator(container_box->computed_style(),
+                                     user_agent_style_sheet_,
+                                     used_style_provider_);
+    child_node->Accept(&child_box_generator);
+
+    Boxes child_boxes = child_box_generator.PassBoxes();
+    for (Boxes::iterator child_box_iterator = child_boxes.begin();
+         child_box_iterator != child_boxes.end(); ++child_box_iterator) {
+      // Transfer the ownership of the child box from |ScopedVector|
+      // to |scoped_ptr|.
+      scoped_ptr<Box> child_box(*child_box_iterator);
+      *child_box_iterator = NULL;
+
+      // When an inline box contains an in-flow block-level box, the inline box
+      // (and its inline ancestors within the same block container box*) are
+      // broken around the block-level box, splitting the inline box into two
+      // boxes (even if either side is empty), one on each side of
+      // the block-level box. The line boxes before the break and after
+      // the break are enclosed in anonymous block boxes, and the block-level
+      // box becomes a sibling of those anonymous boxes.
+      //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+      //
+      // * CSS 2.1 says "the same line box" but line boxes are not real boxes
+      //   in Cobalt, see |LineBox| for details.
+      if (!container_box->TryAddChild(&child_box)) {
+        boxes_.push_back(child_box.release());
+
+        scoped_ptr<ContainerBox> container_box_after_split =
+            container_box->TrySplitAtEnd();
+        DCHECK_NE(static_cast<ContainerBox*>(NULL),
+                  container_box_after_split.get());
+        container_box = container_box_after_split.get();
+        boxes_.push_back(container_box_after_split.release());
+      }
+    }
+  }
 }
 
-ContainingBlock* BoxGenerator::GenerateContainingBlock(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet& transitions) {
-  scoped_ptr<ContainingBlock> child_containing_block(new ContainingBlock(
-      containing_block_, computed_style, transitions, used_style_provider_));
-  ContainingBlock* saved_child_containing_block = child_containing_block.get();
-  containing_block_->AddChildBox(child_containing_block.PassAs<Box>());
-  return saved_child_containing_block;
+void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
+
+void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
+
+namespace {
+
+bool IsWhiteSpace(UChar32 character) {
+  return character <= std::numeric_limits<char>::max() &&
+         cssom::IsWhiteSpace(static_cast<char>(character));
 }
 
-void BoxGenerator::GenerateWordBox(
-    std::string::const_iterator* text_iterator,
-    const std::string::const_iterator& text_end_iterator,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        parent_computed_style) {
-  std::string::const_iterator word_start_iterator = *text_iterator;
-  std::string::const_iterator& word_end_iterator = *text_iterator;
-
-  while (word_end_iterator != text_end_iterator &&
-         !IsAsciiWhitespace(*word_end_iterator)) {
-    ++word_end_iterator;
+// Returns true if skipped at least one white space character.
+bool SkipWhiteSpace(icu::StringCharacterIterator* text_iterator) {
+  bool skipped_at_least_one = false;
+  while (text_iterator->hasNext()) {
+    if (!IsWhiteSpace(text_iterator->next32PostInc())) {
+      text_iterator->previous32();
+      break;
+    }
+    skipped_at_least_one = true;
   }
-  DCHECK(word_start_iterator != word_end_iterator);
-
-  scoped_ptr<TextBox> word_box(new TextBox(
-      containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
-      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider_,
-      base::StringPiece(word_start_iterator, word_end_iterator)));
-  containing_block_->AddChildBox(word_box.PassAs<Box>());
+  return skipped_at_least_one;
 }
 
-void BoxGenerator::GenerateWhitespaceBox(
-    std::string::const_iterator* text_iterator,
-    const std::string::const_iterator& text_end_iterator,
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-        parent_computed_style) {
-  std::string::const_iterator whitespace_start_iterator = *text_iterator;
-  std::string::const_iterator& whitespace_end_iterator = *text_iterator;
-
-  while (whitespace_end_iterator != text_end_iterator &&
-         IsAsciiWhitespace(*whitespace_end_iterator)) {
-    ++whitespace_end_iterator;
+// Returns true if appended at least one character that is not a white space.
+bool AppendNonWhiteSpace(icu::StringCharacterIterator* text_iterator,
+                         icu::UnicodeString* output_string) {
+  bool appended_at_least_one = false;
+  while (text_iterator->hasNext()) {
+    UChar32 character = text_iterator->next32PostInc();
+    if (IsWhiteSpace(character)) {
+      text_iterator->previous32();
+      break;
+    }
+    appended_at_least_one = true;
+    output_string->append(character);
   }
-  DCHECK(whitespace_start_iterator != whitespace_end_iterator);
+  return appended_at_least_one;
+}
 
-  scoped_ptr<TextBox> whitespace_box(new TextBox(
-      containing_block_, GetAnonymousInlineBoxStyle(parent_computed_style),
-      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider_, " "));
-  // TODO(***REMOVED***): Do not add whitespace box if the last child is already
-  //               a whitespace box.
-  containing_block_->AddChildBox(whitespace_box.PassAs<Box>());
+// TODO(***REMOVED***): Write unit tests for a white space processing.
+
+// Performs white space collapsing and transformation that correspond to
+// the phase I of the white space processing. Also trims the white space in
+// a preparation for the phase II which happens during a layout.
+//   http://www.w3.org/TR/css3-text/#white-space-phase-1
+//   http://www.w3.org/TR/css3-text/#white-space-phase-2
+void CollapseAndTrimWhiteSpace(const std::string& text_in_utf8,
+                               std::string* collapsed_and_trimmed_text_in_utf8,
+                               bool* has_leading_white_space,
+                               bool* has_trailing_white_space) {
+  icu::UnicodeString text = icu::UnicodeString::fromUTF8(text_in_utf8);
+  icu::StringCharacterIterator text_iterator(text);
+  text_iterator.setToStart();
+
+  icu::UnicodeString collapsed_and_trimmed_text;
+  *has_leading_white_space = SkipWhiteSpace(&text_iterator);
+  *has_trailing_white_space = false;
+
+  while (true) {
+    if (!AppendNonWhiteSpace(&text_iterator, &collapsed_and_trimmed_text)) {
+      break;
+    }
+
+    // Per the specification, any space immediately following another
+    // collapsible space is collapsed to have zero advance width. We approximate
+    // this by replacing adjacent spaces with a single space.
+    if (!SkipWhiteSpace(&text_iterator)) {
+      break;
+    }
+    if (!text_iterator.hasNext()) {
+      *has_trailing_white_space = true;
+      break;
+    }
+    collapsed_and_trimmed_text.append(' ');
+  }
+
+  if (collapsed_and_trimmed_text.isEmpty()) {
+    *has_trailing_white_space = *has_leading_white_space;
+  }
+  collapsed_and_trimmed_text.toUTF8String(*collapsed_and_trimmed_text_in_utf8);
+}
+
+}  // namespace
+
+void BoxGenerator::Visit(dom::Text* text) {
+  // TODO(***REMOVED***): Implement "white-space: pre".
+  //               http://www.w3.org/TR/css3-text/#white-space
+  std::string collapsed_and_trimmed_text;
+  bool has_leading_white_space;
+  bool has_trailing_white_space;
+  CollapseAndTrimWhiteSpace(text->text(), &collapsed_and_trimmed_text,
+                            &has_leading_white_space,
+                            &has_trailing_white_space);
+  DCHECK(!collapsed_and_trimmed_text.empty() ||
+         (has_leading_white_space && has_trailing_white_space));
+  // TODO(***REMOVED***): Transform the letter case:
+  //               http://www.w3.org/TR/css-text-3/#text-transform-property
+
+  // TODO(***REMOVED***): Consider caching the style of anonymous box and reuse it with
+  // siblings.
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
+      GetComputedStyleOfAnonymousBox(parent_computed_style_);
+
+  scoped_refptr<render_tree::Font> used_font =
+      used_style_provider_->GetUsedFont(computed_style->font_family(),
+                                        computed_style->font_size());
+
+  boxes_.push_back(new TextBox(computed_style, collapsed_and_trimmed_text,
+                               has_leading_white_space,
+                               has_trailing_white_space, used_font));
 }
 
 }  // namespace layout
