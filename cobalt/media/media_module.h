@@ -34,6 +34,8 @@ class MediaModule : public WebMediaPlayerFactory {
  public:
   typedef render_tree::Image Image;
 
+  virtual ~MediaModule() {}
+
   // Provide a default implementation to create a dummy WebMediaPlayer instance.
   // Inherited class can override it and create real WebMediaPlayer accordingly.
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
