@@ -17,39 +17,85 @@
 #ifndef LAYOUT_TEXT_BOX_H_
 #define LAYOUT_TEXT_BOX_H_
 
-#include "base/string_piece.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
 
-// Represents a whitespace if created with text == " ",
-// otherwise represents a word.
-//
-// Whitespace boxes at the beginning and at the end of the line are "trimmed",
-// so they have zero width during layout and do not produce render tree nodes,
-// as per http://www.w3.org/TR/css3-text/#white-space-phase-2.
+// Although the CSS 2.1 specification assumes that the text is simply a part of
+// an inline box, it is impractical to implement it that way. Instead, we define
+// a text box as an anonymous non-atomic inline-level box. During the layout
+// a text inside the text box is lazily divided into segments between break
+// points (soft wrap opportunities), and those segments act as inline-level
+// replaced boxes.
 class TextBox : public Box {
  public:
   TextBox(
-      ContainingBlock* containing_block,
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
-      const base::StringPiece& text);
+      const std::string& text, bool has_leading_white_space,
+      bool has_trailing_white_space,
+      const scoped_refptr<render_tree::Font>& used_font);
 
-  void Layout(const LayoutOptions& options) OVERRIDE;
+  // From |Box|.
+  Level GetLevel() const OVERRIDE;
 
-  void AddToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) OVERRIDE;
+  void Layout(const LayoutOptions& layout_options) OVERRIDE;
+  scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
+
+  bool IsCollapsed() const OVERRIDE;
+  bool HasLeadingWhiteSpace() const OVERRIDE;
+  bool HasTrailingWhiteSpace() const OVERRIDE;
+  void CollapseLeadingWhiteSpace() OVERRIDE;
+  void CollapseTrailingWhiteSpace() OVERRIDE;
+
+  bool JustifiesLineExistence() const OVERRIDE;
+  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
+  float GetHeightAboveBaseline() const OVERRIDE;
+
+ protected:
+  // From |Box|.
+  void AddContentToRenderTree(render_tree::CompositionNode::Builder*
+                                  composition_node_builder) const OVERRIDE;
+  bool IsTransformable() const OVERRIDE;
+
+  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpProperties(std::ostream* stream) const OVERRIDE;
+  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
  private:
-  const base::StringPiece text_;
-  bool trimmed_;
+  // Width of a space character in the used font, if the box has leading white
+  // space.
+  float GetLeadingWhiteSpaceWidth() const;
+  // Width of a space character in the used font, if the box has trailing white
+  // space. If the box has no text, returns 0 (because the leading white space
+  // has already contributed to the width).
+  float GetTrailingWhiteSpaceWidth() const;
 
-  // Gives how much we should translate forward the render tree text node by.
-  float leading_x_pixels_;
+  // A processed text in which:
+  //   - collapsible white space has been collapsed and trimmed for both ends;
+  //   - segment breaks have been transformed;
+  //   - letter case has been transformed.
+  std::string text_;
+  // Whether the box has a collapsible leading white space. Note that actual
+  // white space characters has been removed from the beginning of |text_|.
+  // If the text is empty, |has_leading_white_space_| must be equal to
+  // |has_trailing_white_space_|.
+  bool has_leading_white_space_;
+  // Whether the box has a collapsible trailing white space. Note that actual
+  // white space characters has been removed from the end of |text_|.
+  // If the text is empty, |has_leading_white_space_| must be equal to
+  // |has_trailing_white_space_|.
+  bool has_trailing_white_space_;
+  // A font used for text width and line height calculations.
+  const scoped_refptr<render_tree::Font> used_font_;
+  // A horizontal offset of the first glyph relatively to the origin
+  // of the text box.
+  float text_x_;
+  // A vertical offset of the baseline relatively to the origin of the text box.
+  float height_above_baseline_;
+  // A width of a space character in the used font, measured during layout.
+  float space_width_;
 };
 
 }  // namespace layout

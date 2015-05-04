@@ -17,41 +17,58 @@
 #ifndef LAYOUT_BOX_H_
 #define LAYOUT_BOX_H_
 
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/css_transition_set.h"
+#include <iosfwd>
+
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 
 namespace cobalt {
 namespace layout {
 
-class ContainingBlock;
-class UsedStyleProvider;
+class AnonymousBlockBox;
+class ContainerBox;
 
 struct LayoutOptions {
-  // Indicates whether box is first on the line.
-  bool is_beginning_of_line;
+  LayoutOptions() : shrink_if_width_depends_on_containing_block(false) {}
+
+  // Many box positions and sizes are calculated with respect to the edges of
+  // a rectangular box called a containing block.
+  //   http://www.w3.org/TR/CSS21/visuren.html#containing-block
+  math::SizeF containing_block_size;
+
+  // Boxes whose width depends on a containing block will shrink instead
+  // of expanding during the first pass of the layout initiated by inline-level
+  // block container boxes.
+  bool shrink_if_width_depends_on_containing_block;
 };
 
-// Base class for all boxes.
+// A base class for all boxes.
 //
-// Box is a central concept of CSS basic box model
-// (see http://www.w3.org/TR/CSS2/box.html).
-// Layout engine, given DOM and CSSOM, produces a box tree.
+// The CSS box model describes the rectangular boxes that are generated
+// for elements in the document tree and laid out according to the visual
+// formatting model.
+//   http://www.w3.org/TR/CSS21/box.html
 class Box {
  public:
-  Box(ContainingBlock* containing_block,
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet& transitions,
-      UsedStyleProvider* used_style_provider);
+  // Defines the formatting context in which the box should participate.
+  // Do not confuse with the formatting context that the element may establish.
+  enum Level {
+    // The "block" value of the "display" property makes an element block-level.
+    // Block-level boxes participate in a block formatting context.
+    //   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
+    kBlockLevel,
 
-  virtual ~Box() {}
+    // The "inline" and "inline-block" values of the "display" property make
+    // an element inline-level. Inline-level boxes that participate in an inline
+    // formatting context.
+    //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+    kInlineLevel,
+  };
 
-  // In CSS, many box positions and sizes are calculated with respect to
-  // the edges of a rectangular box called a containing block.
-  //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
-  ContainingBlock* containing_block() const { return containing_block_; }
+  Box(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          computed_style);
+  virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
   // before the layout. The computed value resolves the specified value as far
@@ -64,53 +81,103 @@ class Box {
     return computed_style_;
   }
 
+  // Specifies the formatting context in which the box should participate.
+  // Do not confuse with the formatting context that the element may establish.
+  virtual Level GetLevel() const = 0;
+
   // Reflects the used values of left, top, right, bottom, width, and height.
-  math::SizeF& used_size() { return used_size_; }
-  const math::SizeF& used_size() const { return used_size_; }
-
-  math::PointF& offset() { return offset_; }
-  const math::PointF& offset() const { return offset_; }
-
-  void set_height_below_baseline(float value) {
-    height_below_baseline_ = value;
-  }
-  float height_below_baseline() const { return height_below_baseline_; }
+  math::RectF& used_frame() { return used_frame_; }
+  const math::RectF& used_frame() const { return used_frame_; }
 
   // Lays out the box and all its descendants recursively.
-  virtual void Layout(const LayoutOptions& options) = 0;
+  virtual void Layout(const LayoutOptions& layout_options) = 0;
+  // Attempts to split the box, so that the part before the split would fit
+  // the available width. Returns the part after the split if the split
+  // succeeded. Note that only inline boxes are splittable.
+  virtual scoped_ptr<Box> TrySplitAt(float available_width) = 0;
 
-  // Converts layout subtree into render subtree.
-  virtual void AddToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animation_map_builder);
+  // A box is collapsed if it has no text or white space, nor have its children.
+  // A collapsed box may still have a non-zero width. Atomic inline-level boxes
+  // are never collapsed, even if empty.
+  //
+  // This is used to decide whether two white spaces are following each other in
+  // an inline formatting context.
+  virtual bool IsCollapsed() const = 0;
+  // Whether the box or its first non-collapsed descendant starts with a white
+  // space.
+  virtual bool HasLeadingWhiteSpace() const = 0;
+  // Whether the box or its last non-collapsed descendant ends with a white
+  // space.
+  virtual bool HasTrailingWhiteSpace() const = 0;
+  // Collapses a leading white space in the box or its first non-collapsed
+  // descendant.
+  virtual void CollapseLeadingWhiteSpace() = 0;
+  // Collapses a trailing white space in the box or its last non-collapsed
+  // descendant.
+  virtual void CollapseTrailingWhiteSpace() = 0;
+
+  // Line boxes that contain no text, no preserved white space, no inline
+  // elements with non-zero margins, padding, or borders, and no other in-flow
+  // content must be treated as zero-height line boxes for the purposes
+  // of determining the positions of any elements inside of them, and must be
+  // treated as not existing for any other purpose.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  virtual bool JustifiesLineExistence() const = 0;
+  // Boxes that don't establish a baseline (such as empty blocks or lines)
+  // should not affect the baseline calculation in the block formatting context.
+  virtual bool AffectsBaselineInBlockFormattingContext() const = 0;
+  // Returns the vertical offset of the baseline relatively to the origin
+  // of the box. If the box does not have a baseline, returns the bottom margin
+  // edge.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  virtual float GetHeightAboveBaseline() const = 0;
+
+  // Converts a layout subtree into a render subtree.
+  // This method defines the overall strategy of the conversion and relies
+  // on the subclasses to provide the actual content.
+  void AddToRenderTree(render_tree::CompositionNode::Builder*
+                           parent_composition_node_builder) const;
+
+  // Poor man's reflection.
+  virtual AnonymousBlockBox* AsAnonymousBlockBox();
+
+  // Used by derived classes to dump their children.
+  void DumpWithIndent(std::ostream* stream, int indent) const;
 
  protected:
-  UsedStyleProvider* used_style_provider() const {
-    return used_style_provider_;
-  }
+  void AddBackgroundToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder) const;
+  // Provides the content of the box.
+  virtual void AddContentToRenderTree(render_tree::CompositionNode::Builder*
+                                          composition_node_builder) const = 0;
 
-  math::Matrix3F GetTransform();
+  // A transformable element is an element whose layout is governed by the CSS
+  // box model which is either a block-level or atomic inline-level element.
+  //   http://www.w3.org/TR/css3-transforms/#transformable-element
+  virtual bool IsTransformable() const = 0;
+  math::Matrix3F GetTransform() const;
+
+  void DumpIndent(std::ostream* stream, int indent) const;
+  virtual void DumpClassName(std::ostream* stream) const = 0;
+  // Overriders must call the base method.
+  virtual void DumpProperties(std::ostream* stream) const;
+  // Overriders must call the base method.
+  virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
 
  private:
-  ContainingBlock* const containing_block_;
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
-  const cssom::TransitionSet& transitions_;
-  UsedStyleProvider* const used_style_provider_;
 
-  // The width and height of this box.
-  math::SizeF used_size_;
-
-  // Describes how far above the bottom of the box the baseline is at.
-  // For text, this will be dependent on the string.  For most other objects,
-  // this will be equal to zero.
-  float height_below_baseline_;
-
-  // Where the box should be positioned relative to its parent.
-  math::PointF offset_;
+  math::RectF used_frame_;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
+
+// Dumps a box tree recursively to a stream.
+// Used for layout debugging, not intended for production.
+inline std::ostream& operator<<(std::ostream& stream, const Box& box) {
+  box.DumpWithIndent(&stream, 0);
+  return stream;
+}
 
 }  // namespace layout
 }  // namespace cobalt

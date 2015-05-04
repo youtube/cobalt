@@ -21,7 +21,6 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
-#include "cobalt/layout/containing_block.h"
 
 namespace cobalt {
 namespace layout {
@@ -51,14 +50,12 @@ render_tree::ColorRGBA GetUsedColor(
   return render_tree::ColorRGBA(color->value());
 }
 
-UsedHeightProvider::UsedHeightProvider(float total_child_height)
-    : total_child_height_(total_child_height) {}
-
 void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
-      used_height_ = total_child_height_;
+      VisitAuto();
       break;
+
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
@@ -75,18 +72,16 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit())
       << "TODO(***REMOVED***): Implement other units";
-  used_height_ = length->value();
+  set_used_height(length->value());
 }
-
-
-UsedWidthProvider::UsedWidthProvider(float total_child_width)
-    : total_child_width_(total_child_width) {}
 
 void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
-      used_width_ = total_child_width_;
+      VisitAuto();
+      width_depends_on_containing_block_ = true;
       break;
+
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
@@ -103,7 +98,8 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit())
       << "TODO(***REMOVED***): Implement other units";
-  used_width_ = length->value();
+  set_used_width(length->value());
+  width_depends_on_containing_block_ = false;
 }
 
 }  // namespace layout
