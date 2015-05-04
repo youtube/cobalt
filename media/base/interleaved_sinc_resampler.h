@@ -1,66 +1,55 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_SINC_RESAMPLER_H_
-#define MEDIA_BASE_SINC_RESAMPLER_H_
+#ifndef MEDIA_BASE_INTERLEAVED_SINC_RESAMPLER_H_
+#define MEDIA_BASE_INTERLEAVED_SINC_RESAMPLER_H_
 
-#include "base/callback.h"
-#include "base/gtest_prod_util.h"
+#include <queue>
+
 #include "base/memory/aligned_memory.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/buffers.h"
 #include "media/base/media_export.h"
 
 namespace media {
 
-// SincResampler is a high-quality single-channel sample-rate converter.
-class MEDIA_EXPORT SincResampler {
+// InterleavedSincResampler is a high-quality interleaved multi-channel sample
+//-rate converter operating on samples in float. It uses the same algorithm as
+// SincResampler. Unlike SincResampler, it works in push mode instead of pull
+// mode.
+class MEDIA_EXPORT InterleavedSincResampler {
  public:
-  // The maximum number of samples that may be requested from the callback ahead
-  // of the current position in the stream.
-  static const int kMaximumLookAheadSize;
+  // |io_sample_rate_ratio| is the ratio of input / output sample rates.
+  // |channel_count| is the number of channels in the interleaved audio stream.
+  InterleavedSincResampler(double io_sample_rate_ratio, int channel_count);
 
-  // Callback type for providing more data into the resampler.  Expects |frames|
-  // of data to be rendered into |destination|; zero padded if not enough frames
-  // are available to satisfy the request.
-  typedef base::Callback<void(float* destination, int frames)> ReadCB;
+  // Append a buffer to the queue. The samples in the buffer has to be floats.
+  void QueueBuffer(const scoped_refptr<Buffer>& buffer);
 
-  // Constructs a SincResampler with the specified |read_cb|, which is used to
-  // acquire audio data for resampling.  |io_sample_rate_ratio| is the ratio of
-  // input / output sample rates.
-  SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb);
-  virtual ~SincResampler();
-
-  // Resample |frames| of data from |read_cb_| into |destination|.
-  void Resample(float* destination, int frames);
-
-  // The maximum size in frames that guarantees Resample() will only make a
-  // single call to |read_cb_| for more data.
-  int ChunkSize();
+  // Resample |frames| of data from enqueued buffers.  Return false if no sample
+  // is read.  Return true if all requested samples have been written into
+  // |destination|.  It will never do a partial read.  After the stream reaches
+  // the end, the function will fill the rest of buffer with 0.
+  bool Resample(float* destination, int frames);
 
   // Flush all buffered data and reset internal indices.
   void Flush();
 
+  // Return false if we shouldn't queue more buffers to the resampler.
+  bool CanQueueBuffer() const;
+
+  // Returning true when we start to return zero filled data because of EOS.
+  bool ReachedEOS() const;
+
  private:
-  FRIEND_TEST_ALL_PREFIXES(SincResamplerTest, Convolve);
-  FRIEND_TEST_ALL_PREFIXES(SincResamplerTest, ConvolveBenchmark);
-
   void InitializeKernel();
+  bool HasEnoughData(int frames_to_resample) const;
+  void Read(float* destination, int frames);
 
-  // Compute convolution of |k1| and |k2| over |input_ptr|, resultant sums are
-  // linearly interpolated using |kernel_interpolation_factor|.  On x86, the
-  // underlying implementation is chosen at run time based on SSE support.  On
-  // ARM, NEON support is chosen at compile time based on compilation flags.
-  static float Convolve(const float* input_ptr, const float* k1,
-                        const float* k2, double kernel_interpolation_factor);
-  static float Convolve_C(const float* input_ptr, const float* k1,
-                          const float* k2, double kernel_interpolation_factor);
-  static float Convolve_SSE(const float* input_ptr, const float* k1,
-                            const float* k2,
-                            double kernel_interpolation_factor);
-  static float Convolve_NEON(const float* input_ptr, const float* k1,
-                             const float* k2,
-                             double kernel_interpolation_factor);
+  float Convolve(const float* input_ptr, const float* k1, const float* k2,
+                 double kernel_interpolation_factor);
 
   // The ratio of input / output sample rates.
   double io_sample_rate_ratio_;
@@ -72,8 +61,11 @@ class MEDIA_EXPORT SincResampler {
   // The buffer is primed once at the very beginning of processing.
   bool buffer_primed_;
 
-  // Source of data for resampling.
-  ReadCB read_cb_;
+  // Number of audio channels.
+  int channel_count_;
+
+  // The size of bytes for an audio frame.
+  const int frame_size_in_bytes_;
 
   // Contains kKernelOffsetCount kernels back-to-back, each of size kKernelSize.
   // The kernel offsets are sub-sample shifts of a windowed sinc shifted from
@@ -82,6 +74,16 @@ class MEDIA_EXPORT SincResampler {
 
   // Data from the source is copied into this buffer for each processing pass.
   scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> input_buffer_;
+
+  // A queue of buffers to be resampled.
+  std::queue<scoped_refptr<Buffer> > pending_buffers_;
+
+  // The current offset to read when reading from the first pending buffer.
+  int offset_in_frames_;
+
+  // The following two variables are used to calculate EOS and in HasEnoughData.
+  int frames_resampled_;
+  int frames_queued_;
 
   // Pointers to the various regions inside |input_buffer_|.  See the diagram at
   // the top of the .cc file for more information.
@@ -92,9 +94,9 @@ class MEDIA_EXPORT SincResampler {
   float* const r4_;
   float* const r5_;
 
-  DISALLOW_COPY_AND_ASSIGN(SincResampler);
+  DISALLOW_COPY_AND_ASSIGN(InterleavedSincResampler);
 };
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_SINC_RESAMPLER_H_
+#endif  // MEDIA_BASE_INTERLEAVED_SINC_RESAMPLER_H_
