@@ -218,7 +218,7 @@ inline bool IsIdentifierStartAfterDash(const char* character_iterator) {
 }
 
 inline const char* SkipWhiteSpace(const char* input_iterator) {
-  while (cssom::IsCSSWhiteSpace(*input_iterator)) {
+  while (cssom::IsWhiteSpace(*input_iterator)) {
     ++input_iterator;
   }
   return input_iterator;
@@ -244,7 +244,7 @@ bool CheckAndSkipEscape(const char* input_iterator,
     } while (IsHexDigit(*input_iterator) && --length > 0);
 
     // Optional space after the escape sequence.
-    if (cssom::IsCSSWhiteSpace(*input_iterator)) {
+    if (cssom::IsWhiteSpace(*input_iterator)) {
       ++input_iterator;
     }
     *result_iterator = input_iterator;
@@ -1050,7 +1050,7 @@ UChar32 Scanner::ScanEscape() {
     }
 
     // Optional space after the escape sequence.
-    if (cssom::IsCSSWhiteSpace(*input_iterator_)) {
+    if (cssom::IsWhiteSpace(*input_iterator_)) {
       ++input_iterator_;
     }
 
