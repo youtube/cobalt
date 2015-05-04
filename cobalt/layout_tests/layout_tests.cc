@@ -120,10 +120,8 @@ GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
 }  // namespace
 
 struct TestInfo {
-  TestInfo(const FilePath& base_file_path,
-           const GURL& url) :
-      base_file_path(base_file_path),
-      url(url) {}
+  TestInfo(const FilePath& base_file_path, const GURL& url)
+      : base_file_path(base_file_path), url(url) {}
 
   // The base_file_path gives a path (relative to the root layout_tests
   // directory) to the test base filename from which all related files (such
@@ -182,10 +180,8 @@ TEST_P(LayoutTest, LayoutTest) {
   browser::WebModule::OnRenderTreeProducedCallback callback_function(
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline)
           ? base::Bind(&AcceptRenderTreeForRebaseline,
-                       GetParam().base_file_path,
-                       &pixel_tester, &run_loop)
-          : base::Bind(&AcceptRenderTreeForTest,
-                       GetParam().base_file_path,
+                       GetParam().base_file_path, &pixel_tester, &run_loop)
+          : base::Bind(&AcceptRenderTreeForTest, GetParam().base_file_path,
                        &pixel_tester, &run_loop, &result));
 
   // Create the web module.
@@ -209,9 +205,8 @@ TEST_P(LayoutTest, LayoutTest) {
 }
 
 namespace {
-base::optional<TestInfo> ParseTestCaseLine(
-    const FilePath& top_level,
-    const std::string& line_string) {
+base::optional<TestInfo> ParseTestCaseLine(const FilePath& top_level,
+                                           const std::string& line_string) {
   // Split the line up by commas, of which there may be none.
   std::vector<std::string> test_case_tokens;
   Tokenize(line_string, ",", &test_case_tokens);
@@ -285,9 +280,16 @@ std::vector<TestInfo> EnumerateLayoutTests(const std::string& top_level) {
 }
 }  // namespace
 
-// Instantiate the set of Cobalt-specific test cases.
+// Cobalt-specific test cases.
 INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, LayoutTest,
                         ::testing::ValuesIn(EnumerateLayoutTests("cobalt")));
+// Custom CSS 2.1 (http://www.w3.org/TR/CSS21/) test cases.
+INSTANTIATE_TEST_CASE_P(CSS21LayoutTests, LayoutTest,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")));
+// Custom CSS Text 3 (http://www.w3.org/TR/css-text-3/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSText3LayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")));
 
 }  // namespace layout_tests
 }  // namespace cobalt
