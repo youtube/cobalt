@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -34,68 +34,62 @@
 // MSVC++ requires this to be set before any other includes to get M_PI.
 #define _USE_MATH_DEFINES
 
-#include "media/base/sinc_resampler.h"
+#include "media/base/interleaved_sinc_resampler.h"
 
+#include <algorithm>
 #include <cmath>
 
-#include "base/cpu.h"
 #include "base/logging.h"
-#include "build/build_config.h"
-
-#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
-#include <xmmintrin.h>
-#endif
-
-#if defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
-#include <arm_neon.h>
-#endif
 
 namespace media {
 
 namespace {
 
-enum {
-  // The kernel size can be adjusted for quality (higher is better) at the
-  // expense of performance.  Must be a multiple of 32.
-  // TODO(dalecurtis): Test performance to see if we can jack this up to 64+.
-  kKernelSize = 32,
+// The kernel size can be adjusted for quality (higher is better) at the
+// expense of performance.  Must be a multiple of 32.
+const int kKernelSize = 32;
 
-  // The number of destination frames generated per processing pass.  Affects
-  // how often and for how much SincResampler calls back for input.  Must be
-  // greater than kKernelSize.
-  kBlockSize = 512,
+// The number of destination frames generated per processing pass.  Affects
+// how often and for how much InterleavedSincResampler calls back for input.
+// Must be greater than kKernelSize.
+const int kBlockSize = 512;
 
-  // The kernel offset count is used for interpolation and is the number of
-  // sub-sample kernel shifts.  Can be adjusted for quality (higher is better)
-  // at the expense of allocating more memory.
-  kKernelOffsetCount = 32,
-  kKernelStorageSize = kKernelSize * (kKernelOffsetCount + 1),
+// The kernel offset count is used for interpolation and is the number of
+// sub-sample kernel shifts.  Can be adjusted for quality (higher is better)
+// at the expense of allocating more memory.
+const int kKernelOffsetCount = 32;
+const int kKernelStorageSize = kKernelSize * (kKernelOffsetCount + 1);
 
-  // The size (in samples) of the internal buffer used by the resampler.
-  kBufferSize = kBlockSize + kKernelSize
-};
+// The size (in samples) of the internal buffer used by the resampler.
+const int kBufferSize = kBlockSize + kKernelSize;
+
+// The maximum numbers of buffer can be queued.
+const int kMaximumPendingBuffers = 8;
 
 }  // namespace
 
-const int SincResampler::kMaximumLookAheadSize = kBufferSize;
-
-SincResampler::SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb)
+InterleavedSincResampler::InterleavedSincResampler(
+    double io_sample_rate_ratio, int channel_count)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       virtual_source_idx_(0),
       buffer_primed_(false),
-      read_cb_(read_cb),
-      // Create input buffers with a 16-byte alignment for SSE optimizations.
+      channel_count_(channel_count),
+      frame_size_in_bytes_(sizeof(float) * channel_count_),
+      // Create buffers with a 16-byte alignment for possible optimizations.
       kernel_storage_(static_cast<float*>(
           base::AlignedAlloc(sizeof(float) * kKernelStorageSize, 16))),
       input_buffer_(static_cast<float*>(
-          base::AlignedAlloc(sizeof(float) * kBufferSize, 16))),
+          base::AlignedAlloc(frame_size_in_bytes_ * kBufferSize, 16))),
+      offset_in_frames_(0),
+      frames_resampled_(0),
+      frames_queued_(0),
       // Setup various region pointers in the buffer (see diagram above).
-      r0_(input_buffer_.get() + kKernelSize / 2),
+      r0_(input_buffer_.get() + kKernelSize / 2 * channel_count_),
       r1_(input_buffer_.get()),
       r2_(r0_),
-      r3_(r0_ + kBlockSize - kKernelSize / 2),
-      r4_(r0_ + kBlockSize),
-      r5_(r0_ + kKernelSize / 2) {
+      r3_(r0_ + (kBlockSize - kKernelSize / 2) * channel_count_),
+      r4_(r0_ + kBlockSize * channel_count_),
+      r5_(r0_ + kKernelSize / 2 * channel_count_) {
   // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
   // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
   // input_buffer_ being 16-byte aligned.
@@ -112,20 +106,19 @@ SincResampler::SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb)
   // r3_ left of r4_, r5_ left of r0_ and r3_ size correct.
   DCHECK_EQ(r4_ - r3_, r5_ - r0_);
   // r3_, r4_ size correct and r4_ at the end of the buffer.
-  DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize);
+  DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize * channel_count_);
   // r5_ size correct and at the end of the buffer.
-  DCHECK_EQ(r5_ + kBlockSize, r1_ + kBufferSize);
+  DCHECK_EQ(r5_ + kBlockSize * channel_count_,
+            r1_ + kBufferSize * channel_count_);
 
   memset(kernel_storage_.get(), 0,
          sizeof(*kernel_storage_.get()) * kKernelStorageSize);
-  memset(input_buffer_.get(), 0, sizeof(*input_buffer_.get()) * kBufferSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
 
   InitializeKernel();
 }
 
-SincResampler::~SincResampler() {}
-
-void SincResampler::InitializeKernel() {
+void InterleavedSincResampler::InitializeKernel() {
   // Blackman window parameters.
   static const double kAlpha = 0.16;
   static const double kA0 = 0.5 * (1.0 - kAlpha);
@@ -168,12 +161,33 @@ void SincResampler::InitializeKernel() {
   }
 }
 
-void SincResampler::Resample(float* destination, int frames) {
+void InterleavedSincResampler::QueueBuffer(
+    const scoped_refptr<Buffer>& buffer) {
+  DCHECK(buffer);
+  DCHECK(CanQueueBuffer());
+
+  if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
+    DCHECK(buffer->IsEndOfStream());
+    return;
+  }
+
+  if (!buffer->IsEndOfStream()) {
+    frames_queued_ += buffer->GetDataSize() / frame_size_in_bytes_;
+  }
+
+  pending_buffers_.push(buffer);
+}
+
+bool InterleavedSincResampler::Resample(float* destination, int frames) {
+  if (!HasEnoughData(frames)) {
+    return false;
+  }
+
   int remaining_frames = frames;
 
   // Step (1) -- Prime the input buffer at the start of the input stream.
   if (!buffer_primed_) {
-    read_cb_.Run(r0_, kBlockSize + kKernelSize / 2);
+    Read(r0_, kBlockSize + kKernelSize / 2);
     buffer_primed_ = true;
   }
 
@@ -194,18 +208,22 @@ void SincResampler::Resample(float* destination, int frames) {
       float* k2 = k1 + kKernelSize;
 
       // Initialize input pointer based on quantized |virtual_source_idx_|.
-      float* input_ptr = r1_ + source_idx;
+      float* input_ptr = r1_ + source_idx * channel_count_;
 
       // Figure out how much to weight each kernel's "convolution".
       double kernel_interpolation_factor = virtual_offset_idx - offset_idx;
-      *destination++ = Convolve(
-          input_ptr, k1, k2, kernel_interpolation_factor);
+      for (int i = 0; i < channel_count_; ++i) {
+          *destination++ = Convolve(input_ptr + i, k1, k2,
+                                    kernel_interpolation_factor);
+      }
 
       // Advance the virtual index.
       virtual_source_idx_ += io_sample_rate_ratio_;
 
-      if (!--remaining_frames)
-        return;
+      if (!--remaining_frames) {
+        frames_resampled_ += frames;
+        return true;
+      }
     }
 
     // Wrap back around to the start.
@@ -213,48 +231,92 @@ void SincResampler::Resample(float* destination, int frames) {
 
     // Step (3) Copy r3_ to r1_ and r4_ to r2_.
     // This wraps the last input frames back to the start of the buffer.
-    memcpy(r1_, r3_, sizeof(*input_buffer_.get()) * (kKernelSize / 2));
-    memcpy(r2_, r4_, sizeof(*input_buffer_.get()) * (kKernelSize / 2));
+    memcpy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
+    memcpy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
 
     // Step (4)
     // Refresh the buffer with more input.
-    read_cb_.Run(r5_, kBlockSize);
+    Read(r5_, kBlockSize);
   }
+
+  NOTREACHED();
+  return false;
 }
 
-int SincResampler::ChunkSize() {
-  return kBlockSize / io_sample_rate_ratio_;
-}
-
-void SincResampler::Flush() {
+void InterleavedSincResampler::Flush() {
   virtual_source_idx_ = 0;
   buffer_primed_ = false;
-  memset(input_buffer_.get(), 0, sizeof(*input_buffer_.get()) * kBufferSize);
+  memset(input_buffer_.get(), 0, frame_size_in_bytes_ * kBufferSize);
+  while (!pending_buffers_.empty()) {
+    pending_buffers_.pop();
+  }
+  offset_in_frames_ = 0;
+  frames_resampled_ = 0;
+  frames_queued_ = 0;
 }
 
-float SincResampler::Convolve(const float* input_ptr, const float* k1,
-                              const float* k2,
-                              double kernel_interpolation_factor) {
-  // Rely on function level static initialization to keep ConvolveProc selection
-  // thread safe.
-  typedef float (*ConvolveProc)(const float* src, const float* k1,
-                                const float* k2,
-                                double kernel_interpolation_factor);
-#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
-  static const ConvolveProc kConvolveProc =
-      base::CPU().has_sse() ? Convolve_SSE : Convolve_C;
-#elif defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
-  static const ConvolveProc kConvolveProc = Convolve_NEON;
-#else
-  static const ConvolveProc kConvolveProc = Convolve_C;
-#endif
-
-  return kConvolveProc(input_ptr, k1, k2, kernel_interpolation_factor);
+bool InterleavedSincResampler::CanQueueBuffer() const {
+  if (pending_buffers_.empty()) {
+    return true;
+  }
+  if (pending_buffers_.back()->IsEndOfStream()) {
+    return false;
+  }
+  return pending_buffers_.size() < kMaximumPendingBuffers;
 }
 
-float SincResampler::Convolve_C(const float* input_ptr, const float* k1,
-                                const float* k2,
-                                double kernel_interpolation_factor) {
+bool InterleavedSincResampler::ReachedEOS() const {
+  if (pending_buffers_.empty() || !pending_buffers_.back()->IsEndOfStream()) {
+    return false;
+  }
+  return frames_resampled_ * io_sample_rate_ratio_ >= frames_queued_;
+}
+
+bool InterleavedSincResampler::HasEnoughData(int frames_to_resample) const {
+  // Always return true if EOS is seen, as in this case we will just fill 0.
+  if (!pending_buffers_.empty() && pending_buffers_.back()->IsEndOfStream()) {
+    return true;
+  }
+
+  // We have to decrease frames_queued_ down as the Read()s are always done in
+  // blocks of kBlockSize or kBufferSize. We have to ensure that there is buffer
+  // for an extra Read().
+  return (frames_resampled_ + frames_to_resample) * io_sample_rate_ratio_ <
+         frames_queued_ - kBufferSize;
+}
+
+void InterleavedSincResampler::Read(float* destination, int frames) {
+  while (frames > 0 && !pending_buffers_.empty()) {
+    scoped_refptr<Buffer> buffer = pending_buffers_.front();
+    if (buffer->IsEndOfStream()) {
+      // Zero fill the buffer after EOS has reached.
+      memset(destination, 0, frame_size_in_bytes_ * frames);
+      return;
+    }
+    // Copy the data over.
+    int frames_in_buffer = buffer->GetDataSize() / frame_size_in_bytes_;
+    int frames_to_copy = std::min(frames_in_buffer - offset_in_frames_, frames);
+    const uint8* source = buffer->GetData();
+    source += frame_size_in_bytes_ * offset_in_frames_;
+    memcpy(destination, source, frame_size_in_bytes_ * frames_to_copy);
+    offset_in_frames_ += frames_to_copy;
+    // Pop the first buffer if all its content has been read.
+    if (offset_in_frames_ == frames_in_buffer) {
+      offset_in_frames_ = 0;
+      pending_buffers_.pop();
+    }
+    frames -= frames_to_copy;
+    destination += frames_to_copy * channel_count_;
+  }
+
+  // Read should always be satisfied as otherwise Resample should return false
+  // to the caller directly.
+  DCHECK_EQ(frames, 0);
+}
+
+float InterleavedSincResampler::Convolve(
+    const float* input_ptr, const float* k1, const float* k2,
+    double kernel_interpolation_factor) {
   float sum1 = 0;
   float sum2 = 0;
 
@@ -263,85 +325,13 @@ float SincResampler::Convolve_C(const float* input_ptr, const float* k1,
   int n = kKernelSize;
   while (n--) {
     sum1 += *input_ptr * *k1++;
-    sum2 += *input_ptr++ * *k2++;
+    sum2 += *input_ptr * *k2++;
+    input_ptr += channel_count_;
   }
 
   // Linearly interpolate the two "convolutions".
-  return (1.0 - kernel_interpolation_factor) * sum1
-      + kernel_interpolation_factor * sum2;
+  return (1.0 - kernel_interpolation_factor) * sum1 +
+      kernel_interpolation_factor * sum2;
 }
-
-#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
-float SincResampler::Convolve_SSE(const float* input_ptr, const float* k1,
-                                  const float* k2,
-                                  double kernel_interpolation_factor) {
-  // Ensure |k1|, |k2| are 16-byte aligned for SSE usage.  Should always be true
-  // so long as kKernelSize is a multiple of 16.
-  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(k1) & 0x0F);
-  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(k2) & 0x0F);
-
-  __m128 m_input;
-  __m128 m_sums1 = _mm_setzero_ps();
-  __m128 m_sums2 = _mm_setzero_ps();
-
-  // Based on |input_ptr| alignment, we need to use loadu or load.  Unrolling
-  // these loops hurt performance in local testing.
-  if (reinterpret_cast<uintptr_t>(input_ptr) & 0x0F) {
-    for (int i = 0; i < kKernelSize; i += 4) {
-      m_input = _mm_loadu_ps(input_ptr + i);
-      m_sums1 = _mm_add_ps(m_sums1, _mm_mul_ps(m_input, _mm_load_ps(k1 + i)));
-      m_sums2 = _mm_add_ps(m_sums2, _mm_mul_ps(m_input, _mm_load_ps(k2 + i)));
-    }
-  } else {
-    for (int i = 0; i < kKernelSize; i += 4) {
-      m_input = _mm_load_ps(input_ptr + i);
-      m_sums1 = _mm_add_ps(m_sums1, _mm_mul_ps(m_input, _mm_load_ps(k1 + i)));
-      m_sums2 = _mm_add_ps(m_sums2, _mm_mul_ps(m_input, _mm_load_ps(k2 + i)));
-    }
-  }
-
-  // Linearly interpolate the two "convolutions".
-  m_sums1 = _mm_mul_ps(m_sums1, _mm_set_ps1(1.0 - kernel_interpolation_factor));
-  m_sums2 = _mm_mul_ps(m_sums2, _mm_set_ps1(kernel_interpolation_factor));
-  m_sums1 = _mm_add_ps(m_sums1, m_sums2);
-
-  // Sum components together.
-  float result;
-  m_sums2 = _mm_add_ps(_mm_movehl_ps(m_sums1, m_sums1), m_sums1);
-  _mm_store_ss(&result, _mm_add_ss(m_sums2, _mm_shuffle_ps(
-      m_sums2, m_sums2, 1)));
-
-  return result;
-}
-#endif
-
-#if defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
-float SincResampler::Convolve_NEON(const float* input_ptr, const float* k1,
-                                   const float* k2,
-                                   double kernel_interpolation_factor) {
-  float32x4_t m_input;
-  float32x4_t m_sums1 = vmovq_n_f32(0);
-  float32x4_t m_sums2 = vmovq_n_f32(0);
-
-  const float* upper = input_ptr + kKernelSize;
-  for (; input_ptr < upper; ) {
-    m_input = vld1q_f32(input_ptr);
-    input_ptr += 4;
-    m_sums1 = vmlaq_f32(m_sums1, m_input, vld1q_f32(k1));
-    k1 += 4;
-    m_sums2 = vmlaq_f32(m_sums2, m_input, vld1q_f32(k2));
-    k2 += 4;
-  }
-
-  // Linearly interpolate the two "convolutions".
-  m_sums1 = vmlaq_f32(
-      vmulq_f32(m_sums1, vmovq_n_f32(1.0 - kernel_interpolation_factor)),
-      m_sums2, vmovq_n_f32(kernel_interpolation_factor));
-
-  // Sum components together.
-  float32x2_t m_half = vadd_f32(vget_high_f32(m_sums1), vget_low_f32(m_sums1));
-  return vget_lane_f32(vpadd_f32(m_half, m_half), 0);
-}
-#endif
 
 }  // namespace media
