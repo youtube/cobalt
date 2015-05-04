@@ -31,10 +31,9 @@ namespace javascriptcore {
 // can be referenced from JavaScript.
 class WrapperBase : public JSC::JSDestructibleObject {
  protected:
-  WrapperBase(JSC::JSGlobalObject* global_object, JSC::Structure* structure,
+  WrapperBase(JSC::JSGlobalData* global_data, JSC::Structure* structure,
               const scoped_refptr<Wrappable>& impl)
-      : JSC::JSDestructibleObject(global_object->globalData(), structure),
-        wrappable_(impl) {}
+      : JSC::JSDestructibleObject(*global_data, structure), wrappable_(impl) {}
 
   // static override. This will be called when this object is garbage collected.
   static void destroy(JSC::JSCell* cell) {
