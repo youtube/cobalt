@@ -22,7 +22,7 @@ namespace cssom {
 
 // Checks whether a character is affected by a CSS white space processing.
 //   http://www.w3.org/TR/css3-text/#white-space-rules
-inline bool IsCSSWhiteSpace(char character) {
+inline bool IsWhiteSpace(char character) {
   // Histogram from Apple's page load test combined with some ad hoc browsing
   // some other test suites.
   //
