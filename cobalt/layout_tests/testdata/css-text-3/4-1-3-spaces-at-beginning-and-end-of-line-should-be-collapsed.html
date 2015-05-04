@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+ | A sequence of collapsible spaces at the beginning of a line is removed.
+ | A sequence of collapsible spaces at the end of a line is removed.
+ |   http://www.w3.org/TR/css3-text/#white-space-phase-2
+ -->
+<html>
+<head>
+  <style>
+    body {
+      font-family: "Droid Sans";
+      font-size: 90px;
+      font-weight: bold;
+    }
+    .inline-block {
+      background-color: #b3e5fc;
+      display: inline-block;
+    }
+    span {
+      background-color: #f44336;
+      /* TODO(***REMOVED***): Use "border: 1px solid #4caf50;" in addition to. */
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="inline-block"> Hello, world! </div>
+  </div>
+  <div>
+    <div class="inline-block"><span> </span> Hello, world!</div>
+  </div>
+  <div>
+    <div class="inline-block">Hello, world!<span> </span> </div>
+  </div>
+</body>
+</html>
