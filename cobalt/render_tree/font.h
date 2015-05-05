@@ -24,6 +24,19 @@
 namespace cobalt {
 namespace render_tree {
 
+// Contains metrics common for all glyphs in the font.
+struct FontMetrics {
+  FontMetrics(float ascent, float descent, float leading)
+      : ascent(ascent), descent(descent), leading(leading) {}
+
+  // The recommended distance above the baseline.
+  float ascent;
+  // The recommended distance below the baseline.
+  float descent;
+  // The recommended distance to add between lines of text.
+  float leading;
+};
+
 // Used as a parameter to GetSystemFont() to describe the font style the
 // caller is seeking.
 enum FontStyle {
@@ -49,6 +62,10 @@ class Font : public base::RefCountedThreadSafe<Font> {
   // likely be non-zero and are used to indicate the offset of the text bounding
   // box from the origin.  The return value is given in units of pixels.
   virtual math::RectF GetBounds(const std::string& text) const = 0;
+
+  // Returns the metrics common for all glyphs in the font. Used to calculate
+  // the recommended line height and spacing between the lines.
+  virtual FontMetrics GetFontMetrics() const = 0;
 
  protected:
   virtual ~Font() {}

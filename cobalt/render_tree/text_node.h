@@ -43,8 +43,6 @@ class TextNode : public Node {
             const ColorRGBA& color);
 
     // A text to draw. Guaranteed not to contain newlines.
-    // The class does not own the text, it merely refers it from a
-    // resource pool.
     std::string text;
 
     // The font to draw the text with.
