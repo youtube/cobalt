@@ -27,12 +27,6 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-JSC::JSValue BooleanToJSValue(bool in_boolean) {
-  JSC::JSValue boolean_value = JSC::jsBoolean(in_boolean);
-  DCHECK(boolean_value.isBoolean());
-  return boolean_value;
-}
-
 JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
                              const std::string& utf8_string) {
   WTF::String wtf_string = ToWTFString(utf8_string);
@@ -40,19 +34,6 @@ JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
   JSC::JSValue string_value(js_string);
   DCHECK(string_value.isString());
   return string_value;
-}
-
-JSC::JSValue JSObjectToJSValue(JSC::JSObject* js_object) {
-  if (js_object == NULL) {
-    return JSC::jsNull();
-  }
-  JSC::JSValue object_value(js_object);
-  DCHECK(object_value.isObject());
-  return object_value;
-}
-
-bool JSValueToBoolean(JSC::ExecState* exec_state, JSC::JSValue value) {
-  return value.toBoolean(exec_state);
 }
 
 void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
@@ -69,21 +50,6 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
 WTF::String ToWTFString(const std::string& utf8_string) {
   DCHECK(IsStringUTF8(utf8_string));
   return WTF::String::fromUTF8(utf8_string.c_str());
-}
-
-JSC::JSObject* JSValueToJSObject(JSC::ExecState* exec_state,
-                                 JSC::JSValue value) {
-  if (value.isUndefined()) {
-    NOTIMPLEMENTED() << "Converting from undefined to object type unsupported.";
-    return NULL;
-  } else if (value.isNull()) {
-    return NULL;
-  } else if (!value.isObject()) {
-    // TODO(***REMOVED***): Error handling when value is not the expected type.
-    NOTIMPLEMENTED() << "Conversion from non-object types unsupported.";
-    return NULL;
-  }
-  return value.toObject(exec_state);
 }
 
 }  // namespace javascriptcore
