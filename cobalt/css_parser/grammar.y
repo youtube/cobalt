@@ -811,7 +811,7 @@ font_weight_property_value:
 
 // The height of an element's box.
 height_property_value:
-    length { $$ = $1; }
+    length { $$ = $1; }  // TODO(***REMOVED***): Reject negative heights.
   | common_values
   ;
 
@@ -976,7 +976,7 @@ transition_property_property_value:
 
 // The width of an element's box.
 width_property_value:
-    length { $$ = $1; }
+    length { $$ = $1; }  // TODO(***REMOVED***): Reject negative widths.
   | common_values
   ;
 
