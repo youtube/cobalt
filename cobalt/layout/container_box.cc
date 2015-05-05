@@ -20,8 +20,9 @@ namespace cobalt {
 namespace layout {
 
 ContainerBox::ContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : Box(computed_style) {}
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : Box(computed_style, transitions) {}
 
 ContainerBox::~ContainerBox() {}
 
