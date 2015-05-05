@@ -33,8 +33,8 @@ class TextBox : public Box {
  public:
   TextBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const std::string& text, bool has_leading_white_space,
-      bool has_trailing_white_space,
+      const cssom::TransitionSet* transitions, const std::string& text,
+      bool has_leading_white_space, bool has_trailing_white_space,
       const scoped_refptr<render_tree::Font>& used_font);
 
   // From |Box|.
@@ -55,8 +55,10 @@ class TextBox : public Box {
 
  protected:
   // From |Box|.
-  void AddContentToRenderTree(render_tree::CompositionNode::Builder*
-                                  composition_node_builder) const OVERRIDE;
+  void AddContentToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
   void DumpClassName(std::ostream* stream) const OVERRIDE;

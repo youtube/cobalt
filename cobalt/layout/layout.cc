@@ -67,8 +67,9 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   PromoteToComputedStyle(initial_containing_block_computed_style,
                          initial_style);
 
-  return make_scoped_ptr(
-      new BlockLevelBlockContainerBox(initial_containing_block_computed_style));
+  return make_scoped_ptr(new BlockLevelBlockContainerBox(
+      initial_containing_block_computed_style,
+      cssom::TransitionSet::EmptyTransitionSet()));
 }
 
 }  // namespace
@@ -104,7 +105,8 @@ RenderTreeWithAnimations Layout(
   render_tree::animations::NodeAnimationsMap::Builder
       node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
-  initial_containing_block->AddToRenderTree(&render_tree_root_builder);
+  initial_containing_block->AddToRenderTree(&render_tree_root_builder,
+                                            &node_animations_map_builder);
   return RenderTreeWithAnimations(
       new render_tree::CompositionNode(render_tree_root_builder.Pass()),
       new render_tree::animations::NodeAnimationsMap(
