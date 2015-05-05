@@ -25,10 +25,10 @@ namespace layout {
 
 TextBox::TextBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const std::string& text, bool has_leading_white_space,
-    bool has_trailing_white_space,
+    const cssom::TransitionSet* transitions, const std::string& text,
+    bool has_leading_white_space, bool has_trailing_white_space,
     const scoped_refptr<render_tree::Font>& used_font)
-    : Box(computed_style),
+    : Box(computed_style, transitions),
       text_(text),
       has_leading_white_space_(has_leading_white_space),
       has_trailing_white_space_(has_trailing_white_space),
@@ -127,7 +127,9 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
 float TextBox::GetHeightAboveBaseline() const { return height_above_baseline_; }
 
 void TextBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder) const {
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::animations::NodeAnimationsMap::Builder*
+    /* node_animations_map_builder */) const {
   render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
   // Skia considers text coordinates to be a position of a baseline, offset

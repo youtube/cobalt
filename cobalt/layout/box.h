@@ -20,7 +20,9 @@
 #include <iosfwd>
 
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 
 namespace cobalt {
@@ -66,8 +68,8 @@ class Box {
     kInlineLevel,
   };
 
-  Box(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-          computed_style);
+  Box(const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
@@ -80,6 +82,11 @@ class Box {
       const {
     return computed_style_;
   }
+
+  // The transition set specifies all currently active transitions appyling
+  // to this box's computed_style() CSS Style Declaration.
+  //   http://www.w3.org/TR/css3-transitions
+  const cssom::TransitionSet* transitions() const { return transitions_; }
 
   // Specifies the formatting context in which the box should participate.
   // Do not confuse with the formatting context that the element may establish.
@@ -135,8 +142,10 @@ class Box {
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
   // on the subclasses to provide the actual content.
-  void AddToRenderTree(render_tree::CompositionNode::Builder*
-                           parent_composition_node_builder) const;
+  void AddToRenderTree(
+      render_tree::CompositionNode::Builder* parent_composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
@@ -146,10 +155,14 @@ class Box {
 
  protected:
   void AddBackgroundToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder) const;
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
   // Provides the content of the box.
-  virtual void AddContentToRenderTree(render_tree::CompositionNode::Builder*
-                                          composition_node_builder) const = 0;
+  virtual void AddContentToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
@@ -168,6 +181,10 @@ class Box {
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
 
   math::RectF used_frame_;
+
+  // The transitions_ member references the cssom::TransitionSet object owned
+  // by the HTML Element from which this box is derived.
+  const cssom::TransitionSet* transitions_;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };

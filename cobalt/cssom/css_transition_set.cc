@@ -268,8 +268,8 @@ base::LazyInstance<TransitionSet> g_empty_transition_set =
     LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
-const TransitionSet& TransitionSet::EmptyTransitionSet() {
-  return g_empty_transition_set.Get();
+const TransitionSet* TransitionSet::EmptyTransitionSet() {
+  return &g_empty_transition_set.Get();
 }
 
 }  // namespace cssom
