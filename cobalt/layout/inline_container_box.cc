@@ -22,8 +22,9 @@ namespace cobalt {
 namespace layout {
 
 InlineContainerBox::InlineContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : ContainerBox(computed_style),
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : ContainerBox(computed_style, transitions),
       justifies_line_existence_(false),
       height_above_baseline_(0) {}
 
@@ -47,7 +48,7 @@ bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
 
 scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   scoped_ptr<ContainerBox> box_after_split(
-      new InlineContainerBox(computed_style()));
+      new InlineContainerBox(computed_style(), transitions()));
 
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.
@@ -182,11 +183,14 @@ float InlineContainerBox::GetHeightAboveBaseline() const {
 }
 
 void InlineContainerBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder) const {
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder) const {
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->AddToRenderTree(composition_node_builder);
+    child_box->AddToRenderTree(composition_node_builder,
+                               node_animations_map_builder);
   }
 }
 

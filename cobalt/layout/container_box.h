@@ -28,8 +28,9 @@ namespace layout {
 // not defined in CSS 2.1.
 class ContainerBox : public Box {
  public:
-  ContainerBox(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-                   computed_style);
+  ContainerBox(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   ~ContainerBox() OVERRIDE;
 
   // Attempts to add a child box and takes the ownership if succeeded. Returns
