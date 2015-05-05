@@ -21,6 +21,7 @@
       'target_name': 'cssom',
       'type': 'static_library',
       'sources': [
+        'character_classification.h',
         'class_selector.cc',
         'class_selector.h',
         'compound_selector.cc',
