@@ -17,6 +17,7 @@
 #include "media/filters/shell_mp4_parser.h"
 
 #include <inttypes.h>
+#include <limits>
 
 #include "base/stringprintf.h"
 #include "media/base/shell_buffer_factory.h"
@@ -278,7 +279,9 @@ bool ShellMP4Parser::ParseNextAtom() {
     atom_body += 8;
   } else if (atom_size == 0) {
     // calculate size of this atom from remainder of file
-    if (reader_->FileSize() > atom_offset_) {
+    DCHECK_LE(atom_offset_,
+              static_cast<uint64>(std::numeric_limits<int64>::max()));
+    if (reader_->FileSize() > static_cast<int64>(atom_offset_)) {
       atom_size = reader_->FileSize() - atom_offset_;
     }
   }
