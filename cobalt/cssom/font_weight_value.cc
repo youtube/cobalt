@@ -23,9 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
-namespace {
-
-struct NonTrivialStaticFields {
+struct FontWeightValue::NonTrivialStaticFields {
   NonTrivialStaticFields()
       : thin_aka_100(new FontWeightValue(FontWeightValue::kThinAka100)),
         extra_light_aka_200(
@@ -53,8 +51,10 @@ struct NonTrivialStaticFields {
   const scoped_refptr<FontWeightValue> black_aka_900;
 };
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+namespace {
+
+base::LazyInstance<FontWeightValue::NonTrivialStaticFields>
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

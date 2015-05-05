@@ -22,9 +22,7 @@
 namespace cobalt {
 namespace cssom {
 
-namespace {
-
-struct NonTrivialStaticFields {
+struct KeywordValue::NonTrivialStaticFields {
   NonTrivialStaticFields()
       : auto_value(new KeywordValue(KeywordValue::kAuto)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
@@ -50,8 +48,10 @@ struct NonTrivialStaticFields {
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
-base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
-    LAZY_INSTANCE_INITIALIZER;
+namespace {
+
+base::LazyInstance<KeywordValue::NonTrivialStaticFields>
+    non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

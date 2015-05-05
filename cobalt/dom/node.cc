@@ -138,6 +138,7 @@ scoped_refptr<Node> Node::InsertBefore(
   new_child->UpdateNodeGeneration();
   if (owner_document_) {
     new_child->AttachToDocument(owner_document_.get());
+    owner_document_->RecordMutation();
   }
 
   return new_child;
@@ -160,7 +161,8 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   }
 
   // Custom, not in any spec.
-  if (node->owner_document_) {
+  scoped_refptr<Document> previous_owner_document = node->owner_document_.get();
+  if (previous_owner_document) {
     node->DetachFromDocument();
   }
   node->UpdateNodeGeneration();
@@ -181,6 +183,11 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   node->parent_.reset();
   node->previous_sibling_.reset();
   node->next_sibling_ = NULL;
+
+  // Custom, not in any spec.
+  if (previous_owner_document) {
+    previous_owner_document->RecordMutation();
+  }
 
   return node;
 }
@@ -356,13 +363,10 @@ void Node::AttachToDocument(Document* document) {
     child->AttachToDocument(document);
     child = child->next_sibling_;
   }
-
-  owner_document()->RecordMutation();
 }
 
 void Node::DetachFromDocument() {
   DCHECK_NE(static_cast<Document*>(NULL), owner_document_.get());
-  scoped_refptr<Document> previous_owner_document = owner_document();
   owner_document_.reset();
 
   Node* child = first_child_;
@@ -370,8 +374,6 @@ void Node::DetachFromDocument() {
     child->DetachFromDocument();
     child = child->next_sibling_;
   }
-
-  previous_owner_document->RecordMutation();
 }
 
 bool Node::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {

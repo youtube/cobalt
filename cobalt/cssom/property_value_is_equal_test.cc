@@ -36,47 +36,37 @@ namespace cssom {
 // These tests help ensure that we property return false when comparing two
 // property values of different types for equality.
 TEST(PropertyValueIsEqualTest, DifferingTypes) {
-  scoped_refptr<KeywordValue> value_a(
-      new KeywordValue(KeywordValue::kAuto));
-  scoped_refptr<FontWeightValue> value_b(
-      new FontWeightValue(FontWeightValue::kThinAka100));
+  scoped_refptr<KeywordValue> value_a = KeywordValue::GetAuto();
+  scoped_refptr<FontWeightValue> value_b = FontWeightValue::GetThinAka100();
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 // Type-specific tests.
 TEST(PropertyValueIsEqualTest, FontWeightsAreEqual) {
-  scoped_refptr<FontWeightValue> value_a(
-      new FontWeightValue(FontWeightValue::kThinAka100));
-  scoped_refptr<FontWeightValue> value_b(
-      new FontWeightValue(FontWeightValue::kThinAka100));
+  scoped_refptr<FontWeightValue> value_a = FontWeightValue::GetThinAka100();
+  scoped_refptr<FontWeightValue> value_b = FontWeightValue::GetThinAka100();
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, FontWeightsAreNotEqual) {
-  scoped_refptr<FontWeightValue> value_a(
-      new FontWeightValue(FontWeightValue::kThinAka100));
-  scoped_refptr<FontWeightValue> value_b(
-      new FontWeightValue(FontWeightValue::kLightAka300));
+  scoped_refptr<FontWeightValue> value_a = FontWeightValue::GetThinAka100();
+  scoped_refptr<FontWeightValue> value_b = FontWeightValue::GetLightAka300();
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, KeywordsAreEqual) {
-  scoped_refptr<KeywordValue> value_a(
-      new KeywordValue(KeywordValue::kAuto));
-  scoped_refptr<KeywordValue> value_b(
-      new KeywordValue(KeywordValue::kAuto));
+  scoped_refptr<KeywordValue> value_a = KeywordValue::GetAuto();
+  scoped_refptr<KeywordValue> value_b = KeywordValue::GetAuto();
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, KeywordsAreNotEqual) {
-  scoped_refptr<KeywordValue> value_a(
-      new KeywordValue(KeywordValue::kAuto));
-  scoped_refptr<KeywordValue> value_b(
-      new KeywordValue(KeywordValue::kBlock));
+  scoped_refptr<KeywordValue> value_a = KeywordValue::GetAuto();
+  scoped_refptr<KeywordValue> value_b = KeywordValue::GetBlock();
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }

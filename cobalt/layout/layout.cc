@@ -68,8 +68,8 @@ scoped_ptr<ContainingBlock> CreateInitialContainingBlock(
 RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
-    render_tree::ResourceProvider* resource_provider,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
   UsedStyleProvider used_style_provider(resource_provider);
 
