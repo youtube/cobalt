@@ -51,29 +51,30 @@ class BoxGenerator : public dom::NodeVisitor {
   // Element with "display: inline;" continue to use the old containing block.
   //   http://www.w3.org/TR/CSS2/visuren.html#containing-block
   ContainingBlock* GetOrGenerateContainingBlock(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet& transitions);
   // Helper method used by GetOrGenerateContainingBlock().
   ContainingBlock* GenerateContainingBlock(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet& transitions);
   // If an anonymous box is being generated, we will need to compute its
   // style based on rules specified here:
   //   http://www.w3.org/TR/CSS21/visuren.html#anonymous
   // This method caches the result in anonymous_inline_box_style_.
-  const scoped_refptr<cssom::CSSStyleDeclarationData>&
+  scoped_refptr<const cssom::CSSStyleDeclarationData>
       GetAnonymousInlineBoxStyle(const scoped_refptr<
-          cssom::CSSStyleDeclarationData>& parent_computed_style);
+          const cssom::CSSStyleDeclarationData>& parent_computed_style);
 
-  void GenerateWordBox(std::string::const_iterator* text_iterator,
-                       const std::string::const_iterator& text_end_iterator,
-                       const scoped_refptr<cssom::CSSStyleDeclarationData>&
-                           parent_computed_style);
+  void GenerateWordBox(
+      std::string::const_iterator* text_iterator,
+      const std::string::const_iterator& text_end_iterator,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          parent_computed_style);
 
   void GenerateWhitespaceBox(
       std::string::const_iterator* text_iterator,
       const std::string::const_iterator& text_end_iterator,
-      const scoped_refptr<cssom::CSSStyleDeclarationData>&
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style);
 
   scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;

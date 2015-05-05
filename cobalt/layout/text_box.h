@@ -31,10 +31,11 @@ namespace layout {
 // as per http://www.w3.org/TR/css3-text/#white-space-phase-2.
 class TextBox : public Box {
  public:
-  TextBox(ContainingBlock* containing_block,
-          const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
-          const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
-          const base::StringPiece& text);
+  TextBox(
+      ContainingBlock* containing_block,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
+      const base::StringPiece& text);
 
   void Layout(const LayoutOptions& options) OVERRIDE;
 

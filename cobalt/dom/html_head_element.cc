@@ -37,11 +37,11 @@ HTMLHeadElement::~HTMLHeadElement() {}
 
 void HTMLHeadElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
-  this->owner_document()->SetHeadInternal(this);
+  owner_document()->SetHeadInternal(this);
 }
 
 void HTMLHeadElement::DetachFromDocument() {
-  this->owner_document()->SetHeadInternal(NULL);
+  owner_document()->SetHeadInternal(NULL);
   Node::DetachFromDocument();
 }
 

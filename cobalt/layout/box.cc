@@ -30,10 +30,11 @@ using cobalt::render_tree::animations::Animation;
 namespace cobalt {
 namespace layout {
 
-Box::Box(ContainingBlock* containing_block,
-         const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
-         const cssom::TransitionSet& transitions,
-         UsedStyleProvider* used_style_provider)
+Box::Box(
+    ContainingBlock* containing_block,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet& transitions,
+    UsedStyleProvider* used_style_provider)
     : containing_block_(containing_block),
       computed_style_(computed_style),
       used_style_provider_(used_style_provider),
@@ -43,7 +44,7 @@ Box::Box(ContainingBlock* containing_block,
 namespace {
 
 void SetupRectNodeFromStyle(
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& style,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
       scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(

@@ -69,11 +69,13 @@ class HTMLElement : public Element {
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
-  const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style() {
+  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() {
     return computed_style_;
   }
+  // TODO(***REMOVED***): Get rid of this setter by moving the update of a computed
+  //               style into HTMLElement class.
   void set_computed_style(
-      const scoped_refptr<cssom::CSSStyleDeclaration>& computed_style) {
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
     computed_style_ = computed_style;
   }
 
@@ -95,7 +97,7 @@ class HTMLElement : public Element {
                          const cssom::CSSStyleDeclarationData* destination);
 
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
-  scoped_refptr<cssom::CSSStyleDeclaration> computed_style_;
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
 
   cssom::TransitionSet transitions_;
 };
