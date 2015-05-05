@@ -22,6 +22,7 @@
 #include "cobalt/base/compiler.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
+#include "cobalt/cssom/character_classification.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
@@ -216,26 +217,8 @@ inline bool IsIdentifierStartAfterDash(const char* character_iterator) {
          (character_iterator[0] == '\\' && IsCssEscape(character_iterator[1]));
 }
 
-inline bool IsHtmlSpace(char character) {
-  // Histogram from Apple's page load test combined with some ad hoc browsing
-  // some other test suites.
-  //
-  //     82%: 216330 non-space characters, all > U+0020
-  //     11%:  30017 plain space characters, U+0020
-  //      5%:  12099 newline characters, U+000A
-  //      2%:   5346 tab characters, U+0009
-  //
-  // No other characters seen. No U+000C or U+000D, and no other control
-  // characters. Accordingly, we check for non-spaces first, then space,
-  // then newline, then tab, then the other characters.
-
-  return character <= ' ' &&
-         (character == ' ' || character == '\n' || character == '\t' ||
-          character == '\r' || character == '\f');
-}
-
 inline const char* SkipWhiteSpace(const char* input_iterator) {
-  while (IsHtmlSpace(*input_iterator)) {
+  while (cssom::IsCSSWhiteSpace(*input_iterator)) {
     ++input_iterator;
   }
   return input_iterator;
@@ -261,7 +244,7 @@ bool CheckAndSkipEscape(const char* input_iterator,
     } while (IsHexDigit(*input_iterator) && --length > 0);
 
     // Optional space after the escape sequence.
-    if (IsHtmlSpace(*input_iterator)) {
+    if (cssom::IsCSSWhiteSpace(*input_iterator)) {
       ++input_iterator;
     }
     *result_iterator = input_iterator;
@@ -1067,7 +1050,7 @@ UChar32 Scanner::ScanEscape() {
     }
 
     // Optional space after the escape sequence.
-    if (IsHtmlSpace(*input_iterator_)) {
+    if (cssom::IsCSSWhiteSpace(*input_iterator_)) {
       ++input_iterator_;
     }
 
