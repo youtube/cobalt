@@ -27,6 +27,7 @@
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Font;
+using cobalt::render_tree::FontMetrics;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::NodeVisitor;
@@ -89,6 +90,8 @@ class DummyFont : public Font {
   cobalt::math::RectF GetBounds(const std::string& text) const OVERRIDE {
     return cobalt::math::RectF();
   }
+
+  FontMetrics GetFontMetrics() const OVERRIDE { return FontMetrics(0, 0, 0); }
 };
 
 }  // namespace
