@@ -137,7 +137,8 @@ bool IsElementWithClassName(const std::string& class_name, Node* node) {
 
 // Used to implement HTMLCollection::kElementsByTagName.
 bool IsElementWithTagName(const std::string& tag_name, Node* node) {
-  return node->IsElement() && node->AsElement()->tag_name() == tag_name;
+  return node->IsElement() &&
+         (tag_name == "*" || node->AsElement()->tag_name() == tag_name);
 }
 
 }  // namespace
