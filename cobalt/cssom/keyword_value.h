@@ -80,8 +80,8 @@ class KeywordValue : public PropertyValue {
 
   // Since keyword values do not hold additional information and some of them
   // (namely "inherit" and "initial") are used extensively, for the sake of
-  // saving memory explicit instantiation of this class is discouraged in favor
-  // of shared instances returned by the methods below.
+  // saving memory an explicit instantiation of this class is disallowed.
+  // Use factory methods below to obtain shared instances.
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBlock();
   static const scoped_refptr<KeywordValue>& GetHidden();
@@ -91,8 +91,6 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetVisible();
-
-  explicit KeywordValue(Value value) : value_(value) {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
@@ -104,7 +102,11 @@ class KeywordValue : public PropertyValue {
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(KeywordValue);
 
+  // Implementation detail, has to be public in order to be constructible.
+  struct NonTrivialStaticFields;
+
  private:
+  explicit KeywordValue(Value value) : value_(value) {}
   ~KeywordValue() OVERRIDE {}
 
   const Value value_;

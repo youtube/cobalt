@@ -42,7 +42,7 @@ struct LayoutOptions {
 class Box {
  public:
   Box(ContainingBlock* containing_block,
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet& transitions,
       UsedStyleProvider* used_style_provider);
 
@@ -59,7 +59,8 @@ class Box {
   // or hard-to-parallelize operations, such as resolving network requests or
   // retrieving values other than from the element and its parent.
   //   http://www.w3.org/TR/css-cascade-3/#computed
-  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style() const {
+  const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style()
+      const {
     return computed_style_;
   }
 
@@ -93,7 +94,7 @@ class Box {
 
  private:
   ContainingBlock* const containing_block_;
-  const scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
+  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
   const cssom::TransitionSet& transitions_;
   UsedStyleProvider* const used_style_provider_;
 

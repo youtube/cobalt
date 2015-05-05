@@ -42,7 +42,7 @@ class FontWeightValue : public PropertyValue {
   };
 
   // For the sake of saving memory an explicit instantiation of this class
-  // is discouraged in favor of shared instances returned by the methods below.
+  // is disallowed. Use factory methods below to obtain shared instances.
   static const scoped_refptr<FontWeightValue>& GetThinAka100();
   static const scoped_refptr<FontWeightValue>& GetExtraLightAka200();
   static const scoped_refptr<FontWeightValue>& GetLightAka300();
@@ -52,8 +52,6 @@ class FontWeightValue : public PropertyValue {
   static const scoped_refptr<FontWeightValue>& GetBoldAka700();
   static const scoped_refptr<FontWeightValue>& GetExtraBoldAka800();
   static const scoped_refptr<FontWeightValue>& GetBlackAka900();
-
-  explicit FontWeightValue(Value value) : value_(value) {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
@@ -65,7 +63,11 @@ class FontWeightValue : public PropertyValue {
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(FontWeightValue);
 
+  // Implementation detail, has to be public in order to be constructible.
+  struct NonTrivialStaticFields;
+
  private:
+  explicit FontWeightValue(Value value) : value_(value) {}
   ~FontWeightValue() OVERRIDE {}
 
   const Value value_;
