@@ -131,6 +131,8 @@ class Document : public Node, public cssom::MutationObserver {
   void AddObserver(DocumentObserver* observer);
   void RemoveObserver(DocumentObserver* observer);
 
+  scoped_refptr<HTMLHtmlElement> html() const;
+
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
   void IncreaseLoadingCounter();
@@ -156,8 +158,6 @@ class Document : public Node, public cssom::MutationObserver {
 
  private:
   ~Document() OVERRIDE;
-
-  scoped_refptr<HTMLHtmlElement> html() const;
 
   // These functions are called when body, head, html elements are attached to/
   // detached from the document. This causes these elements to be friend classes

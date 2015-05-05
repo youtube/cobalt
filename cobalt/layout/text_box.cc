@@ -26,7 +26,7 @@ namespace layout {
 
 TextBox::TextBox(
     ContainingBlock* containing_block,
-    const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet& transitions, UsedStyleProvider* converter,
     const base::StringPiece& text)
     : Box(containing_block, computed_style, transitions, converter),

@@ -17,9 +17,9 @@
 #include "cobalt/layout/layout_manager.h"
 
 #include "base/bind.h"
-#include "cobalt/dom/html_body_element.h"
-#include "cobalt/layout/layout.h"
+#include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
+#include "cobalt/layout/layout.h"
 
 namespace cobalt {
 namespace layout {
@@ -102,13 +102,10 @@ void LayoutManager::DoLayoutAndProduceRenderTree() {
     return;
   }
 
-  // Chrome lays out and renders the entire document, not just <body>.
-  // This enables rendering of <head>, but it's such an obscure feature,
-  // it does not make sense to implement it in Cobalt.
-  if (document_->body()) {
+  if (document_->html()) {
     RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(document_->body(), viewport_size_, resource_provider_,
-                       user_agent_style_sheet_);
+        layout::Layout(document_->html(), viewport_size_,
+                       user_agent_style_sheet_, resource_provider_);
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
         render_tree_with_animations.animations);

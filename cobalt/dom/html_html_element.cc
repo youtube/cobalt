@@ -37,11 +37,11 @@ HTMLHtmlElement::~HTMLHtmlElement() {}
 
 void HTMLHtmlElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
-  this->owner_document()->SetHtmlInternal(this);
+  owner_document()->SetHtmlInternal(this);
 }
 
 void HTMLHtmlElement::DetachFromDocument() {
-  this->owner_document()->SetHtmlInternal(NULL);
+  owner_document()->SetHtmlInternal(NULL);
   Node::DetachFromDocument();
 }
 

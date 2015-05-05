@@ -111,10 +111,7 @@ class CSSStyleDeclaration : public script::Wrappable {
   // Custom, not in any spec.
   //
 
-  const scoped_refptr<CSSStyleDeclarationData>& data() { return data_; }
-  void set_data(const scoped_refptr<CSSStyleDeclarationData>& data) {
-    data_ = data;
-  }
+  scoped_refptr<const CSSStyleDeclarationData> data() { return data_; }
 
   void AttachToStyleSheetList(StyleSheetList* style_sheet_list);
 
