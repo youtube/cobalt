@@ -26,6 +26,7 @@
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -45,6 +46,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitTransformList,
                void(cssom::TransformListValue* transform_list_value));
+  MOCK_METHOD1(VisitURL, void(URLValue* url_value));
 };
 
 TEST(PropertyValueVisitorTest, VisitsFontWeightValue) {
@@ -114,6 +116,13 @@ TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTransformList(transform_list_value.get()));
   transform_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsURLValue) {
+  scoped_refptr<URLValue> url_value = new URLValue(GURL());
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitURL(url_value.get()));
+  url_value->Accept(&mock_visitor);
 }
 
 }  // namespace cssom

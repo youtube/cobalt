@@ -31,6 +31,7 @@ class RGBAColorValue;
 class StringValue;
 class TimeListValue;
 class TransformListValue;
+class URLValue;
 
 // Type-safe branching on a class hierarchy of CSS property values,
 // implemented after a classical GoF pattern (see
@@ -47,6 +48,7 @@ class PropertyValueVisitor {
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
   virtual void VisitTransformList(TransformListValue* transform_list_value) = 0;
+  virtual void VisitURL(URLValue* url_value) = 0;
 
  protected:
   ~PropertyValueVisitor() {}
@@ -68,6 +70,7 @@ class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
   void VisitTransformList(TransformListValue* transform_list_value) OVERRIDE;
+  void VisitURL(URLValue* url_value) OVERRIDE;
 };
 
 }  // namespace cssom

@@ -88,9 +88,12 @@
         'translate_function.h',
         'type_selector.cc',
         'type_selector.h',
+        'url_value.cc',
+        'url_value.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
 
