@@ -37,7 +37,7 @@ class TransitionSet {
   TransitionSet();
 
   // Helper function to get a const reference to a global empty transition set.
-  static const TransitionSet& EmptyTransitionSet();
+  static const TransitionSet* EmptyTransitionSet();
 
   // Given a source and destination CSS Style Declarations (presumably applied
   // to an HTML element), updates all current transitions to reflect the new

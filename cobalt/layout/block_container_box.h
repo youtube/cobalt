@@ -37,8 +37,9 @@ class InlineFormattingContext;
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class BlockContainerBox : public ContainerBox {
  public:
-  BlockContainerBox(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-                        computed_style);
+  BlockContainerBox(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -68,8 +69,10 @@ class BlockContainerBox : public ContainerBox {
 
  protected:
   // From |Box|.
-  void AddContentToRenderTree(render_tree::CompositionNode::Builder*
-                                  composition_node_builder) const OVERRIDE;
+  void AddContentToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
   void DumpClassName(std::ostream* stream) const OVERRIDE;
@@ -140,8 +143,9 @@ class BlockContainerBox : public ContainerBox {
 //   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
 class BlockLevelBlockContainerBox : public BlockContainerBox {
  public:
-  BlockLevelBlockContainerBox(const scoped_refptr<
-      const cssom::CSSStyleDeclarationData>& computed_style);
+  BlockLevelBlockContainerBox(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -154,8 +158,9 @@ class BlockLevelBlockContainerBox : public BlockContainerBox {
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class InlineLevelBlockContainerBox : public BlockContainerBox {
  public:
-  InlineLevelBlockContainerBox(const scoped_refptr<
-      const cssom::CSSStyleDeclarationData>& computed_style);
+  InlineLevelBlockContainerBox(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   ~InlineLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.

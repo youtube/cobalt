@@ -37,8 +37,9 @@ namespace layout {
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
 class InlineContainerBox : public ContainerBox {
  public:
-  InlineContainerBox(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-                         computed_style);
+  InlineContainerBox(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions);
   ~InlineContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -63,8 +64,10 @@ class InlineContainerBox : public ContainerBox {
 
  protected:
   // From |Box|.
-  void AddContentToRenderTree(render_tree::CompositionNode::Builder*
-                                  composition_node_builder) const OVERRIDE;
+  void AddContentToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
   void DumpClassName(std::ostream* stream) const OVERRIDE;

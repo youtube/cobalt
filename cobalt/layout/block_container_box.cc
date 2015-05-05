@@ -27,8 +27,9 @@ namespace layout {
 class AnonymousBlockBox : public BlockLevelBlockContainerBox {
  public:
   explicit AnonymousBlockBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-      : BlockLevelBlockContainerBox(computed_style) {}
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions)
+      : BlockLevelBlockContainerBox(computed_style, transitions) {}
 
   virtual AnonymousBlockBox* AsAnonymousBlockBox() OVERRIDE { return this; }
 
@@ -42,8 +43,9 @@ void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
 }
 
 BlockContainerBox::BlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : ContainerBox(computed_style),
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : ContainerBox(computed_style, transitions),
       formatting_context_(kInlineFormattingContext) {}
 
 BlockContainerBox::~BlockContainerBox() {}
@@ -126,14 +128,17 @@ void BlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
 }
 
 void BlockContainerBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder) const {
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder) const {
   // Render child boxes.
   // TODO(***REMOVED***): Take a stacking context into account:
   //               http://www.w3.org/TR/CSS21/visuren.html#z-index
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->AddToRenderTree(composition_node_builder);
+    child_box->AddToRenderTree(composition_node_builder,
+                               node_animations_map_builder);
   }
 }
 
@@ -207,8 +212,11 @@ void BlockContainerBox::AddChildAssumingInlineFormattingContext(
 
       if (!child_boxes_.empty()) {
         // Wrap all previously added children into the anonymous block box.
+        // TODO(***REMOVED***): Determine which transitions to propogate to the
+        //               anonymous block box, instead of none at all.
         scoped_ptr<AnonymousBlockBox> anonymous_block_box(new AnonymousBlockBox(
-            GetComputedStyleOfAnonymousBox(computed_style())));
+            GetComputedStyleOfAnonymousBox(computed_style()),
+            cssom::TransitionSet::EmptyTransitionSet()));
         anonymous_block_box->SwapChildBoxes(&child_boxes_);
         child_boxes_.push_back(anonymous_block_box.release());
       }
@@ -240,9 +248,11 @@ AnonymousBlockBox* BlockContainerBox::GetOrAddAnonymousBlockBox() {
   AnonymousBlockBox* last_anonymous_block_box =
       child_boxes_.empty() ? NULL : child_boxes_.back()->AsAnonymousBlockBox();
   if (last_anonymous_block_box == NULL) {
+    // TODO(***REMOVED***): Determine which transitions to propogate to the
+    //               anonymous block box, instead of none at all.
     scoped_ptr<AnonymousBlockBox> last_anonymous_block_box_ptr(
-        new AnonymousBlockBox(
-            GetComputedStyleOfAnonymousBox(computed_style())));
+        new AnonymousBlockBox(GetComputedStyleOfAnonymousBox(computed_style()),
+                              cssom::TransitionSet::EmptyTransitionSet()));
     last_anonymous_block_box = last_anonymous_block_box_ptr.get();
     child_boxes_.push_back(last_anonymous_block_box_ptr.release());
   }
@@ -537,16 +547,18 @@ float BlockContainerBox::GetChildDependentUsedHeight(
 }
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : BlockContainerBox(computed_style) {}
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : BlockContainerBox(computed_style, transitions) {}
 
 BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
 
 Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : BlockContainerBox(computed_style) {}
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : BlockContainerBox(computed_style, transitions) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 

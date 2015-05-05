@@ -20,23 +20,33 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/layout/transition_render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/rect_node.h"
 
+using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::RectNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::NodeAnimationsMap;
+
 namespace cobalt {
 namespace layout {
 
 Box::Box(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style)
-    : computed_style_(computed_style) {}
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions)
+    : computed_style_(computed_style), transitions_(transitions) {
+  DCHECK_NE(static_cast<cssom::TransitionSet*>(NULL), transitions_);
+}
 
 Box::~Box() {}
 
-void Box::AddToRenderTree(render_tree::CompositionNode::Builder*
-                              parent_composition_node_builder) const {
+void Box::AddToRenderTree(
+    CompositionNode::Builder* parent_composition_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
   render_tree::CompositionNode::Builder composition_node_builder;
 
   // TODO(***REMOVED***): Fully implement the stacking algorithm quoted below.
@@ -44,9 +54,11 @@ void Box::AddToRenderTree(render_tree::CompositionNode::Builder*
   // The background and borders of the element forming the stacking context
   // are rendered first.
   //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddBackgroundToRenderTree(&composition_node_builder);
+  AddBackgroundToRenderTree(&composition_node_builder,
+                            node_animations_map_builder);
   // TODO(***REMOVED***): Implement borders.
-  AddContentToRenderTree(&composition_node_builder);
+  AddContentToRenderTree(&composition_node_builder,
+                         node_animations_map_builder);
 
   parent_composition_node_builder->AddChild(
       new render_tree::CompositionNode(composition_node_builder.Pass()),
@@ -65,19 +77,31 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
 }
 
+namespace {
+void SetupRectNodeFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    RectNode::Builder* rect_node_builder) {
+  rect_node_builder->background_brush =
+      scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+          GetUsedColor(style->background_color())));
+}
+}  // namespace
+
 void Box::AddBackgroundToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder) const {
-  render_tree::ColorRGBA used_background_color =
-      GetUsedColor(computed_style_->background_color());
-  // Assuming 8-bit resolution of alpha channel, only create background
-  // when it's opaque enough to notice.
-  if (used_background_color.a() >= 1.0 / 255.0) {
-    scoped_ptr<render_tree::Brush> used_background_brush(
-        new render_tree::SolidColorBrush(used_background_color));
-    composition_node_builder->AddChild(
-        new render_tree::RectNode(used_frame().size(),
-                                  used_background_brush.Pass()),
-        math::Matrix3F::Identity());
+    CompositionNode::Builder* composition_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  RectNode::Builder rect_node_builder(used_frame().size(),
+                                      scoped_ptr<render_tree::Brush>());
+  SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
+
+  scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
+  composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
+
+  if (!transitions_->empty()) {
+    AddTransitionAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
+                                      *computed_style_, rect_node,
+                                      *transitions_,
+                                      node_animations_map_builder);
   }
 }
 
