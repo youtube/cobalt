@@ -31,116 +31,170 @@
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
 #include "third_party/WebKit/Source/WTF/wtf/text/WTFString.h"
 
+#include "cobalt/script/javascriptcore/jsc_global_object.h"
+
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-JSC::JSValue BooleanToJSValue(bool in_boolean);
+// Convert std::string in utf8 encoding to WTFString.
 WTF::String ToWTFString(const std::string& utf8_string);
+
+// Convert std::string in utf8 encoding to a JSValue representing the string.
 JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
                              const std::string& utf8_string);
-inline JSC::JSValue StringToJSValue(
-    JSC::JSGlobalData* global_data,
-    const base::optional<std::string>& optional_utf8_string) {
-  if (!optional_utf8_string) {
-    return JSC::jsNull();
-  }
-  return StringToJSValue(global_data, optional_utf8_string.value());
-}
 
-JSC::JSValue JSObjectToJSValue(JSC::JSObject* js_object);
-
-bool JSValueToBoolean(JSC::ExecState* exec_state, JSC::JSValue value);
+// Convert a JSValue to a std::string in utf8 encoding.
 void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
                      std::string* out_string);
-inline void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
-                            base::optional<std::string>* out_optional) {
-  if (value.isNull()) {
-    *out_optional = base::nullopt;
-  } else {
-    // Ensure the optional is engaged so we can parse the string value in place.
-    if (!(*out_optional)) {
-      *out_optional = std::string();
-    }
-    JSValueToString(exec_state, value, &(out_optional->value()));
+
+// For a given JSObject* get a pointer to the corresponding Cobalt
+// implementation.
+template <class T>
+inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
+                              JSC::JSObject* js_object) {
+  if (!js_object) {
+    return NULL;
   }
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+  Wrappable* wrappable = NULL;
+  // If the js_object is in fact the global object, then get the pointer to the
+  // global interface from the JSCGlobalObject. Otherwise, it is a regular
+  // interface and the JSObject inherits from WrapperBase which holds a
+  // reference
+  // to the Wrappable.
+  if (js_object == global_object) {
+    wrappable = global_object->global_interface().get();
+  } else {
+    ASSERT_GC_OBJECT_INHERITS(js_object, &WrapperBase::s_info);
+    WrapperBase* wrapper_base = JSC::jsCast<WrapperBase*>(js_object);
+    wrappable = wrapper_base->wrappable().get();
+  }
+  return base::polymorphic_downcast<T*>(wrappable);
 }
 
-JSC::JSObject* JSValueToJSObject(JSC::ExecState* exec_state,
-                                 JSC::JSValue value);
-
-template <typename T>
-typename base::enable_if<
-    std::numeric_limits<T>::is_integer &&
-        std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
-    T>::type
-JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
-  int32_t int32_value = value.toInt32(exec_state);
-  return static_cast<T>(int32_value);
+// Overloads of ToJSValue convert different Cobalt types to JSValue.
+//
+// bool -> JSValue
+inline JSC::JSValue ToJSValue(JSCGlobalObject*, bool in_boolean) {
+  return JSC::jsBoolean(in_boolean);
 }
 
-template <typename T>
-typename base::enable_if<std::numeric_limits<T>::is_integer &&
-                             !std::numeric_limits<T>::is_signed &&
-                             (sizeof(T) <= 4),
-                         T>::type
-JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
-  uint32_t uint32_value = value.toUInt32(exec_state);
-  return static_cast<T>(uint32_value);
-}
-
-template <typename T>
-typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type
-JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue value) {
-  double double_value = value.toNumber(exec_state);
-  // For non-unrestricted doubles/floats, NaN and +/-Infinity should throw a
-  // TypeError
-  DCHECK(isfinite(double_value))
-      << "unrestricted doubles/floats are not yet supported.";
-  return double_value;
-}
-
-template <typename T>
-JSC::JSValue PrimitiveToJSValue(T in_number) {
+// numeric types -> JSValue
+template <class T>
+inline JSC::JSValue ToJSValue(
+    JSCGlobalObject*, T in_number,
+    typename base::enable_if<std::numeric_limits<T>::is_specialized>::type* =
+        NULL) {
   JSC::JSValue number_value = JSC::jsNumber(in_number);
   DCHECK(number_value.isNumber());
   return number_value;
 }
 
-template <>
-inline JSC::JSValue PrimitiveToJSValue(bool in_boolean) {
-  return BooleanToJSValue(in_boolean);
+// std::string -> JSValue
+inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
+                              const std::string& in_string) {
+  return StringToJSValue(&(global_object->globalData()), in_string);
 }
 
-template <typename T>
-inline JSC::JSValue PrimitiveToJSValue(base::optional<T> in_optional) {
+// object -> JSValue
+template <class T>
+inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
+                              const scoped_refptr<T>& in_object) {
+  if (!in_object) {
+    return JSC::jsNull();
+  }
+  JSC::JSObject* wrapper =
+      global_object->wrapper_factory()->GetWrapper(global_object, in_object);
+  DCHECK(wrapper);
+  return JSC::JSValue(wrapper);
+}
+
+// optional<T> -> JSValue
+template <class T>
+inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
+                              base::optional<T> in_optional) {
   if (!in_optional) {
     return JSC::jsNull();
   }
-  return PrimitiveToJSValue<T>(in_optional.value());
+  return ToJSValue(global_object, in_optional.value());
 }
 
-template <typename T>
-void JSValueToPrimitive(JSC::ExecState* exec_state, JSC::JSValue value,
-                        T* out_primitive) {
-  *out_primitive = JSValueToNumber<T>(exec_state, value);
+// Overloads of FromJSValue retrieve the Cobalt value from a JSValue.
+//
+// JSValue -> bool
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        bool* out_bool) {
+  *out_bool = jsvalue.toBoolean(exec_state);
 }
 
-template <typename T>
-void JSValueToPrimitive(JSC::ExecState* exec_state, JSC::JSValue value,
+// JSValue -> signed integers <= 4 bytes
+template <class T>
+inline void FromJSValue(
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
+    typename base::enable_if<
+        std::numeric_limits<T>::is_integer &&
+            std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
+        T>::type* = NULL) {
+  int32_t int32_value = jsvalue.toInt32(exec_state);
+  *out_number = static_cast<T>(int32_value);
+}
+
+// JSValue -> unsigned integers <= 4 bytes
+template <class T>
+inline void FromJSValue(
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
+    typename base::enable_if<std::numeric_limits<T>::is_integer &&
+                                 !std::numeric_limits<T>::is_signed &&
+                                 (sizeof(T) <= 4),
+                             T>::type* = NULL) {
+  uint32_t uint32_value = jsvalue.toUInt32(exec_state);
+  *out_number = static_cast<T>(uint32_value);
+}
+
+// JSValue -> double
+template <class T>
+inline void FromJSValue(
+    JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
+    typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type* =
+        NULL) {
+  double double_value = jsvalue.toNumber(exec_state);
+  // For non-unrestricted doubles/floats, NaN and +/-Infinity should throw a
+  // TypeError
+  DCHECK(isfinite(double_value))
+      << "unrestricted doubles/floats are not yet supported.";
+  *out_number = double_value;
+}
+
+// JSValue -> std::string
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        std::string* out_string) {
+  JSValueToString(exec_state, jsvalue, out_string);
+}
+
+// JSValue -> object
+template <class T>
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        scoped_refptr<T>* out_object) {
+  if (jsvalue.isNull()) {
+    *out_object = NULL;
+    return;
+  }
+  JSC::JSObject* js_object = jsvalue.toObject(exec_state);
+  *out_object = JSObjectToWrappable<T>(exec_state, js_object);
+}
+
+// JSValue -> optional<T>
+template <class T>
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
                         base::optional<T>* out_optional) {
-  if (value.isNull()) {
+  if (jsvalue.isNull()) {
     *out_optional = base::nullopt;
   } else {
     *out_optional = T();
-    JSValueToPrimitive(exec_state, value, &(out_optional->value()));
+    FromJSValue(exec_state, jsvalue, &(out_optional->value()));
   }
-}
-
-template <>
-inline void JSValueToPrimitive(JSC::ExecState* exec_state, JSC::JSValue value,
-                               bool* out_boolean) {
-  *out_boolean = JSValueToBoolean(exec_state, value);
 }
 
 }  // namespace javascriptcore

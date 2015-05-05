@@ -82,6 +82,12 @@ typedef ::testing::Types<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t>
 TYPED_TEST_CASE(NumericConversionTest, NumericTypes);
 TYPED_TEST_CASE(IntegerConversionTest, IntegerTypes);
 
+template <class T>
+T JSValueToNumber(JSC::ExecState* exec_state, JSC::JSValue js_value) {
+  T value;
+  FromJSValue(exec_state, js_value, &value);
+  return value;
+}
 
 }  // namespace
 
