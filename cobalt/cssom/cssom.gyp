@@ -62,6 +62,7 @@
         'property_names.cc',
         'property_names.h',
         'property_value.h',
+        'property_value_visitor.cc',
         'property_value_visitor.h',
         'pseudo_class_names.cc',
         'pseudo_class_names.h',

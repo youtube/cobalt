@@ -57,9 +57,11 @@ scoped_refptr<Node> Document::InsertBefore(
     const scoped_refptr<Node>& reference_child) {
   Node::InsertBefore(new_child, reference_child);
   // After inserting a child to Document, the child needs to be attached to the
-  // Document. This is because Document's owner_document is null, so the
-  // attachment won't happen in Node::InsertBefore().
+  // Document. This is because Document's owner_document is NULL, so the
+  // attachment won't happen in Node::InsertBefore(). Same is true for
+  // the mutation recording.
   new_child->AttachToDocument(this);
+  RecordMutation();
   return new_child;
 }
 

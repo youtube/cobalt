@@ -32,7 +32,7 @@ UsedStyleProvider::UsedStyleProvider(
 
 scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
-    const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
+    const scoped_refptr<cssom::PropertyValue>& font_size_refptr) const {
   cssom::StringValue* font_family =
       base::polymorphic_downcast<cssom::StringValue*>(font_family_refptr.get());
   cssom::LengthValue* font_size =

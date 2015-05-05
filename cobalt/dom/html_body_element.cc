@@ -37,11 +37,11 @@ HTMLBodyElement::~HTMLBodyElement() {}
 
 void HTMLBodyElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
-  this->owner_document()->SetBodyInternal(this);
+  owner_document()->SetBodyInternal(this);
 }
 
 void HTMLBodyElement::DetachFromDocument() {
-  this->owner_document()->SetBodyInternal(NULL);
+  owner_document()->SetBodyInternal(NULL);
   Node::DetachFromDocument();
 }
 
