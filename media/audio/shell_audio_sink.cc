@@ -17,6 +17,7 @@
 #include "media/audio/shell_audio_sink.h"
 
 #include <malloc.h>
+#include <limits>
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
@@ -244,7 +245,10 @@ bool ShellAudioSink::PullFrames(uint32_t* offset_in_frame,
   }
 
   bool buffer_full = free_frames < mp4::AAC::kSamplesPerFrame;
-  bool rebuffer_threshold_reached = *total_frames >= rebuffer_num_frames_;
+  DCHECK_LE(*total_frames,
+            static_cast<uint32>(std::numeric_limits<int32>::max()));
+  bool rebuffer_threshold_reached =
+      static_cast<int>(*total_frames) >= rebuffer_num_frames_;
   if (rebuffering_ && (buffer_full || rebuffer_threshold_reached)) {
     render_callback_->SinkFull();
     rebuffering_ = false;
