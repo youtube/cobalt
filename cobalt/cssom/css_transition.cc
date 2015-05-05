@@ -31,6 +31,7 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/url_value.h"
 
 namespace cobalt {
 namespace cssom {
@@ -79,6 +80,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
   void VisitTransformList(
       TransformListValue* start_transform_list_value) OVERRIDE;
+  void VisitURL(URLValue* url_value) OVERRIDE;
 
  private:
   scoped_refptr<PropertyValue> end_value_;
@@ -354,6 +356,11 @@ void AnimatorVisitor::VisitTransformList(
     TransformListValue* start_transform_list_value) {
   animated_value_ =
       AnimateTransform(start_transform_list_value, end_value_, progress_);
+}
+
+void AnimatorVisitor::VisitURL(URLValue* /*url_value*/) {
+  NOTREACHED();
+  animated_value_ = end_value_;
 }
 
 float Transition::Progress(const base::Time& time) const {

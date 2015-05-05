@@ -66,5 +66,9 @@ void NotReachedPropertyValueVisitor::VisitTransformList(
   NOTREACHED();
 }
 
+void NotReachedPropertyValueVisitor::VisitURL(URLValue* /*url_value*/) {
+  NOTREACHED();
+}
+
 }  // namespace cssom
 }  // namespace cobalt
