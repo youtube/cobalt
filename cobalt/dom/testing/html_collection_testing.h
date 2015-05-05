@@ -150,13 +150,24 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   scoped_refptr<Node> d1 =
       a3->AppendChild(html_element_factory.CreateHTMLElement("tag"));
 
-  scoped_refptr<HTMLCollection> collection = node->GetElementsByTagName("tag");
+  // GetElementsByTagName should return all elements when provided with
+  // parameter "*".
+  scoped_refptr<HTMLCollection> collection = node->GetElementsByTagName("*");
+  EXPECT_EQ(5, collection->length());
+  EXPECT_EQ(a1, collection->Item(0));
+  EXPECT_EQ(b1, collection->Item(1));
+  EXPECT_EQ(c1, collection->Item(2));
+  EXPECT_EQ(a3, collection->Item(3));
+  EXPECT_EQ(d1, collection->Item(4));
+  EXPECT_EQ(kNullNode, collection->Item(5));
 
+  // GetElementsByTagName should only return elements with the specific tag name
+  // when that is provided.
+  collection = node->GetElementsByTagName("tag");
   EXPECT_EQ(2, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(d1, collection->Item(1));
   EXPECT_EQ(kNullNode, collection->Item(2));
-  EXPECT_EQ(c1, collection->Item(0));
 
   // a3 is not matched by the collection so adding the id shouldn't change
   // anything.
