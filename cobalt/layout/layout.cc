@@ -25,6 +25,7 @@
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/initial_style.h"
+#include "cobalt/layout/specified_style.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 
@@ -44,23 +45,27 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   scoped_refptr<cssom::CSSStyleDeclarationData>
       initial_containing_block_computed_style =
           new cssom::CSSStyleDeclarationData();
+  // Although the specification is silent about that, we override the otherwise
+  // transparent background color of the initial containing block to ensure that
+  // we always fill the entire viewport.
   initial_containing_block_computed_style->set_background_color(
       new cssom::RGBAColorValue(0xffffffff));
-  initial_containing_block_computed_style->set_color(
-      InitialStyle::GetInstance()->color());
   initial_containing_block_computed_style->set_display(
       cssom::KeywordValue::GetBlock());
-  initial_containing_block_computed_style->set_font_family(
-      InitialStyle::GetInstance()->font_family());
-  initial_containing_block_computed_style->set_font_size(
-      InitialStyle::GetInstance()->font_size());
   initial_containing_block_computed_style->set_height(
       new cssom::LengthValue(viewport_size.height(), cssom::kPixelsUnit));
   initial_containing_block_computed_style->set_width(
       new cssom::LengthValue(viewport_size.width(), cssom::kPixelsUnit));
-  initial_containing_block_computed_style->set_transform(
-      InitialStyle::GetInstance()->transform());
-  PromoteToComputedStyle(initial_containing_block_computed_style, NULL);
+
+  // For the root element, which has no parent element, the inherited value is
+  // the initial value of the property.
+  //   http://www.w3.org/TR/css-cascade-3/#inheriting
+  scoped_refptr<const cssom::CSSStyleDeclarationData> initial_style =
+      GetInitialStyle();
+  PromoteToSpecifiedStyle(initial_containing_block_computed_style,
+                          initial_style);
+  PromoteToComputedStyle(initial_containing_block_computed_style,
+                         initial_style);
 
   return make_scoped_ptr(
       new BlockLevelBlockContainerBox(initial_containing_block_computed_style));
