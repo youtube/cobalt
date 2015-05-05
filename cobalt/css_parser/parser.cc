@@ -59,9 +59,11 @@ uint32_t ParseHexToken(const TrivialStringPiece& string_piece) {
   return integer;
 }
 
+// Ensures that the returned value satisfies the inequality:
+// min_value <= value <= max_value.
 template <typename Value>
 Value ClampToRange(Value min_value, Value max_value, Value value) {
-  return std::min(max_value, std::max(min_value, value));
+  return std::max(min_value, std::min(value, max_value));
 }
 
 }  // namespace
