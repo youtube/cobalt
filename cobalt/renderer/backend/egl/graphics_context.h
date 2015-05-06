@@ -73,13 +73,33 @@ class GraphicsContextEGL : public GraphicsContext {
   void MakeCurrent();
   void ReleaseCurrentContext();
 
+  // Helper class to allow one to create a RAII object that will acquire the
+  // current context upon construction and release it upon destruction.
+  class ScopedMakeCurrent {
+   public:
+    explicit ScopedMakeCurrent(GraphicsContextEGL* graphics_context) :
+        graphics_context_(graphics_context) {
+      graphics_context_->MakeCurrent();
+    }
+    ScopedMakeCurrent(GraphicsContextEGL* graphics_context, EGLSurface surface)
+        : graphics_context_(graphics_context) {
+      graphics_context_->MakeCurrentWithSurface(surface);
+    }
+    ~ScopedMakeCurrent() {
+      graphics_context_->ReleaseCurrentContext();
+    }
+
+   private:
+    GraphicsContextEGL* graphics_context_;
+  };
+
   // Sets up all structures (like Shaders and vertex buffers) required to
   // support the Frame::BlitToRenderTarget() functionality.
   void SetupBlitToRenderTargetObjects();
 
   class Frame : public GraphicsContext::Frame {
    public:
-    explicit Frame(GraphicsContextEGL* owner);
+    Frame(GraphicsContextEGL* owner, EGLSurface surface);
     ~Frame();
 
     void Clear(float red, float green, float blue, float alpha) OVERRIDE;
@@ -87,6 +107,7 @@ class GraphicsContextEGL : public GraphicsContext {
 
    private:
     GraphicsContextEGL* owner_;
+    ScopedMakeCurrent scoped_make_current_;
   };
   friend class Frame;
   void OnFrameEnd();
@@ -116,6 +137,14 @@ class GraphicsContextEGL : public GraphicsContext {
   static const int kBlitTexcoordAttribute = 1;
   GLuint blit_program_;
   GLuint blit_vertex_buffer_;
+
+  // When creating and destroying textures, OpenGL calls need to be made with
+  // a GL context current.  By making TextureEGL a friend class of
+  // GraphicsContextEGL, the tight relationship and association of a TextureEGL
+  // with a GraphicsContextEGL is made more explicit, and it also allows
+  // TextureEGL to access MakeCurrent()/ReleaseCurrentContext() methods
+  // of GraphicsContextEGL.
+  friend class TextureEGL;
 };
 
 }  // namespace backend
