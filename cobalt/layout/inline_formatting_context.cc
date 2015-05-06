@@ -53,8 +53,9 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedPositionAndMaybeSplit(
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   OnLineBoxDestroying();
-  line_box_ = make_scoped_ptr(
-      new LineBox(GetLastLineBoxUsedBottom(), containing_block_width_));
+  line_box_ = make_scoped_ptr(new LineBox(GetLastLineBoxUsedBottom(),
+                                          containing_block_width_,
+                                          LineBox::kShouldTrimWhiteSpace));
 
   // A sequence of collapsible spaces at the beginning of a line is removed.
   //   http://www.w3.org/TR/css3-text/#white-space-phase-2
@@ -114,8 +115,8 @@ void InlineFormattingContext::OnLineBoxDestroying() {
     if (line_box_->line_exists()) {
       ++line_count_;
 
-      height_above_baseline_ =
-          line_box_->used_top() + line_box_->height_above_baseline();
+      set_height_above_baseline(line_box_->used_top() +
+                                line_box_->height_above_baseline());
 
       preferred_min_width_ =
           std::max(preferred_min_width_, line_box_->GetShrinkToFitWidth());

@@ -18,6 +18,7 @@
 #define LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
 
 #include "base/optional.h"
+#include "cobalt/layout/formatting_context.h"
 #include "cobalt/math/point_f.h"
 
 namespace cobalt {
@@ -34,9 +35,10 @@ class Box;
 // child boxes nor triggers their layout - it is a responsibility of the box
 // that establishes this formatting context. This class merely knows how
 // to update the position of the subsequent children passed to it.
-class BlockFormattingContext {
+class BlockFormattingContext : public FormattingContext {
  public:
   BlockFormattingContext();
+  ~BlockFormattingContext() OVERRIDE;
 
   // Calculates the used position of the given child box and updates
   // the internal state in the preparation for the next child.
@@ -45,13 +47,6 @@ class BlockFormattingContext {
   // Used to calculate the "auto" width of the box that establishes this
   // formatting context.
   float shrink_to_fit_width() const { return shrink_to_fit_width_; }
-
-  // A vertical offset of the baseline of the last child box that has one,
-  // relatively to the origin of the block container box. Disengaged, if none
-  // of the child boxes have a baseline.
-  base::optional<float> height_above_baseline() const {
-    return height_above_baseline_;
-  }
 
   // Used to calculate the "auto" height of the box that establishes this
   // formatting context.
@@ -71,8 +66,6 @@ class BlockFormattingContext {
   math::PointF next_child_box_used_position_;
 
   float shrink_to_fit_width_;
-
-  base::optional<float> height_above_baseline_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };
