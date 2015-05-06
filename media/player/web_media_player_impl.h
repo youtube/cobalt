@@ -56,9 +56,6 @@
 #include "base/message_loop.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
-#if defined(__LB_ANDROID__)
-#include "media/base/android/audio_focus_bridge.h"
-#endif  // defined(__LB_ANDROID__)
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/decryptor.h"
 #include "media/base/message_loop_factory.h"
@@ -69,9 +66,10 @@
 #include "media/player/web_media_player.h"
 #include "ui/gfx/size.h"
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
 #define LB_USE_SHELL_PIPELINE
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#define LB_SKIP_SEEK_REQUEST_NEAR_END
+#endif  // (defined(__LB_XB1__) && !defined(COBALT_WIN)) || defined(__LB_XB360__)
 
 #if defined(LB_USE_SHELL_PIPELINE)
 #include "chromium/media/base/shell_pipeline.h"
