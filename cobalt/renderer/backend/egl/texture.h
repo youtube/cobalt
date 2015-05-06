@@ -19,14 +19,17 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 #include "cobalt/renderer/backend/surface_info.h"
 #include "cobalt/renderer/backend/texture.h"
-#include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
+
+class GraphicsContextEGL;
 
 class TextureDataEGL : public TextureData {
  public:
@@ -50,10 +53,12 @@ class TextureDataEGL : public TextureData {
 class TextureEGL : public Texture {
  public:
   // Create a texture from source pixel data possibly filled in by the CPU.
-  TextureEGL(scoped_ptr<TextureDataEGL> texture_source_data,
+  TextureEGL(const base::Closure& make_context_current_function,
+             scoped_ptr<TextureDataEGL> texture_source_data,
              bool bgra_supported);
   // Create a texture from a pre-existing offscreen PBuffer render target.
   explicit TextureEGL(
+      const base::Closure& make_context_current_function,
       const scoped_refptr<PBufferRenderTargetEGL>& render_target);
   ~TextureEGL();
 
@@ -63,6 +68,10 @@ class TextureEGL : public Texture {
   GLuint gl_handle() const { return gl_handle_; }
 
  private:
+  // A function that can be called before issuing GL calls in order to ensure
+  // that the proper context is current.
+  base::Closure make_context_current_function_;
+
   // Metadata about the texture.
   SurfaceInfo surface_info_;
 
