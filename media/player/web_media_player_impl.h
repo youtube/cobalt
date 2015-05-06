@@ -326,10 +326,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   scoped_refptr<MediaLog> media_log_;
 
-  // Since accelerated compositing status is only known after the first layout,
-  // we delay reporting it to UMA until that time.
-  bool accelerated_compositing_reported_;
-
   bool incremented_externally_allocated_memory_;
 
   scoped_refptr<AudioRendererSink> audio_renderer_sink_;
