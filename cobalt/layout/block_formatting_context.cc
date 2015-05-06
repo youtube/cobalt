@@ -23,6 +23,8 @@ namespace layout {
 
 BlockFormattingContext::BlockFormattingContext() : shrink_to_fit_width_(0) {}
 
+BlockFormattingContext::~BlockFormattingContext() {}
+
 void BlockFormattingContext::UpdateUsedPosition(Box* child_box) {
   DCHECK_EQ(Box::kBlockLevel, child_box->GetLevel());
 
@@ -47,8 +49,8 @@ void BlockFormattingContext::UpdateUsedPosition(Box* child_box) {
   // in the normal flow, unless it has no in-flow line boxes.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   if (child_box->AffectsBaselineInBlockFormattingContext()) {
-    height_above_baseline_ =
-        child_box->used_frame().y() + child_box->GetHeightAboveBaseline();
+    set_height_above_baseline(child_box->used_frame().y() +
+                              child_box->GetHeightAboveBaseline());
   }
 }
 

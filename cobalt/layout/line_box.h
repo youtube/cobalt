@@ -49,21 +49,23 @@ class Box;
 // been called for every child box.
 class LineBox {
  public:
-  LineBox(float used_top, float containing_block_width);
-
-  float used_top() const { return used_top_; }
-
   // When used outside of an inline formatting context (for example, to lay out
   // an inline container box), the line box may be configured to not trim
   // the leading and trailing white space.
-  void set_should_trim_white_space(bool should_trim_white_space) {
-    should_trim_white_space_ = should_trim_white_space;
-  }
+  enum ShouldTrimWhiteSpace {
+    kShouldNotTrimWhiteSpace = false,
+    kShouldTrimWhiteSpace = true
+  };
+
+  LineBox(float used_top, float containing_block_width,
+          ShouldTrimWhiteSpace should_trim_white_space);
+
+  float used_top() const { return used_top_; }
 
   // Attempts to calculate the used values of "left" and "top" for the given
   // child box if the box or a part of it fits on the line. Some parts of
-  // calculation are asynchronous, so the child's position is in undefined state
-  // until |EndQueries| is called.
+  // calculation are asynchronous, so the child's position is in an undefined
+  // state until |EndQueries| is called.
   //
   // Returns false if the box does not fit on the line, even if split.
   //
@@ -108,7 +110,7 @@ class LineBox {
 
   const float used_top_;
   const float containing_block_width_;
-  bool should_trim_white_space_;
+  const ShouldTrimWhiteSpace should_trim_white_space_;
 
   bool line_exists_;
 
