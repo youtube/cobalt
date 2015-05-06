@@ -40,7 +40,7 @@ class TextBox : public Box {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
-  void Layout(const LayoutOptions& layout_options) OVERRIDE;
+  void Layout(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE;

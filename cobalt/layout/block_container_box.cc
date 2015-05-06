@@ -16,49 +16,57 @@
 
 #include "cobalt/layout/block_container_box.h"
 
-#include "cobalt/layout/block_formatting_context.h"
-#include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/inline_formatting_context.h"
+#include "cobalt/layout/formatting_context.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
 
-class AnonymousBlockBox : public BlockLevelBlockContainerBox {
- public:
-  explicit AnonymousBlockBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions)
-      : BlockLevelBlockContainerBox(computed_style, transitions) {}
-
-  virtual AnonymousBlockBox* AsAnonymousBlockBox() OVERRIDE { return this; }
-
- protected:
-  // From |Box|.
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
-};
-
-void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
-  *stream << "AnonymousBlockBox ";
-}
-
 BlockContainerBox::BlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions)
-    : ContainerBox(computed_style, transitions),
-      formatting_context_(kInlineFormattingContext) {}
+    : ContainerBox(computed_style, transitions) {}
 
 BlockContainerBox::~BlockContainerBox() {}
 
-void BlockContainerBox::Layout(const LayoutOptions& layout_options) {
-  switch (formatting_context_) {
-    case kBlockFormattingContext:
-      LayoutAssuming<BlockFormattingContext>(layout_options);
-      break;
-    case kInlineFormattingContext:
-      LayoutAssuming<InlineFormattingContext>(layout_options);
-      break;
+void BlockContainerBox::Layout(const LayoutParams& layout_params) {
+  // Approximate the size of the containing block, so that relatively and
+  // statically positioned child boxes can use it during their layout. The size
+  // is calculated with the assumption that there are no children.
+  //   http://www.w3.org/TR/CSS21/visudet.html#containing-block-details
+  bool width_depends_on_child_boxes;
+  bool height_depends_on_child_boxes;
+  LayoutParams child_layout_params =
+      GetChildLayoutOptions(layout_params, &width_depends_on_child_boxes,
+                            &height_depends_on_child_boxes);
+
+  // Do a first pass of the layout using the approximate size.
+  child_layout_params.shrink_if_width_depends_on_containing_block =
+      width_depends_on_child_boxes;
+  scoped_ptr<FormattingContext> formatting_context =
+      LayoutChildren(child_layout_params);
+
+  // Calculate the exact width of the block container box.
+  if (width_depends_on_child_boxes) {
+    child_layout_params.containing_block_size.set_width(
+        GetChildDependentUsedWidth(*formatting_context));
+
+    // Do a second pass of the layout using the exact size.
+    // TODO(***REMOVED***): Laying out the children twice has an exponential worst-case
+    //               complexity (because every child could lay out itself twice
+    //               as well). Figure out if there is a better way.
+    child_layout_params.shrink_if_width_depends_on_containing_block = false;
+    formatting_context = LayoutChildren(child_layout_params);
   }
+  used_frame().set_width(child_layout_params.containing_block_size.width());
+
+  // Calculate the exact height of the block container box.
+  used_frame().set_height(
+      height_depends_on_child_boxes
+          ? GetChildDependentUsedHeight(*formatting_context)
+          : child_layout_params.containing_block_size.height());
+  maybe_height_above_baseline_ =
+      formatting_context->maybe_height_above_baseline();
 }
 
 scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/) {
@@ -96,7 +104,7 @@ bool BlockContainerBox::JustifiesLineExistence() const {
 }
 
 bool BlockContainerBox::AffectsBaselineInBlockFormattingContext() const {
-  return !!height_above_baseline_;
+  return static_cast<bool>(maybe_height_above_baseline_);
 }
 
 float BlockContainerBox::GetHeightAboveBaseline() const {
@@ -104,27 +112,11 @@ float BlockContainerBox::GetHeightAboveBaseline() const {
   // with the parent's baseline.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   // TODO(***REMOVED***): Fix when margins are implemented.
-  return height_above_baseline_.value_or(used_frame().height());
-}
-
-bool BlockContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
-  AddChild(child_box->Pass());
-  return true;
+  return maybe_height_above_baseline_.value_or(used_frame().height());
 }
 
 scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
   return scoped_ptr<ContainerBox>();
-}
-
-void BlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
-  switch (formatting_context_) {
-    case kBlockFormattingContext:
-      AddChildAssumingBlockFormattingContext(child_box.Pass());
-      break;
-    case kInlineFormattingContext:
-      AddChildAssumingInlineFormattingContext(child_box.Pass());
-      break;
-  }
 }
 
 void BlockContainerBox::AddContentToRenderTree(
@@ -144,26 +136,12 @@ void BlockContainerBox::AddContentToRenderTree(
 
 bool BlockContainerBox::IsTransformable() const { return true; }
 
-void BlockContainerBox::DumpClassName(std::ostream* stream) const {
-  *stream << "BlockContainerBox ";
-}
-
 void BlockContainerBox::DumpProperties(std::ostream* stream) const {
   ContainerBox::DumpProperties(stream);
 
   *stream << std::boolalpha << "affects_baseline_in_block_formatting_context="
           << AffectsBaselineInBlockFormattingContext() << " "
           << std::noboolalpha;
-
-  *stream << "formatting_context=";
-  switch (formatting_context_) {
-    case kBlockFormattingContext:
-      *stream << "block ";
-      break;
-    case kInlineFormattingContext:
-      *stream << "inline ";
-      break;
-  }
 }
 
 void BlockContainerBox::DumpChildrenWithIndent(std::ostream* stream,
@@ -177,200 +155,26 @@ void BlockContainerBox::DumpChildrenWithIndent(std::ostream* stream,
   }
 }
 
-void BlockContainerBox::AddChildAssumingBlockFormattingContext(
-    scoped_ptr<Box> child_box) {
-  FormattingContext required_formatting_context =
-      ConvertLevelToFormattingContext(child_box->GetLevel());
-
-  switch (required_formatting_context) {
-    case kBlockFormattingContext:
-      // Required and inferred formatting contexts match, simply add a child.
-      child_boxes_.push_back(child_box.release());
-      break;
-
-    case kInlineFormattingContext:
-      // If a block container box has a block-level box inside it, then we force
-      // it to have only block-level boxes inside it.
-      //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-      GetOrAddAnonymousBlockBox()->AddChild(child_box.Pass());
-      break;
-  }
-}
-
-void BlockContainerBox::AddChildAssumingInlineFormattingContext(
-    scoped_ptr<Box> child_box) {
-  FormattingContext required_formatting_context =
-      ConvertLevelToFormattingContext(child_box->GetLevel());
-
-  switch (required_formatting_context) {
-    case kBlockFormattingContext:
-      // After a bunch of inline-level child boxes, a block-level child box
-      // is added, inferring a block formatting context.
-      // TODO(***REMOVED***): Discount out-of-flow boxes:
-      //               http://www.w3.org/TR/CSS21/visuren.html#positioning-scheme
-      formatting_context_ = kBlockFormattingContext;
-
-      if (!child_boxes_.empty()) {
-        // Wrap all previously added children into the anonymous block box.
-        // TODO(***REMOVED***): Determine which transitions to propogate to the
-        //               anonymous block box, instead of none at all.
-        scoped_ptr<AnonymousBlockBox> anonymous_block_box(new AnonymousBlockBox(
-            GetComputedStyleOfAnonymousBox(computed_style()),
-            cssom::TransitionSet::EmptyTransitionSet()));
-        anonymous_block_box->SwapChildBoxes(&child_boxes_);
-        child_boxes_.push_back(anonymous_block_box.release());
-      }
-      break;
-
-    case kInlineFormattingContext:
-      // All set.
-      break;
-  }
-
-  // Finally, add a child box.
-  child_boxes_.push_back(child_box.release());
-}
-
-BlockContainerBox::FormattingContext
-BlockContainerBox::ConvertLevelToFormattingContext(Level level) {
-  switch (level) {
-    case kBlockLevel:
-      return kBlockFormattingContext;
-    case kInlineLevel:
-      return kInlineFormattingContext;
-    default:
-      NOTREACHED();
-      return static_cast<FormattingContext>(-1);
-  }
-}
-
-AnonymousBlockBox* BlockContainerBox::GetOrAddAnonymousBlockBox() {
-  AnonymousBlockBox* last_anonymous_block_box =
-      child_boxes_.empty() ? NULL : child_boxes_.back()->AsAnonymousBlockBox();
-  if (last_anonymous_block_box == NULL) {
-    // TODO(***REMOVED***): Determine which transitions to propogate to the
-    //               anonymous block box, instead of none at all.
-    scoped_ptr<AnonymousBlockBox> last_anonymous_block_box_ptr(
-        new AnonymousBlockBox(GetComputedStyleOfAnonymousBox(computed_style()),
-                              cssom::TransitionSet::EmptyTransitionSet()));
-    last_anonymous_block_box = last_anonymous_block_box_ptr.get();
-    child_boxes_.push_back(last_anonymous_block_box_ptr.release());
-  }
-  return last_anonymous_block_box;
-}
-
-template <typename FormattingContextT>
-void BlockContainerBox::LayoutAssuming(const LayoutOptions& layout_options) {
-  // Approximate the size of the containing block, so that relatively and
-  // statically positioned child boxes can use it during their layout. The size
-  // is calculated with the assumption that there are no children.
-  //   http://www.w3.org/TR/CSS21/visudet.html#containing-block-details
-  bool width_depends_on_child_boxes;
-  bool height_depends_on_child_boxes;
-  LayoutOptions child_layout_options =
-      GetChildLayoutOptions(layout_options, &width_depends_on_child_boxes,
-                            &height_depends_on_child_boxes);
-
-  // Do a first pass of the layout using the approximate size.
-  child_layout_options.shrink_if_width_depends_on_containing_block =
-      width_depends_on_child_boxes;
-  scoped_ptr<FormattingContextT> formatting_context =
-      LayoutChildrenAssuming<FormattingContextT>(child_layout_options);
-
-  // Calculate the exact width of the block container box.
-  if (width_depends_on_child_boxes) {
-    child_layout_options.containing_block_size.set_width(
-        GetChildDependentUsedWidth(*formatting_context));
-
-    // Do a second pass of the layout using the exact size.
-    // TODO(***REMOVED***): Laying out the children twice has an exponential worst-case
-    //               complexity (because every child could lay out itself twice
-    //               as well). Figure out if there is a better way.
-    child_layout_options.shrink_if_width_depends_on_containing_block = false;
-    formatting_context =
-        LayoutChildrenAssuming<FormattingContextT>(child_layout_options);
-  }
-  used_frame().set_width(child_layout_options.containing_block_size.width());
-
-  // Calculate the exact height of the block container box.
-  used_frame().set_height(
-      height_depends_on_child_boxes
-          ? GetChildDependentUsedHeight(*formatting_context)
-          : child_layout_options.containing_block_size.height());
-  height_above_baseline_ = formatting_context->height_above_baseline();
-}
-
-template <>
-scoped_ptr<BlockFormattingContext> BlockContainerBox::LayoutChildrenAssuming<
-    BlockFormattingContext>(const LayoutOptions& child_layout_options) {
-  // Lay out child boxes in the normal flow.
-  //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
-  //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
-  scoped_ptr<BlockFormattingContext> block_formatting_context(
-      new BlockFormattingContext());
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->Layout(child_layout_options);
-    block_formatting_context->UpdateUsedPosition(child_box);
-  }
-  return block_formatting_context.Pass();
-}
-
-template <>
-scoped_ptr<InlineFormattingContext> BlockContainerBox::LayoutChildrenAssuming<
-    InlineFormattingContext>(const LayoutOptions& child_layout_options) {
-  // Lay out child boxes in the normal flow.
-  //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
-  //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
-  scoped_ptr<InlineFormattingContext> inline_formatting_context(
-      new InlineFormattingContext(
-          child_layout_options.containing_block_size.width()));
-  for (ChildBoxes::iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end();) {
-    Box* child_box = *child_box_iterator;
-    ++child_box_iterator;
-    child_box->Layout(child_layout_options);
-
-    scoped_ptr<Box> child_box_after_split =
-        inline_formatting_context->QueryUsedPositionAndMaybeSplit(child_box);
-    if (child_box_after_split) {
-      // Re-insert the rest of the child box and attempt to lay it out in
-      // the next iteration of the loop.
-      // TODO(***REMOVED***): If every child box is split, this becomes an O(N^2)
-      //               operation where N is the number of child boxes. Consider
-      //               using a new vector instead and swap its contents after
-      //               the layout is done.
-      child_box_iterator = child_boxes_.insert(child_box_iterator,
-                                               child_box_after_split.release());
-    }
-  }
-  inline_formatting_context->EndQueries();
-  return inline_formatting_context.Pass();
-}
-
-LayoutOptions BlockContainerBox::GetChildLayoutOptions(
-    const LayoutOptions& layout_options, bool* width_depends_on_child_boxes,
+LayoutParams BlockContainerBox::GetChildLayoutOptions(
+    const LayoutParams& layout_params, bool* width_depends_on_child_boxes,
     bool* height_depends_on_child_boxes) const {
   bool width_depends_on_containing_block;
-  LayoutOptions child_layout_options;
-  child_layout_options.containing_block_size.set_width(
-      GetChildIndependentUsedWidth(layout_options.containing_block_size.width(),
+  LayoutParams child_layout_params;
+  child_layout_params.containing_block_size.set_width(
+      GetChildIndependentUsedWidth(layout_params.containing_block_size.width(),
                                    &width_depends_on_containing_block,
                                    width_depends_on_child_boxes));
-  child_layout_options.containing_block_size.set_height(
+  child_layout_params.containing_block_size.set_height(
       GetChildIndependentUsedHeight(
-          layout_options.containing_block_size.height(),
+          layout_params.containing_block_size.height(),
           height_depends_on_child_boxes));
 
-  if (layout_options.shrink_if_width_depends_on_containing_block &&
+  if (layout_params.shrink_if_width_depends_on_containing_block &&
       width_depends_on_containing_block) {
     *width_depends_on_child_boxes = true;
   }
 
-  return child_layout_options;
+  return child_layout_params;
 }
 
 namespace {
@@ -508,62 +312,6 @@ float BlockContainerBox::GetChildIndependentUsedHeight(
   *height_depends_on_child_boxes =
       used_height_provider.height_depends_on_child_boxes();
   return used_height_provider.used_height();
-}
-
-float BlockContainerBox::GetChildDependentUsedWidth(
-    const BlockFormattingContext& block_formatting_context) const {
-  return block_formatting_context.shrink_to_fit_width();
-}
-
-float BlockContainerBox::GetChildDependentUsedWidth(
-    const InlineFormattingContext& inline_formatting_context) const {
-  return inline_formatting_context.GetShrinkToFitWidth();
-}
-
-float BlockContainerBox::GetChildDependentUsedHeight(
-    const BlockFormattingContext& block_formatting_context) const {
-  // TODO(***REMOVED***): Implement for block-level non-replaced elements in normal
-  //               flow when "overflow" computes to "visible":
-  //               http://www.w3.org/TR/CSS21/visudet.html#normal-block
-  // TODO(***REMOVED***): Implement for block-level, non-replaced elements in normal
-  //               flow when "overflow" does not compute to "visible" and
-  //               for inline-block, non-replaced elements:
-  //               http://www.w3.org/TR/CSS21/visudet.html#block-root-margin
-  NOTIMPLEMENTED();
-  return block_formatting_context.last_child_box_used_bottom();  // Hack-hack.
-}
-
-float BlockContainerBox::GetChildDependentUsedHeight(
-    const InlineFormattingContext& inline_formatting_context) const {
-  // TODO(***REMOVED***): Implement for block-level non-replaced elements in normal
-  //               flow when "overflow" computes to "visible":
-  //               http://www.w3.org/TR/CSS21/visudet.html#normal-block
-  // TODO(***REMOVED***): Implement for block-level, non-replaced elements in normal
-  //               flow when "overflow" does not compute to "visible" and
-  //               for inline-block, non-replaced elements:
-  //               http://www.w3.org/TR/CSS21/visudet.html#block-root-margin
-  NOTIMPLEMENTED();
-  return inline_formatting_context.GetLastLineBoxUsedBottom();  // Hack-hack.
-}
-
-BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : BlockContainerBox(computed_style, transitions) {}
-
-BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
-
-Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
-
-InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : BlockContainerBox(computed_style, transitions) {}
-
-InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
-
-Box::Level InlineLevelBlockContainerBox::GetLevel() const {
-  return kInlineLevel;
 }
 
 }  // namespace layout

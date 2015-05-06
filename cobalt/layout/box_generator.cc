@@ -22,7 +22,7 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/text.h"
-#include "cobalt/layout/block_container_box.h"
+#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/inline_container_box.h"
@@ -124,13 +124,12 @@ void BoxGenerator::Visit(dom::Element* element) {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     return;
   }
-  ContainerBox* container_box = container_box_before_split.get();
   boxes_.push_back(container_box_before_split.release());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
-    BoxGenerator child_box_generator(container_box->computed_style(),
+    BoxGenerator child_box_generator(html_element->computed_style(),
                                      user_agent_style_sheet_,
                                      used_style_provider_);
     child_node->Accept(&child_box_generator);
@@ -154,15 +153,15 @@ void BoxGenerator::Visit(dom::Element* element) {
       //
       // * CSS 2.1 says "the same line box" but line boxes are not real boxes
       //   in Cobalt, see |LineBox| for details.
-      if (!container_box->TryAddChild(&child_box)) {
+      ContainerBox* last_container_box =
+          base::polymorphic_downcast<ContainerBox*>(boxes_.back());
+      if (!last_container_box->TryAddChild(&child_box)) {
         boxes_.push_back(child_box.release());
 
-        scoped_ptr<ContainerBox> container_box_after_split =
-            container_box->TrySplitAtEnd();
-        DCHECK_NE(static_cast<ContainerBox*>(NULL),
-                  container_box_after_split.get());
-        container_box = container_box_after_split.get();
-        boxes_.push_back(container_box_after_split.release());
+        scoped_ptr<ContainerBox> next_container_box =
+            last_container_box->TrySplitAtEnd();
+        DCHECK_NE(static_cast<ContainerBox*>(NULL), next_container_box.get());
+        boxes_.push_back(next_container_box.release());
       }
     }
   }

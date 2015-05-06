@@ -21,7 +21,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
-#include "cobalt/layout/block_container_box.h"
+#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/initial_style.h"
@@ -100,7 +100,7 @@ RenderTreeWithAnimations Layout(
     initial_containing_block->AddChild(root_box.Pass());
   }
 
-  initial_containing_block->Layout(LayoutOptions());
+  initial_containing_block->Layout(LayoutParams());
 
   render_tree::animations::NodeAnimationsMap::Builder
       node_animations_map_builder;

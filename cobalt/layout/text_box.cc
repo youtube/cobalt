@@ -36,7 +36,7 @@ TextBox::TextBox(
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
-void TextBox::Layout(const LayoutOptions& /*layout_options*/) {
+void TextBox::Layout(const LayoutParams& /*layout_params*/) {
   // TODO(***REMOVED***): If this method is called on a box after the split, no layout
   //               recalculation is necessary.
 
@@ -132,8 +132,8 @@ void TextBox::AddContentToRenderTree(
     /* node_animations_map_builder */) const {
   render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
 
-  // Skia considers text coordinates to be a position of a baseline, offset
-  // the text node accordingly.
+  // The render tree API considers text coordinates to be a position of
+  // a baseline, offset the text node accordingly.
   composition_node_builder->AddChild(
       new render_tree::TextNode(text_, used_font_, used_color),
       math::TranslateMatrix(GetLeadingWhiteSpaceWidth() + text_x_,
