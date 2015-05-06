@@ -30,6 +30,7 @@
 namespace cobalt {
 namespace dom {
 
+using ::media::VideoFrame;
 using ::media::WebMediaPlayer;
 
 const char HTMLMediaElement::kTagName[] = "video";
@@ -340,6 +341,10 @@ void HTMLMediaElement::set_muted(bool muted) {
     }
     ScheduleEvent("volumechange");
   }
+}
+
+scoped_refptr<VideoFrame> HTMLMediaElement::GetCurrentFrame() {
+  return player_ ? player_->GetCurrentFrame() : NULL;
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
