@@ -16,6 +16,7 @@
 #include "media/filters/shell_flv_parser.h"
 
 #include <inttypes.h>
+#include <limits>
 
 #include "base/stringprintf.h"
 #include "lb_platform.h"
@@ -457,7 +458,8 @@ bool ShellFLVParser::ParseScriptDataObjectTag(uint8* tag,
   int bytes_read = reader_->BlockingRead(tag_offset_ + kTagSize,
                                          size,
                                          script_buffer->Get());
-  if (bytes_read < size) {
+  DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
+  if (bytes_read < static_cast<int>(size)) {
     return false;
   }
   // Attempt to extract the duration from the FLV metadata.
