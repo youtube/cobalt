@@ -39,9 +39,13 @@ class ContainerBox : public Box {
   // boxes, while inline container boxes are only able to become parents
   // of inline-level boxes.
   virtual bool TryAddChild(scoped_ptr<Box>* child_box) = 0;
-  // Attempts to split the box near the end. Returns the part after the split if
-  // the split succeeded. Note that only inline boxes are splittable. The box
-  // generator uses this method to break inline boxes around block-level boxes.
+  // Attempts to split the box right before the end. Returns the part after
+  // the split if the split succeeded. Only inline boxes are splittable and it's
+  // always possible to split them. The returned part is identical to
+  // the original container, except that the former is empty.
+  //
+  // A box generator uses this method to break inline boxes around block-level
+  // boxes.
   virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
 
  protected:

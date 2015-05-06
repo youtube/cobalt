@@ -23,12 +23,14 @@
 namespace cobalt {
 namespace layout {
 
-class BlockFormattingContext;
-class InlineFormattingContext;
+class FormattingContext;
 
-// A block container box establishes either:
-//   - a block formatting context (and thus only contains block-level boxes);
-//   - an inline formatting context (and thus only contains inline-level boxes).
+// A base class for block container boxes which implements most of the
+// functionality except establishing a formatting context.
+//
+// Derived classes establish either:
+//   - a block formatting context (and thus contain only block-level boxes);
+//   - an inline formatting context (and thus contain only inline-level boxes).
 //   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
 //
 // Note that "block container box" and "block-level box" are different concepts.
@@ -43,7 +45,7 @@ class BlockContainerBox : public ContainerBox {
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.
-  void Layout(const LayoutOptions& layout_options) OVERRIDE;
+  void Layout(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE;
@@ -57,15 +59,7 @@ class BlockContainerBox : public ContainerBox {
   float GetHeightAboveBaseline() const OVERRIDE;
 
   // From |ContainerBox|.
-  bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
   scoped_ptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
-
-  // Rest of the public methods.
-
-  // A convenience method to add children. It is guaranteed that a block
-  // container box is able to become a parent of both block-level and
-  // inline-level boxes.
-  void AddChild(scoped_ptr<Box> child_box);
 
  protected:
   // From |Box|.
@@ -75,96 +69,36 @@ class BlockContainerBox : public ContainerBox {
           node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
   void DumpProperties(std::ostream* stream) const OVERRIDE;
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
   // Rest of the protected methods.
-  void SwapChildBoxes(ChildBoxes* child_boxes) {
-    child_boxes_.swap(*child_boxes);
-  }
+  virtual scoped_ptr<FormattingContext> LayoutChildren(
+      const LayoutParams& child_layout_params) = 0;
+  virtual float GetChildDependentUsedWidth(
+      const FormattingContext& formatting_context) const = 0;
+  virtual float GetChildDependentUsedHeight(
+      const FormattingContext& formatting_context) const = 0;
+
+  // Child boxes, including anonymous block boxes, if any.
+  ChildBoxes child_boxes_;
 
  private:
-  // Defines the formatting context established by this box.
-  // Do not confuse with the formatting context in which the box should
-  // participate.
-  //   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
-  enum FormattingContext { kBlockFormattingContext, kInlineFormattingContext };
-
-  void AddChildAssumingBlockFormattingContext(scoped_ptr<Box> child_box);
-  void AddChildAssumingInlineFormattingContext(scoped_ptr<Box> child_box);
-
-  // Infers the established formatting context from the level of the child box.
-  static FormattingContext ConvertLevelToFormattingContext(Level level);
-
-  AnonymousBlockBox* GetOrAddAnonymousBlockBox();
-
-  template <typename FormattingContextT>
-  void LayoutAssuming(const LayoutOptions& layout_options);
-  template <typename FormattingContextT>
-  scoped_ptr<FormattingContextT> LayoutChildrenAssuming(
-      const LayoutOptions& child_layout_options);
-
-  LayoutOptions GetChildLayoutOptions(
-      const LayoutOptions& layout_options, bool* width_depends_on_child_boxes,
-      bool* height_depends_on_child_boxes) const;
+  LayoutParams GetChildLayoutOptions(const LayoutParams& layout_params,
+                                     bool* width_depends_on_child_boxes,
+                                     bool* height_depends_on_child_boxes) const;
   float GetChildIndependentUsedWidth(float containing_block_width,
                                      bool* width_depends_on_containing_block,
                                      bool* width_depends_on_child_boxes) const;
   float GetChildIndependentUsedHeight(
       float containing_block_height, bool* height_depends_on_child_boxes) const;
-  float GetChildDependentUsedWidth(
-      const BlockFormattingContext& block_formatting_context) const;
-  float GetChildDependentUsedWidth(
-      const InlineFormattingContext& inline_formatting_context) const;
-  float GetChildDependentUsedHeight(
-      const BlockFormattingContext& block_formatting_context) const;
-  float GetChildDependentUsedHeight(
-      const InlineFormattingContext& inline_formatting_context) const;
 
-  // A formatting context is inferred from the level of child boxes.
-  // A block container box assumes an inline formatting context by default,
-  // and keeps it until inline-level child boxes are added. When the first
-  // block-level box is added, a block formatting context is inferred.
-  FormattingContext formatting_context_;
-  // Child boxes, including anonymous block boxes, if any.
-  ChildBoxes child_boxes_;
   // A vertical offset of the baseline of the last child box that has one,
   // relatively to the origin of the block container box. Disengaged, if none
   // of the child boxes have a baseline.
-  base::optional<float> height_above_baseline_;
+  base::optional<float> maybe_height_above_baseline_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockContainerBox);
-};
-
-// Often abbreviated as simply "blocks", block-level block container boxes
-// participate in the block formatting context and are the most common form
-// of block container boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#block-boxes
-class BlockLevelBlockContainerBox : public BlockContainerBox {
- public:
-  BlockLevelBlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
-  ~BlockLevelBlockContainerBox() OVERRIDE;
-
-  // From |Box|.
-  Level GetLevel() const OVERRIDE;
-};
-
-// Non-replaced inline-block elements generate block container boxes that
-// participate in the inline formatting context as a single opaque box. They
-// belong to a wider group called atomic inline-level boxes.
-//   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
-class InlineLevelBlockContainerBox : public BlockContainerBox {
- public:
-  InlineLevelBlockContainerBox(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
-  ~InlineLevelBlockContainerBox() OVERRIDE;
-
-  // From |Box|.
-  Level GetLevel() const OVERRIDE;
 };
 
 }  // namespace layout

@@ -23,10 +23,11 @@ namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-LineBox::LineBox(float used_top, float containing_block_width)
+LineBox::LineBox(float used_top, float containing_block_width,
+                 ShouldTrimWhiteSpace should_trim_white_space)
     : used_top_(used_top),
       containing_block_width_(containing_block_width),
-      should_trim_white_space_(true),
+      should_trim_white_space_(should_trim_white_space),
       line_exists_(false),
       used_height_(0),
       height_above_baseline_(0) {}
