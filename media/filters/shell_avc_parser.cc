@@ -16,6 +16,8 @@
 
 #include "media/filters/shell_avc_parser.h"
 
+#include <limits>
+
 #include "base/stringprintf.h"
 #include "lb_platform.h"
 #include "media/base/shell_buffer_factory.h"
@@ -97,7 +99,8 @@ bool ShellAVCParser::DownloadAndParseAVCConfigRecord(uint64 offset,
     return false;
   }
   int bytes_read = reader_->BlockingRead(offset, size, record_buffer->Get());
-  if (bytes_read < size) {
+  DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
+  if (bytes_read < static_cast<int>(size)) {
     return false;
   }
   // ok, successfully downloaded the record, parse it
@@ -331,7 +334,8 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   int usable_sps_offset = 0;
   for (uint8 i = 0; i < number_of_sps_nalus; i++) {
     // make sure we haven't run out of record for the 2-byte size record
-    if (record_offset + 2 > size) {
+    DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
+    if (record_offset + 2 > static_cast<int>(size)) {
       DLOG(WARNING) << "ran out of AVCConfig record while parsing SPS size.";
       return false;
     }
@@ -368,12 +372,14 @@ bool ShellAVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
   size_t usable_pps_size = 0;
   size_t usable_pps_offset = 0;
   bool have_valid_pps = false;
-  if (record_offset + 1 < size) {
+  DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
+  if (record_offset + 1 < static_cast<int>(size)) {
     uint8 number_of_pps_nalus = buffer[record_offset];
     record_offset++;
     for (uint8 i = 0; i < number_of_pps_nalus; i++) {
       // make sure we don't run out of room for 2-byte size record
-      if (record_offset + 2 >= size) {
+      DCHECK_LE(size, static_cast<uint32>(std::numeric_limits<int32>::max()));
+      if (record_offset + 2 >= static_cast<int>(size)) {
         DLOG(WARNING) << "ran out of AVCConfig record while parsing PPS size.";
         return false;
       }
