@@ -27,11 +27,13 @@
 #include "base/logging.h"
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/javascriptcore/jsc_global_object.h"
+#include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSValue.h"
 #include "third_party/WebKit/Source/WTF/wtf/text/WTFString.h"
 
-#include "cobalt/script/javascriptcore/jsc_global_object.h"
 
 namespace cobalt {
 namespace script {
