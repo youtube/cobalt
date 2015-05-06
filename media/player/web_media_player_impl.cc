@@ -16,23 +16,18 @@
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
-#if defined(__LB_SHELL__)
 #include "lb_platform.h"
 #include "media/audio/shell_audio_sink.h"
 #include "media/filters/shell_audio_renderer.h"
-#else
-#include "media/audio/null_audio_sink.h"
-#include "media/filters/audio_renderer_impl.h"
-#endif
 #include "media/base/bind_to_loop.h"
 #include "media/base/filter_collection.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
 #include "media/base/pipeline.h"
+#include "media/base/shell_media_platform.h"
+#include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
-#if defined(__LB_SHELL__)
 #include "media/filters/shell_video_decoder.h"
-#endif
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/video_renderer_base.h"
 #include "media/player/filter_helpers.h"
@@ -153,7 +148,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       delegate_(delegate),
       media_log_(media_log),
-      accelerated_compositing_reported_(false),
       incremented_externally_allocated_memory_(false),
       audio_renderer_sink_(audio_renderer_sink),
       is_local_source_(false),
@@ -613,24 +607,22 @@ unsigned WebMediaPlayerImpl::VideoDecodedByteCount() const {
 }
 
 scoped_refptr<VideoFrame> WebMediaPlayerImpl::GetCurrentFrame() {
-  scoped_refptr<VideoFrame> video_frame;
-  proxy_->GetCurrentFrame(&video_frame);
-  if (video_frame)
-    return video_frame;
+  ShellVideoFrameProvider* frame_provider =
+      ShellMediaPlatform::Instance()->GetVideoFrameProvider();
+  if (frame_provider) {
+    return frame_provider->GetCurrentFrame();
+  }
 #if defined(LB_USE_SHELL_PIPELINE)
   // We want to give proxy_ a chance to produce a valid frame before returning
   // the punch out frame
   return punch_out_video_frame_;
-#endif  // defined(LB_USE_SHELL_PIPELINE)
+#else   // defined(LB_USE_SHELL_PIPELINE)
   return NULL;
+#endif  // defined(LB_USE_SHELL_PIPELINE)
 }
 
 void WebMediaPlayerImpl::PutCurrentFrame(
     const scoped_refptr<VideoFrame>& video_frame) {
-  if (!accelerated_compositing_reported_) {
-    accelerated_compositing_reported_ = true;
-    UMA_HISTOGRAM_BOOLEAN("Media.AcceleratedCompositingActive", true);
-  }
 #if defined(LB_USE_SHELL_PIPELINE)
   if (video_frame == punch_out_video_frame_) {
     // This happens when proxy_ returns NULL in getCurrentFrame() so we make
