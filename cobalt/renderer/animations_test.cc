@@ -118,19 +118,21 @@ TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
       graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
 
   {
+    // Setup some synchronization objects so we can ensure the image is created
+    // while the animation callback is being executed, and also that the image
+    // is referenced only after it is created.  It is important that these
+    // objects outlive the Pipeline object (created below), since they will
+    // be referenced from another thread created within the Pipeline object.
+    base::WaitableEvent animate_has_started(true, false);
+    base::WaitableEvent image_ready(true, false);
+    scoped_refptr<Image> image;
+
     // Create the rasterizer using the platform default RenderModule options.
     RendererModule::Options render_module_options;
     Pipeline pipeline(
         base::Bind(render_module_options.create_rasterizer_function,
                    graphics_context.get()),
         dummy_output_surface);
-
-    // Setup some synchronization objects so we can ensure the image is created
-    // while the animation callback is being executed, and also that the image
-    // is referenced only after it is created.
-    base::WaitableEvent animate_has_started(true, false);
-    base::WaitableEvent image_ready(true, false);
-    scoped_refptr<Image> image;
 
     // Our test render tree will consist of only a single ImageNode.
     scoped_refptr<ImageNode> test_node =
