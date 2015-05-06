@@ -18,7 +18,6 @@
 
 #include <GLES2/gl2.h>
 
-#include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -178,9 +177,7 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
       base::polymorphic_downcast<TextureDataEGL*>(texture_data.release()));
 
   scoped_ptr<Texture> texture(
-      new TextureEGL(base::Bind(&GraphicsContextEGL::MakeCurrent,
-                                base::Unretained(this)),
-                     texture_data_egl.Pass(), bgra_format_supported_));
+      new TextureEGL(this, texture_data_egl.Pass(), bgra_format_supported_));
 
   return texture.Pass();
 }
@@ -215,9 +212,7 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromOffscreenRenderTarget(
   PBufferRenderTargetEGL* pbuffer_render_target =
       base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get());
 
-  scoped_ptr<Texture> texture(new TextureEGL(
-      base::Bind(&GraphicsContextEGL::MakeCurrent, base::Unretained(this)),
-      pbuffer_render_target));
+  scoped_ptr<Texture> texture(new TextureEGL(this, pbuffer_render_target));
 
   return texture.Pass();
 }
@@ -280,7 +275,9 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   return pixels.Pass();
 }
 
-GraphicsContextEGL::Frame::Frame(GraphicsContextEGL* owner) : owner_(owner) {}
+GraphicsContextEGL::Frame::Frame(GraphicsContextEGL* owner, EGLSurface surface)
+    : owner_(owner), scoped_make_current_(owner, surface) {}
+
 GraphicsContextEGL::Frame::~Frame() { owner_->OnFrameEnd(); }
 
 void GraphicsContextEGL::Frame::Clear(float red, float green, float blue,
@@ -336,9 +333,8 @@ scoped_ptr<GraphicsContext::Frame> GraphicsContextEGL::StartFrame(
   render_target_ = make_scoped_refptr(
       base::polymorphic_downcast<RenderTargetEGL*>(render_target.get()));
 
-  MakeCurrentWithSurface(render_target_->GetSurface());
-
-  return scoped_ptr<GraphicsContext::Frame>(new Frame(this));
+  return scoped_ptr<GraphicsContext::Frame>(
+      new Frame(this, render_target_->GetSurface()));
 }
 
 void GraphicsContextEGL::OnFrameEnd() {
@@ -346,8 +342,6 @@ void GraphicsContextEGL::OnFrameEnd() {
   EGL_CALL(eglSwapBuffers(display_, render_target_->GetSurface()));
 
   render_target_ = NULL;
-
-  ReleaseCurrentContext();
 }
 
 }  // namespace backend
