@@ -62,7 +62,7 @@ bool VideoFrame::IsValidConfig(VideoFrame::Format format,
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
-    uint32 texture_id,
+    uintptr_t texture_id,
     uint32 texture_target,
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
@@ -313,7 +313,7 @@ uint8* VideoFrame::data(size_t plane) const {
   return data_[plane];
 }
 
-uint32 VideoFrame::texture_id() const {
+uintptr_t VideoFrame::texture_id() const {
   DCHECK_EQ(format_, NATIVE_TEXTURE);
   return texture_id_;
 }
