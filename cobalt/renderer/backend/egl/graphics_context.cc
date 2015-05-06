@@ -18,6 +18,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -63,7 +64,7 @@ GraphicsContextEGL::GraphicsContextEGL(EGLDisplay display, EGLConfig config)
       eglCreatePbufferSurface(display, config, null_surface_attrib_list);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 
-  MakeCurrent(null_surface_);
+  MakeCurrent();
 
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
@@ -137,7 +138,7 @@ void GraphicsContextEGL::SetupBlitToRenderTargetObjects() {
 }
 
 GraphicsContextEGL::~GraphicsContextEGL() {
-  MakeCurrent(null_surface_);
+  MakeCurrent();
 
   GL_CALL(glDeleteBuffers(1, &blit_vertex_buffer_));
   GL_CALL(glDeleteProgram(blit_program_));
@@ -150,11 +151,15 @@ GraphicsContextEGL::~GraphicsContextEGL() {
   EGL_CALL(eglDestroyContext(display_, context_));
 }
 
-void GraphicsContextEGL::MakeCurrent(EGLSurface surface) {
+void GraphicsContextEGL::MakeCurrentWithSurface(EGLSurface surface) {
   DCHECK_NE(EGL_NO_SURFACE, surface) <<
       "Use ReleaseCurrentContext().";
 
   EGL_CALL(eglMakeCurrent(display_, surface, surface, context_));
+}
+
+void GraphicsContextEGL::MakeCurrent() {
+  MakeCurrentWithSurface(null_surface_);
 }
 
 void GraphicsContextEGL::ReleaseCurrentContext() {
@@ -172,12 +177,10 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
   scoped_ptr<TextureDataEGL> texture_data_egl(
       base::polymorphic_downcast<TextureDataEGL*>(texture_data.release()));
 
-  MakeCurrent(null_surface_);
-
   scoped_ptr<Texture> texture(
-      new TextureEGL(texture_data_egl.Pass(), bgra_format_supported_));
-
-  ReleaseCurrentContext();
+      new TextureEGL(base::Bind(&GraphicsContextEGL::MakeCurrent,
+                                base::Unretained(this)),
+                     texture_data_egl.Pass(), bgra_format_supported_));
 
   return texture.Pass();
 }
@@ -212,11 +215,9 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromOffscreenRenderTarget(
   PBufferRenderTargetEGL* pbuffer_render_target =
       base::polymorphic_downcast<PBufferRenderTargetEGL*>(render_target.get());
 
-  MakeCurrent(pbuffer_render_target->GetSurface());
-
-  scoped_ptr<Texture> texture(new TextureEGL(pbuffer_render_target));
-
-  ReleaseCurrentContext();
+  scoped_ptr<Texture> texture(new TextureEGL(
+      base::Bind(&GraphicsContextEGL::MakeCurrent, base::Unretained(this)),
+      pbuffer_render_target));
 
   return texture.Pass();
 }
@@ -239,7 +240,7 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
     const Texture& texture) {
   const TextureEGL* texture_egl =
       base::polymorphic_downcast<const TextureEGL*>(&texture);
-  MakeCurrent(null_surface_);
+  MakeCurrent();
 
   GLuint texture_framebuffer;
   GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
@@ -323,6 +324,8 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
 
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
   GL_CALL(glDisableVertexAttribArray(kBlitTexcoordAttribute));
   GL_CALL(glDisableVertexAttribArray(kBlitPositionAttribute));
   GL_CALL(glUseProgram(0));
@@ -333,7 +336,7 @@ scoped_ptr<GraphicsContext::Frame> GraphicsContextEGL::StartFrame(
   render_target_ = make_scoped_refptr(
       base::polymorphic_downcast<RenderTargetEGL*>(render_target.get()));
 
-  MakeCurrent(render_target_->GetSurface());
+  MakeCurrentWithSurface(render_target_->GetSurface());
 
   return scoped_ptr<GraphicsContext::Frame>(new Frame(this));
 }

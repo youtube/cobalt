@@ -66,7 +66,11 @@ class GraphicsContextEGL : public GraphicsContext {
   // associated with a surface.  For all functionality (e.g. texture creation)
   // that is provided but does not require a surface binding, null_surface_ is
   // specified as a surface.
-  void MakeCurrent(EGLSurface surface);
+  void MakeCurrentWithSurface(EGLSurface surface);
+  // Alternatively, this call can be made to make the context current along
+  // with a null surface.  You would be interested in this method if you don't
+  // plan to be making any draw calls, such as if you're setting up a texture.
+  void MakeCurrent();
   void ReleaseCurrentContext();
 
   // Sets up all structures (like Shaders and vertex buffers) required to
