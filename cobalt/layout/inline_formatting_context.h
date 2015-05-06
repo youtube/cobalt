@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "cobalt/layout/formatting_context.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
 
@@ -44,10 +45,10 @@ class LineBox;
 // at different times. To ensure that the inline formatting context has
 // completed all calculations, |UpdateUsedTops| must be called after
 // |UpdateUsedLeftAndMaybeSplit| has been called for every child box.
-class InlineFormattingContext {
+class InlineFormattingContext : public FormattingContext {
  public:
   explicit InlineFormattingContext(float containing_block_width);
-  ~InlineFormattingContext();
+  ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously updates used values of "left" and "top" for the given child
   // box. The child's position is in undefined state until |EndQueries| is
@@ -69,13 +70,6 @@ class InlineFormattingContext {
   // formatting context.
   float GetShrinkToFitWidth() const;
 
-  // A vertical offset of the baseline of the last line box, relatively to
-  // the origin of the block container box. Disengaged, there are no line boxes
-  // that affect the layout (for example, empty line boxes are discounted).
-  base::optional<float> height_above_baseline() const {
-    return height_above_baseline_;
-  }
-
   // Used to calculate the "auto" height of the box that establishes this
   // formatting context.
   float GetLastLineBoxUsedBottom() const;
@@ -94,8 +88,6 @@ class InlineFormattingContext {
 
   // A width of the block container box when all possible line breaks are made.
   float preferred_min_width_;
-
-  base::optional<float> height_above_baseline_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };

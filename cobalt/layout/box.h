@@ -31,8 +31,8 @@ namespace layout {
 class AnonymousBlockBox;
 class ContainerBox;
 
-struct LayoutOptions {
-  LayoutOptions() : shrink_if_width_depends_on_containing_block(false) {}
+struct LayoutParams {
+  LayoutParams() : shrink_if_width_depends_on_containing_block(false) {}
 
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
@@ -97,7 +97,7 @@ class Box {
   const math::RectF& used_frame() const { return used_frame_; }
 
   // Lays out the box and all its descendants recursively.
-  virtual void Layout(const LayoutOptions& layout_options) = 0;
+  virtual void Layout(const LayoutParams& layout_params) = 0;
   // Attempts to split the box, so that the part before the split would fit
   // the available width. Returns the part after the split if the split
   // succeeded. Note that only inline boxes are splittable.

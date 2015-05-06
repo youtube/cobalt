@@ -58,19 +58,18 @@ scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   return box_after_split.Pass();
 }
 
-void InlineContainerBox::Layout(const LayoutOptions& layout_options) {
+void InlineContainerBox::Layout(const LayoutParams& layout_params) {
   // TODO(***REMOVED***): If this method is called on a box after the split, no layout
   //               recalculation is necessary.
 
   // Lay out child boxes as a one line without width constraints and white space
   // trimming.
-  LineBox line_box(0, 0);
-  line_box.set_should_trim_white_space(false);
+  LineBox line_box(0, 0, LineBox::kShouldNotTrimWhiteSpace);
 
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->Layout(layout_options);
+    child_box->Layout(layout_params);
     line_box.QueryUsedPositionAndMaybeOverflow(child_box);
   }
   line_box.EndQueries();
