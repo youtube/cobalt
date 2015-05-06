@@ -28,6 +28,7 @@
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "googleurl/src/gurl.h"
+#include "media/base/video_frame.h"
 #include "media/player/web_media_player.h"
 
 namespace cobalt {
@@ -42,6 +43,7 @@ typedef int ExceptionCode;
 class HTMLMediaElement : public HTMLElement,
                          private ::media::WebMediaPlayerClient {
  public:
+  typedef ::media::VideoFrame VideoFrame;
   typedef ::media::WebMediaPlayer WebMediaPlayer;
 
   static const char kTagName[];
@@ -116,6 +118,8 @@ class HTMLMediaElement : public HTMLElement,
   void set_volume(float volume /*, ExceptionCode**/);
   bool muted() const;
   void set_muted(bool muted);
+
+  scoped_refptr<VideoFrame> GetCurrentFrame();
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
 
