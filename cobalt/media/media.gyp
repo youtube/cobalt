@@ -17,11 +17,21 @@
     {
       'target_name': 'media',
       'type': 'static_library',
+      'include_dirs': [
+        '<(lbshell_root)/src',
+        '<(lbshell_root)/src/platform/<(target_arch)',
+      ],
       'sources': [
         'media_module.cc',
         'media_module.h',
         'media_module_<(actual_target_arch).cc',
         'web_media_player_factory.h',
+      ],
+      'dependencies': [
+        '<(DEPTH)/media/media.gyp:media',
+      ],
+      'export_dependent_settings': [
+        '<(DEPTH)/media/media.gyp:media',
       ],
       'conditions': [
         ['target_arch == "ps3"', {
@@ -47,17 +57,9 @@
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.cc',
             '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.h',
           ],
-          'include_dirs': [
-            '<(lbshell_root)/src',
-            '<(lbshell_root)/src/platform/<(target_arch)',
-          ],
           'dependencies': [
-            '<(DEPTH)/media/media.gyp:media',
             # For resampler
             '<(lbshell_root)/build/platforms/ps3.gyp:spurs_tasks',
-          ],
-          'export_dependent_settings': [
-            '<(DEPTH)/media/media.gyp:media',
           ],
         }],
       ],
