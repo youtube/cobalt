@@ -19,6 +19,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
@@ -47,8 +48,12 @@ TextureDataEGL::TextureDataEGL(const SurfaceInfo& surface_info)
     : surface_info_(surface_info),
       memory_(new uint8_t[GetPitchInBytes() * surface_info.size.height()]) {}
 
-TextureEGL::TextureEGL(scoped_ptr<TextureDataEGL> texture_source_data,
-                       bool bgra_supported) {
+TextureEGL::TextureEGL(const base::Closure& make_context_current_function,
+                       scoped_ptr<TextureDataEGL> texture_source_data,
+                       bool bgra_supported)
+    : make_context_current_function_(make_context_current_function) {
+  make_context_current_function_.Run();
+
   surface_info_ = texture_source_data->GetSurfaceInfo();
 
   GL_CALL(glGenTextures(1, &gl_handle_));
@@ -69,7 +74,11 @@ TextureEGL::TextureEGL(scoped_ptr<TextureDataEGL> texture_source_data,
 }
 
 TextureEGL::TextureEGL(
-    const scoped_refptr<PBufferRenderTargetEGL>& render_target) {
+    const base::Closure& make_context_current_function,
+    const scoped_refptr<PBufferRenderTargetEGL>& render_target)
+    : make_context_current_function_(make_context_current_function) {
+  make_context_current_function_.Run();
+
   source_render_target_ = render_target;
 
   // First we create the OpenGL texture object and maintain a handle to it.
@@ -93,6 +102,8 @@ TextureEGL::TextureEGL(
 }
 
 TextureEGL::~TextureEGL() {
+  make_context_current_function_.Run();
+
   if (source_render_target_) {
     EGL_CALL(eglReleaseTexImage(source_render_target_->display(),
                                 source_render_target_->GetSurface(),
