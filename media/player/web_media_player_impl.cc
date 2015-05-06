@@ -67,7 +67,7 @@ const float kMaxRate = 16.0f;
 // Prefix for histograms related to Encrypted Media Extensions.
 const char* kMediaEme = "Media.EME.";
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
 // On XB1 and XB360 the MediaEngine can hang if we keep seeking to a position
 // that is near the end of the video. So we ignore any seeks near the end of
 // stream position when the current playback position is also near the end of
@@ -77,7 +77,7 @@ const double kEndOfStreamEpsilonInSeconds = 2.;
 
 bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
                           double position) {
-  float duration = wmpi->duration();
+  float duration = wmpi->Duration();
   if (_finite(duration)) {
     // If video is very short, we always treat a position as near the end.
     if (duration <= kEndOfStreamEpsilonInSeconds)
@@ -87,7 +87,7 @@ bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
   }
   return false;
 }
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif  // defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
 
 base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
   float microseconds = seconds * base::Time::kMicrosecondsPerSecond;
@@ -373,15 +373,15 @@ bool WebMediaPlayerImpl::SupportsSave() const {
 void WebMediaPlayerImpl::Seek(float seconds) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
+#if defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
   // Ignore any seek request that is near the end of the stream when the
   // current playback position is also near the end of the stream to avoid
   // a hang in the MediaEngine.
-  if (IsNearTheEndOfStream(this, currentTime()) &&
+  if (IsNearTheEndOfStream(this, CurrentTime()) &&
       IsNearTheEndOfStream(this, seconds)) {
     return;
   }
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
+#endif  // defined(LB_SKIP_SEEK_REQUEST_NEAR_END)
 
   if (starting_ || seeking_) {
     pending_seek_ = true;
@@ -627,7 +627,8 @@ void WebMediaPlayerImpl::PutCurrentFrame(
   if (video_frame == punch_out_video_frame_) {
     // This happens when proxy_ returns NULL in getCurrentFrame() so we make
     // sure that it gets a NULL back as well
-    video_frame = NULL;
+    proxy_->PutCurrentFrame(NULL);
+    return;
   }
 #endif  // defined(LB_USE_SHELL_PIPELINE)
   if (video_frame) {
