@@ -48,11 +48,11 @@ TextureDataEGL::TextureDataEGL(const SurfaceInfo& surface_info)
     : surface_info_(surface_info),
       memory_(new uint8_t[GetPitchInBytes() * surface_info.size.height()]) {}
 
-TextureEGL::TextureEGL(const base::Closure& make_context_current_function,
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
                        scoped_ptr<TextureDataEGL> texture_source_data,
                        bool bgra_supported)
-    : make_context_current_function_(make_context_current_function) {
-  make_context_current_function_.Run();
+    : graphics_context_(graphics_context) {
+  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   surface_info_ = texture_source_data->GetSurfaceInfo();
 
@@ -74,10 +74,10 @@ TextureEGL::TextureEGL(const base::Closure& make_context_current_function,
 }
 
 TextureEGL::TextureEGL(
-    const base::Closure& make_context_current_function,
+    GraphicsContextEGL* graphics_context,
     const scoped_refptr<PBufferRenderTargetEGL>& render_target)
-    : make_context_current_function_(make_context_current_function) {
-  make_context_current_function_.Run();
+    : graphics_context_(graphics_context) {
+  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   source_render_target_ = render_target;
 
@@ -102,7 +102,7 @@ TextureEGL::TextureEGL(
 }
 
 TextureEGL::~TextureEGL() {
-  make_context_current_function_.Run();
+  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   if (source_render_target_) {
     EGL_CALL(eglReleaseTexImage(source_render_target_->display(),
