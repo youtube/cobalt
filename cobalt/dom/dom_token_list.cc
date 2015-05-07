@@ -85,47 +85,66 @@ bool DOMTokenList::Contains(const std::string& token) const {
 
 // Algorithm for Add:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-add
-void DOMTokenList::Add(const std::string& token) {
+void DOMTokenList::Add(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
 
-  // 1. If token is the empty string, then throw a "SyntaxError" exception.
-  // 2. If token contains any ASCII whitespace, then throw an
-  //    "InvalidCharacterError" exception.
-  if (!IsTokenValid(token)) {
-    return;
+  for (std::vector<std::string>::const_iterator it = tokens.begin();
+       it != tokens.end(); ++it) {
+    // 1. If token is the empty string, then throw a "SyntaxError" exception.
+    // 2. If token contains any ASCII whitespace, then throw an
+    //    "InvalidCharacterError" exception.
+    if (!IsTokenValid(*it)) {
+      return;
+    }
   }
 
-  // 3. For each token in tokens, in given order, that is not in tokens, append
-  //    token to tokens.
-  if (std::find(tokens_.begin(), tokens_.end(), token) != tokens_.end()) {
-    return;
+  const size_t old_size = tokens_.size();
+  for (std::vector<std::string>::const_iterator it = tokens.begin();
+       it != tokens.end(); ++it) {
+    // 3. For each token in tokens, in given order, that is not in tokens,
+    // append
+    //    token to tokens.
+    if (std::find(tokens_.begin(), tokens_.end(), *it) != tokens_.end()) {
+      continue;
+    }
+    tokens_.push_back(*it);
   }
-  tokens_.push_back(token);
 
   // 4. Run the update steps.
-  UpdateSteps();
+  if (tokens_.size() != old_size) {
+    UpdateSteps();
+  }
 }
 
 // Algorithm for Remove:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-domtokenlist-remove
-void DOMTokenList::Remove(const std::string& token) {
+void DOMTokenList::Remove(const std::vector<std::string>& tokens) {
   // Custom, not in any spec.
   MaybeRefresh();
 
-  // 1. If token is the empty string, then throw a "SyntaxError" exception.
-  // 2. If token contains any ASCII whitespace, then throw an
-  //    "InvalidCharacterError" exception.
-  if (!IsTokenValid(token)) {
-    return;
+  for (std::vector<std::string>::const_iterator it = tokens.begin();
+       it != tokens.end(); ++it) {
+    // 1. If token is the empty string, then throw a "SyntaxError" exception.
+    // 2. If token contains any ASCII whitespace, then throw an
+    //    "InvalidCharacterError" exception.
+    if (!IsTokenValid(*it)) {
+      return;
+    }
   }
 
-  // 3. For each token in tokens, remove token from tokens.
-  tokens_.erase(std::remove(tokens_.begin(), tokens_.end(), token),
-                tokens_.end());
+  const size_t old_size = tokens_.size();
+  for (std::vector<std::string>::const_iterator it = tokens.begin();
+       it != tokens.end(); ++it) {
+    // 3. For each token in tokens, remove token from tokens.
+    tokens_.erase(std::remove(tokens_.begin(), tokens_.end(), *it),
+                  tokens_.end());
+  }
 
   // 4. Run the update steps.
-  UpdateSteps();
+  if (tokens_.size() != old_size) {
+    UpdateSteps();
+  }
 }
 
 DOMTokenList::~DOMTokenList() { Stats::GetInstance()->Remove(this); }
