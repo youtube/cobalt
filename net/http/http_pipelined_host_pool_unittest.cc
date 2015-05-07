@@ -106,9 +106,11 @@ class HttpPipelinedHostPoolTest : public testing::Test {
         .Times(1)
         .WillOnce(Return(mock_host));
     ClientSocketHandle* dummy_connection =
-        reinterpret_cast<ClientSocketHandle*>(base::RandUint64());
+        reinterpret_cast<ClientSocketHandle*>(
+            static_cast<uintptr_t>(base::RandUint64()));
     HttpPipelinedStream* dummy_stream =
-        reinterpret_cast<HttpPipelinedStream*>(base::RandUint64());
+        reinterpret_cast<HttpPipelinedStream*>(
+          static_cast<uintptr_t>(base::RandUint64()));
     CreateDummyStream(key, dummy_connection, dummy_stream, mock_host);
     return mock_host;
   }

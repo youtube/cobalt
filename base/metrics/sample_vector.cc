@@ -43,7 +43,7 @@ Count SampleVector::TotalCount() const {
 }
 
 Count SampleVector::GetCountAtIndex(size_t bucket_index) const {
-  DCHECK(bucket_index >= 0 && bucket_index < counts_.size());
+  DCHECK(bucket_index < counts_.size());
   return counts_[bucket_index];
 }
 
