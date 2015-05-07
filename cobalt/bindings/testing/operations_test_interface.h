@@ -47,6 +47,11 @@ class OperationsTestInterface : public script::Wrappable {
                void(base::optional<bool>,
                     const scoped_refptr<ArbitraryInterface>&));
 
+  MOCK_METHOD1(VariadicPrimitiveArguments, void(const std::vector<int32_t>));
+  MOCK_METHOD0(VariadicStringArgumentsAfterOptionalArgument, void());
+  MOCK_METHOD2(VariadicStringArgumentsAfterOptionalArgument,
+               void(bool, const std::vector<std::string>));
+
   DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
 };
 

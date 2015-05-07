@@ -25,4 +25,8 @@ interface OperationsTestInterface {
   void optionalNullableArgumentsWithDefaults(
       optional boolean? arg1 = null,
       optional ArbitraryInterface? arg2 = null);
+
+  void variadicPrimitiveArguments(long... bools);
+  void variadicStringArgumentsAfterOptionalArgument(
+      optional boolean optional_arg, DOMString... strings);
 };
