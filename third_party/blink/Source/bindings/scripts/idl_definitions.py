@@ -446,7 +446,7 @@ class IdlLiteral(object):
 
     def __str__(self):
         if self.idl_type == 'DOMString':
-            return 'String("%s")' % self.value
+            return '"%s"' % self.value
         if self.idl_type == 'integer':
             return '%d' % self.value
         if self.idl_type == 'float':
@@ -463,7 +463,7 @@ class IdlLiteralNull(IdlLiteral):
         self.is_null = True
 
     def __str__(self):
-        return 'nullptr'
+        return 'NULL'
 
 
 def default_node_to_idl_literal(node):
