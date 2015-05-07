@@ -34,6 +34,8 @@
 //     namespaces cannot be included from grammar (.y) as this will cause double
 //     nesting of included classes.
 
+#include <cmath>
+
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/complex_selector.h"

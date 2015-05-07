@@ -16,6 +16,8 @@
 
 #include "cobalt/css_parser/parser.h"
 
+#include <cmath>
+
 #include "base/bind.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
