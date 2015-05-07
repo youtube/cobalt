@@ -524,12 +524,25 @@ simple_selector_token:
 //   http://www.w3.org/TR/selectors4/#compound
 compound_selector_token:
     simple_selector_token {
-    $$ = new cssom::CompoundSelector();
-    $$->AppendSelector(make_scoped_ptr($1));
+    scoped_ptr<cssom::Selector> simple_selector($1);
+
+    if (simple_selector) {
+      $$ = new cssom::CompoundSelector();
+      $$->AppendSelector(simple_selector.Pass());
+    } else {
+      $$ = NULL;
+    }
   }
   | compound_selector_token simple_selector_token {
-    $$ = $1;
-    $$->AppendSelector(scoped_ptr<cssom::Selector>($2));
+    scoped_ptr<cssom::CompoundSelector> compound_selector($1);
+    scoped_ptr<cssom::Selector> simple_selector($2);
+
+    if (compound_selector && simple_selector) {
+      $$ = compound_selector.release();
+      $$->AppendSelector(simple_selector.Pass());
+    } else {
+      $$ = NULL;
+    }
   }
   ;
 
@@ -556,12 +569,27 @@ combinator:
 //   http://www.w3.org/TR/selectors4/#complex
 complex_selector:
     compound_selector_token {
-    $$ = new cssom::ComplexSelector();
-    $$->AppendSelector(make_scoped_ptr($1));
+    scoped_ptr<cssom::CompoundSelector> compound_selector($1);
+
+    if (compound_selector) {
+      $$ = new cssom::ComplexSelector();
+      $$->AppendSelector(compound_selector.Pass());
+    } else {
+      $$ = NULL;
+    }
   }
   | complex_selector combinator compound_selector_token {
-    $$ = $1;
-    $$->AppendCombinatorAndSelector(make_scoped_ptr($2), make_scoped_ptr($3));
+    scoped_ptr<cssom::ComplexSelector> complex_selector($1);
+    scoped_ptr<cssom::Combinator> combinator($2);
+    scoped_ptr<cssom::CompoundSelector> compound_selector($3);
+
+    if (complex_selector && compound_selector) {
+      $$ = complex_selector.release();
+      $$->AppendCombinatorAndSelector(combinator.Pass(),
+          compound_selector.Pass());
+    } else {
+      $$ = NULL;
+    }
   }
   | complex_selector kWhitespaceToken
   ;
@@ -574,8 +602,15 @@ selector_list:
     $$->push_back($1);
   }
   | selector_list comma complex_selector {
-    $$ = $1;
-    $$->push_back($3);
+    scoped_ptr<cssom::Selectors> selector_list($1);
+    scoped_ptr<cssom::ComplexSelector> complex_selector($3);
+
+    if (selector_list && complex_selector) {
+      $$ = selector_list.release();
+      $$->push_back(complex_selector.release());
+    } else {
+      YYERROR;
+    }
   }
   ;
 
