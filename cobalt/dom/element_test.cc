@@ -231,20 +231,28 @@ TEST_F(ElementTest, ClassList) {
   EXPECT_TRUE(class_list->Contains("b"));
   EXPECT_FALSE(class_list->Contains("c"));
 
+  std::vector<std::string> token_list;
+
   // Add class
-  class_list->Add("c");
+  token_list.clear();
+  token_list.push_back("c");
+  class_list->Add(token_list);
   EXPECT_EQ(5, class_list->length());
   EXPECT_TRUE(class_list->Contains("c"));
 
   // Invalid token, should throw JS Exceptions.
-  class_list->Add("");
-  class_list->Add(" z");
-  class_list->Add("\tz");
+  token_list.clear();
+  token_list.push_back("");
+  token_list.push_back(" z");
+  token_list.push_back("\tz");
+  class_list->Add(token_list);
   EXPECT_EQ(5, class_list->length());
   EXPECT_FALSE(class_list->Contains("z"));
 
   // Remove class
-  class_list->Remove("a");
+  token_list.clear();
+  token_list.push_back("a");
+  class_list->Remove(token_list);
   EXPECT_EQ(3, class_list->length());
   EXPECT_FALSE(class_list->Contains("a"));
 
