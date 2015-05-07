@@ -16,6 +16,7 @@
 
 #include "cobalt/css_parser/parser.h"
 
+#include <cmath>
 #include <cstdio>
 #include <sstream>
 
