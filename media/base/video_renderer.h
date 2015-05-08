@@ -12,10 +12,7 @@
 #include "base/time.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
-
-namespace gfx {
-class Size;
-}
+#include "ui/gfx/size.h"
 
 namespace media {
 
