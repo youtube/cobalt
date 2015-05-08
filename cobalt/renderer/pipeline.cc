@@ -42,7 +42,14 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
   // so we detach it here and let it reattach itself to the rasterizer thread
   // when CalledOnValidThread() is called on rasterizer_thread_checker_ below.
   rasterizer_thread_checker_.DetachFromThread();
+#if defined(__LB_PS3__)
+  // TODO(20953608) Implement a way to set this properly.
+  const int kStackSize = 64 * 1024;
+  rasterizer_thread_->StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_DEFAULT, kStackSize));
+#else
   rasterizer_thread_->Start();
+#endif
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&Pipeline::InitializeRasterizerThread, base::Unretained(this),
