@@ -41,6 +41,7 @@ class Navigator;
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
 class Window : public EventTarget {
  public:
+  typedef base::Callback<void(double)> FrameRequestCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
@@ -58,6 +59,11 @@ class Window : public EventTarget {
   //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
+
+  int32_t RequestAnimationFrame(FrameRequestCallback callback) {
+    NOTIMPLEMENTED();
+    return 0;
+  }
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
