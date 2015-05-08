@@ -20,4 +20,8 @@
   [Unforgeable] readonly attribute Document document;
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
+
+  long requestAnimationFrame(FrameRequestCallback callback);
 };
+
+callback FrameRequestCallback = void(double time);
