@@ -19,6 +19,8 @@ interface CallbackFunctionInterface {
   void takesFunctionWithOneParameter(FunctionWithOneParameter cb);
   void takesFunctionWithSeveralParameters(FunctionWithSeveralParameters cb);
   void takesFunctionWithNullableParameters(FunctionWithNullableParameters cb);
+
+  attribute VoidFunction callbackAttribute;
 };
 
 callback VoidFunction = void();
