@@ -23,6 +23,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/web_media_player_factory.h"
+#include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
@@ -41,7 +42,7 @@ class Navigator;
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
 class Window : public EventTarget {
  public:
-  typedef base::Callback<void(double)> FrameRequestCallback;
+  typedef script::CallbackFunction<void(double)> FrameRequestCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
@@ -60,7 +61,7 @@ class Window : public EventTarget {
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
 
-  int32_t RequestAnimationFrame(FrameRequestCallback callback) {
+  int32_t RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&) {
     NOTIMPLEMENTED();
     return 0;
   }

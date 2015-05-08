@@ -28,6 +28,7 @@
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/javascriptcore/jsc_callback_function.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
@@ -121,6 +122,23 @@ inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
     return JSC::jsNull();
   }
   return ToJSValue(global_object, in_optional.value());
+}
+
+// CallbackFunction -> JSValue
+template <class T>
+inline JSC::JSValue ToJSValue(
+    JSCGlobalObject* global_object,
+    const scoped_refptr<CallbackFunction<T> >& callback_function) {
+  // Downcast to JSCCallbackFunction<> concrete class.
+  JSCCallbackFunction<typename CallbackFunction<T>::Signature>*
+      jsc_callback_function = base::polymorphic_downcast<
+          JSCCallbackFunction<typename CallbackFunction<T>::Signature>*>(
+          callback_function.get());
+  // Retrieve the JSFunction* from the JSCObjectOwner.
+  JSCObjectOwner* callable = jsc_callback_function->callable();
+  JSC::WriteBarrier<JSC::JSObject> callable_object = callable->js_object();
+  ASSERT_GC_OBJECT_INHERITS(callable_object.get(), &JSC::JSFunction::s_info);
+  return JSC::JSValue(callable_object.get());
 }
 
 // Overloads of FromJSValue retrieve the Cobalt value from a JSValue.
