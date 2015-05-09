@@ -40,10 +40,6 @@ void TextBox::Layout(const LayoutParams& /*layout_params*/) {
   // TODO(***REMOVED***): If this method is called on a box after the split, no layout
   //               recalculation is necessary.
 
-  // TODO(***REMOVED***): Calculate the leading and line height based on font metrics:
-  //               http://www.w3.org/TR/CSS21/visudet.html#leading
-  NOTIMPLEMENTED();
-
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
 
   // Since Skia returns the bounding rectangle of a text, the width of any white
@@ -62,13 +58,25 @@ void TextBox::Layout(const LayoutParams& /*layout_params*/) {
                          GetTrailingWhiteSpaceWidth());
   text_x_ = -text_bounds.x();
 
+  // Below is calculated based on
+  // http://www.w3.org/TR/CSS21/visudet.html#leading.
+
+  UsedLineHeightProvider used_line_height_provider(font_metrics);
+  computed_style()->line_height()->Accept(&used_line_height_provider);
+
+  // Determine the leading L, where L = "line-height" - AD,
+  // AD = A (ascent) + D (descent).
+  float leading = used_line_height_provider.used_line_height() -
+                  (font_metrics.ascent + font_metrics.descent);
+
+  // The height of the inline box encloses all glyphs and their half-leading
+  // on each side and is thus exactly "line-height".
+  used_frame().set_height(used_line_height_provider.used_line_height());
+
   // Half the leading is added above ascent (A) and the other half below
   // descent (D), giving the glyph and its leading (L) a total height above
   // the baseline of A' = A + L/2 and a total depth of D' = D + L/2.
-  //   http://www.w3.org/TR/CSS21/visudet.html#leading
-  used_frame().set_height(font_metrics.ascent + font_metrics.descent +
-                          font_metrics.leading);
-  height_above_baseline_ = font_metrics.ascent + font_metrics.leading / 2;
+  height_above_baseline_ = font_metrics.ascent + leading / 2;
 }
 
 scoped_ptr<Box> TextBox::TrySplitAt(float /*available_width*/) {

@@ -1135,6 +1135,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kFontWeightToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kLineHeightPropertyName)) {
+        *property_name_token = kLineHeightToken;
+        return true;
+      }
       return false;
 
     case 13:

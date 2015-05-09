@@ -415,6 +415,24 @@ TEST_F(ParserTest, ParsesHeight) {
   EXPECT_EQ(cssom::kPixelsUnit, height->unit());
 }
 
+TEST_F(ParserTest, ParsesNormalLineHeight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("line-height: normal;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->line_height());
+}
+
+TEST_F(ParserTest, ParsesLineHeightInEm) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("line-height: 1.2em;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> line_height =
+      dynamic_cast<cssom::LengthValue*>(style->line_height().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), line_height);
+  EXPECT_FLOAT_EQ(1.2f, line_height->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, line_height->unit());
+}
+
 TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("opacity: 0.5;", source_location_);

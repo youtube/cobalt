@@ -239,6 +239,23 @@ TEST(CSSStyleDeclarationTest, HeightSetter) {
   style->set_height(height);
 }
 
+TEST(CSSStyleDeclarationTest, LineHeightSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string line_height = "1.5em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kLineHeightPropertyName, line_height, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  EXPECT_CALL(observer, OnMutation()).Times(1);
+
+  style->set_line_height(line_height);
+}
+
 TEST(CSSStyleDeclarationTest, OpacitySetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =

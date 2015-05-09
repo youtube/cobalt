@@ -31,6 +31,7 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kInlineBlock,
             KeywordValue::GetInlineBlock()->value());
   EXPECT_EQ(KeywordValue::kNone, KeywordValue::GetNone()->value());
+  EXPECT_EQ(KeywordValue::kNormal, KeywordValue::GetNormal()->value());
   EXPECT_EQ(KeywordValue::kVisible, KeywordValue::GetVisible()->value());
 }
 
