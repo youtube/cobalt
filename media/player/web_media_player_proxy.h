@@ -23,15 +23,12 @@
 #endif
 #include "media/filters/skcanvas_video_renderer.h"
 #include "media/player/buffered_data_source.h"
+#include "ui/gfx/rect.h"
 
 class SkCanvas;
 
 namespace base {
 class MessageLoopProxy;
-}
-
-namespace gfx {
-class Rect;
 }
 
 namespace media {
