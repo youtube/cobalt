@@ -67,6 +67,7 @@
 %token kFontSizeToken                   // font-size
 %token kFontWeightToken                 // font-weight
 %token kHeightToken                     // height
+%token kLineHeightToken                 // line-height
 %token kOpacityToken                    // opacity
 %token kOverflowToken                   // overflow
 %token kTransformToken                  // transform
@@ -244,8 +245,8 @@
                        final_background_layer font_family_property_value
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
-                       opacity_property_value overflow_property_value
-                       transform_property_value
+                       line_height_property_value opacity_property_value
+                       overflow_property_value transform_property_value
                        transition_duration_property_value
                        transition_property_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
@@ -387,6 +388,9 @@ identifier_token:
   }
   | kHeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHeightPropertyName);
+  }
+  | kLineHeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
   }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
@@ -880,9 +884,20 @@ font_weight_property_value:
   | common_values
   ;
 
-// The height of an element's box.
+// Specifies the content height of boxes.
+//   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
 height_property_value:
     length { $$ = $1; }  // TODO(***REMOVED***): Reject negative heights.
+  | common_values
+  ;
+
+// Specifies the minimal height of line boxes within the element.
+//   http://www.w3.org/TR/CSS21/visudet.html#line-height
+line_height_property_value:
+    kNormalToken maybe_whitespace  {
+    $$ = AddRef(cssom::KeywordValue::GetNormal().get());
+  }
+  | length { $$ = $1; }  // TODO(***REMOVED***): Reject negative heights.
   | common_values
   ;
 
@@ -1051,7 +1066,8 @@ transition_property_property_value:
   | common_values
   ;
 
-// The width of an element's box.
+// Specifies the content width of boxes.
+//   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 width_property_value:
     length { $$ = $1; }  // TODO(***REMOVED***): Reject negative widths.
   | common_values
@@ -1153,6 +1169,12 @@ maybe_declaration:
   | kHeightToken maybe_whitespace colon height_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kHeightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kLineHeightToken maybe_whitespace colon line_height_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kLineHeightPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
