@@ -315,6 +315,7 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kNormal:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();

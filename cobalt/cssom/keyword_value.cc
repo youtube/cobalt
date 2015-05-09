@@ -32,6 +32,7 @@ struct KeywordValue::NonTrivialStaticFields {
         inline_value(new KeywordValue(KeywordValue::kInline)),
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
         none_value(new KeywordValue(KeywordValue::kNone)),
+        normal_value(new KeywordValue(KeywordValue::kNormal)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
   const scoped_refptr<KeywordValue> auto_value;
@@ -42,6 +43,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> inline_value;
   const scoped_refptr<KeywordValue> inline_block_value;
   const scoped_refptr<KeywordValue> none_value;
+  const scoped_refptr<KeywordValue> normal_value;
   const scoped_refptr<KeywordValue> visible_value;
 
  private:
@@ -85,6 +87,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetInlineBlock() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetNone() {
   return non_trivial_static_fields.Get().none_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
+  return non_trivial_static_fields.Get().normal_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetVisible() {

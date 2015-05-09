@@ -72,6 +72,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-transforms/#transform-property
     kNone,
 
+    // "normal" is a value of "line-height" property which tells user agents
+    // to set the used value to a "reasonable" value based on the font
+    // of the element.
+    //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+    kNormal,
+
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -90,6 +96,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInline();
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetNone();
+  static const scoped_refptr<KeywordValue>& GetNormal();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;

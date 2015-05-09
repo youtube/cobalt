@@ -63,6 +63,7 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -73,6 +74,21 @@ void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit())
       << "TODO(***REMOVED***): Implement other units";
   set_used_height(length->value());
+}
+
+UsedLineHeightProvider::UsedLineHeightProvider(
+    const render_tree::FontMetrics& font_metrics)
+    : font_metrics_(font_metrics) {}
+
+void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
+  DCHECK_EQ(cssom::KeywordValue::kNormal, keyword->value());
+  used_line_height_ =
+      font_metrics_.ascent + font_metrics_.descent + font_metrics_.leading;
+}
+
+void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+  used_line_height_ = length->value();
 }
 
 void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
@@ -89,6 +105,7 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();

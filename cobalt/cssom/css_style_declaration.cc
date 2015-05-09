@@ -42,6 +42,7 @@ struct NonTrivialStaticFields {
 // accessed.
 base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
+
 }  // namespace
 
 CSSStyleDeclaration::CSSStyleDeclaration(cssom::CSSParser* css_parser)
@@ -199,6 +200,19 @@ void CSSStyleDeclaration::set_height(const std::string& height) {
   DCHECK(css_parser_);
   data_->set_height(css_parser_->ParsePropertyValue(
       kHeightPropertyName, height, non_trivial_static_fields.Get().location));
+
+  RecordMutation();
+}
+
+std::string CSSStyleDeclaration::line_height() const {
+  return data_->line_height() ? data_->line_height()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_line_height(const std::string& line_height) {
+  DCHECK(css_parser_);
+  data_->set_line_height(css_parser_->ParsePropertyValue(
+      kLineHeightPropertyName, line_height,
+      non_trivial_static_fields.Get().location));
 
   RecordMutation();
 }

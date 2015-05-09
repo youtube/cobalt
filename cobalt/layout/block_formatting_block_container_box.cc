@@ -23,7 +23,6 @@
 namespace cobalt {
 namespace layout {
 
-
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions)
