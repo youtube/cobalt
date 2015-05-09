@@ -1,5 +1,6 @@
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
 10-8-baseline-of-inline-block-should-be-baseline-of-last-line-box
+10-8-line-height-should-specify-minimum-height-of-line-boxes
 9-2-1-1-inline-level-boxes-should-be-broken-around-block-level-box
 9-2-1-1-inline-level-boxes-should-be-wrapped-in-anonymous-block-boxes-in-block-formatting-context
 9-2-1-block-level-boxes-should-participate-in-block-formatting-context

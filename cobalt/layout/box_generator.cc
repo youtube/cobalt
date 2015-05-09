@@ -95,6 +95,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();

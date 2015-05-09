@@ -79,6 +79,24 @@ class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
 };
 
+class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedLineHeightProvider(const render_tree::FontMetrics& font_metrics);
+
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitLength(cssom::LengthValue* length) OVERRIDE;
+
+  float used_line_height() const { return used_line_height_; }
+
+ private:
+  const render_tree::FontMetrics font_metrics_;
+
+  float used_line_height_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
+};
+
+
 class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   UsedWidthProvider() {}

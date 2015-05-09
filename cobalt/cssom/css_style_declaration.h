@@ -87,6 +87,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string height() const;
   void set_height(const std::string& height);
 
+  std::string line_height() const;
+  void set_line_height(const std::string& line_height);
+
   std::string opacity() const;
   void set_opacity(const std::string& opacity);
 
