@@ -250,5 +250,15 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
   EXPECT_EQ(kNullNode, child3->next_element_sibling());
 }
 
+TEST_F(NodeTest, NoTextChildWhenTextContentsAreEmpty) {
+  scoped_refptr<Node> node = new FakeNode();
+  scoped_refptr<Text> text = new Text("text");
+  node->AppendChild(text);
+  EXPECT_EQ(text, node->first_child());
+
+  node->set_text_content("");
+  EXPECT_EQ(NULL, node->first_child());
+}
+
 }  // namespace dom
 }  // namespace cobalt
