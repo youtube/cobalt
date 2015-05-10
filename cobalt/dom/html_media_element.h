@@ -52,6 +52,9 @@ class HTMLMediaElement : public HTMLElement,
                    cssom::CSSParser* css_parser,
                    media::WebMediaPlayerFactory* web_media_player_factory);
 
+  // Web API: Node
+  void AttachToDocument(Document* document) OVERRIDE;
+
   // Web API: Element
   //
   const std::string& tag_name() const OVERRIDE;
@@ -234,7 +237,6 @@ class HTMLMediaElement : public HTMLElement,
   bool muted_;
   bool paused_;
   bool seeking_;
-  bool autoplay_;
   bool loop_;
   bool controls_;
 

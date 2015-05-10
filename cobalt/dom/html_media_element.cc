@@ -58,29 +58,26 @@ HTMLMediaElement::HTMLMediaElement(
       muted_(false),
       paused_(true),
       seeking_(false),
-      autoplay_(false),
       loop_(false),
       controls_(false),
       last_time_update_event_wall_time_(0),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
       processing_media_player_callback_(0),
+      media_source_url_(kMediaSourceUrlProtocol + ':' + base::GenerateGUID()),
       cached_time_(-1.),
       cached_time_wall_clock_update_time_(0),
       minimum_wall_clock_time_to_cached_media_time_(0),
       pending_load_(false),
       sent_stalled_event_(false),
-      sent_end_event_(false) {
-  // TODO(***REMOVED***): Remove the following lines when the returned binding of
-  //                  HTMLElement derived class is correct.
-  static const int kLoadVideoHack = true;
-  if (kLoadVideoHack) {
-    src_ = "file:///cobalt/dom/testdata/media-element/avengers-2015.mp4";
-    base::MessageLoopProxy::current()->PostTask(
-        FROM_HERE, base::Bind(&HTMLMediaElement::Play, this));
+      sent_end_event_(false) {}
+
+void HTMLMediaElement::AttachToDocument(Document* document) {
+  HTMLElement::AttachToDocument(document);
+
+  std::string src = GetAttribute("src").value_or("");
+  if (!src.empty()) {
+    set_src(src);
   }
-  std::string media_source_url = kMediaSourceUrlProtocol;
-  media_source_url = media_source_url + ':' + base::GenerateGUID();
-  media_source_url_ = GURL(media_source_url);
 }
 
 const std::string& HTMLMediaElement::tag_name() const {
@@ -254,9 +251,17 @@ bool HTMLMediaElement::ended() const {
   return EndedPlayback() && playback_rate_ > 0;
 }
 
-bool HTMLMediaElement::autoplay() const { return autoplay_; }
+bool HTMLMediaElement::autoplay() const { return HasAttribute("autoplay"); }
 
-void HTMLMediaElement::set_autoplay(bool autoplay) { autoplay_ = autoplay; }
+void HTMLMediaElement::set_autoplay(bool autoplay) {
+  // The value of 'autoplay' is true when the 'autoplay' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (autoplay) {
+    SetAttribute("autoplay", "");
+  } else {
+    RemoveAttribute("autoplay");
+  }
+}
 
 bool HTMLMediaElement::loop() const { return loop_; }
 
