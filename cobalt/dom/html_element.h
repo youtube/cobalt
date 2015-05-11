@@ -33,6 +33,7 @@ class HTMLElementFactory;
 class HTMLHeadElement;
 class HTMLHtmlElement;
 class HTMLLinkElement;
+class HTMLMediaElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
 class HTMLStyleElement;
@@ -58,6 +59,7 @@ class HTMLElement : public Element {
   virtual scoped_refptr<HTMLHeadElement> AsHTMLHeadElement();
   virtual scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement();
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
+  virtual scoped_refptr<HTMLMediaElement> AsHTMLMediaElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
   virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
