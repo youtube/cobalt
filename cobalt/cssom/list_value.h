@@ -41,6 +41,10 @@ class ListValue : public PropertyValue {
     DCHECK(value_.get());
   }
 
+  const T& get_item_modulo_size(int index) const {
+    return (*value_)[index % value_->size()];
+  }
+
   const Builder& value() const { return *value_; }
 
   bool operator==(const ListValue<T>& other) const {

@@ -25,6 +25,8 @@
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -50,21 +52,33 @@ MakePropertyNameListWithSingleProperty(const char* property) {
       new cssom::ConstStringListValue(property_name_list.Pass()));
 }
 
+scoped_refptr<cssom::TimingFunctionListValue>
+MakeTimingFunctionWithSingleProperty(
+    const scoped_refptr<cssom::TimingFunction>& timing_function) {
+  scoped_ptr<cssom::TimingFunctionListValue::Builder> timing_function_list(
+      new cssom::TimingFunctionListValue::Builder());
+  timing_function_list->push_back(timing_function);
+  return make_scoped_refptr(
+      new cssom::TimingFunctionListValue(timing_function_list.Pass()));
+}
+
 scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
   scoped_refptr<CSSStyleDeclarationData> initial_data =
       new CSSStyleDeclarationData();
 
-  initial_data->set_background_color(new cssom::RGBAColorValue(0xffffffff));
-  initial_data->set_color(new cssom::RGBAColorValue(0x00000000));
-  initial_data->set_display(cssom::KeywordValue::GetBlock());
-  initial_data->set_font_family(new cssom::StringValue("Droid Sans"));
-  initial_data->set_font_size(new cssom::LengthValue(16, cssom::kPixelsUnit));
-  initial_data->set_height(new cssom::LengthValue(400, cssom::kPixelsUnit));
-  initial_data->set_width(new cssom::LengthValue(400, cssom::kPixelsUnit));
-  initial_data->set_transform(cssom::KeywordValue::GetNone());
+  initial_data->set_background_color(new RGBAColorValue(0xffffffff));
+  initial_data->set_color(new RGBAColorValue(0x00000000));
+  initial_data->set_display(KeywordValue::GetBlock());
+  initial_data->set_font_family(new StringValue("Droid Sans"));
+  initial_data->set_font_size(new LengthValue(16, kPixelsUnit));
+  initial_data->set_height(new LengthValue(400, kPixelsUnit));
+  initial_data->set_width(new LengthValue(400, kPixelsUnit));
+  initial_data->set_transform(KeywordValue::GetNone());
   initial_data->set_transition_duration(MakeTimeListWithSingleTime(0.0f));
   initial_data->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
+  initial_data->set_transition_timing_function(
+      MakeTimingFunctionWithSingleProperty(TimingFunction::GetLinear()));
 
   return initial_data;
 }
@@ -89,10 +103,10 @@ TEST_F(TransitionSetTest, TransitionSetStartsEmpty) {
 }
 
 TEST_F(TransitionSetTest, TransitionPropertyOfAllGeneratesATransition) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -105,10 +119,10 @@ TEST_F(TransitionSetTest, TransitionPropertyOfAllGeneratesATransition) {
 
 TEST_F(TransitionSetTest,
        TransitionPropertyOfSpecificValueGeneratesATransition) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
-  end_->set_transition_property(MakePropertyNameListWithSingleProperty(
-      cssom::kBackgroundColorPropertyName));
+  end_->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -120,7 +134,7 @@ TEST_F(TransitionSetTest,
 }
 
 TEST_F(TransitionSetTest, TransitionPropertyOfNoneGeneratesNoTransition) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(KeywordValue::GetNone());
 
@@ -131,10 +145,10 @@ TEST_F(TransitionSetTest, TransitionPropertyOfNoneGeneratesNoTransition) {
 }
 
 TEST_F(TransitionSetTest, TransitionDurationOfZeroGeneratesNoTransition) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(0.0f));
-  end_->set_transition_property(MakePropertyNameListWithSingleProperty(
-      cssom::kBackgroundColorPropertyName));
+  end_->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -147,8 +161,8 @@ TEST_F(TransitionSetTest, TransitionDurationOfZeroGeneratesNoTransition) {
 
 TEST_F(TransitionSetTest, NoStyleChangesGeneratesNoTransitions) {
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
-  end_->set_transition_property(MakePropertyNameListWithSingleProperty(
-      cssom::kBackgroundColorPropertyName));
+  end_->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -167,21 +181,23 @@ void CheckTransitionsEqual(const Transition& a, const Transition& b) {
   EXPECT_TRUE(a.reversing_adjusted_start_value()->Equals(
       *b.reversing_adjusted_start_value()));
 
-  EXPECT_EQ(a.duration(), b.duration());
-  EXPECT_EQ(a.delay(), b.delay());
-  EXPECT_EQ(a.EndTime(), b.EndTime());
+  const float kErrorEpsilon = 0.00015f;
+
+  EXPECT_NEAR(a.duration().InSecondsF(), b.duration().InSecondsF(),
+              kErrorEpsilon);
+  EXPECT_NEAR(a.delay().InSecondsF(), b.delay().InSecondsF(), kErrorEpsilon);
   EXPECT_EQ(a.start_time(), b.start_time());
   EXPECT_EQ(a.target_property(), b.target_property());
-  EXPECT_FLOAT_EQ(a.reversing_shortening_factor(),
-                  b.reversing_shortening_factor());
+  EXPECT_NEAR(a.reversing_shortening_factor(), b.reversing_shortening_factor(),
+              kErrorEpsilon);
 }
 }  // namespace
 
 TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -192,10 +208,10 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
   ASSERT_NE(static_cast<Transition*>(NULL), transition);
 
   Transition expected_transition(
-      kBackgroundColorPropertyName, new cssom::RGBAColorValue(0xffffffff),
-      new cssom::RGBAColorValue(0x00000000), base::Time::UnixEpoch(),
-      base::TimeDelta::FromSeconds(1), base::TimeDelta(), TimingFunction(),
-      new cssom::RGBAColorValue(0xffffffff), 1.0f);
+      kBackgroundColorPropertyName, new RGBAColorValue(0xffffffff),
+      new RGBAColorValue(0x00000000), base::Time::UnixEpoch(),
+      base::TimeDelta::FromSeconds(1), base::TimeDelta(),
+      TimingFunction::GetLinear(), new RGBAColorValue(0xffffffff), 1.0f);
 
   CheckTransitionsEqual(expected_transition, *transition);
 
@@ -212,10 +228,10 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
 }
 
 TEST_F(TransitionSetTest, TransitionSetRemovesTransitionAfterCompletion) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -242,15 +258,15 @@ base::TimeDelta TimeDeltaFromSecondsF(float seconds) {
 
 
 TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
   scoped_refptr<CSSStyleDeclarationData> end2 = CreateTestComputedData();
-  end2->set_background_color(new cssom::RGBAColorValue(0x000000ff));
+  end2->set_background_color(new RGBAColorValue(0x000000ff));
   end2->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end2->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -262,22 +278,22 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   ASSERT_NE(static_cast<Transition*>(NULL), transition);
 
   CheckTransitionsEqual(
-      Transition(
-          kBackgroundColorPropertyName, new cssom::RGBAColorValue(0x7f7f7f7f),
-          new cssom::RGBAColorValue(0x000000ff), base::Time::FromDoubleT(0.5),
-          TimeDeltaFromSecondsF(1.0f), base::TimeDelta(), TimingFunction(),
-          new cssom::RGBAColorValue(0x7f7f7f7f), 1.0f),
+      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
+                 new RGBAColorValue(0x000000ff), base::Time::FromDoubleT(0.5),
+                 TimeDeltaFromSecondsF(1.0f), base::TimeDelta(),
+                 TimingFunction::GetLinear(), new RGBAColorValue(0x80808080),
+                 1.0f),
       *transition);
 }
 
 TEST_F(TransitionSetTest, ReverseTransitionsWork) {
-  end_->set_background_color(new cssom::RGBAColorValue(0x00000000));
+  end_->set_background_color(new RGBAColorValue(0x00000000));
   end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   end_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
   start_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
   start_->set_transition_property(
-      MakePropertyNameListWithSingleProperty(cssom::kAllPropertyName));
+      MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
@@ -290,11 +306,11 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   ASSERT_NE(static_cast<Transition*>(NULL), transition);
 
   CheckTransitionsEqual(
-      Transition(
-          kBackgroundColorPropertyName, new cssom::RGBAColorValue(0x7f7f7f7f),
-          new cssom::RGBAColorValue(0xffffffff), base::Time::FromDoubleT(0.5),
-          TimeDeltaFromSecondsF(0.5f), base::TimeDelta(), TimingFunction(),
-          new cssom::RGBAColorValue(0x00000000), 0.5f),
+      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
+                 new RGBAColorValue(0xffffffff), base::Time::FromDoubleT(0.5),
+                 TimeDeltaFromSecondsF(0.5f), base::TimeDelta(),
+                 TimingFunction::GetLinear(), new RGBAColorValue(0x00000000),
+                 0.5f),
       *transition);
 
   // Let's try reversing the transition again.
@@ -307,11 +323,11 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   ASSERT_NE(static_cast<Transition*>(NULL), transition);
 
   CheckTransitionsEqual(
-      Transition(
-          kBackgroundColorPropertyName, new cssom::RGBAColorValue(0xbfbfbfbf),
-          new cssom::RGBAColorValue(0x00000000), base::Time::FromDoubleT(0.75),
-          TimeDeltaFromSecondsF(0.75f), base::TimeDelta(), TimingFunction(),
-          new cssom::RGBAColorValue(0xffffffff), 0.75f),
+      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0xc0c0c0c0),
+                 new RGBAColorValue(0x00000000), base::Time::FromDoubleT(0.75),
+                 TimeDeltaFromSecondsF(0.75f), base::TimeDelta(),
+                 TimingFunction::GetLinear(), new RGBAColorValue(0xffffffff),
+                 0.75f),
       *transition);
 }
 

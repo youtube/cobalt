@@ -105,6 +105,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string transition_property() const;
   void set_transition_property(const std::string& transition_property);
 
+  std::string transition_timing_function() const;
+  void set_transition_timing_function(
+      const std::string& transition_timing_function);
+
   std::string width() const;
   void set_width(const std::string& width);
 

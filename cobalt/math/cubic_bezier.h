@@ -37,6 +37,11 @@ class CubicBezier {
   // interval [0, 1].
   void Range(double* min, double* max) const;
 
+  bool operator==(const CubicBezier& other) const {
+    return x1_ == other.x1_ && y1_ == other.y1_ && x2_ == other.x2_ &&
+           y2_ == other.y2_;
+  }
+
  private:
   double x1_;
   double y1_;
