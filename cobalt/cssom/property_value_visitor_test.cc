@@ -17,16 +17,16 @@
 #include "cobalt/cssom/property_value_visitor.h"
 
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
-#include "cobalt/cssom/transform_function.h"
-#include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,17 +37,17 @@ namespace cssom {
 class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
   MOCK_METHOD1(VisitAbsoluteURL, void(AbsoluteURLValue* absolute_url_value));
+  MOCK_METHOD1(VisitConstStringList,
+               void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
-  MOCK_METHOD1(VisitPropertyNameList,
-               void(PropertyNameListValue* property_name_list_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
-  MOCK_METHOD1(VisitTransformList,
-               void(cssom::TransformListValue* transform_list_value));
+  MOCK_METHOD1(VisitTransformFunctionList,
+               void(TransformFunctionListValue* transform_list_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
 };
 
@@ -88,16 +88,6 @@ TEST(PropertyValueVisitorTest, VisitsNumberValue) {
   number_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitsPropertyNameListValue) {
-  scoped_refptr<PropertyNameListValue> property_name_list_value =
-      new PropertyNameListValue(
-          make_scoped_ptr(new PropertyNameListValue::PropertyNameList()));
-  MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor,
-              VisitPropertyNameList(property_name_list_value.get()));
-  property_name_list_value->Accept(&mock_visitor);
-}
-
 TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {
   scoped_refptr<RGBAColorValue> color_value = new RGBAColorValue(0x0047abff);
   MockPropertyValueVisitor mock_visitor;
@@ -112,19 +102,30 @@ TEST(PropertyValueVisitorTest, VisitsStringValue) {
   string_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsConstStringValue) {
+  scoped_refptr<ConstStringListValue> property_name_list_value =
+      new ConstStringListValue(
+          make_scoped_ptr(new ListValue<const char*>::Builder()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitConstStringList(property_name_list_value.get()));
+  property_name_list_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
   scoped_refptr<TimeListValue> time_list_value =
-      new TimeListValue(make_scoped_ptr(new TimeListValue::TimeList()));
+      new TimeListValue(make_scoped_ptr(new TimeListValue::Builder()));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTimeList(time_list_value.get()));
   time_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
-  scoped_refptr<TransformListValue> transform_list_value =
-      new TransformListValue(TransformListValue::TransformFunctions());
+  scoped_refptr<TransformFunctionListValue> transform_list_value =
+      new TransformFunctionListValue(TransformFunctionListValue::Builder());
   MockPropertyValueVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTransformList(transform_list_value.get()));
+  EXPECT_CALL(mock_visitor,
+              VisitTransformFunctionList(transform_list_value.get()));
   transform_list_value->Accept(&mock_visitor);
 }
 
