@@ -226,7 +226,11 @@
 %type <length> length
 %destructor { $$->Release(); } <length>
 
-%union { cssom::Time time; }
+// base::TimeDelta's internal value.  One can construct a base::TimeDelta from
+// this value using the function base::TimeDelta::FromInternalValue().  We use
+// it instead of base::TimeDelta because base::TimeDelta does not have a
+// trivial constructor and thus cannot be used in a union.
+%union { int64 time; }
 %type <time> time
 
 %union { PropertyDeclaration* property_declaration; }
@@ -303,15 +307,15 @@
 %type <transform_function> scale_function_parameters transform_function
 %destructor { delete $$; } <transform_function>
 
-%union { cssom::TransformListValue::TransformFunctions* transform_functions; }
+%union { cssom::TransformFunctionListValue::Builder* transform_functions; }
 %type <transform_functions> transform_list
 %destructor { delete $$; } <transform_functions>
 
-%union { cssom::TimeListValue::TimeList* time_list; }
+%union { cssom::TimeListValue::Builder* time_list; }
 %type <time_list> comma_separated_time_list
 %destructor { delete $$; } <time_list>
 
-%union { cssom::PropertyNameListValue::PropertyNameList* property_name_list; }
+%union { cssom::ConstStringListValue::Builder* property_name_list; }
 %type <property_name_list> comma_separated_animatable_property_name_list
 %destructor { delete $$; } <property_name_list>
 
@@ -710,20 +714,22 @@ angle:
 //   http://www.w3.org/TR/css3-values/#time
 time:
     number {
-    $$.value = $1;
-    $$.unit = cssom::kSecondsUnit;
+    $$ = base::TimeDelta::FromMilliseconds(
+             static_cast<int64>($1 * base::Time::kMillisecondsPerSecond)).
+             ToInternalValue();
     if ($1 != 0) {
       parser_impl->LogWarning(
           @1, "non-zero time is not allowed without unit identifier");
     }
   }
   | maybe_sign_token kSecondsToken maybe_whitespace {
-    $$.value = $1 * $2;
-    $$.unit = cssom::kSecondsUnit;
+    $$ = base::TimeDelta::FromMilliseconds(
+             static_cast<int64>($1 * $2 * base::Time::kMillisecondsPerSecond)).
+             ToInternalValue();
   }
   | maybe_sign_token kMillisecondsToken maybe_whitespace {
-    $$.value = $1 * $2;
-    $$.unit = cssom::kMillisecondsUnit;
+    $$ = base::TimeDelta::FromMilliseconds(static_cast<int64>($1 * $2)).
+             ToInternalValue();
   }
 
 colon: ':' maybe_whitespace ;
@@ -995,7 +1001,7 @@ transform_function:
 //   http://www.w3.org/TR/css3-transforms/#typedef-transform-list
 transform_list:
     transform_function {
-    $$ = new cssom::TransformListValue::TransformFunctions();
+    $$ = new cssom::TransformFunctionListValue::Builder();
     $$->push_back($1);
   }
   | transform_list transform_function {
@@ -1003,7 +1009,7 @@ transform_list:
     if ($$) { $$->push_back($2); }
   }
   | transform_list error {
-    scoped_ptr<cssom::TransformListValue::TransformFunctions>
+    scoped_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
     if (transform_functions) {
       parser_impl->LogWarning(@2, "invalid transform function");
@@ -1020,10 +1026,11 @@ transform_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | transform_list {
-    scoped_ptr<cssom::TransformListValue::TransformFunctions>
+    scoped_ptr<cssom::TransformFunctionListValue::Builder>
         transform_functions($1);
     $$ = transform_functions
-        ? AddRef(new cssom::TransformListValue(transform_functions->Pass()))
+        ? AddRef(new cssom::TransformFunctionListValue(
+              transform_functions->Pass()))
         : NULL;
   }
   | common_values
@@ -1033,12 +1040,12 @@ transform_property_value:
 //   http://www.w3.org/TR/css3-transitions/#transition-duration
 comma_separated_time_list:
     time {
-    $$ = new cssom::TimeListValue::TimeList();
-    $$->push_back($1);
+    $$ = new cssom::TimeListValue::Builder();
+    $$->push_back(base::TimeDelta::FromInternalValue($1));
   }
   | comma_separated_time_list comma time {
     $$ = $1;
-    $$->push_back($3);
+    $$->push_back(base::TimeDelta::FromInternalValue($3));
   }
   ;
 
@@ -1046,7 +1053,7 @@ comma_separated_time_list:
 //   http://www.w3.org/TR/css3-transitions/#transition-duration
 transition_duration_property_value:
     comma_separated_time_list {
-    scoped_ptr<cssom::TimeListValue::TimeList> time_list($1);
+    scoped_ptr<cssom::TimeListValue::Builder> time_list($1);
     $$ = time_list
          ? AddRef(new cssom::TimeListValue(time_list.Pass()))
          : NULL;
@@ -1063,7 +1070,7 @@ transition_duration_property_value:
 //               available in Bison 2.
 comma_separated_animatable_property_name_list:
     animatable_property_token maybe_whitespace {
-    $$ = new cssom::PropertyNameListValue::PropertyNameList();
+    $$ = new cssom::ConstStringListValue::Builder();
     $$->push_back($1.begin);
   }
   | comma_separated_animatable_property_name_list comma
@@ -1079,10 +1086,10 @@ transition_property_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | comma_separated_animatable_property_name_list {
-    scoped_ptr<cssom::PropertyNameListValue::PropertyNameList>
+    scoped_ptr<cssom::ConstStringListValue::Builder>
         property_name_list($1);
     $$ = property_name_list
-         ? AddRef(new cssom::PropertyNameListValue(property_name_list.Pass()))
+         ? AddRef(new cssom::ConstStringListValue(property_name_list.Pass()))
          : NULL;
   }
   | common_values

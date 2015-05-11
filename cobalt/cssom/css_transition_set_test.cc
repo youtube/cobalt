@@ -15,12 +15,12 @@
  */
 
 #include "base/time.h"
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
@@ -34,22 +34,20 @@ namespace cssom {
 namespace {
 scoped_refptr<cssom::TimeListValue> MakeTimeListWithSingleTime(
     float time_in_seconds) {
-  scoped_ptr<cssom::TimeListValue::TimeList> time_list(
-      new cssom::TimeListValue::TimeList());
-  cssom::Time single_time;
-  single_time.value = time_in_seconds;
-  single_time.unit = cssom::kSecondsUnit;
-  time_list->push_back(single_time);
+  scoped_ptr<cssom::TimeListValue::Builder> time_list(
+      new cssom::TimeListValue::Builder());
+  time_list->push_back(base::TimeDelta::FromMicroseconds(static_cast<int64>(
+      time_in_seconds * base::Time::kMicrosecondsPerSecond)));
   return make_scoped_refptr(new cssom::TimeListValue(time_list.Pass()));
 }
 
-scoped_refptr<cssom::PropertyNameListValue>
+scoped_refptr<cssom::ConstStringListValue>
 MakePropertyNameListWithSingleProperty(const char* property) {
-  scoped_ptr<cssom::PropertyNameListValue::PropertyNameList> property_name_list(
-      new cssom::PropertyNameListValue::PropertyNameList());
+  scoped_ptr<cssom::ConstStringListValue::Builder> property_name_list(
+      new cssom::ConstStringListValue::Builder());
   property_name_list->push_back(property);
   return make_scoped_refptr(
-      new cssom::PropertyNameListValue(property_name_list.Pass()));
+      new cssom::ConstStringListValue(property_name_list.Pass()));
 }
 
 scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
