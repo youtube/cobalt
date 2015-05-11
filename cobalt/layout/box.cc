@@ -19,8 +19,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_names.h"
-#include "cobalt/cssom/transform_function.h"
-#include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
@@ -68,15 +67,15 @@ math::Matrix3F GetCSSTransform(
     return math::Matrix3F::Identity();
   }
 
-  const cssom::TransformListValue* transform =
-      base::polymorphic_downcast<const cssom::TransformListValue*>(
+  const cssom::TransformFunctionListValue* transform =
+      base::polymorphic_downcast<const cssom::TransformFunctionListValue*>(
           transform_property_value);
   DCHECK(!transform->value().empty());
 
   // Iterate through all transforms in the transform list appending them
   // to our css_transform_matrix.
   math::Matrix3F css_transform_matrix(math::Matrix3F::Identity());
-  for (cssom::TransformListValue::TransformFunctions::const_iterator iter =
+  for (cssom::TransformFunctionListValue::Builder::const_iterator iter =
            transform->value().begin();
        iter != transform->value().end(); ++iter) {
     cssom::PostMultiplyMatrixByTransform(
