@@ -24,13 +24,22 @@ namespace cssom {
 extern const char* const kAutoKeywordName;
 extern const char* const kBlockKeywordName;
 extern const char* const kBoldKeywordName;
+extern const char* const kEaseInKeywordName;
+extern const char* const kEaseInOutKeywordName;
+extern const char* const kEaseKeywordName;
+extern const char* const kEaseOutKeywordName;
+extern const char* const kEndKeywordName;
 extern const char* const kHiddenKeywordName;
 extern const char* const kInheritKeywordName;
 extern const char* const kInitialKeywordName;
 extern const char* const kInlineBlockKeywordName;
 extern const char* const kInlineKeywordName;
+extern const char* const kLinearKeywordName;
 extern const char* const kNoneKeywordName;
 extern const char* const kNormalKeywordName;
+extern const char* const kStartKeywordName;
+extern const char* const kStepEndKeywordName;
+extern const char* const kStepStartKeywordName;
 extern const char* const kVisibleKeywordName;
 
 }  // namespace cssom

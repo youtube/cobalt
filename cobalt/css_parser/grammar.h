@@ -46,6 +46,7 @@
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 

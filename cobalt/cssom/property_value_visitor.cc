@@ -26,6 +26,7 @@
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/url_value.h"
 
@@ -71,6 +72,11 @@ void DefaultingPropertyValueVisitor::VisitString(StringValue* string_value) {
 void DefaultingPropertyValueVisitor::VisitTimeList(
     TimeListValue* time_list_value) {
   VisitDefault(time_list_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitTimingFunctionList(
+    TimingFunctionListValue* timing_function_list_value) {
+  VisitDefault(timing_function_list_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitTransformFunctionList(

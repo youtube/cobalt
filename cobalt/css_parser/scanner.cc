@@ -1174,6 +1174,14 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       return false;
+
+    case 26:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kTransitionTimingFunctionPropertyName)) {
+        *property_name_token = kTransitionTimingFunctionToken;
+        return true;
+      }
+      return false;
   }
 
   return false;
@@ -1186,9 +1194,19 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
   DCHECK_GT(name.size(), 0);
 
   switch (name.size()) {
+    case 3:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEndKeywordName)) {
+        *property_value_token = kEndToken;
+        return true;
+      }
+      return false;
     case 4:
       if (IsEqualToCssIdentifier(name.begin, cssom::kBoldKeywordName)) {
         *property_value_token = kBoldToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEaseKeywordName)) {
+        *property_value_token = kEaseToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kNoneKeywordName)) {
@@ -1202,6 +1220,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kBlockToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStartKeywordName)) {
+        *property_value_token = kStartToken;
+        return true;
+      }
       return false;
 
     case 6:
@@ -1213,6 +1235,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kInlineToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kLinearKeywordName)) {
+        *property_value_token = kLinearToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kNormalKeywordName)) {
         *property_value_token = kNormalToken;
         return true;
@@ -1220,6 +1246,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 7:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEaseInKeywordName)) {
+        *property_value_token = kEaseInToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInheritKeywordName)) {
         *property_value_token = kInheritToken;
         return true;
@@ -1230,6 +1260,31 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kVisibleKeywordName)) {
         *property_value_token = kVisibleToken;
+        return true;
+      }
+      return false;
+
+    case 8:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEaseOutKeywordName)) {
+        *property_value_token = kEaseOutToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStepEndKeywordName)) {
+        *property_value_token = kStepEndToken;
+        return true;
+      }
+      return false;
+
+    case 10:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStepStartKeywordName)) {
+        *property_value_token = kStepStartToken;
+        return true;
+      }
+      return false;
+
+    case 11:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kEaseInOutKeywordName)) {
+        *property_value_token = kEaseInOutToken;
         return true;
       }
       return false;
@@ -1339,6 +1394,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
         *known_function_token = kScaleFunctionToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, "steps")) {
+        *known_function_token = kStepsFunctionToken;
+        return true;
+      }
       return false;
 
     case 6:
@@ -1375,6 +1434,13 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       if (IsEqualToCssIdentifier(name.begin, "nth-of-type")) {
         parsing_mode_ = kNthChildMode;
         *known_function_token = kNthOfTypeFunctionToken;
+        return true;
+      }
+      return false;
+
+    case 12:
+      if (IsEqualToCssIdentifier(name.begin, "cubic-bezier")) {
+        *known_function_token = kCubicBezierFunctionToken;
         return true;
       }
       return false;
