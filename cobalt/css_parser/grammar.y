@@ -57,37 +57,47 @@
 // Property name tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
-%token kAllToken                        // all
-%token kBackgroundToken                 // background
-%token kBackgroundColorToken            // background-color
-%token kBackgroundImageToken            // background-image
-%token kBorderRadiusToken               // border-radius
-%token kColorToken                      // color
-%token kDisplayToken                    // display
-%token kFontFamilyToken                 // font-family
-%token kFontSizeToken                   // font-size
-%token kFontWeightToken                 // font-weight
-%token kHeightToken                     // height
-%token kLineHeightToken                 // line-height
-%token kOpacityToken                    // opacity
-%token kOverflowToken                   // overflow
-%token kTransformToken                  // transform
-%token kTransitionDurationToken         // transition-duration
-%token kTransitionPropertyToken         // transition-property
-%token kWidthToken                      // width
+%token kAllToken                              // all
+%token kBackgroundToken                       // background
+%token kBackgroundColorToken                  // background-color
+%token kBackgroundImageToken                  // background-image
+%token kBorderRadiusToken                     // border-radius
+%token kColorToken                            // color
+%token kDisplayToken                          // display
+%token kFontFamilyToken                       // font-family
+%token kFontSizeToken                         // font-size
+%token kFontWeightToken                       // font-weight
+%token kHeightToken                           // height
+%token kLineHeightToken                       // line-height
+%token kOpacityToken                          // opacity
+%token kOverflowToken                         // overflow
+%token kTransformToken                        // transform
+%token kTransitionDurationToken               // transition-duration
+%token kTransitionPropertyToken               // transition-property
+%token kTransitionTimingFunctionToken         // transition-timing-function
+%token kWidthToken                            // width
 
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
+%token kEaseInOutToken                  // ease-in-out
+%token kEaseInToken                     // ease-in
+%token kEaseOutToken                    // ease-out
+%token kEaseToken                       // ease
+%token kEndToken                        // end
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
-%token kInlineToken                     // inline
 %token kInlineBlockToken                // inline-block
+%token kInlineToken                     // inline
+%token kLinearToken                     // linear
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
+%token kStartToken                      // start
+%token kStepEndToken                    // step-end
+%token kStepStartToken                  // step-start
 %token kVisibleToken                    // visible
 
 // Pseudo-class name tokens.
@@ -145,6 +155,7 @@
 // Function tokens.
 %token kAnyFunctionToken                // -webkit-any(
 %token kCalcFunctionToken               // calc(
+%token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
 %token kMaxFunctionToken                // -webkit-max(
 %token kMinFunctionToken                // -webkit-min(
@@ -155,6 +166,7 @@
 %token kNthOfTypeFunctionToken          // nth-of-type(
 %token kRotateFunctionToken             // rotate(
 %token kScaleFunctionToken              // scale(
+%token kStepsFunctionToken              // steps(
 %token kTranslateXFunctionToken         // translateX(
 %token kTranslateYFunctionToken         // translateY(
 %token kTranslateZFunctionToken         // translateZ(
@@ -253,8 +265,10 @@
                        font_weight_property_value height_property_value
                        line_height_property_value opacity_property_value
                        overflow_property_value transform_property_value
-                       transition_duration_property_value url
-                       transition_property_property_value width_property_value
+                       transition_duration_property_value
+                       transition_property_property_value
+                       transition_timing_function_property_value url
+                       width_property_value
 %destructor { $$->Release(); } <property_value>
 
 %type <real> alpha number angle
@@ -318,6 +332,24 @@
 %union { cssom::ConstStringListValue::Builder* property_name_list; }
 %type <property_name_list> comma_separated_animatable_property_name_list
 %destructor { delete $$; } <property_name_list>
+
+%union {
+  cssom::SteppingTimingFunction::ValueChangeLocation
+      stepping_value_change_location;
+}
+%type <stepping_value_change_location> maybe_steps_start_or_end_parameter
+
+%union { cssom::TimingFunction* timing_function; }
+%type <timing_function> single_transition_timing_function
+%destructor { $$->Release(); } <timing_function>
+
+%union {
+  cssom::TimingFunctionListValue::Builder*
+      timing_function_list;
+}
+%type <timing_function_list>
+    comma_separated_single_transition_timing_function_list
+%destructor { delete $$; } <timing_function_list>
 
 %%
 
@@ -418,6 +450,10 @@ identifier_token:
     $$ =
         TrivialStringPiece::FromCString(cssom::kTransitionPropertyPropertyName);
   }
+  | kTransitionTimingFunctionToken {
+    $$ = TrivialStringPiece::FromCString(
+             cssom::kTransitionTimingFunctionPropertyName);
+  }
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
   }
@@ -427,6 +463,21 @@ identifier_token:
   }
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
+  }
+  | kEaseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
+  }
+  | kEaseInToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseInKeywordName);
+  }
+  | kEaseInOutToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseInOutKeywordName);
+  }
+  | kEaseOutToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEaseOutKeywordName);
+  }
+  | kEndToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kEndKeywordName);
   }
   | kHiddenToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
@@ -443,11 +494,23 @@ identifier_token:
   | kInitialToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
   }
+  | kLinearToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLinearKeywordName);
+  }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
   }
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
+  }
+  | kStartToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
+  }
+  | kStepEndToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kStepEndKeywordName);
+  }
+  | kStepStartToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
   }
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
@@ -1068,6 +1131,95 @@ transition_duration_property_value:
   | common_values
   ;
 
+maybe_steps_start_or_end_parameter:
+    /* empty */ {
+    // Default value is 'end'.
+    $$ = cssom::SteppingTimingFunction::kEnd;
+  }
+  | comma kStartToken maybe_whitespace {
+    $$ = cssom::SteppingTimingFunction::kStart;
+  }
+  | comma kEndToken maybe_whitespace {
+    $$ = cssom::SteppingTimingFunction::kEnd;
+  }
+  ;
+
+single_transition_timing_function:
+    kCubicBezierFunctionToken maybe_whitespace
+    number comma number comma number comma number ')' {
+    float p1_x = $3;
+    float p1_y = $5;
+    float p2_x = $7;
+    float p2_y = $9;
+
+    if (p1_x < 0 || p1_x > 1 || p2_x < 0 || p2_x > 1) {
+      parser_impl->LogError(
+          @1,
+          "cubic-bezier control point x values must be in the range [0, 1].");
+      // In the case of an error, return the ease function as a default.
+      $$ = AddRef(cssom::TimingFunction::GetEase().get());
+    } else {
+      $$ = AddRef(new cssom::CubicBezierTimingFunction(p1_x, p1_y, p2_x, p2_y));
+    }
+  }
+  | kStepsFunctionToken maybe_whitespace kIntegerToken maybe_whitespace
+    maybe_steps_start_or_end_parameter ')' {
+    int number_of_steps = $3;
+    if (number_of_steps <= 0) {
+      parser_impl->LogError(
+          @1,
+          "The steps() number of steps parameter must be greater than 0.");
+      number_of_steps = 1;
+    }
+    $$ = AddRef(new cssom::SteppingTimingFunction(number_of_steps, $5));
+  }
+  | kEaseInOutToken {
+    $$ = AddRef(cssom::TimingFunction::GetEaseInOut().get());
+  }
+  | kEaseInToken {
+    $$ = AddRef(cssom::TimingFunction::GetEaseIn().get());
+  }
+  | kEaseOutToken {
+    $$ = AddRef(cssom::TimingFunction::GetEaseOut().get());
+  }
+  | kEaseToken {
+    $$ = AddRef(cssom::TimingFunction::GetEase().get());
+  }
+  | kLinearToken {
+    $$ = AddRef(cssom::TimingFunction::GetLinear().get());
+  }
+  | kStepEndToken {
+    $$ = AddRef(cssom::TimingFunction::GetStepEnd().get());
+  }
+  | kStepStartToken {
+    $$ = AddRef(cssom::TimingFunction::GetStepStart().get());
+  }
+  ;
+
+comma_separated_single_transition_timing_function_list:
+    single_transition_timing_function {
+    $$ = new cssom::TimingFunctionListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_single_transition_timing_function_list comma
+    single_transition_timing_function {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+  }
+  ;
+
+transition_timing_function_property_value:
+    comma_separated_single_transition_timing_function_list {
+    scoped_ptr<cssom::TimingFunctionListValue::Builder>
+        timing_function_list($1);
+    $$ = timing_function_list
+         ? AddRef(new cssom::TimingFunctionListValue(
+               timing_function_list.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
 // One or more property names separated by commas.
 //   http://www.w3.org/TR/css3-transitions/#transition-property
 // TODO(***REMOVED***): Support error handling of strings being used in the list
@@ -1248,6 +1400,13 @@ maybe_declaration:
       transition_property_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransitionPropertyPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransitionTimingFunctionToken maybe_whitespace colon
+      transition_timing_function_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(
+                      cssom::kTransitionTimingFunctionPropertyName,
+                      MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kWidthToken maybe_whitespace colon width_property_value

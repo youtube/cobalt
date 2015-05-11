@@ -22,19 +22,10 @@
 #include "base/time.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/timing_function.h"
 
 namespace cobalt {
 namespace cssom {
-
-class TimingFunction {
- public:
-  TimingFunction() {}
-
-  // TODO(***REMOVED***): Implement TimingFunction as concrete cubic bezier class,
-  //               which, all other timing functions can be implemented as.  For
-  //               now, it defaults to a linear animation.
-  float Run(float x) const { return std::max(0.0f, std::min(1.0f, x)); }
-};
 
 // A Transition object represents a persistant transition from one CSS style
 // value to another.  Most of the data members of this class are defined with
@@ -47,7 +38,7 @@ class Transition {
              const scoped_refptr<PropertyValue>& end_value,
              const base::Time& start_time, const base::TimeDelta& duration,
              const base::TimeDelta& delay,
-             const TimingFunction& timing_function,
+             const scoped_refptr<TimingFunction>& timing_function,
              scoped_refptr<PropertyValue> reversing_adjusted_start_value,
              float reversing_shortening_factor);
 
@@ -55,7 +46,9 @@ class Transition {
   const base::Time& start_time() const { return start_time_; }
   const base::TimeDelta& duration() const { return duration_; }
   const base::TimeDelta& delay() const { return delay_; }
-  const TimingFunction& timing_function() const { return timing_function_; }
+  const scoped_refptr<TimingFunction>& timing_function() const {
+    return timing_function_;
+  }
   const scoped_refptr<PropertyValue>& start_value() const {
     return start_value_;
   }
@@ -93,7 +86,7 @@ class Transition {
   base::Time start_time_;
   base::TimeDelta duration_;
   base::TimeDelta delay_;
-  TimingFunction timing_function_;
+  scoped_refptr<TimingFunction> timing_function_;
 
   // See the getter methods for these members for documentation.
   scoped_refptr<PropertyValue> reversing_adjusted_start_value_;

@@ -89,6 +89,7 @@
         'scale_function.cc',
         'scale_function.h',
         'scoped_list_value.h',
+        'scoped_ref_list_value.h',
         'selector.h',
         'selector_visitor.h',
         'specificity.cc',
@@ -99,6 +100,9 @@
         'style_sheet_list.cc',
         'style_sheet_list.h',
         'time_list_value.h',
+        'timing_function.cc',
+        'timing_function.h',
+        'timing_function_list_value.h',
         'transform_function.cc',
         'transform_function.h',
         'transform_function_visitor.h',
@@ -113,6 +117,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
       ],
     },
 
@@ -132,6 +137,7 @@
         'selector_visitor_test.cc',
         'specificity_test.cc',
         'style_sheet_list_test.cc',
+        'timing_function_test.cc',
         'transform_function_visitor_test.cc',
       ],
       'dependencies': [

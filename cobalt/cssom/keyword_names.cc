@@ -22,13 +22,22 @@ namespace cssom {
 const char* const kAutoKeywordName = "auto";
 const char* const kBlockKeywordName = "block";
 const char* const kBoldKeywordName = "bold";
+const char* const kEaseInKeywordName = "ease-in";
+const char* const kEaseInOutKeywordName = "ease-in-out";
+const char* const kEaseKeywordName = "ease";
+const char* const kEaseOutKeywordName = "ease-out";
+const char* const kEndKeywordName = "end";
 const char* const kHiddenKeywordName = "hidden";
 const char* const kInheritKeywordName = "inherit";
 const char* const kInitialKeywordName = "initial";
 const char* const kInlineBlockKeywordName = "inline-block";
 const char* const kInlineKeywordName = "inline";
+const char* const kLinearKeywordName = "linear";
 const char* const kNoneKeywordName = "none";
 const char* const kNormalKeywordName = "normal";
+const char* const kStartKeywordName = "start";
+const char* const kStepEndKeywordName = "step-end";
+const char* const kStepStartKeywordName = "step-start";
 const char* const kVisibleKeywordName = "visible";
 
 }  // namespace cssom

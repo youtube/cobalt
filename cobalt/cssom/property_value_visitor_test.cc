@@ -26,6 +26,9 @@
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function.h"
+#include "cobalt/cssom/timing_function_list_value.h"
+#include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -42,10 +45,14 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
+  MOCK_METHOD1(VisitList, void(ConstStringListValue* const_string_list_value));
+  MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
+  MOCK_METHOD1(VisitTimingFunctionList,
+               void(TimingFunctionListValue* timing_function_list_value));
   MOCK_METHOD1(VisitTransformFunctionList,
                void(TransformFunctionListValue* transform_list_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
@@ -118,6 +125,16 @@ TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitTimeList(time_list_value.get()));
   time_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
+  scoped_refptr<TimingFunctionListValue>
+      timing_function_list_value = new TimingFunctionListValue(
+          make_scoped_ptr(new TimingFunctionListValue::Builder()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitTimingFunctionList(timing_function_list_value.get()));
+  timing_function_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsTransformListValue) {

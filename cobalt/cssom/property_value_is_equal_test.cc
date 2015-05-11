@@ -25,6 +25,8 @@
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
@@ -182,6 +184,48 @@ TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
 
   scoped_refptr<TimeListValue> value_b(new TimeListValue(
       make_scoped_ptr(new TimeListValue::Builder(time_list))));
+
+  EXPECT_FALSE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, TimingFunctionListsAreEqual) {
+  scoped_ptr<TimingFunctionListValue::Builder>
+      timing_function_list_a(new TimingFunctionListValue::Builder());
+  timing_function_list_a->push_back(TimingFunction::GetLinear());
+  timing_function_list_a->push_back(
+      new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
+  scoped_refptr<TimingFunctionListValue> value_a(
+      new TimingFunctionListValue(timing_function_list_a.Pass()));
+
+  scoped_ptr<TimingFunctionListValue::Builder>
+      timing_function_list_b(new TimingFunctionListValue::Builder());
+  timing_function_list_b->push_back(
+      new CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f));
+  timing_function_list_b->push_back(
+      new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
+  scoped_refptr<TimingFunctionListValue> value_b(
+      new TimingFunctionListValue(timing_function_list_b.Pass()));
+
+  EXPECT_TRUE(value_a->Equals(*value_b));
+}
+
+TEST(PropertyValueIsEqualTest, TimingFunctionListsAreNotEqual) {
+  scoped_ptr<TimingFunctionListValue::Builder>
+      timing_function_list_a(new TimingFunctionListValue::Builder());
+  timing_function_list_a->push_back(TimingFunction::GetLinear());
+  timing_function_list_a->push_back(
+      new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
+  scoped_refptr<TimingFunctionListValue> value_a(
+      new TimingFunctionListValue(timing_function_list_a.Pass()));
+
+  scoped_ptr<TimingFunctionListValue::Builder>
+      timing_function_list_b(new TimingFunctionListValue::Builder());
+  timing_function_list_b->push_back(
+      new CubicBezierTimingFunction(0.0f, 0.5f, 1.0f, 1.0f));
+  timing_function_list_b->push_back(
+      new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
+  scoped_refptr<TimingFunctionListValue> value_b(
+      new TimingFunctionListValue(timing_function_list_b.Pass()));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }

@@ -16,7 +16,10 @@
 
 #include "cobalt/cssom/css_transition.h"
 
+#include <limits>
+
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -28,6 +31,7 @@
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
@@ -42,7 +46,7 @@ Transition::Transition(
     const scoped_refptr<PropertyValue>& start_value,
     const scoped_refptr<PropertyValue>& end_value, const base::Time& start_time,
     const base::TimeDelta& duration, const base::TimeDelta& delay,
-    const TimingFunction& timing_function,
+    const scoped_refptr<TimingFunction>& timing_function,
     scoped_refptr<PropertyValue> reversing_adjusted_start_value,
     float reversing_shortening_factor)
     : target_property_(target_property),
@@ -82,6 +86,8 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitTransformFunctionList(
       TransformFunctionListValue* start_transform_list_value) OVERRIDE;
   void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
+  void VisitTimingFunctionList(
+      TimingFunctionListValue* start_timing_function_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
 
  private:
@@ -92,10 +98,29 @@ class AnimatorVisitor : public PropertyValueVisitor {
 };
 
 namespace {
+
+// Round to nearest integer for integer types.
+template <typename T>
+typename base::enable_if<std::numeric_limits<T>::is_integer, T>::type Round(
+    float value) {
+  return static_cast<T>(value + 0.5);
+}
+
+// Pass through the value in the case of non-integer types.
+template <typename T>
+typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type Round(
+    float value) {
+  return static_cast<T>(value);
+}
+
+// Linearly interpolate from value a to value b, and then apply a round on the
+// results before returning if we are interpolating integer types (as specified
+// by http://www.w3.org/TR/css3-transitions/#animatable-types).
 template <typename T>
 T Lerp(const T& a, const T& b, float progress) {
-  return static_cast<T>(a * (1 - progress) + b * progress);
+  return Round<T>(a * (1 - progress) + b * progress);
 }
+
 }  // namespace
 
 namespace {
@@ -378,6 +403,12 @@ void AnimatorVisitor::VisitTransformFunctionList(
       AnimateTransform(start_transform_list_value, end_value_, progress_);
 }
 
+void AnimatorVisitor::VisitTimingFunctionList(
+    TimingFunctionListValue* /*start_timing_function_list_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
 void AnimatorVisitor::VisitURL(URLValue* /*url_value*/) {
   NOTREACHED();
   animated_value_ = end_value_;
@@ -385,7 +416,7 @@ void AnimatorVisitor::VisitURL(URLValue* /*url_value*/) {
 
 float Transition::Progress(const base::Time& time) const {
   base::TimeDelta since_start = time - start_time_;
-  return timing_function_.Run(static_cast<float>(
+  return timing_function_->Evaluate(static_cast<float>(
       (since_start - delay_).InSecondsF() / duration_.InSecondsF()));
 }
 

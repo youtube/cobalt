@@ -39,6 +39,10 @@ class ScopedListValue : public PropertyValue {
 
   explicit ScopedListValue(Builder value) : value_(value.Pass()) {}
 
+  const T& get_item_modulo_size(int index) const {
+    return *value_[index % value_.size()];
+  }
+
   const Builder& value() const { return value_; }
 
   bool operator==(const ScopedListValue<T>& other) const {
