@@ -37,7 +37,7 @@ class TimeRanges : public script::Wrappable {
 
   // Web API: TimeRanges
   //
-  uint32 length() const { return ranges_.size(); }
+  uint32 length() const { return static_cast<uint32>(ranges_.size()); }
   double Start(uint32 index) const;
   double End(uint32 index) const;
 
