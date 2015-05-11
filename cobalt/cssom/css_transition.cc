@@ -18,10 +18,10 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
@@ -29,8 +29,8 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_function.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
-#include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 
@@ -71,17 +71,17 @@ class AnimatorVisitor : public PropertyValueVisitor {
   }
 
   void VisitAbsoluteURL(AbsoluteURLValue* absolute_url_value) OVERRIDE;
+  void VisitConstStringList(
+      ConstStringListValue* start_const_string_list_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
-  void VisitPropertyNameList(
-      PropertyNameListValue* start_property_name_list_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
+  void VisitTransformFunctionList(
+      TransformFunctionListValue* start_transform_list_value) OVERRIDE;
   void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
-  void VisitTransformList(
-      TransformListValue* start_transform_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
 
  private:
@@ -212,9 +212,8 @@ void AnimateTransformFunction::VisitTranslateZ(
 // Returns true if two given transform function lists have the same number of
 // elements, and each element type matches the corresponding element type at
 // the same index in the other list.
-bool TransformListsHaveSameType(
-    const TransformListValue::TransformFunctions& a,
-    const TransformListValue::TransformFunctions& b) {
+bool TransformListsHaveSameType(const TransformFunctionListValue::Builder& a,
+                                const TransformFunctionListValue::Builder& b) {
   if (a.size() != b.size()) {
     return false;
   }
@@ -248,15 +247,15 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     progress = 1 - progress;
   }
 
-  const TransformListValue::TransformFunctions* start_functions =
-      &(base::polymorphic_downcast<const TransformListValue*>(start_value)
-            ->value());
+  const TransformFunctionListValue::Builder* start_functions =
+      &(base::polymorphic_downcast<const TransformFunctionListValue*>(
+            start_value)->value());
 
-  const TransformListValue::TransformFunctions* end_functions =
+  const TransformFunctionListValue::Builder* end_functions =
       end_value->Equals(*KeywordValue::GetNone())
           ? NULL
-          : &(base::polymorphic_downcast<const TransformListValue*>(end_value)
-                  ->value());
+          : &(base::polymorphic_downcast<const TransformFunctionListValue*>(
+                  end_value)->value());
 
   // We first check to see if there is a match between transform types in
   // the start transform list and transform types in the end transform list.
@@ -267,7 +266,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
       end_functions == NULL ||
       TransformListsHaveSameType(*start_functions, *end_functions);
   if (matching_list_types) {
-    TransformListValue::TransformFunctions animated_functions;
+    TransformFunctionListValue::Builder animated_functions;
     // The lists have the same number of values and each corresponding transform
     // matches in type.  In this case, we do a transition on each
     // corresponding transform individually.
@@ -277,9 +276,9 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
               (*start_functions)[i], end_functions ? (*end_functions)[i] : NULL,
               progress).release());
     }
-    return new TransformListValue(animated_functions.Pass());
+    return new TransformFunctionListValue(animated_functions.Pass());
   } else {
-    DCHECK_NE(static_cast<TransformListValue::TransformFunctions*>(NULL),
+    DCHECK_NE(static_cast<TransformFunctionListValue::Builder*>(NULL),
               end_functions);
     // TODO(***REMOVED***): Collapse into a matrix and animate the matrix using the
     //               algorithm described here:
@@ -309,7 +308,8 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
 
   switch (start_keyword_value->value()) {
     case KeywordValue::kNone:
-      if (end_value_->GetTypeId() == base::GetTypeId<TransformListValue>()) {
+      if (end_value_->GetTypeId() ==
+          base::GetTypeId<TransformFunctionListValue>()) {
         animated_value_ =
             AnimateTransform(start_keyword_value, end_value_, progress_);
       }
@@ -344,12 +344,6 @@ void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
       Lerp(start_number_value->value(), end_number_value.value(), progress_)));
 }
 
-void AnimatorVisitor::VisitPropertyNameList(
-    PropertyNameListValue* /*start_property_name_list_value*/) {
-  NOTIMPLEMENTED();
-  animated_value_ = end_value_;
-}
-
 void AnimatorVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
   DCHECK(start_color_value->GetTypeId() == end_value_->GetTypeId());
   const RGBAColorValue& end_color_value =
@@ -367,13 +361,19 @@ void AnimatorVisitor::VisitString(StringValue* /*start_string_value*/) {
   animated_value_ = end_value_;
 }
 
+void AnimatorVisitor::VisitConstStringList(
+    ConstStringListValue* /*start_const_string_list_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
 void AnimatorVisitor::VisitTimeList(TimeListValue* /*start_time_list_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }
 
-void AnimatorVisitor::VisitTransformList(
-    TransformListValue* start_transform_list_value) {
+void AnimatorVisitor::VisitTransformFunctionList(
+    TransformFunctionListValue* start_transform_list_value) {
   animated_value_ =
       AnimateTransform(start_transform_list_value, end_value_, progress_);
 }

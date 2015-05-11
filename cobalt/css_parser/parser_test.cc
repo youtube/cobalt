@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include "base/bind.h"
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -27,7 +28,6 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -35,7 +35,7 @@
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
-#include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -517,9 +517,10 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
       parser_.ParseDeclarationList("transform: rotate(180deg);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -534,9 +535,10 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
       parser_.ParseDeclarationList("transform: rotate(200grad);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -551,9 +553,10 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
       parser_.ParseDeclarationList("transform: rotate(3.141592653589793rad);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -568,9 +571,10 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
       parser_.ParseDeclarationList("transform: rotate(0.5turn);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -584,9 +588,10 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transform: scale(1.5);", source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -605,9 +610,10 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
       parser_.ParseDeclarationList("transform: scale(16, 9);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -622,9 +628,10 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
       parser_.ParseDeclarationList("transform: translateX(0);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateXFunction* translate_x_function =
@@ -643,9 +650,10 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
       parser_.ParseDeclarationList("transform: translateY(30em);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateYFunction* translate_y_function =
@@ -664,9 +672,10 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
       parser_.ParseDeclarationList("transform: translateZ(-22px);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateZFunction* translate_z_function =
@@ -685,9 +694,10 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
       parser_.ParseDeclarationList("transform: scale(2) translateZ(10px);",
                                    source_location_);
 
-  scoped_refptr<cssom::TransformListValue> transform_list =
-      dynamic_cast<cssom::TransformListValue*>(style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformListValue>(), transform_list);
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(2, transform_list->value().size());
   EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
             transform_list->value()[0]);
@@ -760,11 +770,11 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
-  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
-      dynamic_cast<cssom::PropertyNameListValue*>(
-          parser_.ParsePropertyValue(
-              "transition-property", "color", source_location_).get());
-  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          parser_.ParsePropertyValue("transition-property", "color",
+                                     source_location_).get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
             property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
@@ -772,12 +782,12 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
-  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
-      dynamic_cast<cssom::PropertyNameListValue*>(
-          parser_.ParsePropertyValue(
-              "transition-property", "color, transform , background-color",
-              source_location_).get());
-  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          parser_.ParsePropertyValue("transition-property",
+                                     "color, transform , background-color",
+                                     source_location_).get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
             property_name_list.get());
 
   ASSERT_EQ(3, property_name_list->value().size());
@@ -788,12 +798,11 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
 }
 
 TEST_F(ParserTest, ParsesTransitionPropertyWithAllValue) {
-  scoped_refptr<cssom::PropertyNameListValue> property_name_list =
-      dynamic_cast<cssom::PropertyNameListValue*>(
-          parser_.ParsePropertyValue(
-              "transition-property", "all",
-              source_location_).get());
-  ASSERT_NE(static_cast<cssom::PropertyNameListValue*>(NULL),
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          parser_.ParsePropertyValue("transition-property", "all",
+                                     source_location_).get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
             property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
@@ -813,31 +822,40 @@ TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
 TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
       dynamic_cast<cssom::TimeListValue*>(
-          parser_.ParsePropertyValue(
-              "transition-duration", "1s", source_location_).get());
+          parser_.ParsePropertyValue("transition-duration", "1s",
+                                     source_location_).get());
   ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
 
   ASSERT_EQ(1, time_list_value->value().size());
-  EXPECT_FLOAT_EQ(1, time_list_value->value()[0].value);
-  EXPECT_EQ(cssom::kSecondsUnit, time_list_value->value()[0].unit);
+  EXPECT_DOUBLE_EQ(1.0, time_list_value->value()[0].InSecondsF());
 }
 
 TEST_F(ParserTest, ParsesTimeListWithMultipleValues) {
   scoped_refptr<cssom::TimeListValue> time_list_value =
       dynamic_cast<cssom::TimeListValue*>(
-          parser_.ParsePropertyValue(
-              "transition-duration", "2s, 1ms, 0, 2ms",
-              source_location_).get());
+          parser_.ParsePropertyValue("transition-duration",
+                                     "2s, 1ms, 0, 2ms, 3s, 3ms",
+                                     source_location_).get());
   ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
 
-  ASSERT_EQ(4, time_list_value->value().size());
-  EXPECT_FLOAT_EQ(2, time_list_value->value()[0].value);
-  EXPECT_EQ(cssom::kSecondsUnit, time_list_value->value()[0].unit);
-  EXPECT_FLOAT_EQ(1, time_list_value->value()[1].value);
-  EXPECT_EQ(cssom::kMillisecondsUnit, time_list_value->value()[1].unit);
-  EXPECT_FLOAT_EQ(0, time_list_value->value()[2].value);
-  EXPECT_FLOAT_EQ(2, time_list_value->value()[3].value);
-  EXPECT_EQ(cssom::kMillisecondsUnit, time_list_value->value()[3].unit);
+  ASSERT_EQ(6, time_list_value->value().size());
+  EXPECT_DOUBLE_EQ(2, time_list_value->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(0.001, time_list_value->value()[1].InSecondsF());
+  EXPECT_DOUBLE_EQ(0, time_list_value->value()[2].InSecondsF());
+  EXPECT_DOUBLE_EQ(0.002, time_list_value->value()[3].InSecondsF());
+  EXPECT_DOUBLE_EQ(3, time_list_value->value()[4].InSecondsF());
+  EXPECT_DOUBLE_EQ(0.003, time_list_value->value()[5].InSecondsF());
+}
+
+TEST_F(ParserTest, ParsesNegativeTimeList) {
+  scoped_refptr<cssom::TimeListValue> time_list_value =
+      dynamic_cast<cssom::TimeListValue*>(
+          parser_.ParsePropertyValue("transition-duration", "-4s",
+                                     source_location_).get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+
+  ASSERT_EQ(1, time_list_value->value().size());
+  EXPECT_DOUBLE_EQ(-4, time_list_value->value()[0].InSecondsF());
 }
 
 TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
@@ -850,8 +868,7 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
   EXPECT_NE(static_cast<cssom::TimeListValue*>(NULL),
             transition_duration.get());
   ASSERT_EQ(1, transition_duration->value().size());
-  EXPECT_FLOAT_EQ(1, transition_duration->value()[0].value);
-  EXPECT_EQ(cssom::kSecondsUnit, transition_duration->value()[0].unit);
+  EXPECT_DOUBLE_EQ(1, transition_duration->value()[0].InSecondsF());
 }
 
 }  // namespace css_parser

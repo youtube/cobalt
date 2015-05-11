@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
@@ -26,7 +26,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_function.h"
-#include "cobalt/cssom/transform_list_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -105,30 +105,26 @@ TEST(PropertyValueIsEqualTest, NumbersAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreEqual) {
-  PropertyNameListValue::PropertyNameList property_list;
+  ConstStringListValue::Builder property_list;
   property_list.push_back(kBackgroundColorPropertyName);
   property_list.push_back(kOpacityPropertyName);
-  scoped_refptr<PropertyNameListValue> value_a(
-      new PropertyNameListValue(make_scoped_ptr(
-          new PropertyNameListValue::PropertyNameList(property_list))));
-  scoped_refptr<PropertyNameListValue> value_b(
-      new PropertyNameListValue(make_scoped_ptr(
-          new PropertyNameListValue::PropertyNameList(property_list))));
+  scoped_refptr<ConstStringListValue> value_a(new ConstStringListValue(
+      make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
+  scoped_refptr<ConstStringListValue> value_b(new ConstStringListValue(
+      make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
-  PropertyNameListValue::PropertyNameList property_list;
+  ConstStringListValue::Builder property_list;
   property_list.push_back(kBackgroundColorPropertyName);
   property_list.push_back(kOpacityPropertyName);
-  scoped_refptr<PropertyNameListValue> value_a(
-      new PropertyNameListValue(make_scoped_ptr(
-          new PropertyNameListValue::PropertyNameList(property_list))));
+  scoped_refptr<ConstStringListValue> value_a(new ConstStringListValue(
+      make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
   property_list.back() = kTransformPropertyName;
-  scoped_refptr<PropertyNameListValue> value_b(
-      new PropertyNameListValue(make_scoped_ptr(
-          new PropertyNameListValue::PropertyNameList(property_list))));
+  scoped_refptr<ConstStringListValue> value_b(new ConstStringListValue(
+      make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
@@ -162,82 +158,70 @@ TEST(PropertyValueIsEqualTest, StringsAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, TimeListsAreEqual) {
-  TimeListValue::TimeList time_list;
-  Time next_time;
-  next_time.value = 3;
-  next_time.unit = kSecondsUnit;
-  time_list.push_back(next_time);
-  next_time.value = 2;
-  next_time.unit = kMillisecondsUnit;
-  time_list.push_back(next_time);
+  TimeListValue::Builder time_list;
+  time_list.push_back(base::TimeDelta::FromSeconds(3));
+  time_list.push_back(base::TimeDelta::FromMilliseconds(2));
 
-  scoped_refptr<TimeListValue> value_a(new TimeListValue(make_scoped_ptr(
-      new TimeListValue::TimeList(time_list))));
-  scoped_refptr<TimeListValue> value_b(new TimeListValue(make_scoped_ptr(
-      new TimeListValue::TimeList(time_list))));
+  scoped_refptr<TimeListValue> value_a(new TimeListValue(
+      make_scoped_ptr(new TimeListValue::Builder(time_list))));
+  scoped_refptr<TimeListValue> value_b(new TimeListValue(
+      make_scoped_ptr(new TimeListValue::Builder(time_list))));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
-  TimeListValue::TimeList time_list;
-  Time next_time;
-  next_time.value = 3;
-  next_time.unit = kSecondsUnit;
-  time_list.push_back(next_time);
-  next_time.value = 2;
-  next_time.unit = kMillisecondsUnit;
-  time_list.push_back(next_time);
+  TimeListValue::Builder time_list;
+  time_list.push_back(base::TimeDelta::FromSeconds(3));
+  time_list.push_back(base::TimeDelta::FromMilliseconds(2));
 
-  scoped_refptr<TimeListValue> value_a(new TimeListValue(make_scoped_ptr(
-      new TimeListValue::TimeList(time_list))));
+  scoped_refptr<TimeListValue> value_a(new TimeListValue(
+      make_scoped_ptr(new TimeListValue::Builder(time_list))));
 
-  next_time.value = 2;
-  next_time.unit = kSecondsUnit;
-  time_list.back() = next_time;
+  time_list.back() = base::TimeDelta::FromSeconds(2);
 
-  scoped_refptr<TimeListValue> value_b(new TimeListValue(make_scoped_ptr(
-      new TimeListValue::TimeList(time_list))));
+  scoped_refptr<TimeListValue> value_b(new TimeListValue(
+      make_scoped_ptr(new TimeListValue::Builder(time_list))));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
-  TransformListValue::TransformFunctions transform_list_a;
+  TransformFunctionListValue::Builder transform_list_a;
   transform_list_a.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_a.push_back(new RotateFunction(1.0f));
-  scoped_refptr<TransformListValue> value_a(new TransformListValue(
-      transform_list_a.Pass()));
+  scoped_refptr<TransformFunctionListValue> value_a(
+      new TransformFunctionListValue(transform_list_a.Pass()));
 
-  TransformListValue::TransformFunctions transform_list_b;
+  TransformFunctionListValue::Builder transform_list_b;
   transform_list_b.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_b.push_back(new RotateFunction(1.0f));
-  scoped_refptr<TransformListValue> value_b(new TransformListValue(
-      transform_list_b.Pass()));
+  scoped_refptr<TransformFunctionListValue> value_b(
+      new TransformFunctionListValue(transform_list_b.Pass()));
 
   EXPECT_TRUE(value_a->Equals(*value_b));
 }
 
 TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
-  TransformListValue::TransformFunctions transform_list_a;
+  TransformFunctionListValue::Builder transform_list_a;
   transform_list_a.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_a.push_back(new RotateFunction(1.0f));
-  scoped_refptr<TransformListValue> value_a(new TransformListValue(
-      transform_list_a.Pass()));
+  scoped_refptr<TransformFunctionListValue> value_a(
+      new TransformFunctionListValue(transform_list_a.Pass()));
 
-  TransformListValue::TransformFunctions transform_list_b;
+  TransformFunctionListValue::Builder transform_list_b;
   transform_list_b.push_back(
       new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(1.0f, 2.0f));
   transform_list_b.push_back(new RotateFunction(1.0f));
-  scoped_refptr<TransformListValue> value_b(new TransformListValue(
-      transform_list_b.Pass()));
+  scoped_refptr<TransformFunctionListValue> value_b(
+      new TransformFunctionListValue(transform_list_b.Pass()));
 
   EXPECT_FALSE(value_a->Equals(*value_b));
 }
