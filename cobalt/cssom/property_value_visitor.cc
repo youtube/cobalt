@@ -26,6 +26,11 @@ void NotReachedPropertyValueVisitor::VisitAbsoluteURL(
   NOTREACHED();
 }
 
+void NotReachedPropertyValueVisitor::VisitConstStringList(
+    ConstStringListValue* /*const_string_list_value*/) {
+  NOTREACHED();
+}
+
 void NotReachedPropertyValueVisitor::VisitFontWeight(
     FontWeightValue* /*font_weight_value*/) {
   NOTREACHED();
@@ -46,16 +51,6 @@ void NotReachedPropertyValueVisitor::VisitNumber(
   NOTREACHED();
 }
 
-void NotReachedPropertyValueVisitor::VisitPropertyNameList(
-    PropertyNameListValue* /*property_name_list_value*/) {
-  NOTREACHED();
-}
-
-void NotReachedPropertyValueVisitor::VisitTimeList(
-    TimeListValue* /*time_list_value*/) {
-  NOTREACHED();
-}
-
 void NotReachedPropertyValueVisitor::VisitRGBAColor(
     RGBAColorValue* /*color_value*/) {
   NOTREACHED();
@@ -66,8 +61,13 @@ void NotReachedPropertyValueVisitor::VisitString(
   NOTREACHED();
 }
 
-void NotReachedPropertyValueVisitor::VisitTransformList(
-    TransformListValue* /*transform_list_value*/) {
+void NotReachedPropertyValueVisitor::VisitTimeList(
+    TimeListValue* /*time_list_value*/) {
+  NOTREACHED();
+}
+
+void NotReachedPropertyValueVisitor::VisitTransformFunctionList(
+    TransformFunctionListValue* /*transform_list_value*/) {
   NOTREACHED();
 }
 

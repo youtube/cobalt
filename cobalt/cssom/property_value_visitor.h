@@ -23,6 +23,7 @@ namespace cobalt {
 namespace cssom {
 
 class AbsoluteURLValue;
+class ConstStringListValue;
 class FontWeightValue;
 class KeywordValue;
 class LengthValue;
@@ -31,7 +32,7 @@ class PropertyNameListValue;
 class RGBAColorValue;
 class StringValue;
 class TimeListValue;
-class TransformListValue;
+class TransformFunctionListValue;
 class URLValue;
 
 // Type-safe branching on a class hierarchy of CSS property values,
@@ -40,16 +41,17 @@ class URLValue;
 class PropertyValueVisitor {
  public:
   virtual void VisitAbsoluteURL(AbsoluteURLValue* url_value) = 0;
+  virtual void VisitConstStringList(
+      ConstStringListValue* const_string_list_value) = 0;
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
-  virtual void VisitPropertyNameList(
-      PropertyNameListValue* property_name_list_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
-  virtual void VisitTransformList(TransformListValue* transform_list_value) = 0;
+  virtual void VisitTransformFunctionList(
+      TransformFunctionListValue* transform_list_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
 
  protected:
@@ -63,17 +65,18 @@ class PropertyValueVisitor {
 class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
  public:
   void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
+  void VisitConstStringList(
+      ConstStringListValue* const_string_list_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
-  void VisitPropertyNameList(
-      PropertyNameListValue* property_name_list_value) OVERRIDE;
-  void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
-  void VisitTransformList(TransformListValue* transform_list_value) OVERRIDE;
+  void VisitTransformFunctionList(
+      TransformFunctionListValue* transform_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
+  void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
 };
 
 }  // namespace cssom

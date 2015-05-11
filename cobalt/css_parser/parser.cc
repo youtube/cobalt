@@ -22,6 +22,7 @@
 
 #include "base/bind.h"
 #include "base/string_util.h"
+#include "base/time.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/property_declaration.h"
 #include "cobalt/css_parser/ref_counted_util.h"

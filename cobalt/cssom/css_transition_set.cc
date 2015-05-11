@@ -20,8 +20,8 @@
 
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "cobalt/cssom/property_name_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -38,8 +38,8 @@ int GetPropertyTransitionIndex(
   if (transition_property_value == KeywordValue::GetNone()) {
     return -1;
   } else {
-    PropertyNameListValue* property_name_list =
-        base::polymorphic_downcast<PropertyNameListValue*>(
+    ConstStringListValue* property_name_list =
+        base::polymorphic_downcast<ConstStringListValue*>(
             transition_property_value.get());
 
     // The LAST reference to the given property in the transition-property list
@@ -71,7 +71,7 @@ void TransitionSet::UpdateTransitions(
       base::polymorphic_downcast<TimeListValue*>(
           destination_computed_style.transition_duration().get());
   if (transition_duration->value().size() == 1 &&
-      transition_duration->value()[0].value == 0.0f) {
+      transition_duration->value()[0] == base::TimeDelta()) {
     // No need to process transitions if all their durations are set to
     // 0, the initial value, so this will happen often.
     return;
@@ -190,8 +190,14 @@ void TransitionSet::UpdateTransitionForProperty(
     TimeListValue* transition_duration =
         base::polymorphic_downcast<TimeListValue*>(
             transition_style.transition_duration().get());
+
+    // Get animation parameters by using the transition_index modulos the
+    // specific property sizes.  This is inline with the specification which
+    // states that list property values should be repeated to calculate values
+    // for indices larger than the list's size.
+    const TimeListValue::Builder& duration_list = transition_duration->value();
     base::TimeDelta duration =
-        transition_duration->time_at_index(transition_index).ToTimeDelta();
+        duration_list[transition_index % duration_list.size()];
 
     if (duration.InMilliseconds() != 0 && !start_value->Equals(*end_value)) {
       // The property has been modified and the transition should be animated.
