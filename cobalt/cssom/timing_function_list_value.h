@@ -14,35 +14,32 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_TIME_LIST_VALUE_H_
-#define CSSOM_TIME_LIST_VALUE_H_
+#ifndef CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
+#define CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 
-#include "base/time.h"
-#include "cobalt/cssom/list_value.h"
+#include "cobalt/cssom/scoped_ref_list_value.h"
+#include "cobalt/cssom/timing_function.h"
 
 namespace cobalt {
 namespace cssom {
 
-// A CSS property value that is a list of base::TimeDelta values.  Example
-// properties that can hold this value type are 'transition-duration' and
-// 'transition-delay'.
-class TimeListValue : public ListValue<base::TimeDelta> {
+class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
  public:
-  explicit TimeListValue(scoped_ptr<ListValue<base::TimeDelta>::Builder> value)
-      : ListValue(value.Pass()) {}
+  explicit TimingFunctionListValue(
+      scoped_ptr<ScopedRefListValue<TimingFunction>::Builder> value)
+      : ScopedRefListValue(value.Pass()) {}
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
-    visitor->VisitTimeList(this);
+    visitor->VisitTimingFunctionList(this);
   }
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimeListValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimingFunctionListValue);
 
  private:
-  virtual ~TimeListValue() OVERRIDE {}
+  virtual ~TimingFunctionListValue() OVERRIDE {}
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_TIME_LIST_VALUE_H_
-
+#endif  // CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
