@@ -52,9 +52,6 @@ class HTMLMediaElement : public HTMLElement,
                    cssom::CSSParser* css_parser,
                    media::WebMediaPlayerFactory* web_media_player_factory);
 
-  // Web API: Node
-  void AttachToDocument(Document* document) OVERRIDE;
-
   // Web API: Element
   //
   const std::string& tag_name() const OVERRIDE;
@@ -121,6 +118,13 @@ class HTMLMediaElement : public HTMLElement,
   void set_volume(float volume /*, ExceptionCode**/);
   bool muted() const;
   void set_muted(bool muted);
+
+  // Custom, not in any spec
+  //
+  // From Node
+  void AttachToDocument(Document* document) OVERRIDE;
+  // From HTMLElement
+  scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() OVERRIDE { return this; }
 
   scoped_refptr<VideoFrame> GetCurrentFrame();
 

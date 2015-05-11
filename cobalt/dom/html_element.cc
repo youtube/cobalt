@@ -22,6 +22,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
+#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -39,6 +40,10 @@ scoped_refptr<HTMLHeadElement> HTMLElement::AsHTMLHeadElement() { return NULL; }
 scoped_refptr<HTMLHtmlElement> HTMLElement::AsHTMLHtmlElement() { return NULL; }
 
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
+
+scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
+  return NULL;
+}
 
 scoped_refptr<HTMLScriptElement> HTMLElement::AsHTMLScriptElement() {
   return NULL;
