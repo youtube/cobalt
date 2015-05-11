@@ -36,6 +36,8 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/timing_function.h"
+#include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -870,6 +872,189 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
   ASSERT_EQ(1, transition_duration->value().size());
   EXPECT_DOUBLE_EQ(1, transition_duration->value()[0].InSecondsF());
 }
+
+namespace {
+
+scoped_refptr<cssom::TimingFunctionListValue>
+CreateSingleTimingFunctionValue(
+    const scoped_refptr<cssom::TimingFunction>& timing_function) {
+  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+      expected_result_list_builder(
+          new cssom::TimingFunctionListValue::Builder());
+  expected_result_list_builder->push_back(timing_function);
+  return new cssom::TimingFunctionListValue(
+      expected_result_list_builder.Pass());
+}
+
+// Returns true if the timing function obtained from parsing the passed in
+// property declaration string is equal to the passed in expected timing
+// function.
+bool TestTransitionTimingFunctionKeyword(
+    Parser* parser, const base::SourceLocation& source_location,
+    const std::string& property_declaration_string,
+    const scoped_refptr<cssom::TimingFunction>& expected_result) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser->ParseDeclarationList(
+          "transition-timing-function: " + property_declaration_string + ";",
+          source_location);
+
+  scoped_refptr<cssom::TimingFunctionListValue>
+      transition_timing_function =
+          dynamic_cast<cssom::TimingFunctionListValue*>(
+              style->transition_timing_function().get());
+  CHECK_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+           transition_timing_function.get());
+
+  scoped_refptr<cssom::TimingFunctionListValue>
+      expected_result_list(CreateSingleTimingFunctionValue(expected_result));
+
+  return expected_result_list->Equals(*transition_timing_function);
+}
+
+}  // namespace
+
+TEST_F(ParserTest, ParsesTransitionTimingFunctionEaseKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "ease",
+      new cssom::CubicBezierTimingFunction(0.25f, 0.1f, 0.25f, 1.0f)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionEaseInKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "ease-in",
+      new cssom::CubicBezierTimingFunction(0.42f, 0.0f, 1.0f, 1.0f)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionEaseInOutKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "ease-in-out",
+      new cssom::CubicBezierTimingFunction(0.42f, 0.0f, 0.58f, 1.0f)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionEaseOutKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "ease-out",
+      new cssom::CubicBezierTimingFunction(0.0f, 0.0f, 0.58f, 1.0f)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionLinearKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "linear",
+      new cssom::CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionStepEndKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "step-end",
+      new cssom::SteppingTimingFunction(1,
+                                        cssom::SteppingTimingFunction::kEnd)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionStepStartKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "step-start",
+      new cssom::SteppingTimingFunction(
+          1, cssom::SteppingTimingFunction::kStart)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionArbitraryCubicBezierKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "cubic-bezier(0.1, -2.0, 0.3, 2.0)",
+      new cssom::CubicBezierTimingFunction(0.1f, -2.0f, 0.3f, 2.0f)));
+}
+TEST_F(ParserTest,
+       ParsesTransitionTimingFunctionArbitrarySteppingStartKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "steps(2, start)",
+      new cssom::SteppingTimingFunction(
+          2, cssom::SteppingTimingFunction::kStart)));
+}
+TEST_F(ParserTest, ParsesTransitionTimingFunctionArbitrarySteppingEndKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "steps(2, end)",
+      new cssom::SteppingTimingFunction(2,
+                                        cssom::SteppingTimingFunction::kEnd)));
+}
+TEST_F(ParserTest,
+       ParsesTransitionTimingFunctionArbitrarySteppingNoStartOrEndKeyword) {
+  EXPECT_TRUE(TestTransitionTimingFunctionKeyword(
+      &parser_, source_location_, "steps(2)",
+      new cssom::SteppingTimingFunction(2,
+                                        cssom::SteppingTimingFunction::kEnd)));
+}
+
+TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "transition-timing-function: ease, ease-in, step-start;",
+          source_location_);
+
+  scoped_refptr<cssom::TimingFunctionListValue>
+      transition_timing_function =
+          dynamic_cast<cssom::TimingFunctionListValue*>(
+              style->transition_timing_function().get());
+  ASSERT_NE(
+      static_cast<cssom::TimingFunctionListValue*>(NULL),
+      transition_timing_function.get());
+
+  scoped_ptr<cssom::TimingFunctionListValue::Builder>
+      expected_result_list_builder(
+          new cssom::TimingFunctionListValue::Builder());
+  expected_result_list_builder->push_back(
+      cssom::TimingFunction::GetEase().get());
+  expected_result_list_builder->push_back(
+      cssom::TimingFunction::GetEaseIn().get());
+  expected_result_list_builder->push_back(
+      cssom::TimingFunction::GetStepStart().get());
+  scoped_refptr<cssom::TimingFunctionListValue>
+      expected_result_list(new cssom::TimingFunctionListValue(
+          expected_result_list_builder.Pass()));
+
+  EXPECT_TRUE(expected_result_list->Equals(*transition_timing_function));
+}
+
+TEST_F(ParserTest, AboveRangeCubicBezierP1XParameterProduceError) {
+  EXPECT_CALL(parser_observer_,
+              OnError(
+                  "[object ParserTest]:1:1: error: cubic-bezier control point "
+                  "x values must be in the range [0, 1]."));
+  scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
+      "transition-timing-function", "cubic-bezier(2, 0, 0.5, 0)",
+      source_location_);
+  // Test that the ease function was returned in place of the error function.
+  EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
+                                      cssom::TimingFunction::GetEase().get())));
+}
+TEST_F(ParserTest, BelowRangeCubicBezierP1XParameterProduceError) {
+  EXPECT_CALL(parser_observer_,
+              OnError(
+                  "[object ParserTest]:1:1: error: cubic-bezier control point "
+                  "x values must be in the range [0, 1]."));
+  scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
+      "transition-timing-function", "cubic-bezier(-1, 0, 0.5, 0)",
+      source_location_);
+  // Test that the ease function was returned in place of the error function.
+  EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
+                                      cssom::TimingFunction::GetEase().get())));
+}
+TEST_F(ParserTest, AboveRangeCubicBezierP2XParameterProduceError) {
+  EXPECT_CALL(parser_observer_,
+              OnError(
+                  "[object ParserTest]:1:1: error: cubic-bezier control point "
+                  "x values must be in the range [0, 1]."));
+  scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
+      "transition-timing-function", "cubic-bezier(0.5, 0, 2, 0)",
+      source_location_);
+  // Test that the ease function was returned in place of the error function.
+  EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
+                                      cssom::TimingFunction::GetEase().get())));
+}
+TEST_F(ParserTest, BelowRangeCubicBezierP2XParameterProduceError) {
+  EXPECT_CALL(parser_observer_,
+              OnError(
+                  "[object ParserTest]:1:1: error: cubic-bezier control point "
+                  "x values must be in the range [0, 1]."));
+  scoped_refptr<cssom::PropertyValue> error_value = parser_.ParsePropertyValue(
+      "transition-timing-function", "cubic-bezier(0.5, 0, -1, 0)",
+      source_location_);
+  // Test that the ease function was returned in place of the error function.
+  EXPECT_TRUE(error_value->Equals(*CreateSingleTimingFunctionValue(
+                                      cssom::TimingFunction::GetEase().get())));
+}
+
 
 }  // namespace css_parser
 }  // namespace cobalt

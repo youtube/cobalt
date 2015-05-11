@@ -265,7 +265,7 @@ void CSSStyleDeclaration::set_transition_duration(
     const std::string& transition_duration) {
   DCHECK(css_parser_);
   data_->set_transition_duration(css_parser_->ParsePropertyValue(
-      kTransformPropertyName, transition_duration,
+      kTransitionDurationPropertyName, transition_duration,
       non_trivial_static_fields.Get().location));
 
   RecordMutation();
@@ -280,7 +280,23 @@ void CSSStyleDeclaration::set_transition_property(
     const std::string& transition_property) {
   DCHECK(css_parser_);
   data_->set_transition_property(css_parser_->ParsePropertyValue(
-      kTransformPropertyName, transition_property,
+      kTransitionPropertyPropertyName, transition_property,
+      non_trivial_static_fields.Get().location));
+
+  RecordMutation();
+}
+
+std::string CSSStyleDeclaration::transition_timing_function() const {
+  return data_->transition_timing_function()
+             ? data_->transition_timing_function()->ToString()
+             : "";
+}
+
+void CSSStyleDeclaration::set_transition_timing_function(
+    const std::string& transition_timing_function) {
+  DCHECK(css_parser_);
+  data_->set_transition_timing_function(css_parser_->ParsePropertyValue(
+      kTransitionTimingFunctionPropertyName, transition_timing_function,
       non_trivial_static_fields.Get().location));
 
   RecordMutation();

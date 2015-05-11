@@ -32,6 +32,7 @@ class PropertyValue;
 class RGBAColorValue;
 class StringValue;
 class TimeListValue;
+class TimingFunctionListValue;
 class TransformFunctionListValue;
 class URLValue;
 
@@ -50,6 +51,8 @@ class PropertyValueVisitor {
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
+  virtual void VisitTimingFunctionList(
+      TimingFunctionListValue* timing_function_list_value) = 0;
   virtual void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
@@ -72,10 +75,12 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitNumber(NumberValue* number_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
+  void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
+  void VisitTimingFunctionList(
+      TimingFunctionListValue* timing_function_list_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
-  void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
 
  protected:
   virtual void VisitDefault(PropertyValue* property_value) = 0;
