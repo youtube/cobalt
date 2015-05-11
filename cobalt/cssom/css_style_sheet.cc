@@ -41,10 +41,13 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
 
 unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
                                        unsigned int index) {
+  // TODO(***REMOVED***): Here it is assumed the rule is a style rule. Handle other
+  // kinds of rules properly.
   scoped_refptr<CSSStyleRule> css_rule = css_parser_->ParseStyleRule(
       rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
 
   if (index > css_rules()->length()) {
+    // TODO(***REMOVED***): Throw JS IndexSizeError.
     LOG(ERROR) << "IndexSizeError";
     return 0;
   }
