@@ -71,15 +71,6 @@ HTMLMediaElement::HTMLMediaElement(
       sent_stalled_event_(false),
       sent_end_event_(false) {}
 
-void HTMLMediaElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
-
-  std::string src = GetAttribute("src").value_or("");
-  if (!src.empty()) {
-    set_src(src);
-  }
-}
-
 const std::string& HTMLMediaElement::tag_name() const {
   static const std::string kElementName(kTagName);
   return kElementName;
@@ -345,6 +336,15 @@ void HTMLMediaElement::set_muted(bool muted) {
       }
     }
     ScheduleEvent("volumechange");
+  }
+}
+
+void HTMLMediaElement::AttachToDocument(Document* document) {
+  HTMLElement::AttachToDocument(document);
+
+  std::string src = GetAttribute("src").value_or("");
+  if (!src.empty()) {
+    set_src(src);
   }
 }
 
