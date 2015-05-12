@@ -4,7 +4,10 @@
 
 
 
+#include "base/compiler_specific.h"
+
 #define TRACE_EVENT_BENCHMARK1(benchmark, event_name_1, measurement_type_1)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -62,10 +65,12 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK2(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -163,10 +168,12 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK3(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2, event_name_3, measurement_type_3)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -304,11 +311,13 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK4(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2, event_name_3, measurement_type_3, \
     event_name_4, measurement_type_4)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -486,11 +495,13 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK5(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2, event_name_3, measurement_type_3, \
     event_name_4, measurement_type_4, event_name_5, measurement_type_5)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -708,12 +719,14 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK6(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2, event_name_3, measurement_type_3, \
     event_name_4, measurement_type_4, event_name_5, measurement_type_5, \
     event_name_6, measurement_type_6)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -971,12 +984,14 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 #define TRACE_EVENT_BENCHMARK7(benchmark, event_name_1, measurement_type_1, \
     event_name_2, measurement_type_2, event_name_3, measurement_type_3, \
     event_name_4, measurement_type_4, event_name_5, measurement_type_5, \
     event_name_6, measurement_type_6, event_name_7, measurement_type_7)\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -1274,4 +1289,5 @@ class benchmark : public cobalt::trace_event::Benchmark {\
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
