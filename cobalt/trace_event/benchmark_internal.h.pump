@@ -6,6 +6,8 @@ $$
 $$ http://code.google.com/p/googletest/wiki/PumpManual
 $$
 
+#include "base/compiler_specific.h"
+
 $var MAX_ARITY = 7
 
 $range ARITY 1..MAX_ARITY
@@ -15,6 +17,7 @@ $for ARITY [[
 $range ARG 1..ARITY
 
 #define TRACE_EVENT_BENCHMARK$(ARITY)(benchmark, $for ARG , [[event_name_$(ARG), measurement_type_$(ARG)]])\
+MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
   void Experiment() OVERRIDE;\
@@ -86,6 +89,7 @@ $for ARG
 \
 TRACE_EVENT_REGISTER_BENCHMARK(benchmark)\
 \
-void benchmark::Experiment()
+void benchmark::Experiment()\
+MSVC_POP_WARNING()
 
 ]]
