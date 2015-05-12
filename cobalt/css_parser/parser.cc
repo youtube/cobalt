@@ -191,6 +191,10 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
     return NULL;
   }
 
+  if (input_.empty()) {
+    return NULL;
+  }
+
   scanner_.PrependToken(kPropertyValueEntryPointToken);
   scanner_.PrependToken(property_name_token);
   scanner_.PrependToken(':');
