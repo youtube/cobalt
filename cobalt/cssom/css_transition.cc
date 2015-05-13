@@ -70,6 +70,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
     return animated_value_;
   }
 
+  void VisitAbsoluteURL(AbsoluteURLValue* absolute_url_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
@@ -288,6 +289,12 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
   }
 }
 }  // namespace
+
+void AnimatorVisitor::VisitAbsoluteURL(
+    AbsoluteURLValue* /*absolute_url_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
 
 void AnimatorVisitor::VisitFontWeight(
     FontWeightValue* /*start_font_weight_value*/) {

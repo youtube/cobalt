@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,19 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/absolute_url_value.h"
 
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
 namespace cssom {
 
-CSSStyleRule::CSSStyleRule(Selectors selectors,
-                           const scoped_refptr<CSSStyleDeclaration>& style)
-    : selectors_(selectors.Pass()), style_(style) {}
+AbsoluteURLValue::AbsoluteURLValue(const GURL& absolute_url)
+    : absolute_url_(absolute_url) {}
 
-const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() {
-  return style_;
+void AbsoluteURLValue::Accept(PropertyValueVisitor* visitor) {
+  visitor->VisitAbsoluteURL(this);
 }
-
-void CSSStyleRule::AttachToStyleSheet(StyleSheet* style_sheet) {
-  parent_style_sheet_ = style_sheet;
-  style_->AttachToStyleSheet(style_sheet);
-}
-
-CSSStyleRule::~CSSStyleRule() {}
 
 }  // namespace cssom
 }  // namespace cobalt

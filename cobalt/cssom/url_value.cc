@@ -21,10 +21,17 @@
 namespace cobalt {
 namespace cssom {
 
-URLValue::URLValue(const GURL& url) : url_(url) {}
+URLValue::URLValue(const std::string& url)
+    : url_(url), is_absolute_(GURL(url_).is_valid()) {}
 
 void URLValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitURL(this);
+}
+
+GURL URLValue::Resolve(const GURL& base_url) const {
+  DCHECK(!is_absolute_);
+
+  return base_url.Resolve(url_);
 }
 
 }  // namespace cssom

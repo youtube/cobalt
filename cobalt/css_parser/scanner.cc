@@ -1155,6 +1155,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundColorToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kBackgroundImagePropertyName)) {
+        *property_name_token = kBackgroundImageToken;
+        return true;
+      }
       return false;
 
     case 19:
