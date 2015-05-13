@@ -39,6 +39,30 @@ void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
   *stream << "AnonymousBlockBox ";
 }
 
+float AnonymousBlockBox::GetUsedWidthBasedOnContainingBlock(
+    float containing_block_width, bool* width_depends_on_containing_block,
+    bool* width_depends_on_child_boxes) const {
+  *width_depends_on_containing_block = true;
+  *width_depends_on_child_boxes = false;
+
+  // Anonymous block boxes are ignored when resolving percentage values
+  // that would refer to it: the closest non-anonymous ancestor box is used
+  // instead.
+  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+  return containing_block_width;
+}
+
+float AnonymousBlockBox::GetUsedHeightBasedOnContainingBlock(
+    float containing_block_height, bool* height_depends_on_child_boxes) const {
+  *height_depends_on_child_boxes = true;
+
+  // Anonymous block boxes are ignored when resolving percentage values
+  // that would refer to it: the closest non-anonymous ancestor box is used
+  // instead.
+  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+  return containing_block_height;
+}
+
 scoped_ptr<FormattingContext> AnonymousBlockBox::LayoutChildren(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
@@ -71,7 +95,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::LayoutChildren(
   return inline_formatting_context.PassAs<FormattingContext>();
 }
 
-float AnonymousBlockBox::GetChildDependentUsedWidth(
+float AnonymousBlockBox::GetUsedWidthBasedOnChildBoxes(
     const FormattingContext& formatting_context) const {
   const InlineFormattingContext& inline_formatting_context =
       *base::polymorphic_downcast<const InlineFormattingContext*>(
@@ -79,7 +103,7 @@ float AnonymousBlockBox::GetChildDependentUsedWidth(
   return inline_formatting_context.GetShrinkToFitWidth();
 }
 
-float AnonymousBlockBox::GetChildDependentUsedHeight(
+float AnonymousBlockBox::GetUsedHeightBasedOnChildBoxes(
     const FormattingContext& formatting_context) const {
   // TODO(***REMOVED***): Implement for block-level non-replaced elements in normal
   //               flow when "overflow" computes to "visible":

@@ -77,6 +77,8 @@
         'next_sibling_combinator.h',
         'number_value.cc',
         'number_value.h',
+        'percentage_value.cc',
+        'percentage_value.h',
         'property_names.cc',
         'property_names.h',
         'property_value.h',
