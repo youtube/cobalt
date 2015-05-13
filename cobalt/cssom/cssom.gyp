@@ -21,6 +21,8 @@
       'target_name': 'cssom',
       'type': 'static_library',
       'sources': [
+        'absolute_url_value.cc',
+        'absolute_url_value.h',
         'adjacent_selector.cc',
         'adjacent_selector.h',
         'character_classification.h',

@@ -21,6 +21,11 @@
 namespace cobalt {
 namespace cssom {
 
+void NotReachedPropertyValueVisitor::VisitAbsoluteURL(
+    AbsoluteURLValue* /*url_value*/) {
+  NOTREACHED();
+}
+
 void NotReachedPropertyValueVisitor::VisitFontWeight(
     FontWeightValue* /*font_weight_value*/) {
   NOTREACHED();

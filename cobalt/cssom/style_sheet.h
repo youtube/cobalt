@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/wrappable.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace cssom {
@@ -32,6 +33,9 @@ class StyleSheet : public script::Wrappable {
   virtual ~StyleSheet() {}
 
   virtual void AttachToStyleSheetList(StyleSheetList* style_sheet_list) = 0;
+  virtual void SetLocationUrl(const GURL& url) = 0;
+  virtual GURL& LocationUrl() = 0;
+  virtual StyleSheetList* ParentStyleSheetList() = 0;
 
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
 

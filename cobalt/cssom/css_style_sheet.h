@@ -53,6 +53,10 @@ class CSSStyleSheet : public StyleSheet {
 
   void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
 
+  void SetLocationUrl(const GURL& url) OVERRIDE;
+  GURL& LocationUrl() OVERRIDE;
+  StyleSheetList* ParentStyleSheetList() OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
@@ -63,8 +67,9 @@ class CSSStyleSheet : public StyleSheet {
 
   base::WeakPtr<CSSRuleList> css_rule_list_;
 
-  StyleSheetList* style_sheet_list_;
+  StyleSheetList* parent_style_sheet_list_;
   CSSParser* css_parser_;
+  GURL location_url_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.
