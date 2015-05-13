@@ -71,8 +71,7 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 }
 
 void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit())
-      << "TODO(***REMOVED***): Implement other units";
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
   set_used_height(length->value());
 }
 
@@ -113,8 +112,7 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 }
 
 void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit())
-      << "TODO(***REMOVED***): Implement other units";
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
   set_used_width(length->value());
   width_depends_on_containing_block_ = false;
 }
