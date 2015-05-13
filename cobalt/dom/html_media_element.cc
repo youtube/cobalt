@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/guid.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
@@ -348,12 +349,16 @@ void HTMLMediaElement::AttachToDocument(Document* document) {
   }
 }
 
-scoped_refptr<VideoFrame> HTMLMediaElement::GetCurrentFrame() {
-  return player_ ? player_->GetCurrentFrame() : NULL;
+::media::ShellVideoFrameProvider* HTMLMediaElement::GetVideoFrameProvider() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return player_ ? player_->GetVideoFrameProvider() : NULL;
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
   player_ = web_media_player_factory_->CreateWebMediaPlayer(this);
+  if (owner_document()) {
+    owner_document()->RecordMutation();
+  }
 }
 
 void HTMLMediaElement::ScheduleLoad() {
