@@ -35,7 +35,7 @@ class ComplexSelector : public Selector {
   ComplexSelector() {}
   ~ComplexSelector() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE;
+  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
@@ -43,14 +43,18 @@ class ComplexSelector : public Selector {
 
   const Combinators& combinators() { return combinators_; }
 
+  // For a chain of selectors separated by combinators, AppendSelector should be
+  // first called with the left most selector, then AppendCombinatorAndSelector
+  // should be called with each (combinator, selector) pair that follows.
   void AppendSelector(scoped_ptr<CompoundSelector> selector);
-
   void AppendCombinatorAndSelector(scoped_ptr<Combinator> combinator,
                                    scoped_ptr<CompoundSelector> selector);
 
  private:
   scoped_ptr<AdjacentSelector> last_selector_;
   Combinators combinators_;
+  Specificity specificity_;
+
   DISALLOW_COPY_AND_ASSIGN(ComplexSelector);
 };
 

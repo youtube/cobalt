@@ -35,18 +35,18 @@ class CompoundSelector : public Selector {
   CompoundSelector() {}
   ~CompoundSelector() OVERRIDE {}
 
-  Specificity GetSpecificity() const OVERRIDE;
+  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
 
   void Accept(SelectorVisitor* visitor) OVERRIDE;
 
-  void AppendSelector(scoped_ptr<Selector> selector) {
-    selectors_.push_back(selector.release());
-  }
+  void AppendSelector(scoped_ptr<Selector> selector);
 
   const Selectors& selectors() { return selectors_; }
 
  private:
   Selectors selectors_;
+  Specificity specificity_;
+
   DISALLOW_COPY_AND_ASSIGN(CompoundSelector);
 };
 
