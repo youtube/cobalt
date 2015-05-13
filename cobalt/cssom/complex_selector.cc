@@ -21,26 +21,21 @@
 namespace cobalt {
 namespace cssom {
 
-Specificity ComplexSelector::GetSpecificity() const {
-  Specificity result = last_selector_->GetSpecificity();
-  for (Combinators::const_iterator combinator_iterator = combinators_.begin();
-       combinator_iterator != combinators_.end(); combinator_iterator++) {
-    result.AddFrom((*combinator_iterator)->selector()->GetSpecificity());
-  }
-  return result;
-}
-
 void ComplexSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitComplexSelector(this);
 }
 
 void ComplexSelector::AppendSelector(scoped_ptr<CompoundSelector> selector) {
+  DCHECK(!last_selector_);
+  specificity_.AddFrom(selector->GetSpecificity());
   last_selector_.reset(new AdjacentSelector());
   last_selector_->AppendSelector(selector.Pass());
 }
 
 void ComplexSelector::AppendCombinatorAndSelector(
     scoped_ptr<Combinator> combinator, scoped_ptr<CompoundSelector> selector) {
+  DCHECK(last_selector_);
+  specificity_.AddFrom(selector->GetSpecificity());
   if (combinator->IsAdjacentCombinator()) {
     last_selector_->AppendCombinatorAndSelector(combinator.Pass(),
                                                 selector.Pass());
