@@ -45,6 +45,16 @@ void HTMLLinkElement::AttachToDocument(Document* document) {
 
 HTMLLinkElement::~HTMLLinkElement() {}
 
+void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
+  // Resolve the URL given by the href attribute, relative to the element.
+  const GURL base_url = owner_document()->url_as_gurl();
+  absolute_url_ = base_url.Resolve(href());
+
+  // TODO(***REMOVED***): Report URL cannot be resolved.
+  LOG_IF(INFO, !absolute_url_.is_valid())
+      << href() << " cannot be resolved based on " << base_url;
+}
+
 // Algorithm for Obtain:
 //   http://www.w3.org/TR/html5/document-metadata.html#concept-link-obtain
 void HTMLLinkElement::Obtain() {
@@ -57,14 +67,10 @@ void HTMLLinkElement::Obtain() {
   if (href().empty()) return;
 
   // 2. Resolve the URL given by the href attribute, relative to the element.
+  ResolveAndSetAbsoluteURL();
+
   // 3. If the previous step fails, then abort these steps.
-  const GURL base_url = owner_document()->url_as_gurl();
-  const GURL url = base_url.Resolve(href());
-  if (!url.is_valid()) {
-    // TODO(***REMOVED***): Report URL cannot be resolved.
-    LOG(INFO) << href() << " cannot be resolved based on " << base_url;
-    return;
-  }
+  if (!absolute_url_.is_valid()) return;
 
   // 4. Do a potentially CORS-enabled fetch of the resulting absolute URL, with
   // the mode being the current state of the element's crossorigin content
@@ -72,7 +78,7 @@ void HTMLLinkElement::Obtain() {
   // the default origin behaviour set to taint.
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory_), url),
+                 base::Unretained(fetcher_factory_), absolute_url_),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
@@ -82,6 +88,7 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(content, base::SourceLocation(href(), 1, 1));
+  style_sheet->SetLocationUrl(absolute_url_);
   owner_document()->style_sheets()->Append(style_sheet);
   StopLoading();
 }

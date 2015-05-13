@@ -22,6 +22,7 @@
 namespace cobalt {
 namespace cssom {
 
+class AbsoluteURLValue;
 class FontWeightValue;
 class KeywordValue;
 class LengthValue;
@@ -38,6 +39,7 @@ class URLValue;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class PropertyValueVisitor {
  public:
+  virtual void VisitAbsoluteURL(AbsoluteURLValue* url_value) = 0;
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
@@ -60,6 +62,7 @@ class PropertyValueVisitor {
 // result in an error.
 class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
  public:
+  void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
