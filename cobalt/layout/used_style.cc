@@ -19,6 +19,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 
@@ -75,7 +76,14 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
 void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  set_used_height(length->value());
+  used_height_ = length->value();
+}
+
+// The percentage is calculated with respect to the height of the containing
+// block.
+//   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
+void UsedHeightProvider::VisitPercentage(cssom::PercentageValue* percentage) {
+  used_height_ = containing_block_height_ * percentage->value();
 }
 
 UsedLineHeightProvider::UsedLineHeightProvider(
@@ -119,8 +127,15 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
 void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  set_used_width(length->value());
+  used_width_ = length->value();
   width_depends_on_containing_block_ = false;
+}
+
+// Percentages: refer to width of containing block.
+//   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
+void UsedWidthProvider::VisitPercentage(cssom::PercentageValue* percentage) {
+  used_width_ = containing_block_width_ * percentage->value();
+  width_depends_on_containing_block_ = true;
 }
 
 }  // namespace layout
