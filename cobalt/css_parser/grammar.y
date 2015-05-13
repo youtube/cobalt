@@ -241,6 +241,10 @@
 
 %type <integer> integer
 
+%union { cssom::PercentageValue* percentage; }
+%type <percentage> percentage
+%destructor { $$->Release(); } <percentage>
+
 %union { cssom::LengthValue* length; }
 %type <length> length
 %destructor { $$->Release(); } <length>
@@ -768,6 +772,16 @@ number:
   | maybe_sign_token kRealToken maybe_whitespace { $$ = $1 * $2; }
   ;
 
+// Percentage values are always relative to another value, for example a length.
+// Each property that allows percentages also defines the value to which
+// the percentage refers.
+//   http://www.w3.org/TR/css3-values/#percentages
+percentage:
+    maybe_sign_token kPercentageToken maybe_whitespace {
+    $$ = AddRef(new cssom::PercentageValue($1 * $2 / 100));
+  }
+  ;
+
 // Opacity.
 //   http://www.w3.org/TR/css3-color/#alphavaluedt
 alpha:
@@ -1031,7 +1045,21 @@ font_weight_property_value:
 // Specifies the content height of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
 height_property_value:
-    length { $$ = $1; }  // TODO(***REMOVED***): Reject negative heights.
+    length {
+    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
+    if (length && length->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of height are illegal");
+    }
+    $$ = AddRef(length.get());
+  }
+  | percentage {
+    scoped_refptr<cssom::PercentageValue> percentage =
+        MakeScopedRefPtrAndRelease($1);
+    if (percentage && percentage->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of height are illegal");
+    }
+    $$ = AddRef(percentage.get());
+  }
   | common_values
   ;
 
@@ -1041,7 +1069,13 @@ line_height_property_value:
     kNormalToken maybe_whitespace  {
     $$ = AddRef(cssom::KeywordValue::GetNormal().get());
   }
-  | length { $$ = $1; }  // TODO(***REMOVED***): Reject negative heights.
+  | length {
+    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
+    if (length && length->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of line-height are illegal");
+    }
+    $$ = AddRef(length.get());
+  }
   | common_values
   ;
 
@@ -1449,7 +1483,21 @@ transition_property_value:
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 width_property_value:
-    length { $$ = $1; }  // TODO(***REMOVED***): Reject negative widths.
+    length {
+    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
+    if (length && length->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of width are illegal");
+    }
+    $$ = AddRef(length.get());
+  }
+  | percentage {
+    scoped_refptr<cssom::PercentageValue> percentage =
+        MakeScopedRefPtrAndRelease($1);
+    if (percentage && percentage->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of width are illegal");
+    }
+    $$ = AddRef(percentage.get());
+  }
   | common_values
   ;
 
@@ -1789,8 +1837,8 @@ entry_point:
       DCHECK_EQ(1, property_declaration->property_values.size()) <<
           "Cannot parse shorthand properties as single property values.";
       if (property_declaration->important) {
-        parser_impl->LogError(@1,
-                              "!important is not allowed in property value");
+        parser_impl->LogWarning(@1,
+                                "!important is not allowed in property value");
       } else {
         parser_impl->set_property_value(
             property_declaration->property_values[0].value);

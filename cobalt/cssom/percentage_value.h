@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_LENGTH_VALUE_H_
-#define CSSOM_LENGTH_VALUE_H_
+#ifndef CSSOM_PERCENTAGE_VALUE_H_
+#define CSSOM_PERCENTAGE_VALUE_H_
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -24,40 +24,35 @@
 namespace cobalt {
 namespace cssom {
 
-// TODO(***REMOVED***): Add more units.
-enum LengthUnit {
-  kFontSizesAkaEmUnit,
-  kPixelsUnit,
-};
-
-// Represents distance or size.
-// Applies to properties such as left, width, font-size, etc.
-// See http://www.w3.org/TR/css3-values/#lengths for details.
-class LengthValue : public PropertyValue {
+// Percentage values are always relative to another value, for example a length.
+// Each property that allows percentages also defines the value to which
+// the percentage refers.
+//   http://www.w3.org/TR/css3-values/#percentages
+class PercentageValue : public PropertyValue {
  public:
-  LengthValue(float value, LengthUnit unit) : value_(value), unit_(unit) {}
+  // A |value| is a normalized factor, where 1 means 100%.
+  explicit PercentageValue(float value) : value_(value) {}
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
+  // Returns a normalized factor, where 1 means 100%.
   float value() const { return value_; }
-  LengthUnit unit() const { return unit_; }
 
-  bool operator==(const LengthValue& other) const {
-    return value_ == other.value_ && unit_ == other.unit_;
+  bool operator==(const PercentageValue& other) const {
+    return value_ == other.value_;
   }
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LengthValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(PercentageValue);
 
  private:
-  ~LengthValue() OVERRIDE {}
+  ~PercentageValue() OVERRIDE {}
 
   const float value_;
-  const LengthUnit unit_;
 
-  DISALLOW_COPY_AND_ASSIGN(LengthValue);
+  DISALLOW_COPY_AND_ASSIGN(PercentageValue);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_LENGTH_VALUE_H_
+#endif  // CSSOM_PERCENTAGE_VALUE_H_

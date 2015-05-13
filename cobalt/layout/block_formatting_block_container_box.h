@@ -44,12 +44,18 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
   // From |Box|.
   void DumpClassName(std::ostream* stream) const OVERRIDE;
 
-  // From |BlockContainerBoxBase|.
+  // From |BlockContainerBox|.
+  float GetUsedWidthBasedOnContainingBlock(
+      float containing_block_width, bool* width_depends_on_containing_block,
+      bool* width_depends_on_child_boxes) const OVERRIDE;
+  float GetUsedHeightBasedOnContainingBlock(
+      float containing_block_height,
+      bool* height_depends_on_child_boxes) const OVERRIDE;
   scoped_ptr<FormattingContext> LayoutChildren(
       const LayoutParams& child_layout_params) OVERRIDE;
-  float GetChildDependentUsedWidth(
+  float GetUsedWidthBasedOnChildBoxes(
       const FormattingContext& formatting_context) const OVERRIDE;
-  float GetChildDependentUsedHeight(
+  float GetUsedHeightBasedOnChildBoxes(
       const FormattingContext& formatting_context) const OVERRIDE;
 
  private:

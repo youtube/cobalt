@@ -73,11 +73,44 @@ class BlockContainerBox : public ContainerBox {
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
   // Rest of the protected methods.
+
+  // For block-level boxes, precisely calculates the used width and determines
+  // whether the value depends on a containing block (it does not if the
+  // computed value is an absolute length).
+  //
+  // For inline-block boxes, approximates the used width by treating "auto"
+  // in the same way as for block boxes, and determines whether the exact value
+  // depends on children (and thus the second pass of the layout is needed).
+  //
+  // Called before the first pass of the layout, when children sizes are
+  // not known yet.
+  virtual float GetUsedWidthBasedOnContainingBlock(
+      float containing_block_width, bool* width_depends_on_containing_block,
+      bool* width_depends_on_child_boxes) const = 0;
+  // Calculates the used height if it does not depend on children.
+  // Otherwise returns zero and sets |height_depends_on_child_boxes|.
+  //
+  // Called before the first pass of the layout, when children sizes are
+  // not known yet.
+  virtual float GetUsedHeightBasedOnContainingBlock(
+      float containing_block_height,
+      bool* height_depends_on_child_boxes) const = 0;
+
+  // Lays out children recursively.
   virtual scoped_ptr<FormattingContext> LayoutChildren(
       const LayoutParams& child_layout_params) = 0;
-  virtual float GetChildDependentUsedWidth(
+
+  // Calculates the used width.
+  //
+  // Only called if the value depends on children, after the second pass of
+  // the layout when precise children sizes are known.
+  virtual float GetUsedWidthBasedOnChildBoxes(
       const FormattingContext& formatting_context) const = 0;
-  virtual float GetChildDependentUsedHeight(
+  // Calculates the used height.
+  //
+  // Only called if the value depends on children, and only after precise
+  // children sizes are known.
+  virtual float GetUsedHeightBasedOnChildBoxes(
       const FormattingContext& formatting_context) const = 0;
 
   // Child boxes, including anonymous block boxes, if any.
@@ -87,11 +120,6 @@ class BlockContainerBox : public ContainerBox {
   LayoutParams GetChildLayoutOptions(const LayoutParams& layout_params,
                                      bool* width_depends_on_child_boxes,
                                      bool* height_depends_on_child_boxes) const;
-  float GetChildIndependentUsedWidth(float containing_block_width,
-                                     bool* width_depends_on_containing_block,
-                                     bool* width_depends_on_child_boxes) const;
-  float GetChildIndependentUsedHeight(
-      float containing_block_height, bool* height_depends_on_child_boxes) const;
 
   // A vertical offset of the baseline of the last child box that has one,
   // relatively to the origin of the block container box. Disengaged, if none
