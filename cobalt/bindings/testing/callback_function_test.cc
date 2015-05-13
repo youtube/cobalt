@@ -197,6 +197,35 @@ TEST_F(CallbackFunctionTest, CallbackAttribute) {
   EXPECT_STREQ("2", result.c_str());
 }
 
+TEST_F(CallbackFunctionTest, SetNullableCallbackAttribute) {
+  InSequence in_sequence_dummy;
+
+  std::string result;
+  scoped_refptr<CallbackFunctionInterface::VoidFunction> void_function;
+  EXPECT_CALL(test_mock(), set_nullable_callback_attribute(_))
+      .WillOnce(SaveArg<0>(&void_function));
+  EXPECT_TRUE(EvaluateScript(
+      "test.nullableCallbackAttribute = function() { /* empty function */ };",
+      NULL));
+  EXPECT_NE(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+
+  EXPECT_CALL(test_mock(), set_nullable_callback_attribute(_))
+      .WillOnce(SaveArg<0>(&void_function));
+  EXPECT_TRUE(EvaluateScript("test.nullableCallbackAttribute = null;", NULL));
+  EXPECT_EQ(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+}
+
+TEST_F(CallbackFunctionTest, GetNullableCallbackAttribute) {
+  InSequence in_sequence_dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), nullable_callback_attribute()).WillOnce(
+      Return(scoped_refptr<CallbackFunctionInterface::VoidFunction>()));
+  EXPECT_TRUE(
+      EvaluateScript("test.nullableCallbackAttribute == null;", &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt

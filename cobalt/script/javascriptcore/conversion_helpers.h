@@ -129,6 +129,9 @@ template <class T>
 inline JSC::JSValue ToJSValue(
     JSCGlobalObject* global_object,
     const scoped_refptr<CallbackFunction<T> >& callback_function) {
+  if (!callback_function) {
+    return JSC::jsNull();
+  }
   // Downcast to JSCCallbackFunction<> concrete class.
   JSCCallbackFunction<typename CallbackFunction<T>::Signature>*
       jsc_callback_function = base::polymorphic_downcast<
