@@ -53,7 +53,7 @@ class StyleSheetList : public script::Wrappable {
   //
   void Append(const scoped_refptr<CSSStyleSheet>& style_sheet);
 
-  MutationObserver* mutation_observer() { return mutation_observer_; }
+  MutationObserver* mutation_observer() const { return mutation_observer_; }
 
   DEFINE_WRAPPABLE_TYPE(StyleSheetList);
 

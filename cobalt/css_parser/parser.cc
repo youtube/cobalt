@@ -52,6 +52,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/cssom/url_value.h"
 
 namespace cobalt {
 namespace css_parser {

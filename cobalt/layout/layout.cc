@@ -64,8 +64,8 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
       GetInitialStyle();
   PromoteToSpecifiedStyle(initial_containing_block_computed_style,
                           initial_style);
-  PromoteToComputedStyle(initial_containing_block_computed_style,
-                         initial_style);
+  PromoteToComputedStyle(initial_containing_block_computed_style, initial_style,
+                         NULL);
 
   return make_scoped_ptr(new BlockLevelBlockContainerBox(
       initial_containing_block_computed_style,

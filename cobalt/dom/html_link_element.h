@@ -63,6 +63,8 @@ class HTMLLinkElement : public HTMLElement {
  private:
   ~HTMLLinkElement() OVERRIDE;
 
+  void ResolveAndSetAbsoluteURL();
+
   // From the spec: HTMLLinkElement.
   void Obtain();
 
@@ -77,6 +79,9 @@ class HTMLLinkElement : public HTMLElement {
   loader::FetcherFactory* fetcher_factory_;
   // The loader.
   scoped_ptr<loader::Loader> loader_;
+
+  // Absolute link url.
+  GURL absolute_url_;
 };
 
 }  // namespace dom

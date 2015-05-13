@@ -60,6 +60,7 @@
 %token kAllToken                        // all
 %token kBackgroundToken                 // background
 %token kBackgroundColorToken            // background-color
+%token kBackgroundImageToken            // background-image
 %token kBorderRadiusToken               // border-radius
 %token kColorToken                      // color
 %token kDisplayToken                    // display
@@ -240,6 +241,7 @@
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> background_property_value background_color_property_value
+                       background_image_property_value
                        border_radius_property_value color color_property_value
                        common_values display_property_value
                        final_background_layer font_family_property_value
@@ -247,7 +249,7 @@
                        font_weight_property_value height_property_value
                        line_height_property_value opacity_property_value
                        overflow_property_value transform_property_value
-                       transition_duration_property_value
+                       transition_duration_property_value url
                        transition_property_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
 
@@ -367,6 +369,9 @@ identifier_token:
   }
   | kBackgroundColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
+  }
+  | kBackgroundImageToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundImagePropertyName);
   }
   | kBorderRadiusToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
@@ -790,6 +795,12 @@ color:
   }
   ;
 
+url:
+    kUriToken maybe_whitespace {
+    $$ = AddRef(new cssom::URLValue($1.ToString()));
+  }
+  ;
+
 
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Property values.
@@ -810,6 +821,17 @@ background_property_value:
 //   http://www.w3.org/TR/css3-background/#the-background-color
 background_color_property_value:
     color
+  | common_values
+  ;
+
+// Images are drawn with the first specified one on top (closest to the user)
+// and each subsequent image behind the previous one.
+//   http://www.w3.org/TR/css3-background/#the-background-image
+background_image_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | url
   | common_values
   ;
 
@@ -1127,6 +1149,12 @@ maybe_declaration:
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBackgroundImageToken maybe_whitespace colon background_image_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundImagePropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

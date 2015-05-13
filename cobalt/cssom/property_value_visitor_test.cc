@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/property_value_visitor.h"
 
+#include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -35,6 +36,7 @@ namespace cssom {
 
 class MockPropertyValueVisitor : public PropertyValueVisitor {
  public:
+  MOCK_METHOD1(VisitAbsoluteURL, void(AbsoluteURLValue* absolute_url_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
@@ -48,6 +50,14 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(cssom::TransformListValue* transform_list_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
 };
+
+TEST(PropertyValueVisitorTest, VisitAbsoluteURLValue) {
+  scoped_refptr<AbsoluteURLValue> url_absolute_value =
+      new AbsoluteURLValue(GURL("file:///sample.png"));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitAbsoluteURL(url_absolute_value.get()));
+  url_absolute_value->Accept(&mock_visitor);
+}
 
 TEST(PropertyValueVisitorTest, VisitsFontWeightValue) {
   scoped_refptr<FontWeightValue> font_weight_value =
@@ -119,7 +129,7 @@ TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsURLValue) {
-  scoped_refptr<URLValue> url_value = new URLValue(GURL());
+  scoped_refptr<URLValue> url_value = new URLValue("");
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitURL(url_value.get()));
   url_value->Accept(&mock_visitor);
