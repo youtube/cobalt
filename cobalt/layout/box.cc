@@ -125,7 +125,6 @@ void Box::AddToRenderTree(
   AddContentToRenderTree(&composition_node_builder,
                          node_animations_map_builder);
 
-
   if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
@@ -193,45 +192,6 @@ void Box::AddBackgroundToRenderTree(
                                       *transitions_,
                                       node_animations_map_builder);
   }
-}
-
-math::Matrix3F Box::GetTransform() const {
-  math::Matrix3F transform_matrix =
-      math::TranslateMatrix(used_frame().x(), used_frame().y());
-
-  // Check if this block has any CSS transforms applied to it.  If so, build
-  // a matrix representing all transformations applied in the correct order.
-  DCHECK_NE(scoped_refptr<cssom::PropertyValue>(),
-            computed_style()->transform());
-  if (IsTransformable() &&
-      computed_style()->transform() != cssom::KeywordValue::GetNone()) {
-    const cssom::TransformListValue* transform =
-        base::polymorphic_downcast<const cssom::TransformListValue*>(
-            computed_style()->transform().get());
-    DCHECK(!transform->value().empty());
-
-    math::Matrix3F css_transform_matrix(math::Matrix3F::Identity());
-    for (cssom::TransformListValue::TransformFunctions::const_iterator iter =
-             transform->value().begin();
-         iter != transform->value().end(); ++iter) {
-      cssom::PostMultiplyMatrixByTransform(
-          const_cast<cssom::TransformFunction*>(*iter), &css_transform_matrix);
-    }
-
-    // Apply the CSS transformations, taking into account the CSS
-    // transform-origin property.
-    // TODO(***REMOVED***): We are not actually taking advantage of the
-    //               transform-origin property yet, instead we are just
-    //               assuming that it is the default, 50% 50%.
-    transform_matrix = transform_matrix *
-                       math::TranslateMatrix(used_frame().width() * 0.5f,
-                                             used_frame().height() * 0.5f) *
-                       css_transform_matrix *
-                       math::TranslateMatrix(-used_frame().width() * 0.5f,
-                                             -used_frame().height() * 0.5f);
-  }
-
-  return transform_matrix;
 }
 
 void Box::DumpIndent(std::ostream* stream, int indent) const {
