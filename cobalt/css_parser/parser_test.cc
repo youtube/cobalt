@@ -860,6 +860,19 @@ TEST_F(ParserTest, ParsesNegativeTimeList) {
   EXPECT_DOUBLE_EQ(-4, time_list_value->value()[0].InSecondsF());
 }
 
+TEST_F(ParserTest, ParsesTransitionDelayWithSingleValue) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition-delay: 1s;", source_location_);
+
+  scoped_refptr<cssom::ListValue<base::TimeDelta> > transition_delay =
+      dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
+          style->transition_delay().get());
+  EXPECT_NE(static_cast<cssom::ListValue<base::TimeDelta>*>(NULL),
+            transition_delay.get());
+  ASSERT_EQ(1, transition_delay->value().size());
+  EXPECT_DOUBLE_EQ(1, transition_delay->value()[0].InSecondsF());
+}
+
 TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transition-duration: 1s;",

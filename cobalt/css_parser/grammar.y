@@ -72,6 +72,7 @@
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
 %token kTransformToken                        // transform
+%token kTransitionDelayToken                  // transition-delay
 %token kTransitionDurationToken               // transition-duration
 %token kTransitionPropertyToken               // transition-property
 %token kTransitionTimingFunctionToken         // transition-timing-function
@@ -264,7 +265,8 @@
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
                        line_height_property_value opacity_property_value
-                       overflow_property_value transform_property_value
+                       overflow_property_value transition_delay_property_value
+                       transform_property_value
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
@@ -441,6 +443,10 @@ identifier_token:
   }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+  }
+  | kTransitionDelayToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::kTransitionDelayPropertyName);
   }
   | kTransitionDurationToken {
     $$ =
@@ -1119,7 +1125,19 @@ comma_separated_time_list:
   }
   ;
 
-// Parse a list of time values.
+// Parse a list of time values for transition delay.
+//   http://www.w3.org/TR/css3-transitions/#transition-delay
+transition_delay_property_value:
+    comma_separated_time_list {
+    scoped_ptr<cssom::ListValue<base::TimeDelta>::Builder> time_list($1);
+    $$ = time_list
+         ? AddRef(new cssom::TimeListValue(time_list.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
+// Parse a list of time values for transition duration.
 //   http://www.w3.org/TR/css3-transitions/#transition-duration
 transition_duration_property_value:
     comma_separated_time_list {
@@ -1387,6 +1405,12 @@ maybe_declaration:
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransformPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTransitionDelayToken maybe_whitespace colon
+      transition_delay_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDelayPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
