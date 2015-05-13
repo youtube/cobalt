@@ -21,6 +21,7 @@ interface CallbackFunctionInterface {
   void takesFunctionWithNullableParameters(FunctionWithNullableParameters cb);
 
   attribute VoidFunction callbackAttribute;
+  attribute VoidFunction? nullableCallbackAttribute;
 };
 
 callback VoidFunction = void();

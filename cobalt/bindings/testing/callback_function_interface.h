@@ -50,6 +50,10 @@ class CallbackFunctionInterface : public script::Wrappable {
   MOCK_METHOD0(callback_attribute, scoped_refptr<VoidFunction>(void));
   MOCK_METHOD1(set_callback_attribute, void(const scoped_refptr<VoidFunction>));
 
+  MOCK_METHOD0(nullable_callback_attribute, scoped_refptr<VoidFunction>(void));
+  MOCK_METHOD1(set_nullable_callback_attribute,
+               void(const scoped_refptr<VoidFunction>));
+
   DEFINE_WRAPPABLE_TYPE(CallbackFunctionInterface);
 };
 
