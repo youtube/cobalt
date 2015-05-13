@@ -25,7 +25,11 @@
         'media_module.cc',
         'media_module.h',
         'media_module_<(actual_target_arch).cc',
+        'shell_video_data_allocator_common.cc',
+        'shell_video_data_allocator_common.h',
         'web_media_player_factory.h',
+        '<(lbshell_root)/src/lb_memory_pool.cc',
+        '<(lbshell_root)/src/lb_memory_pool.h',
       ],
       'dependencies': [
         '<(DEPTH)/media/media.gyp:media',
@@ -34,16 +38,24 @@
         '<(DEPTH)/media/media.gyp:media',
       ],
       'conditions': [
+        ['target_arch == "linux"', {
+          'sources': [
+            'shell_media_platform_linux.cc',
+            'shell_media_platform_linux.h',
+            '<(lbshell_root)/src/platform/linux/lb_shell/lb_ffmpeg.cc',
+            '<(lbshell_root)/src/platform/linux/lb_shell/lb_ffmpeg.h',
+            '<(lbshell_root)/src/platform/linux/lb_shell/lb_pulse_audio.cc',
+            '<(lbshell_root)/src/platform/linux/lb_shell/lb_pulse_audio.h',
+            '<(lbshell_root)/src/platform/linux/lb_shell/shell_audio_streamer_linux.cc',
+            '<(lbshell_root)/src/platform/linux/lb_shell/shell_audio_streamer_linux.h',
+            '<(lbshell_root)/src/platform/linux/lb_shell/shell_raw_audio_decoder_linux.cc',
+            '<(lbshell_root)/src/platform/linux/lb_shell/shell_raw_video_decoder_linux.cc',
+          ],
+        }],
         ['target_arch == "ps3"', {
-          # TODO(***REMOVED***) : Find a better place to put lbshell files and add
-          #                   support for other platforms like Linux.
           'sources': [
             'shell_media_platform_ps3.cc',
             'shell_media_platform_ps3.h',
-            'shell_video_data_allocator_ps3.cc',
-            'shell_video_data_allocator_ps3.h',
-            '<(lbshell_root)/src/lb_memory_pool.cc',
-            '<(lbshell_root)/src/lb_memory_pool.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.cc',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.h',
             '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.cc',
