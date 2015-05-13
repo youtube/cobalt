@@ -168,7 +168,6 @@ class Box {
   // box model which is either a block-level or atomic inline-level element.
   //   http://www.w3.org/TR/css3-transforms/#transformable-element
   virtual bool IsTransformable() const = 0;
-  math::Matrix3F GetTransform() const;
 
   void DumpIndent(std::ostream* stream, int indent) const;
   virtual void DumpClassName(std::ostream* stream) const = 0;
