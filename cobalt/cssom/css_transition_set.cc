@@ -138,6 +138,7 @@ base::TimeDelta ScaleTimeDelta(const base::TimeDelta& time_delta, float scale) {
 Transition CreateTransitionOverOldTransition(
     const char* property_name, const base::Time& current_time,
     const Transition& old_transition, const base::TimeDelta& duration,
+    const base::TimeDelta& delay,
     const scoped_refptr<TimingFunction>& timing_function,
     const scoped_refptr<PropertyValue>& end_value) {
   // Since we're updating an old transtion, we'll need to know the animated
@@ -155,17 +156,16 @@ Transition CreateTransitionOverOldTransition(
                      &new_reversing_adjusted_start_value,
                      &new_reversing_shortening_factor);
 
-  // TODO(***REMOVED***): Implement transition-delay property.
-  base::TimeDelta delay = base::TimeDelta();
-  if (delay < base::TimeDelta()) {
-    delay = ScaleTimeDelta(delay, new_reversing_shortening_factor);
-  }
+  base::TimeDelta with_reversing_delay =
+      delay < base::TimeDelta()
+          ? ScaleTimeDelta(delay, new_reversing_shortening_factor)
+          : delay;
 
-  return Transition(property_name, current_value_within_old_transition,
-                    end_value, current_time,
-                    ScaleTimeDelta(duration, new_reversing_shortening_factor),
-                    delay, timing_function, new_reversing_adjusted_start_value,
-                    new_reversing_shortening_factor);
+  return Transition(
+      property_name, current_value_within_old_transition, end_value,
+      current_time, ScaleTimeDelta(duration, new_reversing_shortening_factor),
+      with_reversing_delay, timing_function, new_reversing_adjusted_start_value,
+      new_reversing_shortening_factor);
 }
 
 }  // namespace
@@ -201,6 +201,11 @@ void TransitionSet::UpdateTransitionForProperty(
         transition_duration->get_item_modulo_size(transition_index);
 
     if (duration.InMilliseconds() != 0 && !start_value->Equals(*end_value)) {
+      TimeListValue* delay_list = base::polymorphic_downcast<TimeListValue*>(
+          transition_style.transition_delay().get());
+      const base::TimeDelta& delay =
+          delay_list->get_item_modulo_size(transition_index);
+
       TimingFunctionListValue* timing_function_list =
           base::polymorphic_downcast<TimingFunctionListValue*>(
               transition_style.transition_timing_function().get());
@@ -217,15 +222,15 @@ void TransitionSet::UpdateTransitionForProperty(
         // differently depending on if we're reversing the previous transition
         // or starting a completely different one.
         found->second = CreateTransitionOverOldTransition(
-            property_name, current_time, found->second, duration,
+            property_name, current_time, found->second, duration, delay,
             timing_function, end_value);
       } else {
         // There is no transition on the object currently, so create a new
         // one for it.
         InsertOrReplaceInInternalMap(
-            property_name, Transition(property_name, start_value, end_value,
-                                      current_time, duration, base::TimeDelta(),
-                                      timing_function, start_value, 1.0f));
+            property_name,
+            Transition(property_name, start_value, end_value, current_time,
+                       duration, delay, timing_function, start_value, 1.0f));
       }
     } else {
       // Check if there is an existing transition for this property and see

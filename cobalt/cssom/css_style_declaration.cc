@@ -256,6 +256,20 @@ void CSSStyleDeclaration::set_transform(const std::string& transform) {
   RecordMutation();
 }
 
+std::string CSSStyleDeclaration::transition_delay() const {
+  return data_->transition_delay() ? data_->transition_delay()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_transition_delay(
+    const std::string& transition_delay) {
+  DCHECK(css_parser_);
+  data_->set_transition_delay(css_parser_->ParsePropertyValue(
+      kTransitionDelayPropertyName, transition_delay,
+      non_trivial_static_fields.Get().location));
+
+  RecordMutation();
+}
+
 std::string CSSStyleDeclaration::transition_duration() const {
   return data_->transition_duration() ? data_->transition_duration()->ToString()
                                       : "";
