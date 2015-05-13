@@ -45,6 +45,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"

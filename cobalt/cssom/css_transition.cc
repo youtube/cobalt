@@ -81,6 +81,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
+  void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
@@ -370,6 +371,12 @@ void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
 
   animated_value_ = scoped_refptr<PropertyValue>(new NumberValue(
       Lerp(start_number_value->value(), end_number_value.value(), progress_)));
+}
+
+void AnimatorVisitor::VisitPercentage(
+    PercentageValue* /*start_percentage_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
 }
 
 void AnimatorVisitor::VisitRGBAColor(RGBAColorValue* start_color_value) {
