@@ -182,7 +182,14 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
   Token property_name_token;
   bool known_property_name =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
-  DCHECK(known_property_name);
+
+  if (!known_property_name) {
+    YYLTYPE source_location;
+    source_location.first_line = 1;
+    source_location.first_column = 1;
+    LogWarning(source_location, "unsupported property " + property_name);
+    return NULL;
+  }
 
   scanner_.PrependToken(kPropertyValueEntryPointToken);
   scanner_.PrependToken(property_name_token);
