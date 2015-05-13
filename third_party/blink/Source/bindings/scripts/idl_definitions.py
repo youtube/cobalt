@@ -163,15 +163,14 @@ class IdlDefinitions(object):
             if not new_interface.is_partial:
                 # Add as new interface
                 self.interfaces[interface_name] = new_interface
-                continue
-
-            # Merge partial to existing interface
-            try:
-                self.interfaces[interface_name].merge(new_interface)
-            except KeyError:
-                raise Exception('Tried to merge partial interface for {0}, '
-                                'but no existing interface by that name'
-                                .format(interface_name))
+            else:
+                # Merge partial to existing interface
+                try:
+                    self.interfaces[interface_name].merge(new_interface)
+                except KeyError:
+                    raise Exception('Tried to merge partial interface for {0}, '
+                                    'but no existing interface by that name'
+                                    .format(interface_name))
 
             # Merge callbacks and enumerations
             self.enumerations.update(other.enumerations)
