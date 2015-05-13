@@ -24,10 +24,11 @@
 namespace cobalt {
 namespace cssom {
 
-CSSStyleSheet::CSSStyleSheet() : style_sheet_list_(NULL), css_parser_(NULL) {}
+CSSStyleSheet::CSSStyleSheet()
+    : parent_style_sheet_list_(NULL), css_parser_(NULL) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
-    : style_sheet_list_(NULL), css_parser_(css_parser) {}
+    : parent_style_sheet_list_(NULL), css_parser_(css_parser) {}
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (css_rule_list_) {
@@ -53,25 +54,33 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
   }
 
   css_rules_.insert(css_rules_.begin() + index, css_rule);
-  if (style_sheet_list_) {
-    css_rule->AttachToStyleSheetList(style_sheet_list_);
+  if (parent_style_sheet_list_) {
+    css_rule->AttachToStyleSheet(this);
   }
   return index;
 }
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
-  style_sheet_list_ = style_sheet_list;
+  parent_style_sheet_list_ = style_sheet_list;
   for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
        ++it) {
-    (*it)->AttachToStyleSheetList(style_sheet_list);
+    (*it)->AttachToStyleSheet(this);
   }
 }
 
 void CSSStyleSheet::AppendRule(const scoped_refptr<CSSStyleRule>& css_rule) {
   css_rules_.push_back(css_rule);
-  if (style_sheet_list_) {
-    css_rule->AttachToStyleSheetList(style_sheet_list_);
+  if (parent_style_sheet_list_) {
+    css_rule->AttachToStyleSheet(this);
   }
+}
+
+void CSSStyleSheet::SetLocationUrl(const GURL& url) { location_url_ = url; }
+
+GURL& CSSStyleSheet::LocationUrl() { return location_url_; }
+
+StyleSheetList* CSSStyleSheet::ParentStyleSheetList() {
+  return parent_style_sheet_list_;
 }
 
 CSSStyleSheet::~CSSStyleSheet() {}

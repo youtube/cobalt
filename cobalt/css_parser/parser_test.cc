@@ -37,6 +37,7 @@
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/transform_list_value.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -282,6 +283,33 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
   ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
   EXPECT_EQ(0xffffffff, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageURL) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-image: url(sample.png);",
+                                   source_location_);
+
+  scoped_refptr<cssom::URLValue> image =
+      dynamic_cast<cssom::URLValue*>(style->background_image().get());
+
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), image);
+  EXPECT_EQ("sample.png", image->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageNone) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-image: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->background_image());
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageInherit) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-image: inherit;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_image());
 }
 
 TEST_F(ParserTest, ParsesBorderRadius) {

@@ -45,6 +45,7 @@ void HTMLStyleElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       css_parser_->ParseStyleSheet(text_content(), content_location_);
+  style_sheet->SetLocationUrl(GURL(content_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);
 }
 

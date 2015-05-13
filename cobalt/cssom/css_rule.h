@@ -23,7 +23,7 @@
 namespace cobalt {
 namespace cssom {
 
-class StyleSheetList;
+class StyleSheet;
 
 // The CSSRule interface represents an abstract, base CSS style rule.
 // Each distinct CSS style rule type is represented by a distinct interface
@@ -37,7 +37,8 @@ class CSSRule : public script::Wrappable {
   CSSRule() {}
   virtual ~CSSRule() {}
 
-  virtual void AttachToStyleSheetList(StyleSheetList* style_sheet_list) = 0;
+  virtual void AttachToStyleSheet(StyleSheet* style_sheet) = 0;
+  virtual StyleSheet* ParentStyleSheet() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CSSRule);
