@@ -32,8 +32,10 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString opacity;
   [TreatNullAs=EmptyString] attribute DOMString overflow;
   [TreatNullAs=EmptyString] attribute DOMString transform;
+  [TreatNullAs=EmptyString] attribute DOMString transitionDelay;
   [TreatNullAs=EmptyString] attribute DOMString transitionDuration;
   [TreatNullAs=EmptyString] attribute DOMString transitionProperty;
+  [TreatNullAs=EmptyString] attribute DOMString transitionTimingFunction;
   [TreatNullAs=EmptyString] attribute DOMString width;
 
   [TreatNullAs=EmptyString] attribute DOMString cssText;

@@ -74,6 +74,7 @@ scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
   initial_data->set_height(new LengthValue(400, kPixelsUnit));
   initial_data->set_width(new LengthValue(400, kPixelsUnit));
   initial_data->set_transform(KeywordValue::GetNone());
+  initial_data->set_transition_delay(MakeTimeListWithSingleTime(0.0f));
   initial_data->set_transition_duration(MakeTimeListWithSingleTime(0.0f));
   initial_data->set_transition_property(
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
@@ -168,6 +169,22 @@ TEST_F(TransitionSetTest, NoStyleChangesGeneratesNoTransitions) {
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
 
   EXPECT_TRUE(transition_set.empty());
+}
+
+TEST_F(TransitionSetTest, TransitionDelayIsAccountedFor) {
+  end_->set_background_color(new RGBAColorValue(0x00000000));
+  end_->set_transition_delay(MakeTimeListWithSingleTime(1.0f));
+  end_->set_transition_duration(MakeTimeListWithSingleTime(1.0f));
+  end_->set_transition_property(
+      MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
+
+  TransitionSet transition_set;
+  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+
+  const Transition* transition =
+      transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
+  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  EXPECT_EQ(base::TimeDelta::FromSeconds(1), transition->delay());
 }
 
 // Here we start testing that the produced transitions are actually
