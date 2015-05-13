@@ -21,17 +21,13 @@
 namespace cobalt {
 namespace cssom {
 
-Specificity CompoundSelector::GetSpecificity() const {
-  Specificity result;
-  for (Selectors::const_iterator selector_iterator = selectors_.begin();
-       selector_iterator != selectors_.end(); selector_iterator++) {
-    result.AddFrom((*selector_iterator)->GetSpecificity());
-  }
-  return result;
-}
-
 void CompoundSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitCompoundSelector(this);
+}
+
+void CompoundSelector::AppendSelector(scoped_ptr<Selector> selector) {
+  specificity_.AddFrom(selector->GetSpecificity());
+  selectors_.push_back(selector.release());
 }
 
 }  // namespace cssom
