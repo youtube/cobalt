@@ -16,23 +16,47 @@
 
 #include "cobalt/layout/box_generator.h"
 
+#include "base/bind.h"
 #include "cobalt/cssom/character_classification.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/inline_container_box.h"
+#include "cobalt/layout/replaced_box.h"
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/render_tree/image.h"
+#include "media/base/shell_video_frame_provider.h"
 #include "third_party/icu/public/common/unicode/schriter.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace layout {
+
+using ::media::ShellVideoFrameProvider;
+using ::media::VideoFrame;
+
+namespace {
+
+scoped_refptr<render_tree::Image> GetVideoFrame(
+    ShellVideoFrameProvider* frame_provider) {
+  scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
+  if (video_frame && video_frame->texture_id()) {
+    scoped_refptr<render_tree::Image> image =
+        reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
+    return image;
+  }
+
+  return NULL;
+}
+
+}  // namespace
 
 BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
@@ -125,6 +149,20 @@ void BoxGenerator::Visit(dom::Element* element) {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     return;
   }
+
+  scoped_refptr<dom::HTMLMediaElement> media_element =
+      html_element->AsHTMLMediaElement();
+  if (media_element && media_element->GetVideoFrameProvider()) {
+    scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
+        container_box_before_split->computed_style(),
+        cssom::TransitionSet::EmptyTransitionSet(),
+        base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider())));
+    bool added = container_box_before_split->TryAddChild(&replaced_box);
+    DCHECK(added);
+    boxes_.push_back(container_box_before_split.release());
+    return;
+  }
+
   boxes_.push_back(container_box_before_split.release());
 
   // Generate child boxes.

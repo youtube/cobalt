@@ -56,6 +56,8 @@
         'layout_manager.h',
         'line_box.cc',
         'line_box.h',
+        'replaced_box.cc',
+        'replaced_box.h',
         'specified_style.cc',
         'specified_style.h',
         'text_box.cc',

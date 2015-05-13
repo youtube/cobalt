@@ -41,8 +41,6 @@ class MediaModule : public WebMediaPlayerFactory {
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       ::media::WebMediaPlayerClient* client) OVERRIDE;
 
-  virtual scoped_refptr<Image> GetCurrentFrame() { return NULL; }
-
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(

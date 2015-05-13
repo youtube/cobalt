@@ -26,7 +26,7 @@ ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
     source(source), destination_size(destination_size) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source)
-    : data_(source, source->GetSize()) {}
+    : data_(source, source ? source->GetSize() : math::Size()) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source,
                      const math::SizeF& destination_size)

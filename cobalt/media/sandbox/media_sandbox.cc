@@ -36,7 +36,9 @@ void MediaSandbox::LoadAndPlay(const GURL& url) {
 }
 
 scoped_refptr<render_tree::Image> MediaSandbox::GetCurrentFrame() {
-  return media_module_->GetCurrentFrame();
+  scoped_refptr<VideoFrame> frame =
+      player_->GetVideoFrameProvider()->GetCurrentFrame();
+  return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
 }
 
 }  // namespace sandbox
