@@ -61,10 +61,12 @@ render_tree::ColorRGBA GetUsedColor(
 
 class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  UsedHeightProvider() {}
+  explicit UsedHeightProvider(float containing_block_height)
+      : containing_block_height_(containing_block_height) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
 
   float used_height() const { return used_height_; }
 
@@ -74,6 +76,8 @@ class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   void set_used_height(float used_height) { used_height_ = used_height; }
 
  private:
+  const float containing_block_height_;
+
   float used_height_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
@@ -99,10 +103,12 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 
 class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  UsedWidthProvider() {}
+  explicit UsedWidthProvider(float containing_block_width)
+      : containing_block_width_(containing_block_width) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
 
   float used_width() const { return used_width_; }
 
@@ -113,9 +119,13 @@ class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
  protected:
   virtual void VisitAuto() = 0;
 
+  float containing_block_width() const { return containing_block_width_; }
+
   void set_used_width(float used_width) { used_width_ = used_width; }
 
  private:
+  const float containing_block_width_;
+
   float used_width_;
   bool width_depends_on_containing_block_;
 
