@@ -99,6 +99,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string transform() const;
   void set_transform(const std::string& transform);
 
+  std::string transition() const;
+  void set_transition(const std::string& transition);
+
   std::string transition_delay() const;
   void set_transition_delay(const std::string& transition_delay);
 

@@ -1124,6 +1124,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTransitionPropertyName)) {
+        *property_name_token = kTransitionToken;
+        return true;
+      }
       return false;
 
     case 11:

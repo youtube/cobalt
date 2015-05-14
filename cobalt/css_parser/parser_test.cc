@@ -25,6 +25,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -35,9 +36,9 @@
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
-#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/cssom/timing_function_list_value.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -1063,6 +1064,286 @@ TEST_F(ParserTest, BelowRangeCubicBezierP2XParameterProduceError) {
                                       cssom::TimingFunction::GetEase().get())));
 }
 
+TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "transition: background-color 1s ease-in 0.5s, "
+          "transform 2s ease-out 0.5s;",
+          source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(2, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(2, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(2, timing_function_list->value().size());
+  EXPECT_TRUE(timing_function_list->value()[0]->Equals(
+      *cssom::TimingFunction::GetEaseIn()));
+  EXPECT_TRUE(timing_function_list->value()[1]->Equals(
+      *cssom::TimingFunction::GetEaseOut()));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(2, delay_list->value().size());
+  EXPECT_DOUBLE_EQ(0.5, delay_list->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(0.5, delay_list->value()[1].InSecondsF());
+}
+
+TEST_F(ParserTest,
+       ParsesTransitionShorthandOfSingleItemWith1PropertySpecified) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: background-color;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetInitialStyle()->transition_duration().get())->value()[0],
+      duration_list->value()[0]);
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(1, timing_function_list->value().size());
+  EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
+                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  ->value()[0]
+                  ->Equals(*timing_function_list->value()[0]));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(1, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
+}
+
+TEST_F(ParserTest,
+       ParsesTransitionShorthandOfSingleItemWith2PropertiesSpecified) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: background-color 1s;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(1, timing_function_list->value().size());
+  EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
+                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  ->value()[0]
+                  ->Equals(*timing_function_list->value()[0]));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(1, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
+}
+
+TEST_F(ParserTest,
+       ParsesTransitionShorthandOfSingleItemWith3PropertiesSpecified) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: background-color 1s ease-in;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(1, timing_function_list->value().size());
+  EXPECT_TRUE(timing_function_list->value()[0]->Equals(
+      *cssom::TimingFunction::GetEaseIn()));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(1, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
+}
+
+TEST_F(
+    ParserTest,
+    ParsesTransitionShorthandOfSingleItemWith3PropertiesSpecifiedNotInOrder) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: ease-in background-color 1s;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(1, timing_function_list->value().size());
+  EXPECT_TRUE(timing_function_list->value()[0]->Equals(
+      *cssom::TimingFunction::GetEaseIn()));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(1, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
+}
+
+TEST_F(ParserTest,
+       ParsesTransitionShorthandOfMultipleItemsWith2PropertiesSpecified) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "transition: background-color 1s, transform 2s;", source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(2, property_name_list->value().size());
+  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
+            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(2, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
+  EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(2, timing_function_list->value().size());
+  EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
+                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  ->value()[0]
+                  ->Equals(*timing_function_list->value()[0]));
+  EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
+                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  ->value()[0]
+                  ->Equals(*timing_function_list->value()[1]));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(2, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[1]);
+}
 
 }  // namespace css_parser
 }  // namespace cobalt

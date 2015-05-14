@@ -43,6 +43,10 @@ class MockCSSParser : public CSSParser {
                scoped_refptr<PropertyValue>(const std::string&,
                                             const std::string&,
                                             const base::SourceLocation&));
+  MOCK_METHOD4(ParsePropertyIntoStyle,
+               void(const std::string&, const std::string&,
+                    const base::SourceLocation&,
+                    CSSStyleDeclarationData* style_declaration));
 };
 
 class CSSStyleSheetTest : public ::testing::Test {

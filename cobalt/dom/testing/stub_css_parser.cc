@@ -48,6 +48,11 @@ scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
   return NULL;
 }
 
+void StubCSSParser::ParsePropertyIntoStyle(
+    const std::string& property_name, const std::string& property_value,
+    const base::SourceLocation& property_location,
+    cssom::CSSStyleDeclarationData* style_declaration) {}
+
 }  // namespace testing
 }  // namespace dom
 }  // namespace cobalt
