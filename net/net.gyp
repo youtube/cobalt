@@ -33,6 +33,8 @@
          'enable_websockets%' : 0,
          'use_v8_in_net%' : 0,
          'enable_built_in_dns%' : 1,
+         'use_native_http_stack%': 0,
+         'disable_ftp_support': 1,
       }],
       ['OS != "ios" and OS != "lb_shell"', {
         'enable_websockets%': 1,
@@ -53,7 +55,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../googleurl/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
@@ -962,11 +964,11 @@
       'conditions': [
         ['OS=="lb_shell"', {
           'dependencies': [
-            '../../openssl/openssl.gyp:openssl',
+            '../third_party/openssl/openssl.gyp:openssl',
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'include_dirs': [
-            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
+            '<(lbshell_root)/src/platform/<(actual_target_arch)/chromium',
           ],
           'sources': [
             'base/file_stream_metrics_shell.cc',
@@ -977,7 +979,7 @@
             'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
             'dns/address_sorter_shell.cc',
-            '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/net -type f)',
+            '<!@(find <(lbshell_root)/src/platform/<(actual_target_arch)/chromium/net -type f)',
             '<(lbshell_root)/src/tcp_client_socket_shell.cc',
             '<(lbshell_root)/src/tcp_client_socket_shell.h',
           ],
@@ -1023,7 +1025,7 @@
                 ['include', 'libevent'],
               ],
             }],
-            ['target_arch=="xb1"', {
+            ['actual_target_arch=="xb1"', {
               'msvs_settings': {
                 'VCCLCompilerTool': {
                   'ComponentExtensions': 'true'
@@ -1474,7 +1476,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../googleurl/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
@@ -1979,7 +1981,7 @@
         }],
         ['OS=="lb_shell"', {
           'dependencies': [
-            '../../openssl/openssl.gyp:openssl',
+            '../third_party/openssl/openssl.gyp:openssl',
           ],
         }],
         ['OS=="lb_shell" and target_arch=="android"', {
@@ -1999,7 +2001,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_perf',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../googleurl/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
         'net',
         'net_test_support',
@@ -2172,16 +2174,21 @@
       'variables': {
         'grit_out_dir': '<(SHARED_INTERMEDIATE_DIR)/net',
       },
-      'actions': [
-        {
-          'action_name': 'net_resources',
-          'variables': {
-            'grit_grd_file': 'base/net_resources.grd',
-          },
-          'includes': [ '../build/grit_action.gypi' ],
-        },
-      ],
-      'includes': [ '../build/grit_target.gypi' ],
+      'conditions': [
+        # Cobalt doesn't use grit
+        ['cobalt==0', {
+          'actions': [
+            {
+              'action_name': 'net_resources',
+              'variables': {
+                'grit_grd_file': 'base/net_resources.grd',
+              },
+              'includes': [ '../build/grit_action.gypi' ],
+            },
+          ],
+          'includes': [ '../build/grit_target.gypi' ],
+        }],
+      ]
     },
     {
       'target_name': 'http_server',
@@ -2236,7 +2243,7 @@
           'variables': { 'enable_wexit_time_destructors': 1, },
           'dependencies': [
             '../base/base.gyp:base',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
             '../v8/tools/gyp/v8.gyp:v8',
             'net'
           ],
@@ -2297,7 +2304,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
             '../testing/gtest.gyp:gtest',
             'net',
             'net_with_v8',
@@ -2312,7 +2319,7 @@
           'variables': { 'enable_wexit_time_destructors': 1, },
           'dependencies': [
             '../base/base.gyp:base',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
             'net',
           ],
           'sources': [
@@ -2347,7 +2354,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             '../base/base.gyp:base_i18n',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
             'net',
           ],
           'sources': [
@@ -2380,7 +2387,7 @@
           'type': 'executable',
           'dependencies': [
             '../base/base.gyp:base',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
             '../testing/gtest.gyp:gtest',
             'net',
             'net_test_support',
@@ -2407,7 +2414,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             '../base/base.gyp:base_i18n',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../googleurl/googleurl.gyp:googleurl',
           ],
           'sources': [
             'tools/tld_cleanup/tld_cleanup.cc',

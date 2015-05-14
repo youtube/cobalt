@@ -45,6 +45,7 @@
       'sources/': [
         # Re-include things in lbshell
         ['include', 'lbshell/src/platform/<(target_arch)'],
+        ['include', 'lbshell/src/platform/<(actual_target_arch)'],
       ],
     }],
     ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell"', {
