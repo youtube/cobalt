@@ -67,7 +67,7 @@ void NotReachedPropertyValueVisitor::VisitTimeList(
 }
 
 void NotReachedPropertyValueVisitor::VisitTransformFunctionList(
-    TransformFunctionListValue* /*transform_list_value*/) {
+    TransformFunctionListValue* /*transform_function_list_value*/) {
   NOTREACHED();
 }
 

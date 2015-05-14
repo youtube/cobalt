@@ -28,7 +28,6 @@ class FontWeightValue;
 class KeywordValue;
 class LengthValue;
 class NumberValue;
-class PropertyNameListValue;
 class RGBAColorValue;
 class StringValue;
 class TimeListValue;
@@ -51,7 +50,7 @@ class PropertyValueVisitor {
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
   virtual void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_list_value) = 0;
+      TransformFunctionListValue* transform_function_list_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
 
  protected:
@@ -74,7 +73,7 @@ class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
   void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_list_value) OVERRIDE;
+      TransformFunctionListValue* transform_function_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
   void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
 };
