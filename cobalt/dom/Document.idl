@@ -24,3 +24,5 @@ interface Document : Node {
   [NewObject] Element createElement(DOMString localName);
   [NewObject] Text createTextNode(DOMString data);
 };
+
+Document implements GlobalEventHandlers;
