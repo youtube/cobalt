@@ -77,6 +77,17 @@ void EventTarget::SetAttributeEventListener(
   AddEventListenerInternal(type, listener, false);
 }
 
+scoped_refptr<EventListener> EventTarget::GetAttributeEventListener(
+    const std::string& type) {
+  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if (iter->listener->IsAttribute() && iter->type == type) {
+      return iter->listener;
+    }
+  }
+  return NULL;
+}
+
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   DCHECK(event->IsBeingDispatched());
   DCHECK(event->target());
