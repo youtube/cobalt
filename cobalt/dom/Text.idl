@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-[Constructor]
+[Constructor(optional DOMString data = "")]
 interface Text : CharacterData {};

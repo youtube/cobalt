@@ -65,6 +65,14 @@ TEST_F(InterfaceObjectTest, PrototypePropertyIsSet) {
   EXPECT_STREQ("true", result.c_str());
 }
 
+// The value of the "name" property must be the identifier of the interface.
+TEST_F(InterfaceObjectTest, NamePropertyIsSet) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(
+      "ArbitraryInterface.name == \"ArbitraryInterface\";", &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
 // The interface prototype object must have a property named "constructor" whose
 // value is a reference the the interface object.
 TEST_F(InterfaceObjectTest, ConstructorPropertyExists) {
