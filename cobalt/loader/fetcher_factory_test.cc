@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/file_fetcher.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -35,7 +36,9 @@ class StubFetcherHandler : public Fetcher::Handler {
 
 class FetcherFactoryTest : public ::testing::Test {
  protected:
-  FetcherFactoryTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {}
+  FetcherFactoryTest()
+      : message_loop_(MessageLoop::TYPE_DEFAULT),
+        fetcher_factory_(NULL) {}
   ~FetcherFactoryTest() OVERRIDE {}
 
   MessageLoop message_loop_;

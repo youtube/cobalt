@@ -19,7 +19,7 @@
   'variables': {
     # Cobalt on Windows is pretending to be XB1 when compiling Steel code by
     # setting target_arch="xb1". In places, where knowing the actual platform is
-    # required (e.g. platform_detegate_win.cc), actual_target_arch is used
+    # required (e.g. platform_delegate_win.cc), actual_target_arch is used
     # instead.
     'target_arch': 'xb1',
     'actual_target_arch': 'win',
@@ -144,6 +144,8 @@
       },
     },
     'msvs_disabled_warnings': [
+      # Unreferenced formal parameter.
+      4100,
       # Conditional expression is constant.
       # Triggers in many legitimate cases, like branching on a constant declared
       # in type traits.
@@ -157,6 +159,11 @@
       # to a non-const reference in a direct initialization. This warning
       # is useless as it simply describes proper C++ behavior.
       4350,
+      # decorated name length exceeded, name was truncated.
+      4503,
+      # assignment operator could not be generated.
+      # This is expected for structs with const members.
+      4512,
       # Unreferenced inline function has been removed.
       # While detection of dead code is good, this warning triggers in
       # third-party libraries which renders it useless.
@@ -245,6 +252,9 @@
               },
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'true',
+                'AdditionalDependencies': [
+                  'ws2_32.lib',
+                ],
               },
             },
           }],

@@ -56,6 +56,7 @@ class _PlatformConfig(base.PlatformConfigBase):
     _ = config
     variables = {
         'use_widevine': 0,
+        'use_openssl': 1,
     }
     return variables
 

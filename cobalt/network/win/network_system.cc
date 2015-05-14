@@ -14,32 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FETCHER_FACTORY_H_
-#define LOADER_FETCHER_FACTORY_H_
-
-#include "base/threading/thread.h"
-#include "cobalt/loader/fetcher.h"
-#include "googleurl/src/gurl.h"
+#include "cobalt/network/network_system.h"
 
 namespace cobalt {
 namespace network {
-class NetworkModule;
+
+void PlatformInit() {
+  // TODO(***REMOVED***): Initialize Winsock or whatever startup is needed
+  // for Windows.
 }
 
-namespace loader {
+void PlatformShutdown() {
+}
 
-class FetcherFactory {
- public:
-  explicit FetcherFactory(network::NetworkModule* network_module);
-  scoped_ptr<Fetcher> CreateFetcher(
-      const GURL& url, Fetcher::Handler* handler);
-
- private:
-  base::Thread io_thread_;
-  network::NetworkModule* network_module_;
-};
-
-}  // namespace loader
+}  // namespace network
 }  // namespace cobalt
-
-#endif  // LOADER_FETCHER_FACTORY_H_

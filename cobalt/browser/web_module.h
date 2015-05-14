@@ -17,6 +17,8 @@
 #ifndef BROWSER_WEB_MODULE_H_
 #define BROWSER_WEB_MODULE_H_
 
+#include <string>
+
 #include "base/threading/thread_checker.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/window.h"
@@ -31,6 +33,10 @@
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
+namespace network {
+class NetworkModule;
+}
+
 namespace browser {
 
 // WebModule hosts all components of Cobalt that deal with or implement the
@@ -59,6 +65,7 @@ class WebModule {
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   WebModule(const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const ErrorCallback& error_callback,
+            network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate,
@@ -76,7 +83,7 @@ class WebModule {
   // make its way to the DOM's Document object and handled appropriately.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
 
-  static std::string GetUserAgent();
+  std::string GetUserAgent() const;
 
  private:
   // Thread checker ensures all calls to the WebModule are made from the same
