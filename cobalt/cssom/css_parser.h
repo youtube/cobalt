@@ -60,12 +60,22 @@ class CSSParser {
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the property value.
-  // This is a Cobalt's equivalent of a "list of component values".
   // |property_name| must be a valid CSS property name (see property_names.h).
   // May return NULL which is considered a valid property value.
+  // This method is primarily for use by tests, since it is not able to
+  // handle parsing of shorthand properties.
   virtual scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) = 0;
+
+  // Parses the specified property value assuming it is to be used for a
+  // property with property_name.  The style_declaration parameter will have
+  // its specified property set to the resulting parsed value.
+  // This is Cobalt's equivalent of a "list of component values".
+  virtual void ParsePropertyIntoStyle(
+      const std::string& property_name, const std::string& property_value,
+      const base::SourceLocation& property_location,
+      CSSStyleDeclarationData* style_declaration) = 0;
 
  protected:
   ~CSSParser() {}
