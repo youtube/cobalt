@@ -14,32 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FETCHER_FACTORY_H_
-#define LOADER_FETCHER_FACTORY_H_
+#ifndef NETWORK_URL_REQUEST_CONTEXT_H_
+#define NETWORK_URL_REQUEST_CONTEXT_H_
 
-#include "base/threading/thread.h"
-#include "cobalt/loader/fetcher.h"
-#include "googleurl/src/gurl.h"
+#include "net/cookies/cookie_monster.h"
+#include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_context_getter.h"
+#include "net/url_request/url_request_context_storage.h"
 
 namespace cobalt {
 namespace network {
-class NetworkModule;
-}
 
-namespace loader {
-
-class FetcherFactory {
+class URLRequestContext : public net::URLRequestContext {
  public:
-  explicit FetcherFactory(network::NetworkModule* network_module);
-  scoped_ptr<Fetcher> CreateFetcher(
-      const GURL& url, Fetcher::Handler* handler);
+  URLRequestContext();
+  ~URLRequestContext() OVERRIDE;
 
  private:
-  base::Thread io_thread_;
-  network::NetworkModule* network_module_;
+  net::URLRequestContextStorage storage_;
+  scoped_refptr<net::CookieMonster::PersistentCookieStore>
+      persistent_cookie_store_;
+  DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
 
-}  // namespace loader
+}  // namespace network
 }  // namespace cobalt
 
-#endif  // LOADER_FETCHER_FACTORY_H_
+#endif  // NETWORK_URL_REQUEST_CONTEXT_H_
