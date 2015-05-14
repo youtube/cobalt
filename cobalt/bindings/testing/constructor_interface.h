@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,5 +14,22 @@
  * limitations under the License.
  */
 
-[Constructor(optional DOMString data = "")]
-interface Comment : CharacterData {};
+#ifndef BINDINGS_TESTING_CONSTRUCTOR_INTERFACE_H_
+#define BINDINGS_TESTING_CONSTRUCTOR_INTERFACE_H_
+
+#include "cobalt/script/wrappable.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+class ConstructorInterface : public script::Wrappable {
+ public:
+  DEFINE_WRAPPABLE_TYPE(ConstructorInterface);
+};
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
+
+#endif  // BINDINGS_TESTING_CONSTRUCTOR_INTERFACE_H_

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-[Constructor]
 interface Document : Node {
   readonly attribute DOMString URL;
   readonly attribute DOMString documentURI;
