@@ -142,6 +142,14 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
 
 scoped_refptr<HTMLHeadElement> Document::head() const { return head_.get(); }
 
+scoped_refptr<EventListener> Document::onload() {
+  return GetAttributeEventListener("load");
+}
+
+void Document::set_onload(const scoped_refptr<EventListener>& listener) {
+  SetAttributeEventListener("load", listener);
+}
+
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }

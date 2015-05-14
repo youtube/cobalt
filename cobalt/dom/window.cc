@@ -51,6 +51,14 @@ scoped_refptr<Location> Window::location() const {
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
+scoped_refptr<EventListener> Window::onload() {
+  return GetAttributeEventListener("load");
+}
+
+void Window::set_onload(const scoped_refptr<EventListener>& listener) {
+  SetAttributeEventListener("load", listener);
+}
+
 Window::~Window() {}
 
 }  // namespace dom

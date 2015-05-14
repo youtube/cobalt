@@ -119,6 +119,11 @@ class Document : public Node, public cssom::MutationObserver {
     return style_sheets_;
   }
 
+  // Web API: GlobalEventHandlers (implements)
+  //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
+  scoped_refptr<EventListener> onload();
+  void set_onload(const scoped_refptr<EventListener>& event_listener);
+
   // Custom, not in any spec.
   //
   bool IsDocument() const OVERRIDE { return true; }
