@@ -1694,13 +1694,12 @@ rule_list:
     $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
   }
   | rule_list rule {
+    $$ = $1;
     scoped_refptr<cssom::CSSStyleRule> style_rule =
         MakeScopedRefPtrAndRelease($2);
     if (style_rule) {
-      $$->AppendRule(style_rule);
+      $$->AppendCSSStyleRule(style_rule);
     }
-
-    $$ = $1;
   }
   ;
 
