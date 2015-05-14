@@ -16,6 +16,8 @@
 
 #include "cobalt/browser/application.h"
 
+#include <string>
+
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
@@ -73,11 +75,12 @@ Application::Application()
     url = GURL();
   }
   DLOG(INFO) << "Initial URL: " << url;
-  DLOG(INFO) << "User Agent: " << BrowserModule::GetUserAgent();
+
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.url = url;
   browser_module_.reset(new BrowserModule(options));
+  DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }
 
 Application::~Application() { DCHECK(!ui_message_loop_.is_running()); }
