@@ -78,7 +78,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
 
   scoped_refptr<CSSStyleRule> rule =
       new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
-  css_style_sheet_->AppendRule(rule);
+  css_style_sheet_->AppendCSSStyleRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_EQ(NULL, rule_list->Item(1).get());
