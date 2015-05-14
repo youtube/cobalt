@@ -39,6 +39,11 @@ class StubCSSParser : public cssom::CSSParser {
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) OVERRIDE;
+
+  void ParsePropertyIntoStyle(
+      const std::string& property_name, const std::string& property_value,
+      const base::SourceLocation& property_location,
+      cssom::CSSStyleDeclarationData* style_declaration) OVERRIDE;
 };
 
 }  // namespace testing

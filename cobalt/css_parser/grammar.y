@@ -46,6 +46,7 @@
 %token kStyleRuleEntryPointToken
 %token kDeclarationListEntryPointToken
 %token kPropertyValueEntryPointToken
+%token kPropertyIntoStyleEntryPointToken
 
 // Tokens without a value.
 %token kEndOfFileToken 0                // null
@@ -72,6 +73,7 @@
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
 %token kTransformToken                        // transform
+%token kTransitionToken                       // transition
 %token kTransitionDelayToken                  // transition-delay
 %token kTransitionDurationToken               // transition-duration
 %token kTransitionPropertyToken               // transition-property
@@ -273,6 +275,10 @@
                        width_property_value
 %destructor { $$->Release(); } <property_value>
 
+%union { Transition* transition; }
+%type <transition> transition_property_value
+%destructor { delete $$; } <transition>
+
 %type <real> alpha number angle
 
 %union { cssom::CSSStyleSheet* style_sheet; }
@@ -352,6 +358,14 @@
 %type <timing_function_list>
     comma_separated_single_transition_timing_function_list
 %destructor { delete $$; } <timing_function_list>
+
+%union { SingleTransition* single_transition; }
+%type <single_transition> single_transition single_non_empty_transition
+%destructor { delete $$; } <single_transition>
+
+%union { TransitionBuilder* transition_builder; }
+%type <transition_builder> comma_separated_transition_list
+%destructor { delete $$; } <transition_builder>
 
 %%
 
@@ -443,6 +457,10 @@ identifier_token:
   }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+  }
+  | kTransitionToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::kTransitionPropertyName);
   }
   | kTransitionDelayToken {
     $$ =
@@ -1272,6 +1290,124 @@ transition_property_property_value:
   | common_values
   ;
 
+// single_transition_element represents a component of a single transition.
+// It uses $0 to access its parent's SingleTransition object and build it, so
+// it should always be used to the right of a single_transition object.
+single_transition_element:
+    animatable_property_token maybe_whitespace {
+    if (!$<single_transition>0->property) {
+      $<single_transition>0->property = $1.begin;
+    } else {
+      parser_impl->LogError(
+          @1, "transition-property value declared twice in transition.");
+    }
+  }
+  | time {
+    if (!$<single_transition>0->duration) {
+      // The first time encountered sets the duration.
+      $<single_transition>0->duration = base::TimeDelta::FromInternalValue($1);
+    } else if (!$<single_transition>0->delay) {
+      // The second time encountered sets the delay.
+      $<single_transition>0->delay = base::TimeDelta::FromInternalValue($1);
+    } else {
+      parser_impl->LogError(
+          @1, "Too many time values declared twice in transition.");
+    }
+  }
+  | single_transition_timing_function maybe_whitespace {
+    if (!$<single_transition>0->timing_function) {
+      $<single_transition>0->timing_function = MakeScopedRefPtrAndRelease($1);
+    } else {
+      parser_impl->LogError(
+          @1, "transition-timing-function value declared twice in transition.");
+    }
+  }
+  ;
+
+single_transition:
+    /* empty */ {
+    // Initialize the result, to be filled in by single_transition_element
+    $$ = new SingleTransition();
+  }
+  | single_transition single_transition_element {
+    // Propogate the list from our parent single_transition.
+    // single_transition_element will have already taken care of adding itself
+    // to the list via $0.
+    $$ = $1;
+  }
+  ;
+
+single_non_empty_transition:
+    single_transition single_transition_element {
+    $$ = $1;
+  }
+  ;
+
+comma_separated_transition_list:
+    single_non_empty_transition {
+    scoped_ptr<SingleTransition> single_transition($1);
+    scoped_ptr<TransitionBuilder> transition_builder(new TransitionBuilder());
+
+    single_transition->ReplaceNullWithInitialValues();
+
+    transition_builder->property_list_builder->push_back(
+        *single_transition->property);
+    transition_builder->duration_list_builder->push_back(
+        *single_transition->duration);
+    transition_builder->timing_function_list_builder->push_back(
+        single_transition->timing_function);
+    transition_builder->delay_list_builder->push_back(
+        *single_transition->delay);
+
+    $$ = transition_builder.release();
+  }
+  | comma_separated_transition_list comma single_non_empty_transition {
+    scoped_ptr<SingleTransition> single_transition($3);
+
+    single_transition->ReplaceNullWithInitialValues();
+
+    $$ = $1;
+    $$->property_list_builder->push_back(*single_transition->property);
+    $$->duration_list_builder->push_back(*single_transition->duration);
+    $$->timing_function_list_builder->push_back(
+        single_transition->timing_function);
+    $$->delay_list_builder->push_back(*single_transition->delay);
+  }
+  ;
+
+// Transition shorthand property.
+//   http://www.w3.org/TR/css3-transitions/#transition
+transition_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = new Transition();
+  }
+  | comma_separated_transition_list {
+    scoped_ptr<TransitionBuilder> transition_builder($1);
+    scoped_ptr<Transition> transition(new Transition());
+
+    transition->property_list = new cssom::ConstStringListValue(
+        transition_builder->property_list_builder.Pass());
+    transition->duration_list = new cssom::TimeListValue(
+        transition_builder->duration_list_builder.Pass());
+    transition->timing_function_list = new cssom::TimingFunctionListValue(
+        transition_builder->timing_function_list_builder.Pass());
+    transition->delay_list = new cssom::TimeListValue(
+        transition_builder->delay_list_builder.Pass());
+
+    $$ = transition.release();
+  }
+  | common_values {
+    // Replicate the common value into each of the properties that transition
+    // is a shorthand for.
+    scoped_ptr<Transition> transition(new Transition());
+    transition->property_list = $1;
+    transition->duration_list = $1;
+    transition->timing_function_list = $1;
+    transition->delay_list = $1;
+    $$ = transition.release();
+  }
+  ;
+
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 width_property_value:
@@ -1408,6 +1544,34 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kTransitionToken maybe_whitespace colon
+      transition_property_value maybe_important {
+    scoped_ptr<Transition> transition($4);
+    DCHECK_NE(static_cast<Transition*>(NULL), transition.get());
+
+    scoped_ptr<PropertyDeclaration> property_declaration(
+        new PropertyDeclaration($5));
+
+    // Unpack the transition shorthand property values.
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kTransitionPropertyPropertyName,
+            transition->property_list));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kTransitionDurationPropertyName,
+            transition->duration_list));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kTransitionTimingFunctionPropertyName,
+            transition->timing_function_list));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kTransitionDelayPropertyName,
+            transition->delay_list));
+
+    $$ = property_declaration.release();
+  }
   | kTransitionDelayToken maybe_whitespace colon
       transition_delay_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDelayPropertyName,
@@ -1464,23 +1628,17 @@ declaration_list:
     maybe_declaration {
     $$ = AddRef(new cssom::CSSStyleDeclarationData());
 
-    scoped_ptr<PropertyDeclaration> property($1);
-    if (property) {
-      $$->SetPropertyValue(property->name, property->value);
-      // TODO(***REMOVED***): Set property importance.
-      DCHECK_NE(scoped_refptr<cssom::PropertyValue>(),
-                $$->GetPropertyValue(property->name));
+    scoped_ptr<PropertyDeclaration> property_declaration($1);
+    if (property_declaration) {
+      property_declaration->ApplyToStyle($$);
     }
   }
   | declaration_list semicolon maybe_declaration {
     $$ = $1;
 
-    scoped_ptr<PropertyDeclaration> property($3);
-    if (property) {
-      $$->SetPropertyValue(property->name, property->value);
-      // TODO(***REMOVED***): Set property importance.
-      DCHECK_NE(scoped_refptr<cssom::PropertyValue>(),
-                $$->GetPropertyValue(property->name));
+    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    if (property_declaration) {
+      property_declaration->ApplyToStyle($$);
     }
   }
   ;
@@ -1576,16 +1734,35 @@ entry_point:
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_declaration_list(declaration_list);
   }
-  // Parses the property value.
-  // This is a Cobalt's equivalent of a "list of component values".
+  // Parses a single non-shorthand property value.
   | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
+      DCHECK_EQ(1, property_declaration->property_values.size()) <<
+          "Cannot parse shorthand properties as single property values.";
       if (property_declaration->important) {
         parser_impl->LogError(@1,
                               "!important is not allowed in property value");
       } else {
-        parser_impl->set_property_value(property_declaration->value);
+        parser_impl->set_property_value(
+            property_declaration->property_values[0].value);
+      }
+    }
+  }
+  // Parses the property value and correspondingly sets the values of a passed
+  // in CSSStyleDeclarationData.
+  // This is Cobalt's equivalent of a "list of component values".
+  | kPropertyIntoStyleEntryPointToken maybe_whitespace maybe_declaration {
+    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    if (property_declaration != NULL) {
+      if (property_declaration->important) {
+        parser_impl->LogError(
+            @1, "!important is not allowed when setting single property value");
+      } else {
+        DCHECK_NE(static_cast<cssom::CSSStyleDeclarationData*>(NULL),
+                  parser_impl->into_declaration_list());
+        property_declaration->ApplyToStyle(
+            parser_impl->into_declaration_list());
       }
     }
   }
