@@ -6,7 +6,7 @@
 // the device name, etc. This class lets it be configurable, but throw default
 // values from implementation.
 
-#include "dial_system_config.h"
+#include "net/dial/dial_system_config.h"
 
 #include <openssl/evp.h>
 
@@ -18,12 +18,10 @@
 
 namespace net {
 
-namespace { // anonymous
-
-static const char* kSecret = "v=8FpigqfcvlM";
-static char* g_dial_uuid = NULL;
-
-} // namespace anonymous
+namespace {
+const char* kSecret = "v=8FpigqfcvlM";
+char s_dial_uuid[23] = {};
+}  // namespace
 
 DialSystemConfig* DialSystemConfig::GetInstance() {
   return Singleton<DialSystemConfig>::get();
@@ -37,13 +35,11 @@ DialSystemConfig::DialSystemConfig()
 
 const char* DialSystemConfig::model_uuid() const {
   base::AutoLock lock(lock_);
-  if (g_dial_uuid == NULL) {
+  if (!strlen(s_dial_uuid)) {
     CreateDialUuid();
   }
-  DCHECK(g_dial_uuid);
-  return g_dial_uuid;
+  return s_dial_uuid;
 }
-
 
 // static
 void DialSystemConfig::CreateDialUuid() {
@@ -66,18 +62,17 @@ void DialSystemConfig::CreateDialUuid() {
   // For full representation we need 40 hex chars, but we reduce
   // it down to 20 hex chars and then print it out.
   DCHECK_EQ(20, md_len);
-  for (int i = 0; i < md_len / 2; ++i) {
+  for (unsigned int i = 0; i < md_len / 2; ++i) {
     md_value[i] ^= md_value[i + md_len / 2];
   }
 
-  DCHECK(g_dial_uuid == NULL);
-  g_dial_uuid = new char[md_len + 3];
-  snprintf(g_dial_uuid, 23, "%02x%02x%02x%02x-%02x%02x-%02x%02x%02x%02x",
+  snprintf(s_dial_uuid, sizeof(s_dial_uuid),
+           "%02x%02x%02x%02x-%02x%02x-%02x%02x%02x%02x",
            md_value[0], md_value[1], md_value[2], md_value[3], md_value[4],
            md_value[5], md_value[6], md_value[7], md_value[8], md_value[9]);
 
-  DCHECK_EQ(22, strlen(g_dial_uuid));
-  DLOG(INFO) << "Dial USN UID : " << g_dial_uuid;
+  DCHECK_EQ(22, strlen(s_dial_uuid));
+  DLOG(INFO) << "Dial USN UID : " << s_dial_uuid;
 }
 
-} // namespace net
+}  // namespace net

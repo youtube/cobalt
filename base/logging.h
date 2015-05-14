@@ -723,12 +723,14 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // did not terminate the execution, the condition they checked must be true.
 // Note that the code under _PREFAST_ macro is not actually executed, only
 // analyzed.
+// Use !!(condition) to work around error C2088:
+// ‘__assume’ : illegal for class
 #if defined(COBALT) && defined(_PREFAST_)
 #define DCHECK(condition)                                           \
-  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+  __analysis_assume(!!(condition)), EAT_STREAM_PARAMETERS
 
 #define DPCHECK(condition)                                          \
-  __analysis_assume(condition), EAT_STREAM_PARAMETERS
+  __analysis_assume(!!(condition)), EAT_STREAM_PARAMETERS
 #else
 #define DCHECK(condition)                                           \
   LAZY_STREAM(LOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))   \

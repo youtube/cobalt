@@ -442,7 +442,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   bool probable_http_response() const { return probable_http_response_; }
 
-  SpdyPriority GetLowestPriority() const { return spdy_version_ < 3 ? 3 : 7; }
+  SpdyPriority GetLowestPriority() const {
+      return spdy_version_ < 3 ? 3U : 7U;
+  }
   SpdyPriority GetHighestPriority() const { return 0; }
 
  protected:

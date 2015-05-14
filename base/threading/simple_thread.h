@@ -73,12 +73,13 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
     size_t stack_size() const { return stack_size_; }
 
     // Thread priority
-    void set_priority(size_t priority) { priority_ = priority; }
-    size_t priority() const { return priority_; }
+    void set_priority(int priority) { priority_ = priority; }
+    int priority() const { return priority_; }
 
     // Core affinity
-    void set_affinity(size_t affinity) { affinity_ = affinity; }
-    size_t affinity() const { return affinity_; }
+    void set_affinity(int affinity) { affinity_ = affinity; }
+    int affinity() const { return affinity_; }
+
    private:
     size_t stack_size_;
     int priority_;
