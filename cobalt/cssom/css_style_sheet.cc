@@ -16,13 +16,84 @@
 
 #include "cobalt/cssom/css_style_sheet.h"
 
+#include "cobalt/cssom/adjacent_selector.h"
+#include "cobalt/cssom/child_combinator.h"
+#include "cobalt/cssom/class_selector.h"
+#include "cobalt/cssom/complex_selector.h"
+#include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/descendant_combinator.h"
+#include "cobalt/cssom/empty_pseudo_class.h"
+#include "cobalt/cssom/id_selector.h"
+#include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/type_selector.h"
 
 namespace cobalt {
 namespace cssom {
+
+//////////////////////////////////////////////////////////////////////////
+// CSSStyleSheet::RuleIndexer
+//////////////////////////////////////////////////////////////////////////
+
+// This class is used to index the css style rules according to the simple
+// selectors in the last compound selector.
+class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
+ public:
+  RuleIndexer(CSSStyleRule* css_style_rule, CSSStyleSheet* css_style_sheet)
+      : css_style_rule_(css_style_rule), css_style_sheet_(css_style_sheet) {}
+
+  void VisitClassSelector(cssom::ClassSelector* class_selector) OVERRIDE {
+    StringToCSSRuleSetMap& rules_map =
+        css_style_sheet_->class_selector_rules_map_;
+    rules_map[class_selector->class_name()].insert(css_style_rule_);
+  }
+
+  void VisitIdSelector(cssom::IdSelector* id_selector) OVERRIDE {
+    StringToCSSRuleSetMap& rules_map = css_style_sheet_->id_selector_rules_map_;
+    rules_map[id_selector->id()].insert(css_style_rule_);
+  }
+
+  void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
+    StringToCSSRuleSetMap& rules_map =
+        css_style_sheet_->type_selector_rules_map_;
+    rules_map[type_selector->element_name()].insert(css_style_rule_);
+  }
+
+  void VisitEmptyPseudoClass(
+      cssom::EmptyPseudoClass* /* empty_pseudo_class */) OVERRIDE {
+    css_style_sheet_->empty_pseudo_class_rules_.insert(css_style_rule_);
+  }
+
+  void VisitCompoundSelector(CompoundSelector* compound_selector) OVERRIDE {
+    for (Selectors::const_iterator selector_iterator =
+             compound_selector->selectors().begin();
+         selector_iterator != compound_selector->selectors().end();
+         ++selector_iterator) {
+      (*selector_iterator)->Accept(this);
+    }
+  }
+
+  void VisitAdjacentSelector(AdjacentSelector* adjacent_selector) OVERRIDE {
+    adjacent_selector->last_selector()->Accept(this);
+  }
+
+  void VisitComplexSelector(ComplexSelector* complex_selector) OVERRIDE {
+    complex_selector->last_selector()->Accept(this);
+  }
+
+ private:
+  CSSStyleRule* css_style_rule_;
+  CSSStyleSheet* css_style_sheet_;
+
+  DISALLOW_COPY_AND_ASSIGN(RuleIndexer);
+};
+
+//////////////////////////////////////////////////////////////////////////
+// CSSStyleSheet
+//////////////////////////////////////////////////////////////////////////
 
 CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL), css_parser_(NULL) {}
@@ -80,6 +151,11 @@ void CSSStyleSheet::AppendCSSStyleRule(
   css_rules_.push_back(css_style_rule);
   if (parent_style_sheet_list_) {
     css_style_rule->AttachToStyleSheet(this);
+  }
+  for (Selectors::const_iterator it = css_style_rule->selectors().begin();
+       it != css_style_rule->selectors().end(); ++it) {
+    RuleIndexer rule_indexer(css_style_rule, this);
+    (*it)->Accept(&rule_indexer);
   }
 }
 
