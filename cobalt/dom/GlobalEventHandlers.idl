@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-[PrimaryGlobal]
-/*sealed*/ interface Window : EventTarget {
-  // [Unforgeable] readonly attribute WindowProxy window;
-  [Unforgeable] readonly attribute Document document;
-  [PutForwards=href, Unforgeable] readonly attribute Location location;
-  readonly attribute Navigator navigator;
+// http://www.w3.org/TR/html5/webappapis.html#event-handlers
 
-  long requestAnimationFrame(FrameRequestCallback callback);
+[NoInterfaceObject]
+interface GlobalEventHandlers {
+  attribute EventHandler onload;
 };
 
-Window implements GlobalEventHandlers;
-
-callback FrameRequestCallback = void(double time);
+// TODO(b/21154386): The IDL defines EventHandler as a nullable callback
+// function. Define it as a nullable EventListener for now until we can do
+// some refactoring to accept both in the EventTarget implementation.
+typedef EventListener? EventHandler;

@@ -28,7 +28,9 @@
 #include "base/optional.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/script_event_listener.h"
 #include "cobalt/script/javascriptcore/jsc_callback_function.h"
+#include "cobalt/script/javascriptcore/jsc_event_listener_callable.h"
 #include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/wrapper_base.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
@@ -113,6 +115,24 @@ inline JSC::JSValue ToJSValue(JSCGlobalObject* global_object,
       global_object->wrapper_factory()->GetWrapper(global_object, in_object);
   DCHECK(wrapper);
   return JSC::JSValue(wrapper);
+}
+
+// EventListener -> JSValue
+template <>
+inline JSC::JSValue ToJSValue(
+    JSCGlobalObject* global_object,
+    const scoped_refptr<dom::EventListener>& in_object) {
+  if (!in_object) {
+    return JSC::jsNull();
+  }
+
+  dom::ScriptEventListener* script_event_listener =
+      base::polymorphic_downcast<dom::ScriptEventListener*>(in_object.get());
+  EventListenerCallable* callable = script_event_listener->listener_callable();
+  JSCEventListenerCallable* jsc_callable =
+      base::polymorphic_downcast<JSCEventListenerCallable*>(callable);
+  JSC::JSObject* js_object = jsc_callable->callable_object();
+  return JSC::JSValue(js_object);
 }
 
 // optional<T> -> JSValue
@@ -207,6 +227,29 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   }
   JSC::JSObject* js_object = jsvalue.toObject(exec_state);
   *out_object = JSObjectToWrappable<T>(exec_state, js_object);
+}
+
+// dom::EventListener -> object
+// TODO(b/21155252): Remove the need for the is_attribute flag and corresponding
+// special-case in the jinja template. This may be dependent on b/21154386 which
+// will use callback functions for the EventHandler type rather than
+// EventListeners.
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        scoped_refptr<dom::EventListener>* out_object,
+                        bool is_attribute) {
+  if (jsvalue.isNull()) {
+    *out_object = NULL;
+    return;
+  }
+  JSC::JSObject* this_object =
+      exec_state->hostThisValue().toThisObject(exec_state);
+  JSC::JSObject* callable_object = jsvalue.toObject(exec_state);
+  scoped_refptr<EventListenerCallable> listener_callable =
+      new JSCEventListenerCallable(exec_state, callable_object, this_object);
+  *out_object = new dom::ScriptEventListener(
+      listener_callable, is_attribute
+                             ? dom::ScriptEventListener::kAttribute
+                             : dom::ScriptEventListener::kNonAttribute);
 }
 
 // JSValue -> optional<T>
