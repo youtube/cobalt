@@ -567,6 +567,8 @@
               'message_pump_shell.cc',
               'message_pump_shell.h',
               'native_library_shell.cc',  # Stub implementation
+              'object_watcher_shell.cc',
+              'object_watcher_shell.h',
               'optional.cc',
               'optional.h',
               'optional_internal.h',

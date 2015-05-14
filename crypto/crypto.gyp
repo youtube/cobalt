@@ -131,7 +131,7 @@
         }],
         ['OS=="lb_shell"', {
           'dependencies' : [
-            '../../openssl/openssl.gyp:openssl',
+            '../third_party/openssl/openssl.gyp:openssl',
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'sources/': [

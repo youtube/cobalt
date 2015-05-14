@@ -657,7 +657,8 @@ class SpdyControlFrame : public SpdyFrame {
 
   uint16 version() const {
     const int kVersionMask = 0x7fff;
-    return ntohs(block()->control_.version_) & kVersionMask;
+    return static_cast<uint16>(
+        ntohs((block()->control_.version_)) & kVersionMask);
   }
 
   void set_version(uint16 version) {
@@ -666,7 +667,7 @@ class SpdyControlFrame : public SpdyFrame {
     |C| Version(15bits) | Type(16bits) |
     +----------------------------------+
     */
-    DCHECK_EQ(0, version & kControlFlagMask);
+    DCHECK_EQ(0U, version & kControlFlagMask);
     mutable_block()->control_.version_ = htons(kControlFlagMask | version);
   }
 
@@ -679,7 +680,7 @@ class SpdyControlFrame : public SpdyFrame {
 
   void set_type(SpdyControlType type) {
     DCHECK(type >= SYN_STREAM && type < NUM_CONTROL_FRAME_TYPES);
-    mutable_block()->control_.type_ = htons(type);
+    mutable_block()->control_.type_ = htons(static_cast<uint16>(type));
   }
 
   // Returns true if this control frame is of a type that has a header block,
@@ -744,7 +745,7 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
 
   // The number of bytes in the header block beyond the frame header length.
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::kHeaderSize);
+    return static_cast<int>(length() - (size() - SpdyFrame::kHeaderSize));
   }
 
   const char* header_block() const {
@@ -786,7 +787,7 @@ class SpdySynReplyControlFrame : public SpdyControlFrame {
     if (version() < 3) {
       header_block_len -= 2;
     }
-    return header_block_len;
+    return static_cast<int>(header_block_len);
   }
 
   const char* header_block() const {
@@ -864,11 +865,11 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
   }
 
   void set_num_entries(int val) {
-    mutable_block()->num_entries_ = htonl(val);
+    mutable_block()->num_entries_ = htonl(static_cast<uint32>(val));
   }
 
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::kHeaderSize);
+    return static_cast<int>(length() - (size() - SpdyFrame::kHeaderSize));
   }
 
   const char* header_block() const {
@@ -995,7 +996,7 @@ class SpdyHeadersControlFrame : public SpdyControlFrame {
     if (version() < 3) {
       header_block_len -= 2;
     }
-    return header_block_len;
+    return static_cast<int>(header_block_len);
   }
 
   const char* header_block() const {

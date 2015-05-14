@@ -56,7 +56,6 @@
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_canon_ip.h"
 #include "googleurl/src/url_parse.h"
-#include "grit/net_resources.h"
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
 #endif
@@ -68,6 +67,7 @@
 #include "net/base/winsock_init.h"
 #endif
 #if !defined(__LB_SHELL__)
+#include "grit/net_resources.h"
 #include "net/http/http_content_disposition.h"
 #endif  // !defined(__LB_SHELL__)
 #include "unicode/datefmt.h"
@@ -1011,6 +1011,7 @@ std::string CanonicalizeHost(const std::string& host,
 }
 
 std::string GetDirectoryListingHeader(const string16& title) {
+#if !defined(COBALT)
   static const base::StringPiece header(
       NetModule::GetResource(IDR_DIR_HEADER_HTML));
   // This can be null in unit tests.
@@ -1026,6 +1027,12 @@ std::string GetDirectoryListingHeader(const string16& title) {
   result.append(");</script>\n");
 
   return result;
+#else
+  // This function is only used by URLRequestFileDirJob,
+  // which we don't support.
+  NOTREACHED();
+  return "";
+#endif
 }
 
 inline bool IsHostCharAlpha(char c) {

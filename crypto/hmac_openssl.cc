@@ -50,7 +50,7 @@ bool HMAC::Sign(const base::StringPiece& data,
                 &plat_->key[0], plat_->key.size(),
                 reinterpret_cast<const unsigned char*>(data.data()),
                 data.size(),
-                result.safe_buffer(), NULL);
+                result.safe_buffer(), NULL) != NULL;
 }
 
 }  // namespace crypto

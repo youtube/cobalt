@@ -16,7 +16,8 @@ class HttpVersion {
   HttpVersion() : value_(0) { }
 
   // Build from unsigned major/minor pair.
-  HttpVersion(uint16 major, uint16 minor) : value_(major << 16 | minor) { }
+  HttpVersion(uint16 major, uint16 minor)
+      : value_(static_cast<uint32>(major) << 16 | minor) { }
 
   // Major version number.
   uint16 major_value() const {
