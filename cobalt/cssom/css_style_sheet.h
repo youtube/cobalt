@@ -17,8 +17,10 @@
 #ifndef CSSOM_CSS_STYLE_SHEET_H_
 #define CSSOM_CSS_STYLE_SHEET_H_
 
+#include <string>
 #include <vector>
 
+#include "base/hash_tables.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/style_sheet.h"
 
@@ -29,6 +31,10 @@ class CSSParser;
 class CSSRuleList;
 class CSSStyleRule;
 class StyleSheetList;
+
+typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
+typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
+typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
@@ -62,13 +68,31 @@ class CSSStyleSheet : public StyleSheet {
   GURL& LocationUrl() OVERRIDE;
   StyleSheetList* ParentStyleSheetList() OVERRIDE;
 
+  const StringToCSSRuleSetMap& class_selector_rules_map() const {
+    return class_selector_rules_map_;
+  }
+  const StringToCSSRuleSetMap& id_selector_rules_map() const {
+    return id_selector_rules_map_;
+  }
+  const StringToCSSRuleSetMap& type_selector_rules_map() const {
+    return type_selector_rules_map_;
+  }
+  const CSSRuleSet& empty_pseudo_class_rules() const {
+    return empty_pseudo_class_rules_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
+  class RuleIndexer;
+
   ~CSSStyleSheet() OVERRIDE;
 
-  typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
   CSSRules css_rules_;
+  StringToCSSRuleSetMap class_selector_rules_map_;
+  StringToCSSRuleSetMap id_selector_rules_map_;
+  StringToCSSRuleSetMap type_selector_rules_map_;
+  CSSRuleSet empty_pseudo_class_rules_;
 
   base::WeakPtr<CSSRuleList> css_rule_list_;
 
