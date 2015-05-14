@@ -36,6 +36,7 @@ BrowserModule::BrowserModule(const Options& options)
       web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
                              base::Unretained(this)),
                   WebModule::ErrorCallback(),
+                  &network_module_,
                   math::Size(kInitialWidth, kInitialHeight),
                   renderer_module_.pipeline()->GetResourceProvider(),
                   renderer_module_.pipeline()->refresh_rate(),

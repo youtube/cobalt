@@ -27,10 +27,13 @@
         'file_fetcher.h',
         'loader.cc',
         'loader.h',
+        'net_fetcher.cc',
+        'net_fetcher.h',
         'text_decoder.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
