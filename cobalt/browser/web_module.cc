@@ -20,10 +20,12 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
+#include "cobalt/network/network_module.h"
+
 namespace cobalt {
 namespace browser {
 
-std::string WebModule::GetUserAgent() {
+std::string WebModule::GetUserAgent() const {
 #if defined(__LB_LINUX__)
   const char* kVendor = "NoVendor";
   const char* kPlatform = "Linux";
@@ -78,23 +80,26 @@ std::string WebModule::GetUserAgent() {
 
 WebModule::WebModule(
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const ErrorCallback& error_callback, const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const Options& options)
-    : css_parser_(css_parser::Parser::Create()),
-      javascript_engine_(script::JavaScriptEngine::CreateEngine()),
-      global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
-      script_runner_(
-          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      fetcher_factory_(new loader::FetcherFactory()),
-      media_module_(media::MediaModule::Create(resource_provider)),
-      window_(new dom::Window(
-          window_dimensions.width(), window_dimensions.height(),
-          css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
-          script_runner_.get(), options.url, GetUserAgent(), error_callback)),
-      layout_manager_(window_.get(), resource_provider,
-                      render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate) {
+    const ErrorCallback& error_callback,
+    network::NetworkModule* network_module,
+    const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider,
+    float layout_refresh_rate, const Options& options)
+    : css_parser_(css_parser::Parser::Create())
+    , javascript_engine_(script::JavaScriptEngine::CreateEngine())
+    , global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy())
+    , script_runner_(
+          script::ScriptRunner::CreateScriptRunner(global_object_proxy_))
+    , media_module_(media::MediaModule::Create(resource_provider))
+    , fetcher_factory_(new loader::FetcherFactory(network_module))
+    , window_(new dom::Window(
+        window_dimensions.width(), window_dimensions.height(),
+        css_parser_.get(), fetcher_factory_.get(),
+        media_module_.get(), script_runner_.get(),
+        options.url, GetUserAgent(), error_callback))
+    , layout_manager_(
+        window_.get(), resource_provider, render_tree_produced_callback,
+        css_parser_.get(), options.layout_trigger, layout_refresh_rate) {
   global_object_proxy_->CreateGlobalObject(window_);
 }
 

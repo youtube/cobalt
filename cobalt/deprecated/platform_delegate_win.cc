@@ -18,8 +18,9 @@
 #include <direct.h>
 #include <ObjBase.h>
 #include <stdlib.h>
-#include <string>
 #include <windows.h>
+
+#include <string>
 
 #include "lbshell/src/lb_globals.h"
 #include "lbshell/src/platform/xb1/posix_emulation/pthread.h"

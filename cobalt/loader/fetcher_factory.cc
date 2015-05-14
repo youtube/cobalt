@@ -16,9 +16,13 @@
 
 #include "cobalt/loader/fetcher_factory.h"
 
+#include <string>
+
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "cobalt/loader/file_fetcher.h"
+#include "cobalt/loader/net_fetcher.h"
+#include "cobalt/network/network_module.h"
 
 namespace cobalt {
 namespace loader {
@@ -35,21 +39,33 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
 
 }  // namespace
 
+FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
+    : io_thread_("File IO")
+    , network_module_(network_module) {
+    io_thread_.Start();
+}
+
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
-  if (!url.is_valid()) return scoped_ptr<Fetcher>(NULL);
+  if (!url.is_valid()) {
+    DLOG(WARNING) << "Invalid url " << url;
+    return scoped_ptr<Fetcher>(NULL);
+  }
+
+  scoped_ptr<Fetcher> fetcher;
   if (url.SchemeIsFile()) {
     FilePath file_path;
     if (FileURLToFilePath(url, &file_path)) {
       FileFetcher::Options options;
-      options.io_message_loop = thread_.message_loop_proxy();
-      return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
+      options.io_message_loop = io_thread_.message_loop_proxy();
+      fetcher.reset(new FileFetcher(file_path, handler, options));
     }
   } else {
-    // TODO(***REMOVED***): Support other schemes such as http.
-    NOTIMPLEMENTED() << "Resource URL type not supported.";
+    DCHECK(network_module_) << "Network module required";
+    NetFetcher::Options options;
+    fetcher.reset(new NetFetcher(url, handler, network_module_, options));
   }
-  return scoped_ptr<Fetcher>(NULL);
+  return fetcher.Pass();
 }
 
 }  // namespace loader

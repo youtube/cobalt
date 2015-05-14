@@ -14,32 +14,30 @@
  * limitations under the License.
  */
 
-#ifndef LOADER_FETCHER_FACTORY_H_
-#define LOADER_FETCHER_FACTORY_H_
+#include "cobalt/network/url_request_context_getter.h"
 
-#include "base/threading/thread.h"
-#include "cobalt/loader/fetcher.h"
-#include "googleurl/src/gurl.h"
+#include "cobalt/network/url_request_context.h"
 
 namespace cobalt {
 namespace network {
-class NetworkModule;
+
+URLRequestContextGetter::URLRequestContextGetter(
+    URLRequestContext* url_request_context, base::Thread* io_thread)
+    : url_request_context_(url_request_context) {
+  network_task_runner_ = io_thread->message_loop_proxy();
+  DCHECK(network_task_runner_);
 }
 
-namespace loader {
+URLRequestContextGetter::~URLRequestContextGetter() {}
 
-class FetcherFactory {
- public:
-  explicit FetcherFactory(network::NetworkModule* network_module);
-  scoped_ptr<Fetcher> CreateFetcher(
-      const GURL& url, Fetcher::Handler* handler);
+net::URLRequestContext* URLRequestContextGetter::GetURLRequestContext() {
+  return url_request_context_;
+}
 
- private:
-  base::Thread io_thread_;
-  network::NetworkModule* network_module_;
-};
+scoped_refptr<base::SingleThreadTaskRunner>
+URLRequestContextGetter::GetNetworkTaskRunner() const {
+  return network_task_runner_;
+}
 
-}  // namespace loader
+}  // namespace network
 }  // namespace cobalt
-
-#endif  // LOADER_FETCHER_FACTORY_H_

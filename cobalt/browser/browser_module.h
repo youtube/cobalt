@@ -17,9 +17,12 @@
 #ifndef BROWSER_BROWSER_MODULE_H_
 #define BROWSER_BROWSER_MODULE_H_
 
+#include <string>
+
 #include "cobalt/browser/web_module.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
 
 namespace cobalt {
@@ -40,7 +43,7 @@ class BrowserModule {
   explicit BrowserModule(const Options& options);
   ~BrowserModule();
 
-  static std::string GetUserAgent() { return WebModule::GetUserAgent(); }
+  std::string GetUserAgent() { return web_module_.GetUserAgent(); }
 
  private:
   // Glue function to deal with the production of a render tree, and will
@@ -58,6 +61,9 @@ class BrowserModule {
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
+
+  // Sets up the network component for requesting internet resources.
+  network::NetworkModule network_module_;
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
