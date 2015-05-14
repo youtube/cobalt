@@ -55,6 +55,11 @@ class EventTarget : public script::Wrappable,
   void SetAttributeEventListener(const std::string& type,
                                  const scoped_refptr<EventListener>& listener);
 
+  // Get the event listener currently assigned to an attribute, or NULL if
+  // there is none.
+  scoped_refptr<EventListener> GetAttributeEventListener(
+      const std::string& type);
+
   DEFINE_WRAPPABLE_TYPE(EventTarget);
 
  protected:
