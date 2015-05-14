@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "dial_http_server.h"
+#include "net/dial/dial_http_server.h"
+
+#include <vector>
 
 #include "base/bind.h"
 #include "base/string_util.h"
@@ -20,29 +22,31 @@
 
 namespace net {
 
-const static char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
+namespace {
+const char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
 
-const static char* kDdXmlFormat =
+const char* kDdXmlFormat =
     "<?xml version=\"1.0\"?>"
     "<root"
-     " xmlns=\"urn:schemas-upnp-org:device-1-0\""
-     " xmlns:r=\"urn:restful-tv-org:schemas:upnp-dd\">"
-      "<specVersion>"
-        "<major>1</major>"
-        "<minor>0</minor>"
-      "</specVersion>"
-      "<device>"
-        "<deviceType>urn:schemas-upnp-org:device:tvdevice:1</deviceType>"
-        "<friendlyName>%s</friendlyName>"
-        "<manufacturer>%s</manufacturer>"
-        "<modelName>%s</modelName>"
-        "<UDN>uuid:%s</UDN>"
-      "</device>"
+    " xmlns=\"urn:schemas-upnp-org:device-1-0\""
+    " xmlns:r=\"urn:restful-tv-org:schemas:upnp-dd\">"
+    "<specVersion>"
+    "<major>1</major>"
+    "<minor>0</minor>"
+    "</specVersion>"
+    "<device>"
+    "<deviceType>urn:schemas-upnp-org:device:tvdevice:1</deviceType>"
+    "<friendlyName>%s</friendlyName>"
+    "<manufacturer>%s</manufacturer>"
+    "<modelName>%s</modelName>"
+    "<UDN>uuid:%s</UDN>"
+    "</device>"
     "</root>";
 
-const static std::string kAppsPrefix = "/apps/";
+const char* kAppsPrefix = "/apps/";
+}  // namespace
 
-const int kDialHttpServerPort = 0; // Random Port.
+const int kDialHttpServerPort = 0;  // Random Port.
 
 DialHttpServer::DialHttpServer(DialService* dial_service)
     : factory_(new TCPListenSocketFactory("0.0.0.0", kDialHttpServerPort)),
@@ -95,11 +99,9 @@ void DialHttpServer::OnHttpRequest(int conn_id,
     // If dd.xml request
     SendDeviceDescriptionManifest(conn_id);
 
-  } else if (StartsWithASCII(info.path, kAppsPrefix, true)) {
-
-    if (info.method == "GET" && info.path.length() == kAppsPrefix.length()) {
+  } else if (strstr(info.path.c_str(), kAppsPrefix)) {
+    if (info.method == "GET" && info.path.length() == strlen(kAppsPrefix)) {
       // If /apps/ request, send 302 to current application.
-      // TODO: Remove hardcoded YouTube by remembering the running application.
       http_server_->Send302(conn_id, application_url() + "YouTube");
 
     } else if (!DispatchToHandler(conn_id, info)) {
@@ -203,4 +205,4 @@ void DialHttpServer::AsyncReceivedResponse(
                  base::Passed(&response), ok));
 }
 
-} // namespace net
+}  // namespace net

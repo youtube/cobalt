@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "dial_service.h"
+#include "net/dial/dial_service.h"
 
 #include "base/bind.h"
 #include "base/string_piece.h"
@@ -24,7 +24,9 @@
 
 namespace net {
 
-static const std::string kUdpServerAgent = "Steel/2.0 UPnP/1.1";
+namespace {
+const char* kUdpServerAgent = "Steel/2.0 UPnP/1.1";
+}  // namespace
 
 DialService::DialService()
     : thread_(new base::Thread("dial_service"))
@@ -132,7 +134,6 @@ void DialService::OnDeregister(DialServiceHandler* handler) {
 
 DialServiceHandler* DialService::GetHandler(const std::string& request_path,
                                             std::string* handler_path) {
-
   DCHECK(IsOnServiceThread());
   DCHECK(handler_path != NULL);
 
@@ -162,7 +163,6 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path,
   // If the |handler_path| is empty, that means the request is "/apps/Foo", the
   // semantic equivalent of "/apps/Foo/". If we keep the |handler_path| empty,
   // somehow the JS does not catch it. So for now forcing it to "/" instead.
-  // TODO: Figure out the reason and eliminate this logic.
   if (handler_path->empty()) {
     *handler_path = std::string("/");
   }
@@ -172,5 +172,4 @@ DialServiceHandler* DialService::GetHandler(const std::string& request_path,
   return it->second;
 }
 
-} // namespace net
-
+}  // namespace net
