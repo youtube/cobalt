@@ -32,6 +32,8 @@ class StyleSheetList;
 
 // The CSSStyleSheet interface represents a CSS style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
+// TODO(***REMOVED***): This interface currently assumes all rules are style rules.
+// Handle other kinds of rules properly.
 class CSSStyleSheet : public StyleSheet {
  public:
   CSSStyleSheet();
@@ -43,6 +45,8 @@ class CSSStyleSheet : public StyleSheet {
   // Returns a read-only, live object representing the CSS rules.
   scoped_refptr<CSSRuleList> css_rules();
 
+  // Inserts a new rule into the current style sheet. This Web API takes a
+  // string as input and parses it into a rule.
   unsigned int InsertRule(const std::string& rule, unsigned int index);
 
   // Custom, not in any spec.
@@ -51,7 +55,8 @@ class CSSStyleSheet : public StyleSheet {
   // From StyleSheet.
   void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
 
-  void AppendRule(const scoped_refptr<CSSStyleRule>& css_rule);
+  // Appends a CSSStyleRule to the current style sheet.
+  void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule);
 
   void SetLocationUrl(const GURL& url) OVERRIDE;
   GURL& LocationUrl() OVERRIDE;

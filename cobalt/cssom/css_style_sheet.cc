@@ -42,10 +42,12 @@ scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
 
 unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
                                        unsigned int index) {
-  // TODO(***REMOVED***): Here it is assumed the rule is a style rule. Handle other
-  // kinds of rules properly.
   scoped_refptr<CSSStyleRule> css_rule = css_parser_->ParseStyleRule(
       rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
+
+  if (!css_rule) {
+    return 0;
+  }
 
   if (index > css_rules()->length()) {
     // TODO(***REMOVED***): Throw JS IndexSizeError.
@@ -53,10 +55,15 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
     return 0;
   }
 
-  css_rules_.insert(css_rules_.begin() + index, css_rule);
-  if (parent_style_sheet_list_) {
-    css_rule->AttachToStyleSheet(this);
+  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
+  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
+  // implement insertion if necessary.
+  if (index != css_rules()->length()) {
+    LOG(WARNING) << "InsertRule will always append the rule to the end of the "
+                    "rule list.";
   }
+
+  AppendCSSStyleRule(css_rule);
   return index;
 }
 
@@ -68,10 +75,11 @@ void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   }
 }
 
-void CSSStyleSheet::AppendRule(const scoped_refptr<CSSStyleRule>& css_rule) {
-  css_rules_.push_back(css_rule);
+void CSSStyleSheet::AppendCSSStyleRule(
+    const scoped_refptr<CSSStyleRule>& css_style_rule) {
+  css_rules_.push_back(css_style_rule);
   if (parent_style_sheet_list_) {
-    css_rule->AttachToStyleSheet(this);
+    css_style_rule->AttachToStyleSheet(this);
   }
 }
 
