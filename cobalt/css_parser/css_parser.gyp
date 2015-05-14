@@ -83,6 +83,8 @@
         'scanner.cc',
         'scanner.h',
         'string_pool.h',
+        'transition_property_parse_structures.cc',
+        'transition_property_parse_structures.h',
         'trivial_string_piece.h',
       ],
       # Scanner exposes UChar32 in a header.

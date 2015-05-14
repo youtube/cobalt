@@ -69,9 +69,10 @@ std::string CSSStyleDeclaration::GetPropertyValue(
 
 void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
                                            const std::string& property_value) {
-  *data_->GetPropertyValueReference(property_name) =
-      css_parser_->ParsePropertyValue(property_name, property_value,
-                                      non_trivial_static_fields.Get().location);
+  DCHECK(css_parser_);
+  css_parser_->ParsePropertyIntoStyle(property_name, property_value,
+                                      non_trivial_static_fields.Get().location,
+                                      data_.get());
 
   RecordMutation();
 }
@@ -81,12 +82,7 @@ std::string CSSStyleDeclaration::background() const {
 }
 
 void CSSStyleDeclaration::set_background(const std::string& background) {
-  DCHECK(css_parser_);
-  data_->set_background(css_parser_->ParsePropertyValue(
-      kBackgroundPropertyName, background,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kBackgroundPropertyName, background);
 }
 
 std::string CSSStyleDeclaration::background_color() const {
@@ -95,12 +91,7 @@ std::string CSSStyleDeclaration::background_color() const {
 
 void CSSStyleDeclaration::set_background_color(
     const std::string& background_color) {
-  DCHECK(css_parser_);
-  data_->set_background_color(css_parser_->ParsePropertyValue(
-      kBackgroundColorPropertyName, background_color,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kBackgroundColorPropertyName, background_color);
 }
 
 std::string CSSStyleDeclaration::background_image() const {
@@ -109,12 +100,7 @@ std::string CSSStyleDeclaration::background_image() const {
 
 void CSSStyleDeclaration::set_background_image(
     const std::string& background_image) {
-  DCHECK(css_parser_);
-  data_->set_background_image(css_parser_->ParsePropertyValue(
-      kBackgroundImagePropertyName, background_image,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kBackgroundImagePropertyName, background_image);
 }
 
 std::string CSSStyleDeclaration::border_radius() const {
@@ -122,12 +108,7 @@ std::string CSSStyleDeclaration::border_radius() const {
 }
 
 void CSSStyleDeclaration::set_border_radius(const std::string& border_radius) {
-  DCHECK(css_parser_);
-  data_->set_border_radius(css_parser_->ParsePropertyValue(
-      kBorderRadiusPropertyName, border_radius,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kBorderRadiusPropertyName, border_radius);
 }
 
 std::string CSSStyleDeclaration::color() const {
@@ -135,11 +116,7 @@ std::string CSSStyleDeclaration::color() const {
 }
 
 void CSSStyleDeclaration::set_color(const std::string& color) {
-  DCHECK(css_parser_);
-  data_->set_color(css_parser_->ParsePropertyValue(
-      kColorPropertyName, color, non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kColorPropertyName, color);
 }
 
 std::string CSSStyleDeclaration::display() const {
@@ -147,11 +124,7 @@ std::string CSSStyleDeclaration::display() const {
 }
 
 void CSSStyleDeclaration::set_display(const std::string& display) {
-  DCHECK(css_parser_);
-  data_->set_display(css_parser_->ParsePropertyValue(
-      kDisplayPropertyName, display, non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kDisplayPropertyName, display);
 }
 
 std::string CSSStyleDeclaration::font_family() const {
@@ -159,12 +132,7 @@ std::string CSSStyleDeclaration::font_family() const {
 }
 
 void CSSStyleDeclaration::set_font_family(const std::string& font_family) {
-  DCHECK(css_parser_);
-  data_->set_font_family(css_parser_->ParsePropertyValue(
-      kFontFamilyPropertyName, font_family,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kFontFamilyPropertyName, font_family);
 }
 
 std::string CSSStyleDeclaration::font_size() const {
@@ -172,12 +140,7 @@ std::string CSSStyleDeclaration::font_size() const {
 }
 
 void CSSStyleDeclaration::set_font_size(const std::string& font_size) {
-  DCHECK(css_parser_);
-  data_->set_font_size(css_parser_->ParsePropertyValue(
-      kFontSizePropertyName, font_size,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kFontSizePropertyName, font_size);
 }
 
 std::string CSSStyleDeclaration::font_weight() const {
@@ -185,12 +148,7 @@ std::string CSSStyleDeclaration::font_weight() const {
 }
 
 void CSSStyleDeclaration::set_font_weight(const std::string& font_weight) {
-  DCHECK(css_parser_);
-  data_->set_font_weight(css_parser_->ParsePropertyValue(
-      kFontWeightPropertyName, font_weight,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kFontWeightPropertyName, font_weight);
 }
 
 std::string CSSStyleDeclaration::height() const {
@@ -198,11 +156,7 @@ std::string CSSStyleDeclaration::height() const {
 }
 
 void CSSStyleDeclaration::set_height(const std::string& height) {
-  DCHECK(css_parser_);
-  data_->set_height(css_parser_->ParsePropertyValue(
-      kHeightPropertyName, height, non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kHeightPropertyName, height);
 }
 
 std::string CSSStyleDeclaration::line_height() const {
@@ -210,12 +164,7 @@ std::string CSSStyleDeclaration::line_height() const {
 }
 
 void CSSStyleDeclaration::set_line_height(const std::string& line_height) {
-  DCHECK(css_parser_);
-  data_->set_line_height(css_parser_->ParsePropertyValue(
-      kLineHeightPropertyName, line_height,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kLineHeightPropertyName, line_height);
 }
 
 std::string CSSStyleDeclaration::opacity() const {
@@ -223,11 +172,7 @@ std::string CSSStyleDeclaration::opacity() const {
 }
 
 void CSSStyleDeclaration::set_opacity(const std::string& opacity) {
-  DCHECK(css_parser_);
-  data_->set_opacity(css_parser_->ParsePropertyValue(
-      kOpacityPropertyName, opacity, non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kOpacityPropertyName, opacity);
 }
 
 std::string CSSStyleDeclaration::overflow() const {
@@ -235,12 +180,7 @@ std::string CSSStyleDeclaration::overflow() const {
 }
 
 void CSSStyleDeclaration::set_overflow(const std::string& overflow) {
-  DCHECK(css_parser_);
-  data_->set_overflow(css_parser_->ParsePropertyValue(
-      kOverflowPropertyName, overflow,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kOverflowPropertyName, overflow);
 }
 
 std::string CSSStyleDeclaration::transform() const {
@@ -248,12 +188,19 @@ std::string CSSStyleDeclaration::transform() const {
 }
 
 void CSSStyleDeclaration::set_transform(const std::string& transform) {
-  DCHECK(css_parser_);
-  data_->set_transform(css_parser_->ParsePropertyValue(
-      kTransformPropertyName, transform,
-      non_trivial_static_fields.Get().location));
+  SetPropertyValue(kTransformPropertyName, transform);
+}
 
-  RecordMutation();
+std::string CSSStyleDeclaration::transition() const {
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other transition properties.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+void CSSStyleDeclaration::set_transition(const std::string& transition) {
+  SetPropertyValue(kTransitionPropertyName, transition);
 }
 
 std::string CSSStyleDeclaration::transition_delay() const {
@@ -262,12 +209,7 @@ std::string CSSStyleDeclaration::transition_delay() const {
 
 void CSSStyleDeclaration::set_transition_delay(
     const std::string& transition_delay) {
-  DCHECK(css_parser_);
-  data_->set_transition_delay(css_parser_->ParsePropertyValue(
-      kTransitionDelayPropertyName, transition_delay,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kTransitionDelayPropertyName, transition_delay);
 }
 
 std::string CSSStyleDeclaration::transition_duration() const {
@@ -277,12 +219,7 @@ std::string CSSStyleDeclaration::transition_duration() const {
 
 void CSSStyleDeclaration::set_transition_duration(
     const std::string& transition_duration) {
-  DCHECK(css_parser_);
-  data_->set_transition_duration(css_parser_->ParsePropertyValue(
-      kTransitionDurationPropertyName, transition_duration,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kTransitionDurationPropertyName, transition_duration);
 }
 
 std::string CSSStyleDeclaration::transition_property() const {
@@ -292,12 +229,7 @@ std::string CSSStyleDeclaration::transition_property() const {
 
 void CSSStyleDeclaration::set_transition_property(
     const std::string& transition_property) {
-  DCHECK(css_parser_);
-  data_->set_transition_property(css_parser_->ParsePropertyValue(
-      kTransitionPropertyPropertyName, transition_property,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kTransitionPropertyPropertyName, transition_property);
 }
 
 std::string CSSStyleDeclaration::transition_timing_function() const {
@@ -308,12 +240,8 @@ std::string CSSStyleDeclaration::transition_timing_function() const {
 
 void CSSStyleDeclaration::set_transition_timing_function(
     const std::string& transition_timing_function) {
-  DCHECK(css_parser_);
-  data_->set_transition_timing_function(css_parser_->ParsePropertyValue(
-      kTransitionTimingFunctionPropertyName, transition_timing_function,
-      non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kTransitionTimingFunctionPropertyName,
+                   transition_timing_function);
 }
 
 std::string CSSStyleDeclaration::width() const {
@@ -321,11 +249,7 @@ std::string CSSStyleDeclaration::width() const {
 }
 
 void CSSStyleDeclaration::set_width(const std::string& width) {
-  DCHECK(css_parser_);
-  data_->set_width(css_parser_->ParsePropertyValue(
-      kWidthPropertyName, width, non_trivial_static_fields.Get().location));
-
-  RecordMutation();
+  SetPropertyValue(kWidthPropertyName, width);
 }
 
 // TODO(***REMOVED***): The getter of css_text returns the result of serializing the

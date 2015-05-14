@@ -40,6 +40,7 @@
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/id_selector.h"
+#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -93,6 +94,9 @@ class ParserImpl {
   scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList();
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name);
+  void ParsePropertyIntoStyle(
+      const std::string& property_name,
+      cssom::CSSStyleDeclarationData* style_declaration);
 
   Scanner& scanner() { return scanner_; }
 
@@ -117,6 +121,10 @@ class ParserImpl {
   void set_property_value(
       const scoped_refptr<cssom::PropertyValue>& property_value) {
     property_value_ = property_value;
+  }
+
+  cssom::CSSStyleDeclarationData* into_declaration_list() {
+    return into_declaration_list_;
   }
 
  private:
@@ -145,6 +153,10 @@ class ParserImpl {
   scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list_;
   scoped_refptr<cssom::PropertyValue> property_value_;
 
+  // Acts as the destination style declaration when ParsePropertyIntoStyle() is
+  // called.
+  cssom::CSSStyleDeclarationData* into_declaration_list_;
+
   friend int yyparse(ParserImpl* parser_impl);
 };
 
@@ -158,7 +170,8 @@ ParserImpl::ParserImpl(const std::string& input,
       css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
-      on_error_callback_(on_error_callback) {}
+      on_error_callback_(on_error_callback),
+      into_declaration_list_(NULL) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   scanner_.PrependToken(kStyleSheetEntryPointToken);
@@ -201,6 +214,28 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
   scanner_.PrependToken(property_name_token);
   scanner_.PrependToken(':');
   return Parse() ? property_value_ : NULL;
+}
+
+void ParserImpl::ParsePropertyIntoStyle(
+    const std::string& property_name,
+    cssom::CSSStyleDeclarationData* style_declaration) {
+  Token property_name_token;
+  bool known_property_name =
+      scanner_.DetectPropertyNameToken(property_name, &property_name_token);
+  if (!known_property_name) {
+    YYLTYPE source_location;
+    source_location.first_line = 1;
+    source_location.first_column = 1;
+    LogWarning(source_location, "unsupported property " + property_name);
+    return;
+  }
+
+  scanner_.PrependToken(kPropertyIntoStyleEntryPointToken);
+  scanner_.PrependToken(property_name_token);
+  scanner_.PrependToken(':');
+
+  into_declaration_list_ = style_declaration;
+  Parse();
 }
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
@@ -319,6 +354,15 @@ scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
   ParserImpl parser_impl(property_value, property_location, this,
                          on_warning_callback_, on_error_callback_);
   return parser_impl.ParsePropertyValue(property_name);
+}
+
+void Parser::ParsePropertyIntoStyle(
+    const std::string& property_name, const std::string& property_value,
+    const base::SourceLocation& property_location,
+    cssom::CSSStyleDeclarationData* style_declaration) {
+  ParserImpl parser_impl(property_value, property_location, this,
+                         on_warning_callback_, on_error_callback_);
+  return parser_impl.ParsePropertyIntoStyle(property_name, style_declaration);
 }
 
 }  // namespace css_parser
