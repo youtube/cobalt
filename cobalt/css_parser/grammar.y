@@ -745,6 +745,13 @@ common_values:
     $$ = AddRef(cssom::KeywordValue::GetInitial().get());
   }
   | errors {
+    // If a user agent does not support a particular value, it should ignore
+    // that value when parsing style sheets, as if that value was an illegal
+    // value.
+    //   http://www.w3.org/TR/CSS21/syndata.html#unsupported-values
+    //
+    // User agents must ignore a declaration with an illegal value.
+    //   http://www.w3.org/TR/CSS21/syndata.html#illegalvalues
     parser_impl->LogWarning(@1, "unsupported value");
     $$ = NULL;
   }
