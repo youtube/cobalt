@@ -110,7 +110,8 @@ inline uint128::uint128(const uint128 &v) : lo_(v.lo_), hi_(v.hi_) { }
 inline uint128::uint128(const uint128_pod &v) : lo_(v.lo), hi_(v.hi) { }
 inline uint128::uint128(uint64 bottom) : lo_(bottom), hi_(0) { }
 inline uint128::uint128(uint32 bottom) : lo_(bottom), hi_(0) { }
-inline uint128::uint128(int bottom) : lo_(bottom), hi_(0) {
+inline uint128::uint128(int bottom)
+    : lo_(static_cast<uint32>(bottom)), hi_(0) {
   if (bottom < 0) {
     --hi_;
   }
