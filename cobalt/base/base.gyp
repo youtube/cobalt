@@ -30,6 +30,7 @@
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/base/base.gyp:base_i18n',
         '<(DEPTH)/cobalt/deprecated/deprecated.gyp:platform_delegate',
       ],
       'export_dependent_settings': [
