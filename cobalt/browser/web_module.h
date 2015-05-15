@@ -65,6 +65,13 @@ class WebModule {
             const Options& options);
   ~WebModule();
 
+  // TODO(***REMOVED***): This function is not thread safe. Currently it is only used
+  // in rule_matching_benchmark.cc to access the window object from outside.
+  // WebModule will be refactored to contain own thread(b/21272884), at which
+  // time we should use custom event to support benchmark, and remove this
+  // getter.
+  scoped_refptr<dom::Window> window() { return window_; }
+
   // Call this to inject a key event into the web module which will ultimately
   // make its way to the DOM's Document object and handled appropriately.
   void InjectEvent(const scoped_refptr<dom::Event>& event);
