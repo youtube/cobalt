@@ -18,6 +18,8 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/i18n/icu_util.h"
+#include "base/logging.h"
 #include "cobalt/deprecated/platform_delegate.h"
 
 namespace cobalt {
@@ -36,6 +38,9 @@ void InitCobalt(int argc, char* argv[]) {
   // Register a callback to be called during program termination.
   // This will fail if AtExitManager wasn't created before calling InitCobalt.
   base::AtExitManager::RegisterCallback(&AtExitCallback, NULL);
+
+  bool icu_initialized = icu_util::Initialize();
+  LOG_IF(ERROR, !icu_initialized) << "ICU initialization failed.";
 }
 
 }  // namespace cobalt

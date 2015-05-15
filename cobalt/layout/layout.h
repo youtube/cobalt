@@ -24,6 +24,7 @@
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "third_party/icu/public/common/unicode/brkiter.h"
 
 namespace cobalt {
 namespace layout {
@@ -54,6 +55,7 @@ RenderTreeWithAnimations Layout(
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
+    icu::BreakIterator* line_break_iterator,
     const base::Time& style_change_event_time, loader::ImageCache* image_cache);
 
 }  // namespace layout

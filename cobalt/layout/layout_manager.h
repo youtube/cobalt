@@ -19,11 +19,8 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -34,7 +31,7 @@ namespace cobalt {
 namespace layout {
 
 // Produces the render tree each time when the document needs layout update.
-class LayoutManager : public dom::DocumentObserver {
+class LayoutManager {
  public:
   typedef base::Callback<
       void(const scoped_refptr<render_tree::Node>&,
@@ -58,31 +55,9 @@ class LayoutManager : public dom::DocumentObserver {
                 LayoutTrigger layout_trigger, float layout_refresh_rate);
   ~LayoutManager();
 
-  // From dom::DocumentObserver.
-  void OnLoad() OVERRIDE;
-  void OnMutation() OVERRIDE;
-
-  void NotifyImageLoaded();
-
  private:
-  void DoLayoutAndProduceRenderTree();
-
-  const scoped_refptr<dom::Window> window_;
-  const scoped_refptr<dom::Document> document_;
-  const math::SizeF viewport_size_;
-  render_tree::ResourceProvider* const resource_provider_;
-  const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
-  const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
-  const LayoutTrigger layout_trigger_;
-  scoped_ptr<loader::ImageCache> image_cache_;
-
-  // This flag indicates whether or not we should do a re-layout.  The flag
-  // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
-  // a layout is initiated and it is set back to false.  Events such as
-  // DOM mutations will set this flag back to true.
-  bool layout_dirty_;
-
-  base::Timer layout_timer_;
+  class Impl;
+  const scoped_ptr<Impl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(LayoutManager);
 };

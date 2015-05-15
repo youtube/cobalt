@@ -63,6 +63,8 @@
         'transition_render_tree_animations.h',
         'used_style.cc',
         'used_style.h',
+        'white_space_processing.cc',
+        'white_space_processing.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -127,6 +129,7 @@
         'cascaded_style_test.cc',
         'computed_style_test.cc',
         'declared_style_test.cc',
+        'white_space_processing_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
