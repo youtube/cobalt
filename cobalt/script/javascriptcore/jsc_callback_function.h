@@ -52,15 +52,29 @@ template <typename R>
 class JSCCallbackFunction<R(void)>
     : public CallbackFunction<R(void)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run()
       const OVERRIDE {
-    callback_.Run(callable_);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -68,7 +82,6 @@ class JSCCallbackFunction<R(void)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -76,17 +89,31 @@ template <typename R, typename A1>
 class JSCCallbackFunction<R(A1)>
     : public CallbackFunction<R(A1)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1)
       const OVERRIDE {
-    callback_.Run(callable_, a1);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -94,7 +121,6 @@ class JSCCallbackFunction<R(A1)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -102,19 +128,33 @@ template <typename R, typename A1, typename A2>
 class JSCCallbackFunction<R(A1, A2)>
     : public CallbackFunction<R(A1, A2)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -122,7 +162,6 @@ class JSCCallbackFunction<R(A1, A2)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -130,21 +169,35 @@ template <typename R, typename A1, typename A2, typename A3>
 class JSCCallbackFunction<R(A1, A2, A3)>
     : public CallbackFunction<R(A1, A2, A3)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
       typename base::internal::CallbackParamTraits<A2>::ForwardType a2,
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2, a3);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+    args.append(ToJSValue(global_object, a3));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -152,7 +205,6 @@ class JSCCallbackFunction<R(A1, A2, A3)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -160,15 +212,8 @@ template <typename R, typename A1, typename A2, typename A3, typename A4>
 class JSCCallbackFunction<R(A1, A2, A3, A4)>
     : public CallbackFunction<R(A1, A2, A3, A4)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -176,7 +221,28 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
       typename base::internal::CallbackParamTraits<A3>::ForwardType a3,
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2, a3, a4);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+    args.append(ToJSValue(global_object, a3));
+    args.append(ToJSValue(global_object, a4));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -184,7 +250,6 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -193,16 +258,8 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -211,7 +268,29 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
       typename base::internal::CallbackParamTraits<A4>::ForwardType a4,
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2, a3, a4, a5);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+    args.append(ToJSValue(global_object, a3));
+    args.append(ToJSValue(global_object, a4));
+    args.append(ToJSValue(global_object, a5));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -219,7 +298,6 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -228,17 +306,8 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -248,7 +317,30 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
       typename base::internal::CallbackParamTraits<A5>::ForwardType a5,
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2, a3, a4, a5, a6);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+    args.append(ToJSValue(global_object, a3));
+    args.append(ToJSValue(global_object, a4));
+    args.append(ToJSValue(global_object, a5));
+    args.append(ToJSValue(global_object, a6));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -256,7 +348,6 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
@@ -265,18 +356,8 @@ template <typename R, typename A1, typename A2, typename A3, typename A4,
 class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&,
-      typename base::internal::CallbackParamTraits<A1>::ForwardType,
-      typename base::internal::CallbackParamTraits<A2>::ForwardType,
-      typename base::internal::CallbackParamTraits<A3>::ForwardType,
-      typename base::internal::CallbackParamTraits<A4>::ForwardType,
-      typename base::internal::CallbackParamTraits<A5>::ForwardType,
-      typename base::internal::CallbackParamTraits<A6>::ForwardType,
-      typename base::internal::CallbackParamTraits<A7>::ForwardType)>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run(
       typename base::internal::CallbackParamTraits<A1>::ForwardType a1,
@@ -287,7 +368,31 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
       typename base::internal::CallbackParamTraits<A6>::ForwardType a6,
       typename base::internal::CallbackParamTraits<A7>::ForwardType a7)
       const OVERRIDE {
-    callback_.Run(callable_, a1, a2, a3, a4, a5, a6, a7);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    args.append(ToJSValue(global_object, a1));
+    args.append(ToJSValue(global_object, a2));
+    args.append(ToJSValue(global_object, a3));
+    args.append(ToJSValue(global_object, a4));
+    args.append(ToJSValue(global_object, a5));
+    args.append(ToJSValue(global_object, a6));
+    args.append(ToJSValue(global_object, a7));
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -295,7 +400,6 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 

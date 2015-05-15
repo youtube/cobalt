@@ -69,17 +69,33 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
 ]]
 
  public:
-  typedef base::Callback<R(const scoped_refptr<JSCObjectOwner>&$for ARG [[, typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType]])>
-      CallbackType;
-  JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable,
-                      const CallbackType& callback)
-      : callable_(callable), callback_(callback) {}
+  explicit JSCCallbackFunction(const scoped_refptr<JSCObjectOwner>& callable)
+      : callable_(callable) {}
 
   R Run($for ARG , [[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
-    callback_.Run(callable_$for ARG [[, a$(ARG)]]);
+    DCHECK(callable_);
+    DCHECK(callable_->js_object());
+    JSC::JSFunction* js_function =
+        JSC::jsCast<JSC::JSFunction*>(callable_->js_object().get());
+    JSCGlobalObject* global_object =
+        JSC::jsCast<JSCGlobalObject*>(js_function->globalObject());
+    JSC::JSLockHolder lock(global_object->globalData());
+
+    // http://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JSC::JSValue this_value = JSC::jsNull();
+    JSC::MarkedArgumentBuffer args;
+    $for ARG [[args.append(ToJSValue(global_object, a$(ARG)));
+    ]]
+
+    JSC::CallData call_data;
+    JSC::CallType call_type =
+        JSC::JSFunction::getCallData(js_function, call_data);
+    JSC::ExecState* exec_state = global_object->globalExec();
+    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -87,7 +103,6 @@ class JSCCallbackFunction<R($for ARG , [[A$(ARG)]])>
  private:
   ~JSCCallbackFunction() {}
 
-  CallbackType callback_;
   scoped_refptr<JSCObjectOwner> callable_;
 };
 
