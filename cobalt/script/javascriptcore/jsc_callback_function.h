@@ -22,8 +22,11 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_CALLBACK_FUNCTION_H_
 
+#include "base/logging.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/javascriptcore/jsc_global_object.h"
 #include "cobalt/script/javascriptcore/jsc_object_owner.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/JSFunction.h"
 
 // The JSCCallbackFunction type is used to represent IDL callback functions.
 // Create a new JSCCallbackFunction by specifying the base CallbackFunction
