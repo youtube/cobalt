@@ -38,26 +38,13 @@ TextBox::TextBox(
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
 void TextBox::Layout(const LayoutParams& /*layout_params*/) {
-  // TODO(***REMOVED***): If this method is called on a box after the split, no layout
-  //               recalculation is necessary.
-
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
 
-  // Since Skia returns the bounding rectangle of a text, the width of any white
-  // space cannot be measured on its own.
-  space_width_ = used_font_->GetBounds("_ _").width() -
-                 used_font_->GetBounds("__").width();
+  space_width_ = used_font_->GetBounds(" ").width();
 
-  // TODO(***REMOVED***): Skia knows how to measure the bounding box of the text,
-  //               while we need a layout box. For example, the bounding box
-  //               for the letter "i" is smaller than the layout box
-  //               (the layout box includes a thin white space around
-  //               the letter). Consider using Pango, Harfbuzz, or FreeType
-  //               instead.
   math::RectF text_bounds = used_font_->GetBounds(text_);
   used_frame().set_width(GetLeadingWhiteSpaceWidth() + text_bounds.width() +
                          GetTrailingWhiteSpaceWidth());
-  text_x_ = -text_bounds.x();
 
   // Below is calculated based on
   // http://www.w3.org/TR/CSS21/visudet.html#leading.
@@ -81,15 +68,8 @@ void TextBox::Layout(const LayoutParams& /*layout_params*/) {
 }
 
 scoped_ptr<Box> TextBox::TrySplitAt(float /*available_width*/) {
-  // TODO(***REMOVED***): Split the text box at soft wrap opportunity.
-  //               http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity
-  // TODO(***REMOVED***): Implement "white-space: nowrap".
-  //               http://www.w3.org/TR/css3-text/#white-space
-  NOTIMPLEMENTED();
-
-  // TODO(***REMOVED***): Update the text bounds in the both parts of the original box
-  //               after the successful split.
-
+  // Text boxes were pre-split by soft wrap opportunities in a box generator,
+  // no further split is possible.
   return scoped_ptr<Box>();
 }
 
@@ -145,7 +125,7 @@ void TextBox::AddContentToRenderTree(
   // a baseline, offset the text node accordingly.
   composition_node_builder->AddChild(
       new render_tree::TextNode(text_, used_font_, used_color),
-      math::TranslateMatrix(GetLeadingWhiteSpaceWidth() + text_x_,
+      math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
                             height_above_baseline_));
 }
 
@@ -160,8 +140,7 @@ void TextBox::DumpProperties(std::ostream* stream) const {
 
   *stream << std::boolalpha
           << "has_leading_white_space=" << has_leading_white_space_ << " "
-          << "has_trailing_white_space=" << has_trailing_white_space_ << " "
-          << std::noboolalpha << "text_x=" << text_x_ << " ";
+          << "has_trailing_white_space=" << has_trailing_white_space_ << " ";
 }
 
 void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {

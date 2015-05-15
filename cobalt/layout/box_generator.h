@@ -23,6 +23,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/node.h"
+#include "third_party/icu/public/common/unicode/brkiter.h"
 
 namespace cobalt {
 namespace layout {
@@ -46,7 +47,9 @@ class BoxGenerator : public dom::NodeVisitor {
           parent_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
       const UsedStyleProvider* used_style_provider,
+      icu::BreakIterator* line_break_iterator,
       const base::Time& style_change_event_time);
+  ~BoxGenerator();
 
   void Visit(dom::Comment* comment) OVERRIDE;
   void Visit(dom::Document* document) OVERRIDE;
@@ -55,13 +58,14 @@ class BoxGenerator : public dom::NodeVisitor {
 
   // The result of a box generator is zero or more root boxes.
   typedef ScopedVector<Box> Boxes;
-  Boxes PassBoxes() { return boxes_.Pass(); }
+  Boxes PassBoxes();
 
  private:
   const scoped_refptr<const cssom::CSSStyleDeclarationData>
       parent_computed_style_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const UsedStyleProvider* const used_style_provider_;
+  icu::BreakIterator* const line_break_iterator_;
 
   Boxes boxes_;
   const base::Time style_change_event_time_;
