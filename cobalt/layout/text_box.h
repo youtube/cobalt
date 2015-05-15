@@ -91,9 +91,6 @@ class TextBox : public Box {
   bool has_trailing_white_space_;
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
-  // A horizontal offset of the first glyph relatively to the origin
-  // of the text box.
-  float text_x_;
   // A vertical offset of the baseline relatively to the origin of the text box.
   float height_above_baseline_;
   // A width of a space character in the used font, measured during layout.
