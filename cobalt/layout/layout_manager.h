@@ -46,6 +46,7 @@ class LayoutManager : public dom::DocumentObserver {
   enum LayoutTrigger {
     kOnDocumentMutation,
     kOnDocumentLoad,
+    kNoTrigger,
   };
 
   LayoutManager(const scoped_refptr<dom::Window>& window,
