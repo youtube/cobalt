@@ -28,6 +28,7 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:*',
         '<(DEPTH)/cobalt/input/input.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
+        '<(DEPTH)/cobalt/layout/layout_benchmark.gyp:*',
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
