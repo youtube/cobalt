@@ -223,6 +223,40 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
   }
 }
 
+// JSValue -> CallbackFunction
+template <class T>
+inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
+                        scoped_refptr<CallbackFunction<T> >* out_callback) {
+  if (jsvalue.isNull()) {
+    // TODO(***REMOVED***): Throw TypeError if callback is not nullable.
+    *out_callback = NULL;
+    return;
+  }
+
+  JSCGlobalObject* global_object =
+      JSC::jsCast<JSCGlobalObject*>(exec_state->lexicalGlobalObject());
+
+  // http://www.w3.org/TR/WebIDL/#es-callback-function
+  // 1. If V is not a Function object, throw a TypeError
+  if (!jsvalue.isFunction()) {
+    // TODO(***REMOVED***): Throw TypeError.
+    NOTREACHED();
+    *out_callback = NULL;
+    return;
+  }
+  JSC::JSFunction* js_function =
+      JSC::jsCast<JSC::JSFunction*>(jsvalue.asCell());
+  DCHECK(js_function);
+  scoped_refptr<JSCObjectOwner> object_owner =
+      global_object->RegisterObjectOwner(js_function);
+
+  // JSCCallbackFunction keeps a handle to object_owner. As long as a reference
+  // to the JSCCallbackFunction exists, therefore there is a reference to the
+  // JSCObjectOwner, and thus the js_function will not be garbage collected.
+  *out_callback = new JSCCallbackFunction<
+      typename CallbackFunction<T>::Signature>(object_owner);
+}
+
 }  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
