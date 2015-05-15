@@ -11,4 +11,5 @@
 9-2-2-inline-level-boxes-should-participate-in-inline-formatting-context
 9-2-4-display-none-should-not-be-overridable
 9-2-4-display-none-should-not-generate-box
+9-4-2-long-inline-boxes-should-be-split
 9-4-2-unsplittable-inline-box-should-overflow
