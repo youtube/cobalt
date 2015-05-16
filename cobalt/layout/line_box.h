@@ -21,11 +21,10 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "cobalt/layout/box.h"
 
 namespace cobalt {
 namespace layout {
-
-class Box;
 
 // The rectangular area that contains the boxes that form a line is called
 // a line box.
@@ -57,15 +56,15 @@ class LineBox {
     kShouldTrimWhiteSpace = true
   };
 
-  LineBox(float used_top, float containing_block_width,
-          ShouldTrimWhiteSpace should_trim_white_space);
+  LineBox(float used_top, ShouldTrimWhiteSpace should_trim_white_space,
+          const LayoutParams& layout_params);
 
   float used_top() const { return used_top_; }
 
-  // Attempts to calculate the used values of "left" and "top" for the given
-  // child box if the box or a part of it fits on the line. Some parts of
-  // calculation are asynchronous, so the child's position is in an undefined
-  // state until |EndQueries| is called.
+  // Attempts to calculate the used values of "left", "top", "width", and
+  // "height" for the given child box if the box or a part of it fits on
+  // the line. Some parts of calculation are asynchronous, so the child's
+  // position is in an undefined state until |EndQueries| is called.
   //
   // Returns false if the box does not fit on the line, even if split.
   //
@@ -73,12 +72,12 @@ class LineBox {
   // of the box after the split is stored in |child_box_after_split|. The box
   // that establishes this formatting context must re-insert the returned part
   // right after the original child box.
-  bool TryQueryUsedPositionAndMaybeSplit(
-      Box* child_box, scoped_ptr<Box>* child_box_after_split);
-  // Asynchronously calculates the used values of "left" and "top" for the given
-  // child box, ignoring the possible overflow. The child's position is
-  // in undefined state until |EndQueries| is called.
-  void QueryUsedPositionAndMaybeOverflow(Box* child_box);
+  bool TryQueryUsedRectAndMaybeSplit(Box* child_box,
+                                     scoped_ptr<Box>* child_box_after_split);
+  // Asynchronously calculates the used values of "left", "top", "width", and
+  // "height" for the given child box, ignoring the possible overflow.
+  // The child's position is in undefined state until |EndQueries| is called.
+  void QueryUsedRectAndMaybeOverflow(Box* child_box);
   // Ensures that the calculation of used values of "left" and "top" for all
   // previously seen child boxes is completed.
   void EndQueries();
@@ -109,8 +108,8 @@ class LineBox {
   void CollapseTrailingWhiteSpace() const;
 
   const float used_top_;
-  const float containing_block_width_;
   const ShouldTrimWhiteSpace should_trim_white_space_;
+  const LayoutParams layout_params_;
 
   bool line_exists_;
 
