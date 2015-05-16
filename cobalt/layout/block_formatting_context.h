@@ -18,13 +18,12 @@
 #define LAYOUT_BLOCK_FORMATTING_CONTEXT_H_
 
 #include "base/optional.h"
+#include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/math/point_f.h"
 
 namespace cobalt {
 namespace layout {
-
-class Box;
 
 // In a block formatting context, boxes are laid out one after the other,
 // vertically, beginning at the top of a containing block.
@@ -37,12 +36,12 @@ class Box;
 // to update the position of the subsequent children passed to it.
 class BlockFormattingContext : public FormattingContext {
  public:
-  BlockFormattingContext();
+  explicit BlockFormattingContext(const LayoutParams& layout_params);
   ~BlockFormattingContext() OVERRIDE;
 
-  // Calculates the used position of the given child box and updates
+  // Calculates the used position and size of the given child box and updates
   // the internal state in the preparation for the next child.
-  void UpdateUsedPosition(Box* child_box);
+  void UpdateUsedRect(Box* child_box);
 
   // Used to calculate the "auto" width of the box that establishes this
   // formatting context.
@@ -57,6 +56,8 @@ class BlockFormattingContext : public FormattingContext {
   }
 
  private:
+  const LayoutParams layout_params_;
+
   // In a block formatting context, each box's left outer edge touches
   // the left edge of the containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting

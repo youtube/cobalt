@@ -38,14 +38,17 @@ TextBox::TextBox(
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
-void TextBox::Layout(const LayoutParams& /*layout_params*/) {
+void TextBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
 
   space_width_ = used_font_->GetBounds(" ").width();
 
   math::RectF text_bounds = used_font_->GetBounds(text_);
-  used_frame().set_width(GetLeadingWhiteSpaceWidth() + text_bounds.width() +
-                         GetTrailingWhiteSpaceWidth());
+  // TODO(***REMOVED***): GetBounds() may return a rect with x() < 0.  If this is
+  //               undesired, it should be officially specified by GetBounds()
+  //               interface, and enforced in GetBound()' implementation.
+  set_used_width(GetLeadingWhiteSpaceWidth() + text_bounds.width() +
+                 GetTrailingWhiteSpaceWidth());
 
   // Below is calculated based on
   // http://www.w3.org/TR/CSS21/visudet.html#leading.
@@ -60,7 +63,7 @@ void TextBox::Layout(const LayoutParams& /*layout_params*/) {
 
   // The height of the inline box encloses all glyphs and their half-leading
   // on each side and is thus exactly "line-height".
-  used_frame().set_height(used_line_height_provider.used_line_height());
+  set_used_height(used_line_height_provider.used_line_height());
 
   // Half the leading is added above ascent (A) and the other half below
   // descent (D), giving the glyph and its leading (L) a total height above
@@ -87,8 +90,8 @@ bool TextBox::HasTrailingWhiteSpace() const {
 
 void TextBox::CollapseLeadingWhiteSpace() {
   if (has_leading_white_space_) {
-    used_frame().set_width(used_frame().width() - GetLeadingWhiteSpaceWidth());
     has_leading_white_space_ = false;
+    InvalidateUsedWidth();
 
     if (has_trailing_white_space_ && text_.empty()) {
       CollapseTrailingWhiteSpace();
@@ -98,8 +101,8 @@ void TextBox::CollapseLeadingWhiteSpace() {
 
 void TextBox::CollapseTrailingWhiteSpace() {
   if (has_trailing_white_space_) {
-    used_frame().set_width(used_frame().width() - GetTrailingWhiteSpaceWidth());
     has_trailing_white_space_ = false;
+    InvalidateUsedWidth();
 
     if (has_leading_white_space_ && text_.empty()) {
       CollapseLeadingWhiteSpace();

@@ -206,19 +206,19 @@ float BlockFormattingBlockContainerBox::GetUsedHeightBasedOnContainingBlock(
   return used_height_provider.used_height();
 }
 
-scoped_ptr<FormattingContext> BlockFormattingBlockContainerBox::LayoutChildren(
+scoped_ptr<FormattingContext>
+BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
   // TODO(***REMOVED***): Handle absolutely positioned boxes:
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   scoped_ptr<BlockFormattingContext> block_formatting_context(
-      new BlockFormattingContext());
+      new BlockFormattingContext(child_layout_params));
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->Layout(child_layout_params);
-    block_formatting_context->UpdateUsedPosition(child_box);
+    block_formatting_context->UpdateUsedRect(child_box);
   }
   return block_formatting_context.PassAs<FormattingContext>();
 }

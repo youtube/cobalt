@@ -105,7 +105,9 @@ RenderTreeWithAnimations Layout(
     initial_containing_block->AddChild(root_box.Pass());
   }
 
-  initial_containing_block->Layout(LayoutParams());
+  initial_containing_block->set_used_left(0);
+  initial_containing_block->set_used_top(0);
+  initial_containing_block->UpdateUsedSizeIfInvalid(LayoutParams());
 
   render_tree::animations::NodeAnimationsMap::Builder
       node_animations_map_builder;

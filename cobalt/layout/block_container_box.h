@@ -46,7 +46,7 @@ class BlockContainerBox : public ContainerBox {
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.
-  void Layout(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE;
@@ -98,7 +98,7 @@ class BlockContainerBox : public ContainerBox {
       bool* height_depends_on_child_boxes) const = 0;
 
   // Lays out children recursively.
-  virtual scoped_ptr<FormattingContext> LayoutChildren(
+  virtual scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
       const LayoutParams& child_layout_params) = 0;
 
   // Calculates the used width.

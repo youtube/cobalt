@@ -51,6 +51,22 @@ Box::Box(
 
 Box::~Box() {}
 
+void Box::UpdateUsedSizeIfInvalid(const LayoutParams& layout_params) {
+  if (!maybe_used_width_ || !maybe_used_height_) {
+    UpdateUsedSize(layout_params);
+
+    DCHECK(static_cast<bool>(maybe_used_width_));
+    DCHECK(static_cast<bool>(maybe_used_height_));
+  }
+}
+
+void Box::InvalidateUsedRect() {
+  maybe_used_left_ = base::nullopt;
+  maybe_used_top_ = base::nullopt;
+  maybe_used_width_ = base::nullopt;
+  maybe_used_height_ = base::nullopt;
+}
+
 namespace {
 
 // Returns a matrix representing the transform on the object, relative to its
@@ -146,22 +162,21 @@ void Box::AddToRenderTree(
 
     // Specifically animate only the composition node with the CSS transform.
     AddTransitionAnimations<CompositionNode>(
-      base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
-                 used_frame().size()),
-      *computed_style(), css_transform_node, *transitions_,
-      node_animations_map_builder);
+        base::Bind(&SetupCompositionNodeFromCSSSStyleTransform, used_size()),
+        *computed_style(), css_transform_node, *transitions_,
+        node_animations_map_builder);
 
     // Now add that transform node to the parent composition node, along with
     // the application of the layout transform.
     parent_composition_node_builder->AddChild(
-        css_transform_node, GetOffsetTransform(used_frame().origin()));
+        css_transform_node, GetOffsetTransform(used_position()));
   } else {
     // Add all child render nodes to the parent composition node, with the
     // layout transform and CSS transform combined into one matrix.
     parent_composition_node_builder->AddChild(
         new CompositionNode(composition_node_builder.Pass()),
-        GetOffsetTransform(used_frame().origin()) *
-            GetCSSTransform(computed_style_->transform(), used_frame().size()));
+        GetOffsetTransform(used_position()) *
+            GetCSSTransform(computed_style_->transform(), used_size()));
   }
 }
 
@@ -177,6 +192,10 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
 }
 
+void Box::InvalidateUsedWidth() { maybe_used_width_ = base::nullopt; }
+
+void Box::InvalidateUsedHeight() { maybe_used_height_ = base::nullopt; }
+
 namespace {
 void SetupRectNodeFromStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
@@ -190,7 +209,7 @@ void SetupRectNodeFromStyle(
 void Box::AddBackgroundToRenderTree(
     CompositionNode::Builder* composition_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  RectNode::Builder rect_node_builder(used_frame().size(),
+  RectNode::Builder rect_node_builder(used_size(),
                                       scoped_ptr<render_tree::Brush>());
   SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
 
@@ -204,7 +223,7 @@ void Box::AddBackgroundToRenderTree(
 
   if (used_background_image) {
     scoped_refptr<ImageNode> image_node(
-        new ImageNode(used_background_image, used_frame().size()));
+        new ImageNode(used_background_image, used_size()));
     composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
   }
 
@@ -233,10 +252,10 @@ void Box::DumpProperties(std::ostream* stream) const {
       break;
   }
 
-  *stream << "left=" << used_frame_.x() << " "
-          << "top=" << used_frame_.y() << " "
-          << "width=" << used_frame_.width() << " "
-          << "height=" << used_frame_.height() << " "
+  *stream << "left=" << maybe_used_left_ << " "
+          << "top=" << maybe_used_top_ << " "
+          << "width=" << maybe_used_width_ << " "
+          << "height=" << maybe_used_height_ << " "
           << "height_above_baseline=" << GetHeightAboveBaseline() << " ";
 }
 

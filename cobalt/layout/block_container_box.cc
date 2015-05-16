@@ -29,7 +29,7 @@ BlockContainerBox::BlockContainerBox(
 
 BlockContainerBox::~BlockContainerBox() {}
 
-void BlockContainerBox::Layout(const LayoutParams& layout_params) {
+void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   // Approximate the size of the containing block, so that relatively and
   // statically positioned child boxes can use it during their layout. The size
   // is calculated with the assumption that there are no children.
@@ -40,31 +40,45 @@ void BlockContainerBox::Layout(const LayoutParams& layout_params) {
       GetChildLayoutOptions(layout_params, &width_depends_on_child_boxes,
                             &height_depends_on_child_boxes);
 
-  // Do a first pass of the layout using the approximate size.
+  // Do a first pass of the layout using the approximate width.
   child_layout_params.shrink_if_width_depends_on_containing_block =
       width_depends_on_child_boxes;
   scoped_ptr<FormattingContext> formatting_context =
-      LayoutChildren(child_layout_params);
+      UpdateUsedRectOfChildren(child_layout_params);
 
   // Calculate the exact width of the block container box.
   if (width_depends_on_child_boxes) {
-    child_layout_params.containing_block_size.set_width(
-        GetUsedWidthBasedOnChildBoxes(*formatting_context));
+    float used_width_based_on_child_boxes =
+        GetUsedWidthBasedOnChildBoxes(*formatting_context);
 
-    // Do a second pass of the layout using the exact size.
-    // TODO(***REMOVED***): Laying out the children twice has an exponential worst-case
-    //               complexity (because every child could lay out itself twice
-    //               as well). Figure out if there is a better way.
-    child_layout_params.shrink_if_width_depends_on_containing_block = false;
-    formatting_context = LayoutChildren(child_layout_params);
+    // If the exact width is different from the approximated one, do a second
+    // pass of the layout.
+    if (child_layout_params.containing_block_size.width() !=
+        used_width_based_on_child_boxes) {
+      child_layout_params.containing_block_size.set_width(
+          used_width_based_on_child_boxes);
+
+      // Discard calculations of the first pass of the layout.
+      for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+           child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+        Box* child_box = *child_box_iterator;
+        child_box->InvalidateUsedRect();
+      }
+
+      // TODO(***REMOVED***): Laying out the children twice has an exponential
+      //               worst-case complexity (because every child could lay out
+      //               itself twice as well). Figure out if there is a better
+      //               way.
+      child_layout_params.shrink_if_width_depends_on_containing_block = false;
+      formatting_context = UpdateUsedRectOfChildren(child_layout_params);
+    }
   }
-  used_frame().set_width(child_layout_params.containing_block_size.width());
+  set_used_width(child_layout_params.containing_block_size.width());
 
   // Calculate the exact height of the block container box.
-  used_frame().set_height(
-      height_depends_on_child_boxes
-          ? GetUsedHeightBasedOnChildBoxes(*formatting_context)
-          : child_layout_params.containing_block_size.height());
+  set_used_height(height_depends_on_child_boxes
+                      ? GetUsedHeightBasedOnChildBoxes(*formatting_context)
+                      : child_layout_params.containing_block_size.height());
   maybe_height_above_baseline_ =
       formatting_context->maybe_height_above_baseline();
 }
@@ -112,7 +126,7 @@ float BlockContainerBox::GetHeightAboveBaseline() const {
   // with the parent's baseline.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   // TODO(***REMOVED***): Fix when margins are implemented.
-  return maybe_height_above_baseline_.value_or(used_frame().height());
+  return maybe_height_above_baseline_.value_or(used_height());
 }
 
 scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
