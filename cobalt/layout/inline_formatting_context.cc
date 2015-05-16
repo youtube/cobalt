@@ -23,21 +23,20 @@
 namespace cobalt {
 namespace layout {
 
-InlineFormattingContext::InlineFormattingContext(float containing_block_width)
-    : containing_block_width_(containing_block_width),
-      preferred_min_width_(0),
-      line_count_(0) {}
+InlineFormattingContext::InlineFormattingContext(
+    const LayoutParams& layout_params)
+    : layout_params_(layout_params), preferred_min_width_(0), line_count_(0) {}
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
-scoped_ptr<Box> InlineFormattingContext::QueryUsedPositionAndMaybeSplit(
+scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
     Box* child_box) {
   DCHECK_EQ(Box::kInlineLevel, child_box->GetLevel());
 
   scoped_ptr<Box> child_box_after_split;
   if (line_box_ &&
-      line_box_->TryQueryUsedPositionAndMaybeSplit(child_box,
-                                                   &child_box_after_split)) {
+      line_box_->TryQueryUsedRectAndMaybeSplit(child_box,
+                                               &child_box_after_split)) {
     return child_box_after_split.Pass();
   }
 
@@ -54,21 +53,21 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedPositionAndMaybeSplit(
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   OnLineBoxDestroying();
   line_box_ = make_scoped_ptr(new LineBox(GetLastLineBoxUsedBottom(),
-                                          containing_block_width_,
-                                          LineBox::kShouldTrimWhiteSpace));
+                                          LineBox::kShouldTrimWhiteSpace,
+                                          layout_params_));
 
   // A sequence of collapsible spaces at the beginning of a line is removed.
   //   http://www.w3.org/TR/css3-text/#white-space-phase-2
   child_box->CollapseLeadingWhiteSpace();
 
-  if (!line_box_->TryQueryUsedPositionAndMaybeSplit(child_box,
-                                                    &child_box_after_split)) {
+  if (!line_box_->TryQueryUsedRectAndMaybeSplit(child_box,
+                                                &child_box_after_split)) {
     // If an inline box cannot be split (e.g., if the inline box contains
     // a single character, or language specific word breaking rules disallow
     // a break within the inline box), then the inline box overflows the line
     // box.
     //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-    line_box_->QueryUsedPositionAndMaybeOverflow(child_box);
+    line_box_->QueryUsedRectAndMaybeOverflow(child_box);
   }
   return child_box_after_split.Pass();
 }
@@ -94,8 +93,9 @@ float InlineFormattingContext::GetShrinkToFitWidth() const {
   //     the "preferred width" is greater than the "available width";
   //   - "preferred minimum" and "preferred" widths are equal when an inline
   //     formatting context has only one line.
-  return std::max(preferred_min_width_,
-                  line_count_ > 1 ? containing_block_width_ : 0);
+  return std::max(
+      preferred_min_width_,
+      line_count_ > 1 ? layout_params_.containing_block_size.width() : 0);
 }
 
 float InlineFormattingContext::GetLastLineBoxUsedBottom() const {

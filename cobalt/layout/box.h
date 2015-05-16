@@ -19,10 +19,11 @@
 
 #include <iosfwd>
 
+#include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
-#include "cobalt/layout/used_style.h"
-#include "cobalt/math/rect_f.h"
+#include "cobalt/math/point_f.h"
+#include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
 
@@ -31,6 +32,7 @@ namespace layout {
 
 class AnonymousBlockBox;
 class ContainerBox;
+class UsedStyleProvider;
 
 struct LayoutParams {
   LayoutParams() : shrink_if_width_depends_on_containing_block(false) {}
@@ -94,12 +96,36 @@ class Box {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
-  // Reflects the used values of left, top, right, bottom, width, and height.
-  math::RectF& used_frame() { return used_frame_; }
-  const math::RectF& used_frame() const { return used_frame_; }
+  // Used values of "left" and "top" are publicly readable and writable so that
+  // they can be calculated and adjusted by the formatting context of
+  // the parent box.
+  void set_used_left(float used_left) { maybe_used_left_ = used_left; }
+  float used_left() const { return *maybe_used_left_; }
+  void set_used_top(float used_top) { maybe_used_top_ = used_top; }
+  float used_top() const { return *maybe_used_top_; }
 
-  // Lays out the box and all its descendants recursively.
-  virtual void Layout(const LayoutParams& layout_params) = 0;
+  // Used values of "width" and "height" are publicly readable so that
+  // the parent box can calculate the position of subsequent siblings.
+  float used_width() const { return *maybe_used_width_; }
+  float used_height() const { return *maybe_used_height_; }
+
+  // Read-only synthetic properties that are fully defined by used values
+  // of "left", "top", "width", and "height".
+  math::PointF used_position() const {
+    return math::PointF(used_left(), used_top());
+  }
+  math::SizeF used_size() const {
+    return math::SizeF(used_width(), used_height());
+  }
+  float used_right() const { return used_left() + used_width(); }
+  float used_bottom() const { return used_top() + used_height(); }
+
+  // Updates used values of "width" and "height" if they are invalid, otherwise
+  // does nothing. As a side effect, lays out all box descendants recursively.
+  void UpdateUsedSizeIfInvalid(const LayoutParams& layout_params);
+  // Invalidates used values of "left", "top", "width", and "height".
+  void InvalidateUsedRect();
+
   // Attempts to split the box, so that the part before the split would fit
   // the available width. Returns the part after the split if the split
   // succeeded. Note that only inline boxes are splittable.
@@ -156,11 +182,20 @@ class Box {
   void DumpWithIndent(std::ostream* stream, int indent) const;
 
  protected:
+  // Used values of "width" and "height" properties are writable only by the
+  // box itself.
+  virtual void UpdateUsedSize(const LayoutParams& layout_params) = 0;
+  void set_used_width(float used_width) { maybe_used_width_ = used_width; }
+  void set_used_height(float used_height) { maybe_used_height_ = used_height; }
+  void InvalidateUsedWidth();
+  void InvalidateUsedHeight();
+
+  // Renders the background of the box.
   void AddBackgroundToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
-  // Provides the content of the box.
+  // Renders the content of the box.
   virtual void AddContentToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
@@ -185,13 +220,16 @@ class Box {
  private:
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
 
-  math::RectF used_frame_;
-
   const UsedStyleProvider* const used_style_provider_;
 
   // The transitions_ member references the cssom::TransitionSet object owned
   // by the HTML Element from which this box is derived.
   const cssom::TransitionSet* transitions_;
+
+  base::optional<float> maybe_used_left_;
+  base::optional<float> maybe_used_top_;
+  base::optional<float> maybe_used_width_;
+  base::optional<float> maybe_used_height_;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
