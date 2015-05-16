@@ -45,7 +45,6 @@ class ReplacedBox : public Box {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
-  void Layout(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE { return false; }
@@ -64,6 +63,8 @@ class ReplacedBox : public Box {
   typedef render_tree::CompositionNode::Builder NodeBuilder;
 
   // From |Box|.
+  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
+
   void AddContentToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*

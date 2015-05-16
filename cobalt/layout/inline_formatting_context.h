@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "cobalt/layout/box.h"
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
@@ -26,7 +27,6 @@
 namespace cobalt {
 namespace layout {
 
-class Box;
 class LineBox;
 
 // In an inline formatting context, boxes are laid out horizontally, one
@@ -47,7 +47,7 @@ class LineBox;
 // |UpdateUsedLeftAndMaybeSplit| has been called for every child box.
 class InlineFormattingContext : public FormattingContext {
  public:
-  explicit InlineFormattingContext(float containing_block_width);
+  explicit InlineFormattingContext(const LayoutParams& layout_params);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously updates used values of "left" and "top" for the given child
@@ -59,7 +59,7 @@ class InlineFormattingContext : public FormattingContext {
   // this formatting context must re-insert the returned part right after
   // the original child box and pass this part in the next call to
   // |QueryUsedPositionAndMaybeSplit|, so that it can be split again if needed.
-  scoped_ptr<Box> QueryUsedPositionAndMaybeSplit(Box* child_box);
+  scoped_ptr<Box> QueryUsedRectAndMaybeSplit(Box* child_box);
   // Ensures that the calculation of used values of "left" and "top" for all
   // previously seen child boxes is completed.
   void EndQueries();
@@ -77,7 +77,7 @@ class InlineFormattingContext : public FormattingContext {
  private:
   void OnLineBoxDestroying();
 
-  const float containing_block_width_;
+  const LayoutParams layout_params_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.

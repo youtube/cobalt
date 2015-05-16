@@ -59,19 +59,15 @@ scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   return box_after_split.Pass();
 }
 
-void InlineContainerBox::Layout(const LayoutParams& layout_params) {
-  // TODO(***REMOVED***): If this method is called on a box after the split, no layout
-  //               recalculation is necessary.
-
+void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   // Lay out child boxes as a one line without width constraints and white space
   // trimming.
-  LineBox line_box(0, 0, LineBox::kShouldNotTrimWhiteSpace);
+  LineBox line_box(0, LineBox::kShouldNotTrimWhiteSpace, layout_params);
 
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->Layout(layout_params);
-    line_box.QueryUsedPositionAndMaybeOverflow(child_box);
+    line_box.QueryUsedRectAndMaybeOverflow(child_box);
   }
   line_box.EndQueries();
 
@@ -79,22 +75,54 @@ void InlineContainerBox::Layout(const LayoutParams& layout_params) {
   //               or borders.
   justifies_line_existence_ = line_box.line_exists();
 
-  used_frame().set_width(line_box.GetShrinkToFitWidth());
-  used_frame().set_height(line_box.used_height());
+  set_used_width(line_box.GetShrinkToFitWidth());
+  set_used_height(line_box.used_height());
   height_above_baseline_ = line_box.height_above_baseline();
 }
 
-scoped_ptr<Box> InlineContainerBox::TrySplitAt(float /*available_width*/) {
-  // TODO(***REMOVED***): Recursively split child boxes.
-  // When an inline box is split, margins, borders, and padding have no visual
-  // effect where the split occurs.
+scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width) {
+  // Leave first N children that fit completely into the available width
+  // in this box.
+  ChildBoxes::iterator child_box_iterator;
+  for (child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+
+    // Split the first child that overflows the available width.
+    // Leave its part before the split in this box.
+    if (available_width < child_box->used_width()) {
+      scoped_ptr<Box> child_box_after_split =
+          child_box->TrySplitAt(available_width);
+      if (child_box_after_split) {
+        ++child_box_iterator;
+        child_box_iterator = child_boxes_.insert(
+            child_box_iterator, child_box_after_split.release());
+      }
+      break;
+    }
+
+    available_width -= child_box->used_width();
+  }
+
+  // The first child cannot be split, so this box cannot be split either.
+  if (child_box_iterator == child_boxes_.begin()) {
+    return scoped_ptr<Box>();
+  }
+
+  // Move the children after the split into a new box.
+  scoped_ptr<InlineContainerBox> box_after_split(new InlineContainerBox(
+      computed_style(), transitions(), used_style_provider()));
+  box_after_split->child_boxes_.insert(box_after_split->child_boxes_.end(),
+                                       child_box_iterator, child_boxes_.end());
+  child_boxes_.weak_erase(child_box_iterator, child_boxes_.end());
+
+  // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
+  //               have no visual effect where the split occurs.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  NOTIMPLEMENTED();
 
-  // TODO(***REMOVED***): Update the line height and re-align child boxes in the both
-  //               parts of the original box after the successful split.
+  InvalidateUsedHeight();
 
-  return scoped_ptr<Box>();
+  return box_after_split.Pass();
 }
 
 // TODO(***REMOVED***): All white space processing methods have an O(N) worst-case
@@ -140,10 +168,8 @@ void InlineContainerBox::CollapseLeadingWhiteSpace() {
     return;
   }
 
-  // Collapse the leading white space.
-  float child_box_pre_collapse_width = child_box->used_frame().width();
   child_box->CollapseLeadingWhiteSpace();
-  AdjustLayoutAfterCollapse(child_box_iterator, child_box_pre_collapse_width);
+  InvalidateUsedWidth();
 }
 
 void InlineContainerBox::CollapseTrailingWhiteSpace() {
@@ -162,10 +188,8 @@ void InlineContainerBox::CollapseTrailingWhiteSpace() {
     return;
   }
 
-  // Collapse the trailing white space.
-  float child_box_pre_collapse_width = child_box->used_frame().width();
   child_box->CollapseTrailingWhiteSpace();
-  AdjustLayoutAfterCollapse(child_box_iterator, child_box_pre_collapse_width);
+  InvalidateUsedWidth();
 }
 
 bool InlineContainerBox::JustifiesLineExistence() const {
@@ -236,25 +260,6 @@ InlineContainerBox::FindLastNonCollapsedChildBox() const {
     } while (child_box_iterator != child_boxes_.begin());
   }
   return child_boxes_.end();
-}
-
-void InlineContainerBox::AdjustLayoutAfterCollapse(
-    ChildBoxes::const_iterator child_box_iterator,
-    float child_box_pre_collapse_width) {
-  Box* child_box = *child_box_iterator;
-  float collapsed_white_space_width =
-      child_box_pre_collapse_width - child_box->used_frame().width();
-  DCHECK_GT(collapsed_white_space_width, 0);
-
-  // Adjust the size of the inline container box.
-  used_frame().set_width(used_frame().width() - collapsed_white_space_width);
-
-  // Adjust the positions of subsequent child boxes.
-  for (++child_box_iterator; child_box_iterator != child_boxes_.end();
-       ++child_box_iterator) {
-    child_box = *child_box_iterator;
-    child_box->used_frame().Offset(-collapsed_white_space_width, 0);
-  }
 }
 
 }  // namespace layout

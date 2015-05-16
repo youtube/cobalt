@@ -21,18 +21,23 @@
 namespace cobalt {
 namespace layout {
 
-BlockFormattingContext::BlockFormattingContext() : shrink_to_fit_width_(0) {}
+BlockFormattingContext::BlockFormattingContext(
+    const LayoutParams& layout_params)
+    : layout_params_(layout_params), shrink_to_fit_width_(0) {}
 
 BlockFormattingContext::~BlockFormattingContext() {}
 
-void BlockFormattingContext::UpdateUsedPosition(Box* child_box) {
+void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
   DCHECK_EQ(Box::kBlockLevel, child_box->GetLevel());
+
+  child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  child_box->used_frame().set_origin(next_child_box_used_position_);
-  next_child_box_used_position_.Offset(0, child_box->used_frame().height());
+  child_box->set_used_left(next_child_box_used_position_.x());
+  child_box->set_used_top(next_child_box_used_position_.y());
+  next_child_box_used_position_.Offset(0, child_box->used_height());
 
   // The vertical distance between two sibling boxes is determined by
   // the "margin" properties. Vertical margins between adjacent block-level
@@ -43,13 +48,13 @@ void BlockFormattingContext::UpdateUsedPosition(Box* child_box) {
   // Shrink-to-fit width cannot be less than the width of the widest child.
   //   http://www.w3.org/TR/CSS21/visudet.html#float-width
   shrink_to_fit_width_ =
-      std::max(shrink_to_fit_width_, child_box->used_frame().width());
+      std::max(shrink_to_fit_width_, child_box->used_width());
 
   // The baseline of an "inline-block" is the baseline of its last line box
   // in the normal flow, unless it has no in-flow line boxes.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   if (child_box->AffectsBaselineInBlockFormattingContext()) {
-    set_height_above_baseline(child_box->used_frame().y() +
+    set_height_above_baseline(child_box->used_top() +
                               child_box->GetHeightAboveBaseline());
   }
 }

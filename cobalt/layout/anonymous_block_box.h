@@ -60,7 +60,7 @@ class AnonymousBlockBox : public BlockContainerBox {
   float GetUsedHeightBasedOnContainingBlock(
       float containing_block_height,
       bool* height_depends_on_child_boxes) const OVERRIDE;
-  scoped_ptr<FormattingContext> LayoutChildren(
+  scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
       const LayoutParams& child_layout_params) OVERRIDE;
   float GetUsedWidthBasedOnChildBoxes(
       const FormattingContext& formatting_context) const OVERRIDE;
