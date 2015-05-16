@@ -63,23 +63,21 @@ float AnonymousBlockBox::GetUsedHeightBasedOnContainingBlock(
   return containing_block_height;
 }
 
-scoped_ptr<FormattingContext> AnonymousBlockBox::LayoutChildren(
+scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
   // TODO(***REMOVED***): Handle absolutely positioned boxes:
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
-      new InlineFormattingContext(
-          child_layout_params.containing_block_size.width()));
+      new InlineFormattingContext(child_layout_params));
   for (ChildBoxes::iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end();) {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
-    child_box->Layout(child_layout_params);
 
     scoped_ptr<Box> child_box_after_split =
-        inline_formatting_context->QueryUsedPositionAndMaybeSplit(child_box);
+        inline_formatting_context->QueryUsedRectAndMaybeSplit(child_box);
     if (child_box_after_split) {
       // Re-insert the rest of the child box and attempt to lay it out in
       // the next iteration of the loop.

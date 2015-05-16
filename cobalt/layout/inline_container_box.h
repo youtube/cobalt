@@ -46,7 +46,7 @@ class InlineContainerBox : public ContainerBox {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
-  void Layout(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE;
@@ -77,8 +77,6 @@ class InlineContainerBox : public ContainerBox {
  private:
   ChildBoxes::const_iterator FindFirstNonCollapsedChildBox() const;
   ChildBoxes::const_iterator FindLastNonCollapsedChildBox() const;
-  void AdjustLayoutAfterCollapse(ChildBoxes::const_iterator child_box_iterator,
-                                 float child_box_pre_collapse_width);
 
   ChildBoxes child_boxes_;
 

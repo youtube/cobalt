@@ -53,19 +53,17 @@ ReplacedBox::ReplacedBox(
 
 Box::Level ReplacedBox::GetLevel() const { return kInlineLevel; }
 
-void ReplacedBox::Layout(const LayoutParams& /*layout_params*/) {
-  // TODO(***REMOVED***): Properly set the size of the image box from its style.
-  used_frame().set_width(1280);
-  used_frame().set_height(720);
+void ReplacedBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
+  // TODO(***REMOVED***) : Properly set the size of the image box from its style.
+  set_used_width(1280);
+  set_used_height(720);
 }
 
 scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/) {
   return scoped_ptr<Box>();
 }
 
-float ReplacedBox::GetHeightAboveBaseline() const {
-  return used_frame().height();
-}
+float ReplacedBox::GetHeightAboveBaseline() const { return used_height(); }
 
 void ReplacedBox::AddContentToRenderTree(
     render_tree::CompositionNode::Builder* composition_node_builder,

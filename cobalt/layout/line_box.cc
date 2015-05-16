@@ -23,25 +23,28 @@ namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-LineBox::LineBox(float used_top, float containing_block_width,
-                 ShouldTrimWhiteSpace should_trim_white_space)
+LineBox::LineBox(float used_top, ShouldTrimWhiteSpace should_trim_white_space,
+                 const LayoutParams& layout_params)
     : used_top_(used_top),
-      containing_block_width_(containing_block_width),
       should_trim_white_space_(should_trim_white_space),
+      layout_params_(layout_params),
       line_exists_(false),
       used_height_(0),
       height_above_baseline_(0) {}
 
-bool LineBox::TryQueryUsedPositionAndMaybeSplit(
+bool LineBox::TryQueryUsedRectAndMaybeSplit(
     Box* child_box, scoped_ptr<Box>* child_box_after_split) {
   DCHECK(!*child_box_after_split);
+
+  child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   // TODO(***REMOVED***): Implement the above.
-  float available_width = containing_block_width_ - GetShrinkToFitWidth();
-  if (child_box->used_frame().width() <= available_width) {
-    QueryUsedPositionAndMaybeOverflow(child_box);
+  float available_width =
+      layout_params_.containing_block_size.width() - GetShrinkToFitWidth();
+  if (child_box->used_width() <= available_width) {
+    QueryUsedRectAndMaybeOverflow(child_box);
     return true;
   }
 
@@ -49,35 +52,40 @@ bool LineBox::TryQueryUsedPositionAndMaybeSplit(
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   *child_box_after_split = child_box->TrySplitAt(available_width);
   if (*child_box_after_split) {
-    DCHECK_LE(child_box->used_frame().width(), available_width);
-    QueryUsedPositionAndMaybeOverflow(child_box);
+    QueryUsedRectAndMaybeOverflow(child_box);
+    DCHECK_LE(child_box->used_width(), available_width);
     return true;
   }
 
   return false;
 }
 
-void LineBox::QueryUsedPositionAndMaybeOverflow(Box* child_box) {
-  // A sequence of collapsible spaces at the beginning of a line is removed.
-  //   http://www.w3.org/TR/css3-text/#white-space-phase-2
-  if (should_trim_white_space_ && !last_non_collapsed_child_box_index_) {
-    child_box->CollapseLeadingWhiteSpace();
-  }
+void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
+  child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
-  // Any space immediately following another collapsible space - even one
-  // outside the boundary of the inline containing that space, provided they
-  // are both within the same inline formatting context - is collapsed.
-  //   http://www.w3.org/TR/css3-text/#white-space-phase-1
-  if (last_non_collapsed_child_box_index_ &&
-      child_boxes_[*last_non_collapsed_child_box_index_]
-          ->HasTrailingWhiteSpace()) {
+  bool should_collapse_leading_white_space =
+      last_non_collapsed_child_box_index_
+          // Any space immediately following another collapsible space - even
+          // one outside the boundary of the inline containing that space,
+          // provided they are both within the same inline formatting context -
+          // is collapsed.
+          //   http://www.w3.org/TR/css3-text/#white-space-phase-1
+          ? child_boxes_[*last_non_collapsed_child_box_index_]
+                ->HasTrailingWhiteSpace()
+          // A sequence of collapsible spaces at the beginning of a line is
+          // removed.
+          //   http://www.w3.org/TR/css3-text/#white-space-phase-2
+          : should_trim_white_space_ == kShouldTrimWhiteSpace;
+
+  if (should_collapse_leading_white_space) {
     child_box->CollapseLeadingWhiteSpace();
+    child_box->UpdateUsedSizeIfInvalid(layout_params_);
   }
 
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   // TODO(***REMOVED***): Implement the above.
-  child_box->used_frame().set_x(GetShrinkToFitWidth());
+  child_box->set_used_left(GetShrinkToFitWidth());
 
   if (!child_box->IsCollapsed()) {
     last_non_collapsed_child_box_index_ = child_boxes_.size();
@@ -118,7 +126,7 @@ void LineBox::EndQueries() {
         std::max(height_above_baseline_, child_height_above_baseline);
 
     float child_height_below_baseline =
-        child_box->used_frame().height() - child_height_above_baseline;
+        child_box->used_height() - child_height_above_baseline;
     height_below_baseline =
         std::max(height_below_baseline, child_height_below_baseline);
   }
@@ -130,13 +138,13 @@ void LineBox::EndQueries() {
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->used_frame().set_y(used_top_ + height_above_baseline_ -
-                                  child_box->GetHeightAboveBaseline());
+    child_box->set_used_top(used_top_ + height_above_baseline_ -
+                            child_box->GetHeightAboveBaseline());
   }
 }
 
 float LineBox::GetShrinkToFitWidth() const {
-  return child_boxes_.empty() ? 0 : child_boxes_.back()->used_frame().right();
+  return child_boxes_.empty() ? 0 : child_boxes_.back()->used_right();
 }
 
 void LineBox::CollapseTrailingWhiteSpace() const {
@@ -153,17 +161,19 @@ void LineBox::CollapseTrailingWhiteSpace() const {
   }
 
   // Collapse the trailing white space.
-  float child_box_pre_collapse_width = child_box->used_frame().width();
+  float child_box_pre_collapse_width = child_box->used_width();
   child_box->CollapseTrailingWhiteSpace();
+  child_box->UpdateUsedSizeIfInvalid(layout_params_);
   float collapsed_white_space_width =
-      child_box_pre_collapse_width - child_box->used_frame().width();
+      child_box_pre_collapse_width - child_box->used_width();
   DCHECK_GT(collapsed_white_space_width, 0);
 
   // Adjust the positions of subsequent child boxes.
   for (++child_box_iterator; child_box_iterator != child_boxes_.end();
        ++child_box_iterator) {
     child_box = *child_box_iterator;
-    child_box->used_frame().Offset(-collapsed_white_space_width, 0);
+    child_box->set_used_left(child_box->used_left() -
+                             collapsed_white_space_width);
   }
 }
 
