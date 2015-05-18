@@ -63,6 +63,8 @@
         'font_weight_value.h',
         'id_selector.cc',
         'id_selector.h',
+        'initial_style.cc',
+        'initial_style.h',
         'keyword_names.cc',
         'keyword_names.h',
         'keyword_value.cc',

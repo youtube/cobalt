@@ -189,16 +189,16 @@ TEST(PropertyValueIsEqualTest, TimeListsAreNotEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, TimingFunctionListsAreEqual) {
-  scoped_ptr<TimingFunctionListValue::Builder>
-      timing_function_list_a(new TimingFunctionListValue::Builder());
+  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
+      new TimingFunctionListValue::Builder());
   timing_function_list_a->push_back(TimingFunction::GetLinear());
   timing_function_list_a->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_a(
       new TimingFunctionListValue(timing_function_list_a.Pass()));
 
-  scoped_ptr<TimingFunctionListValue::Builder>
-      timing_function_list_b(new TimingFunctionListValue::Builder());
+  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
+      new TimingFunctionListValue::Builder());
   timing_function_list_b->push_back(
       new CubicBezierTimingFunction(0.0f, 0.0f, 1.0f, 1.0f));
   timing_function_list_b->push_back(
@@ -210,16 +210,16 @@ TEST(PropertyValueIsEqualTest, TimingFunctionListsAreEqual) {
 }
 
 TEST(PropertyValueIsEqualTest, TimingFunctionListsAreNotEqual) {
-  scoped_ptr<TimingFunctionListValue::Builder>
-      timing_function_list_a(new TimingFunctionListValue::Builder());
+  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_a(
+      new TimingFunctionListValue::Builder());
   timing_function_list_a->push_back(TimingFunction::GetLinear());
   timing_function_list_a->push_back(
       new SteppingTimingFunction(3, SteppingTimingFunction::kEnd));
   scoped_refptr<TimingFunctionListValue> value_a(
       new TimingFunctionListValue(timing_function_list_a.Pass()));
 
-  scoped_ptr<TimingFunctionListValue::Builder>
-      timing_function_list_b(new TimingFunctionListValue::Builder());
+  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list_b(
+      new TimingFunctionListValue::Builder());
   timing_function_list_b->push_back(
       new CubicBezierTimingFunction(0.0f, 0.5f, 1.0f, 1.0f));
   timing_function_list_b->push_back(
