@@ -888,8 +888,7 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
 
 namespace {
 
-scoped_refptr<cssom::TimingFunctionListValue>
-CreateSingleTimingFunctionValue(
+scoped_refptr<cssom::TimingFunctionListValue> CreateSingleTimingFunctionValue(
     const scoped_refptr<cssom::TimingFunction>& timing_function) {
   scoped_ptr<cssom::TimingFunctionListValue::Builder>
       expected_result_list_builder(
@@ -911,15 +910,14 @@ bool TestTransitionTimingFunctionKeyword(
           "transition-timing-function: " + property_declaration_string + ";",
           source_location);
 
-  scoped_refptr<cssom::TimingFunctionListValue>
-      transition_timing_function =
-          dynamic_cast<cssom::TimingFunctionListValue*>(
-              style->transition_timing_function().get());
+  scoped_refptr<cssom::TimingFunctionListValue> transition_timing_function =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
   CHECK_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
            transition_timing_function.get());
 
-  scoped_refptr<cssom::TimingFunctionListValue>
-      expected_result_list(CreateSingleTimingFunctionValue(expected_result));
+  scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
+      CreateSingleTimingFunctionValue(expected_result));
 
   return expected_result_list->Equals(*transition_timing_function);
 }
@@ -995,13 +993,11 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
           "transition-timing-function: ease, ease-in, step-start;",
           source_location_);
 
-  scoped_refptr<cssom::TimingFunctionListValue>
-      transition_timing_function =
-          dynamic_cast<cssom::TimingFunctionListValue*>(
-              style->transition_timing_function().get());
-  ASSERT_NE(
-      static_cast<cssom::TimingFunctionListValue*>(NULL),
-      transition_timing_function.get());
+  scoped_refptr<cssom::TimingFunctionListValue> transition_timing_function =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            transition_timing_function.get());
 
   scoped_ptr<cssom::TimingFunctionListValue::Builder>
       expected_result_list_builder(
@@ -1012,9 +1008,8 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
       cssom::TimingFunction::GetEaseIn().get());
   expected_result_list_builder->push_back(
       cssom::TimingFunction::GetStepStart().get());
-  scoped_refptr<cssom::TimingFunctionListValue>
-      expected_result_list(new cssom::TimingFunctionListValue(
-          expected_result_list_builder.Pass()));
+  scoped_refptr<cssom::TimingFunctionListValue> expected_result_list(
+      new cssom::TimingFunctionListValue(expected_result_list_builder.Pass()));
 
   EXPECT_TRUE(expected_result_list->Equals(*transition_timing_function));
 }
