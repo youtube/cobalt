@@ -128,8 +128,8 @@ TEST(PropertyValueVisitorTest, VisitsTimeListValue) {
 }
 
 TEST(PropertyValueVisitorTest, VisitsTimingFunctionListValue) {
-  scoped_refptr<TimingFunctionListValue>
-      timing_function_list_value = new TimingFunctionListValue(
+  scoped_refptr<TimingFunctionListValue> timing_function_list_value =
+      new TimingFunctionListValue(
           make_scoped_ptr(new TimingFunctionListValue::Builder()));
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor,
