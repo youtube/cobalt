@@ -18,13 +18,13 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/initial_style.h"
 #include "cobalt/layout/specified_style.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -61,7 +61,7 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   // the initial value of the property.
   //   http://www.w3.org/TR/css-cascade-3/#inheriting
   scoped_refptr<const cssom::CSSStyleDeclarationData> initial_style =
-      GetInitialStyle();
+      cssom::GetInitialStyle();
   PromoteToSpecifiedStyle(initial_containing_block_computed_style,
                           initial_style);
   PromoteToComputedStyle(initial_containing_block_computed_style, initial_style,

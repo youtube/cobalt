@@ -44,8 +44,6 @@
         'formatting_context.h',
         'html_elements.cc',
         'html_elements.h',
-        'initial_style.cc',
-        'initial_style.h',
         'inline_container_box.cc',
         'inline_container_box.h',
         'inline_formatting_context.cc',
