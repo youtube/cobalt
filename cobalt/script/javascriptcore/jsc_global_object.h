@@ -25,6 +25,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
@@ -62,6 +63,11 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
 
   const WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
+  // Getters for CallWith= arguments
+  EnvironmentSettings* GetEnvironmentSettings() {
+    return environment_settings_;
+  }
+
   // JavaScriptCore stuff
   static const JSC::ClassInfo s_info;
 
@@ -91,7 +97,8 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
  protected:
   JSCGlobalObject(JSC::JSGlobalData* global_data, JSC::Structure* structure,
                   const scoped_refptr<Wrappable>& global_interface,
-                  scoped_ptr<WrapperFactory> wrapper_factory);
+                  scoped_ptr<WrapperFactory> wrapper_factory,
+                  EnvironmentSettings* environment_settings);
 
  private:
   // Called from the public static visitChildren method, defined above.
@@ -118,6 +125,7 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   JSCObjectOwnerVector owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  EnvironmentSettings* environment_settings_;
 };
 
 }  // namespace javascriptcore
