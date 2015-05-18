@@ -57,6 +57,11 @@ PrimaryGlobal
 # http://heycam.github.io/webidl/#Exposed
 Exposed=TestWindow|Window|Worker
 
+# Call the Cobalt function this property is bound to with the corresponding
+# object added to the head of the function's parameters.
+CallWith=EnvironmentSettings
+ConstructorCallWith=EnvironmentSettings
+
 # Not yet supported
 Constructor
 OverrideBuiltins
