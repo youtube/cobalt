@@ -606,6 +606,10 @@ unsigned WebMediaPlayerImpl::VideoDecodedByteCount() const {
   return stats.video_bytes_decoded;
 }
 
+ShellVideoFrameProvider* WebMediaPlayerImpl::GetVideoFrameProvider() {
+  return ShellMediaPlatform::Instance()->GetVideoFrameProvider();
+}
+
 scoped_refptr<VideoFrame> WebMediaPlayerImpl::GetCurrentFrame() {
   ShellVideoFrameProvider* frame_provider =
       ShellMediaPlatform::Instance()->GetVideoFrameProvider();

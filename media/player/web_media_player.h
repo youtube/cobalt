@@ -17,6 +17,7 @@
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "media/base/ranges.h"
+#include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
 #include "ui/gfx/size.h"
 
@@ -123,6 +124,7 @@ class WebMediaPlayer {
   virtual unsigned AudioDecodedByteCount() const = 0;
   virtual unsigned VideoDecodedByteCount() const = 0;
 
+  virtual ShellVideoFrameProvider* GetVideoFrameProvider() { return NULL; }
   virtual scoped_refptr<VideoFrame> GetCurrentFrame() { return 0; }
   // We no longer need PutCurrentFrame as the the video frame returned from
   // GetCurrentFrame() is now a scoped_refptr.
@@ -244,7 +246,7 @@ class WebMediaPlayerClient {
   }
   // TODO(***REMOVED***) : Revisit the necessity of the following functions.
   virtual void CloseHelperPlugin() { NOTREACHED(); }
-  virtual void DisableAcceleratedCompositing() { NOTREACHED(); }
+  virtual void DisableAcceleratedCompositing() {}
 
  protected:
   ~WebMediaPlayerClient() {}
