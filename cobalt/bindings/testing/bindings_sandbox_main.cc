@@ -20,11 +20,13 @@
 #include "base/at_exit.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/bindings/testing/window.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 
 using cobalt::bindings::testing::Window;
+using cobalt::script::EnvironmentSettings;
 using cobalt::script::GlobalObjectProxy;
 using cobalt::script::JavaScriptEngine;
 using cobalt::script::SourceCode;
@@ -32,6 +34,10 @@ using cobalt::script::SourceCode;
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
+
+  // Environment Settings object
+  scoped_ptr<EnvironmentSettings> environment_settings =
+      make_scoped_ptr(new EnvironmentSettings());
 
   // Initialize the JavaScript engine.
   scoped_ptr<JavaScriptEngine> engine = JavaScriptEngine::CreateEngine();
@@ -41,7 +47,8 @@ int main(int argc, char** argv) {
       engine->CreateGlobalObjectProxy();
 
   scoped_refptr<Window> test_window = new Window();
-  global_object_proxy->CreateGlobalObject(test_window);
+  global_object_proxy->CreateGlobalObject(test_window,
+                                          environment_settings.get());
 
   while (true) {
     // Interactive prompt.
