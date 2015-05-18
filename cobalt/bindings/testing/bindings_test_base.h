@@ -18,6 +18,7 @@
 #define BINDINGS_TESTING_BINDINGS_TEST_BASE_H_
 
 #include "cobalt/bindings/testing/window.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
@@ -31,17 +32,21 @@ namespace testing {
 class BindingsTestBase : public ::testing::Test {
  protected:
   BindingsTestBase()
-      : engine_(script::JavaScriptEngine::CreateEngine()),
+      : environment_settings_(new script::EnvironmentSettings),
+        engine_(script::JavaScriptEngine::CreateEngine()),
         global_object_proxy_(engine_->CreateGlobalObjectProxy()),
         window_(new Window()) {
-    global_object_proxy_->CreateGlobalObject(window_);
+    global_object_proxy_->CreateGlobalObject(window_,
+                                             environment_settings_.get());
   }
 
   explicit BindingsTestBase(const scoped_refptr<Window> window)
-      : engine_(script::JavaScriptEngine::CreateEngine()),
+      : environment_settings_(new script::EnvironmentSettings),
+        engine_(script::JavaScriptEngine::CreateEngine()),
         global_object_proxy_(engine_->CreateGlobalObjectProxy()),
         window_(window) {
-    global_object_proxy_->CreateGlobalObject(window_);
+    global_object_proxy_->CreateGlobalObject(window_,
+                                             environment_settings_.get());
   }
 
   bool EvaluateScript(const std::string& script, std::string* out_result) {
@@ -51,6 +56,7 @@ class BindingsTestBase : public ::testing::Test {
   }
 
  protected:
+  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
   const scoped_refptr<Window> window_;

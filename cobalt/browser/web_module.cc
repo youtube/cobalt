@@ -80,27 +80,27 @@ std::string WebModule::GetUserAgent() const {
 
 WebModule::WebModule(
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const ErrorCallback& error_callback,
-    network::NetworkModule* network_module,
+    const ErrorCallback& error_callback, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider,
-    float layout_refresh_rate, const Options& options)
-    : css_parser_(css_parser::Parser::Create())
-    , javascript_engine_(script::JavaScriptEngine::CreateEngine())
-    , global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy())
-    , script_runner_(
-          script::ScriptRunner::CreateScriptRunner(global_object_proxy_))
-    , media_module_(media::MediaModule::Create(resource_provider))
-    , fetcher_factory_(new loader::FetcherFactory(network_module))
-    , window_(new dom::Window(
-        window_dimensions.width(), window_dimensions.height(),
-        css_parser_.get(), fetcher_factory_.get(),
-        media_module_.get(), script_runner_.get(),
-        options.url, GetUserAgent(), error_callback))
-    , layout_manager_(
-        window_.get(), resource_provider, render_tree_produced_callback,
-        css_parser_.get(), options.layout_trigger, layout_refresh_rate) {
-  global_object_proxy_->CreateGlobalObject(window_);
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const Options& options)
+    : css_parser_(css_parser::Parser::Create()),
+      environment_settings_(new script::EnvironmentSettings()),
+      javascript_engine_(script::JavaScriptEngine::CreateEngine()),
+      global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
+      script_runner_(
+          script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
+      media_module_(media::MediaModule::Create(resource_provider)),
+      fetcher_factory_(new loader::FetcherFactory(network_module)),
+      window_(new dom::Window(
+          window_dimensions.width(), window_dimensions.height(),
+          css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
+          script_runner_.get(), options.url, GetUserAgent(), error_callback)),
+      layout_manager_(window_.get(), resource_provider,
+                      render_tree_produced_callback, css_parser_.get(),
+                      options.layout_trigger, layout_refresh_rate) {
+  global_object_proxy_->CreateGlobalObject(window_,
+                                           environment_settings_.get());
 }
 
 WebModule::~WebModule() {}
