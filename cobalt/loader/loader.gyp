@@ -36,9 +36,26 @@
     },
 
     {
+      'target_name': 'image_decoder',
+      'type': 'static_library',
+      'sources': [
+        'image_decoder/any_image_decoder.cpp',
+        'image_decoder/any_image_decoder.h',
+        'image_decoder/image_decoder.h',
+        'image_decoder/png_image_decoder.cc',
+        'image_decoder/png_image_decoder.h',
+      ],
+      'dependencies': [
+        '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
+        'loader',
+      ],
+    },
+
+    {
       'target_name': 'loader_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'image_decoder/any_image_decoder_test.cc',
         'fetcher_factory_test.cc',
         'file_fetcher_test.cc',
         'loader_test.cc',
@@ -47,10 +64,12 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'loader',
         'loader_copy_test_data',
+        'image_decoder',
       ],
     },
 
