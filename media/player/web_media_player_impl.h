@@ -164,6 +164,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   virtual unsigned AudioDecodedByteCount() const;
   virtual unsigned VideoDecodedByteCount() const;
 
+  // TODO(***REMOVED***) : Investigate if we should make ShellVideoFrameProvider
+  // into a non-singleton class to support play back multiple videos
+  // concurrently.
+  virtual ShellVideoFrameProvider* GetVideoFrameProvider();
+  // TODO(***REMOVED***) : Remove Get/PutCurrentFrame.
   virtual scoped_refptr<VideoFrame> GetCurrentFrame();
   virtual void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame);
 
