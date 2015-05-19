@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-[Constructor]
-interface ArbitraryInterface {
-  void arbitraryFunction();
-  readonly attribute DOMString arbitraryProperty;
+
+interface UnionTypesInterface {
+  attribute (DOMString or boolean or ArbitraryInterface or long) unionProperty;
+  attribute (double or DOMString?) unionWithNullableMemberProperty;
+  attribute (double or DOMString)? nullableUnionProperty;
 };

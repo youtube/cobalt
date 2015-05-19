@@ -21,14 +21,14 @@ namespace cobalt {
 namespace script {
 namespace javascriptcore {
 
-void WrapperFactory::RegisterCreateWrapperMethod(
-    base::TypeId wrappable_type,
+void WrapperFactory::RegisterWrappableType(
+    base::TypeId wrappable_type, const JSC::ClassInfo* class_info,
     const CreateWrapperFunction& create_function) {
-  std::pair<CreateWrapperFunctionMap::iterator, bool> pib;
-  pib =
-      create_functions_.insert(std::make_pair(wrappable_type, create_function));
+  std::pair<WrappableTypeInfoMap::iterator, bool> pib =
+      wrappable_type_infos_.insert(std::make_pair(
+          wrappable_type, WrappableTypeInfo(class_info, create_function)));
   DCHECK(pib.second)
-      << "CreateWrapperFunction registered for type more than once.";
+      << "RegisterWrappableType registered for type more than once.";
 }
 
 
@@ -44,17 +44,30 @@ JSC::JSObject* WrapperFactory::GetWrapper(
                  base::Unretained(global_object))));
 }
 
+const JSC::ClassInfo* WrapperFactory::GetClassInfo(
+    base::TypeId wrappable_type) const {
+  WrappableTypeInfoMap::const_iterator it =
+      wrappable_type_infos_.find(wrappable_type);
+  if (it == wrappable_type_infos_.end()) {
+    NOTREACHED();
+    return NULL;
+  }
+  return it->second.class_info;
+}
+
+
 scoped_ptr<ScriptObjectHandle> WrapperFactory::CreateWrapper(
     JSCGlobalObject* global_object,
     const scoped_refptr<Wrappable>& wrappable) const {
-  CreateWrapperFunctionMap::const_iterator it =
-      create_functions_.find(wrappable->GetWrappableType());
-  if (it == create_functions_.end()) {
+  WrappableTypeInfoMap::const_iterator it =
+      wrappable_type_infos_.find(wrappable->GetWrappableType());
+  if (it == wrappable_type_infos_.end()) {
     NOTREACHED();
     return scoped_ptr<ScriptObjectHandle>();
   }
-  return make_scoped_ptr<ScriptObjectHandle>(new JSCObjectHandle(
-      JSC::PassWeak<JSC::JSObject>(it->second.Run(global_object, wrappable))));
+  return make_scoped_ptr<ScriptObjectHandle>(
+      new JSCObjectHandle(JSC::PassWeak<JSC::JSObject>(
+          it->second.create_function.Run(global_object, wrappable))));
 }
 
 }  // namespace javascriptcore
