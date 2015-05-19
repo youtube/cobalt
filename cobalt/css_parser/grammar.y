@@ -698,8 +698,14 @@ complex_selector:
 //   http://www.w3.org/TR/selectors4/#selector-list
 selector_list:
     complex_selector {
-    $$ = new cssom::Selectors();
-    $$->push_back($1);
+    scoped_ptr<cssom::ComplexSelector> complex_selector($1);
+
+    if (complex_selector) {
+      $$ = new cssom::Selectors();
+      $$->push_back(complex_selector.release());
+    } else {
+      $$ = NULL;
+    }
   }
   | selector_list comma complex_selector {
     scoped_ptr<cssom::Selectors> selector_list($1);
@@ -709,7 +715,7 @@ selector_list:
       $$ = selector_list.release();
       $$->push_back(complex_selector.release());
     } else {
-      YYERROR;
+      $$ = NULL;
     }
   }
   ;
@@ -1662,7 +1668,12 @@ style_rule:
     scoped_ptr<cssom::Selectors> selectors($1);
     scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
-    $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
+
+    if (selectors) {
+      $$ = AddRef(new cssom::CSSStyleRule(selectors->Pass(), style));
+    } else {
+      $$ = NULL;
+    }
   }
   ;
 
