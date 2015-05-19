@@ -25,6 +25,7 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/script_object_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/ClassInfo.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSObject.h"
 
 namespace cobalt {
@@ -37,20 +38,28 @@ class WrapperFactory {
  public:
   typedef base::Callback<JSC::JSObject*(
       JSCGlobalObject*, const scoped_refptr<Wrappable>&)> CreateWrapperFunction;
-  void RegisterCreateWrapperMethod(
-      base::TypeId wrappable_type,
-      const CreateWrapperFunction& create_function);
+  void RegisterWrappableType(base::TypeId wrappable_type,
+                             const JSC::ClassInfo* class_info,
+                             const CreateWrapperFunction& create_function);
   JSC::JSObject* GetWrapper(JSCGlobalObject* global_object,
                             const scoped_refptr<Wrappable>& wrappable) const;
+  const JSC::ClassInfo* GetClassInfo(base::TypeId wrappable_type) const;
 
  private:
   scoped_ptr<ScriptObjectHandle> CreateWrapper(
       JSCGlobalObject* global_object,
       const scoped_refptr<Wrappable>& wrappable) const;
 
-  typedef base::hash_map<base::TypeId, CreateWrapperFunction>
-      CreateWrapperFunctionMap;
-  CreateWrapperFunctionMap create_functions_;
+  struct WrappableTypeInfo {
+    WrappableTypeInfo(const JSC::ClassInfo* info,
+                      const CreateWrapperFunction& function)
+        : class_info(info), create_function(function) {}
+    const JSC::ClassInfo* class_info;
+    CreateWrapperFunction create_function;
+  };
+  typedef base::hash_map<base::TypeId, WrappableTypeInfo> WrappableTypeInfoMap;
+
+  WrappableTypeInfoMap wrappable_type_infos_;
 };
 
 }  // namespace javascriptcore
