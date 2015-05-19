@@ -29,6 +29,12 @@ namespace cssom {
 class KeywordValue : public PropertyValue {
  public:
   enum Value {
+    // "absolute" is a value of "position" property which indicates that values
+    // of "top", "right", "bottom", and "left" properties specify offsets
+    // with respect to the box's containing block.
+    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    kAbsolute,
+
     // "auto" is a value of "width" and "height" properties which indicates
     // that used value of these properties depends on the values of other
     // properties.
@@ -78,6 +84,17 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visudet.html#line-height
     kNormal,
 
+    // "relative" is a value of "position" property which indicates that values
+    // of "top", "right", "bottom", and "left" properties specify offsets
+    // with respect to the box's in-flow position.
+    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    kRelative,
+
+    // "static" is a value of "position" property which indicates that a box
+    // is laid out according to the normal flow.
+    //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+    kStatic,
+
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -88,6 +105,7 @@ class KeywordValue : public PropertyValue {
   // (namely "inherit" and "initial") are used extensively, for the sake of
   // saving memory an explicit instantiation of this class is disallowed.
   // Use factory methods below to obtain shared instances.
+  static const scoped_refptr<KeywordValue>& GetAbsolute();
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBlock();
   static const scoped_refptr<KeywordValue>& GetHidden();
@@ -97,6 +115,8 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNormal();
+  static const scoped_refptr<KeywordValue>& GetRelative();
+  static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;

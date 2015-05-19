@@ -56,6 +56,7 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
       VisitAuto();
       break;
 
+    case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
@@ -64,6 +65,8 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -97,6 +100,7 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
       width_depends_on_containing_block_ = true;
       break;
 
+    case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
@@ -105,6 +109,8 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
