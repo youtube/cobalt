@@ -35,8 +35,8 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE { return buffer_; }
   // Data size can be less than allocated size after ShrinkTo is called.
-  virtual int GetDataSize() const OVERRIDE { return size_; }
-  int GetAllocatedSize() const { return allocated_size_; }
+  virtual int GetDataSize() const OVERRIDE { return static_cast<int>(size_); }
+  int GetAllocatedSize() const { return static_cast<int>(allocated_size_); }
   // This is used by the data that we don't know the exact size before reading.
   void ShrinkTo(int size);
 
