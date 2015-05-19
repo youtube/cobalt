@@ -1106,6 +1106,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kOverflowToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPositionPropertyName)) {
+        *property_name_token = kPositionToken;
+        return true;
+      }
       return false;
 
     case 9:
@@ -1252,6 +1256,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kNormalToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kStaticKeywordName)) {
+        *property_value_token = kStaticToken;
+        return true;
+      }
       return false;
 
     case 7:
@@ -1274,12 +1282,20 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 8:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAbsoluteKeywordName)) {
+        *property_value_token = kAbsoluteToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseOutKeywordName)) {
         *property_value_token = kEaseOutToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStepEndKeywordName)) {
         *property_value_token = kStepEndToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRelativeKeywordName)) {
+        *property_value_token = kRelativeToken;
         return true;
       }
       return false;

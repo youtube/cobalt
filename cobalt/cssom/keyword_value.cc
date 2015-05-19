@@ -24,7 +24,8 @@ namespace cssom {
 
 struct KeywordValue::NonTrivialStaticFields {
   NonTrivialStaticFields()
-      : auto_value(new KeywordValue(KeywordValue::kAuto)),
+      : absolute_value(new KeywordValue(KeywordValue::kAbsolute)),
+        auto_value(new KeywordValue(KeywordValue::kAuto)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
@@ -33,8 +34,11 @@ struct KeywordValue::NonTrivialStaticFields {
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
         none_value(new KeywordValue(KeywordValue::kNone)),
         normal_value(new KeywordValue(KeywordValue::kNormal)),
+        relative_value(new KeywordValue(KeywordValue::kRelative)),
+        static_value(new KeywordValue(KeywordValue::kStatic)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
+  const scoped_refptr<KeywordValue> absolute_value;
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> block_value;
   const scoped_refptr<KeywordValue> hidden_value;
@@ -44,6 +48,8 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> inline_block_value;
   const scoped_refptr<KeywordValue> none_value;
   const scoped_refptr<KeywordValue> normal_value;
+  const scoped_refptr<KeywordValue> relative_value;
+  const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> visible_value;
 
  private:
@@ -56,6 +62,11 @@ base::LazyInstance<KeywordValue::NonTrivialStaticFields>
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
+
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetAbsolute() {
+  return non_trivial_static_fields.Get().absolute_value;
+}
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetAuto() {
   return non_trivial_static_fields.Get().auto_value;
@@ -91,6 +102,16 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetNone() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
   return non_trivial_static_fields.Get().normal_value;
+}
+
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
+  return non_trivial_static_fields.Get().relative_value;
+}
+
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {
+  return non_trivial_static_fields.Get().static_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetVisible() {

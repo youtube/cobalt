@@ -508,6 +508,27 @@ TEST_F(ParserTest, ParsesVisibleOverflow) {
   EXPECT_EQ(cssom::KeywordValue::GetVisible(), style->overflow());
 }
 
+TEST_F(ParserTest, ParsesStaticPosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("position: static;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetStatic(), style->position());
+}
+
+TEST_F(ParserTest, ParsesRelativePosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("position: relative;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetRelative(), style->position());
+}
+
+TEST_F(ParserTest, ParsesAbsolutePosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("position: absolute;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAbsolute(), style->position());
+}
+
 TEST_F(ParserTest, ParsesNoneTransform) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transform: none;", source_location_);
