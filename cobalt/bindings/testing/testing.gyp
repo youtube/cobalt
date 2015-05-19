@@ -44,6 +44,7 @@
         'ObjectTypeBindingsInterface.idl',
         'OperationsTestInterface.idl',
         'TargetInterface.idl',
+        'UnionTypesInterface.idl',
         'Window.idl',
     ],
 
@@ -103,6 +104,7 @@
         'object_type_bindings_test.cc',
         'operations_bindings_test.cc',
         'optional_arguments_bindings_test.cc',
+        'union_type_bindings_test.cc',
         'variadic_arguments_bindings_test.cc',
       ],
       'dependencies': [
