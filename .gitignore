@@ -161,6 +161,7 @@ v8.log
 /third_party/bidichecker
 /third_party/bison
 /third_party/cacheinvalidation/src
+/third_party/cdm
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
 /third_party/cros
@@ -258,8 +259,6 @@ v8.log
 /third_party/webrtc
 /third_party/webrtc/internal
 /third_party/webrtc/modules/video_coding/codecs/vp8_internal
-/third_party/widevine/cdm/binaries
-/third_party/widevine/cdm/symbols
 /third_party/wix
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
