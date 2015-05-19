@@ -72,6 +72,7 @@
 %token kLineHeightToken                       // line-height
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
+%token kPositionToken                         // position
 %token kTransformToken                        // transform
 %token kTransitionToken                       // transition
 %token kTransitionDelayToken                  // transition-delay
@@ -83,6 +84,7 @@
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
+%token kAbsoluteToken                   // absolute
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
 %token kEaseInOutToken                  // ease-in-out
@@ -98,7 +100,9 @@
 %token kLinearToken                     // linear
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
+%token kRelativeToken                   // relative
 %token kStartToken                      // start
+%token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
 %token kVisibleToken                    // visible
@@ -267,8 +271,8 @@
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
                        line_height_property_value opacity_property_value
-                       overflow_property_value transition_delay_property_value
-                       transform_property_value
+                       overflow_property_value position_property_value
+                       transition_delay_property_value transform_property_value
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
@@ -455,6 +459,9 @@ identifier_token:
   | kOverflowToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
   }
+  | kPositionToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPositionPropertyName);
+  }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
   }
@@ -482,6 +489,9 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
   }
   // Property values.
+  | kAbsoluteToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAbsoluteKeywordName);
+  }
   | kBlockToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBlockKeywordName);
   }
@@ -527,8 +537,14 @@ identifier_token:
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
   }
+  | kRelativeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRelativeKeywordName);
+  }
   | kStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
+  }
+  | kStaticToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kStaticKeywordName);
   }
   | kStepEndToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepEndKeywordName);
@@ -1050,6 +1066,22 @@ overflow_property_value:
   | common_values
   ;
 
+// Determines which of the positioning algorithms is used to calculate
+// the position of a box.
+//   http://www.w3.org/TR/CSS21/visuren.html#choose-position
+position_property_value:
+    kAbsoluteToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAbsolute().get());
+  }
+  | kRelativeToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRelative().get());
+  }
+  | kStaticToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetStatic().get());
+  }
+  | common_values
+  ;
+
 // If the second parameter is not provided, it takes a value equal to the first.
 //   http://www.w3.org/TR/css3-transforms/#funcdef-scale
 scale_function_parameters:
@@ -1541,6 +1573,12 @@ maybe_declaration:
   | kOverflowToken maybe_whitespace colon overflow_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kOverflowPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kPositionToken maybe_whitespace colon position_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPositionPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

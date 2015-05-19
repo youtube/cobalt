@@ -183,6 +183,19 @@ void CSSStyleDeclaration::set_overflow(const std::string& overflow) {
   SetPropertyValue(kOverflowPropertyName, overflow);
 }
 
+std::string CSSStyleDeclaration::position() const {
+  return data_->position() ? data_->position()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_position(const std::string& position) {
+  DCHECK(css_parser_);
+  data_->set_position(css_parser_->ParsePropertyValue(
+      kPositionPropertyName, position,
+      non_trivial_static_fields.Get().location));
+
+  RecordMutation();
+}
+
 std::string CSSStyleDeclaration::transform() const {
   return data_->transform() ? data_->transform()->ToString() : "";
 }

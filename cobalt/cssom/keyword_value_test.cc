@@ -22,6 +22,7 @@ namespace cobalt {
 namespace cssom {
 
 TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
+  EXPECT_EQ(KeywordValue::kAbsolute, KeywordValue::GetAbsolute()->value());
   EXPECT_EQ(KeywordValue::kAuto, KeywordValue::GetAuto()->value());
   EXPECT_EQ(KeywordValue::kBlock, KeywordValue::GetBlock()->value());
   EXPECT_EQ(KeywordValue::kHidden, KeywordValue::GetHidden()->value());
@@ -32,6 +33,8 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
             KeywordValue::GetInlineBlock()->value());
   EXPECT_EQ(KeywordValue::kNone, KeywordValue::GetNone()->value());
   EXPECT_EQ(KeywordValue::kNormal, KeywordValue::GetNormal()->value());
+  EXPECT_EQ(KeywordValue::kRelative, KeywordValue::GetRelative()->value());
+  EXPECT_EQ(KeywordValue::kStatic, KeywordValue::GetStatic()->value());
   EXPECT_EQ(KeywordValue::kVisible, KeywordValue::GetVisible()->value());
 }
 

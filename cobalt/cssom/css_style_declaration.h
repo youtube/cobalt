@@ -96,6 +96,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string overflow() const;
   void set_overflow(const std::string& overflow);
 
+  std::string position() const;
+  void set_position(const std::string& position);
+
   std::string transform() const;
   void set_transform(const std::string& transform);
 

@@ -310,6 +310,23 @@ TEST(CSSStyleDeclarationTest, OverflowSetter) {
   style->set_overflow(overflow);
 }
 
+TEST(CSSStyleDeclarationTest, PositionSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string position = "static";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyValue(kPositionPropertyName, position, _))
+      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+  EXPECT_CALL(observer, OnMutation()).Times(1);
+
+  style->set_position(position);
+}
+
 TEST(CSSStyleDeclarationTest, TransformSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
