@@ -340,6 +340,7 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
       }
       break;
 
+    case KeywordValue::kAbsolute:
     case KeywordValue::kAuto:
     case KeywordValue::kBlock:
     case KeywordValue::kHidden:
@@ -348,6 +349,8 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
     case KeywordValue::kNormal:
+    case KeywordValue::kRelative:
+    case KeywordValue::kStatic:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
