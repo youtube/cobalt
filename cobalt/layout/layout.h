@@ -52,7 +52,8 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    render_tree::ResourceProvider* resource_provider);
+    render_tree::ResourceProvider* resource_provider,
+    const base::Time& style_change_event_time);
 
 }  // namespace layout
 }  // namespace cobalt
