@@ -62,10 +62,12 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const UsedStyleProvider* used_style_provider)
+    const UsedStyleProvider* used_style_provider,
+    const base::Time& style_change_event_time)
     : parent_computed_style_(parent_computed_style),
       user_agent_style_sheet_(user_agent_style_sheet),
-      used_style_provider_(used_style_provider) {}
+      used_style_provider_(used_style_provider),
+      style_change_event_time_(style_change_event_time) {}
 
 namespace {
 
@@ -134,7 +136,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
   UpdateComputedStyleOf(html_element, parent_computed_style_,
-                        user_agent_style_sheet_);
+                        user_agent_style_sheet_, style_change_event_time_);
 
   ContainerBoxGenerator container_box_generator(html_element->computed_style(),
                                                 html_element->transitions());
@@ -170,7 +172,8 @@ void BoxGenerator::Visit(dom::Element* element) {
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(html_element->computed_style(),
                                      user_agent_style_sheet_,
-                                     used_style_provider_);
+                                     used_style_provider_,
+                                     style_change_event_time_);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();

@@ -18,6 +18,7 @@
 #define LAYOUT_BOX_GENERATOR_H_
 
 #include "base/memory/scoped_vector.h"
+#include "base/time.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/string_value.h"
@@ -44,7 +45,8 @@ class BoxGenerator : public dom::NodeVisitor {
       const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      const UsedStyleProvider* used_style_provider);
+      const UsedStyleProvider* used_style_provider,
+      const base::Time& style_change_event_time);
 
   void Visit(dom::Comment* comment) OVERRIDE;
   void Visit(dom::Document* document) OVERRIDE;
@@ -62,6 +64,7 @@ class BoxGenerator : public dom::NodeVisitor {
   const UsedStyleProvider* const used_style_provider_;
 
   Boxes boxes_;
+  const base::Time style_change_event_time_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
