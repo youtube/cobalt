@@ -21,6 +21,7 @@
 
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/layout/used_style.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -69,7 +70,8 @@ class Box {
   };
 
   Box(const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
   virtual ~Box();
 
   // Computed style contains CSS values from the last stage of processing
@@ -176,10 +178,16 @@ class Box {
   // Overriders must call the base method.
   virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
 
+  const UsedStyleProvider* used_style_provider() const {
+    return used_style_provider_;
+  }
+
  private:
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
 
   math::RectF used_frame_;
+
+  const UsedStyleProvider* const used_style_provider_;
 
   // The transitions_ member references the cssom::TransitionSet object owned
   // by the HTML Element from which this box is derived.

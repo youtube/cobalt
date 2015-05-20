@@ -25,6 +25,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/loader/image_cache.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -53,12 +54,15 @@ class LayoutManager : public dom::DocumentObserver {
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
                 cssom::CSSParser* css_parser,
-                LayoutTrigger layout_trigger,
-                float layout_refresh_rate);
+                loader::FetcherFactory* fetcher_factory,
+                LayoutTrigger layout_trigger, float layout_refresh_rate);
   ~LayoutManager();
 
+  // From dom::DocumentObserver.
   void OnLoad() OVERRIDE;
   void OnMutation() OVERRIDE;
+
+  void NotifyImageLoaded();
 
  private:
   void DoLayoutAndProduceRenderTree();
@@ -70,6 +74,7 @@ class LayoutManager : public dom::DocumentObserver {
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
   const LayoutTrigger layout_trigger_;
+  scoped_ptr<loader::ImageCache> image_cache_;
 
   // This flag indicates whether or not we should do a re-layout.  The flag
   // is checked at a regular interval (e.g. 60Hz) and if it is set to true,

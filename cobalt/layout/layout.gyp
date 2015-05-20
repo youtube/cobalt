@@ -67,6 +67,8 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/loader/loader.gyp:image_decoder',
+        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',

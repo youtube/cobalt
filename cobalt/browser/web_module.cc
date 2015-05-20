@@ -98,7 +98,8 @@ WebModule::WebModule(
           script_runner_.get(), options.url, GetUserAgent(), error_callback)),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      options.layout_trigger, layout_refresh_rate) {
+                      fetcher_factory_.get(), options.layout_trigger,
+                      layout_refresh_rate) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
 }
