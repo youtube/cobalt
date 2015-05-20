@@ -21,8 +21,9 @@ namespace layout {
 
 ContainerBox::ContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : Box(computed_style, transitions) {}
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : Box(computed_style, transitions, used_style_provider) {}
 
 ContainerBox::~ContainerBox() {}
 

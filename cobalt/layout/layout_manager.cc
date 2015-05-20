@@ -53,9 +53,8 @@ LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
     render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser,
-    LayoutTrigger layout_trigger,
-    float layout_refresh_rate)
+    cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
+    LayoutTrigger layout_trigger, float layout_refresh_rate)
     : window_(window),
       document_(window->document()),
       viewport_size_(math::SizeF(static_cast<float>(window_->inner_width()),
@@ -66,6 +65,10 @@ LayoutManager::LayoutManager(
       layout_trigger_(layout_trigger),
       layout_dirty_(false),
       layout_timer_(true, true) {
+  image_cache_ = make_scoped_ptr<loader::ImageCache>(new loader::ImageCache(
+      resource_provider_, fetcher_factory,
+      base::Bind(&LayoutManager::NotifyImageLoaded, base::Unretained(this))));
+
   document_->AddObserver(this);
 
   // TODO(***REMOVED***): Eventually we would like to instead base our layouts off of
@@ -97,6 +100,12 @@ void LayoutManager::OnMutation() {
   }
 }
 
+void LayoutManager::NotifyImageLoaded() {
+  if (layout_trigger_ == kOnDocumentMutation) {
+    layout_dirty_ = true;
+  }
+}
+
 void LayoutManager::DoLayoutAndProduceRenderTree() {
   if (!layout_dirty_) {
     return;
@@ -110,10 +119,9 @@ void LayoutManager::DoLayoutAndProduceRenderTree() {
     //   http://www.w3.org/TR/css3-transitions/#starting
     base::Time style_change_event_time = base::Time::Now();
 
-    RenderTreeWithAnimations render_tree_with_animations =
-        layout::Layout(document_->html(), viewport_size_,
-                       user_agent_style_sheet_, resource_provider_,
-                       style_change_event_time);
+    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
+        document_->html(), viewport_size_, user_agent_style_sheet_,
+        resource_provider_, style_change_event_time, image_cache_.get());
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
         render_tree_with_animations.animations);

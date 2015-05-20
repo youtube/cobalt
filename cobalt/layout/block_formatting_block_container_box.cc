@@ -26,8 +26,9 @@ namespace layout {
 
 BlockFormattingBlockContainerBox::BlockFormattingBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : BlockContainerBox(computed_style, transitions) {}
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : BlockContainerBox(computed_style, transitions, used_style_provider) {}
 
 bool BlockFormattingBlockContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
   AddChild(child_box->Pass());
@@ -255,7 +256,8 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
     //               anonymous block box, instead of none at all.
     scoped_ptr<AnonymousBlockBox> last_anonymous_block_box_ptr(
         new AnonymousBlockBox(GetComputedStyleOfAnonymousBox(computed_style()),
-                              cssom::TransitionSet::EmptyTransitionSet()));
+                              cssom::TransitionSet::EmptyTransitionSet(),
+                              used_style_provider()));
     last_anonymous_block_box = last_anonymous_block_box_ptr.get();
     child_boxes_.push_back(last_anonymous_block_box_ptr.release());
   }
@@ -264,8 +266,10 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : BlockFormattingBlockContainerBox(computed_style, transitions) {}
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : BlockFormattingBlockContainerBox(computed_style, transitions,
+                                       used_style_provider) {}
 
 BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
 
@@ -273,8 +277,10 @@ Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : BlockFormattingBlockContainerBox(computed_style, transitions) {}
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : BlockFormattingBlockContainerBox(computed_style, transitions,
+                                       used_style_provider) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 

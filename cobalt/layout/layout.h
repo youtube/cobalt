@@ -18,6 +18,7 @@
 #define LAYOUT_LAYOUT_H_
 
 #include "cobalt/dom/html_element.h"
+#include "cobalt/loader/image_cache.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
@@ -53,7 +54,7 @@ RenderTreeWithAnimations Layout(
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
-    const base::Time& style_change_event_time);
+    const base::Time& style_change_event_time, loader::ImageCache* image_cache);
 
 }  // namespace layout
 }  // namespace cobalt

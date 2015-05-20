@@ -26,9 +26,10 @@ namespace layout {
 // Implementation-specific, not defined in CSS 2.1.
 class BlockFormattingBlockContainerBox : public BlockContainerBox {
  public:
-  explicit BlockFormattingBlockContainerBox(
+  BlockFormattingBlockContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
 
   // From |ContainerBox|.
   bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
@@ -77,7 +78,8 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   BlockLevelBlockContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
   ~BlockLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
@@ -99,7 +101,8 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
  public:
   InlineLevelBlockContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
   ~InlineLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
