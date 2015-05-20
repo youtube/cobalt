@@ -16,6 +16,8 @@
 #ifndef BASE_OBJECT_WATCHER_SHELL_H_
 #define BASE_OBJECT_WATCHER_SHELL_H_
 
+#include <sys/poll.h>
+
 #include <map>
 #include <vector>
 
