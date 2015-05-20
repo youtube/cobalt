@@ -39,7 +39,8 @@ class InlineContainerBox : public ContainerBox {
  public:
   InlineContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
   ~InlineContainerBox() OVERRIDE;
 
   // From |Box|.

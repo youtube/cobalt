@@ -35,7 +35,7 @@ class TextBox : public Box {
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions, const std::string& text,
       bool has_leading_white_space, bool has_trailing_white_space,
-      const scoped_refptr<render_tree::Font>& used_font);
+      const UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;

@@ -17,6 +17,7 @@
 #include "cobalt/layout/box.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
@@ -25,9 +26,11 @@
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::NodeAnimationsMap;
@@ -37,9 +40,13 @@ namespace layout {
 
 Box::Box(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : computed_style_(computed_style), transitions_(transitions) {
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : computed_style_(computed_style),
+      transitions_(transitions),
+      used_style_provider_(used_style_provider) {
   DCHECK(transitions_);
+  DCHECK(used_style_provider_);
 }
 
 Box::~Box() {}
@@ -189,6 +196,17 @@ void Box::AddBackgroundToRenderTree(
 
   scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
   composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
+
+
+  scoped_refptr<render_tree::Image> used_background_image =
+      used_style_provider_->GetUsedBackgroundImage(
+          computed_style_->background_image());
+
+  if (used_background_image) {
+    scoped_refptr<ImageNode> image_node(
+        new ImageNode(used_background_image, used_frame().size()));
+    composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
+  }
 
   if (!transitions_->empty()) {
     AddTransitionAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
