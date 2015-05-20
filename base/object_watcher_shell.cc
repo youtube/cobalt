@@ -15,8 +15,6 @@
  */
 #include "base/object_watcher_shell.h"
 
-#include <sys/poll.h>
-
 #include <stack>
 
 #include "base/bind.h"
