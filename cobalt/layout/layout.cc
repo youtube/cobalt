@@ -78,7 +78,8 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::HTMLElement>& root_element,
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    render_tree::ResourceProvider* resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    const base::Time& style_change_event_time) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
   scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
@@ -87,7 +88,8 @@ RenderTreeWithAnimations Layout(
   UsedStyleProvider used_style_provider(resource_provider);
 
   BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                  user_agent_style_sheet, &used_style_provider);
+                                  user_agent_style_sheet, &used_style_provider,
+                                  style_change_event_time);
   root_element->Accept(&root_box_generator);
   BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
   for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();
