@@ -100,7 +100,6 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
 }
 
 void HTMLLinkElement::StopLoading() {
-  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(loader_);
   loader_.reset();
 }

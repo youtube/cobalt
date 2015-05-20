@@ -41,7 +41,8 @@ class BlockContainerBox : public ContainerBox {
  public:
   BlockContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions);
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider);
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.

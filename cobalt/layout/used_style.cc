@@ -17,6 +17,7 @@
 #include "cobalt/layout/used_style.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -26,9 +27,61 @@
 namespace cobalt {
 namespace layout {
 
+namespace {
+
+class UsedBackgroundImageProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedBackgroundImageProvider(loader::ImageCache* image_cache)
+      : image_cache_(image_cache) {}
+
+  void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+
+  const scoped_refptr<render_tree::Image>& used_background_image() const {
+    return used_background_image_;
+  }
+
+ private:
+  loader::ImageCache* const image_cache_;
+  scoped_refptr<render_tree::Image> used_background_image_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundImageProvider);
+};
+
+void UsedBackgroundImageProvider::VisitAbsoluteURL(
+    cssom::AbsoluteURLValue* url_value) {
+  used_background_image_ = image_cache_->TryGetImage(url_value->value());
+}
+
+void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case cssom::KeywordValue::kNone:
+      used_background_image_ = NULL;
+      break;
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+}  // namespace
+
 UsedStyleProvider::UsedStyleProvider(
-    render_tree::ResourceProvider* resource_provider)
-    : resource_provider_(resource_provider) {}
+    render_tree::ResourceProvider* resource_provider,
+    loader::ImageCache* image_cache)
+    : resource_provider_(resource_provider), image_cache_(image_cache) {}
 
 scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -42,6 +95,13 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
   // TODO(***REMOVED***): Implement font style.
   return resource_provider_->GetPreInstalledFont(
       font_family->value().c_str(), render_tree::kNormal, font_size->value());
+}
+
+scoped_refptr<render_tree::Image> UsedStyleProvider::GetUsedBackgroundImage(
+    const scoped_refptr<cssom::PropertyValue>& background_image_refptr) const {
+  UsedBackgroundImageProvider used_background_image_provider(image_cache_);
+  background_image_refptr->Accept(&used_background_image_provider);
+  return used_background_image_provider.used_background_image();
 }
 
 render_tree::ColorRGBA GetUsedColor(

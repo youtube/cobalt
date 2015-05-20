@@ -25,6 +25,8 @@
         'fetcher_factory.h',
         'file_fetcher.cc',
         'file_fetcher.h',
+        'image_cache.cc',
+        'image_cache.h',
         'loader.cc',
         'loader.h',
         'net_fetcher.cc',

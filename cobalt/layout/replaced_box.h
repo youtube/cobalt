@@ -39,7 +39,8 @@ class ReplacedBox : public Box {
   ReplacedBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
-      const ReplaceImageCB& replace_image_cb);
+      const ReplaceImageCB& replace_image_cb,
+      const UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
