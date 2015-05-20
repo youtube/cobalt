@@ -17,6 +17,8 @@
 #ifndef BASE_OPTIONAL_H_
 #define BASE_OPTIONAL_H_
 
+#include <iosfwd>
+
 #include "base/base_export.h"
 #include "base/hash_tables.h"
 #include "base/logging.h"
@@ -324,6 +326,19 @@ inline bool operator<(const T& lhs, const optional<T>& rhs) {
 template <typename T>
 inline bool operator<(const optional<T>& lhs, const T& rhs) {
   return !lhs || lhs.value() < rhs;
+}
+
+// This is a convenient but non-standard method, do not rely on it if you expect
+// the compatibility with upcoming C++ versions.
+template <typename T>
+inline std::ostream& operator<<(std::ostream& stream,
+                                const optional<T>& maybe_value) {
+  if (maybe_value) {
+    stream << *maybe_value;
+  } else {
+    stream << "nullopt";
+  }
+  return stream;
 }
 
 template <typename T>
