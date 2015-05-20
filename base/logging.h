@@ -724,7 +724,7 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 // Note that the code under _PREFAST_ macro is not actually executed, only
 // analyzed.
 // Use !!(condition) to work around error C2088:
-// ‘__assume’ : illegal for class
+// '__assume': illegal for class
 #if defined(COBALT) && defined(_PREFAST_)
 #define DCHECK(condition)                                           \
   __analysis_assume(!!(condition)), EAT_STREAM_PARAMETERS
