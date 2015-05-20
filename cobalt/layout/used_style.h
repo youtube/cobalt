@@ -19,6 +19,7 @@
 
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/loader/image_cache.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -44,14 +45,19 @@ class ContainingBlock;
 
 class UsedStyleProvider {
  public:
-  explicit UsedStyleProvider(render_tree::ResourceProvider* resource_provider);
+  UsedStyleProvider(render_tree::ResourceProvider* resource_provider,
+                    loader::ImageCache* image_cache);
 
   scoped_refptr<render_tree::Font> GetUsedFont(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_size_refptr) const;
 
+  scoped_refptr<render_tree::Image> GetUsedBackgroundImage(
+      const scoped_refptr<cssom::PropertyValue>& background_image_refptr) const;
+
  private:
   render_tree::ResourceProvider* const resource_provider_;
+  loader::ImageCache* const image_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);
 };

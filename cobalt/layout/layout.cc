@@ -41,7 +41,8 @@ namespace {
 // of the viewport and is anchored at the canvas origin.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const math::SizeF& viewport_size) {
+    const math::SizeF& viewport_size,
+    const UsedStyleProvider* used_style_provider) {
   scoped_refptr<cssom::CSSStyleDeclarationData>
       initial_containing_block_computed_style =
           new cssom::CSSStyleDeclarationData();
@@ -69,7 +70,7 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
 
   return make_scoped_ptr(new BlockLevelBlockContainerBox(
       initial_containing_block_computed_style,
-      cssom::TransitionSet::EmptyTransitionSet()));
+      cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
 }
 
 }  // namespace
@@ -79,13 +80,14 @@ RenderTreeWithAnimations Layout(
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
-    const base::Time& style_change_event_time) {
+    const base::Time& style_change_event_time,
+    loader::ImageCache* image_cache) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
-  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
-      CreateInitialContainingBlock(viewport_size);
+  UsedStyleProvider used_style_provider(resource_provider, image_cache);
 
-  UsedStyleProvider used_style_provider(resource_provider);
+  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
+      CreateInitialContainingBlock(viewport_size, &used_style_provider);
 
   BoxGenerator root_box_generator(initial_containing_block->computed_style(),
                                   user_agent_style_sheet, &used_style_provider,

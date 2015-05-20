@@ -27,12 +27,13 @@ TextBox::TextBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions, const std::string& text,
     bool has_leading_white_space, bool has_trailing_white_space,
-    const scoped_refptr<render_tree::Font>& used_font)
-    : Box(computed_style, transitions),
+    const UsedStyleProvider* used_style_provider)
+    : Box(computed_style, transitions, used_style_provider),
       text_(text),
       has_leading_white_space_(has_leading_white_space),
       has_trailing_white_space_(has_trailing_white_space),
-      used_font_(used_font) {}
+      used_font_(used_style_provider->GetUsedFont(
+          computed_style->font_family(), computed_style->font_size())) {}
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 

@@ -28,10 +28,11 @@ namespace layout {
 //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
 class AnonymousBlockBox : public BlockContainerBox {
  public:
-  explicit AnonymousBlockBox(
+  AnonymousBlockBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions)
-      : BlockContainerBox(computed_style, transitions) {}
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider)
+      : BlockContainerBox(computed_style, transitions, used_style_provider) {}
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;

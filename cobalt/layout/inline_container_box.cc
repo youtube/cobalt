@@ -23,8 +23,9 @@ namespace layout {
 
 InlineContainerBox::InlineContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-    const cssom::TransitionSet* transitions)
-    : ContainerBox(computed_style, transitions),
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : ContainerBox(computed_style, transitions, used_style_provider),
       justifies_line_existence_(false),
       height_above_baseline_(0) {}
 
@@ -47,8 +48,8 @@ bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
 }
 
 scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
-  scoped_ptr<ContainerBox> box_after_split(
-      new InlineContainerBox(computed_style(), transitions()));
+  scoped_ptr<ContainerBox> box_after_split(new InlineContainerBox(
+      computed_style(), transitions(), used_style_provider()));
 
   // When an inline box is split, margins, borders, and padding have no visual
   // effect where the split occurs.

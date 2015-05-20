@@ -75,8 +75,11 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
   ContainerBoxGenerator(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
-      const cssom::TransitionSet* transitions)
-      : computed_style_(computed_style), transitions_(transitions) {}
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider)
+      : computed_style_(computed_style),
+        transitions_(transitions),
+        used_style_provider_(used_style_provider) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
@@ -85,6 +88,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  private:
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
   const cssom::TransitionSet* transitions_;
+  const UsedStyleProvider* const used_style_provider_;
 
   scoped_ptr<ContainerBox> container_box_;
 };
@@ -94,24 +98,22 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     // Generate a block-level block container box.
     case cssom::KeywordValue::kBlock:
-      container_box_ =
-          make_scoped_ptr(new BlockLevelBlockContainerBox(computed_style_,
-                                                          transitions_));
+      container_box_ = make_scoped_ptr(new BlockLevelBlockContainerBox(
+          computed_style_, transitions_, used_style_provider_));
       break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
     // in the formatting context.
     case cssom::KeywordValue::kInline:
-      container_box_ = make_scoped_ptr(new InlineContainerBox(computed_style_,
-                                                              transitions_));
+      container_box_ = make_scoped_ptr(new InlineContainerBox(
+          computed_style_, transitions_, used_style_provider_));
       break;
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself
     // is formatted as an atomic inline-level box.
     case cssom::KeywordValue::kInlineBlock:
-      container_box_ =
-          make_scoped_ptr(new InlineLevelBlockContainerBox(computed_style_,
-                                                           transitions_));
+      container_box_ = make_scoped_ptr(new InlineLevelBlockContainerBox(
+          computed_style_, transitions_, used_style_provider_));
       break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
@@ -142,7 +144,8 @@ void BoxGenerator::Visit(dom::Element* element) {
                         user_agent_style_sheet_, style_change_event_time_);
 
   ContainerBoxGenerator container_box_generator(html_element->computed_style(),
-                                                html_element->transitions());
+                                                html_element->transitions(),
+                                                used_style_provider_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_ptr<ContainerBox> container_box_before_split =
       container_box_generator.PassContainerBox();
@@ -161,7 +164,8 @@ void BoxGenerator::Visit(dom::Element* element) {
     scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
         container_box_before_split->computed_style(),
         cssom::TransitionSet::EmptyTransitionSet(),
-        base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider())));
+        base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
+        used_style_provider_));
     bool added = container_box_before_split->TryAddChild(&replaced_box);
     DCHECK(added);
     boxes_.push_back(container_box_before_split.release());
@@ -316,16 +320,12 @@ void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
       GetComputedStyleOfAnonymousBox(parent_computed_style_);
 
-  scoped_refptr<render_tree::Font> used_font =
-      used_style_provider_->GetUsedFont(computed_style->font_family(),
-                                        computed_style->font_size());
-
   // TODO(***REMOVED***): Determine which transitions to propogate to the text box,
   //               instead of none at all.
   boxes_.push_back(
       new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
                   collapsed_and_trimmed_text, has_leading_white_space,
-                  has_trailing_white_space, used_font));
+                  has_trailing_white_space, used_style_provider_));
 }
 
 }  // namespace layout

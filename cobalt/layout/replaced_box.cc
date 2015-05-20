@@ -44,8 +44,10 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
 ReplacedBox::ReplacedBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
-    const ReplaceImageCB& replace_image_cb)
-    : Box(computed_style, transitions), replace_image_cb_(replace_image_cb) {
+    const ReplaceImageCB& replace_image_cb,
+    const UsedStyleProvider* used_style_provider)
+    : Box(computed_style, transitions, used_style_provider),
+      replace_image_cb_(replace_image_cb) {
   DCHECK(!replace_image_cb_.is_null());
 }
 
