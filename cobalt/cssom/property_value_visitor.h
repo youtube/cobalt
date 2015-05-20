@@ -28,6 +28,7 @@ class FontWeightValue;
 class KeywordValue;
 class LengthValue;
 class NumberValue;
+class PropertyValue;
 class RGBAColorValue;
 class StringValue;
 class TimeListValue;
@@ -57,11 +58,10 @@ class PropertyValueVisitor {
   ~PropertyValueVisitor() {}
 };
 
-// A convenience class that implements PropertyValueVisitor with NOTREACHED()
-// for each method, thus one can derive from this class, implement only the
-// value types that they care about, and then every other value type will
-// result in an error.
-class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
+// A convenience class that forwards all methods to |VisitDefault|, thus one can
+// derive from this class, implement only the value types that they care about,
+// and handle every other value type generically.
+class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
  public:
   void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
   void VisitConstStringList(
@@ -76,6 +76,18 @@ class NotReachedPropertyValueVisitor : public PropertyValueVisitor {
       TransformFunctionListValue* transform_function_list_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
   void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
+
+ protected:
+  virtual void VisitDefault(PropertyValue* property_value) = 0;
+};
+
+// A convenience class that implements PropertyValueVisitor with NOTREACHED()
+// for each method, thus one can derive from this class, implement only the
+// value types that they care about, and then every other value type will
+// result in an error.
+class NotReachedPropertyValueVisitor : public DefaultingPropertyValueVisitor {
+ protected:
+  void VisitDefault(PropertyValue* property_value) OVERRIDE;
 };
 
 }  // namespace cssom
