@@ -17,7 +17,7 @@ namespace crypto {
 // in FIPS 186-3, section D.2.2.
 namespace p224 {
 
-// An element of the field (ℤ/pℤ) is represented with 8, 28-bit limbs in
+// An element of the field (Z/pZ) is represented with 8, 28-bit limbs in
 // little endian order.
 typedef uint32 FieldElement[8];
 
@@ -31,7 +31,7 @@ struct CRYPTO_EXPORT Point {
   // ToString returns an external representation of the Point.
   std::string ToString() const;
 
-  // An Point is represented in Jacobian form (x/z², y/z³).
+  // An Point is represented in Jacobian form (x/(z**2), y/(z**3)).
   FieldElement x, y, z;
 };
 
