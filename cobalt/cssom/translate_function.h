@@ -58,8 +58,6 @@ class TranslateFunction : public TransformFunction {
  private:
   const Axis axis_;
   const scoped_refptr<LengthValue> offset_;
-
-  DISALLOW_COPY_AND_ASSIGN(TranslateFunction);
 };
 
 }  // namespace cssom

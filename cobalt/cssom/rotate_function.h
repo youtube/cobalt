@@ -45,8 +45,6 @@ class RotateFunction : public TransformFunction {
 
  private:
   const float angle_in_radians_;
-
-  DISALLOW_COPY_AND_ASSIGN(RotateFunction);
 };
 
 }  // namespace cssom
