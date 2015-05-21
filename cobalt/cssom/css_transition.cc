@@ -304,8 +304,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     }
     return new TransformFunctionListValue(animated_functions.Pass());
   } else {
-    DCHECK_NE(static_cast<TransformFunctionListValue::Builder*>(NULL),
-              end_functions);
+    DCHECK(end_functions);
     // TODO(***REMOVED***): Collapse into a matrix and animate the matrix using the
     //               algorithm described here:
     //   http://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
