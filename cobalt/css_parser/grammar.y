@@ -1639,7 +1639,7 @@ maybe_declaration:
   | kTransitionToken maybe_whitespace colon
       transition_property_value maybe_important {
     scoped_ptr<Transition> transition($4);
-    DCHECK_NE(static_cast<Transition*>(NULL), transition.get());
+    DCHECK(transition);
 
     scoped_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
@@ -1855,8 +1855,7 @@ entry_point:
         parser_impl->LogError(
             @1, "!important is not allowed when setting single property value");
       } else {
-        DCHECK_NE(static_cast<cssom::CSSStyleDeclarationData*>(NULL),
-                  parser_impl->into_declaration_list());
+        DCHECK(parser_impl->into_declaration_list());
         property_declaration->ApplyToStyle(
             parser_impl->into_declaration_list());
       }
