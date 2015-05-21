@@ -20,11 +20,11 @@ using base::NetToHost32;
 
 // Field element functions.
 //
-// The field that we're dealing with is ℤ/pℤ where p = 2**224 - 2**96 + 1.
+// The field that we're dealing with is Z/pZ where p = 2**224 - 2**96 + 1.
 //
 // Field elements are represented by a FieldElement, which is a typedef to an
 // array of 8 uint32's. The value of a FieldElement, a, is:
-//   a[0] + 2**28·a[1] + 2**56·a[1] + ... + 2**196·a[7]
+//   a[0] + 2**28*a[1] + 2**56*a[2] + ... + 2**196*a[7]
 //
 // Using 28-bit limbs means that there's only 4 bits of headroom, which is less
 // than we would really like. But it has the useful feature that we hit 2**224
@@ -434,10 +434,10 @@ void AddJacobian(Point *out,
   uint32 z1_is_zero = IsZero(a.z);
   uint32 z2_is_zero = IsZero(b.z);
 
-  // Z1Z1 = Z1²
+  // Z1Z1 = Z1**2
   Square(&z1z1, a.z);
 
-  // Z2Z2 = Z2²
+  // Z2Z2 = Z2**2
   Square(&z2z2, b.z);
 
   // U1 = X1*Z2Z2
@@ -459,7 +459,7 @@ void AddJacobian(Point *out,
   Reduce(&h);
   uint32 x_equal = IsZero(h);
 
-  // I = (2*H)²
+  // I = (2*H)**2
   for (int j = 0; j < 8; j++) {
     i[j] = h[j] << 1;
   }
@@ -488,7 +488,7 @@ void AddJacobian(Point *out,
   // V = U1*I
   Mul(&v, u1, i);
 
-  // Z3 = ((Z1+Z2)²-Z1Z1-Z2Z2)*H
+  // Z3 = ((Z1+Z2)**2-Z1Z1-Z2Z2)*H
   Add(&z1z1, z1z1, z2z2);
   Add(&z2z2, a.z, b.z);
   Reduce(&z2z2);
@@ -497,7 +497,7 @@ void AddJacobian(Point *out,
   Reduce(&out->z);
   Mul(&out->z, out->z, h);
 
-  // X3 = r²-J-2*V
+  // X3 = r**2-J-2*V
   for (int i = 0; i < 8; i++) {
     z1z1[i] = v[i] << 1;
   }
@@ -541,7 +541,7 @@ void DoubleJacobian(Point* out, const Point& a) {
   Reduce(&alpha);
   Mul(&alpha, alpha, t);
 
-  // Z3 = (Y1+Z1)²-gamma-delta
+  // Z3 = (Y1+Z1)**2-gamma-delta
   Add(&out->z, a.y, a.z);
   Reduce(&out->z);
   Square(&out->z, out->z);
@@ -550,7 +550,7 @@ void DoubleJacobian(Point* out, const Point& a) {
   Subtract(&out->z, out->z, delta);
   Reduce(&out->z);
 
-  // X3 = alpha²-8*beta
+  // X3 = alpha**2-8*beta
   for (int i = 0; i < 8; i++) {
           delta[i] = beta[i] << 3;
   }
@@ -559,7 +559,7 @@ void DoubleJacobian(Point* out, const Point& a) {
   Subtract(&out->x, out->x, delta);
   Reduce(&out->x);
 
-  // Y3 = alpha*(4*beta-X3)-8*gamma²
+  // Y3 = alpha*(4*beta-X3)-8*(gamma**2)
   for (int i = 0; i < 8; i++) {
           beta[i] <<= 2;
   }
@@ -653,7 +653,7 @@ bool Point::SetFromString(const base::StringPiece& in) {
   memset(&z, 0, sizeof(z));
   z[0] = 1;
 
-  // Check that the point is on the curve, i.e. that y² = x³ - 3x + b.
+  // Check that the point is on the curve, i.e. that y**2 = x**3 - 3x + b.
   FieldElement lhs;
   Square(&lhs, y);
   Contract(&lhs);
