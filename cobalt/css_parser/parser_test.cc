@@ -268,15 +268,47 @@ TEST_F(ParserTest, ParsesInitial) {
   EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->background_color());
 }
 
-TEST_F(ParserTest, ParsesBackground) {
+TEST_F(ParserTest, ParsesBackgroundWithOnlyColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("background: rgba(0, 0, 0, .8);",
                                    source_location_);
 
-  scoped_refptr<cssom::RGBAColorValue> background =
-      dynamic_cast<cssom::RGBAColorValue*>(style->background().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background);
-  EXPECT_EQ(0x000000cc, background->value());
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0x000000cc, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithColorAndURL) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background: url(foo.png) rgba(0, 0, 0, .8);", source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0x000000cc, background_color->value());
+
+  scoped_refptr<cssom::URLValue> background_image =
+      dynamic_cast<cssom::URLValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  EXPECT_EQ("foo.png", background_image->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithColorAndURLInDifferentOrder) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background: rgba(0, 0, 0, .8) url(foo.png);", source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0x000000cc, background_color->value());
+
+  scoped_refptr<cssom::URLValue> background_image =
+      dynamic_cast<cssom::URLValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  EXPECT_EQ("foo.png", background_image->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundColor) {

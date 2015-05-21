@@ -78,7 +78,11 @@ void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
 }
 
 std::string CSSStyleDeclaration::background() const {
-  return data_->background() ? data_->background()->ToString() : "";
+  // In order to implement this properly we must either save the incoming string
+  // values when they are being set, or combine the results of getting the
+  // styles from all the other background properties.
+  NOTIMPLEMENTED();
+  return "";
 }
 
 void CSSStyleDeclaration::set_background(const std::string& background) {

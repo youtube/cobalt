@@ -272,11 +272,11 @@
 // as long as web app does not rely on literal preservation of property values
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> background_property_value background_color_property_value
+%type <property_value> background_color_property_value
                        background_image_property_value
                        border_radius_property_value color color_property_value
                        common_values display_property_value
-                       final_background_layer font_family_property_value
+                       font_family_property_value
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
                        line_height_property_value opacity_property_value
@@ -288,7 +288,7 @@
                        width_property_value
 %destructor { $$->Release(); } <property_value>
 
-%union { Transition* transition; }
+%union { TransitionShorthand* transition; }
 %type <transition> transition_property_value
 %destructor { delete $$; } <transition>
 
@@ -372,13 +372,19 @@
     comma_separated_single_transition_timing_function_list
 %destructor { delete $$; } <timing_function_list>
 
-%union { SingleTransition* single_transition; }
+%union { SingleTransitionShorthand* single_transition; }
 %type <single_transition> single_transition single_non_empty_transition
 %destructor { delete $$; } <single_transition>
 
-%union { TransitionBuilder* transition_builder; }
+%union { TransitionShorthandBuilder* transition_builder; }
 %type <transition_builder> comma_separated_transition_list
 %destructor { delete $$; } <transition_builder>
+
+%union { BackgroundShorthandLayer* background_shorthand_layer; }
+%type <background_shorthand_layer> final_background_layer
+                                   non_empty_final_background_layer
+                                   background_property_value
+%destructor { delete $$; } <background_shorthand_layer>
 
 %%
 
@@ -947,15 +953,60 @@ url:
 // Property values.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
-// Only final background layer allows to set the background color.
+background_property_element:
+    color {
+    if (!$<background_shorthand_layer>0->background_color) {
+      $<background_shorthand_layer>0->background_color = $1;
+    } else {
+      parser_impl->LogError(
+          @1, "background-color value declared twice in background.");
+    }
+  }
+  | url {
+    if (!$<background_shorthand_layer>0->background_image) {
+      $<background_shorthand_layer>0->background_image = $1;
+    } else {
+      parser_impl->LogError(
+          @1, "background-image value declared twice in background.");
+    }
+  }
+  ;
+
+// Only the final background layer is allowed to set the background color.
 //   http://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
-final_background_layer: color ;
+final_background_layer:
+    /* empty */ {
+    // Initialize the background shorthand which is to be filled in by
+    // subsequent reductions.
+    $$ = new BackgroundShorthandLayer();
+  }
+  | final_background_layer background_property_element {
+    // Propogate the return value from the reduced list.
+    // Appending of the new background_property_element to the list is done
+    // within background_property_element's reduction.
+    $$ = $1;
+  }
+  ;
+
+non_empty_final_background_layer:
+    final_background_layer background_property_element {
+    $$ = $1;
+  }
+  ;
 
 // Shorthand property for setting most background properties at the same place.
 //   http://www.w3.org/TR/css3-background/#the-background
 background_property_value:
-    final_background_layer
-  | common_values
+    non_empty_final_background_layer
+  | common_values {
+    // Replicate the common value into each of the properties that transition
+    // is a shorthand for.
+    scoped_ptr<BackgroundShorthandLayer> background(
+        new BackgroundShorthandLayer());
+    background->background_color = $1;
+    background->background_image = $1;
+    $$ = background.release();
+  }
   ;
 
 // Background color of an element drawn behind any background images.
@@ -1368,8 +1419,8 @@ transition_property_property_value:
   ;
 
 // single_transition_element represents a component of a single transition.
-// It uses $0 to access its parent's SingleTransition object and build it, so
-// it should always be used to the right of a single_transition object.
+// It uses $0 to access its parent's SingleTransitionShorthand object and build
+// it, so it should always be used to the right of a single_transition object.
 single_transition_element:
     animatable_property_token maybe_whitespace {
     if (!$<single_transition>0->property) {
@@ -1404,7 +1455,7 @@ single_transition_element:
 single_transition:
     /* empty */ {
     // Initialize the result, to be filled in by single_transition_element
-    $$ = new SingleTransition();
+    $$ = new SingleTransitionShorthand();
   }
   | single_transition single_transition_element {
     // Propogate the list from our parent single_transition.
@@ -1413,7 +1464,6 @@ single_transition:
     $$ = $1;
   }
   ;
-
 single_non_empty_transition:
     single_transition single_transition_element {
     $$ = $1;
@@ -1422,8 +1472,9 @@ single_non_empty_transition:
 
 comma_separated_transition_list:
     single_non_empty_transition {
-    scoped_ptr<SingleTransition> single_transition($1);
-    scoped_ptr<TransitionBuilder> transition_builder(new TransitionBuilder());
+    scoped_ptr<SingleTransitionShorthand> single_transition($1);
+    scoped_ptr<TransitionShorthandBuilder> transition_builder(
+        new TransitionShorthandBuilder());
 
     single_transition->ReplaceNullWithInitialValues();
 
@@ -1439,7 +1490,7 @@ comma_separated_transition_list:
     $$ = transition_builder.release();
   }
   | comma_separated_transition_list comma single_non_empty_transition {
-    scoped_ptr<SingleTransition> single_transition($3);
+    scoped_ptr<SingleTransitionShorthand> single_transition($3);
 
     single_transition->ReplaceNullWithInitialValues();
 
@@ -1456,11 +1507,11 @@ comma_separated_transition_list:
 //   http://www.w3.org/TR/css3-transitions/#transition
 transition_property_value:
     kNoneToken maybe_whitespace {
-    $$ = new Transition();
+    $$ = new TransitionShorthand();
   }
   | comma_separated_transition_list {
-    scoped_ptr<TransitionBuilder> transition_builder($1);
-    scoped_ptr<Transition> transition(new Transition());
+    scoped_ptr<TransitionShorthandBuilder> transition_builder($1);
+    scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
 
     transition->property_list = new cssom::ConstStringListValue(
         transition_builder->property_list_builder.Pass());
@@ -1476,7 +1527,7 @@ transition_property_value:
   | common_values {
     // Replicate the common value into each of the properties that transition
     // is a shorthand for.
-    scoped_ptr<Transition> transition(new Transition());
+    scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
     transition->property_list = $1;
     transition->duration_list = $1;
     transition->timing_function_list = $1;
@@ -1553,9 +1604,23 @@ maybe_declaration:
     /* empty */ { $$ = NULL; }
   | kBackgroundToken maybe_whitespace colon background_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPropertyName,
-                                      MakeScopedRefPtrAndRelease($4), $5)
-            : NULL;
+    scoped_ptr<BackgroundShorthandLayer> background($4);
+    DCHECK(background);
+
+    scoped_ptr<PropertyDeclaration> property_declaration(
+        new PropertyDeclaration($5));
+
+    // Unpack the background shorthand property values.
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kBackgroundColorPropertyName,
+            background->background_color));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kBackgroundImagePropertyName,
+            background->background_image));
+
+    $$ = property_declaration.release();
   }
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
@@ -1643,7 +1708,7 @@ maybe_declaration:
   }
   | kTransitionToken maybe_whitespace colon
       transition_property_value maybe_important {
-    scoped_ptr<Transition> transition($4);
+    scoped_ptr<TransitionShorthand> transition($4);
     DCHECK(transition);
 
     scoped_ptr<PropertyDeclaration> property_declaration(
