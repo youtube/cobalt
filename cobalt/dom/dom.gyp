@@ -75,6 +75,8 @@
         'location.cc',
         'location.h',
         'media_error.h',
+        'media_source.cc',
+        'media_source.h',
         'keyboard_event.cc',
         'keyboard_event.h',
         'named_node_map.cc',
@@ -98,6 +100,8 @@
         'ui_event.cc',
         'ui_event.h',
         'ui_event_with_key_state.h',
+        'url.cc',
+        'url.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
