@@ -34,7 +34,8 @@
 //     namespaces cannot be included from grammar (.y) as this will cause double
 //     nesting of included classes.
 
-#include "cobalt/css_parser/transition_property_parse_structures.h"
+#include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
+#include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/complex_selector.h"
