@@ -83,7 +83,7 @@ HTMLScriptElement::~HTMLScriptElement() {}
 void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(loader_.get() == NULL);
+  DCHECK(!loader_);
 
   // If the script element is marked as having "already started", then the user
   // agent must abort these steps at this point. The script is not executed.
@@ -184,7 +184,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 
 void HTMLScriptElement::StopLoading() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(loader_.get() != NULL);
+  DCHECK(loader_);
   loader_.reset();
 }
 

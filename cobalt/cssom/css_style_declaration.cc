@@ -286,8 +286,8 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
 }
 
 void CSSStyleDeclaration::AttachToStyleSheet(StyleSheet* style_sheet) {
-  DCHECK(style_sheet != NULL);
-  DCHECK(style_sheet->ParentStyleSheetList() != NULL);
+  DCHECK(style_sheet);
+  DCHECK(style_sheet->ParentStyleSheetList());
   mutation_observer_ = style_sheet->ParentStyleSheetList()->mutation_observer();
 }
 

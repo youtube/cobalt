@@ -205,7 +205,7 @@ void BoxGenerator::Visit(dom::Element* element) {
 
         scoped_ptr<ContainerBox> next_container_box =
             last_container_box->TrySplitAtEnd();
-        DCHECK_NE(static_cast<ContainerBox*>(NULL), next_container_box.get());
+        DCHECK(next_container_box);
         boxes_.push_back(next_container_box.release());
       }
     }
