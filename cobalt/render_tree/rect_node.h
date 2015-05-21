@@ -72,9 +72,7 @@ class RectNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
-  void DCheckData(const Builder& data) {
-    DCHECK_NE(static_cast<Brush*>(NULL), data.background_brush.get());
-  }
+  void DCheckData(const Builder& data) { DCHECK(data.background_brush); }
 
   const Builder data_;
 };

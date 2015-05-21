@@ -77,7 +77,7 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
 scoped_refptr<Element> Document::CreateElement() { return new Element(); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
-  DCHECK(html_element_factory_ != NULL);
+  DCHECK(html_element_factory_);
   return html_element_factory_->CreateHTMLElement(tag_name);
 }
 
@@ -199,30 +199,30 @@ scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
 
 void Document::SetBodyInternal(HTMLBodyElement* value) {
   if (value) {
-    DCHECK(body_.get() == NULL);
+    DCHECK(!body_);
     body_ = base::AsWeakPtr(value);
   } else {
-    DCHECK(body_.get() != NULL);
+    DCHECK(body_);
     body_.reset();
   }
 }
 
 void Document::SetHeadInternal(HTMLHeadElement* value) {
   if (value) {
-    DCHECK(head_.get() == NULL);
+    DCHECK(!head_);
     head_ = base::AsWeakPtr(value);
   } else {
-    DCHECK(head_.get() != NULL);
+    DCHECK(head_);
     head_.reset();
   }
 }
 
 void Document::SetHtmlInternal(HTMLHtmlElement* value) {
   if (value) {
-    DCHECK(html_.get() == NULL);
+    DCHECK(!html_);
     html_ = base::AsWeakPtr(value);
   } else {
-    DCHECK(html_.get() != NULL);
+    DCHECK(html_);
     html_.reset();
   }
 }

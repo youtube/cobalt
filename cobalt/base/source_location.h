@@ -58,8 +58,8 @@ inline void AdjustForStartLocation(int start_line_number,
                                    int* column_number) {
   DCHECK_GE(start_line_number, 1);
   DCHECK_GE(start_column_number, 1);
-  DCHECK_NE(static_cast<int*>(NULL), line_number);
-  DCHECK_NE(static_cast<int*>(NULL), column_number);
+  DCHECK(line_number);
+  DCHECK(column_number);
   DCHECK_GE(*line_number, 1);
   DCHECK_GE(*column_number, 1);
 

@@ -357,7 +357,7 @@ Node::Node() : node_generation_(kInitialNodeGeneration) {
 Node::~Node() { Stats::GetInstance()->Remove(this); }
 
 void Node::AttachToDocument(Document* document) {
-  DCHECK_EQ(static_cast<Document*>(NULL), owner_document_.get());
+  DCHECK(!owner_document_);
   owner_document_ = base::AsWeakPtr(document);
 
   Node* child = first_child_;
@@ -368,7 +368,7 @@ void Node::AttachToDocument(Document* document) {
 }
 
 void Node::DetachFromDocument() {
-  DCHECK_NE(static_cast<Document*>(NULL), owner_document_.get());
+  DCHECK(owner_document_);
   owner_document_.reset();
 
   Node* child = first_child_;
