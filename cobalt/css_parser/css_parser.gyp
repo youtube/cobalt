@@ -76,6 +76,8 @@
       'target_name': 'css_parser',
       'type': 'static_library',
       'sources': [
+        'background_shorthand_property_parse_structures.cc',
+        'background_shorthand_property_parse_structures.h',
         'parser.cc',
         'parser.h',
         'property_declaration.h',
@@ -83,8 +85,8 @@
         'scanner.cc',
         'scanner.h',
         'string_pool.h',
-        'transition_property_parse_structures.cc',
-        'transition_property_parse_structures.h',
+        'transition_shorthand_property_parse_structures.cc',
+        'transition_shorthand_property_parse_structures.h',
         'trivial_string_piece.h',
       ],
       # Scanner exposes UChar32 in a header.
