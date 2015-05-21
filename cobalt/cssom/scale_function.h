@@ -45,8 +45,6 @@ class ScaleFunction : public TransformFunction {
  private:
   const float x_factor_;
   const float y_factor_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScaleFunction);
 };
 
 }  // namespace cssom
