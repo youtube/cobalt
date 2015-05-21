@@ -627,6 +627,13 @@ Token Scanner::ScanFromDash(TokenValue* token_value) {
     bool has_escape;
     ScanIdentifier(&name, &has_escape);
 
+    if (LIKELY(!has_escape)) {
+      Token property_name_token;
+      if (DetectPropertyNameToken(name, &property_name_token)) {
+        return property_name_token;
+      }
+    }
+
     if (*input_iterator_ == '(') {
       ++input_iterator_;
 
@@ -1172,6 +1179,20 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(name.begin,
                                  cssom::kTransitionDelayPropertyName)) {
         *property_name_token = kTransitionDelayToken;
+        return true;
+      }
+      return false;
+
+    case 17:
+      if (IsEqualToCssIdentifier(name.begin, "-webkit-transform")) {
+        *property_name_token = kTransformToken;
+        return true;
+      }
+      return false;
+
+    case 18:
+      if (IsEqualToCssIdentifier(name.begin, "-webkit-transition")) {
+        *property_name_token = kTransitionToken;
         return true;
       }
       return false;
