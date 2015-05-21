@@ -60,7 +60,7 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
 void HTMLLinkElement::Obtain() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(loader_.get() == NULL);
+  DCHECK(!loader_);
 
   // 1. If the href attribute's value is the empty string, then abort these
   // steps.
@@ -101,7 +101,7 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
 
 void HTMLLinkElement::StopLoading() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(loader_.get() != NULL);
+  DCHECK(loader_);
   loader_.reset();
 }
 

@@ -34,7 +34,7 @@ LineBox::LineBox(float used_top, float containing_block_width,
 
 bool LineBox::TryQueryUsedPositionAndMaybeSplit(
     Box* child_box, scoped_ptr<Box>* child_box_after_split) {
-  DCHECK_EQ(static_cast<Box*>(NULL), child_box_after_split->get());
+  DCHECK(!*child_box_after_split);
 
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting

@@ -39,7 +39,7 @@ Box::Box(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions)
     : computed_style_(computed_style), transitions_(transitions) {
-  DCHECK_NE(static_cast<cssom::TransitionSet*>(NULL), transitions_);
+  DCHECK(transitions_);
 }
 
 Box::~Box() {}
