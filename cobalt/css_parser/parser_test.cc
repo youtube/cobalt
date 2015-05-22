@@ -691,15 +691,14 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
   ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
-  const cssom::TranslateXFunction* translate_x_function =
-      dynamic_cast<const cssom::TranslateXFunction*>(
-          transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateXFunction*>(NULL),
-            translate_x_function);
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_x_function->offset();
+  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
   EXPECT_FLOAT_EQ(0, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
+  EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function->axis());
 }
 
 TEST_F(ParserTest, ParsesTranslateYTransform) {
@@ -713,15 +712,14 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
   ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
-  const cssom::TranslateYFunction* translate_y_function =
-      dynamic_cast<const cssom::TranslateYFunction*>(
-          transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateYFunction*>(NULL),
-            translate_y_function);
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_y_function->offset();
+  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
   EXPECT_FLOAT_EQ(30, offset->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, offset->unit());
+  EXPECT_EQ(cssom::TranslateFunction::kYAxis, translate_function->axis());
 }
 
 TEST_F(ParserTest, ParsesTranslateZTransform) {
@@ -735,15 +733,14 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
   ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
-  const cssom::TranslateZFunction* translate_z_function =
-      dynamic_cast<const cssom::TranslateZFunction*>(
-          transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateZFunction*>(NULL),
-            translate_z_function);
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_z_function->offset();
+  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
   EXPECT_FLOAT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
+  EXPECT_EQ(cssom::TranslateFunction::kZAxis, translate_function->axis());
 }
 
 TEST_F(ParserTest, ParsesMultipleTransforms) {
@@ -758,8 +755,12 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
   ASSERT_EQ(2, transform_list->value().size());
   EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
             transform_list->value()[0]);
+  EXPECT_EQ(base::GetTypeId<cssom::ScaleFunction>(),
+            transform_list->value()[0]->GetTypeId());
   EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
             transform_list->value()[1]);
+  EXPECT_EQ(base::GetTypeId<cssom::TranslateFunction>(),
+            transform_list->value()[1]->GetTypeId());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidTransformList) {

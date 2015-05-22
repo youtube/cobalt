@@ -1202,20 +1202,20 @@ transform_function:
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
   | kTranslateXFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateXFunction($3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kXAxis, $3);
   }
   // Specifies a translation by the given amount in the Y direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
   | kTranslateYFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateYFunction($3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kYAxis, $3);
   }
   // Specifies a 3D translation by the vector [0,0,z] with the given amount
   // in the Z direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatez
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateZFunction($3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kZAxis, $3);
   }
   ;
 
