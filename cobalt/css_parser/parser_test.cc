@@ -70,7 +70,8 @@ ParserTest::ParserTest()
     : parser_(base::Bind(&MockParserObserver::OnWarning,
                          base::Unretained(&parser_observer_)),
               base::Bind(&MockParserObserver::OnError,
-                         base::Unretained(&parser_observer_))),
+                         base::Unretained(&parser_observer_)),
+              Parser::kShort),
       source_location_("[object ParserTest]", 1, 1) {}
 
 // TODO(***REMOVED***): Test every reduction that has semantic action.

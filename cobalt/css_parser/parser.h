@@ -52,11 +52,24 @@ class Parser : public cssom::CSSParser {
  private:
   typedef base::Callback<void(const std::string& message)> OnMessageCallback;
 
+  enum MessageVerbosity {
+    // With message verbosity set to kShort, expect to see a one line message
+    // indicating the error/warning and that is it.  This is useful for testing.
+    kShort,
+
+    // With message verbosity set to kVerbose, expect to see information such
+    // as the line that caused the error to be output, allong with an arrow
+    // pointing to where the error occurred on the line.
+    kVerbose,
+  };
+
   Parser(const OnMessageCallback& on_warning_callback,
-         const OnMessageCallback& on_error_callback);
+         const OnMessageCallback& on_error_callback,
+         MessageVerbosity message_verbosity);
 
   const OnMessageCallback on_warning_callback_;
   const OnMessageCallback on_error_callback_;
+  MessageVerbosity message_verbosity_;
 
   friend class ParserImpl;
   friend class ParserTest;
