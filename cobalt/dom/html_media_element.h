@@ -26,6 +26,7 @@
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "googleurl/src/gurl.h"
@@ -51,6 +52,7 @@ class HTMLMediaElement : public HTMLElement,
   HTMLMediaElement(HTMLElementFactory* html_element_factory,
                    cssom::CSSParser* css_parser,
                    media::WebMediaPlayerFactory* web_media_player_factory);
+  ~HTMLMediaElement() OVERRIDE;
 
   // Web API: Element
   //
@@ -126,7 +128,7 @@ class HTMLMediaElement : public HTMLElement,
   // From HTMLElement
   scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() OVERRIDE { return this; }
 
-  // TODO(***REMOVED***) : ShellVideoFrameProvider is guaranteed to be long live and
+  // TODO(***REMOVED***): ShellVideoFrameProvider is guaranteed to be long live and
   // thread safe. However, it is actually a singleton internally. We should find
   // a better way to support concurrent video playbacks.
   ::media::ShellVideoFrameProvider* GetVideoFrameProvider();
@@ -213,6 +215,8 @@ class HTMLMediaElement : public HTMLElement,
   void SourceOpened() OVERRIDE;
   std::string SourceURL() const OVERRIDE;
 
+  void SetSourceState(MediaSource::ReadyState ready_state);
+
   media::WebMediaPlayerFactory* web_media_player_factory_;
   scoped_ptr<WebMediaPlayer> player_;
 
@@ -257,6 +261,7 @@ class HTMLMediaElement : public HTMLElement,
   int processing_media_player_callback_;
 
   GURL media_source_url_;
+  scoped_refptr<MediaSource> media_source_;
 
   mutable float cached_time_;
   mutable double cached_time_wall_clock_update_time_;
