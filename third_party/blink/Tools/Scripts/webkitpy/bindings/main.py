@@ -183,7 +183,7 @@ def bindings_tests(output_directory, verbose, reference_directory,
                    test_input_directory, idl_compiler_constructor,
                    component_directories, ignore_idl_files,
                    dependency_idl_files, root_directory,
-                   extended_attributes_path):
+                   extended_attributes_path, generate_union_containers):
     executive = Executive()
 
     def list_files(directory):
@@ -281,7 +281,8 @@ def bindings_tests(output_directory, verbose, reference_directory,
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-            generate_union_type_containers(output_dir, component)
+            if generate_union_containers:
+                generate_union_type_containers(output_dir, component)
             idl_compiler = idl_compiler_constructor(
                 output_dir,
                 interfaces_info=interfaces_info,
@@ -358,6 +359,7 @@ def run_bindings_tests(reset_results, verbose, args=None):
             'component_directories': COMPONENT_DIRECTORY,
             'ignore_idl_files': NON_BLINK_IDL_FILES,
             'dependency_idl_files': DEPENDENCY_IDL_FILES,
+            'generate_union_containers': True,
         }
     if reset_results:
         print 'Resetting results'
