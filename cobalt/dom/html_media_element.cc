@@ -72,6 +72,10 @@ HTMLMediaElement::HTMLMediaElement(
       sent_stalled_event_(false),
       sent_end_event_(false) {}
 
+HTMLMediaElement::~HTMLMediaElement() {
+  SetSourceState(MediaSource::kReadyStateClosed);
+}
+
 const std::string& HTMLMediaElement::tag_name() const {
   static const std::string kElementName(kTagName);
   return kElementName;
@@ -356,6 +360,9 @@ void HTMLMediaElement::AttachToDocument(Document* document) {
 
 void HTMLMediaElement::CreateMediaPlayer() {
   player_ = web_media_player_factory_->CreateWebMediaPlayer(this);
+  if (media_source_) {
+    media_source_->SetPlayer(player_.get());
+  }
   if (owner_document()) {
     owner_document()->RecordMutation();
   }
@@ -396,6 +403,8 @@ void HTMLMediaElement::PrepareForLoad() {
   if (network_state_ == kNetworkLoading || network_state_ == kNetworkIdle) {
     ScheduleEvent("abort");
   }
+
+  SetSourceState(MediaSource::kReadyStateClosed);
 
   CreateMediaPlayer();
 
@@ -467,8 +476,8 @@ void HTMLMediaElement::LoadInternal() {
 
     // If the src attribute's value is the empty string ... jump down to the
     // failed step below.
-    GURL mediaURL(src_);
-    if (mediaURL.is_empty()) {
+    GURL media_url(src_);
+    if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
       DLOG(WARNING) << "HTMLMediaElement::LoadInternal, empty 'src'";
       return;
@@ -477,7 +486,7 @@ void HTMLMediaElement::LoadInternal() {
     // No type or key system information is available when the url comes from
     // the 'src' attribute so WebMediaPlayer will have to pick a media engine
     // based on the file extension.
-    LoadResource(mediaURL, "", std::string());
+    LoadResource(media_url, "", std::string());
     DLOG(INFO) << "HTMLMediaElement::LoadInternal, using 'src' attribute url";
     return;
   }
@@ -490,6 +499,17 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
              << content_type << ", " << key_system;
 
   GURL url = initial_url;
+
+  DCHECK(!media_source_);
+  if (url.SchemeIs(kMediaSourceUrlProtocol)) {
+    media_source_ = MediaSource::Registry::Retrieve(url.spec());
+    // If media_source_ is NULL, the player will try to load it as a normal
+    // media resource url and throw a DOM exception when it fails.
+    if (media_source_) {
+      media_source_->SetPlayer(player_.get());
+      media_source_url_ = url;
+    }
+  }
 
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
@@ -510,6 +530,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
+  SetSourceState(MediaSource::kReadyStateClosed);
+
   player_.reset(NULL);
 
   StopPeriodicTimers();
@@ -517,6 +539,10 @@ void HTMLMediaElement::ClearMediaPlayer() {
 
   pending_load_ = false;
   load_state_ = kWaitingForSource;
+
+  if (owner_document()) {
+    owner_document()->RecordMutation();
+  }
 }
 
 void HTMLMediaElement::NoneSupported() {
@@ -540,6 +566,8 @@ void HTMLMediaElement::NoneSupported() {
 
   // 7 - Queue a task to fire a simple event named error at the media element.
   ScheduleEvent("error");
+
+  SetSourceState(MediaSource::kReadyStateClosed);
 }
 
 void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
@@ -835,6 +863,14 @@ void HTMLMediaElement::Seek(float time, ExceptionCode* ec) {
   // mode because a seek should always cancel poster display.
   bool no_seek_required = seekable_ranges->length() == 0 || time == now;
 
+  // Always notify the media engine of a seek if the source is not closed. This
+  // ensures that the source is always in a flushed state when the 'seeking'
+  // event fires.
+  if (media_source_ &&
+      media_source_->GetReadyState() != MediaSource::kReadyStateClosed) {
+    no_seek_required = false;
+  }
+
   if (no_seek_required) {
     if (time == now) {
       ScheduleEvent("seeking");
@@ -1023,6 +1059,8 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   // 3 - Queue a task to fire a simple event named error at the media element.
   ScheduleEvent("error");
 
+  SetSourceState(MediaSource::kReadyStateClosed);
+
   // 4 - Set the element's networkState attribute to the kNetworkEmpty value and
   // queue a task to fire a simple event called emptied at the element.
   network_state_ = kNetworkEmpty;
@@ -1164,12 +1202,23 @@ void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 float HTMLMediaElement::Volume() const { return volume(); }
 
 void HTMLMediaElement::SourceOpened() {
-  // TODO(***REMOVED***): Remove mediaPlayerSourceOpened.
-  NOTIMPLEMENTED();
+  BeginProcessingMediaPlayerCallback();
+  SetSourceState(MediaSource::kReadyStateOpen);
+  EndProcessingMediaPlayerCallback();
 }
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
+}
+
+void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
+  if (!media_source_) {
+    return;
+  }
+  media_source_->SetReadyState(ready_state);
+  if (ready_state == MediaSource::kReadyStateClosed) {
+    media_source_ = NULL;
+  }
 }
 
 }  // namespace dom
