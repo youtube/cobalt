@@ -15,6 +15,7 @@
 {
   'variables': {
     'cobalt_code': 1,
+    'static_contents_dir': '<(DEPTH)/lbshell/content',
   },
   'targets': [
     {
@@ -39,7 +40,11 @@
       'export_dependent_settings': [
         '<(DEPTH)/net/net.gyp:net',
       ],
-
+      'copies': [
+      {
+        'destination': '<(PRODUCT_DIR)/content/data/ssl',
+        'files': ['<(static_contents_dir)/ssl/certs/'],
+      }],
     },
   ],
 }
