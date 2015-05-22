@@ -31,7 +31,7 @@ namespace layout {
 // as an image retrieved from a callback passed into its ctor.
 //   http://www.w3.org/TR/html5/rendering.html#replaced-elements
 //
-// TODO(***REMOVED***) : Make ReplacedBox support elements other than media element.
+// TODO(***REMOVED***): Make ReplacedBox support elements other than media element.
 class ReplacedBox : public Box {
  public:
   typedef base::Callback<scoped_refptr<render_tree::Image>()> ReplaceImageCB;
