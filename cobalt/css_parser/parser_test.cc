@@ -1400,5 +1400,21 @@ TEST_F(ParserTest,
             delay_list->value()[1]);
 }
 
+TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "transition: none 0s;", source_location_);
+
+  // Test transition-property was set properly.
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->transition_property());
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(0, duration_list->value()[0].InSecondsF());
+}
+
 }  // namespace css_parser
 }  // namespace cobalt
