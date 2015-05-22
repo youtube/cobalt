@@ -331,6 +331,7 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     token_location->first_line = line_number_;
     token_location->first_column =
         static_cast<int>(input_iterator_ - line_start_) + 1;
+    token_location->line_start = line_start_;
 
     // Return all prepended tokens before actual input.
     if (!prepended_tokens_.empty()) {
