@@ -31,6 +31,11 @@ const char kBlobUrlProtocol[] = "blob";
 
 std::string URL::CreateObjectURL(
     const scoped_refptr<MediaSource>& media_source) {
+  DCHECK(media_source);
+  if (!media_source) {
+    return "";
+  }
+
   std::string blob_url = kBlobUrlProtocol;
   blob_url += ':' + base::GenerateGUID();
   MediaSource::Registry::Register(blob_url, media_source);

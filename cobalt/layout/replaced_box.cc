@@ -33,7 +33,7 @@ void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
   DCHECK(!replace_image_cb.is_null());
   DCHECK(image_node);
   image_node->source = replace_image_cb.Run();
-  // TODO(***REMOVED***) : Properly set the size of the image node.
+  // TODO(***REMOVED***): Properly set the size of the image node.
   if (image_node->source) {
     image_node->destination_size = image_node->source->GetSize();
   }
@@ -54,7 +54,7 @@ ReplacedBox::ReplacedBox(
 Box::Level ReplacedBox::GetLevel() const { return kInlineLevel; }
 
 void ReplacedBox::Layout(const LayoutParams& /*layout_params*/) {
-  // TODO(***REMOVED***) : Properly set the size of the image box from its style.
+  // TODO(***REMOVED***): Properly set the size of the image box from its style.
   used_frame().set_width(1280);
   used_frame().set_height(720);
 }
