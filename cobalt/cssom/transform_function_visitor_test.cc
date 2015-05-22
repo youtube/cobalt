@@ -30,9 +30,7 @@ class MockTransformFunctionVisitor : public TransformFunctionVisitor {
  public:
   MOCK_METHOD1(VisitRotate, void(RotateFunction* rotate_function));
   MOCK_METHOD1(VisitScale, void(ScaleFunction* scale_function));
-  MOCK_METHOD1(VisitTranslateX, void(TranslateXFunction* translate_x_function));
-  MOCK_METHOD1(VisitTranslateY, void(TranslateYFunction* translate_y_function));
-  MOCK_METHOD1(VisitTranslateZ, void(TranslateZFunction* translate_z_function));
+  MOCK_METHOD1(VisitTranslate, void(TranslateFunction* translate_function));
 };
 
 TEST(TransformFunctionVisitorTest, VisitsRotateFunction) {
@@ -50,24 +48,11 @@ TEST(TransformFunctionVisitorTest, VisitsScaleFunction) {
 }
 
 TEST(TransformFunctionVisitorTest, VisitsTranslateXFunction) {
-  TranslateXFunction translate_x_function(new LengthValue(0, kPixelsUnit));
+  TranslateFunction translate_function(
+      TranslateFunction::kXAxis, new LengthValue(0, kPixelsUnit));
   MockTransformFunctionVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTranslateX(&translate_x_function));
-  translate_x_function.Accept(&mock_visitor);
-}
-
-TEST(TransformFunctionVisitorTest, VisitsTranslateYFunction) {
-  TranslateYFunction translate_y_function(new LengthValue(0, kPixelsUnit));
-  MockTransformFunctionVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTranslateY(&translate_y_function));
-  translate_y_function.Accept(&mock_visitor);
-}
-
-TEST(TransformFunctionVisitorTest, VisitsTranslateZFunction) {
-  TranslateZFunction translate_z_function(new LengthValue(0, kPixelsUnit));
-  MockTransformFunctionVisitor mock_visitor;
-  EXPECT_CALL(mock_visitor, VisitTranslateZ(&translate_z_function));
-  translate_z_function.Accept(&mock_visitor);
+  EXPECT_CALL(mock_visitor, VisitTranslate(&translate_function));
+  translate_function.Accept(&mock_visitor);
 }
 
 }  // namespace cssom
