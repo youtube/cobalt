@@ -1426,7 +1426,18 @@ single_transition_element:
     if (!$<single_transition>0->property) {
       $<single_transition>0->property = $1.begin;
     } else {
-      parser_impl->LogError(
+      parser_impl->LogWarning(
+          @1, "transition-property value declared twice in transition.");
+    }
+  }
+  | kNoneToken maybe_whitespace {
+    if (!$<single_transition>0->property) {
+      // We use cssom::kNoneKeywordName as a symbol that 'none' was specified
+      // here and that the entire transition-property list value should be set
+      // to the None keyword.
+      $<single_transition>0->property = cssom::kNoneKeywordName;
+    } else {
+      parser_impl->LogWarning(
           @1, "transition-property value declared twice in transition.");
     }
   }
@@ -1438,7 +1449,7 @@ single_transition_element:
       // The second time encountered sets the delay.
       $<single_transition>0->delay = base::TimeDelta::FromInternalValue($1);
     } else {
-      parser_impl->LogError(
+      parser_impl->LogWarning(
           @1, "Too many time values declared twice in transition.");
     }
   }
@@ -1446,7 +1457,7 @@ single_transition_element:
     if (!$<single_transition>0->timing_function) {
       $<single_transition>0->timing_function = MakeScopedRefPtrAndRelease($1);
     } else {
-      parser_impl->LogError(
+      parser_impl->LogWarning(
           @1, "transition-timing-function value declared twice in transition.");
     }
   }
@@ -1506,15 +1517,33 @@ comma_separated_transition_list:
 // Transition shorthand property.
 //   http://www.w3.org/TR/css3-transitions/#transition
 transition_property_value:
-    kNoneToken maybe_whitespace {
-    $$ = new TransitionShorthand();
-  }
-  | comma_separated_transition_list {
+    comma_separated_transition_list {
     scoped_ptr<TransitionShorthandBuilder> transition_builder($1);
+
+    // Before proceeding, check that 'none' is not specified if the
+    // number of transition statements is larger than 1, as per the
+    // specification.
+    const cssom::ConstStringListValue::Builder& property_list_builder =
+        *(transition_builder->property_list_builder);
+    if (property_list_builder.size() > 1) {
+      for (int i = 0; i < property_list_builder.size(); ++i) {
+        if (property_list_builder[i] == cssom::kNoneKeywordName) {
+          parser_impl->LogWarning(
+              @1, "If 'none' is specified, transition can only have one item.");
+          break;
+        }
+      }
+    }
+
     scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
 
-    transition->property_list = new cssom::ConstStringListValue(
-        transition_builder->property_list_builder.Pass());
+    if (property_list_builder.size() == 1 &&
+        property_list_builder[0] == cssom::kNoneKeywordName) {
+      transition->property_list = cssom::KeywordValue::GetNone();
+    } else {
+      transition->property_list = new cssom::ConstStringListValue(
+          transition_builder->property_list_builder.Pass());
+    }
     transition->duration_list = new cssom::TimeListValue(
         transition_builder->duration_list_builder.Pass());
     transition->timing_function_list = new cssom::TimingFunctionListValue(
