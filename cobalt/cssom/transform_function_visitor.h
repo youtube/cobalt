@@ -22,9 +22,7 @@ namespace cssom {
 
 class RotateFunction;
 class ScaleFunction;
-class TranslateXFunction;
-class TranslateYFunction;
-class TranslateZFunction;
+class TranslateFunction;
 
 // Type-safe branching on a class hierarchy of transform functions,
 // implemented after a classical GoF pattern (see
@@ -33,9 +31,7 @@ class TransformFunctionVisitor {
  public:
   virtual void VisitRotate(RotateFunction* rotate_function) = 0;
   virtual void VisitScale(ScaleFunction* scale_function) = 0;
-  virtual void VisitTranslateX(TranslateXFunction* translate_x_function) = 0;
-  virtual void VisitTranslateY(TranslateYFunction* translate_y_function) = 0;
-  virtual void VisitTranslateZ(TranslateZFunction* translate_z_function) = 0;
+  virtual void VisitTranslate(TranslateFunction* translate_function) = 0;
 
  protected:
   ~TransformFunctionVisitor() {}

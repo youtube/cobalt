@@ -233,7 +233,8 @@ TEST(PropertyValueIsEqualTest, TimingFunctionListsAreNotEqual) {
 TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
   TransformFunctionListValue::Builder transform_list_a;
   transform_list_a.push_back(
-      new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
+      new TranslateFunction(TranslateFunction::kXAxis,
+                            new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_a.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_a(
@@ -241,7 +242,8 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
 
   TransformFunctionListValue::Builder transform_list_b;
   transform_list_b.push_back(
-      new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
+      new TranslateFunction(TranslateFunction::kXAxis,
+                            new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_b.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_b(
@@ -253,7 +255,8 @@ TEST(PropertyValueIsEqualTest, TransformListsAreEqual) {
 TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
   TransformFunctionListValue::Builder transform_list_a;
   transform_list_a.push_back(
-      new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
+      new TranslateFunction(TranslateFunction::kXAxis,
+                            new LengthValue(1, kPixelsUnit)));
   transform_list_a.push_back(new ScaleFunction(2.0f, 2.0f));
   transform_list_a.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_a(
@@ -261,7 +264,8 @@ TEST(PropertyValueIsEqualTest, TransformListsAreNotEqual) {
 
   TransformFunctionListValue::Builder transform_list_b;
   transform_list_b.push_back(
-      new TranslateXFunction(new LengthValue(1, kPixelsUnit)));
+      new TranslateFunction(TranslateFunction::kXAxis,
+                            new LengthValue(1, kPixelsUnit)));
   transform_list_b.push_back(new ScaleFunction(1.0f, 2.0f));
   transform_list_b.push_back(new RotateFunction(1.0f));
   scoped_refptr<TransformFunctionListValue> value_b(
