@@ -23,7 +23,12 @@
 %parse-param { ParserImpl* parser_impl }
 
 %{
-// TODO(***REMOVED***): Define custom YYLTYPE which only has one line-column pair.
+// Specify how the location of an action should be calculated in terms
+// of its children.
+#define YYLLOC_DEFAULT(Current, Rhs, N)          \
+  Current.first_line   = Rhs[1].first_line;      \
+  Current.first_column = Rhs[1].first_column;    \
+  Current.line_start   = Rhs[1].line_start;
 
 // yylex()'s third parameter.
 #define YYLEX_PARAM &(parser_impl->scanner())
