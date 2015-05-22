@@ -143,9 +143,7 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
  private:
   void VisitRotate(RotateFunction* rotate_function) OVERRIDE;
   void VisitScale(ScaleFunction* scale_function) OVERRIDE;
-  void VisitTranslateX(TranslateXFunction* translate_x_function) OVERRIDE;
-  void VisitTranslateY(TranslateYFunction* translate_y_function) OVERRIDE;
-  void VisitTranslateZ(TranslateZFunction* translate_z_function) OVERRIDE;
+  void VisitTranslate(TranslateFunction* translate_function) OVERRIDE;
 
   AnimateTransformFunction(const TransformFunction* end, float progress)
       : end_(end), progress_(progress) {}
@@ -184,55 +182,25 @@ void AnimateTransformFunction::VisitScale(ScaleFunction* scale_function) {
       Lerp(scale_function->y_factor(), end_y_factor, progress_)));
 }
 
-void AnimateTransformFunction::VisitTranslateX(
-    TranslateXFunction* translate_x_function) {
-  const TranslateXFunction* translate_end =
-      base::polymorphic_downcast<const TranslateXFunction*>(end_);
+void AnimateTransformFunction::VisitTranslate(
+    TranslateFunction* translate_function) {
+  const TranslateFunction* translate_end =
+      base::polymorphic_downcast<const TranslateFunction*>(end_);
   if (translate_end) {
-    DCHECK_EQ(translate_x_function->offset()->unit(),
+    DCHECK_EQ(translate_function->offset()->unit(),
               translate_end->offset()->unit());
+    DCHECK_EQ(translate_function->axis(),
+              translate_end->axis());
   }
 
   // The transform function's identity is the value 0.0f.
   float end_offset = translate_end ? translate_end->offset()->value() : 0.0f;
 
-  animated_.reset(new TranslateXFunction(new LengthValue(
-      Lerp(translate_x_function->offset()->value(), end_offset, progress_),
-      translate_x_function->offset()->unit())));
-}
-
-void AnimateTransformFunction::VisitTranslateY(
-    TranslateYFunction* translate_y_function) {
-  const TranslateYFunction* translate_end =
-      base::polymorphic_downcast<const TranslateYFunction*>(end_);
-  if (translate_end) {
-    DCHECK_EQ(translate_y_function->offset()->unit(),
-              translate_end->offset()->unit());
-  }
-
-  // The transform function's identity is the value 0.0f.
-  float end_offset = translate_end ? translate_end->offset()->value() : 0.0f;
-
-  animated_.reset(new TranslateYFunction(new LengthValue(
-      Lerp(translate_y_function->offset()->value(), end_offset, progress_),
-      translate_y_function->offset()->unit())));
-}
-
-void AnimateTransformFunction::VisitTranslateZ(
-    TranslateZFunction* translate_z_function) {
-  const TranslateZFunction* translate_end =
-      base::polymorphic_downcast<const TranslateZFunction*>(end_);
-  if (translate_end) {
-    DCHECK_EQ(translate_z_function->offset()->unit(),
-              translate_end->offset()->unit());
-  }
-
-  // The transform function's identity is the value 0.0f.
-  float end_offset = translate_end ? translate_end->offset()->value() : 0.0f;
-
-  animated_.reset(new TranslateZFunction(new LengthValue(
-      Lerp(translate_z_function->offset()->value(), end_offset, progress_),
-      translate_z_function->offset()->unit())));
+  animated_.reset(new TranslateFunction(
+      translate_function->axis(),
+      new LengthValue(
+          Lerp(translate_function->offset()->value(), end_offset, progress_),
+          translate_function->offset()->unit())));
 }
 
 // Returns true if two given transform function lists have the same number of
