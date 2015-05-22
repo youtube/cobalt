@@ -86,7 +86,8 @@ class ParserImpl {
              const base::SourceLocation& input_location,
              cssom::CSSParser* css_parser,
              const Parser::OnMessageCallback& on_warning_callback,
-             const Parser::OnMessageCallback& on_error_callback);
+             const Parser::OnMessageCallback& on_error_callback,
+             Parser::MessageVerbosity message_verbosity);
 
   cssom::CSSParser* const css_parser() { return css_parser_; }
 
@@ -139,6 +140,7 @@ class ParserImpl {
   const base::SourceLocation input_location_;
   const Parser::OnMessageCallback on_warning_callback_;
   const Parser::OnMessageCallback on_error_callback_;
+  const Parser::MessageVerbosity message_verbosity_;
 
   // The CSSParser that created ParserImpl.
   cssom::CSSParser* const css_parser_;
@@ -171,13 +173,15 @@ ParserImpl::ParserImpl(const std::string& input,
                        const base::SourceLocation& input_location,
                        cssom::CSSParser* css_parser,
                        const Parser::OnMessageCallback& on_warning_callback,
-                       const Parser::OnMessageCallback& on_error_callback)
+                       const Parser::OnMessageCallback& on_error_callback,
+                       Parser::MessageVerbosity message_verbosity)
     : input_(input),
       input_location_(input_location),
       css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
       on_error_callback_(on_error_callback),
+      message_verbosity_(message_verbosity),
       into_declaration_list_(NULL) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
@@ -305,17 +309,20 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 
   std::stringstream message_stream;
   message_stream << input_location_.file_path << ":" << line_number << ":"
-                 << column_number << ": " << message_type << ": " << message
-                 << std::endl;
+                 << column_number << ": " << message_type << ": " << message;
 
-  // Output the contents of the line containing the source_location.
-  const char line_preamble[] = "  Line: \"";
-  const size_t preamble_size = sizeof(line_preamble);
-  message_stream << line_preamble << GetLineString(source_location.line_start)
-                                         .as_string() << "\"" << std::endl;
-  // Add a '^' arrow to indicate where in the line the error occurred.
-  message_stream << std::string(preamble_size + column_number - 2, ' ');
-  message_stream << "^" << std::endl;
+  if (message_verbosity_ == Parser::kVerbose) {
+    message_stream << std::endl;
+
+    // Output the contents of the line containing the source_location.
+    const char line_preamble[] = "  Line: \"";
+    const size_t preamble_size = sizeof(line_preamble);
+    message_stream << line_preamble << GetLineString(source_location.line_start)
+                                           .as_string() << "\"" << std::endl;
+    // Add a '^' arrow to indicate where in the line the error occurred.
+    message_stream << std::string(preamble_size + column_number - 2, ' ');
+    message_stream << "^" << std::endl;
+  }
 
   return message_stream.str();
 }
@@ -354,35 +361,37 @@ void LogError(const std::string& message) { LOG(ERROR) << message; }
 }  // namespace
 
 scoped_ptr<Parser> Parser::Create() {
-  return make_scoped_ptr(
-      new Parser(base::Bind(&LogWarning), base::Bind(&LogError)));
+  return make_scoped_ptr(new Parser(base::Bind(&LogWarning),
+                                    base::Bind(&LogError), Parser::kVerbose));
 }
 
 Parser::Parser(const OnMessageCallback& on_warning_callback,
-               const OnMessageCallback& on_error_callback)
+               const OnMessageCallback& on_error_callback,
+               MessageVerbosity message_verbosity)
     : on_warning_callback_(on_warning_callback),
-      on_error_callback_(on_error_callback) {}
+      on_error_callback_(on_error_callback),
+      message_verbosity_(message_verbosity) {}
 
 Parser::~Parser() {}
 
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_);
+                         on_error_callback_, message_verbosity_);
   return parser_impl.ParseStyleSheet();
 }
 
 scoped_refptr<cssom::CSSStyleRule> Parser::ParseStyleRule(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_);
+                         on_error_callback_, message_verbosity_);
   return parser_impl.ParseStyleRule();
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData> Parser::ParseDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
-                         on_error_callback_);
+                         on_error_callback_, message_verbosity_);
   return parser_impl.ParseDeclarationList();
 }
 
@@ -390,7 +399,8 @@ scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location) {
   ParserImpl parser_impl(property_value, property_location, this,
-                         on_warning_callback_, on_error_callback_);
+                         on_warning_callback_, on_error_callback_,
+                         message_verbosity_);
   return parser_impl.ParsePropertyValue(property_name);
 }
 
@@ -399,7 +409,8 @@ void Parser::ParsePropertyIntoStyle(
     const base::SourceLocation& property_location,
     cssom::CSSStyleDeclarationData* style_declaration) {
   ParserImpl parser_impl(property_value, property_location, this,
-                         on_warning_callback_, on_error_callback_);
+                         on_warning_callback_, on_error_callback_,
+                         message_verbosity_);
   return parser_impl.ParsePropertyIntoStyle(property_name, style_declaration);
 }
 
