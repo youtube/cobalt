@@ -22,6 +22,7 @@
 
 #include "base/bind.h"
 #include "base/string_util.h"
+#include "base/string_piece.h"
 #include "base/time.h"
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/property_declaration.h"
@@ -157,6 +158,12 @@ class ParserImpl {
   // called.
   cssom::CSSStyleDeclarationData* into_declaration_list_;
 
+  static void IncludeInputWithMessage(const std::string& input,
+                                      const Parser::OnMessageCallback& callback,
+                                      const std::string& message) {
+    callback.Run(message + "\n" + input);
+  }
+
   friend int yyparse(ParserImpl* parser_impl);
 };
 
@@ -202,7 +209,9 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
     YYLTYPE source_location;
     source_location.first_line = 1;
     source_location.first_column = 1;
-    LogWarning(source_location, "unsupported property " + property_name);
+    source_location.line_start = input_.c_str();
+    LogWarning(source_location, "unsupported property '" + property_name +
+                                    "' while parsing property value.");
     return NULL;
   }
 
@@ -226,7 +235,9 @@ void ParserImpl::ParsePropertyIntoStyle(
     YYLTYPE source_location;
     source_location.first_line = 1;
     source_location.first_column = 1;
-    LogWarning(source_location, "unsupported property " + property_name);
+    source_location.line_start = input_.c_str();
+    LogWarning(source_location, "unsupported property '" + property_name +
+                                    "' while parsing property value.");
     return;
   }
 
@@ -266,6 +277,22 @@ bool ParserImpl::Parse() {
   }
 }
 
+namespace {
+
+// This function will return a string equal to the input string except ended
+// at a newline or a null character.
+base::StringPiece GetLineString(const char* line_start) {
+  const char* line_end = line_start;
+  while (*line_end != '\n' && *line_end != '\0') {
+    ++line_end;
+  }
+
+  return base::StringPiece(line_start,
+                           static_cast<size_t>(line_end - line_start));
+}
+
+}  // namespace
+
 std::string ParserImpl::FormatMessage(const std::string& message_type,
                                       const YYLTYPE& source_location,
                                       const std::string& message) {
@@ -278,7 +305,18 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 
   std::stringstream message_stream;
   message_stream << input_location_.file_path << ":" << line_number << ":"
-                 << column_number << ": " << message_type << ": " << message;
+                 << column_number << ": " << message_type << ": " << message
+                 << std::endl;
+
+  // Output the contents of the line containing the source_location.
+  const char line_preamble[] = "  Line: \"";
+  const size_t preamble_size = sizeof(line_preamble);
+  message_stream << line_preamble << GetLineString(source_location.line_start)
+                                         .as_string() << "\"" << std::endl;
+  // Add a '^' arrow to indicate where in the line the error occurred.
+  message_stream << std::string(preamble_size + column_number - 2, ' ');
+  message_stream << "^" << std::endl;
+
   return message_stream.str();
 }
 
