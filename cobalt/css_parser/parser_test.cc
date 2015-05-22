@@ -765,8 +765,8 @@ TEST_F(ParserTest, ParsesValidPropertyValue) {
 
 TEST_F(ParserTest, WarnsAboutImportantInPropertyValue) {
   EXPECT_CALL(parser_observer_,
-              OnError(
-                  "[object ParserTest]:1:1: error: !important is not allowed "
+              OnWarning(
+                  "[object ParserTest]:1:1: warning: !important is not allowed "
                   "in property value"));
 
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
