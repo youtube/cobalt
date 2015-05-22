@@ -19,13 +19,24 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/source_buffer.h"
+#include "cobalt/dom/source_buffer_list.h"
+#include "media/player/web_media_player.h"
 
 namespace cobalt {
 namespace dom {
 
-// TODO(***REMOVED***): This is a stub so we can implement URL.createObjectURL().
-// Proper implementation will be completed in follow up CLs.
+// The MediaSource interface exposes functionalities for playing adaptive
+// streams.
+//   https://rawgit.com/w3c/media-source/6747ed7a3206f646963d760100b0f37e2fc7e47e/media-source.html#mediasource
+//
+// The class also serves as the point of interaction between SourceBuffer and
+// the media player. For example, SourceBuffer forward its append() call to
+// MediaSource and is forwarded to the player in turn.
+// Note that our implementation is based on the MSE draft on 09 August 2012.
 class MediaSource : public EventTarget {
  public:
   // This class manages a registry of MediaSource objects.  Its user can
@@ -45,7 +56,53 @@ class MediaSource : public EventTarget {
     static void Unregister(const std::string& blob_url);
   };
 
+  // Custom, not in any spec.
+  //
+  // MediaSource spec defines states as strings "closed", "open" and "ended".
+  enum ReadyState { kReadyStateClosed, kReadyStateOpen, kReadyStateEnded };
+
+  MediaSource();
+
+  // Web API: MediaSource
+  //
+  scoped_refptr<SourceBufferList> source_buffers() const;
+  scoped_refptr<SourceBufferList> active_source_buffers() const;
+  double duration() const;
+  void set_duration(double duration);
+  scoped_refptr<SourceBuffer> AddSourceBuffer(const std::string& type);
+  void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer);
+
+  std::string ready_state() const;
+
+  void EndOfStream();
+  void EndOfStream(const std::string& error);
+
+  // Custom, not in any spec.
+  //
+  // The player is set when the media source is attached to a media element.
+  // TODO(***REMOVED***) : Invent a MediaSourceClient interface and make
+  //                   WebMediaPlayer inherit from it.
+  void SetPlayer(::media::WebMediaPlayer* player);
+  void ScheduleEvent(const std::string& event_name);
+
+  // Methods used by SourceBuffer.
+  scoped_refptr<TimeRanges> GetBuffered(const SourceBuffer* source_buffer);
+  bool SetTimestampOffset(const SourceBuffer* source_buffer,
+                          double timestamp_offset);
+  void Append(const SourceBuffer* source_buffer, const uint8* buffer, int size);
+  void Abort(const SourceBuffer* source_buffer);
+
+  // Methods used by HTMLMediaElement
+  ReadyState GetReadyState() const;
+  void SetReadyState(ReadyState ready_state);
+
   DEFINE_WRAPPABLE_TYPE(MediaSource);
+
+ private:
+  ReadyState ready_state_;
+  ::media::WebMediaPlayer* player_;
+  EventQueue event_queue_;
+  scoped_refptr<SourceBufferList> source_buffers_;
 };
 
 }  // namespace dom

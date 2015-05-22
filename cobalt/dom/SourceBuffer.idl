@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-[Constructor] interface MediaSource : EventTarget {
-  readonly attribute SourceBufferList sourceBuffers;
-  readonly attribute SourceBufferList activeSourceBuffers;
+interface SourceBuffer {
+  // TODO(***REMOVED***): raise DOMException
+  readonly attribute TimeRanges buffered;
 
   // TODO(***REMOVED***): raise DOMException
-  attribute double duration;
+  attribute double timestampOffset;
 
   // TODO(***REMOVED***): raise DOMException
-  SourceBuffer addSourceBuffer(DOMString type);
-  void removeSourceBuffer(SourceBuffer sourceBuffer);
-
-  readonly attribute DOMString readyState;
+  // TODO(***REMOVED***): Turn this into accepting "Uint8Array data" when
+  //                  Uint8Array can be used as an paramter type.
+  void append(DOMString filename);
 
   // TODO(***REMOVED***): raise DOMException
-  void endOfStream(optional DOMString error);
+  void abort();
 };

@@ -14,19 +14,7 @@
  * limitations under the License.
  */
 
-[Constructor] interface MediaSource : EventTarget {
-  readonly attribute SourceBufferList sourceBuffers;
-  readonly attribute SourceBufferList activeSourceBuffers;
-
-  // TODO(***REMOVED***): raise DOMException
-  attribute double duration;
-
-  // TODO(***REMOVED***): raise DOMException
-  SourceBuffer addSourceBuffer(DOMString type);
-  void removeSourceBuffer(SourceBuffer sourceBuffer);
-
-  readonly attribute DOMString readyState;
-
-  // TODO(***REMOVED***): raise DOMException
-  void endOfStream(optional DOMString error);
+interface SourceBufferList : EventTarget {
+  readonly attribute unsigned long length;
+  getter SourceBuffer? item(unsigned long index);
 };
