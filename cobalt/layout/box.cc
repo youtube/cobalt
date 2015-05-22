@@ -128,21 +128,26 @@ void Box::AddToRenderTree(
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
-    scoped_refptr<CompositionNode> css_transform_composition_node_builder =
+    scoped_refptr<CompositionNode> composition_node =
         new CompositionNode(composition_node_builder.Pass());
+
+    render_tree::CompositionNode::Builder css_transform_node_builder;
+    css_transform_node_builder.AddChild(
+        composition_node, math::Matrix3F::Identity());
+    scoped_refptr<CompositionNode> css_transform_node =
+        new CompositionNode(css_transform_node_builder.Pass());
 
     // Specifically animate only the composition node with the CSS transform.
     AddTransitionAnimations<CompositionNode>(
       base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
                  used_frame().size()),
-      *computed_style(), css_transform_composition_node_builder, *transitions_,
+      *computed_style(), css_transform_node, *transitions_,
       node_animations_map_builder);
 
     // Now add that transform node to the parent composition node, along with
     // the application of the layout transform.
     parent_composition_node_builder->AddChild(
-        css_transform_composition_node_builder,
-        GetOffsetTransform(used_frame().origin()));
+        css_transform_node, GetOffsetTransform(used_frame().origin()));
   } else {
     // Add all child render nodes to the parent composition node, with the
     // layout transform and CSS transform combined into one matrix.
