@@ -341,6 +341,7 @@ inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
 #pragma warning(disable : 4242)  // possible loss of data
 #pragma warning(disable : 4244)  // possible loss of data
 #pragma warning(disable : 4365)  // signed/unsigned mismatch
+#pragma warning(disable : 4701)  // potentially uninitialized local variable
 #pragma warning(disable : 4702)  // unreachable code
 #endif
 
