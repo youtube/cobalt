@@ -186,6 +186,12 @@
       # Symbol is not defined as a preprocessor macro, replacing with '0'.
       # Seems like common practice, used in Windows SDK and gtest.
       4668,
+      # Function not inlined.
+      # It's up to the compiler to decide what to inline.
+      4710,
+      # Function selected for inline expansion.
+      # It's up to the compiler to decide what to inline.
+      4711,
       # The type and order of elements caused the compiler to add padding
       # to the end of a struct.
       # Unsurprisingly, most of the structs become larger because of padding
