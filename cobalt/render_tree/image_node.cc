@@ -23,7 +23,14 @@ namespace render_tree {
 
 ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
                             const math::SizeF& destination_size) :
-    source(source), destination_size(destination_size) {}
+    source(source), destination_size(destination_size),
+    local_matrix(math::Matrix3F::Identity()) {}
+
+ImageNode::Builder::Builder(const scoped_refptr<Image>& source,
+                            const math::SizeF& destination_size,
+                            const math::Matrix3F& local_matrix) :
+    source(source), destination_size(destination_size),
+    local_matrix(local_matrix) {}
 
 ImageNode::ImageNode(const scoped_refptr<Image>& source)
     : data_(source, source ? source->GetSize() : math::Size()) {}
@@ -31,6 +38,11 @@ ImageNode::ImageNode(const scoped_refptr<Image>& source)
 ImageNode::ImageNode(const scoped_refptr<Image>& source,
                      const math::SizeF& destination_size)
     : data_(source, destination_size) {}
+
+ImageNode::ImageNode(const scoped_refptr<Image>& source,
+                     const math::SizeF& destination_size,
+                     const math::Matrix3F& local_matrix)
+    : data_(source, destination_size, local_matrix) {}
 
 void ImageNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
