@@ -83,4 +83,9 @@ void ShellVideoFrameProvider::Stop() {
   current_frame_ = NULL;
 }
 
+size_t ShellVideoFrameProvider::GetNumOfFramesCached() const {
+  base::AutoLock auto_lock(frames_lock_);
+  return frames_.size();
+}
+
 }  // namespace media
