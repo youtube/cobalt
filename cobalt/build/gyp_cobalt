@@ -48,6 +48,11 @@ def _GetHostOS():
   }
 
   if not sys.platform in host_os_names:
+    if sys.platform == 'cygwin':
+       logging.error('There may be several incompatibilities when trying to\n'
+                     'build from within cygwin. When using a bash shell is\n'
+                     'preferred, consider using msysgit instead (see\n'
+                     'https://msysgit.github.io).\n')
     raise RuntimeError('Unsupported platform: %s' % sys.platform)
 
   return host_os_names[sys.platform]
