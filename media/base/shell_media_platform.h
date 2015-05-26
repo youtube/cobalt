@@ -69,6 +69,11 @@ class MEDIA_EXPORT ShellMediaPlatform {
   virtual int GetMaxVideoPrerollFrames() const {
     return limits::kMaxVideoFrames;
   }
+  // When the video frame backlog contains less frames than this value, the
+  // video renderer will send out underflow notification to the video decoder.
+  virtual int GetVideoUnderflowFrames() const {
+    return GetMaxVideoPrerollFrames();
+  }
   // Total number of video frames which are populating in the pipeline.
   // You can expect more memory usage and less jitter by increasing this.
   virtual int GetMaxVideoFrames() const {
