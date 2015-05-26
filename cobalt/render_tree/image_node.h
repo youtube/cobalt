@@ -18,9 +18,10 @@
 #define RENDER_TREE_IMAGE_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -31,14 +32,25 @@ class ImageNode : public Node {
   struct Builder {
     Builder(const scoped_refptr<Image>& source,
             const math::SizeF& destination_size);
+    Builder(const scoped_refptr<Image>& source,
+            const math::SizeF& destination_size,
+            const math::Matrix3F& local_matrix);
 
     // A source of pixels. May be smaller or larger than layed out image.
     // The class does not own the image, it merely refers it from a resource
     // pool.
     scoped_refptr<Image> source;
 
-    // Returns the width and height that the image will be rasterized as.
+    // The width and height that the image will be rasterized as.
     math::SizeF destination_size;
+
+    // A matrix expressing how the each point within the image box (defined
+    // by destination_size) should be mapped to image data.  The identity
+    // matrix would map the entire source image rectangle into the entire
+    // destination rectangle.  As an example, if you were to pass in a scale
+    // matrix that scales the image coordinates by 0.5 in all directions, the
+    // image will appear zoomed out.
+    math::Matrix3F local_matrix;
   };
 
   explicit ImageNode(const Builder& builder) : data_(builder) {}
@@ -50,6 +62,12 @@ class ImageNode : public Node {
   // may result in scaling.
   ImageNode(const scoped_refptr<Image>& image,
             const math::SizeF& destination_size);
+
+  // Allows users to additionally supply a local matrix to be applied to the
+  // normalized image coordinates.
+  ImageNode(const scoped_refptr<Image>& image,
+            const math::SizeF& destination_size,
+            const math::Matrix3F& local_matrix);
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
