@@ -23,7 +23,6 @@
 
 #include "config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceCode.h"
-#undef LOG  // Defined by WTF, redefined by chromium. Not needed here.
 
 namespace cobalt {
 namespace script {

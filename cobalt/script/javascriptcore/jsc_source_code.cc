@@ -22,7 +22,6 @@
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
 
-#undef LOG  // Defined by chromium, redefined by WTF. Not needed here.
 #include "config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceCode.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceProvider.h"
