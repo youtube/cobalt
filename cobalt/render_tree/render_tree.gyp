@@ -38,6 +38,7 @@
         'rect_node.cc',
         'rect_node.h',
         'resource_provider.h',
+        'resource_provider_stub.h',
         'text_node.cc',
         'text_node.h',
       ],
