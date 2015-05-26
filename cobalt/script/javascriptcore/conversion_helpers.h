@@ -20,9 +20,7 @@
 #include <limits>
 #include <string>
 
-// Need to include this first, so we can redefine LOG
 #include "config.h"
-#undef LOG  // Defined by WTF, redefined in chromium.
 
 #include "base/logging.h"
 #include "base/optional.h"
