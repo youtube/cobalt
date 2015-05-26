@@ -78,6 +78,10 @@
         '<@(generated_sources)',
         'constants_interface.cc',
       ],
+      'defines': [
+        # Avoid WTF LOG macro.
+        '__DISABLE_WTF_LOGGING__',
+      ],
       'dependencies': [
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
         '<(DEPTH)/testing/gmock.gyp:gmock',
