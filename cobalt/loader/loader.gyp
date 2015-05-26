@@ -44,7 +44,7 @@
       'target_name': 'image_decoder',
       'type': 'static_library',
       'sources': [
-        'image_decoder/any_image_decoder.cpp',
+        'image_decoder/any_image_decoder.cc',
         'image_decoder/any_image_decoder.h',
         'image_decoder/image_decoder.h',
         'image_decoder/png_image_decoder.cc',
