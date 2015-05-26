@@ -29,29 +29,29 @@ namespace render_tree {
 // that images do indeed contain the data they are expected to contain.
 
 // Simple in-memory pixel data.
-class ImageDataStub : public render_tree::ImageData {
+class ImageDataStub : public ImageData {
  public:
-  ImageDataStub(const math::Size& size, render_tree::PixelFormat pixel_format,
-                 render_tree::AlphaFormat alpha_format)
+  ImageDataStub(const math::Size& size, PixelFormat pixel_format,
+                AlphaFormat alpha_format)
       : descriptor_(size, pixel_format, alpha_format,
-                    size.width() * render_tree::BytesPerPixel(pixel_format)),
-        memory_(new uint8[static_cast<size_t>(
-                              size.height() * descriptor_.pitch_in_bytes)]) {}
+                    size.width() * BytesPerPixel(pixel_format)),
+        memory_(new uint8[static_cast<size_t>(size.height() *
+                                              descriptor_.pitch_in_bytes)]) {}
 
-  const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE {
+  const ImageDataDescriptor& GetDescriptor() const OVERRIDE {
     return descriptor_;
   }
 
   uint8* GetMemory() OVERRIDE { return memory_.get(); }
 
  private:
-  render_tree::ImageDataDescriptor descriptor_;
+  ImageDataDescriptor descriptor_;
   scoped_array<uint8> memory_;
 };
 
 // Simply wraps the ImageDataStub object and also makes it visible to the
 // public so that tests can access the pixel data.
-class ImageStub : public render_tree::Image {
+class ImageStub : public Image {
  public:
   explicit ImageStub(scoped_ptr<ImageDataStub> image_data)
       : image_data_(image_data.Pass()) {}
@@ -69,7 +69,7 @@ class ImageStub : public render_tree::Image {
 };
 
 // Simple class that returns dummy data for metric information.
-class FontStub : public render_tree::Font {
+class FontStub : public Font {
  public:
   math::RectF GetBounds(const std::string& text) const OVERRIDE {
     FontMetrics font_metrics = GetFontMetrics();
@@ -88,39 +88,38 @@ class FontStub : public render_tree::Font {
 };
 
 // Return the stub versions defined above for each resource.
-class ResourceProviderStub : public render_tree::ResourceProvider {
+class ResourceProviderStub : public ResourceProvider {
  public:
   ~ResourceProviderStub() OVERRIDE {}
 
-  scoped_ptr<render_tree::ImageData> AllocateImageData(
-      const math::Size& size, render_tree::PixelFormat pixel_format,
-      render_tree::AlphaFormat alpha_format) OVERRIDE {
-    return scoped_ptr<render_tree::ImageData>(
+  scoped_ptr<ImageData> AllocateImageData(const math::Size& size,
+                                          PixelFormat pixel_format,
+                                          AlphaFormat alpha_format) OVERRIDE {
+    return scoped_ptr<ImageData>(
         new ImageDataStub(size, pixel_format, alpha_format));
   }
 
-  scoped_refptr<render_tree::Image> CreateImage(
-      scoped_ptr<render_tree::ImageData> source_data) OVERRIDE {
+  scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> source_data) OVERRIDE {
     scoped_ptr<ImageDataStub> skia_source_data(
         base::polymorphic_downcast<ImageDataStub*>(source_data.release()));
     return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
   }
 
-  scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
-      size_t size_in_bytes, size_t alignment) OVERRIDE {
-    return scoped_ptr<render_tree::RawImageMemory>();
+  scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
+                                                    size_t alignment) OVERRIDE {
+    return scoped_ptr<RawImageMemory>();
   }
 
-  scoped_refptr<render_tree::Image> CreateMultiPlaneImageFromRawMemory(
-      scoped_ptr<render_tree::RawImageMemory> raw_image_memory,
-      const render_tree::MultiPlaneImageDataDescriptor& descriptor) OVERRIDE {
-    return scoped_refptr<render_tree::Image>();
+  scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
+      scoped_ptr<RawImageMemory> raw_image_memory,
+      const MultiPlaneImageDataDescriptor& descriptor) OVERRIDE {
+    return scoped_refptr<Image>();
   }
 
-  scoped_refptr<render_tree::Font> GetPreInstalledFont(
-      const char* font_family_name, render_tree::FontStyle font_style,
-      float font_size) OVERRIDE {
-    return scoped_refptr<render_tree::Font>();
+  scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
+                                          FontStyle font_style,
+                                          float font_size) OVERRIDE {
+    return scoped_refptr<Font>();
   }
 };
 
