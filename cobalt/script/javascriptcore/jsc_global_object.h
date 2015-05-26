@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "config.h"
-#undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
 
 #include "base/bind.h"
 #include "base/hash_tables.h"

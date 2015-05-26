@@ -17,7 +17,6 @@
 #define SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 
 #include "config.h"
-#undef LOG
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/javascript_engine.h"
