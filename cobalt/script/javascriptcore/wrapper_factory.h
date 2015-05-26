@@ -17,7 +17,6 @@
 #define SCRIPT_JAVASCRIPTCORE_WRAPPER_FACTORY_H_
 
 #include "config.h"
-#undef LOG  // Defined by WTF, also redefined by chromium. Unneeded by cobalt.
 
 #include "base/bind.h"
 #include "base/hash_tables.h"
