@@ -38,7 +38,7 @@ namespace renderer {
 namespace {
 void AnimateImageNode(base::WaitableEvent* animate_has_started,
                       base::WaitableEvent* image_ready,
-                      const scoped_refptr<Image>* image,
+                      scoped_refptr<Image>* image,
                       ImageNode::Builder* image_node, base::Time time) {
   // Time to animate the image!  First signal that we are in the animation
   // callback which will prompt the CreateImageThread to create the image.
@@ -48,6 +48,10 @@ void AnimateImageNode(base::WaitableEvent* animate_has_started,
 
   // Animate the image node by setting its image to the newly created image.
   image_node->source = *image;
+
+  // Reset the image reference to NULL so that it doesn't live on past the
+  // lifetime of the pipeline within the main thread's reference.
+  *image = NULL;
 }
 
 class CreateImageThread : public base::SimpleThread {
