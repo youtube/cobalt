@@ -37,12 +37,17 @@ class StyleSheet : public script::Wrappable {
   virtual GURL& LocationUrl() = 0;
   virtual StyleSheetList* ParentStyleSheetList() = 0;
 
+  int index() { return index_; }
+  void set_index(int index) { index_ = index; }
+
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
 
  protected:
   StyleSheet() {}
 
  private:
+  int index_;
+
   DISALLOW_COPY_AND_ASSIGN(StyleSheet);
 };
 
