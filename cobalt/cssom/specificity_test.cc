@@ -30,14 +30,14 @@ namespace cobalt {
 namespace cssom {
 
 TEST(SpecificityTest, Comparison) {
-  EXPECT_TRUE(Specificity(0, 0, 0) == Specificity(0, 0, 0));
-  EXPECT_TRUE(Specificity(1, 2, 3) == Specificity(1, 2, 3));
+  EXPECT_EQ(Specificity(0, 0, 0), Specificity(0, 0, 0));
+  EXPECT_EQ(Specificity(1, 2, 3), Specificity(1, 2, 3));
 
-  EXPECT_TRUE(Specificity(0, 0, 0) < Specificity(0, 0, 1));
-  EXPECT_TRUE(Specificity(0, 0, 1) < Specificity(0, 0, 2));
-  EXPECT_TRUE(Specificity(0, 0, 127) < Specificity(0, 1, 0));
-  EXPECT_TRUE(Specificity(0, 1, 0) < Specificity(0, 1, 1));
-  EXPECT_TRUE(Specificity(0, 127, 127) < Specificity(1, 0, 0));
+  EXPECT_LT(Specificity(0, 0, 0), Specificity(0, 0, 1));
+  EXPECT_LT(Specificity(0, 0, 1), Specificity(0, 0, 2));
+  EXPECT_LT(Specificity(0, 0, 127), Specificity(0, 1, 0));
+  EXPECT_LT(Specificity(0, 1, 0), Specificity(0, 1, 1));
+  EXPECT_LT(Specificity(0, 127, 127), Specificity(1, 0, 0));
 }
 
 TEST(SpecificityTest, AddFrom) {
