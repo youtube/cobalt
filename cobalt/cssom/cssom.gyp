@@ -25,6 +25,7 @@
         'absolute_url_value.h',
         'adjacent_selector.cc',
         'adjacent_selector.h',
+        'cascade_priority.h',
         'character_classification.h',
         'child_combinator.cc',
         'child_combinator.h',
@@ -129,6 +130,7 @@
       'target_name': 'cssom_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'cascade_priority_test.cc',
         'css_style_declaration_data_test.cc',
         'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',

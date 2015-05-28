@@ -51,19 +51,17 @@ class Specificity {
   // Adds the value of another specificity to self.
   void AddFrom(const Specificity& rhs);
 
-  // Compares the specificity field by field, higher field wins over lower one.
+  // Specificity fields are compared lexicographically.
   bool operator<(const Specificity& rhs) const {
     return v_[0] < rhs.v_[0] ||
            (v_[0] == rhs.v_[0] &&
             (v_[1] < rhs.v_[1] || (v_[1] == rhs.v_[1] && v_[2] < rhs.v_[2])));
   }
-
   bool operator>(const Specificity& rhs) const {
     return v_[0] > rhs.v_[0] ||
            (v_[0] == rhs.v_[0] &&
             (v_[1] > rhs.v_[1] || (v_[1] == rhs.v_[1] && v_[2] > rhs.v_[2])));
   }
-
   bool operator==(const Specificity& rhs) const {
     return v_[0] == rhs.v_[0] && v_[1] == rhs.v_[1] && v_[2] == rhs.v_[2];
   }

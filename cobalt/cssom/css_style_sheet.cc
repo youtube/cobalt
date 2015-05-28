@@ -120,7 +120,7 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
     return 0;
   }
 
-  if (index > css_rules()->length()) {
+  if (index > css_rules_.size()) {
     // TODO(***REMOVED***): Throw JS IndexSizeError.
     LOG(ERROR) << "IndexSizeError";
     return 0;
@@ -129,7 +129,7 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
   // TODO(***REMOVED***): Currently we only support appending rule to the end of the
   // rule list, which is the use case in performance spike and ***REMOVED***. Properly
   // implement insertion if necessary.
-  if (index != css_rules()->length()) {
+  if (index != css_rules_.size()) {
     LOG(WARNING) << "InsertRule will always append the rule to the end of the "
                     "rule list.";
   }
@@ -148,6 +148,7 @@ void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
 
 void CSSStyleSheet::AppendCSSStyleRule(
     const scoped_refptr<CSSStyleRule>& css_style_rule) {
+  css_style_rule->set_index(css_rules_.size());
   css_rules_.push_back(css_style_rule);
   if (parent_style_sheet_list_) {
     css_style_rule->AttachToStyleSheet(this);
