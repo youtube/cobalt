@@ -47,10 +47,13 @@
         'image_decoder/any_image_decoder.cc',
         'image_decoder/any_image_decoder.h',
         'image_decoder/image_decoder.h',
+        'image_decoder/jpeg_image_decoder.cc',
+        'image_decoder/jpeg_image_decoder.h',
         'image_decoder/png_image_decoder.cc',
         'image_decoder/png_image_decoder.h',
       ],
       'dependencies': [
+        '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         'loader',
       ],
