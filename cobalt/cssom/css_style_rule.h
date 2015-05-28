@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/memory/scoped_vector.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/selector.h"
 
@@ -60,9 +61,9 @@ class CSSStyleRule : public CSSRule {
 };
 
 typedef std::vector<scoped_refptr<cssom::CSSStyleRule> > Rules;
-typedef std::pair<scoped_refptr<cssom::CSSStyleRule>, cssom::Specificity>
-    RuleWithSpecificity;
-typedef std::vector<RuleWithSpecificity> RulesWithSpecificity;
+typedef std::pair<scoped_refptr<cssom::CSSStyleRule>, cssom::CascadePriority>
+    RuleWithCascadePriority;
+typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;
 
 }  // namespace cssom
 }  // namespace cobalt
