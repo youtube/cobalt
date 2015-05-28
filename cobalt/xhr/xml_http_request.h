@@ -140,7 +140,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   dom::DOMSettings* settings_;
   State state_;
   ResponseTypeCode response_type_;
-  int32 timeout_ms_;
+  uint32 timeout_ms_;
   net::URLFetcher::RequestType method_;
   int http_status_;
   bool with_credentials_;
