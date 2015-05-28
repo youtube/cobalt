@@ -31,6 +31,9 @@ class StyleSheet;
 //   http://dev.w3.org/csswg/cssom/#the-cssrule-interface
 class CSSRule : public script::Wrappable {
  public:
+  int index() { return index_; }
+  void set_index(int index) { index_ = index; }
+
   DEFINE_WRAPPABLE_TYPE(CSSRule);
 
  protected:
@@ -41,6 +44,8 @@ class CSSRule : public script::Wrappable {
   virtual StyleSheet* ParentStyleSheet() = 0;
 
  private:
+  int index_;
+
   DISALLOW_COPY_AND_ASSIGN(CSSRule);
 };
 
