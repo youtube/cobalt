@@ -159,6 +159,10 @@
       # to a non-const reference in a direct initialization. This warning
       # is useless as it simply describes proper C++ behavior.
       4350,
+      # layout of class may have changed from a previous version of
+      # the compiler due to better packing of member. We don't care about
+      # binary compatibility with other compiler versions.
+      4371,
       # decorated name length exceeded, name was truncated.
       4503,
       # assignment operator could not be generated.
