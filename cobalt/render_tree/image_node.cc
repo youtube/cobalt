@@ -46,5 +46,9 @@ ImageNode::ImageNode(const scoped_refptr<Image>& source,
 
 void ImageNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
+math::RectF ImageNode::GetBounds() const {
+  return math::RectF(data_.destination_size);
+}
+
 }  // namespace render_tree
 }  // namespace cobalt

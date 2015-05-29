@@ -18,27 +18,31 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::render_tree::Brush;
+using cobalt::render_tree::BrushVisitor;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::Font;
 using cobalt::render_tree::FontMetrics;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::NodeVisitor;
+using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::TextNode;
-using cobalt::render_tree::Brush;
-using cobalt::render_tree::BrushVisitor;
 
 class MockNodeVisitor : public NodeVisitor {
  public:
   MOCK_METHOD1(Visit, void(CompositionNode* composition));
+  MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
   MOCK_METHOD1(Visit, void(RectNode* rect));
   MOCK_METHOD1(Visit, void(TextNode* text));
@@ -50,6 +54,13 @@ TEST(NodeVisitorTest, VisitsComposition) {
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(composition.get()));
   composition->Accept(&mock_visitor);
+}
+
+TEST(NodeVisitorTest, VisitsFilter) {
+  scoped_refptr<FilterNode> filter(new FilterNode(OpacityFilter(0.5f), NULL));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(filter.get()));
+  filter->Accept(&mock_visitor);
 }
 
 namespace {

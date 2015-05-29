@@ -18,6 +18,7 @@
 #define RENDER_TREE_NODE_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -29,6 +30,10 @@ class Node : public base::RefCountedThreadSafe<Node> {
  public:
   // A type-safe branching.
   virtual void Accept(NodeVisitor* visitor) = 0;
+
+  // Returns an axis-aligned bounding rectangle for this render tree node in
+  // units of pixels.
+  virtual math::RectF GetBounds() const = 0;
 
  protected:
   virtual ~Node() {}
