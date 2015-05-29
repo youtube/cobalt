@@ -4,6 +4,8 @@
 
 #include "media/filters/video_renderer_base.h"
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
@@ -21,9 +23,14 @@
 #include "base/stringprintf.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_media_statistics.h"
+#include "media/filters/shell_video_decoder.h"
 #endif
 
 namespace media {
+
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+int VideoRendererBase::videos_played_;
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
 base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
   return base::TimeDelta::FromMilliseconds(250);
@@ -46,8 +53,13 @@ VideoRendererBase::VideoRendererBase(
       drop_frames_(drop_frames),
       playback_rate_(0),
       paint_cb_(paint_cb),
-      set_opaque_cb_(set_opaque_cb) {
+      set_opaque_cb_(set_opaque_cb),
+      maximum_frames_cached_(0) {
   DCHECK(!paint_cb_.is_null());
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  late_frames_ = 0;
+  DLOG(INFO) << "Start playing back video " << videos_played_;
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
@@ -522,6 +534,13 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 VideoRendererBase::~VideoRendererBase() {
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  ++videos_played_;
+  DLOG_IF(WARNING, late_frames_ != 0)
+      << "Finished playing back with " << late_frames_ << " late frames.";
+  DLOG_IF(INFO, late_frames_ == 0)
+      << "Finished playing back with no late frame.";
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 }
 
 void VideoRendererBase::FrameReady(
@@ -675,11 +694,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
     frame->SetTimestamp(duration);
   }
 
-#if defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__FOR_RELEASE__)
   if (frame->GetTimestamp() < get_time_cb_.Run()) {
     SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_LATE);
+    ++late_frames_;
   }
-#endif  // defined(__LB_SHELL__)
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
   ready_frames_.push_back(frame);
 #if defined(__LB_SHELL__)
@@ -720,6 +740,8 @@ void VideoRendererBase::AttemptRead_Locked() {
     return;
   }
 
+  UpdateUnderflowStatusToDecoder_Locked();
+
   switch (state_) {
     case kPaused:
     case kFlushing:
@@ -740,6 +762,50 @@ void VideoRendererBase::AttemptRead_Locked() {
   }
 }
 
+void VideoRendererBase::UpdateUnderflowStatusToDecoder_Locked() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  lock_.AssertAcquired();
+
+  ShellVideoDecoder* shell_video_decoder =
+      static_cast<ShellVideoDecoder*>(decoder_.get());
+  if (!shell_video_decoder) { return; }
+  if (state_ != kPlaying) {
+    // If we are not playing, inform the decoder that we have enough frames so
+    // it will decode in high quality.
+    shell_video_decoder->HaveEnoughFrames();
+    return;
+  }
+
+  // There are two stages during playback: prerolling and playing.  In the
+  // following example, we assume the preroll frame count is 4, the underflow
+  // frame count is 16 and the maximum frame count is 32.
+  // 1. Prerolling:
+  // When the video starts to play back, there will be 4 frames buffered.  Then
+  // it will slowly grow up to 32 frames if the decoding speed is fast enough.
+  // When the cached frame count start to decrease consistently, there is an
+  // overflow.  Note that we cannot simply compare the current cached frame
+  // against GetVideoUnderflowFrames() because as long as we are accumulating
+  // more frames, we don't want to trigger underflow during start up. So we
+  // record the maximum frame ever reached and when the cached frame count
+  // drops below `maximum frame count` - kUnderflowAdjustment, we trigger
+  // underflow.
+  // 2. Playing.
+  // In this case we already have maximum frames in cache so we have more room
+  // for slow decoding.  We only trigger underflow when the cached frame count
+  // drops below GetVideoUnderflowFrames().
+  const int kUnderflowAdjustment = 2;
+  maximum_frames_cached_ = std::max(maximum_frames_cached_, NumFrames_Locked());
+  int underflow_threshold = std::min(
+      ShellMediaPlatform::Instance()->GetVideoUnderflowFrames(),
+      std::max(maximum_frames_cached_ - kUnderflowAdjustment, 0));
+
+  if (NumFrames_Locked() < underflow_threshold) {
+    shell_video_decoder->NearlyUnderflow();
+  } else {
+    shell_video_decoder->HaveEnoughFrames();
+  }
+}
+
 void VideoRendererBase::OnDecoderResetDone() {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kFlushingDecoder, state_);
@@ -755,6 +821,7 @@ void VideoRendererBase::AttemptFlush_Locked() {
 
   prerolling_delayed_frame_ = NULL;
   ready_frames_.clear();
+  maximum_frames_cached_ = 0;
 
 #if defined(__LB_SHELL__)
   ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
@@ -793,6 +860,12 @@ void VideoRendererBase::DoStopOrError_Locked() {
 
 int VideoRendererBase::NumFrames_Locked() const {
   lock_.AssertAcquired();
+  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
+      GetVideoFrameProvider();
+  if (frame_provider) {
+    return frame_provider->GetNumOfFramesCached();
+  }
+
   int outstanding_frames =
       (current_frame_ ? 1 : 0) + (last_available_frame_ ? 1 : 0) +
       (current_frame_ && (current_frame_ == last_available_frame_) ? -1 : 0);

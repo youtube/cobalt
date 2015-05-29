@@ -156,15 +156,18 @@ void ShellWavTestProbe::AddData(const uint8* data,
   if (!length) return;
 
 #if defined(__LB_SHELL__BIG_ENDIAN__)
-  // assuming 4 bytes per sample on big-endian platforms
-  DCHECK_EQ(bits_per_sample_, 32);
   uint8* reverse_buffer = (uint8*)malloc(length);
-  int num_words = length / 4;
-  uint32* out = (uint32*)reverse_buffer;
-  const uint32* input_buffer = (const uint32*)data;
+  uint16 bytes_per_sample = bits_per_sample_ / 8;
+  int num_words = length / bytes_per_sample;
   for (int i = 0; i < num_words; i++) {
-    uint32 in_word = input_buffer[i];
-    LB::Platform::store_uint32_little_endian(in_word, (uint8*)(out + i));
+    uint8* out = reverse_buffer + (i * bytes_per_sample);
+    if (bytes_per_sample == 2) {
+      LB::Platform::store_uint16_little_endian(((uint16*)data)[i], out);
+    } else if (bytes_per_sample == 4) {
+      LB::Platform::store_uint32_little_endian(((uint32*)data)[i], out);
+    } else {
+      DLOG(ERROR) << "Failed to add data";
+    }
   }
   fwrite(reverse_buffer, 1, length, wav_file_);
   free(reverse_buffer);

@@ -1,8 +1,8 @@
 #include "media/player/crypto/key_systems.h"
 
 #include "base/string_util.h"
-#include "media/base/mime_util.h"
 #include "media/crypto/shell_decryptor_factory.h"
+#include "media/player/mime_util.h"
 
 namespace media {
 
