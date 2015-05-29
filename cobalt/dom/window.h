@@ -43,6 +43,7 @@ class Navigator;
 class Window : public EventTarget {
  public:
   typedef script::CallbackFunction<void(double)> FrameRequestCallback;
+  typedef script::CallbackFunction<void()> TimerCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
@@ -51,25 +52,41 @@ class Window : public EventTarget {
          const std::string& user_agent, const ErrorCallback& error_callback);
 
   // Web API: Window
+  //
   scoped_refptr<Window> window() { return this; }
   const scoped_refptr<Document>& document() const;
   scoped_refptr<Location> location() const;
   const scoped_refptr<Navigator>& navigator() const;
-
-  // Web API: CSSOM View Module (partial interface)
-  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
-  int inner_width() const { return width_; }
-  int inner_height() const { return height_; }
 
   int32_t RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&) {
     NOTIMPLEMENTED();
     return 0;
   }
 
+  // Web API: CSSOM View Module (partial interface)
+  //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
+  int inner_width() const { return width_; }
+  int inner_height() const { return height_; }
+
   // Web API: GlobalEventHandlers (implements)
   //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
   scoped_refptr<EventListener> onload();
   void set_onload(const scoped_refptr<EventListener>& event_listener);
+
+  // Web API: WindowTimers (implements)
+  //   http://www.w3.org/TR/html5/webappapis.html#timers
+  //
+  int SetTimeout(const scoped_refptr<TimerCallback>& handler) {
+    NOTIMPLEMENTED();
+    return 0;
+  }
+
+  int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout) {
+    NOTIMPLEMENTED();
+    return 0;
+  }
+
+  void ClearTimeout(int handle) { NOTIMPLEMENTED(); }
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
