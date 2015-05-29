@@ -22,8 +22,14 @@
   readonly attribute Navigator navigator;
 
   long requestAnimationFrame(FrameRequestCallback callback);
-};
 
+  // TODO(***REMOVED***, b/21560766, b/21560873, b/21561006): Change the following
+  // method back to its original form in the spec, when "Function" and "any" are
+  // supported.  Move the method back to WindowTimers.idl.
+  //   http://www.w3.org/TR/html5/webappapis.html#timers
+  long setTimeout(TimerCallback handler, optional long timeout);
+};
 Window implements GlobalEventHandlers;
 
 callback FrameRequestCallback = void(double time);
+callback TimerCallback = void();
