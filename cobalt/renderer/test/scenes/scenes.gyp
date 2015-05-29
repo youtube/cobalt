@@ -28,6 +28,8 @@
         'all_scenes_combined_scene.h',
         'growing_rect_scene.cc',
         'growing_rect_scene.h',
+        'image_wrap_scene.cc',
+        'image_wrap_scene.h',
         'marquee_scene.cc',
         'marquee_scene.h',
         'scene_helpers.cc',
