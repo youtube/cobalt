@@ -141,7 +141,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 void BoxGenerator::Visit(dom::Element* element) {
   // Update and cache computed values of the given HTML element.
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK_NE(scoped_refptr<dom::HTMLElement>(), html_element);
+  DCHECK(html_element);
   UpdateComputedStyleOf(html_element, parent_computed_style_,
                         user_agent_style_sheet_, style_change_event_time_);
 
