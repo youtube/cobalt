@@ -30,7 +30,7 @@ class TranslateXFunction : public TransformFunction {
  public:
   explicit TranslateXFunction(const scoped_refptr<LengthValue>& offset)
       : offset_(offset) {
-    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+    DCHECK(offset);
   }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
@@ -55,7 +55,7 @@ class TranslateYFunction : public TransformFunction {
  public:
   explicit TranslateYFunction(const scoped_refptr<LengthValue>& offset)
       : offset_(offset) {
-    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+    DCHECK(offset);
   }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
@@ -81,7 +81,7 @@ class TranslateZFunction : public TransformFunction {
  public:
   explicit TranslateZFunction(const scoped_refptr<LengthValue>& offset)
       : offset_(offset) {
-    DCHECK_NE(scoped_refptr<LengthValue>(), offset);
+    DCHECK(offset);
   }
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
