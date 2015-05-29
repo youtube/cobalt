@@ -21,6 +21,7 @@
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/renderer/test/scenes/growing_rect_scene.h"
+#include "cobalt/renderer/test/scenes/image_wrap_scene.h"
 #include "cobalt/renderer/test/scenes/marquee_scene.h"
 #include "cobalt/renderer/test/scenes/spinning_sprites_scene.h"
 
@@ -58,6 +59,12 @@ RenderTreeWithAnimations CreateAllScenesCombinedScene(
   all_scenes_combined_scene_builder.AddChild(spinning_sprites_scene.render_tree,
                                         Matrix3F::Identity());
   animations.Merge(*spinning_sprites_scene.animations);
+
+  RenderTreeWithAnimations image_wrap_scene =
+      CreateImageWrapScene(resource_provider, output_dimensions, start_time);
+  all_scenes_combined_scene_builder.AddChild(image_wrap_scene.render_tree,
+                                             Matrix3F::Identity());
+  animations.Merge(*image_wrap_scene.animations);
 
   RenderTreeWithAnimations marquee_scene =
       CreateMarqueeScene(resource_provider, output_dimensions, start_time);
