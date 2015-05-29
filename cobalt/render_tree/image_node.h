@@ -34,7 +34,7 @@ class ImageNode : public Node {
             const math::SizeF& destination_size);
     Builder(const scoped_refptr<Image>& source,
             const math::SizeF& destination_size,
-            const math::Matrix3F& local_matrix);
+            const math::Matrix3F& local_transform);
 
     // A source of pixels. May be smaller or larger than layed out image.
     // The class does not own the image, it merely refers it from a resource
@@ -50,7 +50,7 @@ class ImageNode : public Node {
     // destination rectangle.  As an example, if you were to pass in a scale
     // matrix that scales the image coordinates by 0.5 in all directions, the
     // image will appear zoomed out.
-    math::Matrix3F local_matrix;
+    math::Matrix3F local_transform;
   };
 
   explicit ImageNode(const Builder& builder) : data_(builder) {}
@@ -67,7 +67,7 @@ class ImageNode : public Node {
   // normalized image coordinates.
   ImageNode(const scoped_refptr<Image>& image,
             const math::SizeF& destination_size,
-            const math::Matrix3F& local_matrix);
+            const math::Matrix3F& local_transform);
 
   // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
