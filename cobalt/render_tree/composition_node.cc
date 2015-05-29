@@ -16,6 +16,7 @@
 
 #include "cobalt/render_tree/composition_node.h"
 
+#include "cobalt/math/quad_f.h"
 #include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {
@@ -27,6 +28,23 @@ void CompositionNode::Builder::AddChild(const scoped_refptr<Node>& node,
 }
 
 void CompositionNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
+
+math::RectF CompositionNode::GetBounds() const {
+  math::RectF bounds;
+
+  // Take the union of the bounding rectangle for all child nodes, and use that
+  // as our bounding rectangle.
+  for (ComposedChildren::const_iterator iter =
+           data_.composed_children().begin();
+       iter != data_.composed_children().end(); ++iter) {
+    const ComposedChild& child = *iter;
+    math::QuadF transformed_child_bounds(iter->transform,
+                                         iter->node->GetBounds());
+    bounds.Union(transformed_child_bounds.BoundingBox());
+  }
+
+  return bounds;
+}
 
 }  // namespace render_tree
 }  // namespace cobalt

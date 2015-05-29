@@ -62,5 +62,7 @@ RectNode::Builder::Builder(Moved moved)
 
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
+math::RectF RectNode::GetBounds() const { return math::RectF(data_.size); }
+
 }  // namespace render_tree
 }  // namespace cobalt
