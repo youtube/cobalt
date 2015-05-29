@@ -19,6 +19,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
@@ -26,14 +27,17 @@
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
-using cobalt::render_tree::CompositionNode;
-using cobalt::render_tree::ImageNode;
-using cobalt::render_tree::RectNode;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::NodeAnimationsMap;
+using cobalt::render_tree::CompositionNode;
+using cobalt::render_tree::FilterNode;
+using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::OpacityFilter;
+using cobalt::render_tree::RectNode;
 
 namespace cobalt {
 namespace layout {
@@ -129,11 +133,36 @@ void SetupCompositionNodeFromCSSSStyleTransform(
       GetCSSTransform(style->transform(), used_size);
 }
 
+void SetupFilterNodeFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    FilterNode::Builder* filter_node_builder) {
+  float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
+      style->opacity().get())->value();
+
+  if (opacity < 1.0f) {
+    filter_node_builder->opacity_filter.emplace(opacity);
+  } else {
+    // If opacity is 1, then no opacity filter should be applied, so the
+    // source render tree should appear fully opaque.
+    filter_node_builder->opacity_filter = base::nullopt;
+  }
+}
+
 }  // namespace
 
 void Box::AddToRenderTree(
     CompositionNode::Builder* parent_composition_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
+      computed_style_->opacity().get())->value();
+
+  if (opacity <= 0.0f &&
+      !transitions_->GetTransitionForProperty(cssom::kOpacityPropertyName)) {
+    // If the box has 0 opacity, and opacity is not animated, then we do not
+    // need to proceed any farther, the box is invisible.
+    return;
+  }
+
   render_tree::CompositionNode::Builder composition_node_builder;
 
   // TODO(***REMOVED***): Fully implement the stacking algorithm quoted below.
@@ -147,16 +176,31 @@ void Box::AddToRenderTree(
   AddContentToRenderTree(&composition_node_builder,
                          node_animations_map_builder);
 
+  scoped_refptr<render_tree::Node> content_node =
+      new CompositionNode(composition_node_builder.Pass());
+
+  // Apply opacity if it is either not 1 or animated.
+  if (opacity < 1.0f ||
+      transitions_->GetTransitionForProperty(cssom::kOpacityPropertyName)) {
+    scoped_refptr<FilterNode> filter_node =
+        new FilterNode(OpacityFilter(opacity), content_node);
+    if (!transitions_->empty()) {
+      // Possibly setup an animation for transitioning opacity.
+      AddTransitionAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
+                                          *computed_style_, filter_node,
+                                          *transitions_,
+                                          node_animations_map_builder);
+    }
+    content_node = filter_node;
+  }
+
   if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
-    scoped_refptr<CompositionNode> composition_node =
-        new CompositionNode(composition_node_builder.Pass());
-
     render_tree::CompositionNode::Builder css_transform_node_builder;
     css_transform_node_builder.AddChild(
-        composition_node, math::Matrix3F::Identity());
+        content_node, math::Matrix3F::Identity());
     scoped_refptr<CompositionNode> css_transform_node =
         new CompositionNode(css_transform_node_builder.Pass());
 
@@ -174,7 +218,7 @@ void Box::AddToRenderTree(
     // Add all child render nodes to the parent composition node, with the
     // layout transform and CSS transform combined into one matrix.
     parent_composition_node_builder->AddChild(
-        new CompositionNode(composition_node_builder.Pass()),
+        content_node,
         GetOffsetTransform(used_position()) *
             GetCSSTransform(computed_style_->transform(), used_size()));
   }

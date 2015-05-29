@@ -88,6 +88,9 @@ void TransitionSet::UpdateTransitions(
   UpdateTransitionForProperty(
       kTransformPropertyName, current_time, source_computed_style.transform(),
       destination_computed_style.transform(), destination_computed_style);
+  UpdateTransitionForProperty(
+      kOpacityPropertyName, current_time, source_computed_style.opacity(),
+      destination_computed_style.opacity(), destination_computed_style);
 }
 
 void TransitionSet::InsertOrReplaceInInternalMap(
@@ -279,6 +282,12 @@ void TransitionSet::ApplyTransitions(
       GetTransitionForProperty(kTransformPropertyName);
   if (transform_transition) {
     target_style->set_transform(transform_transition->Evaluate(current_time));
+  }
+
+  const Transition* opacity_transition =
+      GetTransitionForProperty(kOpacityPropertyName);
+  if (opacity_transition) {
+    target_style->set_opacity(opacity_transition->Evaluate(current_time));
   }
 }
 
