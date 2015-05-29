@@ -6,6 +6,7 @@
 #define MATH_MATRIX3_F_H_
 
 #include "base/logging.h"
+#include "cobalt/math/point_f.h"
 #include "cobalt/math/vector3d_f.h"
 
 namespace cobalt {
@@ -52,6 +53,10 @@ class Matrix3F {
   float& operator()(int i, int j) { return data_[MatrixToArrayCoords(i, j)]; }
 
   Matrix3F operator*(const Matrix3F& other) const;
+
+  // Returns the result of multiplying the given homogeneous 2D point by this
+  // matrix.
+  PointF operator*(const PointF& rhs) const;
 
   Vector3dF column(int i) const {
     return Vector3dF(data_[MatrixToArrayCoords(0, i)],

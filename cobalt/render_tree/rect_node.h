@@ -66,8 +66,8 @@ class RectNode : public Node {
     DCheckData(data_);
   }
 
-  // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
+  math::RectF GetBounds() const OVERRIDE;
 
   const Builder& data() const { return data_; }
 

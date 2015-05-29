@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-#include "cobalt/render_tree/text_node.h"
-
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/node_visitor.h"
 
 namespace cobalt {
 namespace render_tree {
 
-TextNode::Builder::Builder(
-    const std::string& text, const scoped_refptr<Font>& font,
-    const ColorRGBA& color) : text(text), font(font), color(color) {}
+FilterNode::Builder::Builder(const OpacityFilter& opacity_filter,
+                             const scoped_refptr<render_tree::Node>& source)
+    : opacity_filter(opacity_filter), source(source) {}
 
-void TextNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
+FilterNode::FilterNode(const OpacityFilter& opacity_filter,
+                       const scoped_refptr<render_tree::Node>& source)
+    : data_(opacity_filter, source) {}
 
-math::RectF TextNode::GetBounds() const {
-  return data_.font->GetBounds(data_.text);
-}
+void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
+
+math::RectF FilterNode::GetBounds() const { return data_.source->GetBounds(); }
 
 }  // namespace render_tree
 }  // namespace cobalt
