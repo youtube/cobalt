@@ -57,6 +57,7 @@ class TextNode : public Node {
            const ColorRGBA& color) : data_(text, font, color) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
+  math::RectF GetBounds() const OVERRIDE;
 
   const Builder& data() const { return data_; }
 

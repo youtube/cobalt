@@ -108,8 +108,8 @@ class CompositionNode : public Node {
   explicit CompositionNode(const Builder& builder) : data_(builder) {}
   explicit CompositionNode(Builder::Moved builder) : data_(builder) {}
 
-  // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
+  math::RectF GetBounds() const OVERRIDE;
 
   const Builder& data() const { return data_; }
 
