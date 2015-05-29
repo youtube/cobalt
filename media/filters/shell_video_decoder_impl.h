@@ -51,6 +51,9 @@ class ShellRawVideoDecoder {
                       const DecodeCB& decode_cb) = 0;
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const VideoDecoderConfig& config) = 0;
+  // See ShellVideoDecoder for more details about the following two functions.
+  virtual void NearlyUnderflow() {}
+  virtual void HaveEnoughFrames() {}
 
   static ShellRawVideoDecoder* Create(const VideoDecoderConfig& config,
                                       Decryptor* decryptor, bool was_encrypted);
@@ -63,15 +66,17 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public ShellVideoDecoder {
  public:
   ShellVideoDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop);
-  virtual ~ShellVideoDecoderImpl();
+  ~ShellVideoDecoderImpl() OVERRIDE;
 
   // ShellVideoDecoder implementation.
-  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
-                          const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb) OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void Reset(const base::Closure& closure) OVERRIDE;
-  virtual void Stop(const base::Closure& closure) OVERRIDE;
+  void Initialize(const scoped_refptr<DemuxerStream>& stream,
+                  const PipelineStatusCB& status_cb,
+                  const StatisticsCB& statistics_cb) OVERRIDE;
+  void Read(const ReadCB& read_cb) OVERRIDE;
+  void Reset(const base::Closure& closure) OVERRIDE;
+  void Stop(const base::Closure& closure) OVERRIDE;
+  void NearlyUnderflow() OVERRIDE;
+  void HaveEnoughFrames() OVERRIDE;
 
  private:
   enum DecoderState {

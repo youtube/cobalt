@@ -118,6 +118,8 @@ class MEDIA_EXPORT VideoRendererBase
   void AttemptRead();
   void AttemptRead_Locked();
 
+  void UpdateUnderflowStatusToDecoder_Locked();
+
   // Called when VideoDecoder::Reset() completes.
   void OnDecoderResetDone();
 
@@ -278,6 +280,14 @@ class MEDIA_EXPORT VideoRendererBase
 
   // The last natural size |size_changed_cb_| was called with.
   gfx::Size last_natural_size_;
+
+  // TODO(***REMOVED***): Investigate if we could move underflow logic into
+  // ShellVideoFrameProvider.
+  int maximum_frames_cached_;
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+  static int videos_played_;
+  int late_frames_;
+#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };

@@ -25,7 +25,14 @@
 
 namespace media {
 
-// TODO(***REMOVED***) : Collapse ShellVideoFrameProvider into VideoRendererBase.
+// TODO(***REMOVED***) : Remove Shell prefix.
+// TODO(***REMOVED***) : Pass a MediaTimeCB instead of calling GetCurrentTime() on
+//                   Pipeline directly.
+// The ShellVideoFrameProvider manages the backlog for video frames. It has the
+// following functionalities:
+// 1. It caches the video frames ready to be displayed.
+// 2. It decides which frame to be displayed at the current time.
+// 3. It removes frames that will no longer be displayed.
 class ShellVideoFrameProvider {
  public:
   ShellVideoFrameProvider();
@@ -40,9 +47,10 @@ class ShellVideoFrameProvider {
   void Flush();
   // Stop will clear all cached frames including the current frame.
   void Stop();
+  size_t GetNumOfFramesCached() const;
 
  private:
-  base::Lock frames_lock_;
+  mutable base::Lock frames_lock_;
   std::vector<scoped_refptr<VideoFrame> > frames_;
   scoped_refptr<VideoFrame> current_frame_;
 
