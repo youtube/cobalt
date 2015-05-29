@@ -10,6 +10,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/rect_f.h"
 
@@ -23,6 +24,14 @@ class QuadF {
   QuadF() {}
   QuadF(const PointF& p1, const PointF& p2, const PointF& p3, const PointF& p4)
       : p1_(p1), p2_(p2), p3_(p3), p4_(p4) {}
+
+  // Creates a quad by multiplying the corner points of the given rectangle by
+  // the given matrix.
+  QuadF(const Matrix3F& matrix, const RectF& rect)
+      : p1_(matrix * PointF(rect.x(), rect.y())),
+        p2_(matrix * PointF(rect.right(), rect.y())),
+        p3_(matrix * PointF(rect.right(), rect.bottom())),
+        p4_(matrix * PointF(rect.x(), rect.bottom())) {}
 
   explicit QuadF(const RectF& rect)
       : p1_(rect.x(), rect.y()),

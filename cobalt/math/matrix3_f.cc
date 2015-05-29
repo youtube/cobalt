@@ -224,37 +224,45 @@ Vector3dF Matrix3F::SolveEigenproblem(Matrix3F* eigenvectors) const {
 
 Matrix3F Matrix3F::operator*(const Matrix3F& other) const {
   Matrix3F ret;
-  ret.Set(0, 0, Get(0, 0) * other.Get(0, 0) +
-                Get(0, 1) * other.Get(1, 0) +
-                Get(0, 2) * other.Get(2, 0));
-  ret.Set(0, 1, Get(0, 0) * other.Get(0, 1) +
-                Get(0, 1) * other.Get(1, 1) +
-                Get(0, 2) * other.Get(2, 1));
-  ret.Set(0, 2, Get(0, 0) * other.Get(0, 2) +
-                Get(0, 1) * other.Get(1, 2) +
-                Get(0, 2) * other.Get(2, 2));
+  ret.data_[M00] = data_[M00] * other.data_[M00] +
+                   data_[M01] * other.data_[M10] +
+                   data_[M02] * other.data_[M20];
+  ret.data_[M01] = data_[M00] * other.data_[M01] +
+                   data_[M01] * other.data_[M11] +
+                   data_[M02] * other.data_[M21];
+  ret.data_[M02] = data_[M00] * other.data_[M02] +
+                   data_[M01] * other.data_[M12] +
+                   data_[M02] * other.data_[M22];
 
-  ret.Set(1, 0, Get(1, 0) * other.Get(0, 0) +
-                Get(1, 1) * other.Get(1, 0) +
-                Get(1, 2) * other.Get(2, 0));
-  ret.Set(1, 1, Get(1, 0) * other.Get(0, 1) +
-                Get(1, 1) * other.Get(1, 1) +
-                Get(1, 2) * other.Get(2, 1));
-  ret.Set(1, 2, Get(1, 0) * other.Get(0, 2) +
-                Get(1, 1) * other.Get(1, 2) +
-                Get(1, 2) * other.Get(2, 2));
+  ret.data_[M10] = data_[M10] * other.data_[M00] +
+                   data_[M11] * other.data_[M10] +
+                   data_[M12] * other.data_[M20];
+  ret.data_[M11] = data_[M10] * other.data_[M01] +
+                   data_[M11] * other.data_[M11] +
+                   data_[M12] * other.data_[M21];
+  ret.data_[M12] = data_[M10] * other.data_[M02] +
+                   data_[M11] * other.data_[M12] +
+                   data_[M12] * other.data_[M22];
 
-  ret.Set(2, 0, Get(2, 0) * other.Get(0, 0) +
-                Get(2, 1) * other.Get(1, 0) +
-                Get(2, 2) * other.Get(2, 0));
-  ret.Set(2, 1, Get(2, 0) * other.Get(0, 1) +
-                Get(2, 1) * other.Get(1, 1) +
-                Get(2, 2) * other.Get(2, 1));
-  ret.Set(2, 2, Get(2, 0) * other.Get(0, 2) +
-                Get(2, 1) * other.Get(1, 2) +
-                Get(2, 2) * other.Get(2, 2));
+  ret.data_[M20] = data_[M20] * other.data_[M00] +
+                   data_[M21] * other.data_[M10] +
+                   data_[M22] * other.data_[M20];
+  ret.data_[M21] = data_[M20] * other.data_[M01] +
+                   data_[M21] * other.data_[M11] +
+                   data_[M22] * other.data_[M21];
+  ret.data_[M22] = data_[M20] * other.data_[M02] +
+                   data_[M21] * other.data_[M12] +
+                   data_[M22] * other.data_[M22];
 
   return ret;
+}
+
+PointF Matrix3F::operator*(const PointF& rhs) const {
+  float x = rhs.x() * data_[M00] + rhs.y() * data_[M01] + data_[M02];
+  float y = rhs.x() * data_[M10] + rhs.y() * data_[M11] + data_[M12];
+  float z = rhs.x() * data_[M20] + rhs.y() * data_[M21] + data_[M22];
+
+  return PointF(x / z, y / z);
 }
 
 }  // namespace math

@@ -69,8 +69,8 @@ class ImageNode : public Node {
             const math::SizeF& destination_size,
             const math::Matrix3F& local_transform);
 
-  // A type-safe branching.
   void Accept(NodeVisitor* visitor) OVERRIDE;
+  math::RectF GetBounds() const OVERRIDE;
 
   const Builder& data() const { return data_; }
 
