@@ -245,7 +245,8 @@ TEST(InterleavedSincResamplerTest, Benchmark) {
 
   int offset = 0;
   SincResampler sinc_resampler(
-      kResampleRatio, base::Bind(ReadCB, &input[0], kInputFrames, 0, 1, &offset));
+      kResampleRatio, base::Bind(ReadCB, &input[0], kInputFrames, 0, 1,
+      &offset));
 
   while (total_output_frames > 0) {
     sinc_resampler.Resample(&interleaved_output[0], kOutputFrames);
