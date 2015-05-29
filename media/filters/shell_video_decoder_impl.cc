@@ -377,7 +377,7 @@ void ShellVideoDecoderImpl::DecoderFatalError() {
 }
 
 void ShellVideoDecoderImpl::Stop(const base::Closure& closure) {
-  DCHECK(!decoder_thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
 
   decoder_thread_.Stop();
   raw_decoder_.reset(NULL);
@@ -389,6 +389,20 @@ void ShellVideoDecoderImpl::Stop(const base::Closure& closure) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
 
   closure.Run();
+}
+
+void ShellVideoDecoderImpl::NearlyUnderflow() {
+  DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
+  if (raw_decoder_) {
+    raw_decoder_->NearlyUnderflow();
+  }
+}
+
+void ShellVideoDecoderImpl::HaveEnoughFrames() {
+  DCHECK(media_pipeline_message_loop_->BelongsToCurrentThread());
+  if (raw_decoder_) {
+    raw_decoder_->HaveEnoughFrames();
+  }
 }
 
 }  // namespace media
