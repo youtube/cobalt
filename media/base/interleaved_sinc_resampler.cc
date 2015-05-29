@@ -31,9 +31,6 @@
 // Note: we're glossing over how the sub-sample handling works with
 // |virtual_source_idx_|, etc.
 
-// MSVC++ requires this to be set before any other includes to get M_PI.
-#define _USE_MATH_DEFINES
-
 #include "media/base/interleaved_sinc_resampler.h"
 
 #include <algorithm>
