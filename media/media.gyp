@@ -572,8 +572,45 @@
                 'crypto/shell_widevine_decryptor.cc',
                 'crypto/shell_widevine_decryptor.h',
               ],
+              'conditions': [
+                ['cobalt==1', {
+                  'include_dirs': [
+                    '../third_party/cdm',
+                  ],
+                  'dependencies': [
+                    'crypto/widevine_cobalt.gyp:wvcdm_static',
+                  ],
+                }, {  #cobalt!=1
+                  'include_dirs': [
+                    '../../cdm',
+                  ],
+                  'dependencies': [
+                    'crypto/widevine_steel.gyp:wvcdm_static',
+                  ],
+                }],
+              ],
+            }],
+            ['cobalt==1', {
               'dependencies': [
-                'crypto/widevine.gyp:wvcdm_static',
+                '../googleurl/googleurl.gyp:googleurl',
+              ],
+              'sources': [
+                'player/buffered_data_source.cc',
+                'player/buffered_data_source.h',
+                'player/crypto/key_systems.h',
+                'player/crypto/key_systems.cc',
+                'player/crypto/proxy_decryptor.cc',
+                'player/crypto/proxy_decryptor.h',
+                'player/filter_helpers.h',
+                'player/filter_helpers.cc',
+                'player/mime_util.cc',
+                'player/mime_util.h',
+                'player/mime_util_certificate_type_list.h',
+                'player/web_media_player.h',
+                'player/web_media_player_impl.cc',
+                'player/web_media_player_impl.h',
+                'player/web_media_player_proxy.cc',
+                'player/web_media_player_proxy.h',
               ],
             }],
           ],
