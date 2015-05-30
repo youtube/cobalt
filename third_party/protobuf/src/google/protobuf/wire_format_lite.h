@@ -167,8 +167,12 @@ class LIBPROTOBUF_EXPORT WireFormatLite {
   // positioned immediately after the tag.  Skipped values are simply discarded,
   // not recorded anywhere.  See WireFormat::SkipField() for a version that
   // records to an UnknownFieldSet.
-  static bool SkipField(io::CodedInputStream* input, uint32 tag,
-                        UnknownFieldSet *unknown_fields);
+  // TODO(xiaomings, b/21405951): The optional value NULL for unknown_field was
+  // added to make it compatible with protoc-2.4.0.  This should be removed once
+  // we can compile protoc from source code.
+  static bool SkipField(io::CodedInputStream* input,
+                        uint32 tag,
+                        UnknownFieldSet* unknown_fields = NULL);
 
   // Reads and ignores a message from the input.  If unknown_fields is non-NULL,
   // the contents will be added to it.
