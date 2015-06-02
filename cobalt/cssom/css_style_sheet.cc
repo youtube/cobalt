@@ -148,7 +148,7 @@ void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
 
 void CSSStyleSheet::AppendCSSStyleRule(
     const scoped_refptr<CSSStyleRule>& css_style_rule) {
-  css_style_rule->set_index(css_rules_.size());
+  css_style_rule->set_index(static_cast<int>(css_rules_.size()));
   css_rules_.push_back(css_style_rule);
   if (parent_style_sheet_list_) {
     css_style_rule->AttachToStyleSheet(this);
