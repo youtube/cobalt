@@ -18,6 +18,7 @@
 #define CSSOM_CSS_RULE_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -37,7 +38,7 @@ class CSSRule : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(CSSRule);
 
  protected:
-  CSSRule() {}
+  CSSRule() : index_(Appearance::kUnattached) {}
   virtual ~CSSRule() {}
 
   virtual void AttachToStyleSheet(StyleSheet* style_sheet) = 0;

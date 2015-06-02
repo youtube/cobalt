@@ -18,6 +18,7 @@
 #define CSSOM_STYLE_SHEET_H_
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
@@ -43,7 +44,7 @@ class StyleSheet : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(StyleSheet);
 
  protected:
-  StyleSheet() {}
+  StyleSheet() : index_(Appearance::kUnattached) {}
 
  private:
   int index_;
