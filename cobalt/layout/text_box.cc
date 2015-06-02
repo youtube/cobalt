@@ -33,7 +33,8 @@ TextBox::TextBox(
       has_leading_white_space_(has_leading_white_space),
       has_trailing_white_space_(has_trailing_white_space),
       used_font_(used_style_provider->GetUsedFont(
-          computed_style->font_family(), computed_style->font_size())) {}
+          computed_style->font_family(), computed_style->font_size(),
+          computed_style->font_weight())) {}
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 

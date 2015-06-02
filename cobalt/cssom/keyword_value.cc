@@ -104,11 +104,9 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
   return non_trivial_static_fields.Get().normal_value;
 }
 
-
 const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
   return non_trivial_static_fields.Get().relative_value;
 }
-
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {
   return non_trivial_static_fields.Get().static_value;
