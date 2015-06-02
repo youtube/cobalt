@@ -159,7 +159,8 @@ template <class T>
 inline void FromJSValue(
     JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
     typename base::enable_if<
-        std::numeric_limits<T>::is_integer &&
+        std::numeric_limits<T>::is_specialized &&
+            std::numeric_limits<T>::is_integer &&
             std::numeric_limits<T>::is_signed && (sizeof(T) <= 4),
         T>::type* = NULL) {
   int32_t int32_value = jsvalue.toInt32(exec_state);
@@ -170,7 +171,8 @@ inline void FromJSValue(
 template <class T>
 inline void FromJSValue(
     JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
-    typename base::enable_if<std::numeric_limits<T>::is_integer &&
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 std::numeric_limits<T>::is_integer &&
                                  !std::numeric_limits<T>::is_signed &&
                                  (sizeof(T) <= 4),
                              T>::type* = NULL) {
@@ -182,8 +184,9 @@ inline void FromJSValue(
 template <class T>
 inline void FromJSValue(
     JSC::ExecState* exec_state, JSC::JSValue jsvalue, T* out_number,
-    typename base::enable_if<!std::numeric_limits<T>::is_integer, T>::type* =
-        NULL) {
+    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
+                                 !std::numeric_limits<T>::is_integer,
+                             T>::type* = NULL) {
   double double_value = jsvalue.toNumber(exec_state);
   // For non-unrestricted doubles/floats, NaN and +/-Infinity should throw a
   // TypeError
