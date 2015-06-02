@@ -18,6 +18,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/absolute_url_value.h"
+#include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -28,6 +29,26 @@ namespace cobalt {
 namespace layout {
 
 namespace {
+
+render_tree::FontStyle ConvertFontWeightToRenderTreeFontStyle(
+    cssom::FontWeightValue::Value value) {
+  switch (value) {
+    case cssom::FontWeightValue::kNormalAka400:
+      return render_tree::kNormal;
+    case cssom::FontWeightValue::kBoldAka700:
+      return render_tree::kBold;
+    case cssom::FontWeightValue::kThinAka100:
+    case cssom::FontWeightValue::kExtraLightAka200:
+    case cssom::FontWeightValue::kLightAka300:
+    case cssom::FontWeightValue::kMediumAka500:
+    case cssom::FontWeightValue::kSemiBoldAka600:
+    case cssom::FontWeightValue::kExtraBoldAka800:
+    case cssom::FontWeightValue::kBlackAka900:
+    default:
+      NOTREACHED() << "Not supported value: " << value;
+      return render_tree::kNormal;
+  }
+}
 
 class UsedBackgroundImageProvider
     : public cssom::NotReachedPropertyValueVisitor {
@@ -85,16 +106,21 @@ UsedStyleProvider::UsedStyleProvider(
 
 scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
-    const scoped_refptr<cssom::PropertyValue>& font_size_refptr) const {
+    const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
+    const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const {
   cssom::StringValue* font_family =
       base::polymorphic_downcast<cssom::StringValue*>(font_family_refptr.get());
   cssom::LengthValue* font_size =
       base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
   DCHECK_EQ(cssom::kPixelsUnit, font_size->unit());
+  cssom::FontWeightValue* font_weight =
+      base::polymorphic_downcast<cssom::FontWeightValue*>(
+          font_weight_refptr.get());
+  render_tree::FontStyle font_style =
+      ConvertFontWeightToRenderTreeFontStyle(font_weight->value());
 
-  // TODO(***REMOVED***): Implement font style.
   return resource_provider_->GetPreInstalledFont(
-      font_family->value().c_str(), render_tree::kNormal, font_size->value());
+      font_family->value().c_str(), font_style, font_size->value());
 }
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::GetUsedBackgroundImage(
