@@ -37,7 +37,7 @@ unsigned int StyleSheetList::length() const {
 
 void StyleSheetList::Append(const scoped_refptr<CSSStyleSheet>& style_sheet) {
   style_sheet->AttachToStyleSheetList(this);
-  style_sheet->set_index(style_sheets_.size());
+  style_sheet->set_index(static_cast<int>(style_sheets_.size()));
   style_sheets_.push_back(style_sheet);
   if (mutation_observer_) {
     mutation_observer_->OnMutation();
