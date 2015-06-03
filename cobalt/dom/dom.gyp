@@ -19,6 +19,10 @@
       'target_name': 'dom',
       'type': 'static_library',
       'sources': [
+        'array_buffer.cc',
+        'array_buffer.h',
+        'array_buffer_view.cc',
+        'array_buffer_view.h',
         'attr.cc',
         'attr.h',
         'character_data.cc',
@@ -109,6 +113,8 @@
         'ui_event.cc',
         'ui_event.h',
         'ui_event_with_key_state.h',
+        'uint8_array.cc',
+        'uint8_array.h',
         'url.cc',
         'url.h',
       ],
@@ -166,6 +172,7 @@
         'testing/switches.h',
         'text_test.cc',
         'time_ranges_test.cc',
+        'uint8_array_test.cc',
       ],
       'dependencies': [
         'dom',
