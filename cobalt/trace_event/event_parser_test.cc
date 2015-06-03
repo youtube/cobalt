@@ -18,12 +18,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using base::debug::TraceLog;
-using cobalt::trace_event::ScopedEventParserTrace;
-using cobalt::trace_event::EventParser;
-using ::testing::_;
-using ::testing::Invoke;
 using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::_;
+using base::debug::TraceLog;
+using cobalt::trace_event::EventParser;
+using cobalt::trace_event::ScopedEventParserTrace;
 
 // The tests in this file are all designed in a similar format that has three
 // stages.

@@ -24,18 +24,18 @@
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::math::Matrix3F;
-using cobalt::math::SizeF;
 using cobalt::math::ScaleMatrix;
+using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::SolidColorBrush;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {

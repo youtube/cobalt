@@ -20,9 +20,9 @@
 #include <limits>
 
 #include "base/bind.h"
+#include "base/guid.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/guid.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
 #include "media/base/filter_collection.h"

@@ -27,9 +27,9 @@
 
 using cobalt::math::Matrix3F;
 using cobalt::math::SizeF;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {
