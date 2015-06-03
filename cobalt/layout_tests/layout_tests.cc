@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <vector>
 #include <ostream>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/file_path.h"
@@ -24,9 +24,9 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/string_util.h"
-#include "cobalt/math/size.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/math/size.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -19,8 +19,8 @@
 
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/global_object_proxy.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -16,8 +16,8 @@
 
 #include "cobalt/renderer/pipeline.h"
 
-#include "base/debug/trace_event.h"
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 
 using cobalt::render_tree::Node;
 using cobalt::render_tree::animations::NodeAnimationsMap;

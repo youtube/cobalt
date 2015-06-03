@@ -22,10 +22,10 @@
 #include "cobalt/dom/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::dom::testing::MockEventListener;
 using ::testing::HasSubstr;
 using ::testing::Pointee;
 using ::testing::Property;
+using cobalt::dom::testing::MockEventListener;
 
 namespace cobalt {
 namespace xhr {

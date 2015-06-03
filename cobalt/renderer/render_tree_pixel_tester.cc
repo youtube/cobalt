@@ -23,10 +23,10 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/backend/surface_info.h"
-#include "cobalt/renderer/test/png_utils/png_decode.h"
-#include "cobalt/renderer/test/png_utils/png_encode.h"
 #include "cobalt/renderer/rasterizer.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/test/png_utils/png_decode.h"
+#include "cobalt/renderer/test/png_utils/png_encode.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
@@ -41,8 +41,8 @@ using cobalt::renderer::backend::GraphicsSystem;
 using cobalt::renderer::backend::RenderTarget;
 using cobalt::renderer::backend::SurfaceInfo;
 using cobalt::renderer::backend::Texture;
-using cobalt::renderer::test::png_utils::EncodeRGBAToPNG;
 using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
+using cobalt::renderer::test::png_utils::EncodeRGBAToPNG;
 
 namespace cobalt {
 namespace renderer {

@@ -19,9 +19,9 @@
 
 #include <string>
 
+#include "googleurl/src/gurl.h"
 #include "net/base/static_cookie_policy.h"
 #include "net/url_request/url_request.h"
-#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace network {
