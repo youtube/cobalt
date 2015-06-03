@@ -23,12 +23,12 @@
 #include "base/run_loop.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/text_decoder.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
+using ::testing::_;
 
 namespace cobalt {
 namespace loader {

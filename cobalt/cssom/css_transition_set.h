@@ -20,8 +20,8 @@
 #include "base/hash_tables.h"
 #include "base/optional.h"
 #include "base/time.h"
-#include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {

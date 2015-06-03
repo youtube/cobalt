@@ -19,8 +19,8 @@
 #include <string>
 
 #include "base/string_util.h"
-#include "cobalt/script/source_code.h"
 #include "cobalt/script/javascriptcore/conversion_helpers.h"
+#include "cobalt/script/source_code.h"
 
 #include "config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/parser/SourceCode.h"

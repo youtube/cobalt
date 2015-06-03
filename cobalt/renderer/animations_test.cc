@@ -16,9 +16,9 @@
 
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/simple_thread.h"
-#include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/graphics_system.h"
@@ -27,10 +27,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {

@@ -19,8 +19,8 @@
 
 #include <algorithm>
 
-#include "base/time.h"
 #include "base/memory/ref_counted.h"
+#include "base/time.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/timing_function.h"
 

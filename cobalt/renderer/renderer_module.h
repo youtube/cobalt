@@ -18,11 +18,11 @@
 #define RENDERER_RENDERER_MODULE_H_
 
 #include "cobalt/render_tree/node.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/rasterizer.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/rasterizer.h"
 
 namespace cobalt {
 namespace renderer {

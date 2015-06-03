@@ -17,13 +17,13 @@
 #ifndef LAYOUT_LAYOUT_H_
 #define LAYOUT_LAYOUT_H_
 
+#include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/cssom/css_style_sheet.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
 namespace cobalt {

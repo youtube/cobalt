@@ -21,9 +21,9 @@ namespace cobalt {
 namespace media {
 namespace sandbox {
 
-using cobalt::render_tree::ResourceProvider;
 using ::media::VideoFrame;
 using ::media::WebMediaPlayerDelegate;
+using cobalt::render_tree::ResourceProvider;
 
 MediaSandbox::MediaSandbox(ResourceProvider* resource_provider)
     : media_module_(MediaModule::Create(resource_provider)),
