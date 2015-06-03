@@ -91,6 +91,8 @@ class Window : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
+  class RelayOnLoadEvent;
+
   ~Window() OVERRIDE;
 
   int width_;
@@ -100,6 +102,7 @@ class Window : public EventTarget {
   scoped_refptr<Document> document_;
   scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;
+  scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
