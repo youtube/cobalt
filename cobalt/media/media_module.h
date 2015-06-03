@@ -20,9 +20,9 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/media/web_media_player_factory.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_frame_provider.h"
 

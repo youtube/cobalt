@@ -18,8 +18,8 @@
 #define RENDERER_BACKEND_GRAPHICS_SYSTEM_STUB_H_
 
 #include "cobalt/renderer/backend/display_stub.h"
-#include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context_stub.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
 namespace renderer {

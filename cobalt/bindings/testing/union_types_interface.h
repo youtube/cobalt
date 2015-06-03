@@ -18,8 +18,8 @@
 #define BINDINGS_TESTING_UNION_TYPES_INTERFACE_H_
 
 #include "cobalt/bindings/testing/arbitrary_interface.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/script/union_type.h"
+#include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

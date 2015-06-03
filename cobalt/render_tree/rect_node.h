@@ -19,10 +19,10 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/movable.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {

@@ -18,8 +18,8 @@
 
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
-#include "cobalt/dom/location.h"
 #include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
 
 namespace cobalt {

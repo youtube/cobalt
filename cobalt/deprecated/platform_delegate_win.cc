@@ -15,8 +15,8 @@
  */
 #include "cobalt/deprecated/platform_delegate.h"
 
-#include <direct.h>
 #include <ObjBase.h>
+#include <direct.h>
 #include <stdlib.h>
 #include <windows.h>
 

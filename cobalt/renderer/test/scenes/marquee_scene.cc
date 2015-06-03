@@ -27,9 +27,6 @@ using cobalt::math::Matrix3F;
 using cobalt::math::RectF;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
@@ -39,6 +36,9 @@ using cobalt::render_tree::RectNode;
 using cobalt::render_tree::ResourceProvider;
 using cobalt::render_tree::SolidColorBrush;
 using cobalt::render_tree::TextNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace renderer {

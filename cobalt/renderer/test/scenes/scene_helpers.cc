@@ -18,8 +18,8 @@
 
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/size_f.h"
-#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::math::Matrix3F;

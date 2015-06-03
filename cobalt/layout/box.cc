@@ -31,13 +31,13 @@
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 
 namespace cobalt {
 namespace layout {
