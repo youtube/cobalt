@@ -25,6 +25,26 @@
 namespace cobalt {
 namespace dom {
 
+// This class fires the window's OnLoad event when the document is loaded.
+class Window::RelayOnLoadEvent : public DocumentObserver {
+ public:
+  explicit RelayOnLoadEvent(Window* window) : window_(window) {}
+
+  // From DocumentObserver.
+  void OnLoad() OVERRIDE {
+    base::MessageLoopProxy::current()->PostTask(
+        FROM_HERE, base::Bind(base::IgnoreResult(&Window::DispatchEvent),
+                              base::AsWeakPtr<Window>(window_),
+                              make_scoped_refptr(new Event("load"))));
+  }
+  void OnMutation() OVERRIDE {}
+
+ private:
+  Window* window_;
+
+  DISALLOW_COPY_AND_ASSIGN(RelayOnLoadEvent);
+};
+
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                loader::FetcherFactory* fetcher_factory,
                media::WebMediaPlayerFactory* web_media_player_factory,
@@ -41,7 +61,10 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       document_builder_(new DocumentBuilder(document_, url, fetcher_factory,
                                             html_element_factory_.get(),
                                             base::Closure(), error_callback)),
-      navigator_(new Navigator(user_agent)) {}
+      navigator_(new Navigator(user_agent)),
+      relay_on_load_event_(new RelayOnLoadEvent(this)) {
+  document_->AddObserver(relay_on_load_event_.get());
+}
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
 
