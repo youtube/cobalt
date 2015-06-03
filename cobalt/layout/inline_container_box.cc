@@ -122,7 +122,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width) {
 
   InvalidateUsedHeight();
 
-  return box_after_split.Pass();
+  return box_after_split.PassAs<Box>();
 }
 
 // TODO(***REMOVED***): All white space processing methods have an O(N) worst-case
