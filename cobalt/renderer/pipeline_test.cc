@@ -19,15 +19,15 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
-#include "cobalt/renderer/rasterizer.h"
 #include "cobalt/renderer/pipeline.h"
+#include "cobalt/renderer/rasterizer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::_;
 using ::testing::Between;
-using cobalt::renderer::Rasterizer;
+using ::testing::_;
 using cobalt::renderer::Pipeline;
+using cobalt::renderer::Rasterizer;
 
 // Unfortunately, we can't make use of gmock to test the number of submission
 // calls that were made.  This is because we need to test our expectations

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
+#include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/no_interface_object_interface.h"
 
 #include "testing/gtest/include/gtest/gtest.h"

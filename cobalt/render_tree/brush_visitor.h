@@ -20,8 +20,8 @@
 namespace cobalt {
 namespace render_tree {
 
-class SolidColorBrush;
 class LinearGradientBrush;
+class SolidColorBrush;
 
 // Type-safe branching on a class hierarchy of render tree brushes,
 // implemented after a classical GoF pattern (see

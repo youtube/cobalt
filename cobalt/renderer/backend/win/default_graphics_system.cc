@@ -24,8 +24,8 @@
 #include "base/bind.h"
 
 #include "base/hash_tables.h"
-#include "base/memory/singleton.h"
 #include "base/logging.h"
+#include "base/memory/singleton.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"

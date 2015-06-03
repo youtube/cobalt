@@ -19,10 +19,10 @@
 
 #include "base/compiler_specific.h"
 #include "base/string_piece.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {

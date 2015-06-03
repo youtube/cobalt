@@ -21,13 +21,13 @@
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Pointee;
 using ::testing::Property;
+using ::testing::_;
 
 namespace cobalt {
 namespace dom {

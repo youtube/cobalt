@@ -20,8 +20,8 @@
 #include "cobalt/renderer/test/png_utils/png_decode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
 using cobalt::renderer::test::png_utils::DecodePNGToPremultipliedAlphaRGBA;
+using cobalt::renderer::test::png_utils::DecodePNGToRGBA;
 
 namespace {
 FilePath GetPremultipliedAlphaTestImagePath() {

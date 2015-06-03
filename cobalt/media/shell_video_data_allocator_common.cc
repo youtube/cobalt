@@ -37,12 +37,12 @@ void ReleaseImage(scoped_refptr<cobalt::render_tree::Image> image) {}
 }
 
 using cobalt::render_tree::ImageDataDescriptor;
+using cobalt::render_tree::MultiPlaneImageDataDescriptor;
 using cobalt::render_tree::kAlphaFormatUnpremultiplied;
 using cobalt::render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
 using cobalt::render_tree::kPixelFormatU8;
 using cobalt::render_tree::kPixelFormatV8;
 using cobalt::render_tree::kPixelFormatY8;
-using cobalt::render_tree::MultiPlaneImageDataDescriptor;
 
 ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
     cobalt::render_tree::ResourceProvider* resource_provider)

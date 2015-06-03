@@ -38,14 +38,14 @@ using cobalt::math::RotateMatrix;
 using cobalt::math::ScaleMatrix;
 using cobalt::math::SizeF;
 using cobalt::math::TranslateMatrix;
-using cobalt::render_tree::animations::Animation;
-using cobalt::render_tree::animations::AnimationList;
-using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::ResourceProvider;
+using cobalt::render_tree::animations::Animation;
+using cobalt::render_tree::animations::AnimationList;
+using cobalt::render_tree::animations::NodeAnimationsMap;
 using cobalt::renderer::test::png_utils::DecodePNGToRenderTreeImage;
 
 namespace cobalt {

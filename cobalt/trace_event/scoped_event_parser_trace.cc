@@ -20,8 +20,8 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
-#include "cobalt/trace_event/json_file_outputter.h"
 #include "cobalt/trace_event/event_parser.h"
+#include "cobalt/trace_event/json_file_outputter.h"
 
 namespace cobalt {
 namespace trace_event {

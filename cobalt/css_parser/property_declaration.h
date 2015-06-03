@@ -19,8 +19,8 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace css_parser {
