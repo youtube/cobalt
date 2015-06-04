@@ -78,6 +78,9 @@ class IdlReader(object):
         ast = blink_idl_parser.parse_file(self.parser, idl_filename)
         if not ast:
             raise Exception('Failed to parse %s' % idl_filename)
+        if ast.GetProperty('ERRORS'):
+            raise Exception('Encountered %d error(s) parsing %s' % (
+                ast.GetProperty('ERRORS'), idl_filename))
         idl_file_basename, _ = os.path.splitext(os.path.basename(idl_filename))
         definitions = IdlDefinitions(idl_file_basename, ast)
 
