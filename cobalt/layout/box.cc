@@ -284,6 +284,10 @@ void Box::AddBackgroundToRenderTree(
   }
 }
 
+bool Box::IsPositioned() const {
+  return computed_style()->position() != cssom::KeywordValue::GetStatic();
+}
+
 void Box::DumpIndent(std::ostream* stream, int indent) const {
   while (indent--) {
     *stream << " ";
