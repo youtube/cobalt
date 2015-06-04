@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/window.h"
 
+#include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/html_element_factory.h"
@@ -62,7 +63,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                                             html_element_factory_.get(),
                                             base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
-      relay_on_load_event_(new RelayOnLoadEvent(this)) {
+      relay_on_load_event_(new RelayOnLoadEvent(this)),
+      console_(new Console()) {
   document_->AddObserver(relay_on_load_event_.get());
 }
 
@@ -81,6 +83,8 @@ scoped_refptr<EventListener> Window::onload() {
 void Window::set_onload(const scoped_refptr<EventListener>& listener) {
   SetAttributeEventListener("load", listener);
 }
+
+const scoped_refptr<Console>& Window::console() const { return console_; }
 
 Window::~Window() {}
 

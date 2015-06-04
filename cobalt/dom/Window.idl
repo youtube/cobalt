@@ -28,6 +28,8 @@
   // supported.  Move the method back to WindowTimers.idl.
   //   http://www.w3.org/TR/html5/webappapis.html#timers
   long setTimeout(TimerCallback handler, optional long timeout);
+
+  readonly attribute Console console;
 };
 Window implements GlobalEventHandlers;
 

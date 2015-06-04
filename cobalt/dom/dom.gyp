@@ -29,6 +29,8 @@
         'character_data.h',
         'comment.cc',
         'comment.h',
+        'console.cc',
+        'console.h',
         'document.cc',
         'document.h',
         'document_builder.cc',
