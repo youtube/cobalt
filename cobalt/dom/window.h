@@ -30,6 +30,7 @@
 namespace cobalt {
 namespace dom {
 
+class Console;
 class Document;
 class DocumentBuilder;
 class HTMLElementFactory;
@@ -88,6 +89,9 @@ class Window : public EventTarget {
 
   void ClearTimeout(int handle) { NOTIMPLEMENTED(); }
 
+  // Custom, not in any spec.
+  const scoped_refptr<Console>& console() const;
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -103,6 +107,7 @@ class Window : public EventTarget {
   scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;
   scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
+  scoped_refptr<Console> console_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
