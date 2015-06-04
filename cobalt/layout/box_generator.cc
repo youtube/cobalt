@@ -44,7 +44,8 @@ namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
     ShellVideoFrameProvider* frame_provider) {
-  scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
+  scoped_refptr<VideoFrame> video_frame =
+      frame_provider ? frame_provider->GetCurrentFrame() : NULL;
   if (video_frame && video_frame->texture_id()) {
     scoped_refptr<render_tree::Image> image =
         reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
@@ -172,7 +173,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   // box implements.
   scoped_refptr<dom::HTMLMediaElement> media_element =
       html_element->AsHTMLMediaElement();
-  if (media_element && media_element->GetVideoFrameProvider()) {
+  if (media_element) {
     VisitMediaElement(media_element, container_box_before_split.Pass());
   } else {
     VisitContainerElement(html_element, container_box_before_split.Pass());

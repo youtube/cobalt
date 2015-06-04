@@ -53,7 +53,7 @@ class ReplacedBox : public Box {
   void CollapseLeadingWhiteSpace() OVERRIDE {}
   void CollapseTrailingWhiteSpace() OVERRIDE {}
 
-  bool JustifiesLineExistence() const OVERRIDE { return false; }
+  bool JustifiesLineExistence() const OVERRIDE { return true; }
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE {
     return false;
   }
