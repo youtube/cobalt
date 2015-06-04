@@ -1,3 +1,5 @@
+10-1-absolute_elements_inherit_style_from_direct_parent
+10-3-7-multiple-absolute-positioned-elements-share-same-static-position
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
 10-5-percentage-of-auto-height-should-compute-to-auto
