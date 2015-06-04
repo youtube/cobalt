@@ -260,14 +260,19 @@ void Box::AddBackgroundToRenderTree(
   scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
   composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
 
-
   scoped_refptr<render_tree::Image> used_background_image =
       used_style_provider_->GetUsedBackgroundImage(
           computed_style_->background_image());
 
   if (used_background_image) {
-    scoped_refptr<ImageNode> image_node(
-        new ImageNode(used_background_image, used_size()));
+    UsedBackgroundSizeProvider used_background_size_provider(
+        used_size(), used_background_image->GetSize());
+    computed_style_->background_size()->Accept(&used_background_size_provider);
+
+    scoped_refptr<ImageNode> image_node(new ImageNode(
+        used_background_image, used_size(),
+        math::ScaleMatrix(used_background_size_provider.width_scale(),
+                          used_background_size_provider.height_scale())));
     composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
   }
 

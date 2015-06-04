@@ -47,6 +47,18 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
 
+    // "contain" is a value of "background-size" property which scales the
+    // image to the largest size such that both its width and its height can
+    // completely cover the background positioning area.
+    //   http://www.w3.org/TR/css3-background/#the-background-size
+    kContain,
+
+    // "cover" is a value of "background-size" property which scales the image
+    // to the smallest size such that both its width and its height can fit
+    // inside the background positioning area.
+    //   http://www.w3.org/TR/css3-background/#the-background-size
+    kCover,
+
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -108,6 +120,8 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetAbsolute();
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetContain();
+  static const scoped_refptr<KeywordValue>& GetCover();
   static const scoped_refptr<KeywordValue>& GetHidden();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();

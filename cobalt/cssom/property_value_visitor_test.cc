@@ -23,6 +23,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -50,6 +51,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitPercentage, void(PercentageValue* percentage_value));
+  MOCK_METHOD1(VisitPropertyList, void(PropertyListValue* property_list_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
@@ -102,6 +104,14 @@ TEST(PropertyValueVisitorTest, VisitPercentageValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPercentage(percentage_value.get()));
   percentage_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitPropertyList) {
+  scoped_refptr<PropertyListValue> property_list_value = new PropertyListValue(
+      make_scoped_ptr(new ScopedRefListValue<PropertyValue>::Builder()));
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitPropertyList(property_list_value.get()));
+  property_list_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {

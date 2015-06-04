@@ -17,9 +17,12 @@
 #ifndef LAYOUT_USED_STYLE_H_
 #define LAYOUT_USED_STYLE_H_
 
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/loader/image_cache.h"
+#include "cobalt/math/size.h"
+#include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -88,6 +91,35 @@ class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   float used_height_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
+};
+
+class UsedBackgroundSizeProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedBackgroundSizeProvider(const math::SizeF& frame_size,
+                                      const math::Size& image_size)
+      : frame_size_(frame_size),
+        image_size_(image_size),
+        width_scale_(1.0f),
+        height_scale_(1.0f) {}
+
+  void VisitPropertyList(
+      cssom::PropertyListValue* property_list_value) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+
+  float width_scale() const { return width_scale_; }
+  float height_scale() const { return height_scale_; }
+
+ private:
+  void ConvertWidthAndHeightScale(float width_scale, float height_scale);
+
+  const math::SizeF frame_size_;
+  const math::Size image_size_;
+
+  float width_scale_;
+  float height_scale_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundSizeProvider);
 };
 
 class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
