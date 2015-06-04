@@ -62,12 +62,14 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
-    const base::Time& style_change_event_time)
+    const base::Time& style_change_event_time,
+    ContainerBox* containing_box_for_absolute)
     : parent_computed_style_(parent_computed_style),
       user_agent_style_sheet_(user_agent_style_sheet),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
-      style_change_event_time_(style_change_event_time) {}
+      style_change_event_time_(style_change_event_time),
+      containing_box_for_absolute_(containing_box_for_absolute) {}
 
 BoxGenerator::~BoxGenerator() {}
 
@@ -138,6 +140,15 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
+// Returns true if the given style allows a container box to act as a containing
+// block for absolutely positioned elements.  For example it will be true if
+// this box's style is itself 'absolute'.
+bool EstablishesContainingBlockForAbsoluteElements(
+    const cssom::CSSStyleDeclarationData& computed_style) {
+  return computed_style.position() == cssom::KeywordValue::GetAbsolute() ||
+         computed_style.position() == cssom::KeywordValue::GetRelative();
+}
+
 }  // namespace
 
 void BoxGenerator::Visit(dom::Element* element) {
@@ -162,6 +173,23 @@ void BoxGenerator::Visit(dom::Element* element) {
     return;
   }
 
+  // Find which containing block to use for absolutely positioned dependents.
+  ContainerBox* absolute_container_box = containing_box_for_absolute_;
+  if (EstablishesContainingBlockForAbsoluteElements(
+          *html_element->computed_style())) {
+    // TODO(***REMOVED***): A value of "fixed" for position should also set a
+    //               containing block for absolutely positioned elements.
+    // Always use the first ContainerBox since it is positioned in the top-left
+    // corner, like we want.
+    absolute_container_box = container_box_before_split.get();
+  }
+
+  // For video elements, immediately create a replaced box and attach it to
+  // the container box and return.  Thus, there will be two boxes associated
+  // with every video, the ReplacedBox referencing the video, and the container
+  // box referencing the ReplacedBox.  Keeping the container around is useful
+  // because it allows ReplacedBox to re-use the layout logic that the container
+  // box implements.
   scoped_refptr<dom::HTMLMediaElement> media_element =
       html_element->AsHTMLMediaElement();
   if (media_element && media_element->GetVideoFrameProvider()) {
@@ -183,7 +211,8 @@ void BoxGenerator::Visit(dom::Element* element) {
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(
         html_element->computed_style(), user_agent_style_sheet_,
-        used_style_provider_, line_break_iterator_, style_change_event_time_);
+        used_style_provider_, line_break_iterator_, style_change_event_time_,
+        absolute_container_box);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();
@@ -207,6 +236,12 @@ void BoxGenerator::Visit(dom::Element* element) {
       //   in Cobalt, see |LineBox| for details.
       ContainerBox* last_container_box =
           base::polymorphic_downcast<ContainerBox*>(boxes_.back());
+
+      if (child_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()) {
+        absolute_container_box->AddPositionedChild(child_box.get());
+      }
+
       if (!last_container_box->TryAddChild(&child_box)) {
         boxes_.push_back(child_box.release());
 

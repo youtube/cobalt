@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/inline_container_box.h"
 
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
 
 namespace cobalt {
@@ -213,9 +214,14 @@ void InlineContainerBox::AddContentToRenderTree(
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->AddToRenderTree(composition_node_builder,
-                               node_animations_map_builder);
+    if (!child_box->IsPositioned()) {
+      child_box->AddToRenderTree(composition_node_builder,
+                                 node_animations_map_builder);
+    }
   }
+
+  AddPositionedChildrenToRenderTree(composition_node_builder,
+                                    node_animations_map_builder);
 }
 
 bool InlineContainerBox::IsTransformable() const { return false; }

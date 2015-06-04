@@ -49,8 +49,22 @@ class ContainerBox : public Box {
   // boxes.
   virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
 
+  // Adds a positioned child (a Box for which Box::IsPositioned() returns
+  // true) to the set of positioned children for this container box.  Note that
+  // this does not imply that this is the child's parent, it just implies that
+  // this is the child's containing block.
+  void AddPositionedChild(Box* child_box);
+
  protected:
   typedef ScopedVector<Box> ChildBoxes;
+
+  void UpdateUsedSizeOfPositionedChildren(const LayoutParams& layout_params);
+  void AddPositionedChildrenToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
+
+  std::vector<Box*> positioned_child_boxes_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ContainerBox);

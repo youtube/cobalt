@@ -27,5 +27,34 @@ ContainerBox::ContainerBox(
 
 ContainerBox::~ContainerBox() {}
 
+void ContainerBox::AddPositionedChild(Box* child_box) {
+  DCHECK(child_box->IsPositioned());
+  positioned_child_boxes_.push_back(child_box);
+}
+
+void ContainerBox::UpdateUsedSizeOfPositionedChildren(
+    const LayoutParams& layout_params) {
+  // Compute sizes for positioned children with invalidated sizes.
+  for (ChildBoxes::const_iterator iter = positioned_child_boxes_.begin();
+       iter != positioned_child_boxes_.end(); ++iter) {
+    Box* child_box = *iter;
+
+    child_box->UpdateUsedSizeIfInvalid(layout_params);
+  }
+}
+
+void ContainerBox::AddPositionedChildrenToRenderTree(
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder) const {
+  // Add all positioned children to the render tree.
+  for (ChildBoxes::const_iterator iter = positioned_child_boxes_.begin();
+       iter != positioned_child_boxes_.end(); ++iter) {
+    Box* child_box = *iter;
+    child_box->AddToRenderTree(composition_node_builder,
+                               node_animations_map_builder);
+  }
+}
+
 }  // namespace layout
 }  // namespace cobalt

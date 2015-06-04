@@ -126,6 +126,11 @@ class Box {
   // Invalidates used values of "left", "top", "width", and "height".
   void InvalidateUsedRect();
 
+  // Returns true if the box is positioned (e.g. position is non-static or
+  // transform is not None).  Intuitively, this is true if the element does
+  // not follow standard layout flow rules for determining its position.
+  bool IsPositioned() const;
+
   // Attempts to split the box, so that the part before the split would fit
   // the available width. Returns the part after the split if the split
   // succeeded. Note that only inline boxes are splittable.

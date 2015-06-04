@@ -81,6 +81,10 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
                       : child_layout_params.containing_block_size.height());
   maybe_height_above_baseline_ =
       formatting_context->maybe_height_above_baseline();
+
+  // Finally, update the sizes of the positioned children here, as they
+  // do not affect the size of the containing block.
+  UpdateUsedSizeOfPositionedChildren(child_layout_params);
 }
 
 scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/) {
@@ -143,9 +147,17 @@ void BlockContainerBox::AddContentToRenderTree(
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->AddToRenderTree(composition_node_builder,
-                               node_animations_map_builder);
+    if (!child_box->IsPositioned()) {
+      child_box->AddToRenderTree(composition_node_builder,
+                                 node_animations_map_builder);
+    }
   }
+
+  // Positioned children must be rendered on top of children rendered via the
+  // standard flow.
+  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
+  AddPositionedChildrenToRenderTree(composition_node_builder,
+                                    node_animations_map_builder);
 }
 
 bool BlockContainerBox::IsTransformable() const { return true; }
