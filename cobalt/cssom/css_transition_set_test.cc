@@ -21,6 +21,7 @@
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
@@ -72,6 +73,7 @@ scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
   initial_data->set_font_family(new StringValue("Droid Sans"));
   initial_data->set_font_size(new LengthValue(16, kPixelsUnit));
   initial_data->set_height(new LengthValue(400, kPixelsUnit));
+  initial_data->set_opacity(new NumberValue(0.5f));
   initial_data->set_width(new LengthValue(400, kPixelsUnit));
   initial_data->set_transform(KeywordValue::GetNone());
   initial_data->set_transition_delay(MakeTimeListWithSingleTime(0.0f));
