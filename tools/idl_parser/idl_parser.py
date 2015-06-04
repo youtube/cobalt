@@ -607,6 +607,11 @@ class IDLParser(object):
       arg = self.BuildNamed('Argument', p, 3, ListFromConcat(p[1], p[2]))
     p[0] = arg
 
+  # [56.1] ArgumentList error recovery
+  def p_OptionalOrRequiredArgumentError(self, p):
+    """OptionalOrRequiredArgument : error """
+    p[0] = self.BuildError(p, 'OptionalOrRequiredArgumentError')
+
   # [57]
   def p_ArgumentName(self, p):
     """ArgumentName : ArgumentNameKeyword
