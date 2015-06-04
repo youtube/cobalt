@@ -129,6 +129,7 @@
         'cascaded_style_test.cc',
         'computed_style_test.cc',
         'declared_style_test.cc',
+        'used_style_test.cc',
         'white_space_processing_test.cc',
       ],
       'dependencies': [

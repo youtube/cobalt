@@ -1165,6 +1165,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 15:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kBackgroundSizePropertyName)) {
+        *property_name_token = kBackgroundSizeToken;
+        return true;
+      }
+
     case 16:
       if (IsEqualToCssIdentifier(
               name.begin, cssom::kBackgroundColorPropertyName)) {
@@ -1236,6 +1243,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       return false;
     case 4:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAutoKeywordName)) {
+        *property_value_token = kAutoToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBoldKeywordName)) {
         *property_value_token = kBoldToken;
         return true;
@@ -1253,6 +1264,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 5:
       if (IsEqualToCssIdentifier(name.begin, cssom::kBlockKeywordName)) {
         *property_value_token = kBlockToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kCoverKeywordName)) {
+        *property_value_token = kCoverToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStartKeywordName)) {
@@ -1285,6 +1300,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 7:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kContainKeywordName)) {
+        *property_value_token = kContainToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseInKeywordName)) {
         *property_value_token = kEaseInToken;
         return true;

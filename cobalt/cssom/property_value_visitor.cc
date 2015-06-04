@@ -24,6 +24,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -65,6 +66,11 @@ void DefaultingPropertyValueVisitor::VisitNumber(NumberValue* number_value) {
 void DefaultingPropertyValueVisitor::VisitPercentage(
     PercentageValue* percentage_value) {
   VisitDefault(percentage_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  VisitDefault(property_list_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitRGBAColor(

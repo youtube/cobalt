@@ -67,6 +67,7 @@
 %token kBackgroundToken                       // background
 %token kBackgroundColorToken                  // background-color
 %token kBackgroundImageToken                  // background-image
+%token kBackgroundSizeToken                   // background-size
 %token kBorderRadiusToken                     // border-radius
 %token kColorToken                            // color
 %token kDisplayToken                          // display
@@ -90,8 +91,11 @@
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAbsoluteToken                   // absolute
+%token kAutoToken                       // auto
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
+%token kContainToken                    // contain
+%token kCoverToken                      // cover
 %token kEaseInOutToken                  // ease-in-out
 %token kEaseInToken                     // ease-in
 %token kEaseOutToken                    // ease-out
@@ -250,6 +254,10 @@
 %type <percentage> percentage
 %destructor { $$->Release(); } <percentage>
 
+%union { cssom::PercentageValue* positive_percentage; }
+%type <positive_percentage> positive_percentage
+%destructor { $$->Release(); } <positive_percentage>
+
 %union { cssom::LengthValue* length; }
 %type <length> length
 %destructor { $$->Release(); } <length>
@@ -274,6 +282,8 @@
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> background_color_property_value
                        background_image_property_value
+                       background_size_property_list_element
+                       background_size_property_value
                        border_radius_property_value color color_property_value
                        common_values display_property_value
                        font_family_property_value
@@ -337,6 +347,10 @@
 %union { cssom::CSSStyleRule* style_rule; }
 %type <style_rule> at_rule qualified_rule rule style_rule
 %destructor { $$->Release(); } <style_rule>
+
+%union { cssom::PropertyListValue::Builder* property_list; }
+%type <property_list> background_size_property_list
+%destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters transform_function
@@ -444,6 +458,9 @@ identifier_token:
   | kBackgroundImageToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundImagePropertyName);
   }
+  | kBackgroundSizeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundSizePropertyName);
+  }
   | kBorderRadiusToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
   }
@@ -507,11 +524,20 @@ identifier_token:
   | kAbsoluteToken {
     $$ = TrivialStringPiece::FromCString(cssom::kAbsoluteKeywordName);
   }
+  | kAutoToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAutoKeywordName);
+  }
   | kBlockToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBlockKeywordName);
   }
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
+  }
+  | kContainToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kContainKeywordName);
+  }
+  | kCoverToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kCoverKeywordName);
   }
   | kEaseToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
@@ -793,6 +819,18 @@ percentage:
   }
   ;
 
+// Wrap the |percentage| in order to validate if the percentage is positive.
+positive_percentage:
+    percentage {
+    scoped_refptr<cssom::PercentageValue> percentage =
+        MakeScopedRefPtrAndRelease($1);
+    if (percentage && percentage->value() < 0) {
+      parser_impl->LogWarning(@1, "negative values of percentage are illegal");
+    }
+    $$ = AddRef(percentage.get());
+  }
+  ;
+
 // Opacity.
 //   http://www.w3.org/TR/css3-color/#alphavaluedt
 alpha:
@@ -1027,6 +1065,52 @@ background_image_property_value:
   | common_values
   ;
 
+background_size_property_list_element:
+    length {
+    $$ = $1;
+  }
+  | positive_percentage {
+    $$ = $1;
+  }
+  | kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  ;
+
+background_size_property_list:
+    background_size_property_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(2);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    // Fill in the omitted 'auto'.
+    $$->push_back(cssom::KeywordValue::GetAuto().get());
+  }
+  | background_size_property_list_element
+    background_size_property_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(2);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    $$->push_back(MakeScopedRefPtrAndRelease($2));
+  }
+  ;
+
+// Specifies the size of the background images.
+//   http://www.w3.org/TR/css3-background/#the-background-size
+background_size_property_value:
+    background_size_property_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
+  | kContainToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetContain().get());
+  }
+  | kCoverToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCover().get());
+  }
+  ;
+
 // The radii of a quarter ellipse that defines the shape of the corner
 // of the outer border edge.
 //   http://www.w3.org/TR/css3-background/#the-border-radius
@@ -1108,13 +1192,8 @@ height_property_value:
     }
     $$ = AddRef(length.get());
   }
-  | percentage {
-    scoped_refptr<cssom::PercentageValue> percentage =
-        MakeScopedRefPtrAndRelease($1);
-    if (percentage && percentage->value() < 0) {
-      parser_impl->LogWarning(@1, "negative values of height are illegal");
-    }
-    $$ = AddRef(percentage.get());
+  | positive_percentage {
+    $$ = MakeScopedRefPtrAndRelease($1);
   }
   | common_values
   ;
@@ -1575,13 +1654,8 @@ width_property_value:
     }
     $$ = AddRef(length.get());
   }
-  | percentage {
-    scoped_refptr<cssom::PercentageValue> percentage =
-        MakeScopedRefPtrAndRelease($1);
-    if (percentage && percentage->value() < 0) {
-      parser_impl->LogWarning(@1, "negative values of width are illegal");
-    }
-    $$ = AddRef(percentage.get());
+  | positive_percentage {
+    $$ = MakeScopedRefPtrAndRelease($1);
   }
   | common_values
   ;
@@ -1660,6 +1734,12 @@ maybe_declaration:
   | kBackgroundImageToken maybe_whitespace colon background_image_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundImagePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBackgroundSizeToken maybe_whitespace colon background_size_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundSizePropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

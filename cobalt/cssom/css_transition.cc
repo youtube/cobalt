@@ -82,6 +82,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
@@ -311,6 +312,8 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kAuto:
     case KeywordValue::kBlock:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -342,6 +345,12 @@ void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
 
 void AnimatorVisitor::VisitPercentage(
     PercentageValue* /*start_percentage_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitPropertyList(
+    PropertyListValue* /*property_list_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }
