@@ -29,6 +29,7 @@ namespace cobalt {
 namespace layout {
 
 class Box;
+class ContainerBox;
 class UsedStyleProvider;
 
 // In the visual formatting model, each element in the document tree generates
@@ -48,7 +49,8 @@ class BoxGenerator : public dom::NodeVisitor {
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
       const UsedStyleProvider* used_style_provider,
       icu::BreakIterator* line_break_iterator,
-      const base::Time& style_change_event_time);
+      const base::Time& style_change_event_time,
+      ContainerBox* containing_box_for_absolute);
   ~BoxGenerator();
 
   void Visit(dom::Comment* comment) OVERRIDE;
@@ -69,6 +71,11 @@ class BoxGenerator : public dom::NodeVisitor {
 
   Boxes boxes_;
   const base::Time style_change_event_time_;
+
+  // Maintains a reference to the box that should be used as the containing
+  // block for absolutely positioned elements (e.g. their first ancestor
+  // that is positioned).
+  ContainerBox* containing_box_for_absolute_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
