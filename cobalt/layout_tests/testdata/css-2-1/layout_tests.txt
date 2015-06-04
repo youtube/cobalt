@@ -2,11 +2,13 @@
 10-1-absolute-positioned-elements-are-positioned-relative-to-parent-element-flow
 10-1-absolute-positioned-elements-compute-used-values-from-containing-block
 10-1-absolute-positioned-elements-container-block-is-absolute-positioned-ancestor
+10-3-2-replaced-box-width
 10-3-7-multiple-absolute-positioned-elements-share-same-static-position
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
 10-5-percentage-of-auto-height-on-absolute-element-should-compute-to-percentage
 10-5-percentage-of-auto-height-should-compute-to-auto
+10-6-2-replaced-box-height
 10-8-baseline-of-inline-block-should-be-baseline-of-last-line-box
 10-8-line-height-should-specify-minimum-height-of-line-boxes
 9-2-1-1-anonymous-block-boxes-should-be-ignored-when-resolving-percentages
