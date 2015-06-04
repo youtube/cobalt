@@ -83,7 +83,67 @@ void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+//   http://www.w3.org/TR/css3-background/#the-background-size
+class UsedBackgroundSizeScaleProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  UsedBackgroundSizeScaleProvider(float frame_length, int image_length)
+      : frame_length_(frame_length),
+        image_length_(image_length),
+        scale_(1.0f),
+        auto_keyword_(false) {
+    DCHECK_GT(image_length, 0);
+  }
+
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+
+  float scale() const { return scale_; }
+  bool auto_keyword() const { return auto_keyword_; }
+
+ private:
+  float frame_length_;
+  int image_length_;
+  float scale_;
+  bool auto_keyword_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundSizeScaleProvider);
+};
+
+void UsedBackgroundSizeScaleProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  scale_ = frame_length_ * percentage->value() / image_length_;
+}
+
+void UsedBackgroundSizeScaleProvider::VisitKeyword(
+    cssom::KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case cssom::KeywordValue::kAuto: {
+      auto_keyword_ = true;
+      break;
+    }
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
@@ -137,6 +197,104 @@ render_tree::ColorRGBA GetUsedColor(
   return render_tree::ColorRGBA(color->value());
 }
 
+//   http://www.w3.org/TR/css3-background/#the-background-size
+void UsedBackgroundSizeProvider::VisitPropertyList(
+    cssom::PropertyListValue* property_list_value) {
+  DCHECK_GT(property_list_value->value().size(), 0);
+  DCHECK_LE(property_list_value->value().size(), 2);
+
+  UsedBackgroundSizeScaleProvider used_background_width_provider(
+      frame_size_.width(), image_size_.width());
+  property_list_value->value()[0]->Accept(&used_background_width_provider);
+
+  UsedBackgroundSizeScaleProvider used_background_height_provider(
+      frame_size_.height(), image_size_.height());
+  if (property_list_value->value().size() == 2) {
+    property_list_value->value()[1]->Accept(&used_background_height_provider);
+  } else {
+    // If only one value is given, the second is assumed to be 'auto'.
+    cssom::KeywordValue::GetAuto()->Accept(&used_background_height_provider);
+  }
+
+  bool background_width_auto = used_background_width_provider.auto_keyword();
+  bool background_height_auto = used_background_height_provider.auto_keyword();
+
+  float width_scale;
+  float height_scale;
+  if (background_width_auto && background_height_auto) {
+    // If both values are 'auto' then the intrinsic width and/or height of the
+    // image should be used.
+    width_scale = height_scale = 1.0f;
+  } else if (!background_width_auto && !background_height_auto) {
+    width_scale = used_background_width_provider.scale();
+    height_scale = used_background_height_provider.scale();
+  } else {
+    // An 'auto' value for one dimension is resolved by using the image's
+    // intrinsic ratio and the size of the other dimension.
+    width_scale = height_scale = background_width_auto
+                                     ? used_background_height_provider.scale()
+                                     : used_background_width_provider.scale();
+  }
+
+  ConvertWidthAndHeightScale(width_scale, height_scale);
+}
+
+void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case cssom::KeywordValue::kContain: {
+      // Scale the image, while preserving its intrinsic aspect ratio (if any),
+      // to the largest size such that both its width and its height can
+      // fit inside the background positioning area.
+      float width_scale = frame_size_.width() / image_size_.width();
+      float height_scale = frame_size_.height() / image_size_.height();
+
+      float selected_scale =
+          width_scale < height_scale ? width_scale : height_scale;
+      ConvertWidthAndHeightScale(selected_scale, selected_scale);
+      break;
+    }
+    case cssom::KeywordValue::kCover: {
+      // Scale the image, while preserving its intrinsic aspect ratio (if any),
+      // to the smallest size such that both its width and its height can
+      // completely cover the background positioning area.
+      float width_scale = frame_size_.width() / image_size_.width();
+      float height_scale = frame_size_.height() / image_size_.height();
+
+      float selected_scale =
+          width_scale > height_scale ? width_scale : height_scale;
+      ConvertWidthAndHeightScale(selected_scale, selected_scale);
+      break;
+    }
+    case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
+    float width_scale, float height_scale) {
+  if (frame_size_.width() <= 0 || frame_size_.height() <= 0) {
+    DLOG(WARNING) << "Frame size is not positive.";
+    width_scale_ = height_scale_ = 1.0f;
+    return;
+  }
+
+  width_scale_ = width_scale * image_size_.width() / frame_size_.width();
+  height_scale_ = height_scale * image_size_.height() / frame_size_.height();
+}
+
 void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   switch (keyword->value()) {
     case cssom::KeywordValue::kAuto:
@@ -145,6 +303,8 @@ void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -196,6 +356,8 @@ void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:

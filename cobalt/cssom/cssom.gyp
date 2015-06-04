@@ -80,6 +80,7 @@
         'number_value.h',
         'percentage_value.cc',
         'percentage_value.h',
+        'property_list_value.h',
         'property_names.cc',
         'property_names.h',
         'property_value.h',

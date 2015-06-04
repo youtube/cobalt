@@ -29,6 +29,8 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -346,6 +348,121 @@ TEST_F(ParserTest, ParsesBackgroundImageInherit) {
                                    source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_image());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeContain) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: contain;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetContain(), style->background_size());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeCover) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: cover;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetCover(), style->background_size());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeSingleAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: auto;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeDoubleAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: auto auto;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[0]);
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeSinglePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: 20%;", source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_size_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.2f, percentage_value->value());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeDoublePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: 40% 60%;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_left =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_size_list->value()[0].get());
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_size_list->value()[1].get());
+
+  EXPECT_FLOAT_EQ(0.4f, percentage_value_left->value());
+  EXPECT_FLOAT_EQ(0.6f, percentage_value_right->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeOneAutoOnePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: auto 20%;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            background_size_list->value()[0].get());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_size_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.2f, percentage_value->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-size: 20% auto;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  EXPECT_EQ(2, background_size_list->value().size());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_size_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.2f, percentage_value->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            background_size_list->value()[1].get());
 }
 
 TEST_F(ParserTest, ParsesBorderRadius) {

@@ -29,6 +29,7 @@ class KeywordValue;
 class LengthValue;
 class NumberValue;
 class PercentageValue;
+class PropertyListValue;
 class PropertyValue;
 class RGBAColorValue;
 class StringValue;
@@ -50,6 +51,7 @@ class PropertyValueVisitor {
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitPercentage(PercentageValue* percentage_value) = 0;
+  virtual void VisitPropertyList(PropertyListValue* property_list_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
@@ -76,6 +78,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitLength(LengthValue* length_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
   void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
