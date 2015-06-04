@@ -92,7 +92,8 @@ RenderTreeWithAnimations Layout(
 
   BoxGenerator root_box_generator(initial_containing_block->computed_style(),
                                   user_agent_style_sheet, &used_style_provider,
-                                  line_break_iterator, style_change_event_time);
+                                  line_break_iterator, style_change_event_time,
+                                  initial_containing_block.get());
   root_element->Accept(&root_box_generator);
   BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
   for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();

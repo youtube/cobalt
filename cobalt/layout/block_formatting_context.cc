@@ -31,8 +31,6 @@ BlockFormattingContext::~BlockFormattingContext() {}
 void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
   DCHECK_EQ(Box::kBlockLevel, child_box->GetLevel());
 
-  child_box->UpdateUsedSizeIfInvalid(layout_params_);
-
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
@@ -47,6 +45,8 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
   //               affect the block formatting context's state.
   if (child_box->computed_style()->position() !=
           cssom::KeywordValue::GetAbsolute()) {
+    child_box->UpdateUsedSizeIfInvalid(layout_params_);
+
     next_child_box_used_position_.Offset(0, child_box->used_height());
 
     // The vertical distance between two sibling boxes is determined by
