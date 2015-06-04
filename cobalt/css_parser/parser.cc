@@ -47,6 +47,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/rgba_color_value.h"

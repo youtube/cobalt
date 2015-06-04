@@ -107,6 +107,15 @@ void CSSStyleDeclaration::set_background_image(
   SetPropertyValue(kBackgroundImagePropertyName, background_image);
 }
 
+std::string CSSStyleDeclaration::background_size() const {
+  return data_->background_size() ? data_->background_size()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_background_size(
+    const std::string& background_size) {
+  SetPropertyValue(kBackgroundSizePropertyName, background_size);
+}
+
 std::string CSSStyleDeclaration::border_radius() const {
   return data_->border_radius() ? data_->border_radius()->ToString() : "";
 }
