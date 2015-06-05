@@ -44,6 +44,7 @@
         'NumericTypesTestInterface.idl',
         'ObjectTypeBindingsInterface.idl',
         'OperationsTestInterface.idl',
+        'StaticPropertiesInterface.idl',
         'TargetInterface.idl',
         'UnionTypesInterface.idl',
         'Window.idl',
@@ -78,6 +79,7 @@
       'sources': [
         '<@(generated_sources)',
         'constants_interface.cc',
+        'static_properties_interface.cc',
       ],
       'defines': [
         # Avoid WTF LOG macro.
@@ -110,6 +112,7 @@
         'object_type_bindings_test.cc',
         'operations_bindings_test.cc',
         'optional_arguments_bindings_test.cc',
+        'static_properties_bindings_test.cc',
         'union_type_bindings_test.cc',
         'variadic_arguments_bindings_test.cc',
       ],
