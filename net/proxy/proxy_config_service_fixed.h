@@ -19,8 +19,8 @@ class NET_EXPORT ProxyConfigServiceFixed : public ProxyConfigService {
   virtual ~ProxyConfigServiceFixed();
 
   // ProxyConfigService methods:
-  virtual void AddObserver(Observer* observer) OVERRIDE {}
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
+  virtual void AddObserver(Observer* /*observer*/) OVERRIDE {}
+  virtual void RemoveObserver(Observer* /*observer*/) OVERRIDE {}
   virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) OVERRIDE;
 
  private:

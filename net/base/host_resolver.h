@@ -167,7 +167,7 @@ class NET_EXPORT HostResolver {
   // unspecified. For example, this could be used to restrict resolution
   // results to AF_INET by passing in ADDRESS_FAMILY_IPV4, or to
   // AF_INET6 by passing in ADDRESS_FAMILY_IPV6.
-  virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
+  virtual void SetDefaultAddressFamily(AddressFamily /*address_family*/) {}
   virtual AddressFamily GetDefaultAddressFamily() const;
 
   // Continuously observe whether IPv6 is supported, and set the allowable
