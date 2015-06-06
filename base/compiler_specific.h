@@ -68,6 +68,9 @@
 #define NON_EXPORTED_BASE(code) MSVC_SUPPRESS_WARNING(4275) \
                                 code
 
+#if !defined(UNREFERENCED_PARAMETER)
+#define UNREFERENCED_PARAMETER(x) (x)
+#endif
 #else  // Not MSVC
 
 #define MSVC_SUPPRESS_WARNING(n)
@@ -78,7 +81,9 @@
 #define MSVC_ENABLE_OPTIMIZE()
 #define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
 #define NON_EXPORTED_BASE(code) code
-
+#if !defined(UNREFERENCED_PARAMETER)
+#define UNREFERENCED_PARAMETER(x)
+#endif
 #endif  // COMPILER_MSVC
 
 
