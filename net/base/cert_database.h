@@ -35,13 +35,13 @@ class NET_EXPORT CertDatabase {
     virtual ~Observer() {}
 
     // Will be called when a new certificate is added.
-    virtual void OnCertAdded(const X509Certificate* cert) {}
+    virtual void OnCertAdded(const X509Certificate* /*cert*/) {}
 
     // Will be called when a certificate is removed.
-    virtual void OnCertRemoved(const X509Certificate* cert) {}
+    virtual void OnCertRemoved(const X509Certificate* /*cert*/) {}
 
     // Will be called when a certificate's trust is changed.
-    virtual void OnCertTrustChanged(const X509Certificate* cert) {}
+    virtual void OnCertTrustChanged(const X509Certificate* /*cert*/) {}
 
    protected:
     Observer() {}

@@ -158,9 +158,9 @@ class BASE_EXPORT ThreadRestrictions {
 #else
   // Inline the empty definitions of these functions so that they can be
   // compiled out.
-  static bool SetIOAllowed(bool allowed) { return true; }
+  static bool SetIOAllowed(bool /*allowed*/) { return true; }
   static void AssertIOAllowed() {}
-  static bool SetSingletonAllowed(bool allowed) { return true; }
+  static bool SetSingletonAllowed(bool /*allowed*/) { return true; }
   static void AssertSingletonAllowed() {}
   static void DisallowWaiting() {}
   static void AssertWaitAllowed() {}
@@ -210,7 +210,7 @@ class BASE_EXPORT ThreadRestrictions {
 #if ENABLE_THREAD_RESTRICTIONS
   static bool SetWaitAllowed(bool allowed);
 #else
-  static bool SetWaitAllowed(bool allowed) { return true; }
+  static bool SetWaitAllowed(bool /*allowed*/) { return true; }
 #endif
 
   // Constructing a ScopedAllowWait temporarily allows waiting on the current

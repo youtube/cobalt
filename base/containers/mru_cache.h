@@ -208,7 +208,7 @@ class MRUCacheBase {
 template<class PayloadType>
 class MRUCacheNullDeletor {
  public:
-  void operator()(PayloadType& payload) {
+  void operator()(PayloadType& /*payload*/) {
   }
 };
 
