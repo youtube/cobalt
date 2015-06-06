@@ -144,8 +144,6 @@
       },
     },
     'msvs_disabled_warnings': [
-      # Unreferenced formal parameter.
-      4100,
       # Conditional expression is constant.
       # Triggers in many legitimate cases, like branching on a constant declared
       # in type traits.

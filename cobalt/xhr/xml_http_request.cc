@@ -143,6 +143,8 @@ int XMLHttpRequest::status() const {
 void XMLHttpRequest::SetRequestHeader(
     const std::string& header, const std::string& value) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-setrequestheader
+  UNREFERENCED_PARAMETER(header);
+  UNREFERENCED_PARAMETER(value);
   NOTIMPLEMENTED();
 }
 
@@ -226,6 +228,7 @@ void XMLHttpRequest::Send() {
 
 void XMLHttpRequest::Send(const base::optional<std::string>& request_body) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
+  UNREFERENCED_PARAMETER(request_body);
   if (state_ != kOpened) {
     DLOG(ERROR) << "InvalidStateError: state_ is not OPENED";
     NOTIMPLEMENTED();
@@ -254,11 +257,13 @@ void XMLHttpRequest::Send(const base::optional<std::string>& request_body) {
 
 void XMLHttpRequest::set_timeout(uint32 timeout) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-timeout-attribute
+  UNREFERENCED_PARAMETER(timeout);
   NOTIMPLEMENTED();
 }
 
 void XMLHttpRequest::set_with_credentials(bool with_credentials) {
   // http://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-withcredentials-attribute
+  UNREFERENCED_PARAMETER(with_credentials);
   NOTIMPLEMENTED();
 }
 
@@ -330,6 +335,8 @@ void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
 
 void XMLHttpRequest::OnReceived(const char* data, size_t size) {
   // TODO(***REMOVED***): What to do with data/size here?
+  UNREFERENCED_PARAMETER(data);
+  UNREFERENCED_PARAMETER(size);
   NOTIMPLEMENTED();
 }
 
@@ -365,6 +372,7 @@ void XMLHttpRequest::OnDone() {
 }
 
 void XMLHttpRequest::OnError(const std::string& error) {
+  UNREFERENCED_PARAMETER(error);
   Abort();
   ChangeState(kDone);
 }

@@ -29,9 +29,9 @@ class ArrayBuffer : public script::Wrappable {
  public:
   explicit ArrayBuffer(uint32 length);
 
-  uint32 byte_length() const { return bytes_.size(); }
+  uint32 byte_length() const { return static_cast<uint32>(bytes_.size()); }
   scoped_refptr<ArrayBuffer> Slice(int begin) {
-    return Slice(begin, byte_length());
+    return Slice(begin, static_cast<int>(byte_length()));
   }
   scoped_refptr<ArrayBuffer> Slice(int begin, int end);
 

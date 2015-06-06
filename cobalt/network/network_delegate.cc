@@ -30,49 +30,81 @@ int NetworkDelegate::OnBeforeURLRequest(
     net::URLRequest* request,
     const net::CompletionCallback& callback,
     GURL* new_url) {
-
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(callback);
+  UNREFERENCED_PARAMETER(new_url);
   return net::OK;
 }
 
 int NetworkDelegate::OnBeforeSendHeaders(
     net::URLRequest* request, const net::CompletionCallback& callback,
     net::HttpRequestHeaders* headers) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(callback);
+  UNREFERENCED_PARAMETER(headers);
   return net::OK;
 }
 
 void NetworkDelegate::OnSendHeaders(net::URLRequest* request,
-                                    const net::HttpRequestHeaders& headers) {}
+                                    const net::HttpRequestHeaders& headers) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(headers);
+}
 
 int NetworkDelegate::OnHeadersReceived(
     net::URLRequest* request, const net::CompletionCallback& callback,
     const net::HttpResponseHeaders* original_response_headers,
     scoped_refptr<net::HttpResponseHeaders>* override_response_headers) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(callback);
+  UNREFERENCED_PARAMETER(original_response_headers);
+  UNREFERENCED_PARAMETER(override_response_headers);
   return net::OK;
 }
 
 void NetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
-                                       const GURL& new_location) {}
+                                       const GURL& new_location) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(new_location);
+}
 
-void NetworkDelegate::OnResponseStarted(net::URLRequest* request) {}
+void NetworkDelegate::OnResponseStarted(net::URLRequest* request) {
+  UNREFERENCED_PARAMETER(request);
+}
 
 void NetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
-                                     int bytes_read) {}
+                                     int bytes_read) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(bytes_read);
+}
 
-void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started) {}
+void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(started);
+}
 
-void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {}
+void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {
+  UNREFERENCED_PARAMETER(request);
+}
 
 void NetworkDelegate::OnPACScriptError(int line_number, const string16& error) {
+  UNREFERENCED_PARAMETER(line_number);
+  UNREFERENCED_PARAMETER(error);
 }
 
 NetworkDelegate::AuthRequiredResponse NetworkDelegate::OnAuthRequired(
     net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
     const AuthCallback& callback, net::AuthCredentials* credentials) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(auth_info);
+  UNREFERENCED_PARAMETER(callback);
+  UNREFERENCED_PARAMETER(credentials);
   return AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }
 
 bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
                                       const net::CookieList& cookie_list) {
+  UNREFERENCED_PARAMETER(cookie_list);
   net::StaticCookiePolicy policy(ComputeCookiePolicy());
   int rv =
       policy.CanGetCookies(request.url(), request.first_party_for_cookies());
@@ -82,6 +114,8 @@ bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
 bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
                                      const std::string& cookie_line,
                                      net::CookieOptions* options) {
+  UNREFERENCED_PARAMETER(cookie_line);
+  UNREFERENCED_PARAMETER(options);
   net::StaticCookiePolicy policy(ComputeCookiePolicy());
   int rv =
       policy.CanSetCookie(request.url(), request.first_party_for_cookies());
@@ -90,21 +124,29 @@ bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
 
 bool NetworkDelegate::OnCanAccessFile(const net::URLRequest& request,
                                       const FilePath& path) const {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(path);
   return true;
 }
 
 bool NetworkDelegate::OnCanThrottleRequest(
     const net::URLRequest& request) const {
+  UNREFERENCED_PARAMETER(request);
   return false;
 }
 
 int NetworkDelegate::OnBeforeSocketStreamConnect(
     net::SocketStream* stream, const net::CompletionCallback& callback) {
+  UNREFERENCED_PARAMETER(stream);
+  UNREFERENCED_PARAMETER(callback);
   return net::OK;
 }
 
 void NetworkDelegate::OnRequestWaitStateChange(const net::URLRequest& request,
-                                               RequestWaitState state) {}
+                                               RequestWaitState state) {
+  UNREFERENCED_PARAMETER(request);
+  UNREFERENCED_PARAMETER(state);
+}
 
 net::StaticCookiePolicy::Type NetworkDelegate::ComputeCookiePolicy() const {
   // TODO(***REMOVED***): Allow dynamically overriding this for debugging.
