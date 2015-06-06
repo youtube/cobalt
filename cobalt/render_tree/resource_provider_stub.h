@@ -17,6 +17,8 @@
 #ifndef RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 #define RENDER_TREE_RESOURCE_PROVIDER_STUB_H_
 
+#include <string>
+
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -107,18 +109,25 @@ class ResourceProviderStub : public ResourceProvider {
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,
                                                     size_t alignment) OVERRIDE {
+    UNREFERENCED_PARAMETER(size_in_bytes);
+    UNREFERENCED_PARAMETER(alignment);
     return scoped_ptr<RawImageMemory>();
   }
 
   scoped_refptr<Image> CreateMultiPlaneImageFromRawMemory(
       scoped_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) OVERRIDE {
+    UNREFERENCED_PARAMETER(raw_image_memory);
+    UNREFERENCED_PARAMETER(descriptor);
     return scoped_refptr<Image>();
   }
 
   scoped_refptr<Font> GetPreInstalledFont(const char* font_family_name,
                                           FontStyle font_style,
                                           float font_size) OVERRIDE {
+    UNREFERENCED_PARAMETER(font_family_name);
+    UNREFERENCED_PARAMETER(font_style);
+    UNREFERENCED_PARAMETER(font_size);
     return scoped_refptr<Font>();
   }
 };
