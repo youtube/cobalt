@@ -17,6 +17,8 @@
 #ifndef DOM_WINDOW_H_
 #define DOM_WINDOW_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/css_parser.h"
@@ -78,16 +80,22 @@ class Window : public EventTarget {
   //   http://www.w3.org/TR/html5/webappapis.html#timers
   //
   int SetTimeout(const scoped_refptr<TimerCallback>& handler) {
+    UNREFERENCED_PARAMETER(handler);
     NOTIMPLEMENTED();
     return 0;
   }
 
   int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout) {
+    UNREFERENCED_PARAMETER(handler);
+    UNREFERENCED_PARAMETER(timeout);
     NOTIMPLEMENTED();
     return 0;
   }
 
-  void ClearTimeout(int handle) { NOTIMPLEMENTED(); }
+  void ClearTimeout(int handle) {
+    UNREFERENCED_PARAMETER(handle);
+    NOTIMPLEMENTED();
+  }
 
   // Custom, not in any spec.
   const scoped_refptr<Console>& console() const;

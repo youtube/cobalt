@@ -51,7 +51,7 @@ class Uint8Array : public ArrayBufferView {
 
   // An unspecified end defaults to array length.
   scoped_refptr<Uint8Array> Subarray(int start) {
-    return Subarray(start, length());
+    return Subarray(start, static_cast<int>(length()));
   }
 
   // Copy items from 'other' into this array. This array must already
@@ -77,11 +77,11 @@ class Uint8Array : public ArrayBufferView {
   }
   uint32 length() const { return byte_length() / kBytesPerElement; }
 
+  uint8* data() const { return reinterpret_cast<uint8*>(base_address()); }
+
   DEFINE_WRAPPABLE_TYPE(Uint8Array);
 
  private:
-  uint8* data() const { return reinterpret_cast<uint8*>(base_address()); }
-
   ~Uint8Array();
 
   DISALLOW_COPY_AND_ASSIGN(Uint8Array);
