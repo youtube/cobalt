@@ -18,11 +18,17 @@
 #define XHR_XML_HTTP_REQUEST_H_
 
 #include <string>
+#include <vector>
 
 #include "base/optional.h"
+#include "base/timer.h"
+#include "cobalt/dom/array_buffer.h"
+#include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/loader/net_fetcher.h"
+#include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "googleurl/src/gurl.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_fetcher.h"
 
@@ -44,6 +50,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // EnvironmentSettings so that JSC doesn't need to know about dom.
   explicit XMLHttpRequest(script::EnvironmentSettings*);
 
+  typedef script::UnionType2<std::string, scoped_refptr<dom::ArrayBuffer> >
+      ResponseType;
+
+  typedef script::UnionType2<std::string, scoped_refptr<dom::ArrayBufferView> >
+      RequestBodyType;
+
   enum State {
     kUnsent = 0,
     kOpened = 1,
@@ -62,6 +74,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     kResponseTypeCodeMax,
   };
 
+  void Abort();
   void Open(const std::string& method, const std::string& url);
 
   // Must be called after open(), but before send().
@@ -72,17 +85,15 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void OverrideMimeType(const std::string& mime_type);
 
   void Send();
-  void Send(const base::optional<std::string>& request_body);
-  void Abort();
+  void Send(const base::optional<RequestBodyType>& request_body);
+
   base::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
 
   std::string response_text();
   base::optional<std::string> response_xml();
   std::string status_text();
-  // TODO(***REMOVED***): This should return a union type of all possible
-  // response objects. For now we only support response_text().
-  base::optional<std::string> response();
+  base::optional<ResponseType> response();
 
   int ready_state() const { return static_cast<int>(state_); }
   int status() const;
@@ -111,6 +122,13 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool error() const { return error_; }
   bool sent() const { return sent_; }
   const std::string& mime_type_override() const { return mime_type_override_; }
+  const net::HttpRequestHeaders& request_headers() const {
+    return request_headers_;
+  }
+
+  // TODO(***REMOVED***): Remove this when b/21735168 is fixed.
+  scoped_refptr<dom::ArrayBuffer> dummy_array_buffer() { return NULL; }
+  scoped_refptr<dom::ArrayBufferView> dummy_array_buffer_view() { return NULL; }
 
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
@@ -118,25 +136,49 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   ~XMLHttpRequest() OVERRIDE;
 
  private:
+  enum RequestErrorType {
+    kNetworkError,
+    kAbortError,
+    kTimeoutError,
+  };
+
+  // Dispatch a progress event to any listeners.
+  void FireProgressEvent(const std::string& event_name);
+  // Cancel any inflight request and set error flag.
+  void TerminateRequest();
+  // Dispatch events based on the type of error.
+  void HandleRequestError(RequestErrorType request_error);
+  // Callback when timeout fires.
+  void OnTimeout();
+  // Starts the timeout timer running.
+  void StartTimer(base::TimeDelta time_since_send);
   // Update the internal ready state and fire events.
   void ChangeState(State new_state);
+  // Return array buffer response body as an ArrayBuffer.
+  scoped_refptr<dom::ArrayBuffer> response_array_buffer();
 
   // Ref this object to prevent it from being destroyed while
   // there are active requests in flight.
   void AddExtraRef();
   void ReleaseExtraRef();
 
-  // Dispatch a progress event to any listeners.
-  void FireProgressEvent(const std::string& event_name);
+  base::ThreadChecker thread_checker_;
 
   scoped_refptr<dom::EventListener> on_ready_state_change_listener_;
   scoped_ptr<loader::NetFetcher> net_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
-  std::string response_text_;
+  std::vector<uint8> response_body_;
+
   std::string mime_type_override_;
   GURL base_url_;
   GURL request_url_;
+  net::HttpRequestHeaders request_headers_;
 
+  // For handling send() timeout.
+  base::OneShotTimer<XMLHttpRequest> timer_;
+  base::Time send_start_time_;
+
+  // All members requiring initialization are grouped below.
   dom::DOMSettings* settings_;
   State state_;
   ResponseTypeCode response_type_;
@@ -146,6 +188,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool with_credentials_;
   bool error_;
   bool sent_;
+  bool stop_timeout_;
 
   // For debugging our reference count manipulations.
   bool did_add_ref_;
