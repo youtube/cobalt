@@ -3,6 +3,7 @@
 10-3-7-multiple-absolute-positioned-elements-share-same-static-position
 10-3-9-child-width-should-be-calculated-after-width-of-inline-block-parent
 10-3-9-inline-block-non-replaced-elements-with-auto-width-should-shrink-to-fit
+10-5-percentage-of-auto-height-on-absolute-element-should-compute-to-percentage
 10-5-percentage-of-auto-height-should-compute-to-auto
 10-8-baseline-of-inline-block-should-be-baseline-of-last-line-box
 10-8-line-height-should-specify-minimum-height-of-line-boxes
