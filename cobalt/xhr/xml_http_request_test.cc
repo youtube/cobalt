@@ -83,20 +83,20 @@ class XhrTest : public ::testing::Test {
   XhrTest();
   ~XhrTest() OVERRIDE;
 
- private:
   scoped_ptr<FakeSettings> settings_;
+  scoped_refptr<XMLHttpRequest> xhr_;
 };
 
-XhrTest::XhrTest() : settings_(new FakeSettings()) {}
+XhrTest::XhrTest()
+    : settings_(new FakeSettings()), xhr_(new XMLHttpRequest(settings())) {}
 
 XhrTest::~XhrTest() {}
 
 TEST_F(XhrTest, InvalidMethod) {
-  scoped_refptr<XMLHttpRequest> xhr = new XMLHttpRequest(settings());
   std::string output;
   {
     ScopedLogInterceptor li(&output);
-    xhr->Open("GETT", "fake_url");
+    xhr_->Open("INVALID_METHOD", "fake_url");
   }
   // Note: Once JS exceptions are supported, we will verify that
   // the correct exceptions are thrown. For now we check for log output.
@@ -104,45 +104,61 @@ TEST_F(XhrTest, InvalidMethod) {
 }
 
 TEST_F(XhrTest, Open) {
-  scoped_refptr<XMLHttpRequest> xhr = new XMLHttpRequest(settings());
   scoped_refptr<MockEventListener> listener =
       MockEventListener::CreateAsAttribute();
-  xhr->set_onreadystatechange(listener);
+  xhr_->set_onreadystatechange(listener);
   EXPECT_CALL(*listener, HandleEvent(Pointee(Property(
                              &dom::Event::type, "readystatechange")))).Times(1);
-  xhr->Open("GET", "https://www.google.com");
+  xhr_->Open("GET", "https://www.google.com");
 
-  EXPECT_EQ(XMLHttpRequest::kOpened, xhr->ready_state());
-  EXPECT_EQ(GURL("https://www.google.com"), xhr->request_url());
+  EXPECT_EQ(XMLHttpRequest::kOpened, xhr_->ready_state());
+  EXPECT_EQ(GURL("https://www.google.com"), xhr_->request_url());
 }
 
 TEST_F(XhrTest, OverrideMimeType) {
-  scoped_refptr<XMLHttpRequest> xhr = new XMLHttpRequest(settings());
-  EXPECT_EQ("", xhr->mime_type_override());
+  EXPECT_EQ("", xhr_->mime_type_override());
 
   std::string output;
   {
     ScopedLogInterceptor li(&output);
-    xhr->OverrideMimeType("invalidmimetype");
+    xhr_->OverrideMimeType("invalidmimetype");
   }
   EXPECT_THAT(output, HasSubstr("TypeError"));
-  EXPECT_EQ("", xhr->mime_type_override());
+  EXPECT_EQ("", xhr_->mime_type_override());
 
-  xhr->OverrideMimeType("text/xml");
-  EXPECT_EQ("text/xml", xhr->mime_type_override());
+  xhr_->OverrideMimeType("text/xml");
+  EXPECT_EQ("text/xml", xhr_->mime_type_override());
 }
 
 TEST_F(XhrTest, SetResponseType) {
-  scoped_refptr<XMLHttpRequest> xhr = new XMLHttpRequest(settings());
-  xhr->set_response_type("document");
-  EXPECT_EQ("document", xhr->response_type());
+  xhr_->set_response_type("document");
+  EXPECT_EQ("document", xhr_->response_type());
 
   std::string output;
   {
     ScopedLogInterceptor li(&output);
-    xhr->set_response_type("something invalid");
+    xhr_->set_response_type("something invalid");
   }
   EXPECT_THAT(output, HasSubstr("WARNING"));
+}
+
+TEST_F(XhrTest, SetRequestHeaderBeforeOpen) {
+  std::string output;
+  {
+    ScopedLogInterceptor li(&output);
+    xhr_->SetRequestHeader("Foo", "bar");
+  }
+  EXPECT_THAT(output, HasSubstr("InvalidStateError"));
+}
+
+TEST_F(XhrTest, SetRequestHeader) {
+  xhr_->Open("GET", "https://www.google.com");
+  EXPECT_EQ("\r\n", xhr_->request_headers().ToString());
+
+  xhr_->SetRequestHeader("Foo", "bar");
+  EXPECT_EQ("Foo: bar\r\n\r\n", xhr_->request_headers().ToString());
+  xhr_->SetRequestHeader("Foo", "baz");
+  EXPECT_EQ("Foo: bar, baz\r\n\r\n", xhr_->request_headers().ToString());
 }
 
 }  // namespace xhr
