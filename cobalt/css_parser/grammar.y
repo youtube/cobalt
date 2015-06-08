@@ -1193,7 +1193,7 @@ height_property_value:
     $$ = AddRef(length.get());
   }
   | positive_percentage {
-    $$ = MakeScopedRefPtrAndRelease($1);
+    $$ = $1;
   }
   | common_values
   ;
@@ -1655,7 +1655,7 @@ width_property_value:
     $$ = AddRef(length.get());
   }
   | positive_percentage {
-    $$ = MakeScopedRefPtrAndRelease($1);
+    $$ = $1;
   }
   | common_values
   ;
