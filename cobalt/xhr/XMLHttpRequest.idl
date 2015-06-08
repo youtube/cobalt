@@ -32,7 +32,7 @@
     void setRequestHeader(DOMString header, DOMString value);
     // TODO(***REMOVED***): Wait for union types to be supported. Just allow DOMString for now.
     // void send(optional (ArrayBufferView or Blob or Document or DOMString or FormData)? data);
-    void send(optional DOMString? request_body);
+    void send(optional (DOMString or ArrayBufferView)? request_body);
     void abort();
     void overrideMimeType(DOMString mime_type);
     DOMString getAllResponseHeaders();
@@ -53,8 +53,14 @@
 
     attribute DOMString responseType;
     // TODO(***REMOVED***): Use a union type for all the possible response types.
-    readonly attribute object response;
+    readonly attribute (DOMString or ArrayBuffer) response;
 
     readonly attribute unsigned short status;
     readonly attribute DOMString statusText;
+
+    // TODO(***REMOVED***): Remove this when b/21735168 is fixed.
+    // This forces the correct headers to be included in the bindings.
+    readonly attribute ArrayBuffer dummy_array_buffer;
+    readonly attribute ArrayBufferView dummy_array_buffer_view;
+
 };
