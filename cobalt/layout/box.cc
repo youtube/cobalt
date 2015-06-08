@@ -48,7 +48,9 @@ Box::Box(
     const UsedStyleProvider* used_style_provider)
     : computed_style_(computed_style),
       transitions_(transitions),
-      used_style_provider_(used_style_provider) {
+      used_style_provider_(used_style_provider),
+      parent_(NULL),
+      containing_block_(NULL) {
   DCHECK(transitions_);
   DCHECK(used_style_provider_);
 }
@@ -295,7 +297,8 @@ void Box::AddBackgroundToRenderTree(
 }
 
 bool Box::IsPositioned() const {
-  return computed_style()->position() != cssom::KeywordValue::GetStatic();
+  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
+         computed_style()->transform() != cssom::KeywordValue::GetNone();
 }
 
 void Box::DumpIndent(std::ostream* stream, int indent) const {
