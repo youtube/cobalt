@@ -16,12 +16,17 @@
 
 #include "cobalt/dom/window.h"
 
+#include <limits>
+
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
+#include "cobalt/dom/window_timers.h"
 
 namespace cobalt {
 namespace dom {
@@ -64,7 +69,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                                             base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
       relay_on_load_event_(new RelayOnLoadEvent(this)),
-      console_(new Console()) {
+      console_(new Console()),
+      window_timers_(new WindowTimers()) {
   document_->AddObserver(relay_on_load_event_.get());
 }
 
@@ -83,6 +89,13 @@ scoped_refptr<EventListener> Window::onload() {
 void Window::set_onload(const scoped_refptr<EventListener>& listener) {
   SetAttributeEventListener("load", listener);
 }
+
+int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
+                       int timeout) {
+  return window_timers_->SetTimeout(handler, timeout);
+}
+
+void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
 
