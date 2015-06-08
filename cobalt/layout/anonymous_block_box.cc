@@ -32,7 +32,7 @@ bool AnonymousBlockBox::TryAddChild(scoped_ptr<Box>* /*child_box*/) {
 
 void AnonymousBlockBox::AddInlineLevelChild(scoped_ptr<Box> child_box) {
   DCHECK_EQ(kInlineLevel, child_box->GetLevel());
-  child_boxes_.push_back(child_box.release());
+  PushBackDirectChild(child_box.Pass());
 }
 
 void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
@@ -71,8 +71,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(child_layout_params));
-  for (ChildBoxes::iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end();) {
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
 
@@ -85,8 +85,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
       //               operation where N is the number of child boxes. Consider
       //               using a new vector instead and swap its contents after
       //               the layout is done.
-      child_box_iterator = child_boxes_.insert(child_box_iterator,
-                                               child_box_after_split.release());
+      child_box_iterator =
+          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
     }
   }
   inline_formatting_context->EndQueries();

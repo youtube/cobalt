@@ -186,6 +186,8 @@ class Box {
   // Used by derived classes to dump their children.
   void DumpWithIndent(std::ostream* stream, int indent) const;
 
+  ContainerBox* parent() const { return parent_; }
+
  protected:
   // Used values of "width" and "height" properties are writable only by the
   // box itself.
@@ -235,6 +237,12 @@ class Box {
   base::optional<float> maybe_used_top_;
   base::optional<float> maybe_used_width_;
   base::optional<float> maybe_used_height_;
+
+  ContainerBox* parent_;
+  ContainerBox* containing_block_;
+
+  // For write access to parent/containing_block members.
+  friend class ContainerBox;
 
   DISALLOW_COPY_AND_ASSIGN(Box);
 };

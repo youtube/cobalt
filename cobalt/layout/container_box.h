@@ -49,6 +49,16 @@ class ContainerBox : public Box {
   // boxes.
   virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
 
+  // From |Box|.
+  void AddContentToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const OVERRIDE;
+
+  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
+
+  bool ContainingBlockForAbsoluteElements() const;
+
   // Adds a positioned child (a Box for which Box::IsPositioned() returns
   // true) to the set of positioned children for this container box.  Note that
   // this does not imply that this is the child's parent, it just implies that
@@ -64,6 +74,42 @@ class ContainerBox : public Box {
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
 
+  // child_box will be added to the end of the list of direct children.
+  void PushBackDirectChild(scoped_ptr<Box> child_box);
+
+  // Adds a direct child at the specified position in this container's list of
+  // children.
+  ChildBoxes::const_iterator InsertDirectChild(
+      ChildBoxes::const_iterator position, scoped_ptr<Box> child_box);
+
+  // Moves a range of children from a range within a source container node, to
+  // this destination container node at the specified position.
+  void MoveChildrenFrom(ChildBoxes::const_iterator position_in_destination,
+                        ContainerBox* source_box,
+                        ChildBoxes::const_iterator source_start,
+                        ChildBoxes::const_iterator source_end);
+
+  const ChildBoxes& child_boxes() const { return child_boxes_; }
+
+ private:
+  static ChildBoxes::iterator RemoveConst(
+      ChildBoxes* container, ChildBoxes::const_iterator const_iter);
+  ContainerBox* FindContainingBlock(Box* box);
+
+  // Introduces a child box into the box hierarchy as a direct child of this
+  // container node.  Calling this function will result in other relationships
+  // being established as well (such as the child box's containing block, which
+  // may not be this box, such as for absolute or fixed position children.)
+  void OnChildAdded(Box* child_box);
+
+  // A list of our direct children.  If a box is one of our child boxes, we
+  // are that box's parent.  We may not be the box's containing block (such
+  // as for 'absolute' or 'fixed' position elements).
+  ChildBoxes child_boxes_;
+
+  // A list of our positioned child boxes.  These must be rendered after
+  // our standard in-flow children have been rendered.  For each box in our
+  // list of positioned_child_boxes_, we are that child's containing block.
   std::vector<Box*> positioned_child_boxes_;
 
  private:
