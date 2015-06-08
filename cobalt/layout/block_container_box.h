@@ -64,14 +64,9 @@ class BlockContainerBox : public ContainerBox {
 
  protected:
   // From |Box|.
-  void AddContentToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
   void DumpProperties(std::ostream* stream) const OVERRIDE;
-  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
   // Rest of the protected methods.
 
@@ -113,9 +108,6 @@ class BlockContainerBox : public ContainerBox {
   // children sizes are known.
   virtual float GetUsedHeightBasedOnChildBoxes(
       const FormattingContext& formatting_context) const = 0;
-
-  // Child boxes, including anonymous block boxes, if any.
-  ChildBoxes child_boxes_;
 
  private:
   LayoutParams GetChildLayoutOptions(const LayoutParams& layout_params,
