@@ -17,6 +17,8 @@
 #ifndef LOADER_NET_FETCHER_H_
 #define LOADER_NET_FETCHER_H_
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -39,6 +41,8 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
    public:
     Options() : request_method(net::URLFetcher::GET) {}
     net::URLFetcher::RequestType request_method;
+    std::string request_headers;
+    std::string request_body;
   };
 
   NetFetcher(const GURL& url, Handler* handler,
