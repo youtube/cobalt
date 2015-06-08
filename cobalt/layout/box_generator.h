@@ -26,6 +26,12 @@
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
 namespace cobalt {
+
+namespace dom {
+class HTMLMediaElement;
+class HTMLElement;
+}  // namespace dom
+
 namespace layout {
 
 class Box;
@@ -63,6 +69,11 @@ class BoxGenerator : public dom::NodeVisitor {
   Boxes PassBoxes();
 
  private:
+  void VisitMediaElement(dom::HTMLMediaElement* media_element,
+                         scoped_ptr<ContainerBox> first_container_box);
+  void VisitContainerElement(dom::HTMLElement* html_element,
+                             scoped_ptr<ContainerBox> first_container_box);
+
   const scoped_refptr<const cssom::CSSStyleDeclarationData>
       parent_computed_style_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;

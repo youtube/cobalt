@@ -140,15 +140,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
-// Returns true if the given style allows a container box to act as a containing
-// block for absolutely positioned elements.  For example it will be true if
-// this box's style is itself 'absolute'.
-bool EstablishesContainingBlockForAbsoluteElements(
-    const cssom::CSSStyleDeclarationData& computed_style) {
-  return computed_style.position() == cssom::KeywordValue::GetAbsolute() ||
-         computed_style.position() == cssom::KeywordValue::GetRelative();
-}
-
 }  // namespace
 
 void BoxGenerator::Visit(dom::Element* element) {
@@ -173,17 +164,6 @@ void BoxGenerator::Visit(dom::Element* element) {
     return;
   }
 
-  // Find which containing block to use for absolutely positioned dependents.
-  ContainerBox* absolute_container_box = containing_box_for_absolute_;
-  if (EstablishesContainingBlockForAbsoluteElements(
-          *html_element->computed_style())) {
-    // TODO(***REMOVED***): A value of "fixed" for position should also set a
-    //               containing block for absolutely positioned elements.
-    // Always use the first ContainerBox since it is positioned in the top-left
-    // corner, like we want.
-    absolute_container_box = container_box_before_split.get();
-  }
-
   // For video elements, immediately create a replaced box and attach it to
   // the container box and return.  Thus, there will be two boxes associated
   // with every video, the ReplacedBox referencing the video, and the container
@@ -193,18 +173,39 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLMediaElement> media_element =
       html_element->AsHTMLMediaElement();
   if (media_element && media_element->GetVideoFrameProvider()) {
-    scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
-        container_box_before_split->computed_style(),
-        cssom::TransitionSet::EmptyTransitionSet(),
-        base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
-        used_style_provider_));
-    bool added = container_box_before_split->TryAddChild(&replaced_box);
-    DCHECK(added);
-    boxes_.push_back(container_box_before_split.release());
-    return;
+    VisitMediaElement(media_element, container_box_before_split.Pass());
+  } else {
+    VisitContainerElement(html_element, container_box_before_split.Pass());
+  }
+}
+
+void BoxGenerator::VisitMediaElement(
+    dom::HTMLMediaElement* media_element,
+    scoped_ptr<ContainerBox> first_container_box) {
+  scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
+      first_container_box->computed_style(),
+      cssom::TransitionSet::EmptyTransitionSet(),
+      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
+      used_style_provider_));
+  bool added = first_container_box->TryAddChild(&replaced_box);
+  DCHECK(added);
+  boxes_.push_back(first_container_box.release());
+}
+
+void BoxGenerator::VisitContainerElement(
+    dom::HTMLElement* html_element,
+    scoped_ptr<ContainerBox> first_container_box) {
+  // Find which containing block to use for absolutely positioned dependents.
+  ContainerBox* absolute_container_box = containing_box_for_absolute_;
+  if (first_container_box->ContainingBlockForAbsoluteElements()) {
+    // TODO(***REMOVED***): A value of "fixed" for position should also set a
+    //               containing block for absolutely positioned elements.
+    // Always use the first ContainerBox since it is positioned in the top-left
+    // corner, like we want.
+    absolute_container_box = first_container_box.get();
   }
 
-  boxes_.push_back(container_box_before_split.release());
+  boxes_.push_back(first_container_box.release());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();

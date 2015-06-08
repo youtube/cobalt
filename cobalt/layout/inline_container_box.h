@@ -65,20 +65,13 @@ class InlineContainerBox : public ContainerBox {
 
  protected:
   // From |Box|.
-  void AddContentToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
   void DumpClassName(std::ostream* stream) const OVERRIDE;
-  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
  private:
   ChildBoxes::const_iterator FindFirstNonCollapsedChildBox() const;
   ChildBoxes::const_iterator FindLastNonCollapsedChildBox() const;
-
-  ChildBoxes child_boxes_;
 
   bool justifies_line_existence_;
   float height_above_baseline_;

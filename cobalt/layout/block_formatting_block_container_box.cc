@@ -39,7 +39,7 @@ void BlockFormattingBlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
   switch (child_box->GetLevel()) {
     case kBlockLevel:
       // A block formatting context required, simply add a child.
-      child_boxes_.push_back(child_box.release());
+      PushBackDirectChild(child_box.Pass());
       break;
 
     case kInlineLevel:
@@ -215,8 +215,8 @@ BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   scoped_ptr<BlockFormattingContext> block_formatting_context(
       new BlockFormattingContext(child_layout_params));
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     block_formatting_context->UpdateUsedRect(child_box);
   }
@@ -250,7 +250,8 @@ float BlockFormattingBlockContainerBox::GetUsedHeightBasedOnChildBoxes(
 AnonymousBlockBox*
 BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   AnonymousBlockBox* last_anonymous_block_box =
-      child_boxes_.empty() ? NULL : child_boxes_.back()->AsAnonymousBlockBox();
+      child_boxes().empty() ? NULL
+                            : child_boxes().back()->AsAnonymousBlockBox();
   if (last_anonymous_block_box == NULL) {
     // TODO(***REMOVED***): Determine which transitions to propogate to the
     //               anonymous block box, instead of none at all.
@@ -259,7 +260,7 @@ BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
                               cssom::TransitionSet::EmptyTransitionSet(),
                               used_style_provider()));
     last_anonymous_block_box = last_anonymous_block_box_ptr.get();
-    child_boxes_.push_back(last_anonymous_block_box_ptr.release());
+    PushBackDirectChild(last_anonymous_block_box_ptr.PassAs<Box>());
   }
   return last_anonymous_block_box;
 }
