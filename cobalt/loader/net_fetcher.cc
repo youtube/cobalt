@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/stringprintf.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 
@@ -36,14 +37,20 @@ NetFetcher::NetFetcher(const GURL& url, Handler* handler,
 
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  std::string response_string;
-  if (source->GetResponseAsString(&response_string)) {
-    handler()->OnReceived(response_string.c_str(), response_string.length());
+  const net::URLRequestStatus& status = source->GetStatus();
+  if (status.is_success()) {
+    std::string response_string;
+    if (source->GetResponseAsString(&response_string)) {
+      handler()->OnReceived(response_string.c_str(), response_string.length());
+    } else {
+      // The URLFetcher was misconfigured in this case.
+      NOTREACHED() << "GetResponseAsString() failed.";
+    }
+    handler()->OnDone();
   } else {
-    DLOG(INFO) << "GetResponseAsString() failed.";
+    handler()->OnError(base::StringPrintf("NetFetcher error: %s",
+                                          net::ErrorToString(status.error())));
   }
-  handler()->OnDone();
 }
 
 NetFetcher::~NetFetcher() { DCHECK(thread_checker_.CalledOnValidThread()); }
