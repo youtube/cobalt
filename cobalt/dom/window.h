@@ -19,8 +19,10 @@
 
 #include <string>
 
+#include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -38,6 +40,7 @@ class DocumentBuilder;
 class HTMLElementFactory;
 class Location;
 class Navigator;
+class WindowTimers;
 
 // The window object represents a window containing a DOM document.
 //   http://www.w3.org/TR/html5/browsers.html#the-window-object
@@ -80,22 +83,12 @@ class Window : public EventTarget {
   //   http://www.w3.org/TR/html5/webappapis.html#timers
   //
   int SetTimeout(const scoped_refptr<TimerCallback>& handler) {
-    UNREFERENCED_PARAMETER(handler);
-    NOTIMPLEMENTED();
-    return 0;
+    return SetTimeout(handler, 0);
   }
 
-  int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout) {
-    UNREFERENCED_PARAMETER(handler);
-    UNREFERENCED_PARAMETER(timeout);
-    NOTIMPLEMENTED();
-    return 0;
-  }
+  int SetTimeout(const scoped_refptr<TimerCallback>& handler, int timeout);
 
-  void ClearTimeout(int handle) {
-    UNREFERENCED_PARAMETER(handle);
-    NOTIMPLEMENTED();
-  }
+  void ClearTimeout(int handle);
 
   // Custom, not in any spec.
   const scoped_refptr<Console>& console() const;
@@ -116,6 +109,7 @@ class Window : public EventTarget {
   scoped_refptr<Navigator> navigator_;
   scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
+  scoped_ptr<WindowTimers> window_timers_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
