@@ -59,8 +59,9 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
           used_width_based_on_child_boxes);
 
       // Discard calculations of the first pass of the layout.
-      for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
-           child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      for (ChildBoxes::const_iterator child_box_iterator =
+               child_boxes().begin();
+           child_box_iterator != child_boxes().end(); ++child_box_iterator) {
         Box* child_box = *child_box_iterator;
         child_box->InvalidateUsedRect();
       }
@@ -137,29 +138,6 @@ scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
   return scoped_ptr<ContainerBox>();
 }
 
-void BlockContainerBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder,
-    render_tree::animations::NodeAnimationsMap::Builder*
-        node_animations_map_builder) const {
-  // Render child boxes.
-  // TODO(***REMOVED***): Take a stacking context into account:
-  //               http://www.w3.org/TR/CSS21/visuren.html#z-index
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    if (!child_box->IsPositioned()) {
-      child_box->AddToRenderTree(composition_node_builder,
-                                 node_animations_map_builder);
-    }
-  }
-
-  // Positioned children must be rendered on top of children rendered via the
-  // standard flow.
-  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddPositionedChildrenToRenderTree(composition_node_builder,
-                                    node_animations_map_builder);
-}
-
 bool BlockContainerBox::IsTransformable() const { return true; }
 
 void BlockContainerBox::DumpProperties(std::ostream* stream) const {
@@ -168,17 +146,6 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
   *stream << std::boolalpha << "affects_baseline_in_block_formatting_context="
           << AffectsBaselineInBlockFormattingContext() << " "
           << std::noboolalpha;
-}
-
-void BlockContainerBox::DumpChildrenWithIndent(std::ostream* stream,
-                                               int indent) const {
-  ContainerBox::DumpChildrenWithIndent(stream, indent);
-
-  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
-       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
-    child_box->DumpWithIndent(stream, indent);
-  }
 }
 
 LayoutParams BlockContainerBox::GetChildLayoutOptions(
