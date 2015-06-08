@@ -32,7 +32,7 @@ namespace {
 // Used to compare if two samples are the same. Because the resampled result
 // from the SincResampler and the InterleavedSincResampler can be slightly
 // different as the first one may use the SSE Convolve function.
-const float kEpsilon = 0.0001;
+const float kEpsilon = 0.0001f;
 
 bool AreSamplesSame(float sample1, float sample2) {
   return fabs(sample1 - sample2) < kEpsilon;
@@ -89,15 +89,15 @@ TEST(InterleavedSincResamplerTest, InitialState) {
 
 TEST(InterleavedSincResamplerTest, Read) {
   const int kInputFrames = 1024;
-  const double kResampleRatio = 0.5;
-  const int kMaxOutputFrames = static_cast<int>(kInputFrames / kResampleRatio);
+  const int kOutputFrames = kInputFrames * 2;
   float samples[kInputFrames] = {0.0};
-  float output[kMaxOutputFrames];
+  float output[kOutputFrames];
 
-  InterleavedSincResampler interleaved_resampler(kResampleRatio, 1);
+  InterleavedSincResampler interleaved_resampler(
+      static_cast<double>(kInputFrames) / kOutputFrames, 1);
 
   interleaved_resampler.QueueBuffer(new TestBuffer(samples, sizeof(samples)));
-  ASSERT_FALSE(interleaved_resampler.Resample(output, kMaxOutputFrames + 1));
+  ASSERT_FALSE(interleaved_resampler.Resample(output, kOutputFrames + 1));
 
   while (interleaved_resampler.CanQueueBuffer()) {
     interleaved_resampler.QueueBuffer(new TestBuffer(samples, sizeof(samples)));
@@ -109,17 +109,17 @@ TEST(InterleavedSincResamplerTest, Read) {
 
 TEST(InterleavedSincResamplerTest, ReachedEOS) {
   const int kInputFrames = 512 * 3 + 32;
-  const double kResampleRatio = 0.5;
+  const int kOutputFrames = kInputFrames * 2;
   float input[kInputFrames] = {0.0};
 
-  InterleavedSincResampler interleaved_resampler(kResampleRatio, 1);
+  InterleavedSincResampler interleaved_resampler(
+      static_cast<double>(kInputFrames) / kOutputFrames, 1);
 
   interleaved_resampler.QueueBuffer(new TestBuffer(input, sizeof(input)));
   interleaved_resampler.QueueBuffer(new TestBuffer(NULL, 0));  // EOS
 
   ASSERT_FALSE(interleaved_resampler.ReachedEOS());
 
-  const int kOutputFrames = kInputFrames / kResampleRatio;
   float output[kOutputFrames];
 
   ASSERT_TRUE(interleaved_resampler.Resample(output, kOutputFrames - 4));
