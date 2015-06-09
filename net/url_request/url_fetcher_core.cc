@@ -721,12 +721,16 @@ void URLFetcherCore::StartURLRequest() {
 
     case URLFetcher::POST:
     case URLFetcher::PUT:
+#if !defined(COBALT)
+      // Allow not specifying a content type when uploading ArrayBuffer data.
       DCHECK(!upload_content_type_.empty());
-
+#endif
       request_->set_method(
           request_type_ == URLFetcher::POST ? "POST" : "PUT");
-      extra_request_headers_.SetHeader(HttpRequestHeaders::kContentType,
-                                       upload_content_type_);
+      if (!upload_content_type_.empty()) {
+        extra_request_headers_.SetHeader(HttpRequestHeaders::kContentType,
+                                         upload_content_type_);
+      }
       if (!upload_content_.empty()) {
         scoped_ptr<UploadElementReader> reader(new UploadBytesElementReader(
             upload_content_.data(), upload_content_.size()));
