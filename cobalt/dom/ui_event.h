@@ -50,4 +50,5 @@ class UIEvent : public Event {
 
 }  // namespace dom
 }  // namespace cobalt
+
 #endif  // DOM_UI_EVENT_H_
