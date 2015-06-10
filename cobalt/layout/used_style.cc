@@ -448,5 +448,44 @@ void UsedWidthProvider::VisitPercentage(cssom::PercentageValue* percentage) {
   width_depends_on_containing_block_ = true;
 }
 
+UsedPositionOffsetProvider::UsedPositionOffsetProvider(
+    float containing_block_size)
+    : containing_block_size_(containing_block_size), is_auto_(false) {}
+
+void UsedPositionOffsetProvider::VisitKeyword(cssom::KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case cssom::KeywordValue::kAuto:
+      is_auto_ = true;
+      break;
+
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void UsedPositionOffsetProvider::VisitLength(cssom::LengthValue* length) {
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+  used_position_offset_ = length->value();
+}
+
+void UsedPositionOffsetProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  used_position_offset_ = percentage->value() * containing_block_size_;
+}
+
 }  // namespace layout
 }  // namespace cobalt

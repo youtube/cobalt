@@ -16,6 +16,7 @@
 
 #include "cobalt/layout/block_formatting_block_container_box.h"
 
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/block_formatting_context.h"
 #include "cobalt/layout/computed_style.h"
@@ -67,7 +68,8 @@ namespace {
 class UsedWidthBasedOnContainingBlockProvider : public UsedWidthProvider {
  public:
   UsedWidthBasedOnContainingBlockProvider(float containing_block_width,
-                                          Box::Level box_level);
+                                          Box::Level box_level,
+                                          const cssom::PropertyValue* position);
 
   void VisitAuto() OVERRIDE;
 
@@ -82,34 +84,43 @@ class UsedWidthBasedOnContainingBlockProvider : public UsedWidthProvider {
   float GetAvailableWidthAssumingShrinkToFit() const;
 
   const Box::Level box_level_;
+  const cssom::PropertyValue* position_;
 
   bool width_depends_on_child_boxes_;
 };
 
 UsedWidthBasedOnContainingBlockProvider::
-    UsedWidthBasedOnContainingBlockProvider(float containing_block_width,
-                                            Box::Level box_level)
+    UsedWidthBasedOnContainingBlockProvider(
+        float containing_block_width, Box::Level box_level,
+        const cssom::PropertyValue* position)
     : UsedWidthProvider(containing_block_width),
       box_level_(box_level),
-      width_depends_on_child_boxes_(false) {}
+      width_depends_on_child_boxes_(false),
+      position_(position) {}
 
 void UsedWidthBasedOnContainingBlockProvider::VisitAuto() {
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
+  // TODO(***REMOVED***): Handle absolutely positioned boxes where left and right are
+  //               both specified:
   //               http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-  switch (box_level_) {
-    case Box::kBlockLevel:
-      set_used_width(GetUsedWidthAssumingBlockLevelInFlowBox());
-      break;
-    case Box::kInlineLevel:
-      // The width is shrink-to-fit but we don't know the sizes of children yet,
-      // so we need to lay out child boxes within the available width and adjust
-      // the used width later on.
+  if (position_ == cssom::KeywordValue::GetAbsolute()) {
       set_used_width(GetAvailableWidthAssumingShrinkToFit());
       width_depends_on_child_boxes_ = true;
-      break;
-    default:
-      NOTREACHED();
-      break;
+  } else {
+    switch (box_level_) {
+      case Box::kBlockLevel:
+        set_used_width(GetUsedWidthAssumingBlockLevelInFlowBox());
+        break;
+      case Box::kInlineLevel:
+        // The width is shrink-to-fit but we don't know the sizes of children
+        // yet, so we need to lay out child boxes within the available width and
+        // adjust the used width later on.
+        set_used_width(GetAvailableWidthAssumingShrinkToFit());
+        width_depends_on_child_boxes_ = true;
+        break;
+      default:
+        NOTREACHED();
+        break;
+    }
   }
 }
 
@@ -143,7 +154,7 @@ float BlockFormattingBlockContainerBox::GetUsedWidthBasedOnContainingBlock(
     float containing_block_width, bool* width_depends_on_containing_block,
     bool* width_depends_on_child_boxes) const {
   UsedWidthBasedOnContainingBlockProvider used_width_provider(
-      containing_block_width, GetLevel());
+      containing_block_width, GetLevel(), computed_style()->position().get());
   computed_style()->width()->Accept(&used_width_provider);
   *width_depends_on_containing_block =
       used_width_provider.width_depends_on_containing_block();
@@ -186,7 +197,8 @@ UsedHeightBasedOnContainingBlockProvider::
       height_depends_on_child_boxes_(false) {}
 
 void UsedHeightBasedOnContainingBlockProvider::VisitAuto() {
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
+  // TODO(***REMOVED***): Handle absolutely positioned boxes where top and bottom are
+  //               both specified:
   //               http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
 
   // The height depends on children but we don't know their sizes yet.
@@ -211,8 +223,6 @@ BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
-  //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   scoped_ptr<BlockFormattingContext> block_formatting_context(
       new BlockFormattingContext(child_layout_params));
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
