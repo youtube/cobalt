@@ -192,6 +192,27 @@ class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedWidthProvider);
 };
 
+class UsedPositionOffsetProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedPositionOffsetProvider(float containing_block_size);
+
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+
+  float used_position_offset() const { return used_position_offset_; }
+  bool is_auto() const { return is_auto_; }
+
+ private:
+  const float containing_block_size_;
+
+  float used_position_offset_;
+  bool is_auto_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedPositionOffsetProvider);
+};
+
 }  // namespace layout
 }  // namespace cobalt
 
