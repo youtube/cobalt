@@ -273,6 +273,11 @@ class IDLParser(object):
                                       | OperationOrIterator"""
     p[0] = p[1]
 
+  # [10.2]
+  def p_InterfaceMemberError(self, p):
+    """InterfaceMember : error ';'"""
+    p[0] = self.BuildError(p, 'InterfaceMember')
+
   # [11]
   def p_Dictionary(self, p):
     """Dictionary : DICTIONARY identifier Inheritance '{' DictionaryMembers '}' ';'"""
