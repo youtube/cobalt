@@ -1080,9 +1080,26 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kAllToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTopPropertyName)) {
+        *property_name_token = kTopToken;
+        return true;
+      }
+      return false;
+
+    case 4:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kLeftPropertyName)) {
+        *property_name_token = kLeftToken;
+        return true;
+      }
+      return false;
+
     case 5:
       if (IsEqualToCssIdentifier(name.begin, cssom::kColorPropertyName)) {
         *property_name_token = kColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRightPropertyName)) {
+        *property_name_token = kRightToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kWidthPropertyName)) {
@@ -1092,6 +1109,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 6:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBottomPropertyName)) {
+        *property_name_token = kBottomToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kHeightPropertyName)) {
         *property_name_token = kHeightToken;
         return true;

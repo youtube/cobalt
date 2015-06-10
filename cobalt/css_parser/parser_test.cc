@@ -1770,5 +1770,157 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {
   EXPECT_DOUBLE_EQ(0, duration_list->value()[0].InSecondsF());
 }
 
+TEST_F(ParserTest, ParsesLeftWithLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("left: 10px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> length =
+      dynamic_cast<cssom::LengthValue*>(style->left().get());
+  ASSERT_TRUE(length != NULL);
+  EXPECT_EQ(10, length->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+}
+
+TEST_F(ParserTest, ParsesLeftWithPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("left: 10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->left().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesLeftWithNegativePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("left: -10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->left().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(-0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesLeftWithAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("left: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->left());
+}
+
+TEST_F(ParserTest, ParsesTopWithLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("top: 10px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> length =
+      dynamic_cast<cssom::LengthValue*>(style->top().get());
+  ASSERT_TRUE(length != NULL);
+  EXPECT_EQ(10, length->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+}
+
+TEST_F(ParserTest, ParsesTopWithPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("top: 10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->top().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesTopWithNegativePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("top: -10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->top().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(-0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesTopWithAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("top: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->top());
+}
+
+TEST_F(ParserTest, ParsesRightWithLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("right: 10px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> length =
+      dynamic_cast<cssom::LengthValue*>(style->right().get());
+  ASSERT_TRUE(length != NULL);
+  EXPECT_EQ(10, length->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+}
+
+TEST_F(ParserTest, ParsesRightWithPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("right: 10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->right().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesRightWithNegativePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("right: -10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->right().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(-0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesRightWithAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("right: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->right());
+}
+
+TEST_F(ParserTest, ParsesBottomWithLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("bottom: 10px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> length =
+      dynamic_cast<cssom::LengthValue*>(style->bottom().get());
+  ASSERT_TRUE(length != NULL);
+  EXPECT_EQ(10, length->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length->unit());
+}
+
+TEST_F(ParserTest, ParsesBottomWithPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("bottom: 10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->bottom().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesBottomWithNegativePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("bottom: -10%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> percentage =
+      dynamic_cast<cssom::PercentageValue*>(style->bottom().get());
+  ASSERT_TRUE(percentage != NULL);
+  EXPECT_FLOAT_EQ(-0.1f, percentage->value());
+}
+
+TEST_F(ParserTest, ParsesBottomWithAuto) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("bottom: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->bottom());
+}
+
 }  // namespace css_parser
 }  // namespace cobalt

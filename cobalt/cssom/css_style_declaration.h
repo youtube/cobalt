@@ -75,6 +75,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string border_radius() const;
   void set_border_radius(const std::string& border_radius);
 
+  std::string bottom() const;
+  void set_bottom(const std::string& bottom);
+
   std::string color() const;
   void set_color(const std::string& color);
 
@@ -93,6 +96,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string height() const;
   void set_height(const std::string& height);
 
+  std::string left() const;
+  void set_left(const std::string& left);
+
   std::string line_height() const;
   void set_line_height(const std::string& line_height);
 
@@ -104,6 +110,12 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   std::string position() const;
   void set_position(const std::string& position);
+
+  std::string right() const;
+  void set_right(const std::string& right);
+
+  std::string top() const;
+  void set_top(const std::string& top);
 
   std::string transform() const;
   void set_transform(const std::string& transform);
