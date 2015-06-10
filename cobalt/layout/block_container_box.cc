@@ -41,8 +41,6 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
                             &height_depends_on_child_boxes);
 
   // Do a first pass of the layout using the approximate width.
-  child_layout_params.shrink_if_width_depends_on_containing_block =
-      width_depends_on_child_boxes;
   scoped_ptr<FormattingContext> formatting_context =
       UpdateUsedRectOfChildren(child_layout_params);
 
@@ -162,10 +160,14 @@ LayoutParams BlockContainerBox::GetChildLayoutOptions(
           layout_params.containing_block_size.height(),
           height_depends_on_child_boxes));
 
+  // Determine the child shrink-to-fit layout settings.
   if (layout_params.shrink_if_width_depends_on_containing_block &&
       width_depends_on_containing_block) {
     *width_depends_on_child_boxes = true;
   }
+
+  child_layout_params.shrink_if_width_depends_on_containing_block =
+      *width_depends_on_child_boxes;
 
   return child_layout_params;
 }
