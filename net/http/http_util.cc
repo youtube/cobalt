@@ -325,6 +325,7 @@ const char* const kForbiddenHeaderFields[] = {
   "cookie2",
   "content-transfer-encoding",
   "date",
+  "dnt",
   "expect",
   "host",
   "keep-alive",
