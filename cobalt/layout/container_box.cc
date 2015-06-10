@@ -17,6 +17,7 @@
 #include "cobalt/layout/container_box.h"
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -140,16 +141,63 @@ math::PointF GetUsedPositionRelativeToAncestor(Box* box,
 
 void ContainerBox::UpdateUsedSizeOfPositionedChildren(
     const LayoutParams& layout_params) {
+  LayoutParams child_layout_params = layout_params;
+
   // Compute sizes for positioned children with invalidated sizes.
   for (ChildBoxes::const_iterator iter = positioned_child_boxes_.begin();
        iter != positioned_child_boxes_.end(); ++iter) {
     Box* child_box = *iter;
 
-    child_box->UpdateUsedSizeIfInvalid(layout_params);
+    child_box->UpdateUsedSizeIfInvalid(child_layout_params);
     math::PointF relative_position =
         GetUsedPositionRelativeToAncestor(child_box, this);
-    child_box->set_used_left(relative_position.x());
-    child_box->set_used_top(relative_position.y());
+
+    // TODO(***REMOVED***): Clean this up and support computing width (height) when
+    //               both left and right (top and bottom) are specified.  This
+    //               should be done very soon.
+    if (child_box->computed_style()->position() ==
+        cssom::KeywordValue::GetAbsolute()) {
+      UsedPositionOffsetProvider used_left_provider(used_width());
+      child_box->computed_style()->left()->Accept(&used_left_provider);
+      UsedPositionOffsetProvider used_right_provider(used_width());
+      child_box->computed_style()->right()->Accept(&used_right_provider);
+      if (used_left_provider.is_auto() && used_right_provider.is_auto()) {
+        // If both values are auto, we use the static position (i.e. layed
+        // out position) of the box.
+        child_box->set_used_left(relative_position.x());
+      } else if (!used_left_provider.is_auto()) {
+        // If the left value is not auto, we use it to decide the object's
+        // position (and ignore the right value).
+        child_box->set_used_left(used_left_provider.used_position_offset());
+      } else {
+        // The right value is not auto, but the left value is.  Use the right
+        // offset to decide the position.
+        child_box->set_used_left(used_width() - child_box->used_width() -
+                                 used_right_provider.used_position_offset());
+      }
+
+      UsedPositionOffsetProvider used_top_provider(used_height());
+      child_box->computed_style()->top()->Accept(&used_top_provider);
+      UsedPositionOffsetProvider used_bottom_provider(used_height());
+      child_box->computed_style()->bottom()->Accept(&used_bottom_provider);
+      if (used_top_provider.is_auto() && used_bottom_provider.is_auto()) {
+        // If both values are auto, we use the static position (i.e. layed
+        // out position) of the box.
+        child_box->set_used_top(relative_position.y());
+      } else if (!used_top_provider.is_auto()) {
+        // If the left value is not auto, we use it to decide the object's
+        // position (and ignore the right value).
+        child_box->set_used_top(used_top_provider.used_position_offset());
+      } else {
+        // The right value is not auto, but the left value is.  Use the right
+        // offset to decide the position.
+        child_box->set_used_top(used_height() - child_box->used_height() -
+                                used_bottom_provider.used_position_offset());
+      }
+    } else {
+      child_box->set_used_left(relative_position.x());
+      child_box->set_used_top(relative_position.y());
+    }
   }
 }
 
