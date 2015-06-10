@@ -64,28 +64,32 @@
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAllToken                              // all
-%token kBackgroundToken                       // background
 %token kBackgroundColorToken                  // background-color
 %token kBackgroundImageToken                  // background-image
 %token kBackgroundPositionToken               // background-position
 %token kBackgroundSizeToken                   // background-size
+%token kBackgroundToken                       // background
 %token kBorderRadiusToken                     // border-radius
+%token kBottomToken                           // bottom
 %token kColorToken                            // color
 %token kDisplayToken                          // display
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
 %token kFontWeightToken                       // font-weight
 %token kHeightToken                           // height
+%token kLeftToken                             // left
 %token kLineHeightToken                       // line-height
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
 %token kPositionToken                         // position
+%token kRightToken                            // right
+%token kTopToken                              // top
 %token kTransformToken                        // transform
-%token kTransitionToken                       // transition
 %token kTransitionDelayToken                  // transition-delay
 %token kTransitionDurationToken               // transition-duration
 %token kTransitionPropertyToken               // transition-property
 %token kTransitionTimingFunctionToken         // transition-timing-function
+%token kTransitionToken                       // transition
 %token kWidthToken                            // width
 
 // Property value tokens.
@@ -282,7 +286,8 @@
 // as long as web app does not rely on literal preservation of property values
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> background_color_property_value
+%type <property_value> auto_length_percent_property_value
+                       background_color_property_value
                        background_image_property_value
                        background_position_property_list_element
                        background_position_property_value
@@ -470,6 +475,9 @@ identifier_token:
   | kBorderRadiusToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
   }
+  | kBottomToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBottomPropertyName);
+  }
   | kColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
   }
@@ -491,6 +499,9 @@ identifier_token:
   | kLineHeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
   }
+  | kLeftToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLeftPropertyName);
+  }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
   }
@@ -499,6 +510,12 @@ identifier_token:
   }
   | kPositionToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPositionPropertyName);
+  }
+  | kRightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRightPropertyName);
+  }
+  | kTopToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTopPropertyName);
   }
   | kTransformToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
@@ -999,6 +1016,18 @@ url:
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Property values.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
+auto_length_percent_property_value:
+    length {
+    $$ = $1;
+  }
+  | percentage {
+    $$ = $1;
+  }
+  | kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  ;
 
 background_property_element:
     color {
@@ -1864,6 +1893,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kBottomToken maybe_whitespace colon auto_length_percent_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBottomPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kColorPropertyName,
@@ -1900,6 +1935,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kLeftToken maybe_whitespace colon auto_length_percent_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kLeftPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kLineHeightToken maybe_whitespace colon line_height_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kLineHeightPropertyName,
@@ -1921,6 +1962,18 @@ maybe_declaration:
   | kPositionToken maybe_whitespace colon position_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kPositionPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kRightToken maybe_whitespace colon auto_length_percent_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kRightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTopToken maybe_whitespace colon auto_length_percent_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTopPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

@@ -134,6 +134,14 @@ void CSSStyleDeclaration::set_border_radius(const std::string& border_radius) {
   SetPropertyValue(kBorderRadiusPropertyName, border_radius);
 }
 
+std::string CSSStyleDeclaration::bottom() const {
+  return data_->bottom() ? data_->bottom()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_bottom(const std::string& bottom) {
+  SetPropertyValue(kBottomPropertyName, bottom);
+}
+
 std::string CSSStyleDeclaration::color() const {
   return data_->color() ? data_->color()->ToString() : "";
 }
@@ -182,6 +190,14 @@ void CSSStyleDeclaration::set_height(const std::string& height) {
   SetPropertyValue(kHeightPropertyName, height);
 }
 
+std::string CSSStyleDeclaration::left() const {
+  return data_->left() ? data_->left()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_left(const std::string& left) {
+  SetPropertyValue(kLeftPropertyName, left);
+}
+
 std::string CSSStyleDeclaration::line_height() const {
   return data_->line_height() ? data_->line_height()->ToString() : "";
 }
@@ -211,12 +227,23 @@ std::string CSSStyleDeclaration::position() const {
 }
 
 void CSSStyleDeclaration::set_position(const std::string& position) {
-  DCHECK(css_parser_);
-  data_->set_position(css_parser_->ParsePropertyValue(
-      kPositionPropertyName, position,
-      non_trivial_static_fields.Get().location));
+  SetPropertyValue(kPositionPropertyName, position);
+}
 
-  RecordMutation();
+std::string CSSStyleDeclaration::right() const {
+  return data_->right() ? data_->right()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_right(const std::string& right) {
+  SetPropertyValue(kRightPropertyName, right);
+}
+
+std::string CSSStyleDeclaration::top() const {
+  return data_->top() ? data_->top()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_top(const std::string& top) {
+  SetPropertyValue(kTopPropertyName, top);
 }
 
 std::string CSSStyleDeclaration::transform() const {
