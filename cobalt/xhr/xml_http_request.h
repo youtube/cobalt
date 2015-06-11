@@ -126,10 +126,6 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     return request_headers_;
   }
 
-  // TODO(***REMOVED***): Remove this when b/21735168 is fixed.
-  scoped_refptr<dom::ArrayBuffer> dummy_array_buffer() { return NULL; }
-  scoped_refptr<dom::ArrayBufferView> dummy_array_buffer_view() { return NULL; }
-
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 
  protected:
