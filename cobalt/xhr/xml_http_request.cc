@@ -402,7 +402,18 @@ void XMLHttpRequest::OnDone() {
   ReleaseExtraRef();
 
   ChangeState(kDone);
-  FireProgressEvent(dom::EventNames::GetInstance()->progress());
+
+  // Compute sizes for our final progress event.
+  // This should really be done in OnReceived(), but we don't have
+  // the response headers yet.
+  const int64 content_length = http_response_headers_->GetContentLength();
+  const int64 received_length = response_body.size();
+  const bool length_computable =
+      content_length > 0 && received_length <= expected_length;
+  const uint64 total = length_computable ? content_length : 0;
+
+  FireProgressEvent(dom::EventNames::GetInstance()->progress(), received_length,
+                    total, length_computable);
   FireProgressEvent(dom::EventNames::GetInstance()->load());
   FireProgressEvent(dom::EventNames::GetInstance()->loadend());
 }
@@ -420,6 +431,13 @@ XMLHttpRequest::~XMLHttpRequest() {
 
 void XMLHttpRequest::FireProgressEvent(const std::string& event_name) {
   DispatchEvent(new dom::ProgressEvent(event_name));
+}
+
+void XMLHttpRequest::FireProgressEvent(const std::string& event_name,
+                                       uint64 loaded, uint64 total,
+                                       bool length_computable) {
+  DispatchEvent(
+      new dom::ProgressEvent(event_name, loaded, total, length_computable));
 }
 
 void XMLHttpRequest::TerminateRequest() {
