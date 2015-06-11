@@ -232,12 +232,6 @@ class WebMediaPlayerClient {
                           const std::string& default_url) {
     NOTIMPLEMENTED();
   }
-  virtual void KeyMessage(const std::string& key_system,
-                          const std::string& session_id,
-                          const unsigned char* message,
-                          unsigned message_length) {
-    NOTIMPLEMENTED();
-  }
   virtual void KeyNeeded(const std::string& key_system,
                          const std::string& session_id,
                          const unsigned char* init_data,
