@@ -402,6 +402,9 @@ void XMLHttpRequest::OnDone() {
   ReleaseExtraRef();
 
   ChangeState(kDone);
+  FireProgressEvent(dom::EventNames::GetInstance()->progress());
+  FireProgressEvent(dom::EventNames::GetInstance()->load());
+  FireProgressEvent(dom::EventNames::GetInstance()->loadend());
 }
 
 void XMLHttpRequest::OnError(const std::string& error) {
