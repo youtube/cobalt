@@ -17,10 +17,13 @@
 #ifndef DOM_HTML_ELEMENT_H_
 #define DOM_HTML_ELEMENT_H_
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/dom/element.h"
 
@@ -75,10 +78,21 @@ class HTMLElement : public Element {
     return computed_style_;
   }
   // TODO(***REMOVED***): Get rid of this setter by moving the update of a computed
-  //               style into HTMLElement class.
+  // style into HTMLElement class.
   void set_computed_style(
       const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
     computed_style_ = computed_style;
+  }
+
+  // Used by layout engine to cache the rule matching results.
+  cssom::RulesWithCascadePriority* matching_rules() {
+    return matching_rules_.get();
+  }
+  // TODO(***REMOVED***): Get rid of this setter by moving the update of matching rules
+  // into HTMLElement class.
+  void set_matching_rules(
+      scoped_ptr<cssom::RulesWithCascadePriority> matching_rules) {
+    matching_rules_.reset(matching_rules.release());
   }
 
   cssom::TransitionSet* transitions() { return &transitions_; }
@@ -100,6 +114,7 @@ class HTMLElement : public Element {
 
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
+  scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
 
   cssom::TransitionSet transitions_;
 };
