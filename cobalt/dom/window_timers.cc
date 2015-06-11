@@ -64,9 +64,12 @@ void WindowTimers::RunTimerCallback(int handle) {
   DCHECK(timer != timers_.end());
   DCHECK(timer->second->callback());
   timer->second->callback()->Run();
-  // If the timer is not running, it means it is an oneshot timer and has just
-  // fired the shot, and it should be removed now.
-  if (!timer->second->timer()->IsRunning()) {
+  // Double check whether the timer is still there since it might be deleted
+  // in the callback by calling clearTimeout / clearInterval.
+  timer = timers_.find(handle);
+  // If the timer is not deleted and is not running, it means it is an oneshot
+  // timer and has just fired the shot, and it should be deleted now.
+  if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
     timers_.erase(timer);
   }
 }
