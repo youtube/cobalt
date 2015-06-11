@@ -14,45 +14,33 @@
  * limitations under the License.
  */
 
-#ifndef DOM_MEDIA_ERROR_H_
-#define DOM_MEDIA_ERROR_H_
+#ifndef DOM_MEDIA_KEY_ERROR_H_
+#define DOM_MEDIA_KEY_ERROR_H_
 
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-// The MediaError represents a media element error with an error code.
-//   http://www.w3.org/TR/html5/embedded-content-0.html#mediaerror
-// kMediaErrEncrypted(MEDIA_ERR_ENCRYPTED) is introduced in EME 0.1b.
+// The MediaKeyError represents an error in Encrypted Media Extension.
 //   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-mediakeyerror
-class MediaError : public script::Wrappable {
+class MediaKeyError : public script::Wrappable {
  public:
-  // Web API: MediaError
+  // Web API: MediaKeyError
   //
   enum Code {
-    kMediaErrAborted = 1,
-    kMediaErrNetwork = 2,
-    kMediaErrDecode = 3,
-    kMediaErrSrcNotSupported = 4,
-    kMediaErrEncrypted = 5,
+    kMediaKeyerrUnknown = 1,
+    kMediaKeyerrClient = 2,
+    kMediaKeyerrService = 3,
+    kMediaKeyerrOutput = 4,
+    kMediaKeyerrHardwarechange = 5,
+    kMediaKeyerrDomain = 6,
   };
 
-  // Custom, not in any spec.
-  //
-  explicit MediaError(Code code) : code_(code) {}
-
-  // Web API: MediaError
-  //
-  Code code() const { return code_; }
-
-  DEFINE_WRAPPABLE_TYPE(MediaError);
-
- private:
-  Code code_;
+  DEFINE_WRAPPABLE_TYPE(MediaKeyError);
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_MEDIA_ERROR_H_
+#endif  // DOM_MEDIA_KEY_ERROR_H_
