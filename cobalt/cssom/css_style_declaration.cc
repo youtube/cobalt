@@ -107,6 +107,16 @@ void CSSStyleDeclaration::set_background_image(
   SetPropertyValue(kBackgroundImagePropertyName, background_image);
 }
 
+std::string CSSStyleDeclaration::background_position() const {
+  return data_->background_position() ? data_->background_position()->ToString()
+                                      : "";
+}
+
+void CSSStyleDeclaration::set_background_position(
+    const std::string& background_position) {
+  SetPropertyValue(kBackgroundPositionPropertyName, background_position);
+}
+
 std::string CSSStyleDeclaration::background_size() const {
   return data_->background_size() ? data_->background_size()->ToString() : "";
 }

@@ -25,6 +25,7 @@ extern const char* const kAbsoluteKeywordName;
 extern const char* const kAutoKeywordName;
 extern const char* const kBlockKeywordName;
 extern const char* const kBoldKeywordName;
+extern const char* const kCenterKeywordName;
 extern const char* const kContainKeywordName;
 extern const char* const kCoverKeywordName;
 extern const char* const kEaseInKeywordName;

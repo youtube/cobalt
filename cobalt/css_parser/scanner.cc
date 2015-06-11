@@ -1166,8 +1166,8 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 15:
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kBackgroundSizePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kBackgroundSizePropertyName)) {
         *property_name_token = kBackgroundSizeToken;
         return true;
       }
@@ -1183,8 +1183,8 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundImageToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kTransitionDelayPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kTransitionDelayPropertyName)) {
         *property_name_token = kTransitionDelayToken;
         return true;
       }
@@ -1205,6 +1205,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 19:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kBackgroundPositionPropertyName)) {
+        *property_name_token = kBackgroundPositionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(
               name.begin, cssom::kTransitionDurationPropertyName)) {
         *property_name_token = kTransitionDurationToken;
@@ -1277,6 +1282,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 6:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kCenterKeywordName)) {
+        *property_value_token = kCenterToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kHiddenKeywordName)) {
         *property_value_token = kHiddenToken;
         return true;
