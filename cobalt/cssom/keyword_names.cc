@@ -23,6 +23,7 @@ const char* const kAbsoluteKeywordName = "absolute";
 const char* const kAutoKeywordName = "auto";
 const char* const kBlockKeywordName = "block";
 const char* const kBoldKeywordName = "bold";
+const char* const kCenterKeywordName = "center";
 const char* const kContainKeywordName = "contain";
 const char* const kCoverKeywordName = "cover";
 const char* const kEaseInKeywordName = "ease-in";

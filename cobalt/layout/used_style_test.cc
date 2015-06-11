@@ -16,10 +16,9 @@
 
 #include "cobalt/layout/used_style.h"
 
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/percentage_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/size.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,6 +27,60 @@ namespace cobalt {
 namespace layout {
 
 // TODO(***REMOVED***): Add more tests for other style provider.
+
+TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentageList) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(new cssom::PercentageValue(0.6f));
+  property_value_builder->push_back(new cssom::PercentageValue(0.8f));
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  const math::SizeF frame_size(100, 200);
+  const math::Size image_size(50, 50);
+  UsedBackgroundPositionProvider used_background_position_provider(frame_size,
+                                                                   image_size);
+  property_value->Accept(&used_background_position_provider);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.3f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.6f);
+}
+
+TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(
+      new cssom::LengthValue(60, cssom::kPixelsUnit));
+  property_value_builder->push_back(
+      new cssom::LengthValue(80, cssom::kPixelsUnit));
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  const math::SizeF frame_size(100, 200);
+  const math::Size image_size(50, 50);
+  UsedBackgroundPositionProvider used_background_position_provider(frame_size,
+                                                                   image_size);
+  property_value->Accept(&used_background_position_provider);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.6f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.4f);
+}
+
+TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(
+      new cssom::LengthValue(60, cssom::kPixelsUnit));
+  property_value_builder->push_back(new cssom::PercentageValue(0.8f));
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  const math::SizeF frame_size(100, 200);
+  const math::Size image_size(50, 50);
+  UsedBackgroundPositionProvider used_background_position_provider(frame_size,
+                                                                   image_size);
+  property_value->Accept(&used_background_position_provider);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.6f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.6f);
+}
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithWidthScale) {
   const math::SizeF frame_size(100, 200);

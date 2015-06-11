@@ -269,10 +269,20 @@ void Box::AddBackgroundToRenderTree(
         used_size(), used_background_image->GetSize());
     computed_style_->background_size()->Accept(&used_background_size_provider);
 
-    scoped_refptr<ImageNode> image_node(new ImageNode(
-        used_background_image, used_size(),
+    UsedBackgroundPositionProvider used_background_position_provider(
+        used_size(), math::SizeF(used_background_size_provider.width(),
+                                 used_background_size_provider.height()));
+    computed_style_->background_position()->Accept(
+        &used_background_position_provider);
+
+    math::Matrix3F local_transform_matrix =
+        math::TranslateMatrix(used_background_position_provider.translate_x(),
+                              used_background_position_provider.translate_y()) *
         math::ScaleMatrix(used_background_size_provider.width_scale(),
-                          used_background_size_provider.height_scale())));
+                          used_background_size_provider.height_scale());
+
+    scoped_refptr<ImageNode> image_node(new ImageNode(
+        used_background_image, used_size(), local_transform_matrix));
     composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
   }
 

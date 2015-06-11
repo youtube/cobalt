@@ -28,6 +28,8 @@ struct BackgroundShorthandLayer {
 
   scoped_refptr<cssom::PropertyValue> background_color;
   scoped_refptr<cssom::PropertyValue> background_image;
+  scoped_refptr<cssom::PropertyValue> background_position;
+  scoped_refptr<cssom::PropertyValue> background_size;
 };
 
 }  // namespace css_parser

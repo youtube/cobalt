@@ -93,15 +93,33 @@ class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
 };
 
+class UsedBackgroundPositionProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  UsedBackgroundPositionProvider(const math::SizeF& frame_size,
+                                 const math::SizeF& image_actual_size);
+
+  void VisitPropertyList(
+      cssom::PropertyListValue* property_list_value) OVERRIDE;
+
+  float translate_x() { return translate_x_; }
+  float translate_y() { return translate_y_; }
+
+ private:
+  const math::SizeF frame_size_;
+  const math::SizeF image_actual_size_;
+
+  float translate_x_;
+  float translate_y_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundPositionProvider);
+};
+
 class UsedBackgroundSizeProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit UsedBackgroundSizeProvider(const math::SizeF& frame_size,
-                                      const math::Size& image_size)
-      : frame_size_(frame_size),
-        image_size_(image_size),
-        width_scale_(1.0f),
-        height_scale_(1.0f) {}
+  UsedBackgroundSizeProvider(const math::SizeF& frame_size,
+                             const math::Size& image_size);
 
   void VisitPropertyList(
       cssom::PropertyListValue* property_list_value) OVERRIDE;
@@ -109,6 +127,9 @@ class UsedBackgroundSizeProvider
 
   float width_scale() const { return width_scale_; }
   float height_scale() const { return height_scale_; }
+
+  float width() const { return width_scale_ * frame_size_.width(); }
+  float height() const { return height_scale_ * frame_size_.height(); }
 
  private:
   void ConvertWidthAndHeightScale(float width_scale, float height_scale);
