@@ -140,6 +140,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // Dispatch a progress event to any listeners.
   void FireProgressEvent(const std::string& event_name);
+  void FireProgressEvent(const std::string& event_name, uint64 loaded,
+                         uint64 total, bool length_computable);
   // Cancel any inflight request and set error flag.
   void TerminateRequest();
   // Dispatch events based on the type of error.
