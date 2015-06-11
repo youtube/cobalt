@@ -84,6 +84,7 @@
         'location.cc',
         'location.h',
         'media_error.h',
+        'media_key_error.h',
         'media_source.cc',
         'media_source.h',
         'keyboard_event.cc',
