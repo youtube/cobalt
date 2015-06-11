@@ -99,6 +99,44 @@ void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
+class UsedBackgroundTranslateProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  UsedBackgroundTranslateProvider(float frame_length, float image_length)
+      : frame_length_(frame_length), image_length_(image_length) {}
+
+  void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+
+  float translate() { return translate_; }
+
+ private:
+  const float frame_length_;
+  const float image_length_;
+
+  float translate_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundTranslateProvider);
+};
+
+void UsedBackgroundTranslateProvider::VisitLength(cssom::LengthValue* length) {
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+  translate_ = frame_length_ == 0 ? 0 : length->value() / frame_length_;
+}
+
+// A percentage for the horizontal offset is relative to (width of background
+// positioning area - width of background image). A percentage for the vertical
+// offset is relative to (height of background positioning area - height of
+// background image), where the size of the image is the size given by
+// 'background-size'.
+//   http://www.w3.org/TR/css3-background/#the-background-position
+void UsedBackgroundTranslateProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  translate_ = frame_length_ == 0 ? 0 : percentage->value() *
+                                            (frame_length_ - image_length_) /
+                                            frame_length_;
+}
+
 //   http://www.w3.org/TR/css3-background/#the-background-size
 class UsedBackgroundSizeScaleProvider
     : public cssom::NotReachedPropertyValueVisitor {
@@ -118,8 +156,9 @@ class UsedBackgroundSizeScaleProvider
   bool auto_keyword() const { return auto_keyword_; }
 
  private:
-  float frame_length_;
-  int image_length_;
+  const float frame_length_;
+  const int image_length_;
+
   float scale_;
   bool auto_keyword_;
 
@@ -197,11 +236,39 @@ render_tree::ColorRGBA GetUsedColor(
   return render_tree::ColorRGBA(color->value());
 }
 
+//   http://www.w3.org/TR/css3-background/#the-background-position
+UsedBackgroundPositionProvider::UsedBackgroundPositionProvider(
+    const math::SizeF& frame_size, const math::SizeF& image_actual_size)
+    : frame_size_(frame_size), image_actual_size_(image_actual_size) {}
+
+void UsedBackgroundPositionProvider::VisitPropertyList(
+    cssom::PropertyListValue* property_list_value) {
+  // TODO(***REMOVED***): Support more background-position other than percentage.
+  DCHECK_EQ(property_list_value->value().size(), 2);
+  UsedBackgroundTranslateProvider width_translate_provider(
+      frame_size_.width(), image_actual_size_.width());
+  property_list_value->value()[0]->Accept(&width_translate_provider);
+  translate_x_ = width_translate_provider.translate();
+
+  UsedBackgroundTranslateProvider height_translate_provider(
+      frame_size_.height(), image_actual_size_.height());
+  property_list_value->value()[1]->Accept(&height_translate_provider);
+  translate_y_ = height_translate_provider.translate();
+}
+
+UsedBackgroundSizeProvider::UsedBackgroundSizeProvider(
+    const math::SizeF& frame_size, const math::Size& image_size)
+    : frame_size_(frame_size),
+      image_size_(image_size),
+      width_scale_(1.0f),
+      height_scale_(1.0f) {}
+
+// The first value gives the width of the corresponding image, and the second
+// value gives its height.
 //   http://www.w3.org/TR/css3-background/#the-background-size
 void UsedBackgroundSizeProvider::VisitPropertyList(
     cssom::PropertyListValue* property_list_value) {
-  DCHECK_GT(property_list_value->value().size(), 0);
-  DCHECK_LE(property_list_value->value().size(), 2);
+  DCHECK_EQ(property_list_value->value().size(), 2);
 
   UsedBackgroundSizeScaleProvider used_background_width_provider(
       frame_size_.width(), image_size_.width());
@@ -209,12 +276,7 @@ void UsedBackgroundSizeProvider::VisitPropertyList(
 
   UsedBackgroundSizeScaleProvider used_background_height_provider(
       frame_size_.height(), image_size_.height());
-  if (property_list_value->value().size() == 2) {
-    property_list_value->value()[1]->Accept(&used_background_height_provider);
-  } else {
-    // If only one value is given, the second is assumed to be 'auto'.
-    cssom::KeywordValue::GetAuto()->Accept(&used_background_height_provider);
-  }
+  property_list_value->value()[1]->Accept(&used_background_height_provider);
 
   bool background_width_auto = used_background_width_provider.auto_keyword();
   bool background_height_auto = used_background_height_provider.auto_keyword();
