@@ -313,6 +313,148 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndURLInDifferentOrder) {
   EXPECT_EQ("foo.png", background_image->value());
 }
 
+TEST_F(ParserTest, ParsesBackgroundWithColorAndPosition) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background: rgba(0, 0, 0, .8) 70px 45%;",
+                                   source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0x000000cc, background_color->value());
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+
+  scoped_refptr<cssom::LengthValue> length_value_left =
+      dynamic_cast<cssom::LengthValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(70, length_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_left->unit());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.45f, percentage_value_right->value());
+}
+
+
+TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background: 70px 45% rgba(0, 0, 0, .8);",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+
+  scoped_refptr<cssom::LengthValue> length_value_left =
+      dynamic_cast<cssom::LengthValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(70, length_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_left->unit());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.45f, percentage_value_right->value());
+
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
+  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  EXPECT_EQ(0x000000cc, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background: url(foo.png) center / 50px 80px;", source_location_);
+
+  scoped_refptr<cssom::URLValue> background_image =
+      dynamic_cast<cssom::URLValue*>(style->background_image().get());
+
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  EXPECT_EQ("foo.png", background_image->value());
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+
+  scoped_refptr<cssom::PercentageValue> position_value_left =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.5f, position_value_left->value());
+
+  scoped_refptr<cssom::PercentageValue> position_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.5f, position_value_right->value());
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+
+  scoped_refptr<cssom::LengthValue> size_value_left =
+      dynamic_cast<cssom::LengthValue*>(background_size_list->value()[0].get());
+  EXPECT_FLOAT_EQ(50, size_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, size_value_left->unit());
+
+  scoped_refptr<cssom::LengthValue> size_value_right =
+      dynamic_cast<cssom::LengthValue*>(background_size_list->value()[1].get());
+  EXPECT_FLOAT_EQ(80, size_value_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, size_value_right->unit());
+}
+
+TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background: center/50px 80px url(foo.png);",
+                                   source_location_);
+
+  scoped_refptr<cssom::URLValue> background_image =
+      dynamic_cast<cssom::URLValue*>(style->background_image().get());
+
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  EXPECT_EQ("foo.png", background_image->value());
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+
+  scoped_refptr<cssom::PercentageValue> position_value_left =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.5f, position_value_left->value());
+
+  scoped_refptr<cssom::PercentageValue> position_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.5f, position_value_right->value());
+
+  scoped_refptr<cssom::PropertyListValue> background_size_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+
+  scoped_refptr<cssom::LengthValue> size_value_left =
+      dynamic_cast<cssom::LengthValue*>(background_size_list->value()[0].get());
+  EXPECT_FLOAT_EQ(50, size_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, size_value_left->unit());
+
+  scoped_refptr<cssom::LengthValue> size_value_right =
+      dynamic_cast<cssom::LengthValue*>(background_size_list->value()[1].get());
+  EXPECT_FLOAT_EQ(80, size_value_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, size_value_right->unit());
+}
+
+
 TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("background-color: #fff;", source_location_);
@@ -348,6 +490,101 @@ TEST_F(ParserTest, ParsesBackgroundImageInherit) {
                                    source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_image());
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-position: center;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_left =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.5f, percentage_value_left->value());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.5f, percentage_value_right->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionDoublePercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-position: 60% 90%;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_left =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(0.6f, percentage_value_left->value());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.9f, percentage_value_right->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionDoubleLength) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-position: 60px 90px;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_left =
+      dynamic_cast<cssom::LengthValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(60, length_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_left->unit());
+
+  scoped_refptr<cssom::LengthValue> length_value_right =
+      dynamic_cast<cssom::LengthValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(90, length_value_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_right->unit());
+}
+
+TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-position: 60px 70%;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_position_list =
+      dynamic_cast<cssom::PropertyListValue*>(
+          style->background_position().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
+            background_position_list);
+  EXPECT_EQ(2, background_position_list->value().size());
+
+  scoped_refptr<cssom::LengthValue> length_value_left =
+      dynamic_cast<cssom::LengthValue*>(
+          background_position_list->value()[0].get());
+  EXPECT_FLOAT_EQ(60, length_value_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, length_value_left->unit());
+
+  scoped_refptr<cssom::PercentageValue> percentage_value_right =
+      dynamic_cast<cssom::PercentageValue*>(
+          background_position_list->value()[1].get());
+  EXPECT_FLOAT_EQ(0.7f, percentage_value_right->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundSizeContain) {

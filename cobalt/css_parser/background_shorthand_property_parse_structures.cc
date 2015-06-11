@@ -29,6 +29,14 @@ void BackgroundShorthandLayer::ReplaceNullWithInitialValues() {
   if (!background_image) {
     background_image = cssom::GetInitialStyle()->background_image();
   }
+
+  if (!background_position) {
+    background_position = cssom::GetInitialStyle()->background_position();
+  }
+
+  if (!background_size) {
+    background_size = cssom::GetInitialStyle()->background_size();
+  }
 }
 
 }  // namespace css_parser

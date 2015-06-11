@@ -67,6 +67,7 @@
 %token kBackgroundToken                       // background
 %token kBackgroundColorToken                  // background-color
 %token kBackgroundImageToken                  // background-image
+%token kBackgroundPositionToken               // background-position
 %token kBackgroundSizeToken                   // background-size
 %token kBorderRadiusToken                     // border-radius
 %token kColorToken                            // color
@@ -94,6 +95,7 @@
 %token kAutoToken                       // auto
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
+%token kCenterToken                     // center
 %token kContainToken                    // contain
 %token kCoverToken                      // cover
 %token kEaseInOutToken                  // ease-in-out
@@ -282,6 +284,8 @@
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> background_color_property_value
                        background_image_property_value
+                       background_position_property_list_element
+                       background_position_property_value
                        background_size_property_list_element
                        background_size_property_value
                        border_radius_property_value color color_property_value
@@ -348,9 +352,11 @@
 %type <style_rule> at_rule qualified_rule rule style_rule
 %destructor { $$->Release(); } <style_rule>
 
-%union { cssom::PropertyListValue::Builder* property_list; }
-%type <property_list> background_size_property_list
-%destructor { delete $$; } <property_list>
+%union { cssom::PropertyListValue::Builder* background_property_list; }
+%type <background_property_list> maybe_background_size
+                                 background_position_property_list
+                                 background_size_property_list
+%destructor { delete $$; } <background_property_list>
 
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters transform_function
@@ -395,8 +401,8 @@
 %destructor { delete $$; } <transition_builder>
 
 %union { BackgroundShorthandLayer* background_shorthand_layer; }
-%type <background_shorthand_layer> final_background_layer
-                                   non_empty_final_background_layer
+%type <background_shorthand_layer> final_background_layer_without_position
+                                   final_background_layer
                                    background_property_value
 %destructor { delete $$; } <background_shorthand_layer>
 
@@ -1010,9 +1016,41 @@ background_property_element:
   }
   ;
 
-// Only the final background layer is allowed to set the background color.
-//   http://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
-final_background_layer:
+maybe_background_size:
+    /* empty */ {
+    $$ = NULL;
+  }
+  | '/' maybe_whitespace background_size_property_list {
+    $$ = $3;
+  }
+  ;
+
+// 'background-size' property should follow with 'background-position' property
+//  and a '/'.
+background_position_and_size_element:
+    background_position_property_list maybe_background_size {
+    if (!$<background_shorthand_layer>0->background_position) {
+      scoped_ptr<cssom::PropertyListValue::Builder>
+          background_position_builder($1);
+      $<background_shorthand_layer>0->background_position =
+          AddRef(new cssom::PropertyListValue(
+              background_position_builder.Pass()));
+
+      if ($2) {
+        scoped_ptr<cssom::PropertyListValue::Builder>
+            background_size_builder($2);
+        $<background_shorthand_layer>0->background_size =
+            AddRef(new cssom::PropertyListValue(
+                background_size_builder.Pass()));
+      }
+    } else {
+      parser_impl->LogError(
+          @1, "background-position value declared twice in background.");
+    }
+  }
+  ;
+
+final_background_layer_without_position:
     /* empty */ {
     // Initialize the background shorthand which is to be filled in by
     // subsequent reductions.
@@ -1026,8 +1064,22 @@ final_background_layer:
   }
   ;
 
-non_empty_final_background_layer:
-    final_background_layer background_property_element {
+// Only the final background layer is allowed to set the background color.
+//   http://www.w3.org/TR/css3-background/#ltfinal-bg-layergt
+final_background_layer:
+    /* empty */ {
+    // Initialize the background shorthand which is to be filled in by
+    // subsequent reductions.
+    $$ = new BackgroundShorthandLayer();
+  }
+  | final_background_layer_without_position
+    background_position_and_size_element {
+    $$ = $1;
+  }
+  | final_background_layer background_property_element {
+    // Propogate the return value from the reduced list.
+    // Appending of the new background_property_element to the list is done
+    // within background_property_element's reduction.
     $$ = $1;
   }
   ;
@@ -1035,14 +1087,16 @@ non_empty_final_background_layer:
 // Shorthand property for setting most background properties at the same place.
 //   http://www.w3.org/TR/css3-background/#the-background
 background_property_value:
-    non_empty_final_background_layer
+    final_background_layer
   | common_values {
-    // Replicate the common value into each of the properties that transition
+    // Replicate the common value into each of the properties that background
     // is a shorthand for.
     scoped_ptr<BackgroundShorthandLayer> background(
         new BackgroundShorthandLayer());
     background->background_color = $1;
     background->background_image = $1;
+    background->background_position = $1;
+    background->background_size = $1;
     $$ = background.release();
   }
   ;
@@ -1063,6 +1117,49 @@ background_image_property_value:
   }
   | url
   | common_values
+  ;
+
+background_position_property_list_element:
+    length {
+    $$ = $1;
+  }
+  | percentage {
+    $$ = $1;
+  }
+  | kCenterToken maybe_whitespace {
+    $$ = AddRef(new cssom::PercentageValue(0.5f));
+  }
+  ;
+
+background_position_property_list:
+    background_position_property_list_element
+    background_position_property_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(2);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    $$->push_back(MakeScopedRefPtrAndRelease($2));
+  }
+  | background_position_property_list_element {
+    // If only one value is specified, the second value is assumed to be
+    // 'center'.
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->reserve(2);
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+    $$->push_back(new cssom::PercentageValue(0.5f));
+  }
+  ;
+
+// If background images have been specified, this property specifies their
+// initial position (after any resizing) within their corresponding background
+// positioning area.
+//   http://www.w3.org/TR/css3-background/#the-background-position
+background_position_property_value:
+    background_position_property_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
   ;
 
 background_size_property_list_element:
@@ -1722,6 +1819,15 @@ maybe_declaration:
         PropertyDeclaration::NameValuePair(
             cssom::kBackgroundImagePropertyName,
             background->background_image));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kBackgroundPositionPropertyName,
+            background->background_position));
+    property_declaration->property_values.push_back(
+        PropertyDeclaration::NameValuePair(
+            cssom::kBackgroundSizePropertyName,
+            background->background_size));
+
 
     $$ = property_declaration.release();
   }
@@ -1734,6 +1840,12 @@ maybe_declaration:
   | kBackgroundImageToken maybe_whitespace colon background_image_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundImagePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBackgroundPositionToken maybe_whitespace colon
+    background_position_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPositionPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
