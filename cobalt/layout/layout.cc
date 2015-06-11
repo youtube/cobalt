@@ -22,10 +22,12 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/specified_style.h"
+#include "cobalt/layout/declared_style.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 
@@ -84,15 +86,25 @@ RenderTreeWithAnimations Layout(
     const base::Time& style_change_event_time,
     loader::ImageCache* image_cache) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
+  scoped_refptr<dom::Document> document = root_element->owner_document();
+  DCHECK(document) << "Element should be attached to document in order to "
+                      "participate in layout.";
 
+  // Update the matching rules of all elements in the subtree under root.
+  //
+  UpdateMatchingRules(user_agent_style_sheet, document->style_sheets(),
+                      root_element);
+
+  // Generate boxes.
+  //
   UsedStyleProvider used_style_provider(resource_provider, image_cache);
 
   scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
       CreateInitialContainingBlock(viewport_size, &used_style_provider);
 
   BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                  user_agent_style_sheet, &used_style_provider,
-                                  line_break_iterator, style_change_event_time,
+                                  &used_style_provider, line_break_iterator,
+                                  style_change_event_time,
                                   initial_containing_block.get());
   root_element->Accept(&root_box_generator);
   BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
