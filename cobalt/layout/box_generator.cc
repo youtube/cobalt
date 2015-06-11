@@ -60,13 +60,11 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
     const base::Time& style_change_event_time,
     ContainerBox* containing_box_for_absolute)
     : parent_computed_style_(parent_computed_style),
-      user_agent_style_sheet_(user_agent_style_sheet),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
       style_change_event_time_(style_change_event_time),
@@ -148,7 +146,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
   UpdateComputedStyleOf(html_element, parent_computed_style_,
-                        user_agent_style_sheet_, style_change_event_time_);
+                        style_change_event_time_);
 
   ContainerBoxGenerator container_box_generator(html_element->computed_style(),
                                                 html_element->transitions(),
@@ -212,9 +210,8 @@ void BoxGenerator::VisitContainerElement(
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(
-        html_element->computed_style(), user_agent_style_sheet_,
-        used_style_provider_, line_break_iterator_, style_change_event_time_,
-        absolute_container_box);
+        html_element->computed_style(), used_style_provider_,
+        line_break_iterator_, style_change_event_time_, absolute_container_box);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();
