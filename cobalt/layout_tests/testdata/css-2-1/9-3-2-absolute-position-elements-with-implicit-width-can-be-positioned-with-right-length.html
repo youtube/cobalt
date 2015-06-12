@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
  | Absolutely positioned elements should be positionable by specifying right
- | as a length.
+ | as a length, even when the width is determined by layout results.
  -->
 <html>
 <head>
@@ -14,17 +14,14 @@
     }
     .block {
       position: absolute;
-      width: 50px;
-      height: 50px;
-      right: 150px;
+      right: 50px;
       background-color: rgb(100, 100, 255);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="block">
-    </div>
+    <div class="block">Hello</div>
   </div>
 </body>
 </html>

@@ -20,6 +20,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -68,30 +69,6 @@ class UsedStyleProvider {
 
 render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
-
-class UsedHeightProvider : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedHeightProvider(float containing_block_height)
-      : containing_block_height_(containing_block_height) {}
-
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
-
-  float used_height() const { return used_height_; }
-
- protected:
-  virtual void VisitAuto() = 0;
-
-  void set_used_height(float used_height) { used_height_ = used_height; }
-
- private:
-  const float containing_block_height_;
-
-  float used_height_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedHeightProvider);
-};
 
 class UsedBackgroundPositionProvider
     : public cssom::NotReachedPropertyValueVisitor {
@@ -160,59 +137,67 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
 
-
-class UsedWidthProvider : public cssom::NotReachedPropertyValueVisitor {
+// This class should be used when one needs to determine any of the margin,
+// padding, position (e.g. 'left'/'top') or content size properties.  Since much
+// functionality is common between width and height, the same code can typically
+// be re-used for each, and thus the UsedBoxMetrics class itself has general
+// names (e.g. "size" instead of "width" or "height",).
+class UsedBoxMetrics {
  public:
-  explicit UsedWidthProvider(float containing_block_width)
-      : containing_block_width_(containing_block_width) {}
-
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
-
-  float used_width() const { return used_width_; }
-
-  bool width_depends_on_containing_block() const {
-    return width_depends_on_containing_block_;
+  // Constructs and returns a UsedBoxMetrics object based on the horizontal
+  // properties set on the passed in computed_style.  Horizontal here refers
+  // to left/right/width/etc...
+  static UsedBoxMetrics ComputeHorizontal(
+      float containing_block_size,
+      const cssom::CSSStyleDeclarationData& computed_style) {
+    return ComputeMetrics(containing_block_size, computed_style.position(),
+                          computed_style.left(), computed_style.width(),
+                          computed_style.right());
   }
 
- protected:
-  virtual void VisitAuto() = 0;
+  // Constructs and returns a UsedBoxMetrics object based on the vertical
+  // properties set on the passed in computed_style.  Vertical here refers
+  // to top/bottom/height/etc...
+  static UsedBoxMetrics ComputeVertical(
+      float containing_block_size,
+      const cssom::CSSStyleDeclarationData& computed_style) {
+    return ComputeMetrics(containing_block_size, computed_style.position(),
+                          computed_style.top(), computed_style.height(),
+                          computed_style.bottom());
+  }
 
-  float containing_block_width() const { return containing_block_width_; }
+  // The following constraints must hold among the used values of the
+  // properties:
+  //     margin-left + border-left-width + padding-left
+  //   + width
+  //   + padding-right + border-right-width + margin-right
+  //   = width of containing block
+  // (And similarly for heights)
+  //
+  // This function will solve for the variables as much as possible given
+  // values that are already filled in.
+  void ResolveConstraints(float containing_block_size);
 
-  void set_used_width(float used_width) { used_width_ = used_width; }
+  // If a value is available, it is a length with pixel units.
+  base::optional<float> start_offset;
+  base::optional<float> size;
+  base::optional<float> end_offset;
+
+  bool size_depends_on_containing_block;
+  bool offset_depends_on_containing_block;
+
+  // TODO(***REMOVED***): Add support for padding and margins.
 
  private:
-  const float containing_block_width_;
-
-  float used_width_;
-  bool width_depends_on_containing_block_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedWidthProvider);
+  // Used internally by ComputeHorizontal() and ComputeVertical(), after they
+  // have selected the appropritate properties from the computed style to pass
+  // to this method.
+  static UsedBoxMetrics ComputeMetrics(float containing_block_size,
+                                       cssom::PropertyValue* position,
+                                       cssom::PropertyValue* start_offset,
+                                       cssom::PropertyValue* size,
+                                       cssom::PropertyValue* end_offset);
 };
-
-class UsedPositionOffsetProvider
-    : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedPositionOffsetProvider(float containing_block_size);
-
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
-
-  float used_position_offset() const { return used_position_offset_; }
-  bool is_auto() const { return is_auto_; }
-
- private:
-  const float containing_block_size_;
-
-  float used_position_offset_;
-  bool is_auto_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedPositionOffsetProvider);
-};
-
 }  // namespace layout
 }  // namespace cobalt
 

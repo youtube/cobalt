@@ -63,110 +63,39 @@ ReplacedBox::ReplacedBox(
 
 Box::Level ReplacedBox::GetLevel() const { return kInlineLevel; }
 
-namespace {
-
-// Calculate the replaced box width, as defined in:
-//   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-//   http://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
-//   http://www.w3.org/TR/CSS21/visudet.html#inlineblock-replaced-width
-// TODO(***REMOVED***): Implement correct behaviour for absolutely positioned elements:
-//   http://www.w3.org/TR/CSS21/visudet.html#abs-replaced-width
-class ReplacedBoxUsedWidthProvider : public UsedWidthProvider {
- public:
-  ReplacedBoxUsedWidthProvider(float containing_block_height,
-                               float intrinsic_width);
-
-  void VisitAuto() OVERRIDE;
-
-  // This is used to determine if the width must be calculated from the height
-  // and ratio.
-  bool width_is_auto() const { return width_is_auto_; }
-
- private:
-  float intrinsic_width_;
-  bool width_is_auto_;
-};
-
-ReplacedBoxUsedWidthProvider::ReplacedBoxUsedWidthProvider(
-    float containing_block_width, float intrinsic_width)
-    : UsedWidthProvider(containing_block_width),
-      intrinsic_width_(intrinsic_width),
-      width_is_auto_(false) {}
-
-void ReplacedBoxUsedWidthProvider::VisitAuto() {
-  width_is_auto_ = true;
-  // Note: This value will be ignored if the height is not auto.
-  set_used_width(intrinsic_width_);
-}
-
-// Calculate the replaced box height, as defined in:
-//   http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-// TODO(***REMOVED***): Implement correct behaviour for absolutely positioned elements:
-//   http://www.w3.org/TR/CSS21/visudet.html#abs-replaced-height
-class ReplacedBoxUsedHeightProvider : public UsedHeightProvider {
- public:
-  ReplacedBoxUsedHeightProvider(float containing_block_height,
-                                float intrinsic_height);
-
-  void VisitAuto() OVERRIDE;
-
-  // This is used to determine if the height must be calculated from the width
-  // and ratio.
-  bool height_is_auto() const { return height_is_auto_; }
-
- private:
-  float intrinsic_height_;
-  bool height_is_auto_;
-};
-
-ReplacedBoxUsedHeightProvider::ReplacedBoxUsedHeightProvider(
-    float containing_block_height, float intrinsic_height)
-    : UsedHeightProvider(containing_block_height),
-      intrinsic_height_(intrinsic_height),
-      height_is_auto_(false) {}
-
-void ReplacedBoxUsedHeightProvider::VisitAuto() {
-  height_is_auto_ = true;
-  // Note: This value will be ignored if the width is not auto.
-  set_used_height(intrinsic_height_);
-}
-
-}  // namespace
-
 void ReplacedBox::UpdateUsedSize(const LayoutParams& layout_params) {
   // TODO(***REMOVED***): See if we can determine and use the intrinsic element size.
   float intrinsic_width = kDefaultIntrinsicWidth;
   float intrinsic_height = kDefaultIntrinsicHeight;
   float intrinsic_ratio = kDefaultIntrinsicWidth / kDefaultIntrinsicHeight;
 
-  ReplacedBoxUsedWidthProvider used_width_provider(
-      layout_params.containing_block_size.width(), intrinsic_width);
-  computed_style()->width()->Accept(&used_width_provider);
+  UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
+      layout_params.containing_block_size.width(), *computed_style());
 
-  ReplacedBoxUsedHeightProvider used_height_provider(
-      layout_params.containing_block_size.height(), intrinsic_height);
-  computed_style()->height()->Accept(&used_height_provider);
+  UsedBoxMetrics vertical_metrics = UsedBoxMetrics::ComputeVertical(
+      layout_params.containing_block_size.height(), *computed_style());
 
-  float new_used_width = used_width_provider.used_width();
-  float new_used_height = used_height_provider.used_height();
-
-  if (used_width_provider.width_is_auto() &&
-      !used_height_provider.height_is_auto()) {
+  if (!horizontal_metrics.size && !vertical_metrics.size) {
+    // If height and width both have computed values of auto, use the
+    // intrinsic sizes, according to:
+    // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
+    horizontal_metrics.size = intrinsic_width;
+    vertical_metrics.size = intrinsic_height;
+  } else if (!horizontal_metrics.size && vertical_metrics.size) {
     // If width is auto and height is not, then use the intrinsic ratio to
     // calculate the width, according to:
     // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-    new_used_width = used_height_provider.used_height() * intrinsic_ratio;
-  } else if (used_height_provider.height_is_auto() &&
-             !used_width_provider.width_is_auto()) {
+    horizontal_metrics.size = *vertical_metrics.size * intrinsic_ratio;
+  } else if (horizontal_metrics.size && !vertical_metrics.size) {
     // If height is auto and width is not, then use the intrinsic ratio to
     // calculate the height, according to:
     // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-    new_used_height = used_width_provider.used_width() / intrinsic_ratio;
+    vertical_metrics.size = *horizontal_metrics.size / intrinsic_ratio;
   }
 
   // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  set_used_width(new_used_width);
-  set_used_height(new_used_height);
+  set_used_width(*horizontal_metrics.size);
+  set_used_height(*vertical_metrics.size);
 }
 
 scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/) {
