@@ -407,13 +407,15 @@ void XMLHttpRequest::OnDone() {
   // This should really be done in OnReceived(), but we don't have
   // the response headers yet.
   const int64 content_length = http_response_headers_->GetContentLength();
-  const int64 received_length = response_body.size();
+  const int64 received_length = static_cast<int64>(response_body_.size());
   const bool length_computable =
-      content_length > 0 && received_length <= expected_length;
-  const uint64 total = length_computable ? content_length : 0;
+      content_length > 0 && received_length <= content_length;
+  const uint64 total =
+      length_computable ? static_cast<uint64>(content_length) : 0;
 
-  FireProgressEvent(dom::EventNames::GetInstance()->progress(), received_length,
-                    total, length_computable);
+  FireProgressEvent(dom::EventNames::GetInstance()->progress(),
+                    static_cast<uint64>(received_length), total,
+                    length_computable);
   FireProgressEvent(dom::EventNames::GetInstance()->load());
   FireProgressEvent(dom::EventNames::GetInstance()->loadend());
 }
