@@ -66,14 +66,6 @@ class InlineFormattingContext : public FormattingContext {
 
   // WARNING: All public methods below may be called only after |EndQueries|.
 
-  // Used to calculate the "auto" width of the box that establishes this
-  // formatting context.
-  float GetShrinkToFitWidth() const;
-
-  // Used to calculate the "auto" height of the box that establishes this
-  // formatting context.
-  float GetLastLineBoxUsedBottom() const;
-
  private:
   void OnLineBoxDestroying();
 
@@ -85,9 +77,6 @@ class InlineFormattingContext : public FormattingContext {
 
   // Number of lines boxes that affect the layout.
   int line_count_;
-
-  // A width of the block container box when all possible line breaks are made.
-  float preferred_min_width_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };

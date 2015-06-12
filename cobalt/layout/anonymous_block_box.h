@@ -62,10 +62,6 @@ class AnonymousBlockBox : public BlockContainerBox {
       bool* height_depends_on_child_boxes) const OVERRIDE;
   scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
       const LayoutParams& child_layout_params) OVERRIDE;
-  float GetUsedWidthBasedOnChildBoxes(
-      const FormattingContext& formatting_context) const OVERRIDE;
-  float GetUsedHeightBasedOnChildBoxes(
-      const FormattingContext& formatting_context) const OVERRIDE;
 };
 
 }  // namespace layout

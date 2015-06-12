@@ -93,29 +93,5 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
   return inline_formatting_context.PassAs<FormattingContext>();
 }
 
-float AnonymousBlockBox::GetUsedWidthBasedOnChildBoxes(
-    const FormattingContext& formatting_context) const {
-  const InlineFormattingContext& inline_formatting_context =
-      *base::polymorphic_downcast<const InlineFormattingContext*>(
-          &formatting_context);
-  return inline_formatting_context.GetShrinkToFitWidth();
-}
-
-float AnonymousBlockBox::GetUsedHeightBasedOnChildBoxes(
-    const FormattingContext& formatting_context) const {
-  // TODO(***REMOVED***): Implement for block-level non-replaced elements in normal
-  //               flow when "overflow" computes to "visible":
-  //               http://www.w3.org/TR/CSS21/visudet.html#normal-block
-  // TODO(***REMOVED***): Implement for block-level, non-replaced elements in normal
-  //               flow when "overflow" does not compute to "visible" and
-  //               for inline-block, non-replaced elements:
-  //               http://www.w3.org/TR/CSS21/visudet.html#block-root-margin
-  NOTIMPLEMENTED();
-  const InlineFormattingContext& inline_formatting_context =
-      *base::polymorphic_downcast<const InlineFormattingContext*>(
-          &formatting_context);
-  return inline_formatting_context.GetLastLineBoxUsedBottom();  // Hack-hack.
-}
-
 }  // namespace layout
 }  // namespace cobalt

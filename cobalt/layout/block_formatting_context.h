@@ -43,30 +43,8 @@ class BlockFormattingContext : public FormattingContext {
   // the internal state in the preparation for the next child.
   void UpdateUsedRect(Box* child_box);
 
-  // Used to calculate the "auto" width of the box that establishes this
-  // formatting context.
-  float shrink_to_fit_width() const { return shrink_to_fit_width_; }
-
-  // Used to calculate the "auto" height of the box that establishes this
-  // formatting context.
-  //
-  // TODO(***REMOVED***): Fix when a margin collapsing is implemented.
-  float last_child_box_used_bottom() const {
-    return next_child_box_used_position_.y();
-  }
-
  private:
   const LayoutParams layout_params_;
-
-  // In a block formatting context, each box's left outer edge touches
-  // the left edge of the containing block.
-  //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  //
-  // According to the above, we default-construct the position of the first
-  // child at (0, 0).
-  math::PointF next_child_box_used_position_;
-
-  float shrink_to_fit_width_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
 };
