@@ -63,6 +63,7 @@ CallWith=EnvironmentSettings
 ConstructorCallWith=EnvironmentSettings
 
 # Not yet supported
+ArrayClass
 Constructor
 OverrideBuiltins
 PutForwards=*

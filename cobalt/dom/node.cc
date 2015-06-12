@@ -20,6 +20,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
 
@@ -69,8 +70,16 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   return !event->default_prevented();
 }
 
-scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
-  return InsertBefore(new_child, NULL);
+scoped_refptr<Document> Node::owner_document() { return owner_document_.get(); }
+
+scoped_refptr<Element> Node::parent_element() const {
+  return parent_ ? parent_->AsElement() : NULL;
+}
+
+bool Node::HasChildNodes() const { return first_child_ != NULL; }
+
+scoped_refptr<NodeList> Node::child_nodes() {
+  return NodeList::CreateWithChildren(this);
 }
 
 bool Node::Contains(const scoped_refptr<Node>& other_node) const {
@@ -83,8 +92,6 @@ bool Node::Contains(const scoped_refptr<Node>& other_node) const {
   }
   return false;
 }
-
-bool Node::HasChildNodes() const { return first_child_ != NULL; }
 
 scoped_refptr<Node> Node::InsertBefore(
     const scoped_refptr<Node>& new_child,
@@ -144,52 +151,8 @@ scoped_refptr<Node> Node::InsertBefore(
   return new_child;
 }
 
-// Algorithm for RemoveChild:
-//   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-remove
-scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
-  // Custom, not in any spec.
-  if (!node) {
-    // TODO(***REMOVED***): Throw JS ReferenceError.
-    return NULL;
-  }
-
-  // Pre-remove 1. If child's parent is not parent, throw a "NotFoundError"
-  //               exception.
-  if (node->parent_ != this) {
-    // TODO(***REMOVED***): Throw JS NotFoundError.
-    return NULL;
-  }
-
-  // Custom, not in any spec.
-  scoped_refptr<Document> previous_owner_document = node->owner_document_.get();
-  if (previous_owner_document) {
-    node->DetachFromDocument();
-  }
-  node->UpdateNodeGeneration();
-
-  // 2. ~ 7. Not needed by Cobalt.
-
-  // 8. Remove node from its parent.
-  if (node->previous_sibling_) {
-    node->previous_sibling_->next_sibling_ = node->next_sibling_;
-  } else {
-    first_child_ = node->next_sibling_;
-  }
-  if (node->next_sibling_) {
-    node->next_sibling_->previous_sibling_ = node->previous_sibling_;
-  } else {
-    last_child_ = node->previous_sibling_;
-  }
-  node->parent_.reset();
-  node->previous_sibling_.reset();
-  node->next_sibling_ = NULL;
-
-  // Custom, not in any spec.
-  if (previous_owner_document) {
-    previous_owner_document->RecordMutation();
-  }
-
-  return node;
+scoped_refptr<Node> Node::AppendChild(const scoped_refptr<Node>& new_child) {
+  return InsertBefore(new_child, NULL);
 }
 
 // Algorithm for ReplaceChild:
@@ -252,34 +215,52 @@ scoped_refptr<Node> Node::ReplaceChild(const scoped_refptr<Node>& node,
   return child;
 }
 
-scoped_refptr<Document> Node::owner_document() { return owner_document_.get(); }
-
-scoped_refptr<Element> Node::parent_element() const {
-  return parent_ ? parent_->AsElement() : NULL;
-}
-
-std::string Node::text_content() const {
-  std::string content;
-
-  const Node* child = first_child_;
-  while (child) {
-    if (!child->IsComment()) {
-      content.append(child->text_content());
-    }
-    child = child->next_sibling_;
+// Algorithm for RemoveChild:
+//   http://www.w3.org/TR/2014/WD-dom-20140710/#concept-node-remove
+scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
+  // Custom, not in any spec.
+  if (!node) {
+    // TODO(***REMOVED***): Throw JS ReferenceError.
+    return NULL;
   }
 
-  return content;
-}
+  // Pre-remove 1. If child's parent is not parent, throw a "NotFoundError"
+  //               exception.
+  if (node->parent_ != this) {
+    // TODO(***REMOVED***): Throw JS NotFoundError.
+    return NULL;
+  }
 
-void Node::set_text_content(const std::string& value) {
-  // Remove all children and replace them with a single Text node.
-  while (HasChildNodes()) {
-    RemoveChild(first_child());
+  // Custom, not in any spec.
+  scoped_refptr<Document> previous_owner_document = node->owner_document_.get();
+  if (previous_owner_document) {
+    node->DetachFromDocument();
   }
-  if (!value.empty()) {
-    AppendChild(new Text(value));
+  node->UpdateNodeGeneration();
+
+  // 2. ~ 7. Not needed by Cobalt.
+
+  // 8. Remove node from its parent.
+  if (node->previous_sibling_) {
+    node->previous_sibling_->next_sibling_ = node->next_sibling_;
+  } else {
+    first_child_ = node->next_sibling_;
   }
+  if (node->next_sibling_) {
+    node->next_sibling_->previous_sibling_ = node->previous_sibling_;
+  } else {
+    last_child_ = node->previous_sibling_;
+  }
+  node->parent_.reset();
+  node->previous_sibling_.reset();
+  node->next_sibling_ = NULL;
+
+  // Custom, not in any spec.
+  if (previous_owner_document) {
+    previous_owner_document->RecordMutation();
+  }
+
+  return node;
 }
 
 scoped_refptr<HTMLCollection> Node::children() {
