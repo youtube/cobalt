@@ -223,30 +223,6 @@ BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
   return block_formatting_context.PassAs<FormattingContext>();
 }
 
-float BlockFormattingBlockContainerBox::GetUsedWidthBasedOnChildBoxes(
-    const FormattingContext& formatting_context) const {
-  const BlockFormattingContext& block_formatting_context =
-      *base::polymorphic_downcast<const BlockFormattingContext*>(
-          &formatting_context);
-  return block_formatting_context.shrink_to_fit_width();
-}
-
-float BlockFormattingBlockContainerBox::GetUsedHeightBasedOnChildBoxes(
-    const FormattingContext& formatting_context) const {
-  // TODO(***REMOVED***): Implement for block-level non-replaced elements in normal
-  //               flow when "overflow" computes to "visible":
-  //               http://www.w3.org/TR/CSS21/visudet.html#normal-block
-  // TODO(***REMOVED***): Implement for block-level, non-replaced elements in normal
-  //               flow when "overflow" does not compute to "visible" and
-  //               for inline-block, non-replaced elements:
-  //               http://www.w3.org/TR/CSS21/visudet.html#block-root-margin
-  NOTIMPLEMENTED();
-  const BlockFormattingContext& block_formatting_context =
-      *base::polymorphic_downcast<const BlockFormattingContext*>(
-          &formatting_context);
-  return block_formatting_context.last_child_box_used_bottom();  // Hack-hack.
-}
-
 AnonymousBlockBox*
 BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
   AnonymousBlockBox* last_anonymous_block_box =
