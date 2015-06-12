@@ -41,10 +41,27 @@ class FormattingContext {
     return maybe_height_above_baseline_;
   }
 
+  float used_height() const { return bounding_box_of_used_children_.height(); }
+  float used_width() const { return bounding_box_of_used_children_.width(); }
+
  protected:
   void set_height_above_baseline(float height_above_baseline) {
     maybe_height_above_baseline_ = height_above_baseline;
   }
+
+  // Used to calculate the "auto" height of the box that establishes this
+  // formatting context.
+  //
+  // In a block formatting context, each box's left outer edge touches
+  // the left edge of the containing block.
+  //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
+  // In an inline formatting context, the line box's left outer edge touches
+  // the left edge of the containing block.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //
+  // According to the above, we default-construct the position of the first
+  // child at (0, 0).
+  math::SizeF bounding_box_of_used_children_;
 
  private:
   base::optional<float> maybe_height_above_baseline_;

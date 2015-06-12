@@ -96,19 +96,6 @@ class BlockContainerBox : public ContainerBox {
   virtual scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
       const LayoutParams& child_layout_params) = 0;
 
-  // Calculates the used width.
-  //
-  // Only called if the value depends on children, after the second pass of
-  // the layout when precise children sizes are known.
-  virtual float GetUsedWidthBasedOnChildBoxes(
-      const FormattingContext& formatting_context) const = 0;
-  // Calculates the used height.
-  //
-  // Only called if the value depends on children, and only after precise
-  // children sizes are known.
-  virtual float GetUsedHeightBasedOnChildBoxes(
-      const FormattingContext& formatting_context) const = 0;
-
  private:
   LayoutParams GetChildLayoutOptions(const LayoutParams& layout_params,
                                      bool* width_depends_on_child_boxes,
