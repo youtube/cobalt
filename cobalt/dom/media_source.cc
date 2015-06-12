@@ -26,6 +26,7 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/event_names.h"
 
 namespace cobalt {
 namespace dom {
@@ -370,17 +371,17 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
   if (ready_state_ == kReadyStateClosed) {
     source_buffers_->Clear();
     player_ = NULL;
-    ScheduleEvent("closed");
+    ScheduleEvent(EventNames::GetInstance()->sourceclosed());
     return;
   }
 
   if (old_state == kReadyStateOpen && ready_state_ == kReadyStateEnded) {
-    ScheduleEvent("ended");
+    ScheduleEvent(EventNames::GetInstance()->sourceended());
     return;
   }
 
   if (ready_state_ == kReadyStateOpen) {
-    ScheduleEvent("open");
+    ScheduleEvent(EventNames::GetInstance()->sourceopen());
   }
 }
 
