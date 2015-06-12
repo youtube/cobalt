@@ -539,6 +539,9 @@ identifier_token:
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
   }
+  | kCenterToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kCenterKeywordName);
+  }
   | kContainToken {
     $$ = TrivialStringPiece::FromCString(cssom::kContainKeywordName);
   }
