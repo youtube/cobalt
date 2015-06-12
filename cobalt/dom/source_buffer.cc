@@ -26,32 +26,6 @@
 namespace cobalt {
 namespace dom {
 
-namespace {
-
-// TODO(***REMOVED***): Remove this code when XHR and Uint8Array binding are ready.
-void ReadLocalFile(const std::string& relative_path_name,
-                   std::vector<uint8>* data) {
-  DCHECK(!FilePath::IsSeparator(relative_path_name[0]));
-  DCHECK(data);
-
-  FilePath dir_source_root;
-  PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root);
-
-  std::string absolute_path_name =
-      dir_source_root.Append(relative_path_name).value();
-
-  // Get the size
-  FILE* fp = fopen(absolute_path_name.c_str(), "rb");
-  DCHECK(fp);
-  fseek(fp, 0, SEEK_END);
-  data->resize(ftell(fp));
-  fseek(fp, 0, SEEK_SET);
-  fread(&(*data)[0], data->size(), 1, fp);
-  fclose(fp);
-}
-
-}  // namespace
-
 SourceBuffer::SourceBuffer(const scoped_refptr<MediaSource>& media_source,
                            const std::string& id)
     : media_source_(media_source), id_(id), timestamp_offset_(0) {
@@ -83,17 +57,15 @@ void SourceBuffer::set_timestamp_offset(double offset) {
   }
 }
 
-void SourceBuffer::Append(const std::string& filename) {
+void SourceBuffer::Append(const scoped_refptr<Uint8Array>& data) {
   if (!media_source_) {
     // TODO(***REMOVED***): Raise INVALID_STATE_ERR if media_source_ is NULL;
     NOTREACHED();
     return;
   }
 
-  std::vector<uint8> buffer;
-  ReadLocalFile(filename, &buffer);
-  if (!buffer.empty()) {
-    media_source_->Append(this, &buffer[0], buffer.size());
+  if (data->length()) {
+    media_source_->Append(this, data->data(), data->length());
   }
 }
 
