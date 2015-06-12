@@ -320,8 +320,9 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
   style->set_mutation_observer(&observer);
 
   EXPECT_CALL(css_parser,
-              ParsePropertyValue(kPositionPropertyName, position, _))
-      .WillOnce(testing::Return(scoped_refptr<PropertyValue>()));
+              ParsePropertyIntoStyle(
+                  kPositionPropertyName, position, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnMutation()).Times(1);
 
   style->set_position(position);
