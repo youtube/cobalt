@@ -24,7 +24,7 @@ namespace layout {
 
 BlockFormattingContext::BlockFormattingContext(
     const LayoutParams& layout_params)
-    : layout_params_(layout_params), shrink_to_fit_width_(0) {}
+    : layout_params_(layout_params) {}
 
 BlockFormattingContext::~BlockFormattingContext() {}
 
@@ -34,8 +34,8 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
   // In a block formatting context, boxes are laid out one after the other,
   // vertically, beginning at the top of a containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  child_box->set_used_left(next_child_box_used_position_.x());
-  child_box->set_used_top(next_child_box_used_position_.y());
+  child_box->set_used_left(0);
+  child_box->set_used_top(used_height());
 
   // If the position is absolute, then it should not affect the layout of
   // its siblings and thus we should not update the block formatting context's
@@ -47,7 +47,8 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
           cssom::KeywordValue::GetAbsolute()) {
     child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
-    next_child_box_used_position_.Offset(0, child_box->used_height());
+    bounding_box_of_used_children_.set_height(used_height() +
+                                              child_box->used_height());
 
     // The vertical distance between two sibling boxes is determined by
     // the "margin" properties. Vertical margins between adjacent block-level
@@ -57,8 +58,8 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
 
     // Shrink-to-fit width cannot be less than the width of the widest child.
     //   http://www.w3.org/TR/CSS21/visudet.html#float-width
-    shrink_to_fit_width_ =
-        std::max(shrink_to_fit_width_, child_box->used_width());
+    bounding_box_of_used_children_.set_width(
+        std::max(used_width(), child_box->used_width()));
 
     // The baseline of an "inline-block" is the baseline of its last line box
     // in the normal flow, unless it has no in-flow line boxes.

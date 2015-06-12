@@ -25,7 +25,7 @@ namespace layout {
 
 InlineFormattingContext::InlineFormattingContext(
     const LayoutParams& layout_params)
-    : layout_params_(layout_params), preferred_min_width_(0), line_count_(0) {}
+    : layout_params_(layout_params), line_count_(0) {}
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
@@ -52,9 +52,8 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   OnLineBoxDestroying();
-  line_box_ = make_scoped_ptr(new LineBox(GetLastLineBoxUsedBottom(),
-                                          LineBox::kShouldTrimWhiteSpace,
-                                          layout_params_));
+  line_box_ = make_scoped_ptr(new LineBox(
+      used_height(), LineBox::kShouldTrimWhiteSpace, layout_params_));
 
   // A sequence of collapsible spaces at the beginning of a line is removed.
   //   http://www.w3.org/TR/css3-text/#white-space-phase-2
@@ -69,6 +68,7 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
     //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
     line_box_->QueryUsedRectAndMaybeOverflow(child_box);
   }
+
   return child_box_after_split.Pass();
 }
 
@@ -76,33 +76,6 @@ void InlineFormattingContext::EndQueries() {
   // Treat the end of child boxes almost as an explicit line break,
   // but don't create the new line box.
   OnLineBoxDestroying();
-}
-
-float InlineFormattingContext::GetShrinkToFitWidth() const {
-  // The shrink-to-fit width is:
-  // min(max(preferred minimum width, available width), preferred width).
-  //   http://www.w3.org/TR/CSS21/visudet.html#float-width
-  //
-  // Naive solution of the above expression would require two layout passes:
-  // one to calculate the "preferred minimum width" and another one to
-  // calculate the "preferred width". It is possible to save one layout pass
-  // taking into account that:
-  //   - an exact value of "preferred width" does not matter if "available
-  //     width" cannot acommodate it;
-  //   - the inline formatting context has more than one line if and only if
-  //     the "preferred width" is greater than the "available width";
-  //   - "preferred minimum" and "preferred" widths are equal when an inline
-  //     formatting context has only one line.
-  return std::max(
-      preferred_min_width_,
-      line_count_ > 1 ? layout_params_.containing_block_size.width() : 0);
-}
-
-float InlineFormattingContext::GetLastLineBoxUsedBottom() const {
-  return line_box_
-             ? line_box_->used_top() +
-                   (line_box_->line_exists() ? line_box_->used_height() : 0)
-             : 0;
 }
 
 void InlineFormattingContext::OnLineBoxDestroying() {
@@ -115,11 +88,23 @@ void InlineFormattingContext::OnLineBoxDestroying() {
     if (line_box_->line_exists()) {
       ++line_count_;
 
+      // Set height as the bottom edge of the last line box
+      // http://www.w3.org/TR/CSS21/visudet.html#normal-block
+      // TODO(***REMOVED***): Handle margins and line spacing correctly.
+      bounding_box_of_used_children_.set_height(line_box_->used_top() +
+                                                line_box_->used_height());
+
       set_height_above_baseline(line_box_->used_top() +
                                 line_box_->height_above_baseline());
 
-      preferred_min_width_ =
-          std::max(preferred_min_width_, line_box_->GetShrinkToFitWidth());
+      // A width of the block container box when all possible line breaks are
+      // made.
+      float preferred_min_width =
+          std::max(used_width(), line_box_->GetShrinkToFitWidth());
+      float shrink_to_fit_width = std::max(
+          preferred_min_width,
+          line_count_ > 1 ? layout_params_.containing_block_size.width() : 0);
+      bounding_box_of_used_children_.set_width(shrink_to_fit_width);
     }
   }
 }

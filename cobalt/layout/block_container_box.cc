@@ -48,8 +48,7 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
 
   // Calculate the exact width of the block container box.
   if (width_depends_on_child_boxes) {
-    float used_width_based_on_child_boxes =
-        GetUsedWidthBasedOnChildBoxes(*formatting_context);
+    float used_width_based_on_child_boxes = formatting_context->used_width();
 
     // If the exact width is different from the approximated one, do a second
     // pass of the layout.
@@ -78,7 +77,7 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
 
   // Calculate the exact height of the block container box.
   set_used_height(height_depends_on_child_boxes
-                      ? GetUsedHeightBasedOnChildBoxes(*formatting_context)
+                      ? formatting_context->used_height()
                       : child_layout_params.containing_block_size.height());
   maybe_height_above_baseline_ =
       formatting_context->maybe_height_above_baseline();
