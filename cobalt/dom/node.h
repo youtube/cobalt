@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
@@ -29,6 +30,7 @@ class Comment;
 class Document;
 class Element;
 class HTMLCollection;
+class NodeList;
 class Text;
 
 // Used to implement type-safe visiting via double-dispatch on a class
@@ -119,32 +121,42 @@ class Node : public EventTarget {
 
   // Web API: Node
   //
-  scoped_refptr<Node> AppendChild(const scoped_refptr<Node>& new_child);
-  bool Contains(const scoped_refptr<Node>& other_name) const;
-  bool HasChildNodes() const;
-  virtual scoped_refptr<Node> InsertBefore(
-      const scoped_refptr<Node>& new_child,
-      const scoped_refptr<Node>& reference_child);
-  scoped_refptr<Node> RemoveChild(const scoped_refptr<Node>& node);
-  scoped_refptr<Node> ReplaceChild(const scoped_refptr<Node>& node,
-                                   const scoped_refptr<Node>& child);
-  virtual bool HasAttributes() const { return false; }
+  virtual NodeType node_type() const = 0;
+  virtual const std::string& node_name() const = 0;
 
   scoped_refptr<Document> owner_document();
   scoped_refptr<Node> parent_node() const { return parent_.get(); }
   scoped_refptr<Element> parent_element() const;
+  bool HasChildNodes() const;
+  scoped_refptr<NodeList> child_nodes();
+  scoped_refptr<Node> first_child() const { return first_child_; }
+  scoped_refptr<Node> last_child() const { return last_child_.get(); }
   scoped_refptr<Node> next_sibling() const { return next_sibling_; }
   scoped_refptr<Node> previous_sibling() const {
     return previous_sibling_.get();
   }
-  scoped_refptr<Node> first_child() const { return first_child_; }
-  scoped_refptr<Node> last_child() const { return last_child_.get(); }
 
-  virtual const std::string& node_name() const = 0;
-  virtual NodeType node_type() const = 0;
+  virtual base::optional<std::string> node_value() const {
+    return base::nullopt;
+  }
+  virtual void set_node_value(
+      const base::optional<std::string>& /* node_value */) {}
 
-  virtual std::string text_content() const;
-  virtual void set_text_content(const std::string& value);
+  virtual base::optional<std::string> text_content() const {
+    return base::nullopt;
+  }
+  virtual void set_text_content(
+      const base::optional<std::string>& /* text_content */) {}
+
+  bool Contains(const scoped_refptr<Node>& other_name) const;
+
+  virtual scoped_refptr<Node> InsertBefore(
+      const scoped_refptr<Node>& new_child,
+      const scoped_refptr<Node>& reference_child);
+  scoped_refptr<Node> AppendChild(const scoped_refptr<Node>& new_child);
+  scoped_refptr<Node> ReplaceChild(const scoped_refptr<Node>& node,
+                                   const scoped_refptr<Node>& child);
+  scoped_refptr<Node> RemoveChild(const scoped_refptr<Node>& node);
 
   // Web API: ParentNode (implements)
   // The ParentNode interface contains methods that are particular to Node
@@ -164,6 +176,8 @@ class Node : public EventTarget {
 
   // Custom, not in any spec.
   //
+  virtual bool HasAttributes() const { return false; }
+
   virtual bool IsComment() const { return false; }
   virtual bool IsDocument() const { return false; }
   virtual bool IsElement() const { return false; }

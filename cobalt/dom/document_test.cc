@@ -72,6 +72,18 @@ TEST_F(DocumentTest, Create) {
   EXPECT_EQ(url, document->url_as_gurl());
 }
 
+TEST_F(DocumentTest, DocumentElement) {
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
+  EXPECT_EQ(NULL, document->document_element());
+
+  scoped_refptr<Text> text = new Text("test_text");
+  scoped_refptr<Element> element = new Element();
+  document->AppendChild(text);
+  document->AppendChild(element);
+  EXPECT_EQ(element, document->document_element());
+}
+
 TEST_F(DocumentTest, CreateElement) {
   scoped_refptr<Document> document =
       new Document(&html_element_factory_, Document::Options());
@@ -94,51 +106,51 @@ TEST_F(DocumentTest, CreateTextNode) {
 
   EXPECT_EQ(Node::kTextNode, text->node_type());
   EXPECT_EQ("#text", text->node_name());
-  EXPECT_EQ("test_text", text->text_content());
+  EXPECT_EQ("test_text", text->data());
 
   // Make sure that the text is not attached to anything.
   EXPECT_EQ(NULL, text->owner_document());
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
-  scoped_refptr<Document> root =
+  scoped_refptr<Document> document =
       new Document(&html_element_factory_, Document::Options());
-  testing::TestGetElementsByClassName(root);
+  testing::TestGetElementsByClassName(document);
 }
 
 TEST_F(DocumentTest, GetElementsByTagName) {
-  scoped_refptr<Document> root =
+  scoped_refptr<Document> document =
       new Document(&html_element_factory_, Document::Options());
-  testing::TestGetElementsByTagName(root);
+  testing::TestGetElementsByTagName(document);
 }
 
 TEST_F(DocumentTest, GetElementById) {
-  scoped_refptr<Document> root =
+  scoped_refptr<Document> document =
       new Document(&html_element_factory_, Document::Options());
 
   // Construct a tree:
-  // root
+  // document
   //   a1
   //     b1
   //       c1
   //   a2
   //     d1
-  scoped_refptr<Node> a1 = root->AppendChild(new Element());
-  scoped_refptr<Node> a2 = root->AppendChild(new Element());
+  scoped_refptr<Node> a1 = document->AppendChild(new Element());
+  scoped_refptr<Node> a2 = document->AppendChild(new Element());
   scoped_refptr<Node> b1 = a1->AppendChild(new Element());
   scoped_refptr<Node> c1 = b1->AppendChild(new Element());
   scoped_refptr<Node> d1 = a2->AppendChild(new Element());
 
-  EXPECT_EQ(NULL, root->GetElementById("id"));
+  EXPECT_EQ(NULL, document->GetElementById("id"));
 
   d1->AsElement()->set_id("id");
-  EXPECT_EQ(d1, root->GetElementById("id"));
+  EXPECT_EQ(d1, document->GetElementById("id"));
 
   c1->AsElement()->set_id("id");
-  EXPECT_EQ(c1, root->GetElementById("id"));
+  EXPECT_EQ(c1, document->GetElementById("id"));
 
-  root->RemoveChild(a1);
-  EXPECT_EQ(d1, root->GetElementById("id"));
+  document->RemoveChild(a1);
+  EXPECT_EQ(d1, document->GetElementById("id"));
 }
 
 TEST_F(DocumentTest, OwnerDocument) {
@@ -177,17 +189,18 @@ TEST_F(DocumentTest, StyleSheets) {
 
   scoped_refptr<HTMLElement> element1 =
       html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
-  element1->set_text_content("body { background-color: lightgray }");
+  element1->set_text_content(
+      std::string("body { background-color: lightgray }"));
   document->AppendChild(element1);
 
   scoped_refptr<HTMLElement> element2 =
       html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
-  element2->set_text_content("h1 { color: blue }");
+  element2->set_text_content(std::string("h1 { color: blue }"));
   document->AppendChild(element2);
 
   scoped_refptr<HTMLElement> element3 =
       html_element_factory_.CreateHTMLElement(HTMLStyleElement::kTagName);
-  element3->set_text_content("p { color: green }");
+  element3->set_text_content(std::string("p { color: green }"));
   document->AppendChild(element3);
 
   EXPECT_NE(scoped_refptr<cssom::StyleSheetList>(), document->style_sheets());
