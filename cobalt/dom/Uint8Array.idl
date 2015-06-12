@@ -16,10 +16,10 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7.1
 [
-    Constructor(unsigned long length)
-    // TODO(***REMOVED***): Add these other constructors
-    // once overloads are supported.
-    // Constructor(ArrayBuffer, optional unsigned long offset, optional unsigned long length),
+    Constructor(ArrayBuffer array_buffer, optional unsigned long offset, optional unsigned long length)
+    // TODO(***REMOVED***): Add these other constructors once overloads are
+    // supported.
+    // Constructor(unsigned long length)
     // Constructor(Uint8Array)
 ]
 interface Uint8Array : ArrayBufferView {

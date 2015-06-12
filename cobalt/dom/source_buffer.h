@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/time_ranges.h"
+#include "cobalt/dom/uint8_array.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -43,7 +44,7 @@ class SourceBuffer : public script::Wrappable {
   scoped_refptr<TimeRanges> buffered() const;
   double timestamp_offset() const;
   void set_timestamp_offset(double offset);
-  void Append(const std::string& filename);
+  void Append(const scoped_refptr<Uint8Array>& data);
   void Abort();
 
   // Custom, not in any spec.
