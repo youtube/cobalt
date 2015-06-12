@@ -29,16 +29,27 @@ namespace dom {
 class CharacterData : public Node {
  public:
   // Web API: Node
+  base::optional<std::string> node_value() const OVERRIDE { return data_; }
+  void set_node_value(const base::optional<std::string>& node_value) {
+    data_ = node_value.value_or("");
+  }
+
+  base::optional<std::string> text_content() const OVERRIDE { return data_; }
+  void set_text_content(const base::optional<std::string>& text_content) {
+    data_ = text_content.value_or("");
+  }
+
+  // Web API: CharacterData
   //
-  std::string text_content() const OVERRIDE { return data_; }
-  void set_text_content(const std::string& data) OVERRIDE { data_ = data; }
+  std::string data() const { return data_; }
+  void set_data(const std::string& data) { data_ = data; }
 
   // Custom, not in any spec.
   //
-  // Unlike text_content() which returns a copy, returns a reference
-  // to the underlying sequence of characters. This can save copying in layout
-  // engine where text is broken into words. Should be used carefully
-  // to avoid dangling string iterators.
+  // Unlike data() which returns a copy, returns a reference to the underlying
+  // sequence of characters. This can save copying in layout engine where text
+  // is broken into words. Should be used carefully to avoid dangling string
+  // iterators.
   const std::string& text() const { return data_; }
 
   DEFINE_WRAPPABLE_TYPE(CharacterData);
@@ -48,6 +59,7 @@ class CharacterData : public Node {
   ~CharacterData() OVERRIDE {}
 
  private:
+  // From Node.
   bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const OVERRIDE;
 
   std::string data_;

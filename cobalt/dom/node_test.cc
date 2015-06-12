@@ -19,6 +19,7 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
@@ -175,13 +176,23 @@ TEST_F(NodeTest, RemoveChild) {
   ExpectNodeChildrenEq(children, root);
 }
 
-TEST_F(NodeTest, HasChildNodes) {
+TEST_F(NodeTest, ChildNodes) {
   scoped_refptr<Node> root = new FakeNode();
-
   EXPECT_FALSE(root->HasChildNodes());
+  EXPECT_EQ(0, root->child_nodes()->length());
+  EXPECT_EQ(kNullNode, root->child_nodes()->Item(0));
 
-  root->AppendChild(new FakeNode());
+  scoped_refptr<Node> child = new FakeNode();
+  root->AppendChild(child);
   EXPECT_TRUE(root->HasChildNodes());
+  EXPECT_EQ(1, root->child_nodes()->length());
+  EXPECT_EQ(child, root->child_nodes()->Item(0));
+  EXPECT_EQ(kNullNode, root->child_nodes()->Item(1));
+
+  root->RemoveChild(child);
+  EXPECT_FALSE(root->HasChildNodes());
+  EXPECT_EQ(0, root->child_nodes()->length());
+  EXPECT_EQ(kNullNode, root->child_nodes()->Item(0));
 }
 
 TEST_F(NodeTest, ParentElement) {
@@ -248,16 +259,6 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
   EXPECT_EQ(child2, child1->next_element_sibling());
   EXPECT_EQ(child3, child2->next_element_sibling());
   EXPECT_EQ(kNullNode, child3->next_element_sibling());
-}
-
-TEST_F(NodeTest, NoTextChildWhenTextContentsAreEmpty) {
-  scoped_refptr<Node> node = new FakeNode();
-  scoped_refptr<Text> text = new Text("text");
-  node->AppendChild(text);
-  EXPECT_EQ(text, node->first_child());
-
-  node->set_text_content("");
-  EXPECT_EQ(NULL, node->first_child());
 }
 
 }  // namespace dom

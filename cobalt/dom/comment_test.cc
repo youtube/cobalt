@@ -58,14 +58,14 @@ TEST_F(CommentTest, CommentCheckAttach) {
   EXPECT_EQ(NULL, comment->InsertBefore(text, NULL));
 }
 
-TEST_F(CommentTest, TextContentHasNoComments) {
-  scoped_refptr<Element> root = new Element();
+TEST_F(CommentTest, NodeValue) {
+  scoped_refptr<Comment> comment = new Comment("comment");
+  EXPECT_EQ("comment", comment->node_value().value());
+}
 
-  root->AppendChild(new Text("t1"));
-  root->AppendChild(new Comment("comment"));
-  root->AppendChild(new Text("t2"));
-
-  EXPECT_EQ("t1t2", root->text_content());
+TEST_F(CommentTest, TextContent) {
+  scoped_refptr<Comment> comment = new Comment("comment");
+  EXPECT_EQ("comment", comment->text_content().value());
 }
 
 TEST_F(CommentTest, InnerHTML) {

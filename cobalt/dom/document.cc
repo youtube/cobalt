@@ -52,6 +52,10 @@ const std::string& Document::node_name() const {
   return kDocumentName;
 }
 
+scoped_refptr<Element> Document::document_element() {
+  return first_element_child();
+}
+
 scoped_refptr<Node> Document::InsertBefore(
     const scoped_refptr<Node>& new_child,
     const scoped_refptr<Node>& reference_child) {

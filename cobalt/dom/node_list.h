@@ -1,0 +1,67 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef DOM_NODE_LIST_H_
+#define DOM_NODE_LIST_H_
+
+#include "base/memory/ref_counted.h"
+#include "cobalt/script/wrappable.h"
+
+namespace cobalt {
+namespace dom {
+
+class Node;
+
+// A NodeList object is a collection of nodes.
+//    http://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
+class NodeList : public script::Wrappable {
+ public:
+  // A collection of all first-level child nodes.
+  static scoped_refptr<NodeList> CreateWithChildren(
+      const scoped_refptr<const Node>& base);
+
+  // Web API: NodeList
+  //
+  unsigned int length();
+
+  scoped_refptr<Node> Item(unsigned int item);
+
+  // Custom, not in any spec.
+  void MaybeRefreshCollection();
+
+  DEFINE_WRAPPABLE_TYPE(NodeList);
+
+ protected:
+  explicit NodeList(const scoped_refptr<const Node>& base);
+  ~NodeList() OVERRIDE;
+
+ private:
+  friend class base::RefCounted<NodeList>;
+
+  // Base node that was used to generate the collection.
+  const scoped_refptr<const Node> base_;
+  // Generation of the base node that was used to create the cache.
+  mutable uint32_t base_node_generation_;
+  // Cached collection nodes.
+  mutable std::vector<scoped_refptr<Node> > cached_collection_;
+
+  DISALLOW_COPY_AND_ASSIGN(NodeList);
+};
+
+}  // namespace dom
+}  // namespace cobalt
+
+#endif  // DOM_NODE_LIST_H_

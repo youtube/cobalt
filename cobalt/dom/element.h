@@ -42,10 +42,14 @@ class Element : public Node {
 
   // Web API: Node
   //
-  bool HasAttributes() const OVERRIDE;
-
   const std::string& node_name() const OVERRIDE { return tag_name(); }
   NodeType node_type() const OVERRIDE { return Node::kElementNode; }
+
+  base::optional<std::string> text_content() const OVERRIDE;
+  void set_text_content(
+      const base::optional<std::string>& text_content) OVERRIDE;
+
+  bool HasAttributes() const OVERRIDE;
 
   // Web API: Element
   //
