@@ -366,7 +366,7 @@ TEST_F(ElementTest, InnerHTML) {
 
   scoped_refptr<Element> element_5 = text_4->next_sibling()->AsElement();
   EXPECT_TRUE(element_5->first_child()->IsText());
-  EXPECT_EQ("Text", element_5->first_child()->AsText()->text_content());
+  EXPECT_EQ("Text", element_5->first_child()->AsText()->data());
   EXPECT_TRUE(element_5->next_sibling()->IsText());
 
   scoped_refptr<Text> text_8 = element_1->next_sibling()->AsText();
@@ -379,11 +379,48 @@ TEST_F(ElementTest, InnerHTML) {
   EXPECT_TRUE(text_10->next_sibling()->IsComment());
 
   scoped_refptr<Comment> comment_11 = text_10->next_sibling()->AsComment();
-  EXPECT_EQ("Comment", comment_11->text_content());
+  EXPECT_EQ("Comment", comment_11->data());
   EXPECT_TRUE(comment_11->next_sibling()->IsText());
 
   // Compare serialization result with the original HTML.
   EXPECT_EQ(kAnotherHTML, root->inner_html());
+}
+
+TEST_F(ElementTest, NodeValueAndTextContent) {
+  // Setup the following structure and check the nodeValue and textContent:
+  // root
+  //   element
+  //     text("This ")
+  //   element
+  //     text("is ")
+  //   element
+  //     comment("not ")
+  //   element
+  //     text("Sparta.")
+  scoped_refptr<Element> root = new Element();
+  root->AppendChild(new Element())->AppendChild(new Text("This "));
+  root->AppendChild(new Element())->AppendChild(new Text("is "));
+  root->AppendChild(new Element())->AppendChild(new Comment("not "));
+  root->AppendChild(new Element())->AppendChild(new Text("Sparta."));
+  // NodeValue should always be NULL.
+  EXPECT_EQ(base::nullopt, root->node_value());
+  // TextContent should be all texts concatenated.
+  EXPECT_EQ("This is Sparta.", root->text_content().value());
+
+  // After setting new text content, check the result.
+  const char* kTextContent = "New text content";
+  root->set_text_content(std::string(kTextContent));
+  EXPECT_EQ(kTextContent, root->text_content().value());
+
+  // There should be only one text child node.
+  scoped_refptr<Node> child = root->first_child();
+  EXPECT_NE(NULL, child);
+  EXPECT_TRUE(child->IsText());
+  EXPECT_EQ(child, root->last_child());
+
+  // Setting text content as empty string shouldn't add new child.
+  root->set_text_content(std::string());
+  EXPECT_EQ(NULL, root->first_child());
 }
 
 }  // namespace dom

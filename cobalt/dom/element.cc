@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_serializer.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/text.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,6 +34,32 @@ Element::Element() : html_element_factory_(NULL) {}
 
 Element::Element(HTMLElementFactory* html_element_factory)
     : html_element_factory_(html_element_factory) {}
+
+base::optional<std::string> Element::text_content() const {
+  std::string content;
+
+  const Node* child = first_child();
+  while (child) {
+    if (child->IsText() || child->IsElement()) {
+      content.append(child->text_content().value());
+    }
+    child = child->next_sibling();
+  }
+
+  return content;
+}
+
+void Element::set_text_content(
+    const base::optional<std::string>& text_content) {
+  // Remove all children and replace them with a single Text node.
+  while (HasChildNodes()) {
+    RemoveChild(first_child());
+  }
+  std::string new_text_content = text_content.value_or("");
+  if (!new_text_content.empty()) {
+    AppendChild(new Text(new_text_content));
+  }
+}
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 

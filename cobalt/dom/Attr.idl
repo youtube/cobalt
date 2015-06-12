@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
+// http://www.w3.org/TR/2015/WD-dom-20150428/#attr
+
 interface Attr {
   attribute DOMString value;
   readonly attribute DOMString name;
   readonly attribute DOMString nodeName;
+
+  // Deprecated. Attr no longer inherits from Node.
+  //   http://www.w3.org/TR/2015/WD-dom-20150428/#dom-core
+  readonly attribute DOMString nodeValue;
 };

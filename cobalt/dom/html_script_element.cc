@@ -43,22 +43,6 @@ const std::string& HTMLScriptElement::tag_name() const {
   return kScriptTagString;
 }
 
-// Algorithm for text:
-//   http://www.w3.org/TR/html5/scripting-1.html#dom-script-text
-std::string HTMLScriptElement::text() const {
-  std::string content;
-
-  const Node* child = first_child();
-  while (child) {
-    if (child->IsText()) {
-      content.append(child->text_content());
-    }
-    child = child->next_sibling();
-  }
-
-  return content;
-}
-
 void HTMLScriptElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
   if (HasAttribute("src")) {
@@ -71,7 +55,7 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
     Prepare();
   } else {
     // Immediately execute the script.
-    script_runner_->Execute(text());
+    script_runner_->Execute(text_content().value());
   }
 }
 

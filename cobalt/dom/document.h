@@ -80,8 +80,10 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Web API: Document
   //
-  const std::string url() const { return url_.spec(); }
-  const std::string document_uri() const { return url_.spec(); }
+  const std::string& url() const { return url_.spec(); }
+  const std::string& document_uri() const { return url_.spec(); }
+
+  scoped_refptr<Element> document_element();
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& tag_name) const;
