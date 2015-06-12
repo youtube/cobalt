@@ -357,43 +357,6 @@ void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
   height_scale_ = height_scale * image_size_.height() / frame_size_.height();
 }
 
-void UsedHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
-  switch (keyword->value()) {
-    case cssom::KeywordValue::kAuto:
-      VisitAuto();
-      break;
-
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kInline:
-    case cssom::KeywordValue::kInlineBlock:
-    case cssom::KeywordValue::kNone:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kVisible:
-    default:
-      NOTREACHED();
-  }
-}
-
-void UsedHeightProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  used_height_ = length->value();
-}
-
-// The percentage is calculated with respect to the height of the containing
-// block.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
-void UsedHeightProvider::VisitPercentage(cssom::PercentageValue* percentage) {
-  used_height_ = containing_block_height_ * percentage->value();
-}
-
 UsedLineHeightProvider::UsedLineHeightProvider(
     const render_tree::FontMetrics& font_metrics)
     : font_metrics_(font_metrics) {}
@@ -409,82 +372,130 @@ void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
   used_line_height_ = length->value();
 }
 
-void UsedWidthProvider::VisitKeyword(cssom::KeywordValue* keyword) {
-  switch (keyword->value()) {
-    case cssom::KeywordValue::kAuto:
-      VisitAuto();
-      width_depends_on_containing_block_ = true;
-      break;
+// UsedSizeMetricProvider is a visitor that is intended to visit property values
+// for the properties "width", "height", "left", "right", "top", "bottom" as
+// well as margin/border/padding sizes.  In all cases, we are dealing with at
+// most absolute length values, percentage values, or the "auto" keyword.  This
+// visitor will either forward the absolute length value, resolve the percentage
+// value, or indicate that we recieved the "auto" value.  Since both length
+// and percentage resolve to absolute length, we use an engaged base::optional
+// to represent the length if a percentage or length was used, and an
+// unengaged base::optional to represent that "auto" was used.
+class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  explicit UsedSizeMetricProvider(float containing_block_size)
+      : containing_block_size_(containing_block_size),
+        depends_on_containing_block_(false) {}
 
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kInline:
-    case cssom::KeywordValue::kInlineBlock:
-    case cssom::KeywordValue::kNone:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kVisible:
-    default:
-      NOTREACHED();
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+    switch (keyword->value()) {
+      case cssom::KeywordValue::kAuto:
+        // Nothing to do here, as we need to simply leave value_ in its
+        // disengaged state to indicate that "auto" was the value.
+        break;
+
+      case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kContain:
+      case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kHidden:
+      case cssom::KeywordValue::kInherit:
+      case cssom::KeywordValue::kInitial:
+      case cssom::KeywordValue::kInline:
+      case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kNone:
+      case cssom::KeywordValue::kNormal:
+      case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kVisible:
+      default:
+        NOTREACHED();
+    }
   }
-}
 
-void UsedWidthProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  used_width_ = length->value();
-  width_depends_on_containing_block_ = false;
-}
-
-// Percentages: refer to width of containing block.
-//   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
-void UsedWidthProvider::VisitPercentage(cssom::PercentageValue* percentage) {
-  used_width_ = containing_block_width_ * percentage->value();
-  width_depends_on_containing_block_ = true;
-}
-
-UsedPositionOffsetProvider::UsedPositionOffsetProvider(
-    float containing_block_size)
-    : containing_block_size_(containing_block_size), is_auto_(false) {}
-
-void UsedPositionOffsetProvider::VisitKeyword(cssom::KeywordValue* keyword) {
-  switch (keyword->value()) {
-    case cssom::KeywordValue::kAuto:
-      is_auto_ = true;
-      break;
-
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kInline:
-    case cssom::KeywordValue::kInlineBlock:
-    case cssom::KeywordValue::kNone:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kVisible:
-    default:
-      NOTREACHED();
+  void VisitLength(cssom::LengthValue* length) OVERRIDE {
+    DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+    value_ = length->value();
   }
+
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
+    value_ = percentage->value() * containing_block_size_;
+    depends_on_containing_block_ = true;
+  }
+
+  const base::optional<float>& value() const { return value_; }
+  bool depends_on_containing_block() const {
+    return depends_on_containing_block_;
+  }
+
+ private:
+  const float containing_block_size_;
+
+  base::optional<float> value_;
+  bool depends_on_containing_block_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedSizeMetricProvider);
+};
+
+UsedBoxMetrics UsedBoxMetrics::ComputeMetrics(
+    float containing_block_size, cssom::PropertyValue* position,
+    cssom::PropertyValue* start_offset, cssom::PropertyValue* size,
+    cssom::PropertyValue* end_offset) {
+  UsedBoxMetrics ret;
+  ret.offset_depends_on_containing_block = false;
+
+  // Simply extract the metrics (and resolve percentages) from the style.  If
+  // any of the metrics are set to auto, we leave them empty to express that.
+  UsedSizeMetricProvider used_size(containing_block_size);
+  size->Accept(&used_size);
+  ret.size = used_size.value();
+  ret.size_depends_on_containing_block =
+      used_size.depends_on_containing_block();
+
+  if (position == cssom::KeywordValue::GetAbsolute()) {
+    // If we are a positioned element, we should also take the values of
+    // start_offset and end_offset into account.
+    //   http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+    // Note that not all cases listed in the specification above can be covered
+    // here, since unless start_offset and end_offset are both specified,
+    // determining the size requires a layout to occur.  Thus, in that case we
+    // simply leave size undefined and the client can decide what to do.
+    UsedSizeMetricProvider used_start_offset(containing_block_size);
+    start_offset->Accept(&used_start_offset);
+    ret.start_offset = used_start_offset.value();
+    ret.offset_depends_on_containing_block =
+        used_start_offset.depends_on_containing_block();
+
+    UsedSizeMetricProvider used_end_offset(containing_block_size);
+    end_offset->Accept(&used_end_offset);
+    ret.end_offset = used_end_offset.value();
+    ret.offset_depends_on_containing_block |=
+        used_end_offset.depends_on_containing_block();
+  }
+
+  // After freshly retrieving the values, have a go at resolving the constraints
+  // to see if we can fill in any blanks.
+  ret.ResolveConstraints(containing_block_size);
+
+  return ret;
 }
 
-void UsedPositionOffsetProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  used_position_offset_ = length->value();
-}
+void UsedBoxMetrics::ResolveConstraints(float containing_block_size) {
+  // Check explicitly for 10.3.7 Case 5
+  if (start_offset && end_offset && !size) {
+    // Calculate the size from the specified values for start_offset and
+    // end_offset.
+    size = containing_block_size - *end_offset - *start_offset;
+    size_depends_on_containing_block = offset_depends_on_containing_block;
+  }
 
-void UsedPositionOffsetProvider::VisitPercentage(
-    cssom::PercentageValue* percentage) {
-  used_position_offset_ = percentage->value() * containing_block_size_;
+  // Determine the offset whether it is specified directly via 'start_offset' or
+  // if it is specified indirectly via 'size' and 'end_offset'.
+  if (!start_offset && end_offset && size) {
+    // 10.3.7 Case 4.
+    start_offset = containing_block_size - *end_offset - *size;
+    offset_depends_on_containing_block |= size_depends_on_containing_block;
+  }
 }
 
 }  // namespace layout

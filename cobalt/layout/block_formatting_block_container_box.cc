@@ -58,94 +58,19 @@ void BlockFormattingBlockContainerBox::DumpClassName(
 
 namespace {
 
-// For block-level boxes, precisely calculates the used width and determines
-// whether the value depends on a containing block (it does not if the
-// computed value is an absolute length).
-//
-// For inline-block boxes, approximates the used width by treating "auto"
-// in the same way as for block boxes, and determines whether the exact value
-// depends on children (and thus the second pass of the layout is needed).
-class UsedWidthBasedOnContainingBlockProvider : public UsedWidthProvider {
- public:
-  UsedWidthBasedOnContainingBlockProvider(float containing_block_width,
-                                          Box::Level box_level,
-                                          const cssom::PropertyValue* position);
-
-  void VisitAuto() OVERRIDE;
-
-  // Determines whether the exact value of used width depends on children (and
-  // thus whether the second pass of layout is needed).
-  bool width_depends_on_child_boxes() const {
-    return width_depends_on_child_boxes_;
-  }
-
- private:
-  float GetUsedWidthAssumingBlockLevelInFlowBox() const;
-  float GetAvailableWidthAssumingShrinkToFit() const;
-
-  const Box::Level box_level_;
-  const cssom::PropertyValue* position_;
-
-  bool width_depends_on_child_boxes_;
-};
-
-UsedWidthBasedOnContainingBlockProvider::
-    UsedWidthBasedOnContainingBlockProvider(
-        float containing_block_width, Box::Level box_level,
-        const cssom::PropertyValue* position)
-    : UsedWidthProvider(containing_block_width),
-      box_level_(box_level),
-      width_depends_on_child_boxes_(false),
-      position_(position) {}
-
-void UsedWidthBasedOnContainingBlockProvider::VisitAuto() {
-  // TODO(***REMOVED***): Handle absolutely positioned boxes where left and right are
-  //               both specified:
-  //               http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
-  if (position_ == cssom::KeywordValue::GetAbsolute()) {
-      set_used_width(GetAvailableWidthAssumingShrinkToFit());
-      width_depends_on_child_boxes_ = true;
-  } else {
-    switch (box_level_) {
-      case Box::kBlockLevel:
-        set_used_width(GetUsedWidthAssumingBlockLevelInFlowBox());
-        break;
-      case Box::kInlineLevel:
-        // The width is shrink-to-fit but we don't know the sizes of children
-        // yet, so we need to lay out child boxes within the available width and
-        // adjust the used width later on.
-        set_used_width(GetAvailableWidthAssumingShrinkToFit());
-        width_depends_on_child_boxes_ = true;
-        break;
-      default:
-        NOTREACHED();
-        break;
-    }
-  }
-}
-
-// The following constraints must hold among the used values of the properties:
-//     margin-left + border-left-width + padding-left
-//   + width
-//   + padding-right + border-right-width + margin-right
-//   = width of containing block
-//
 //   http://www.w3.org/TR/CSS21/visudet.html#blockwidth
-float UsedWidthBasedOnContainingBlockProvider::
-    GetUsedWidthAssumingBlockLevelInFlowBox() const {
+float GetUsedWidthAssumingBlockLevelInFlowBox(float containing_block_width) {
   // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  return containing_block_width();
+  return containing_block_width;
 }
 
 // The available width is the width of the containing block minus the used
 // values of "margin-left", "border-left-width", "padding-left",
 // "padding-right", "border-right-width", "margin-right".
 //   http://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
-float
-UsedWidthBasedOnContainingBlockProvider::GetAvailableWidthAssumingShrinkToFit()
-    const {
+float GetAvailableWidthAssumingShrinkToFit(float containing_block_width) {
   // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  return containing_block_width();
+  return containing_block_width;
 }
 
 }  // namespace
@@ -153,69 +78,62 @@ UsedWidthBasedOnContainingBlockProvider::GetAvailableWidthAssumingShrinkToFit()
 float BlockFormattingBlockContainerBox::GetUsedWidthBasedOnContainingBlock(
     float containing_block_width, bool* width_depends_on_containing_block,
     bool* width_depends_on_child_boxes) const {
-  UsedWidthBasedOnContainingBlockProvider used_width_provider(
-      containing_block_width, GetLevel(), computed_style()->position().get());
-  computed_style()->width()->Accept(&used_width_provider);
+  *width_depends_on_child_boxes = false;
+
+  UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
+      containing_block_width, *computed_style());
   *width_depends_on_containing_block =
-      used_width_provider.width_depends_on_containing_block();
-  *width_depends_on_child_boxes =
-      used_width_provider.width_depends_on_child_boxes();
-  return used_width_provider.used_width();
-}
+      horizontal_metrics.size_depends_on_containing_block;
 
-namespace {
+  if (horizontal_metrics.size) {
+    return *horizontal_metrics.size;
+  } else {
+    // Width is set to 'auto', so return an appropriate value for proceeding
+    // with
+    // layout of the children.
+    *width_depends_on_containing_block = true;
 
-// Calculates the used height if it does not depend on children.
-// Otherwise |used_height()| will return zero and
-// |height_depends_on_child_boxes()| will return true.
-class UsedHeightBasedOnContainingBlockProvider : public UsedHeightProvider {
- public:
-  UsedHeightBasedOnContainingBlockProvider(float containing_block_height,
-                                           Box::Level box_level);
-
-  void VisitAuto() OVERRIDE;
-
-  // Determines whether the value of used height must be calculated after their
-  // exact sizes are known.
-  bool height_depends_on_child_boxes() const {
-    return height_depends_on_child_boxes_;
+    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+      *width_depends_on_child_boxes = true;
+      return GetAvailableWidthAssumingShrinkToFit(containing_block_width);
+    } else {
+      switch (GetLevel()) {
+        case Box::kBlockLevel:
+          return GetUsedWidthAssumingBlockLevelInFlowBox(
+              containing_block_width);
+          break;
+        case Box::kInlineLevel:
+          // The width is shrink-to-fit but we don't know the sizes of children
+          // yet, so we need to lay out child boxes within the available width
+          // and adjust the used width later on.
+          *width_depends_on_child_boxes = true;
+          return GetAvailableWidthAssumingShrinkToFit(containing_block_width);
+          break;
+        default:
+          NOTREACHED();
+          break;
+      }
+    }
   }
 
- private:
-  float GetUsedHeightAssumingBlockLevelInFlowBox() const;
-
-  const Box::Level box_level_;
-
-  bool height_depends_on_child_boxes_;
-};
-
-UsedHeightBasedOnContainingBlockProvider::
-    UsedHeightBasedOnContainingBlockProvider(float containing_block_height,
-                                             Box::Level box_level)
-    : UsedHeightProvider(containing_block_height),
-      box_level_(box_level),
-      height_depends_on_child_boxes_(false) {}
-
-void UsedHeightBasedOnContainingBlockProvider::VisitAuto() {
-  // TODO(***REMOVED***): Handle absolutely positioned boxes where top and bottom are
-  //               both specified:
-  //               http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-height
-
-  // The height depends on children but we don't know their sizes yet.
-  set_used_height(0);
-  height_depends_on_child_boxes_ = true;
+  NOTREACHED();
+  return 0;
 }
-
-}  // namespace
 
 float BlockFormattingBlockContainerBox::GetUsedHeightBasedOnContainingBlock(
     float containing_block_height, bool* height_depends_on_child_boxes) const {
-  UsedHeightBasedOnContainingBlockProvider used_height_provider(
-      containing_block_height, GetLevel());
-  computed_style()->height()->Accept(&used_height_provider);
-  *height_depends_on_child_boxes =
-      used_height_provider.height_depends_on_child_boxes();
-  return used_height_provider.used_height();
+  UsedBoxMetrics vertical_metrics = UsedBoxMetrics::ComputeVertical(
+      containing_block_height, *computed_style());
+
+  if (vertical_metrics.size) {
+    // If the height is absolutely specified, we can return that immediately.
+    *height_depends_on_child_boxes = false;
+    return *vertical_metrics.size;
+  } else {
+    // Height is set to 'auto' and depends on layout results.
+    *height_depends_on_child_boxes = true;
+    return 0;
+  }
 }
 
 scoped_ptr<FormattingContext>
