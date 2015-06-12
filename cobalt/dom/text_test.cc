@@ -53,25 +53,14 @@ TEST_F(TextTest, CheckAttach) {
   EXPECT_EQ(NULL, text->InsertBefore(other_text, NULL));
 }
 
+TEST_F(TextTest, NodeValue) {
+  scoped_refptr<Text> text = new Text("text");
+  EXPECT_EQ("text", text->node_value().value());
+}
+
 TEST_F(TextTest, TextContent) {
-  scoped_refptr<Element> root = new Element();
-
-  root->AppendChild(new Element())->AppendChild(new Text("This "));
-  root->AppendChild(new Element())->AppendChild(new Text("is "));
-  root->AppendChild(new Element())->AppendChild(new Text("Sparta."));
-  EXPECT_EQ("This is Sparta.", root->text_content());
-
-  const char* kTextContent = "New text content";
-  root->set_text_content(kTextContent);
-  EXPECT_EQ(kTextContent, root->text_content());
-
-  // Check that we only have a single text child node.
-  scoped_refptr<Node> child = root->first_child();
-  EXPECT_NE(NULL, child);
-  EXPECT_EQ(child, root->last_child());
-
-  scoped_refptr<Text> text_child = child->AsText();
-  ASSERT_NE(NULL, text_child);
+  scoped_refptr<Text> text = new Text("text");
+  EXPECT_EQ("text", text->text_content().value());
 }
 
 }  // namespace dom

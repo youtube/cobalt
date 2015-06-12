@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
-interface CharacterData : Node {
-  [TreatNullAs=EmptyString] attribute DOMString data;
+// http://www.w3.org/TR/2015/WD-dom-20150428/#interface-nodelist
+
+[ArrayClass]
+interface NodeList {
+  getter Node? item(unsigned long index);
+  readonly attribute unsigned long length;
 };
