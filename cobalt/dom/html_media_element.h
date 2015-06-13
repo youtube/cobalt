@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/dom/event_queue.h"
@@ -28,6 +29,7 @@
 #include "cobalt/dom/media_error.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
+#include "cobalt/dom/uint8_array.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "googleurl/src/gurl.h"
 #include "media/base/shell_video_frame_provider.h"
@@ -42,6 +44,8 @@ typedef int ExceptionCode;
 
 // The HTMLMediaElement is used to play videos.
 //   http://www.w3.org/TR/html5/embedded-content-0.html#media-element
+// It also implements methods defined in Encrypted Media Extensions.
+//   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html
 class HTMLMediaElement : public HTMLElement,
                          private ::media::WebMediaPlayerClient {
  public:
@@ -80,7 +84,16 @@ class HTMLMediaElement : public HTMLElement,
   void Load();
   std::string CanPlayType(const std::string& mimeType) const;
   std::string CanPlayType(const std::string& mimeType,
-                          const std::string& keySystem) const;
+                          const std::string& key_system) const;
+  void GenerateKeyRequest(
+      const std::string& key_system,
+      const base::optional<scoped_refptr<Uint8Array> >& init_data);
+  void AddKey(const std::string& key_system,
+              const scoped_refptr<Uint8Array>& key,
+              const base::optional<scoped_refptr<Uint8Array> >& init_data,
+              const base::optional<std::string>& session_id);
+  void CancelKeyRequest(const std::string& key_system,
+                        const base::optional<std::string>& session_id);
 
   // Ready state
   enum ReadyState {
@@ -214,6 +227,17 @@ class HTMLMediaElement : public HTMLElement,
   float Volume() const OVERRIDE;
   void SourceOpened() OVERRIDE;
   std::string SourceURL() const OVERRIDE;
+  void KeyAdded(const std::string& key_system,
+                const std::string& session_id) OVERRIDE;
+  void KeyError(const std::string& key_system, const std::string& session_id,
+                MediaKeyErrorCode error_code,
+                unsigned short system_code) OVERRIDE;
+  void KeyMessage(const std::string& key_system, const std::string& session_id,
+                  const unsigned char* message, unsigned int message_length,
+                  const std::string& default_url) OVERRIDE;
+  void KeyNeeded(const std::string& key_system, const std::string& session_id,
+                 const unsigned char* init_data,
+                 unsigned int init_data_length) OVERRIDE;
 
   void SetSourceState(MediaSource::ReadyState ready_state);
 
@@ -226,7 +250,7 @@ class HTMLMediaElement : public HTMLElement,
   enum LoadState { kWaitingForSource, kLoadingFromSrcAttr };
   LoadState load_state_;
 
-  EventQueue async_event_queue_;
+  EventQueue event_queue_;
 
   base::OneShotTimer<HTMLMediaElement> load_timer_;
   base::RepeatingTimer<HTMLMediaElement> progress_event_timer_;
