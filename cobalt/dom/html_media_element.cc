@@ -25,6 +25,10 @@
 #include "base/message_loop.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/media_key_complete_event.h"
+#include "cobalt/dom/media_key_error_event.h"
+#include "cobalt/dom/media_key_message_event.h"
+#include "cobalt/dom/media_key_needed_event.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 
@@ -44,7 +48,7 @@ HTMLMediaElement::HTMLMediaElement(
     : HTMLElement(html_element_factory, css_parser),
       web_media_player_factory_(web_media_player_factory),
       load_state_(kWaitingForSource),
-      async_event_queue_(this),
+      event_queue_(this),
       playback_rate_(1.0f),
       default_playback_rate_(1.0f),
       network_state_(kNetworkEmpty),
@@ -135,6 +139,94 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                << key_system << ") -> " << canPlay;
 
     return canPlay;*/
+}
+
+void HTMLMediaElement::GenerateKeyRequest(
+    const std::string& key_system,
+    const base::optional<scoped_refptr<Uint8Array> >& init_data) {
+  // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-generatekeyrequest
+  // 1. If the first argument is null, throw a SYNTAX_ERR.
+  if (key_system.empty()) {
+    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    return;
+  }
+
+  // 2. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
+  if (network_state_ == kNetworkEmpty || !player_) {
+    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    return;
+  }
+
+  // The rest is handled by WebMediaPlayer::GenerateKeyRequest().
+  WebMediaPlayer::MediaKeyException exception;
+
+  if (init_data) {
+    exception = player_->GenerateKeyRequest(
+        key_system, init_data.value()->data(), init_data.value()->length());
+  } else {
+    exception = player_->GenerateKeyRequest(key_system, NULL, 0);
+  }
+
+  // TODO(***REMOVED***): Throw exception according to 'exception'.
+}
+
+void HTMLMediaElement::AddKey(
+    const std::string& key_system, const scoped_refptr<Uint8Array>& key,
+    const base::optional<scoped_refptr<Uint8Array> >& init_data,
+    const base::optional<std::string>& session_id) {
+  // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
+  // 1. If the first or second argument is null, throw a SYNTAX_ERR.
+  if (key_system.empty() || !key) {
+    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    return;
+  }
+
+  // 2. If the second argument is an empty array, throw a TYPE_MISMATCH_ERR.
+  if (!key->length()) {
+    // TODO(***REMOVED***): Throw TYPE_MISMATCH_ERR.
+    return;
+  }
+
+  // 3. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
+  if (network_state_ == kNetworkEmpty || !player_) {
+    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    return;
+  }
+
+  // The rest is handled by WebMediaPlayer::AddKey().
+  WebMediaPlayer::MediaKeyException exception;
+
+  if (init_data) {
+    exception = player_->AddKey(
+        key_system, key->data(), key->length(), init_data.value()->data(),
+        init_data.value()->length(), session_id.value_or(""));
+  } else {
+    exception = player_->AddKey(key_system, key->data(), key->length(), NULL, 0,
+                                session_id.value_or(""));
+  }
+
+  // TODO(***REMOVED***): Throw exception according to 'exception'.
+}
+
+void HTMLMediaElement::CancelKeyRequest(
+    const std::string& key_system,
+    const base::optional<std::string>& session_id) {
+  // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
+  // 1. If the first argument is null, throw a SYNTAX_ERR.
+  if (key_system.empty()) {
+    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    return;
+  }
+
+  if (!player_) {
+    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    return;
+  }
+
+  // The rest is handled by WebMediaPlayer::CancelKeyRequest().
+  WebMediaPlayer::MediaKeyException exception =
+      player_->CancelKeyRequest(key_system, session_id.value_or(""));
+  // TODO(***REMOVED***): Throw exception according to 'exception'.
 }
 
 WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
@@ -674,11 +766,11 @@ void HTMLMediaElement::ScheduleEvent(const std::string& eventName) {
       new Event(eventName, Event::kNotBubbles, Event::kCancelable);
   event->set_target(this);
 
-  async_event_queue_.Enqueue(event);
+  event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CancelPendingEventsAndCallbacks() {
-  async_event_queue_.CancelAllEvents();
+  event_queue_.CancelAllEvents();
 }
 
 void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
@@ -1210,6 +1302,63 @@ void HTMLMediaElement::SourceOpened() {
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
 }
+
+void HTMLMediaElement::KeyAdded(const std::string& key_system,
+                                const std::string& session_id) {
+  event_queue_.Enqueue(new MediaKeyCompleteEvent(key_system, session_id));
+}
+
+void HTMLMediaElement::KeyError(const std::string& key_system,
+                                const std::string& session_id,
+                                MediaKeyErrorCode error_code,
+                                unsigned short system_code) {
+  MediaKeyError::Code code;
+  switch (error_code) {
+    case kUnknownError:
+      code = MediaKeyError::kMediaKeyerrUnknown;
+      break;
+    case kClientError:
+      code = MediaKeyError::kMediaKeyerrClient;
+      break;
+    case kServiceError:
+      code = MediaKeyError::kMediaKeyerrService;
+      break;
+    case kOutputError:
+      code = MediaKeyError::kMediaKeyerrOutput;
+      break;
+    case kHardwareChangeError:
+      code = MediaKeyError::kMediaKeyerrHardwarechange;
+      break;
+    case kDomainError:
+      code = MediaKeyError::kMediaKeyerrDomain;
+      break;
+    default:
+      NOTREACHED();
+      code = MediaKeyError::kMediaKeyerrUnknown;
+      break;
+  }
+  event_queue_.Enqueue(
+      new MediaKeyErrorEvent(key_system, session_id, code, system_code));
+}
+
+void HTMLMediaElement::KeyMessage(const std::string& key_system,
+                                  const std::string& session_id,
+                                  const unsigned char* message,
+                                  unsigned int message_length,
+                                  const std::string& default_url) {
+  event_queue_.Enqueue(new MediaKeyMessageEvent(
+      key_system, session_id, new Uint8Array(message, message_length),
+      default_url));
+}
+
+void HTMLMediaElement::KeyNeeded(const std::string& key_system,
+                                 const std::string& session_id,
+                                 const unsigned char* init_data,
+                                 unsigned int init_data_length) {
+  event_queue_.Enqueue(new MediaKeyNeededEvent(
+      key_system, session_id, new Uint8Array(init_data, init_data_length)));
+}
+
 
 void HTMLMediaElement::SetSourceState(MediaSource::ReadyState ready_state) {
   if (!media_source_) {

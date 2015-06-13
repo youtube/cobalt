@@ -62,10 +62,9 @@ interface HTMLMediaElement : HTMLElement {
   attribute double volume;
   attribute boolean muted;
 
-  // TODO(***REMOVED***): Implement the following functions and attributes to
-  //                  support EME. Ensure the functions throw DOMExeception.
-  // void generateKeyRequest(DOMString keySystem, Uint8Array? initData);
-  // void addKey(DOMString keySystem, Uint8Array key,
-  //             Uint8Array? initData, DOMString? sessionId);
-  // void cancelKeyRequest(DOMString keySystem, DOMString? sessionId);
+  // Encrypted Media Extensions methods
+  void generateKeyRequest(DOMString keySystem, Uint8Array? initData);
+  void addKey(DOMString keySystem, Uint8Array key, Uint8Array? initData,
+              DOMString? sessionId);
+  void cancelKeyRequest(DOMString keySystem, DOMString? sessionId);
 };
