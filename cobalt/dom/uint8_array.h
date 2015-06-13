@@ -32,6 +32,10 @@ class Uint8Array : public ArrayBufferView {
   // Each element is initialized to 0.
   explicit Uint8Array(uint32 length);
 
+  // Create a new Uint8Array of the specified length and initialize it with the
+  // given data.
+  Uint8Array(const uint8* data, uint32 length);
+
   // Creates a new Uint8Array and copies the elements of 'other' into this.
   explicit Uint8Array(const scoped_refptr<Uint8Array>& other);
 
