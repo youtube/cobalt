@@ -89,6 +89,9 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return buffer;
   }
 
+  // Returns true if output is protected (i.e. HDCP is present).
+  virtual bool IsOutputProtected() = 0;
+
  protected:
   static void SetInstance(ShellMediaPlatform* shell_media_platform);
 
