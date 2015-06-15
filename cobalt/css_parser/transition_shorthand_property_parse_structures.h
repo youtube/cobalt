@@ -32,12 +32,16 @@ namespace css_parser {
 // The SingleTransition structure is the type used for the result of the
 // single_transition parser reduction.
 struct SingleTransitionShorthand {
+  SingleTransitionShorthand() : error(false) {}
+
   void ReplaceNullWithInitialValues();
 
   base::optional<const char*> property;
   base::optional<base::TimeDelta> duration;
   scoped_refptr<cssom::TimingFunction> timing_function;
   base::optional<base::TimeDelta> delay;
+
+  bool error;
 };
 
 // As we are parsing a transition, maintain builders for all of its components.
