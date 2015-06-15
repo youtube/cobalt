@@ -51,6 +51,7 @@ namespace cobalt {
 namespace css_parser {
 
 using ::testing::_;
+using ::testing::AtLeast;
 
 class MockParserObserver {
  public:
@@ -1828,6 +1829,136 @@ TEST_F(ParserTest,
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
             delay_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
+  EXPECT_CALL(parser_observer_, OnError(
+                                    "[object ParserTest]:1:16: error: "
+                                    "unsupported property value for animation"))
+      .Times(AtLeast(1));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "transition: 1s voodoo-magic; display: inline;", source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(0, property_name_list->value().size());
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(0, duration_list->value().size());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(0, timing_function_list->value().size());
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(0, delay_list->value().size());
+
+  // Test that despite the error, display inline was still set correctly.
+  EXPECT_EQ(cssom::KeywordValue::GetInline(), style->display());
+}
+
+TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
+  EXPECT_CALL(parser_observer_, OnError(
+                                    "[object ParserTest]:1:16: error: "
+                                    "unsupported property value for animation"))
+      .Times(AtLeast(1));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: 1s voodoo-magic 2s;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(0, property_name_list->value().size());
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(0, duration_list->value().size());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(0, timing_function_list->value().size());
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(0, delay_list->value().size());
+}
+
+TEST_F(ParserTest,
+       ParsesTransitionShorthandIgnoringErrorButProceedingWithNonError) {
+  EXPECT_CALL(parser_observer_, OnError(
+                                    "[object ParserTest]:1:16: error: "
+                                    "unsupported property value for animation"))
+      .Times(AtLeast(1));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transition: 1s voodoo-magic, transform 2s;",
+                                   source_location_);
+
+  // Test transition-property was set properly.
+  scoped_refptr<cssom::ConstStringListValue> property_name_list =
+      dynamic_cast<cssom::ConstStringListValue*>(
+          style->transition_property().get());
+  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
+            property_name_list.get());
+  ASSERT_EQ(1, property_name_list->value().size());
+  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[0]);
+
+  // Test transition-duration was set properly.
+  scoped_refptr<cssom::TimeListValue> duration_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_EQ(1, duration_list->value().size());
+  EXPECT_DOUBLE_EQ(2, duration_list->value()[0].InSecondsF());
+
+  // Test transition-timing-function was set properly.
+  scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
+      dynamic_cast<cssom::TimingFunctionListValue*>(
+          style->transition_timing_function().get());
+  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
+            timing_function_list.get());
+  ASSERT_EQ(1, timing_function_list->value().size());
+  EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
+                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  ->value()[0]
+                  ->Equals(*timing_function_list->value()[0]));
+
+  // Test transition-delay was set properly.
+  scoped_refptr<cssom::TimeListValue> delay_list =
+      dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
+  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_EQ(1, delay_list->value().size());
+  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
+                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
+            delay_list->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {

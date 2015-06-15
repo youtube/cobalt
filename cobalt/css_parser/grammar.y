@@ -300,7 +300,8 @@
                        background_size_property_list_element
                        background_size_property_value
                        border_radius_property_value color color_property_value
-                       common_values display_property_value
+                       common_values common_values_without_errors
+                       display_property_value
                        font_family_property_value
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
@@ -953,12 +954,7 @@ comma: ',' maybe_whitespace ;
 // All properties accept the CSS-wide keywords.
 //   http://www.w3.org/TR/css3-values/#common-keywords
 common_values:
-    kInheritToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetInherit().get());
-  }
-  | kInitialToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetInitial().get());
-  }
+    common_values_without_errors
   | errors {
     // If a user agent does not support a particular value, it should ignore
     // that value when parsing style sheets, as if that value was an illegal
@@ -969,6 +965,15 @@ common_values:
     //   http://www.w3.org/TR/CSS21/syndata.html#illegalvalues
     parser_impl->LogWarning(@1, "unsupported value");
     $$ = NULL;
+  }
+  ;
+
+common_values_without_errors:
+    kInheritToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetInherit().get());
+  }
+  | kInitialToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetInitial().get());
   }
   ;
 
@@ -1655,11 +1660,6 @@ transition_timing_function_property_value:
 
 // One or more property names separated by commas.
 //   http://www.w3.org/TR/css3-transitions/#transition-property
-// TODO(***REMOVED***): Support error handling of strings being used in the list
-//               of property names that are not animatable properties.  In this
-//               case, a NULL value should be inserted in the list.  This is
-//               difficult/messy without reduction priorities which are not
-//               available in Bison 2.
 comma_separated_animatable_property_name_list:
     animatable_property_token maybe_whitespace {
     $$ = new cssom::ConstStringListValue::Builder();
@@ -1670,6 +1670,11 @@ comma_separated_animatable_property_name_list:
     $$ = $1;
     $$->push_back($3.begin);
   }
+  | errors {
+    parser_impl->LogError(@1, "unsupported property value for animation");
+    $$ = NULL;
+  }
+  ;
 
 // Parse a list of references to property names.
 //   http://www.w3.org/TR/css3-transitions/#transition-property
@@ -1684,7 +1689,7 @@ transition_property_property_value:
          ? AddRef(new cssom::ConstStringListValue(property_name_list.Pass()))
          : NULL;
   }
-  | common_values
+  | common_values_without_errors
   ;
 
 // single_transition_element represents a component of a single transition.
@@ -1719,7 +1724,7 @@ single_transition_element:
       $<single_transition>0->delay = base::TimeDelta::FromInternalValue($1);
     } else {
       parser_impl->LogWarning(
-          @1, "Too many time values declared twice in transition.");
+          @1, "time value declared twice in transition.");
     }
   }
   | single_transition_timing_function maybe_whitespace {
@@ -1730,6 +1735,10 @@ single_transition_element:
           @1, "transition-timing-function value declared twice in transition.");
     }
   }
+  | error maybe_whitespace {
+    parser_impl->LogError(@1, "unsupported property value for animation");
+    $<single_transition>0->error = true;
+  }
   ;
 
 single_transition:
@@ -1737,15 +1746,14 @@ single_transition:
     // Initialize the result, to be filled in by single_transition_element
     $$ = new SingleTransitionShorthand();
   }
-  | single_transition single_transition_element {
+  | single_non_empty_transition
+  ;
+
+single_non_empty_transition:
+    single_transition single_transition_element {
     // Propogate the list from our parent single_transition.
     // single_transition_element will have already taken care of adding itself
     // to the list via $0.
-    $$ = $1;
-  }
-  ;
-single_non_empty_transition:
-    single_transition single_transition_element {
     $$ = $1;
   }
   ;
@@ -1756,30 +1764,34 @@ comma_separated_transition_list:
     scoped_ptr<TransitionShorthandBuilder> transition_builder(
         new TransitionShorthandBuilder());
 
-    single_transition->ReplaceNullWithInitialValues();
+    if (!single_transition->error) {
+      single_transition->ReplaceNullWithInitialValues();
 
-    transition_builder->property_list_builder->push_back(
-        *single_transition->property);
-    transition_builder->duration_list_builder->push_back(
-        *single_transition->duration);
-    transition_builder->timing_function_list_builder->push_back(
-        single_transition->timing_function);
-    transition_builder->delay_list_builder->push_back(
-        *single_transition->delay);
+      transition_builder->property_list_builder->push_back(
+          *single_transition->property);
+      transition_builder->duration_list_builder->push_back(
+          *single_transition->duration);
+      transition_builder->timing_function_list_builder->push_back(
+          single_transition->timing_function);
+      transition_builder->delay_list_builder->push_back(
+          *single_transition->delay);
+    }
 
     $$ = transition_builder.release();
   }
   | comma_separated_transition_list comma single_non_empty_transition {
     scoped_ptr<SingleTransitionShorthand> single_transition($3);
-
-    single_transition->ReplaceNullWithInitialValues();
-
     $$ = $1;
-    $$->property_list_builder->push_back(*single_transition->property);
-    $$->duration_list_builder->push_back(*single_transition->duration);
-    $$->timing_function_list_builder->push_back(
-        single_transition->timing_function);
-    $$->delay_list_builder->push_back(*single_transition->delay);
+
+    if (!single_transition->error) {
+      single_transition->ReplaceNullWithInitialValues();
+
+      $$->property_list_builder->push_back(*single_transition->property);
+      $$->duration_list_builder->push_back(*single_transition->duration);
+      $$->timing_function_list_builder->push_back(
+          single_transition->timing_function);
+      $$->delay_list_builder->push_back(*single_transition->delay);
+    }
   }
   ;
 
@@ -1822,7 +1834,7 @@ transition_property_value:
 
     $$ = transition.release();
   }
-  | common_values {
+  | common_values_without_errors {
     // Replicate the common value into each of the properties that transition
     // is a shorthand for.
     scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
