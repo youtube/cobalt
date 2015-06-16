@@ -29,6 +29,7 @@ const char kBlobUrlProtocol[] = "blob";
 
 }  // namespace
 
+// static
 std::string URL::CreateObjectURL(
     const scoped_refptr<MediaSource>& media_source) {
   DCHECK(media_source);
@@ -42,6 +43,7 @@ std::string URL::CreateObjectURL(
   return blob_url;
 }
 
+// static
 void URL::RevokeObjectURL(const std::string& url) {
   DCHECK(GURL(url).SchemeIs(kBlobUrlProtocol)) << url << " is not a blob url";
   MediaSource::Registry::Unregister(url);
