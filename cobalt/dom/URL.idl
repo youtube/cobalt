@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-// TODO(***REMOVED***): Remove [Constructor] and turn all methods into static.
-[Constructor] interface URL {
-  /*static*/ DOMString createObjectURL(MediaSource mediaSource);
-  /*static*/ void revokeObjectURL(DOMString url);
+interface URL {
+  static DOMString createObjectURL(MediaSource mediaSource);
+  static void revokeObjectURL(DOMString url);
 };

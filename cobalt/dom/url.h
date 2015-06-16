@@ -38,8 +38,9 @@ namespace dom {
 // what we need for Cobalt.
 class URL : public script::Wrappable {
  public:
-  std::string CreateObjectURL(const scoped_refptr<MediaSource>& media_source);
-  void RevokeObjectURL(const std::string& url);
+  static std::string CreateObjectURL(
+      const scoped_refptr<MediaSource>& media_source);
+  static void RevokeObjectURL(const std::string& url);
 
   DEFINE_WRAPPABLE_TYPE(URL);
 };
