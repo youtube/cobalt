@@ -18,6 +18,7 @@
 #define LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 
 #include "cobalt/layout/block_container_box.h"
+#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -31,8 +32,7 @@ class AnonymousBlockBox : public BlockContainerBox {
   AnonymousBlockBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
-      const UsedStyleProvider* used_style_provider)
-      : BlockContainerBox(computed_style, transitions, used_style_provider) {}
+      const UsedStyleProvider* used_style_provider);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -62,6 +62,10 @@ class AnonymousBlockBox : public BlockContainerBox {
       bool* height_depends_on_child_boxes) const OVERRIDE;
   scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
       const LayoutParams& child_layout_params) OVERRIDE;
+
+ private:
+  // A font used for text width and line height calculations.
+  const scoped_refptr<render_tree::Font> used_font_;
 };
 
 }  // namespace layout
