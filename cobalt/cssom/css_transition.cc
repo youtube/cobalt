@@ -38,6 +38,8 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
+#include "cobalt/math/matrix_interpolation.h"
+#include "cobalt/math/transform_2d.h"
 
 namespace cobalt {
 namespace cssom {
@@ -157,8 +159,13 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
 };
 
 void AnimateTransformFunction::VisitMatrix(MatrixFunction* matrix_function) {
-  UNREFERENCED_PARAMETER(matrix_function);
-  NOTREACHED();
+  const MatrixFunction* matrix_end =
+      base::polymorphic_downcast<const MatrixFunction*>(end_);
+  math::Matrix3F interpolated_matrix = math::InterpolateMatrices(
+      matrix_function->value(),
+      matrix_end ? matrix_end->value() : math::Matrix3F::Identity(), progress_);
+
+  animated_.reset(new MatrixFunction(interpolated_matrix));
 }
 
 void AnimateTransformFunction::VisitRotate(RotateFunction* rotate_function) {
@@ -223,6 +230,12 @@ bool TransformListsHaveSameType(const TransformFunctionListValue::Builder& a,
   for (size_t i = 0; i < a.size(); ++i) {
     if (a[i]->GetTypeId() != b[i]->GetTypeId()) {
       return false;
+    } else if (a[i]->GetTypeId() == base::GetTypeId<TranslateFunction>() &&
+               base::polymorphic_downcast<const TranslateFunction*>(a[i])
+                       ->axis() !=
+                   base::polymorphic_downcast<const TranslateFunction*>(b[i])
+                       ->axis()) {
+      return false;
     }
   }
   return true;
@@ -249,15 +262,20 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     progress = 1 - progress;
   }
 
-  const TransformFunctionListValue::Builder* start_functions =
-      &(base::polymorphic_downcast<const TransformFunctionListValue*>(
-            start_value)->value());
-
-  const TransformFunctionListValue::Builder* end_functions =
+  const TransformFunctionListValue* start_transform =
+      base::polymorphic_downcast<const TransformFunctionListValue*>(
+          start_value);
+  const TransformFunctionListValue* end_transform =
       end_value->Equals(*KeywordValue::GetNone())
           ? NULL
-          : &(base::polymorphic_downcast<const TransformFunctionListValue*>(
-                  end_value)->value());
+          : base::polymorphic_downcast<const TransformFunctionListValue*>(
+                end_value);
+
+  const TransformFunctionListValue::Builder* start_functions =
+      &start_transform->value();
+
+  const TransformFunctionListValue::Builder* end_functions =
+      end_transform ? &end_transform->value() : NULL;
 
   // We first check to see if there is a match between transform types in
   // the start transform list and transform types in the end transform list.
@@ -280,12 +298,14 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
     }
     return new TransformFunctionListValue(animated_functions.Pass());
   } else {
-    DCHECK(end_functions);
-    // TODO(***REMOVED***): Collapse into a matrix and animate the matrix using the
-    //               algorithm described here:
+    // The transform lists do not match up type for type. Collapse each list
+    // into a matrix and animate the matrix using the algorithm described here:
     //   http://www.w3.org/TR/2012/WD-css3-transforms-20120228/#matrix-decomposition
-    NOTREACHED();
-    return scoped_refptr<PropertyValue>();
+    DCHECK(end_transform);
+    TransformFunctionListValue::Builder animated_functions;
+    animated_functions.push_back(new MatrixFunction(math::InterpolateMatrices(
+        start_transform->ToMatrix(), end_transform->ToMatrix(), progress)));
+    return new TransformFunctionListValue(animated_functions.Pass());
   }
 }
 }  // namespace
