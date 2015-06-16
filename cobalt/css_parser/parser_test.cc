@@ -1132,6 +1132,28 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
 }
 
+TEST_F(ParserTest, ParsesBaselineVerticalAlign) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("vertical-align: baseline;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetBaseline(), style->vertical_align());
+}
+
+TEST_F(ParserTest, ParsesMiddleVerticalAlign) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("vertical-align: middle;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetMiddle(), style->vertical_align());
+}
+
+TEST_F(ParserTest, ParsesTopVerticalAlign) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("vertical-align: top;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetTop(), style->vertical_align());
+}
+
 TEST_F(ParserTest, ParsesWidth) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("width: 100px;", source_location_);

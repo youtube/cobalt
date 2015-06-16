@@ -21,6 +21,7 @@ namespace cssom {
 
 const char* const kAbsoluteKeywordName = "absolute";
 const char* const kAutoKeywordName = "auto";
+const char* const kBaselineKeywordName = "baseline";
 const char* const kBlockKeywordName = "block";
 const char* const kBoldKeywordName = "bold";
 const char* const kCenterKeywordName = "center";
@@ -37,6 +38,7 @@ const char* const kInitialKeywordName = "initial";
 const char* const kInlineBlockKeywordName = "inline-block";
 const char* const kInlineKeywordName = "inline";
 const char* const kLinearKeywordName = "linear";
+const char* const kMiddleKeywordName = "middle";
 const char* const kNoneKeywordName = "none";
 const char* const kNormalKeywordName = "normal";
 const char* const kRelativeKeywordName = "relative";
@@ -44,6 +46,7 @@ const char* const kStartKeywordName = "start";
 const char* const kStaticKeywordName = "static";
 const char* const kStepEndKeywordName = "step-end";
 const char* const kStepStartKeywordName = "step-start";
+const char* const kTopKeywordName = "top";
 const char* const kVisibleKeywordName = "visible";
 
 }  // namespace cssom
