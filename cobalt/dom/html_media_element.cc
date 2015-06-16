@@ -69,9 +69,6 @@ HTMLMediaElement::HTMLMediaElement(
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
       processing_media_player_callback_(0),
       media_source_url_(kMediaSourceUrlProtocol + ':' + base::GenerateGUID()),
-      cached_time_(-1.),
-      cached_time_wall_clock_update_time_(0),
-      minimum_wall_clock_time_to_cached_media_time_(0),
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false) {}
@@ -244,30 +241,7 @@ float HTMLMediaElement::current_time() const {
     return last_seek_time_;
   }
 
-  if (cached_time_ != -1 && paused_) {
-    return cached_time_;
-  }
-
-  // Is it too soon use a cached time?
-  double now = base::Time::Now().ToDoubleT();
-  double maximum_duration_to_cache_media_time = 0;
-
-  if (maximum_duration_to_cache_media_time && cached_time_ != -1 && !paused_ &&
-      now > minimum_wall_clock_time_to_cached_media_time_) {
-    double wall_clock_delta = now - cached_time_wall_clock_update_time_;
-
-    // Not too soon, use the cached time only if it hasn't expired.
-    if (wall_clock_delta < maximum_duration_to_cache_media_time) {
-      float adjusted_cache_time = static_cast<float>(
-          cached_time_ + (playback_rate_ * wall_clock_delta));
-
-      return adjusted_cache_time;
-    }
-  }
-
-  RefreshCachedTime();
-
-  return cached_time_;
+  return player_->CurrentTime();
 }
 
 void HTMLMediaElement::set_current_time(float time /*, ExceptionCode* ec*/) {
@@ -301,7 +275,6 @@ float HTMLMediaElement::playback_rate() const { return playback_rate_; }
 void HTMLMediaElement::set_playback_rate(float rate) {
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
-    InvalidateCachedTime();
     ScheduleEvent("ratechange");
   }
 
@@ -368,7 +341,6 @@ void HTMLMediaElement::Play() {
 
   if (paused_) {
     paused_ = false;
-    InvalidateCachedTime();
     ScheduleEvent("play");
 
     if (ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
@@ -506,10 +478,8 @@ void HTMLMediaElement::PrepareForLoad() {
     network_state_ = kNetworkEmpty;
     ready_state_ = WebMediaPlayer::kReadyStateHaveNothing;
     ready_state_maximum_ = WebMediaPlayer::kReadyStateHaveNothing;
-    RefreshCachedTime();
     paused_ = true;
     seeking_ = false;
-    InvalidateCachedTime();
     ScheduleEvent("emptied");
   }
 
@@ -852,7 +822,6 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
 
     if (autoplaying_ && paused_ && autoplay()) {
       paused_ = false;
-      InvalidateCachedTime();
       ScheduleEvent("play");
       ScheduleEvent("playing");
     }
@@ -921,7 +890,6 @@ void HTMLMediaElement::Seek(float time, ExceptionCode* ec) {
 
   // Get the current time before setting seeking_, last_seek_time_ is returned
   // once it is set.
-  RefreshCachedTime();
   float now = current_time();
 
   // 2 - If the element's seeking IDL attribute is true, then another instance
@@ -1030,8 +998,6 @@ void HTMLMediaElement::UpdatePlayState() {
   bool player_paused = player_->Paused();
 
   if (should_be_playing) {
-    InvalidateCachedTime();
-
     if (player_paused) {
       // Set rate, muted before calling play in case they were set before the
       // media engine was setup. The media engine should just stash the rate and
@@ -1049,7 +1015,6 @@ void HTMLMediaElement::UpdatePlayState() {
     if (!player_paused) {
       player_->Pause();
     }
-    RefreshCachedTime();
 
     playback_progress_timer_.Stop();
     playing_ = false;
@@ -1119,22 +1084,6 @@ bool HTMLMediaElement::CouldPlayIfEnoughData() const {
   return !paused() && !EndedPlayback() && !StoppedDueToErrors();
 }
 
-void HTMLMediaElement::InvalidateCachedTime() {
-  // Don't try to cache movie time when playback first starts as the time
-  // reported by the engine sometimes fluctuates for a short amount of time, so
-  // the cached time will be off if we take it too early.
-  static const double kMinimumTimePlayingBeforeCacheSnapshot = 0.5;
-
-  minimum_wall_clock_time_to_cached_media_time_ =
-      base::Time::Now().ToDoubleT() + kMinimumTimePlayingBeforeCacheSnapshot;
-  cached_time_ = -1;
-}
-
-void HTMLMediaElement::RefreshCachedTime() const {
-  cached_time_ = player_->CurrentTime();
-  cached_time_wall_clock_update_time_ = base::Time::Now().ToDoubleT();
-}
-
 void HTMLMediaElement::ConfigureMediaControls() { NOTIMPLEMENTED(); }
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
@@ -1193,8 +1142,6 @@ void HTMLMediaElement::MuteChanged(bool mute) {
 
 void HTMLMediaElement::TimeChanged() {
   BeginProcessingMediaPlayerCallback();
-
-  InvalidateCachedTime();
 
   // 4.8.10.9 step 14 & 15.  Needed if no ReadyState change is associated with
   // the seek.
