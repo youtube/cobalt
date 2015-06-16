@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--
+ | One should be able to specify transform functions via 2x3 matrix.
+ | This test should result in a skewed red rectangle output on the screen.
+ -->
+<html>
+<head>
+  <style>
+    .transformed {
+      transform: matrix(2, 0,
+                        1, 2,
+                        100, 50);
+      width: 100px;
+      height: 100px;
+      background-color: rgb(255, 100, 100);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="transformed"></div>
+</body>
+
+</html>

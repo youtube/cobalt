@@ -183,6 +183,7 @@
 %token kCalcFunctionToken               // calc(
 %token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
+%token kMatrixFunctionToken             // matrix(
 %token kMaxFunctionToken                // -webkit-max(
 %token kMinFunctionToken                // -webkit-min(
 %token kNotFunctionToken                // not(
@@ -1408,9 +1409,14 @@ scale_function_parameters:
 // The set of allowed transform functions.
 //   http://www.w3.org/TR/css3-transforms/#transform-functions
 transform_function:
+  // Specifies an arbitrary affine 2D transformation.
+    kMatrixFunctionToken maybe_whitespace number comma number comma number
+      comma number comma number comma number ')' maybe_whitespace {
+    $$ = new cssom::MatrixFunction($3, $5, $7, $9, $11, $13);
+  }
   // Specifies a 2D rotation around the z-axis.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-rotate
-    kRotateFunctionToken maybe_whitespace angle ')'
+  | kRotateFunctionToken maybe_whitespace angle ')'
       maybe_whitespace {
     $$ = new cssom::RotateFunction($3);
   }
