@@ -346,6 +346,24 @@ TEST(CSSStyleDeclarationTest, TransformSetter) {
   style->set_transform(transform);
 }
 
+TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string vertical_align = "middle";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kVerticalAlignPropertyName, vertical_align, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnMutation()).Times(1);
+
+  style->set_vertical_align(vertical_align);
+}
+
 TEST(CSSStyleDeclarationTest, WidthSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
