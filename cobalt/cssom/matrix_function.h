@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/transform_function.h"
+#include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
 namespace cssom {
@@ -29,8 +30,10 @@ namespace cssom {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-matrix
 class MatrixFunction : public TransformFunction {
  public:
-  MatrixFunction(float m00, float m10, float m01, float m11,
-                 float m02, float m12);
+  explicit MatrixFunction(const math::Matrix3F& matrix);
+
+  MatrixFunction(float m00, float m10, float m01, float m11, float m02,
+                 float m12);
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 

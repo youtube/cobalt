@@ -21,6 +21,8 @@
 namespace cobalt {
 namespace cssom {
 
+MatrixFunction::MatrixFunction(const math::Matrix3F& matrix) : value_(matrix) {}
+
 MatrixFunction::MatrixFunction(float m00, float m10, float m01, float m11,
                                float m02, float m12)
     : value_(math::Matrix3F::FromValues(m00, m01, m02, m10, m11, m12, 0.0f,
