@@ -89,7 +89,7 @@ scoped_refptr<DOMTokenList> Element::class_list() {
 }
 
 // Algorithm for inner_html:
-//   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#widl-Element-innerHTML
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::inner_html() const {
   std::stringstream html_stream;
 
@@ -100,8 +100,12 @@ std::string Element::inner_html() const {
 }
 
 // Algorithm for set_inner_html:
-//   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#widl-Element-innerHTML
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 void Element::set_inner_html(const std::string& inner_html) {
+  // 1. Let fragment be the result of invoking the fragment parsing algorithm
+  // with the new value as markup, and the context object as the context
+  // element.
+  // 2. Replace all with fragment within the context object.
   // Remove all children.
   scoped_refptr<Node> child = first_child();
   while (child) {
@@ -114,11 +118,64 @@ void Element::set_inner_html(const std::string& inner_html) {
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
-      base::SourceLocation("[object Element]", 1, 1), this,
+      base::SourceLocation("[object Element]", 1, 1), this, NULL,
       html_element_factory_, base::Callback<void(void)>(),
-      base::Bind(&Element::InnerHTMLError, base::Unretained(this)),
+      base::Bind(&Element::HTMLParseError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());
+  dom_decoder.Finish();
+}
+
+// Algorithm for outer_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
+std::string Element::outer_html() const {
+  std::stringstream html_stream;
+
+  HTMLSerializer serializer(&html_stream);
+  serializer.Serialize(this);
+
+  return html_stream.str();
+}
+
+// Algorithm for set_outer_html:
+//   http://www.w3.org/TR/DOM-Parsing/#widl-Element-outerHTML
+void Element::set_outer_html(const std::string& outer_html) {
+  // 1. Let parent be the context object's parent.
+  scoped_refptr<Node> parent = parent_node();
+
+  // 2. If parent is null, terminate these steps. There would be no way to
+  // obtain a reference to the nodes created even if the remaining steps were
+  // run.
+  if (!parent) {
+    return;
+  }
+
+  // 3. If parent is a Document, throw a DOMException with name
+  // "NoModificationAllowedError" exception.
+  if (parent->IsDocument()) {
+    // TODO(***REMOVED***): Throw JS NoModificationAllowedError.
+    return;
+  }
+
+  // 4. Not needed by Cobalt.
+
+  // 5. Let fragment be the result of invoking the fragment parsing algorithm
+  // with the new value as markup, and parent as the context element.
+  // 6. Replace the context object with fragment within the context object's
+  // parent.
+  // Remove this node from its parent.
+  scoped_refptr<Node> reference = next_sibling();
+  parent->RemoveChild(this);
+
+  // Use DOMDecoder to parse the HTML and generate children nodes.
+  // TODO(***REMOVED***): Replace "Element" in the source location with the name
+  //               of actual class, like "HTMLDivElement".
+  DOMDecoder dom_decoder(
+      base::SourceLocation("[object Element]", 1, 1), parent, reference,
+      html_element_factory_, base::Callback<void(void)>(),
+      base::Bind(&Element::HTMLParseError, base::Unretained(this)),
+      DOMDecoder::kDocumentFragment);
+  dom_decoder.DecodeChunk(outer_html.c_str(), outer_html.length());
   dom_decoder.Finish();
 }
 
@@ -247,9 +304,9 @@ scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() {}
 
-void Element::InnerHTMLError(const std::string& error) {
+void Element::HTMLParseError(const std::string& error) {
   // TODO(***REMOVED***): Report line / column number.
-  LOG(WARNING) << "Error in inner HTML: " << error;
+  LOG(WARNING) << "Error when parsing inner HTML or outer HTML: " << error;
 }
 
 }  // namespace dom
