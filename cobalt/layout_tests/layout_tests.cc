@@ -295,6 +295,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSText3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")));
+// Custom CSS Transform (http://http://www.w3.org/TR/css-transforms/)
+// test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSTransformsLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")));
 
 }  // namespace layout_tests
 }  // namespace cobalt

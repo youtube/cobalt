@@ -19,6 +19,7 @@
 
 #include "cobalt/cssom/scoped_list_value.h"
 #include "cobalt/cssom/transform_function.h"
+#include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
 namespace cssom {
@@ -35,6 +36,8 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitTransformFunctionList(this);
   }
+
+  math::Matrix3F ToMatrix() const;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformFunctionListValue);
 

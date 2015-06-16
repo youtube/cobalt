@@ -28,6 +28,7 @@
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -1095,6 +1096,32 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
   EXPECT_FLOAT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
   EXPECT_EQ(cssom::TranslateFunction::kZAxis, translate_function->axis());
+}
+
+TEST_F(ParserTest, ParsesMatrixTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: matrix(1, 2, 3, 4, 5, 6);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::MatrixFunction* matrix_function =
+      dynamic_cast<const cssom::MatrixFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::MatrixFunction*>(NULL), matrix_function);
+
+  EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(0, 0));
+  EXPECT_FLOAT_EQ(3.0f, matrix_function->value().Get(0, 1));
+  EXPECT_FLOAT_EQ(5.0f, matrix_function->value().Get(0, 2));
+  EXPECT_FLOAT_EQ(2.0f, matrix_function->value().Get(1, 0));
+  EXPECT_FLOAT_EQ(4.0f, matrix_function->value().Get(1, 1));
+  EXPECT_FLOAT_EQ(6.0f, matrix_function->value().Get(1, 2));
+  EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 0));
+  EXPECT_FLOAT_EQ(0.0f, matrix_function->value().Get(2, 1));
+  EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(2, 2));
 }
 
 TEST_F(ParserTest, ParsesMultipleTransforms) {

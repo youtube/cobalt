@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_ROTATE_FUNCTION_H_
-#define CSSOM_ROTATE_FUNCTION_H_
+#ifndef CSSOM_MATRIX_FUNCTION_H_
+#define CSSOM_MATRIX_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
@@ -24,31 +24,29 @@
 namespace cobalt {
 namespace cssom {
 
-// The rotate function specifies a 2D rotation operation by the the specified
-// angle.
-//   http://www.w3.org/TR/css-transforms-1/#funcdef-rotate
-class RotateFunction : public TransformFunction {
+// The matrix function allows one to specify a 2D 2x3 affine transformation
+// as a matrix.
+//   http://www.w3.org/TR/css-transforms-1/#funcdef-matrix
+class MatrixFunction : public TransformFunction {
  public:
-  explicit RotateFunction(float angle_in_radians)
-      : angle_in_radians_(angle_in_radians) {}
+  MatrixFunction(float m00, float m10, float m01, float m11,
+                 float m02, float m12);
 
   void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
 
-  float angle_in_radians() const {
-    return angle_in_radians_;
+  const math::Matrix3F& value() const { return value_; }
+
+  bool operator==(const MatrixFunction& other) const {
+    return value_ == other.value_;
   }
 
-  bool operator==(const RotateFunction& other) const {
-    return angle_in_radians_ == other.angle_in_radians_;
-  }
-
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RotateFunction);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(MatrixFunction);
 
  private:
-  const float angle_in_radians_;
+  const math::Matrix3F value_;
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_ROTATE_FUNCTION_H_
+#endif  // CSSOM_MATRIX_FUNCTION_H_
