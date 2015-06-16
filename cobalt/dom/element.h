@@ -85,10 +85,12 @@ class Element : public Node {
 
   // Web API: DOM Parsing and Serialization (partial interface)
   // This interface is extended in the spec DOM Parsing and Serialization.
-  //   http://www.w3.org/TR/2014/CR-DOM-Parsing-20140617/#extensions-to-the-element-interface
+  //   http://www.w3.org/TR/DOM-Parsing/#extensions-to-the-element-interface
   //
   std::string inner_html() const;
   void set_inner_html(const std::string& inner_html);
+  std::string outer_html() const;
+  void set_outer_html(const std::string& outer_html);
 
   // Web API: Selectors API Level 1 (partial interface)
   // This interface is extended in the spec Selectors API Level 1.
@@ -122,8 +124,8 @@ class Element : public Node {
   void SetBooleanAttribute(const std::string& name, bool value);
 
  private:
-  // Callback for error when parsing inner HTML.
-  void InnerHTMLError(const std::string& error);
+  // Callback for error when parsing inner / outer HTML.
+  void HTMLParseError(const std::string& error);
 
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;

@@ -22,6 +22,7 @@
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
@@ -314,7 +315,6 @@ TEST_F(ElementTest, InnerHTML) {
   EXPECT_EQ(kExpectedHTML, root->inner_html());
 
   // Setting inner HTML should remove all previous children.
-  root->AppendChild(new Element(NULL));
   root->set_inner_html("");
   EXPECT_FALSE(root->HasChildNodes());
 
@@ -344,8 +344,119 @@ TEST_F(ElementTest, InnerHTML) {
       "  <!--Comment-->\n"
       "</div>";
   root->set_inner_html(kAnotherHTML);
-
   EXPECT_EQ(2, root->child_element_count());
+  EXPECT_EQ(3, root->child_nodes()->length());
+  EXPECT_TRUE(root->first_child()->IsElement());
+
+  scoped_refptr<Element> element_1 = root->first_child()->AsElement();
+  EXPECT_TRUE(element_1->HasAttribute("key"));
+  EXPECT_EQ("value", element_1->GetAttribute("key").value_or(""));
+  EXPECT_TRUE(element_1->first_child()->IsText());
+  EXPECT_TRUE(element_1->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_2 = element_1->first_child()->AsText();
+  EXPECT_TRUE(text_2->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_3 = text_2->next_sibling()->AsElement();
+  EXPECT_TRUE(element_3->HasAttributes());
+  EXPECT_TRUE(element_3->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_4 = element_3->next_sibling()->AsText();
+  EXPECT_TRUE(text_4->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_5 = text_4->next_sibling()->AsElement();
+  EXPECT_TRUE(element_5->first_child()->IsText());
+  EXPECT_EQ("Text", element_5->first_child()->AsText()->data());
+  EXPECT_TRUE(element_5->next_sibling()->IsText());
+
+  scoped_refptr<Text> text_8 = element_1->next_sibling()->AsText();
+  EXPECT_TRUE(text_8->next_sibling()->IsElement());
+
+  scoped_refptr<Element> element_9 = text_8->next_sibling()->AsElement();
+  EXPECT_TRUE(element_9->first_child()->IsText());
+
+  scoped_refptr<Text> text_10 = element_9->first_child()->AsText();
+  EXPECT_TRUE(text_10->next_sibling()->IsComment());
+
+  scoped_refptr<Comment> comment_11 = text_10->next_sibling()->AsComment();
+  EXPECT_EQ("Comment", comment_11->data());
+  EXPECT_TRUE(comment_11->next_sibling()->IsText());
+
+  // Compare serialization result with the original HTML.
+  EXPECT_EQ(kAnotherHTML, root->inner_html());
+}
+
+TEST_F(ElementTest, OuterHTML) {
+  HTMLElementFactory html_element_factory(NULL, NULL, NULL, NULL);
+  scoped_refptr<Element> root = new Element(&html_element_factory);
+
+  // Manually construct the DOM tree and compare serialization result:
+  // root
+  //   element_a
+  //     text
+  //     element_b1
+  //     text
+  //     element_b2
+  //     text
+  //
+  scoped_refptr<Element> element_a =
+      root->AppendChild(new Element(&html_element_factory))->AsElement();
+  element_a->SetAttribute("key", "value");
+
+  element_a->AppendChild(new Text("\n  "));
+
+  scoped_refptr<Element> element_b1 =
+      element_a->AppendChild(new Element(NULL))->AsElement();
+  element_b1->SetAttribute("just_key", "");
+
+  element_a->AppendChild(new Text("\n  "));
+
+  scoped_refptr<Element> element_b2 =
+      element_a->AppendChild(new Element(NULL))->AsElement();
+  element_b2->AppendChild(new Text("Text"));
+
+  element_a->AppendChild(new Text("\n"));
+
+  const char* kExpectedHTML =
+      "<#element><#element key=\"value\">\n"
+      "  <#element just_key></#element>\n"
+      "  <#element>Text</#element>\n"
+      "</#element></#element>";
+  EXPECT_EQ(kExpectedHTML, root->outer_html());
+
+  // Setting outer HTML should remove the node from its parent.
+  element_a->set_outer_html("");
+  EXPECT_FALSE(root->HasChildNodes());
+
+  // After setting valid HTML, check whether the children are set up correctly.
+  // The expected structure is:
+  // root
+  //   element_1
+  //     text_2
+  //     element_3
+  //     text_4
+  //     element_5
+  //       text_6
+  //     text_7
+  //   text_8
+  //   element_9
+  //     text_10
+  //     comment_11
+  //     text_12
+  //
+  root->AppendChild(new Element(&html_element_factory));
+  const char* kAnotherHTML =
+      "<div key=\"value\">\n"
+      "  <div just_key></div>\n"
+      "  <div>Text</div>\n"
+      "</div>\n"
+      "<div>\n"
+      "  This is the second div under root.\n"
+      "  <!--Comment-->\n"
+      "</div>";
+  root->first_element_child()->set_outer_html(kAnotherHTML);
+  EXPECT_EQ(2, root->child_element_count());
+  EXPECT_EQ(3, root->child_nodes()->length());
   EXPECT_TRUE(root->first_child()->IsElement());
 
   scoped_refptr<Element> element_1 = root->first_child()->AsElement();
