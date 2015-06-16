@@ -101,15 +101,7 @@ math::Matrix3F GetCSSTransform(
           transform_property_value);
   DCHECK(!transform->value().empty());
 
-  // Iterate through all transforms in the transform list appending them
-  // to our css_transform_matrix.
-  math::Matrix3F css_transform_matrix(math::Matrix3F::Identity());
-  for (cssom::TransformFunctionListValue::Builder::const_iterator iter =
-           transform->value().begin();
-       iter != transform->value().end(); ++iter) {
-    cssom::PostMultiplyMatrixByTransform(
-        const_cast<cssom::TransformFunction*>(*iter), &css_transform_matrix);
-  }
+  math::Matrix3F css_transform_matrix(transform->ToMatrix());
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.

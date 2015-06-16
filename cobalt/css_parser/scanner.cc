@@ -1516,6 +1516,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       return false;
 
     case 6:
+      if (IsEqualToCssIdentifier(name.begin, "matrix")) {
+        *known_function_token = kMatrixFunctionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "rotate")) {
         *known_function_token = kRotateFunctionToken;
         return true;
