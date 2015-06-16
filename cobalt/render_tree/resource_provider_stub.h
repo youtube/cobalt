@@ -82,7 +82,7 @@ class FontStub : public Font {
   }
 
   FontMetrics GetFontMetrics() const OVERRIDE {
-    return FontMetrics(10, 5, 3);
+    return FontMetrics(10, 5, 3, 6);
   }
 
  private:

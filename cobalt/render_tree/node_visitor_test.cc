@@ -102,7 +102,9 @@ class DummyFont : public Font {
     return cobalt::math::RectF();
   }
 
-  FontMetrics GetFontMetrics() const OVERRIDE { return FontMetrics(0, 0, 0); }
+  FontMetrics GetFontMetrics() const OVERRIDE {
+    return FontMetrics(0, 0, 0, 0);
+  }
 };
 
 }  // namespace

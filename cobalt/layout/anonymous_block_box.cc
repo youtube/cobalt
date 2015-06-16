@@ -15,11 +15,21 @@
  */
 
 #include "cobalt/layout/anonymous_block_box.h"
-
 #include "cobalt/layout/inline_formatting_context.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
+
+AnonymousBlockBox::AnonymousBlockBox(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const cssom::TransitionSet* transitions,
+    const UsedStyleProvider* used_style_provider)
+    : BlockContainerBox(computed_style, transitions, used_style_provider),
+      used_font_(used_style_provider->GetUsedFont(
+          computed_style->font_family(), computed_style->font_size(),
+          computed_style->font_weight())) {}
+
 
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 
@@ -69,8 +79,9 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
   // TODO(***REMOVED***): Handle absolutely positioned boxes:
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
+  render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
-      new InlineFormattingContext(child_layout_params));
+      new InlineFormattingContext(child_layout_params, font_metrics.x_height));
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
