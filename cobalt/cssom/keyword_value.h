@@ -42,6 +42,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visudet.html#the-height-property
     kAuto,
 
+    // "middle" is the default value of "vertical-align" property that indicates
+    // that the content should be aligned at the baselines
+    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    kBaseline,
+
     // "block" is a value of "display" property which causes an element
     // to generate a block box.
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
@@ -85,6 +90,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kInlineBlock,
 
+    // "middle" is a value of "vertical-align" property that indicates that the
+    // content should be aligned vertically centered.
+    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    kMiddle,
+
     // "none" is a value of "transform" property which means that HTML element
     // is rendered as is.
     //   http://www.w3.org/TR/css3-transforms/#transform-property
@@ -107,6 +117,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
     kStatic,
 
+    // "top" is a value of "vertical-align" property that indicates that the
+    // content should be aligned vertically at the top.
+    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    kTop,
+
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -119,6 +134,7 @@ class KeywordValue : public PropertyValue {
   // Use factory methods below to obtain shared instances.
   static const scoped_refptr<KeywordValue>& GetAbsolute();
   static const scoped_refptr<KeywordValue>& GetAuto();
+  static const scoped_refptr<KeywordValue>& GetBaseline();
   static const scoped_refptr<KeywordValue>& GetBlock();
   static const scoped_refptr<KeywordValue>& GetContain();
   static const scoped_refptr<KeywordValue>& GetCover();
@@ -127,10 +143,12 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInitial();
   static const scoped_refptr<KeywordValue>& GetInline();
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
+  static const scoped_refptr<KeywordValue>& GetMiddle();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNormal();
   static const scoped_refptr<KeywordValue>& GetRelative();
   static const scoped_refptr<KeywordValue>& GetStatic();
+  static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
   virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;

@@ -307,6 +307,15 @@ void CSSStyleDeclaration::set_transition_timing_function(
                    transition_timing_function);
 }
 
+std::string CSSStyleDeclaration::vertical_align() const {
+  return data_->vertical_align() ? data_->vertical_align()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_vertical_align(
+    const std::string& vertical_align) {
+  SetPropertyValue(kVerticalAlignPropertyName, vertical_align);
+}
+
 std::string CSSStyleDeclaration::width() const {
   return data_->width() ? data_->width()->ToString() : "";
 }
