@@ -19,13 +19,8 @@
 #include "base/callback_helpers.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
-#include "lb_memory_manager.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_media_statistics.h"
-#include "media/base/video_frame.h"
-#include "media/filters/shell_avc_parser.h"
 #include "media/mp4/aac.h"
 
 using base::Time;
@@ -51,25 +46,28 @@ const int kAudioBytesPerSample = sizeof(int16_t);
 // static
 ShellAudioDecoder* ShellAudioDecoder::Create(
     const scoped_refptr<base::MessageLoopProxy>& message_loop) {
-  return new ShellAudioDecoderImpl(message_loop);
+  return new ShellAudioDecoderImpl(message_loop,
+                                   base::Bind(&ShellRawAudioDecoder::Create));
 }
 
 //==============================================================================
 // ShellAudioDecoderImpl
 //
 ShellAudioDecoderImpl::ShellAudioDecoderImpl(
-    const scoped_refptr<base::MessageLoopProxy>& message_loop)
-    : message_loop_(message_loop)
-    , shell_audio_decoder_status_(kUninitialized)
-    , samples_per_second_(0)
-    , num_channels_(0)
-    , raw_decoder_(NULL)
-    , pending_renderer_read_(false)
-    , pending_demuxer_read_(false) {
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator)
+    : message_loop_(message_loop),
+      raw_audio_decoder_creator_(raw_audio_decoder_creator),
+      shell_audio_decoder_status_(kUninitialized),
+      samples_per_second_(0),
+      num_channels_(0),
+      pending_renderer_read_(false),
+      pending_demuxer_read_(false) {
+  DCHECK(message_loop_);
+  DCHECK(!raw_audio_decoder_creator_.is_null());
 }
 
 ShellAudioDecoderImpl::~ShellAudioDecoderImpl() {
-  delete raw_decoder_;
   DCHECK(!pending_renderer_read_);
   DCHECK(read_cb_.is_null());
   DCHECK(reset_cb_.is_null());
@@ -111,20 +109,13 @@ void ShellAudioDecoderImpl::Initialize(
 
   DLOG(INFO) << "Configuration at Start: "
              << demuxer_stream_->audio_decoder_config().AsHumanReadableString();
-  raw_decoder_ = ShellRawAudioDecoder::Create();
+  raw_decoder_ = raw_audio_decoder_creator_.Run(config);
 
-  if (raw_decoder_ == NULL) {
-    status_cb.Run(PIPELINE_ERROR_DECODE);
-    return;
-  }
-
-  raw_decoder_->SetDecryptor(demuxer_stream_->GetDecryptor());
-  if (!raw_decoder_->UpdateConfig(config)) {
+  if (!raw_decoder_) {
     status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
-  // success!
   shell_audio_decoder_status_ = kNormal;
   status_cb.Run(PIPELINE_OK);
 }
@@ -405,4 +396,3 @@ void ShellAudioDecoderImpl::Reset(const base::Closure& closure) {
 }
 
 }  // namespace media
-
