@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!--
+ | This shows some vertical align testcases with text and fixes size boxes
+-->
+<html>
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-size: 25px;
+      color: #FFFFFF;
+    }
+
+    div {
+      display: inline-block;
+    }
+    div.bluebg {
+      display: block;
+      background: #2020F0;
+    }
+    div.greybg {
+      display: block;
+      background: #B0B0B0;
+    }
+
+    div.boxed_baseline {
+      vertical-align: baseline;
+      background: #202020;
+      width : 32px;
+      height : 64px;
+    }
+    div.boxed_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 64px;
+    }
+    div.boxed_middle2 {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 128px;
+    }
+    div.boxed_top {
+      vertical-align: top;
+      background: #808080;
+      width : 32px;
+      height : 64px;
+    }
+
+    div.font2 {
+      vertical-align: baseline;
+      font-size: 20px;
+    }
+    div.font3 {
+      vertical-align: baseline;
+      font-size: 30px;
+    }
+    div.font4 {
+      vertical-align: baseline;
+      font-size: 100px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="greybg">
+    <div class="font2">jx</div>
+    <div class="boxed_baseline">gx</div>
+  </div>
+  <div class="bluebg">
+    <div class="boxed_middle">gx</div>
+    <div class="boxed_middle2">gx</div>
+  </div>
+  <div class="greybg">
+    <div class="font2">jx</div>
+    <div class="boxed_baseline"></div>
+  </div>
+  <div class="bluebg">
+    <div class="font2">jx</div>
+    <div class="boxed_baseline">gx</div>
+  </div>
+</body>
+</html>

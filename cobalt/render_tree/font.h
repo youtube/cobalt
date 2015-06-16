@@ -26,8 +26,11 @@ namespace render_tree {
 
 // Contains metrics common for all glyphs in the font.
 struct FontMetrics {
-  FontMetrics(float ascent, float descent, float leading)
-      : ascent(ascent), descent(descent), leading(leading) {}
+  FontMetrics(float ascent, float descent, float leading, float x_height)
+      : ascent(ascent),
+        descent(descent),
+        leading(leading),
+        x_height(x_height) {}
 
   // The recommended distance above the baseline.
   float ascent;
@@ -35,6 +38,9 @@ struct FontMetrics {
   float descent;
   // The recommended distance to add between lines of text.
   float leading;
+  // The x-height, aka the height of the 'x' glyph, used for centering.
+  // See also https://en.wikipedia.org/wiki/X-height
+  float x_height;
 };
 
 // Used as a parameter to GetSystemFont() to describe the font style the

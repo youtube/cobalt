@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | This shows, with a large font that a middle block after the (baseline) text
+ | is positioned incorrectly, and sometimes influences the line box height
+-->
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-size: 1.5em;
+    }
+
+    div {
+      display: inline-block;
+    }
+    div.block {
+      display: block;
+    }
+    div.bluebg {
+      display: block;
+      background: #2020F0;
+    }
+    div.greybg {
+      display: block;
+      background: #B0B0B0;
+    }
+    div.greybg1 {
+      display: block;
+      background: #C0C0C0;
+    }
+    div.greybg2 {
+      display: block;
+      background: #D0D0D0;
+    }
+    div.greybg3 {
+      display: block;
+      background: #E0E0E0;
+    }
+
+    div.boxed_baseline {
+      vertical-align: baseline;
+      background: #202020;
+      width : 8px;
+      height : 16px;
+    }
+    div.v_baseline {
+      vertical-align: baseline;
+      background: #202000;
+      width : 8px;
+      height : 8px;
+    }
+    div.boxed_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 8px;
+      height : 16px;
+    }
+    div.v_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 8px;
+      height : 8px;
+    }
+    div.boxed_top {
+      vertical-align: top;
+      background: #808080;
+      width : 8px;
+      height : 16px;
+    }
+    div.v_top {
+      vertical-align: top;
+      background: #808080;
+      width : 8px;
+      height : 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="greybg1">jx<div class="boxed_middle"></div><div class="v_middle"></div></div>
+  <div class="greybg2">jx<div class="boxed_top"></div><div class="v_top"></div></div>
+  <div class="greybg3">jx<div class="boxed_baseline"></div><div class="v_baseline"></div></div>
+  <div class="greybg">jx
+    <div class="boxed_middle"></div>
+    <div class="boxed_baseline"></div>
+  </div>
+  <div class="bluebg">jx
+    <div class="boxed_middle"></div><div class="v_middle"></div>
+    <div class="boxed_top"></div><div class="v_top"></div>
+    <div class="boxed_baseline"></div><div class="v_baseline"></div>
+  </div>
+  <div class="greybg">jx
+    <div class="boxed_baseline"></div>
+    <div class="boxed_middle"></div>
+  </div>
+  <div class="bluebg">jx
+    <div class="boxed_top"></div><div class="v_top"></div>
+    <div class="boxed_baseline"></div><div class="v_baseline"></div>
+    <div class="boxed_middle"></div><div class="v_middle"></div>
+  </div>
+  <div class="greybg">jx
+    <div class="v_baseline"></div></div>
+  </div>
+</body>
+</html>

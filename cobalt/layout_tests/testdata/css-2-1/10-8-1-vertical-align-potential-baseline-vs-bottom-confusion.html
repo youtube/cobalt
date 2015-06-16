@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | These are some differences in vertical alignment in the output here when
+ | compared to chrome. They may be caused by mishandling of the baseline /
+ | height below baseline. Or they may be a result of font differences.
+-->
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-size: 15px;
+      color: #FFFFFF;
+    }
+
+    div {
+      display: inline-block;
+    }
+    div.bluebg {
+      display: block;
+      background: #2020F0;
+    }
+    div.greybg {
+      display: block;
+      background: #B0B0B0;
+    }
+
+    div.boxed_baseline {
+      vertical-align: baseline;
+      background: #202020;
+      width : 16px;
+      height : 32px;
+    }
+    div.v_baseline {
+      vertical-align: baseline;
+      background: #202020;
+    }
+    div.boxed_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 16px;
+      height : 32px;
+    }
+    div.small_boxed_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 16px;
+      height : 16px;
+    }
+    div.v_middle {
+      vertical-align: middle;
+      background: #404040;
+    }
+    div.boxed_top {
+      vertical-align: top;
+      background: #808080;
+      width : 16px;
+      height : 40px;
+    }
+    div.v_top {
+      vertical-align: top;
+      background: #808080;
+    }
+  </style>
+</head>
+<body>
+  <div class="bluebg">
+    <div class="boxed_middle">x</div><div class="v_middle">x</div>
+    <div class="boxed_baseline">x</div><div class="v_baseline">x</div>
+    <div class="boxed_middle">x</div><div class="v_middle">x</div>
+  </div>
+  <div class="greybg">
+    <div class="boxed_middle"></div>
+    <div class="boxed_baseline"></div>
+  </div>
+  <div class="bluebg">
+    <div class="boxed_baseline">x</div>
+    <div class="boxed_middle">x</div>
+  </div>
+</body>
+</html>
