@@ -82,6 +82,7 @@ void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
       break;
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
@@ -90,9 +91,11 @@ void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -178,18 +181,21 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
       break;
     }
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -329,16 +335,19 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     }
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -395,6 +404,7 @@ class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
         break;
 
       case cssom::KeywordValue::kAbsolute:
+      case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
       case cssom::KeywordValue::kContain:
       case cssom::KeywordValue::kCover:
@@ -403,10 +413,12 @@ class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNormal:
       case cssom::KeywordValue::kRelative:
       case cssom::KeywordValue::kStatic:
+      case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kVisible:
       default:
         NOTREACHED();

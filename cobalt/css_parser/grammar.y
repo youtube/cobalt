@@ -90,6 +90,7 @@
 %token kTransitionPropertyToken               // transition-property
 %token kTransitionTimingFunctionToken         // transition-timing-function
 %token kTransitionToken                       // transition
+%token kVerticalAlignToken                    // vertical-align
 %token kWidthToken                            // width
 
 // Property value tokens.
@@ -97,6 +98,7 @@
 //          to |identifier_token| rule below.
 %token kAbsoluteToken                   // absolute
 %token kAutoToken                       // auto
+%token kBaselineToken                   // baseline
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
 %token kCenterToken                     // center
@@ -113,6 +115,7 @@
 %token kInlineBlockToken                // inline-block
 %token kInlineToken                     // inline
 %token kLinearToken                     // linear
+%token kMiddleToken                     // middle
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
 %token kRelativeToken                   // relative
@@ -120,6 +123,7 @@
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
+//%token kTopToken                      // top - also property name token
 %token kVisibleToken                    // visible
 
 // Pseudo-class name tokens.
@@ -304,7 +308,7 @@
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
-                       width_property_value
+                       vertical_align_property_value width_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { TransitionShorthand* transition; }
@@ -496,11 +500,11 @@ identifier_token:
   | kHeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHeightPropertyName);
   }
-  | kLineHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
-  }
   | kLeftToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLeftPropertyName);
+  }
+  | kLineHeightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
   }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
@@ -539,6 +543,9 @@ identifier_token:
   | kTransitionTimingFunctionToken {
     $$ = TrivialStringPiece::FromCString(
              cssom::kTransitionTimingFunctionPropertyName);
+  }
+  | kVerticalAlignToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kVerticalAlignPropertyName);
   }
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
@@ -598,6 +605,9 @@ identifier_token:
   | kLinearToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLinearKeywordName);
   }
+  | kMiddleToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMiddleKeywordName);
+  }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
   }
@@ -619,6 +629,10 @@ identifier_token:
   | kStepStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
   }
+  // This is redundant with the kTopPropertyName defined above.
+  //| kTopToken {
+  //  $$ = TrivialStringPiece::FromCString(cssom::kTopKeywordName);
+  //}
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
   }
@@ -1466,6 +1480,21 @@ transform_property_value:
   | common_values
   ;
 
+// Determines the vertical alignment of a box.
+//   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+vertical_align_property_value:
+    kTopToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetTop().get());
+  }
+  | kMiddleToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetMiddle().get());
+  }
+  | kBaselineToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBaseline().get());
+  }
+  | common_values
+  ;
+
 // One ore more time values separated by commas.
 //   http://www.w3.org/TR/css3-transitions/#transition-duration
 comma_separated_time_list:
@@ -2034,6 +2063,12 @@ maybe_declaration:
     $$ = $4 ? new PropertyDeclaration(
                       cssom::kTransitionTimingFunctionPropertyName,
                       MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kVerticalAlignToken maybe_whitespace colon vertical_align_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kVerticalAlignPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kWidthToken maybe_whitespace colon width_property_value
