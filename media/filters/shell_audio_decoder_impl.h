@@ -20,14 +20,14 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/memory/scoped_ptr.h"
+#include "media/base/audio_bus.h"
 #include "media/base/audio_decoder.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/buffers.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/shell_buffer_factory.h"
 #include "media/filters/shell_audio_decoder.h"
-#include "media/filters/shell_avc_parser.h"
-#include "media/filters/shell_demuxer.h"
-
 
 // set me to 1 to save decoded audio output to disk for debugging
 #define __SAVE_DECODER_OUTPUT__ 0
@@ -38,12 +38,12 @@
 
 namespace media {
 
-class AudioBus;
-
 class ShellRawAudioDecoder {
  public:
   typedef media::DecoderBuffer DecoderBuffer;
   typedef media::AudioDecoderConfig AudioDecoderConfig;
+  typedef base::Callback<scoped_ptr<ShellRawAudioDecoder>(
+                             const AudioDecoderConfig& config)> Creator;
 
   virtual ~ShellRawAudioDecoder() {}
   virtual scoped_refptr<DecoderBuffer> Decode(
@@ -51,32 +51,34 @@ class ShellRawAudioDecoder {
   virtual bool Flush() = 0;
   virtual bool UpdateConfig(const AudioDecoderConfig& config) = 0;
 
-  static ShellRawAudioDecoder* Create();
-
-  void SetDecryptor(Decryptor *decryptor) {
-    decryptor_ = decryptor;
-  }
+  // TODO(***REMOVED***, b/16796265): Move factory method into ShellMediaPlatform
+  // and inject into ShellAudioDecoderImpl.
+  static scoped_ptr<ShellRawAudioDecoder> Create(
+      const AudioDecoderConfig& config);
 
  protected:
   ShellRawAudioDecoder() {}
-  Decryptor *decryptor_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ShellRawAudioDecoder);
 };
 
 class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
  public:
   ShellAudioDecoderImpl(
-      const scoped_refptr<base::MessageLoopProxy>& message_loop);
-  virtual ~ShellAudioDecoderImpl();
+      const scoped_refptr<base::MessageLoopProxy>& message_loop,
+      const ShellRawAudioDecoder::Creator& raw_audio_decoder_creator);
+  ~ShellAudioDecoderImpl() OVERRIDE;
 
   // AudioDecoder implementation.
-  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
-                          const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb) OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual int bits_per_channel() OVERRIDE;
-  virtual ChannelLayout channel_layout() OVERRIDE;
-  virtual int samples_per_second() OVERRIDE;
-  virtual void Reset(const base::Closure& closure) OVERRIDE;
+  void Initialize(const scoped_refptr<DemuxerStream>& stream,
+                  const PipelineStatusCB& status_cb,
+                  const StatisticsCB& statistics_cb) OVERRIDE;
+  void Read(const ReadCB& read_cb) OVERRIDE;
+  int bits_per_channel() OVERRIDE;
+  ChannelLayout channel_layout() OVERRIDE;
+  int samples_per_second() OVERRIDE;
+  void Reset(const base::Closure& closure) OVERRIDE;
 
  private:
   // There's a DemuxerStream::Status as well as an AudioDecoder::Status enum.
@@ -110,6 +112,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
 
   // general state
   scoped_refptr<base::MessageLoopProxy> message_loop_;
+  ShellRawAudioDecoder::Creator raw_audio_decoder_creator_;
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
   ShellAudioDecoderStatus shell_audio_decoder_status_;
@@ -122,7 +125,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public ShellAudioDecoder {
   int samples_per_second_;
   int num_channels_;
 
-  ShellRawAudioDecoder* raw_decoder_;
+  scoped_ptr<ShellRawAudioDecoder> raw_decoder_;
 
   // Callback on completion of a decode
   bool pending_renderer_read_;
