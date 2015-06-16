@@ -1186,6 +1186,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 14:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kVerticalAlignPropertyName)) {
+        *property_name_token = kVerticalAlignToken;
+        return true;
+      }
+
     case 15:
       if (IsEqualToCssIdentifier(
               name.begin, cssom::kBackgroundSizePropertyName)) {
@@ -1267,6 +1274,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kEndToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTopKeywordName)) {
+        *property_value_token = kTopToken;
+        return true;
+      }
       return false;
     case 4:
       if (IsEqualToCssIdentifier(name.begin, cssom::kAutoKeywordName)) {
@@ -1319,6 +1330,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kLinearToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMiddleKeywordName)) {
+        *property_value_token = kMiddleToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kNormalKeywordName)) {
         *property_value_token = kNormalToken;
         return true;
@@ -1355,6 +1370,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 8:
       if (IsEqualToCssIdentifier(name.begin, cssom::kAbsoluteKeywordName)) {
         *property_value_token = kAbsoluteToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBaselineKeywordName)) {
+        *property_value_token = kBaselineToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseOutKeywordName)) {

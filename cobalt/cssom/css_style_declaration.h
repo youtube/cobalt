@@ -136,6 +136,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_transition_timing_function(
       const std::string& transition_timing_function);
 
+  std::string vertical_align() const;
+  void set_vertical_align(const std::string& vertical_align);
+
   std::string width() const;
   void set_width(const std::string& width);
 
