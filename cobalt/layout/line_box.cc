@@ -17,15 +17,18 @@
 #include "cobalt/layout/line_box.h"
 
 #include "cobalt/layout/box.h"
+#include "cobalt/cssom/keyword_value.h"
 
 namespace cobalt {
 namespace layout {
 
 // The left edge of a line box touches the left edge of its containing block.
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-LineBox::LineBox(float used_top, ShouldTrimWhiteSpace should_trim_white_space,
+LineBox::LineBox(float used_top, float x_height,
+                 ShouldTrimWhiteSpace should_trim_white_space,
                  const LayoutParams& layout_params)
     : used_top_(used_top),
+      x_height_(x_height),
       should_trim_white_space_(should_trim_white_space),
       layout_params_(layout_params),
       line_exists_(false),
@@ -102,44 +105,119 @@ void LineBox::EndQueries() {
   }
 
   // TODO(***REMOVED***): Align child boxes vertically according to "line-height"
-  //               and "vertical-align":
   //               http://www.w3.org/TR/CSS21/visudet.html#line-height
   NOTIMPLEMENTED();
 
-  line_exists_ = false;
+  SetLineBoxHeightFromChildBoxes();
+  SetChildBoxTopPositions();
+}
 
+// Returns the height of half the given box above the 'middle' of the line box.
+float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* box) {
+  return (box->used_height() + x_height_) / 2;
+}
+
+// Loop over the child boxes and set the height_above_baseline_ and used_height_
+// such that all child boxes fit. Also updates line_exists_
+void LineBox::SetLineBoxHeightFromChildBoxes() {
   // TODO(***REMOVED***): The minimum height consists of a minimum height above
   //               the baseline and a minimum depth below it, exactly as if
   //               each line box starts with a zero-width inline box with
   //               the element's font and line height properties.
   //               We call that imaginary box a "strut."
   //               http://www.w3.org/TR/CSS21/visudet.html#strut
+  line_exists_ = false;
   height_above_baseline_ = 0;
   float height_below_baseline = 0;
+  float max_top_used_height = 0;
+  // During this loop, the line box height above and below the baseline is
+  // established.
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     line_exists_ = line_exists_ || child_box->JustifiesLineExistence();
 
-    float child_height_above_baseline = child_box->GetHeightAboveBaseline();
-    height_above_baseline_ =
-        std::max(height_above_baseline_, child_height_above_baseline);
+    // The child box influence on the line box depends on the vertical-align
+    // property.
+    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    const scoped_refptr<cssom::PropertyValue>& vertical_align =
+        child_box->computed_style()->vertical_align();
+    float child_height_above_line_box_baseline;
+    bool update_box_height = false;
+    if (vertical_align == cssom::KeywordValue::GetMiddle()) {
+      // Align the vertical midpoint of the box with the baseline of the parent
+      // box plus half the x-height (height of the 'x' glyph) of the parent.
+      child_height_above_line_box_baseline =
+          GetHeightAboveMiddleAlignmentPoint(child_box);
+      update_box_height = true;
+    } else if (vertical_align == cssom::KeywordValue::GetTop()) {
+      // Align the top of the aligned subtree with the top of the line box.
+      // That means it will never affect the height above the baseline, but it
+      // may affect the height below the baseline if this is the tallest child
+      // box. We measure the tallest top-aligned box to implement that after
+      // this loop.
+      max_top_used_height =
+          std::max(max_top_used_height, child_box->used_height());
+    } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
+      // Align the baseline of the box with the baseline of the parent box.
+      child_height_above_line_box_baseline =
+          child_box->GetHeightAboveBaseline();
+      update_box_height = true;
+    } else {
+      NOTREACHED() << "Unsupported vertical_align property value";
+    }
 
-    float child_height_below_baseline =
-        child_box->used_height() - child_height_above_baseline;
-    height_below_baseline =
-        std::max(height_below_baseline, child_height_below_baseline);
+    if (update_box_height) {
+      height_above_baseline_ = std::max(height_above_baseline_,
+                                        child_height_above_line_box_baseline);
+
+      float child_height_below_baseline =
+          child_box->used_height() - child_height_above_line_box_baseline;
+      height_below_baseline =
+          std::max(height_below_baseline, child_height_below_baseline);
+    }
   }
   // The line box height is the distance between the uppermost box top and the
   // lowermost box bottom.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   used_height_ = height_above_baseline_ + height_below_baseline;
+  if (max_top_used_height > used_height_) {
+    // Increase the line box height below the baseline to make the largest
+    // top-aligned child box fit.
+    float additional_height_for_top_box = max_top_used_height - used_height_;
+    height_below_baseline += additional_height_for_top_box;
+    used_height_ = height_above_baseline_ + height_below_baseline;
+  }
+}
 
+void LineBox::SetChildBoxTopPositions() {
+  // During this loop, the vertical positions of the child boxes are
+  // established.
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->set_used_top(used_top_ + height_above_baseline_ -
-                            child_box->GetHeightAboveBaseline());
+
+    // The child box top position depends on the vertical-align property.
+    //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    const scoped_refptr<cssom::PropertyValue>& vertical_align =
+        child_box->computed_style()->vertical_align();
+    float child_top;
+    if (vertical_align == cssom::KeywordValue::GetMiddle()) {
+      // Align the vertical midpoint of the box with the baseline of the parent
+      //  box plus half the x-height (height of the 'x' glyph) of the parent.
+      child_top = height_above_baseline_ -
+                  GetHeightAboveMiddleAlignmentPoint(child_box);
+    } else if (vertical_align == cssom::KeywordValue::GetTop()) {
+      // Align the top of the aligned subtree with the top of the line box.
+      child_top = 0;
+    } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
+      // Align the baseline of the box with the baseline of the parent box.
+      child_top = height_above_baseline_ - child_box->GetHeightAboveBaseline();
+    } else {
+      child_top = 0;
+      NOTREACHED() << "Unsupported vertical_align property value";
+    }
+    child_box->set_used_top(used_top_ + child_top);
   }
 }
 

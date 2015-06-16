@@ -24,8 +24,8 @@ namespace cobalt {
 namespace layout {
 
 InlineFormattingContext::InlineFormattingContext(
-    const LayoutParams& layout_params)
-    : layout_params_(layout_params), line_count_(0) {}
+    const LayoutParams& layout_params, float x_height)
+    : layout_params_(layout_params), line_count_(0), x_height_(x_height) {}
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
@@ -52,8 +52,9 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   OnLineBoxDestroying();
-  line_box_ = make_scoped_ptr(new LineBox(
-      used_height(), LineBox::kShouldTrimWhiteSpace, layout_params_));
+  line_box_ = make_scoped_ptr(new LineBox(used_height(), x_height_,
+                                          LineBox::kShouldTrimWhiteSpace,
+                                          layout_params_));
 
   // A sequence of collapsible spaces at the beginning of a line is removed.
   //   http://www.w3.org/TR/css3-text/#white-space-phase-2

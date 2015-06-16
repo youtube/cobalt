@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<!-- Simple vertical alignment test -->
+<head>
+  <style>
+    body {
+      margin: 0px;
+    }
+
+    div.block {
+      display: block;
+    }
+    div.greybg {
+      display: block;
+      background: #C0C0C0;
+    }
+
+    div.boxed_baseline {
+      display: inline-block;
+      vertical-align: baseline;
+      background: #303030;
+      width : 32px;
+      height : 64px;
+    }
+    div.v_baseline {
+      display: inline-block;
+      vertical-align: baseline;
+    }
+    div.boxed_middle {
+      display: inline-block;
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 128px;
+    }
+    div.v_middle {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    div.boxed_top {
+      display: inline-block;
+      vertical-align: top;
+      background: #808080;
+      width : 32px;
+      height : 64px;
+    }
+    div.v_top {
+      display: inline-block;
+      vertical-align: top;
+    }
+  </style>
+</head>
+<body>
+  <div class="greybg">
+    <div class="boxed_middle">A
+    </div>
+    <div class="v_middle">
+      Middle
+    </div>
+  </div>
+  <div class="greybg">
+    <div class="boxed_top">B
+    </div>
+    <div class="v_top">
+      Top
+    </div>
+  </div>
+  <div class="greybg">
+    <div class="boxed_baseline">C
+    </div>
+    <div class="v_baseline">
+      Baseline
+    </div>
+  </div>
+</body>
+</html>

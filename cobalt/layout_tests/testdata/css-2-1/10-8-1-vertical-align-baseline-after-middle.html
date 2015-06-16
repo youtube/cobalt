@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | The vertical position of the baseline block after a middle block is
+ | too high, sometimes also causing the line box to be too high.
+-->
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-size: 25px;
+    }
+
+    div {
+      display: inline-block;
+    }
+    div.block {
+      display: block;
+    }
+    div.bluebg {
+      display: block;
+      background: #2020F0;
+    }
+    div.greybg {
+      display: block;
+      background: #B0B0B0;
+    }
+    div.greybg1 {
+      display: block;
+      background: #C0C0C0;
+    }
+    div.greybg2 {
+      display: block;
+      background: #D0D0D0;
+    }
+    div.greybg3 {
+      display: block;
+      background: #E0E0E0;
+    }
+
+    div.boxed_baseline {
+      vertical-align: baseline;
+      background: #202020;
+      width : 32px;
+      height : 64px;
+      color: #FFFFFF;
+    }
+    div.v_baseline {
+      vertical-align: baseline;
+      background: #202000;
+      width : 32px;
+      height : 32px;
+    }
+    div.boxed_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 64px;
+    }
+    div.boxed_middle_font1 {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 64px;
+      font-size: 4px;
+    }
+    div.boxed_middle2 {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 128px;
+    }
+    div.v_middle {
+      vertical-align: middle;
+      background: #404040;
+      width : 32px;
+      height : 32px;
+    }
+    div.boxed_top {
+      vertical-align: top;
+      background: #808080;
+      width : 32px;
+      height : 64px;
+    }
+    div.v_top {
+      vertical-align: top;
+      background: #808080;
+      width : 32px;
+      height : 32px;
+    }
+
+    div.font1 {
+      vertical-align: baseline;
+      font-size: 4px;
+    }
+    div.font2 {
+      vertical-align: baseline;
+      font-size: 20px;
+    }
+    div.font3 {
+      vertical-align: baseline;
+      font-size: 30px;
+    }
+    div.font4 {
+      vertical-align: baseline;
+      font-size: 100px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="greybg2"><div class="boxed_middle"></div><div class="boxed_baseline"></div></div>
+  <div class="greybg3"><div class="boxed_middle"></div><div class="boxed_baseline"></div><div class="boxed_middle2"></div></div>
+  <div class="greybg1">
+    <div class="font1">jx</div>
+    <div class="boxed_middle"></div>
+    <div class="boxed_baseline"></div>
+    <div class="boxed_middle2"></div>
+    <div class="font2">jx</div>
+    <div class="boxed_middle"></div>
+    <div class="boxed_baseline"></div>
+    <div class="boxed_middle2"></div>
+  </div>
+</body>
+</html>

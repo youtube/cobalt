@@ -18,6 +18,7 @@
 #define LAYOUT_INLINE_CONTAINER_BOX_H_
 
 #include "cobalt/layout/container_box.h"
+#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -75,6 +76,8 @@ class InlineContainerBox : public ContainerBox {
 
   bool justifies_line_existence_;
   float height_above_baseline_;
+  // A font used for text width and line height calculations.
+  const scoped_refptr<render_tree::Font> used_font_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineContainerBox);
 };
