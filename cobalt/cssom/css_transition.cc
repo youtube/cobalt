@@ -24,6 +24,7 @@
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -142,6 +143,7 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   }
 
  private:
+  void VisitMatrix(MatrixFunction* matrix_function) OVERRIDE;
   void VisitRotate(RotateFunction* rotate_function) OVERRIDE;
   void VisitScale(ScaleFunction* scale_function) OVERRIDE;
   void VisitTranslate(TranslateFunction* translate_function) OVERRIDE;
@@ -153,6 +155,11 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   float progress_;
   scoped_ptr<TransformFunction> animated_;
 };
+
+void AnimateTransformFunction::VisitMatrix(MatrixFunction* matrix_function) {
+  UNREFERENCED_PARAMETER(matrix_function);
+  NOTREACHED();
+}
 
 void AnimateTransformFunction::VisitRotate(RotateFunction* rotate_function) {
   const RotateFunction* rotate_end =
