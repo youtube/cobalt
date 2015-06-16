@@ -204,9 +204,6 @@ class HTMLMediaElement : public HTMLElement,
   bool StoppedDueToErrors() const;
   bool CouldPlayIfEnoughData() const;
 
-  void InvalidateCachedTime();
-  void RefreshCachedTime() const;
-
   void ConfigureMediaControls();
 
   // Error report
@@ -286,10 +283,6 @@ class HTMLMediaElement : public HTMLElement,
 
   GURL media_source_url_;
   scoped_refptr<MediaSource> media_source_;
-
-  mutable float cached_time_;
-  mutable double cached_time_wall_clock_update_time_;
-  mutable double minimum_wall_clock_time_to_cached_media_time_;
 
   bool pending_load_;
 
