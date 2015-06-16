@@ -56,7 +56,9 @@ class LineBox {
     kShouldTrimWhiteSpace = true
   };
 
-  LineBox(float used_top, ShouldTrimWhiteSpace should_trim_white_space,
+  // x_height is the height of the 'x' glyph in the font for this box.
+  LineBox(float used_top, float x_height,
+          ShouldTrimWhiteSpace should_trim_white_space,
           const LayoutParams& layout_params);
 
   float used_top() const { return used_top_; }
@@ -106,8 +108,12 @@ class LineBox {
 
  private:
   void CollapseTrailingWhiteSpace() const;
+  float GetHeightAboveMiddleAlignmentPoint(Box* box);
+  void SetLineBoxHeightFromChildBoxes();
+  void SetChildBoxTopPositions();
 
   const float used_top_;
+  const float x_height_;
   const ShouldTrimWhiteSpace should_trim_white_space_;
   const LayoutParams layout_params_;
 

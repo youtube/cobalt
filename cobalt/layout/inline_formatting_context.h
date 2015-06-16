@@ -47,7 +47,8 @@ class LineBox;
 // |UpdateUsedLeftAndMaybeSplit| has been called for every child box.
 class InlineFormattingContext : public FormattingContext {
  public:
-  explicit InlineFormattingContext(const LayoutParams& layout_params);
+  explicit InlineFormattingContext(const LayoutParams& layout_params,
+                                   float x_height);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously updates used values of "left" and "top" for the given child
@@ -77,6 +78,9 @@ class InlineFormattingContext : public FormattingContext {
 
   // Number of lines boxes that affect the layout.
   int line_count_;
+
+  // X-height of the font in the parent box.
+  float x_height_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };

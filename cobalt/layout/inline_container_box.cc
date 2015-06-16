@@ -18,6 +18,7 @@
 
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
+#include "cobalt/layout/used_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -28,7 +29,10 @@ InlineContainerBox::InlineContainerBox(
     const UsedStyleProvider* used_style_provider)
     : ContainerBox(computed_style, transitions, used_style_provider),
       justifies_line_existence_(false),
-      height_above_baseline_(0) {}
+      height_above_baseline_(0),
+      used_font_(used_style_provider->GetUsedFont(
+          computed_style->font_family(), computed_style->font_size(),
+          computed_style->font_weight())) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
@@ -63,7 +67,9 @@ scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
 void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   // Lay out child boxes as a one line without width constraints and white space
   // trimming.
-  LineBox line_box(0, LineBox::kShouldNotTrimWhiteSpace, layout_params);
+  render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
+  LineBox line_box(0, font_metrics.x_height, LineBox::kShouldNotTrimWhiteSpace,
+                   layout_params);
 
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
