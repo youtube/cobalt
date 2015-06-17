@@ -31,7 +31,7 @@ class TransformFunctionVisitor;
 //   http://www.w3.org/TR/css-transforms-1/#transform-functions
 class TransformFunction : public base::PolymorphicEquatable {
  public:
-  virtual void Accept(TransformFunctionVisitor* visitor) = 0;
+  virtual void Accept(TransformFunctionVisitor* visitor) const = 0;
 
   virtual ~TransformFunction() {}
 };
@@ -39,7 +39,7 @@ class TransformFunction : public base::PolymorphicEquatable {
 // Applies the specified transformation to the in/out matrix parameter.
 // The transform function is converted to a matrix and then appended to
 // the passed in matrix.
-void PostMultiplyMatrixByTransform(TransformFunction* function,
+void PostMultiplyMatrixByTransform(const TransformFunction* function,
                                    math::Matrix3F* matrix);
 
 }  // namespace cssom

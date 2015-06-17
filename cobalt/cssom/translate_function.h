@@ -43,7 +43,7 @@ class TranslateFunction : public TransformFunction {
     DCHECK(offset);
   }
 
-  void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
   const scoped_refptr<LengthValue>& offset() const { return offset_; }
 
