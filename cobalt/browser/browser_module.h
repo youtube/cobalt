@@ -24,6 +24,7 @@
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
+#include "cobalt/storage/storage_manager.h"
 
 namespace cobalt {
 namespace browser {
@@ -37,6 +38,7 @@ class BrowserModule {
   // setup reasonable default options.
   struct Options {
     renderer::RendererModule::Options renderer_module_options;
+    storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
   };
 
@@ -57,6 +59,8 @@ class BrowserModule {
   // input device, and manage handing it off to the web module for
   // interpretation.
   void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
+
+  storage::StorageManager storage_manager_;
 
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
