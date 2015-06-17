@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/box_generator.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -25,7 +27,6 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/inline_container_box.h"
 #include "cobalt/layout/replaced_box.h"
 #include "cobalt/layout/text_box.h"
@@ -62,12 +63,10 @@ BoxGenerator::BoxGenerator(
         parent_computed_style,
     const UsedStyleProvider* used_style_provider,
     icu::BreakIterator* line_break_iterator,
-    const base::Time& style_change_event_time,
     ContainerBox* containing_box_for_absolute)
     : parent_computed_style_(parent_computed_style),
       used_style_provider_(used_style_provider),
       line_break_iterator_(line_break_iterator),
-      style_change_event_time_(style_change_event_time),
       containing_box_for_absolute_(containing_box_for_absolute) {}
 
 BoxGenerator::~BoxGenerator() {}
@@ -148,8 +147,6 @@ void BoxGenerator::Visit(dom::Element* element) {
   // Update and cache computed values of the given HTML element.
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
-  UpdateComputedStyleOf(html_element, parent_computed_style_,
-                        style_change_event_time_);
 
   ContainerBoxGenerator container_box_generator(html_element->computed_style(),
                                                 html_element->transitions(),
@@ -212,9 +209,9 @@ void BoxGenerator::VisitContainerElement(
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
-    BoxGenerator child_box_generator(
-        html_element->computed_style(), used_style_provider_,
-        line_break_iterator_, style_change_event_time_, absolute_container_box);
+    BoxGenerator child_box_generator(html_element->computed_style(),
+                                     used_style_provider_, line_break_iterator_,
+                                     absolute_container_box);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();
