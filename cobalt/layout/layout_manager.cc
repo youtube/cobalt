@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/layout_manager.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/timer.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -69,18 +71,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
-
-LayoutManager::LayoutManager(
-    const scoped_refptr<dom::Window>& window,
-    render_tree::ResourceProvider* resource_provider,
-    const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
-    LayoutTrigger layout_trigger, float layout_refresh_rate)
-    : impl_(new Impl(window, resource_provider, on_render_tree_produced,
-                     css_parser, fetcher_factory, layout_trigger,
-                     layout_refresh_rate)) {}
-
-LayoutManager::~LayoutManager() {}
 
 namespace {
 
@@ -194,6 +184,18 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     layout_dirty_ = false;
   }
 }
+
+LayoutManager::LayoutManager(
+    const scoped_refptr<dom::Window>& window,
+    render_tree::ResourceProvider* resource_provider,
+    const OnRenderTreeProducedCallback& on_render_tree_produced,
+    cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
+    LayoutTrigger layout_trigger, float layout_refresh_rate)
+    : impl_(new Impl(window, resource_provider, on_render_tree_produced,
+                     css_parser, fetcher_factory, layout_trigger,
+                     layout_refresh_rate)) {}
+
+LayoutManager::~LayoutManager() {}
 
 }  // namespace layout
 }  // namespace cobalt
