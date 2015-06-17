@@ -51,7 +51,7 @@ struct RenderTreeWithAnimations {
 // Produces the render tree (along with corresponding animations) which is a
 // result of recursive layout of the given HTML element.
 RenderTreeWithAnimations Layout(
-    const scoped_refptr<dom::HTMLElement>& root_element,
+    const scoped_refptr<dom::HTMLElement>& root,
     const math::SizeF& viewport_size,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
