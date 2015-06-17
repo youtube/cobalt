@@ -18,6 +18,7 @@
 
 #include "base/threading/worker_pool.h"
 #include "cobalt/network/network_delegate.h"
+#include "cobalt/network/persistent_cookie_store.h"
 #include "net/base/cert_verify_proc.h"
 #include "net/base/default_server_bound_cert_store.h"
 #include "net/base/host_cache.h"
@@ -36,11 +37,11 @@
 namespace cobalt {
 namespace network {
 
-URLRequestContext::URLRequestContext()
+URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager)
     : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
-  // TODO(***REMOVED***): Bring over lb_cookie_store
-  DLOG(WARNING) << "Persistent cookie store needs to be implemented";
-  persistent_cookie_store_ = NULL;
+  if (storage_manager) {
+    persistent_cookie_store_ = new PersistentCookieStore(storage_manager);
+  }
   storage_.set_cookie_store(
       new net::CookieMonster(persistent_cookie_store_, NULL /* delegate */));
   storage_.set_server_bound_cert_service(new net::ServerBoundCertService(
