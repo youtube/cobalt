@@ -25,8 +25,7 @@ math::Matrix3F TransformFunctionListValue::ToMatrix() const {
   math::Matrix3F transform_matrix(math::Matrix3F::Identity());
   for (Builder::const_iterator iter = value().begin(); iter != value().end();
        ++iter) {
-    PostMultiplyMatrixByTransform(const_cast<cssom::TransformFunction*>(*iter),
-                                  &transform_matrix);
+    PostMultiplyMatrixByTransform(*iter, &transform_matrix);
   }
 
   return transform_matrix;

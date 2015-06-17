@@ -32,7 +32,7 @@ class RotateFunction : public TransformFunction {
   explicit RotateFunction(float angle_in_radians)
       : angle_in_radians_(angle_in_radians) {}
 
-  void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
   float angle_in_radians() const {
     return angle_in_radians_;
