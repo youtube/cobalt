@@ -29,10 +29,11 @@ namespace cssom {
 
 class MockTransformFunctionVisitor : public TransformFunctionVisitor {
  public:
-  MOCK_METHOD1(VisitMatrix, void(MatrixFunction* matrix_function));
-  MOCK_METHOD1(VisitRotate, void(RotateFunction* rotate_function));
-  MOCK_METHOD1(VisitScale, void(ScaleFunction* scale_function));
-  MOCK_METHOD1(VisitTranslate, void(TranslateFunction* translate_function));
+  MOCK_METHOD1(VisitMatrix, void(const MatrixFunction* matrix_function));
+  MOCK_METHOD1(VisitRotate, void(const RotateFunction* rotate_function));
+  MOCK_METHOD1(VisitScale, void(const ScaleFunction* scale_function));
+  MOCK_METHOD1(VisitTranslate,
+               void(const TranslateFunction* translate_function));
 };
 
 TEST(TransformFunctionVisitorTest, VisitsMatrixFunction) {

@@ -30,10 +30,10 @@ class TranslateFunction;
 // http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
 class TransformFunctionVisitor {
  public:
-  virtual void VisitMatrix(MatrixFunction* matrix_function) = 0;
-  virtual void VisitRotate(RotateFunction* rotate_function) = 0;
-  virtual void VisitScale(ScaleFunction* scale_function) = 0;
-  virtual void VisitTranslate(TranslateFunction* translate_function) = 0;
+  virtual void VisitMatrix(const MatrixFunction* matrix_function) = 0;
+  virtual void VisitRotate(const RotateFunction* rotate_function) = 0;
+  virtual void VisitScale(const ScaleFunction* scale_function) = 0;
+  virtual void VisitTranslate(const TranslateFunction* translate_function) = 0;
 
  protected:
   ~TransformFunctionVisitor() {}

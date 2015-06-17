@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace cssom {
 
-void ScaleFunction::Accept(TransformFunctionVisitor* visitor) {
+void ScaleFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitScale(this);
 }
 

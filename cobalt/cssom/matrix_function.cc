@@ -28,7 +28,7 @@ MatrixFunction::MatrixFunction(float m00, float m10, float m01, float m11,
     : value_(math::Matrix3F::FromValues(m00, m01, m02, m10, m11, m12, 0.0f,
                                         0.0f, 1.0f)) {}
 
-void MatrixFunction::Accept(TransformFunctionVisitor* visitor) {
+void MatrixFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitMatrix(this);
 }
 
