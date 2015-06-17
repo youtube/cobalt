@@ -145,10 +145,10 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   }
 
  private:
-  void VisitMatrix(MatrixFunction* matrix_function) OVERRIDE;
-  void VisitRotate(RotateFunction* rotate_function) OVERRIDE;
-  void VisitScale(ScaleFunction* scale_function) OVERRIDE;
-  void VisitTranslate(TranslateFunction* translate_function) OVERRIDE;
+  void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE;
+  void VisitRotate(const RotateFunction* rotate_function) OVERRIDE;
+  void VisitScale(const ScaleFunction* scale_function) OVERRIDE;
+  void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE;
 
   AnimateTransformFunction(const TransformFunction* end, float progress)
       : end_(end), progress_(progress) {}
@@ -158,7 +158,8 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   scoped_ptr<TransformFunction> animated_;
 };
 
-void AnimateTransformFunction::VisitMatrix(MatrixFunction* matrix_function) {
+void AnimateTransformFunction::VisitMatrix(
+    const MatrixFunction* matrix_function) {
   const MatrixFunction* matrix_end =
       base::polymorphic_downcast<const MatrixFunction*>(end_);
   math::Matrix3F interpolated_matrix = math::InterpolateMatrices(
@@ -168,7 +169,8 @@ void AnimateTransformFunction::VisitMatrix(MatrixFunction* matrix_function) {
   animated_.reset(new MatrixFunction(interpolated_matrix));
 }
 
-void AnimateTransformFunction::VisitRotate(RotateFunction* rotate_function) {
+void AnimateTransformFunction::VisitRotate(
+    const RotateFunction* rotate_function) {
   const RotateFunction* rotate_end =
       base::polymorphic_downcast<const RotateFunction*>(end_);
 
@@ -179,7 +181,7 @@ void AnimateTransformFunction::VisitRotate(RotateFunction* rotate_function) {
       Lerp(rotate_function->angle_in_radians(), end_angle, progress_)));
 }
 
-void AnimateTransformFunction::VisitScale(ScaleFunction* scale_function) {
+void AnimateTransformFunction::VisitScale(const ScaleFunction* scale_function) {
   float end_x_factor, end_y_factor;
   if (end_ == NULL) {
     // Use the scale identity function, which is the value 1.
@@ -198,7 +200,7 @@ void AnimateTransformFunction::VisitScale(ScaleFunction* scale_function) {
 }
 
 void AnimateTransformFunction::VisitTranslate(
-    TranslateFunction* translate_function) {
+    const TranslateFunction* translate_function) {
   const TranslateFunction* translate_end =
       base::polymorphic_downcast<const TranslateFunction*>(end_);
   if (translate_end) {

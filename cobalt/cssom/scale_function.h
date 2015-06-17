@@ -31,7 +31,7 @@ class ScaleFunction : public TransformFunction {
   ScaleFunction(float x_factor, float y_factor)
       : x_factor_(x_factor), y_factor_(y_factor) {}
 
-  void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
   float x_factor() const { return x_factor_; }
   float y_factor() const { return y_factor_; }

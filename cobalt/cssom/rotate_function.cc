@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace cssom {
 
-void RotateFunction::Accept(TransformFunctionVisitor* visitor) {
+void RotateFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitRotate(this);
 }
 
