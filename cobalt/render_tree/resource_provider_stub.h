@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -128,7 +129,7 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(font_family_name);
     UNREFERENCED_PARAMETER(font_style);
     UNREFERENCED_PARAMETER(font_size);
-    return scoped_refptr<Font>();
+    return new FontStub();
   }
 };
 
