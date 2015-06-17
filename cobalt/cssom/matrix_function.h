@@ -35,7 +35,7 @@ class MatrixFunction : public TransformFunction {
   MatrixFunction(float m00, float m10, float m01, float m11, float m02,
                  float m12);
 
-  void Accept(TransformFunctionVisitor* visitor) OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
   const math::Matrix3F& value() const { return value_; }
 

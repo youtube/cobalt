@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace cssom {
 
-void TranslateFunction::Accept(TransformFunctionVisitor* visitor) {
+void TranslateFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitTranslate(this);
 }
 
