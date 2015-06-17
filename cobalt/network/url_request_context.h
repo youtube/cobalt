@@ -23,11 +23,15 @@
 #include "net/url_request/url_request_context_storage.h"
 
 namespace cobalt {
+namespace storage {
+class StorageManager;
+}
+
 namespace network {
 
 class URLRequestContext : public net::URLRequestContext {
  public:
-  URLRequestContext();
+  explicit URLRequestContext(storage::StorageManager* storage_manager);
   ~URLRequestContext() OVERRIDE;
 
  private:
