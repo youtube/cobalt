@@ -49,6 +49,7 @@ class MEDIA_EXPORT ShellWavTestProbe {
   // timestamp can be zero, in which case we will guess at timestamp based on
   // number of bytes written, size of samples, and sample rate
   void AddData(const uint8* data, uint32 length, uint64 timestamp);
+  void AddDataLittleEndian(const uint8* data, uint32 length, uint64 timestamp);
   void Close();
 
  private:

@@ -152,9 +152,6 @@ void ShellWavTestProbe::CloseAfter(uint64 milliseconds) {
 void ShellWavTestProbe::AddData(const uint8* data,
                                 uint32 length,
                                 uint64 timestamp) {
-  if (closed_) return;
-  if (!length) return;
-
 #if defined(__LB_SHELL__BIG_ENDIAN__)
   uint8* reverse_buffer = (uint8*)malloc(length);
   uint16 bytes_per_sample = bits_per_sample_ / 8;
@@ -169,13 +166,20 @@ void ShellWavTestProbe::AddData(const uint8* data,
       DLOG(ERROR) << "Failed to add data";
     }
   }
-  fwrite(reverse_buffer, 1, length, wav_file_);
+  AddDataLittleEndian(reverse_buffer, length, timestamp);
   free(reverse_buffer);
 #else
-  // write the buffer
-  fwrite(data, 1, length, wav_file_);
+  AddDataLittleEndian(data, length, timestamp);
 #endif
+}
 
+void ShellWavTestProbe::AddDataLittleEndian(const uint8* data,
+                                            uint32 length,
+                                            uint64 timestamp) {
+  if (closed_) return;
+  if (!length) return;
+
+  fwrite(data, 1, length, wav_file_);
   fflush(wav_file_);
 
   // update our counters
