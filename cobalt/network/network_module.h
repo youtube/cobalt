@@ -37,7 +37,7 @@ namespace network {
 // This is owned by BrowserModule.
 class NetworkModule {
  public:
-  NetworkModule();
+  explicit NetworkModule(storage::StorageManager* storage_manager);
   ~NetworkModule();
 
   URLRequestContext* url_request_context() const {
@@ -56,6 +56,7 @@ class NetworkModule {
  private:
   void OnCreate(base::WaitableEvent* creation_event);
 
+  storage::StorageManager* storage_manager_;
   scoped_ptr<base::Thread> io_thread_;
   scoped_ptr<base::ObjectWatchMultiplexer> object_watch_multiplexer_;
   scoped_ptr<URLRequestContext> url_request_context_;

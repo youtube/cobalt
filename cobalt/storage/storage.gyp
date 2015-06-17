@@ -13,64 +13,63 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'cobalt_code': 1,
-    'static_contents_dir': '<(DEPTH)/lbshell/content',
-  },
   'targets': [
     {
-      'target_name': 'network',
+      'target_name': 'storage',
       'type': 'static_library',
       'sources': [
-        '<(actual_target_arch)/network_system.cc',
-        'network_delegate.cc',
-        'network_delegate.h',
-        'network_module.cc',
-        'network_module.h',
-        'network_system.h',
-        'persistent_cookie_store.cc',
-        'persistent_cookie_store.h',
-        'url_request_context.cc',
-        'url_request_context.h',
-        'url_request_context_getter.cc',
-        'url_request_context_getter.h',
+        'savegame.cc',
+        'savegame.h',
+        'sql_vfs.cc',
+        'sql_vfs.h',
+        'storage_manager.cc',
+        'storage_manager.h',
+        'virtual_file.cc',
+        'virtual_file.h',
+        'virtual_file_system.cc',
+        'virtual_file_system.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/storage/storage.gyp:storage',
-        '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/sql/sql.gyp:sql',
       ],
-      'export_dependent_settings': [
-        '<(DEPTH)/net/net.gyp:net',
+      'conditions': [
+        ['target_arch=="ps3"', {
+          'sources': [
+            'savegame_ps3.cc',
+          ],
+        }],
+        ['actual_target_arch in ["linux", "win"]', {
+          'sources': [
+            'savegame_file.cc',
+          ],
+        }],
       ],
-      'copies': [
-      {
-        'destination': '<(PRODUCT_DIR)/content/data/ssl',
-        'files': ['<(static_contents_dir)/ssl/certs/'],
-      }],
     },
     {
-      'target_name': 'network_test',
+      'target_name': 'storage_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'persistent_cookie_store_test.cc',
+        'savegame_test.cc',
+        'storage_manager_test.cc',
+        'virtual_file_system_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        'network',
+        'storage',
       ],
     },
     {
-      'target_name': 'network_test_deploy',
+      'target_name': 'storage_test_deploy',
       'type': 'none',
       'dependencies': [
-        'network_test',
+        'storage_test',
       ],
       'variables': {
-        'executable_name': 'network_test',
+        'executable_name': 'storage_test',
       },
       'includes': [ '../build/deploy.gypi' ],
     },

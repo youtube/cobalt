@@ -32,8 +32,9 @@ void OnDestroy(scoped_ptr<URLRequestContext> url_request_context,
                scoped_ptr<NetworkDelegate> network_delegate) {}
 }  // namespace
 
-NetworkModule::NetworkModule()
-    : io_thread_(new base::Thread("IO Thread")),
+NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
+    : storage_manager_(storage_manager),
+      io_thread_(new base::Thread("IO Thread")),
       object_watch_multiplexer_(new base::ObjectWatchMultiplexer()) {
   PlatformInit();
 
@@ -79,7 +80,7 @@ NetworkModule::~NetworkModule() {
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(message_loop_proxy()->BelongsToCurrentThread());
 
-  url_request_context_.reset(new URLRequestContext());
+  url_request_context_.reset(new URLRequestContext(storage_manager_));
   NetworkDelegate::Options net_options;
   // TODO(***REMOVED***): Specify any override to the cookie settings
   // in net_options.
