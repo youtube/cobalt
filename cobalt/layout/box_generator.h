@@ -18,8 +18,7 @@
 #define LAYOUT_BOX_GENERATOR_H_
 
 #include "base/memory/scoped_vector.h"
-#include "base/time.h"
-#include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/node.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
@@ -53,7 +52,6 @@ class BoxGenerator : public dom::NodeVisitor {
           parent_computed_style,
       const UsedStyleProvider* used_style_provider,
       icu::BreakIterator* line_break_iterator,
-      const base::Time& style_change_event_time,
       ContainerBox* containing_box_for_absolute);
   ~BoxGenerator();
 
@@ -78,7 +76,6 @@ class BoxGenerator : public dom::NodeVisitor {
   icu::BreakIterator* const line_break_iterator_;
 
   Boxes boxes_;
-  const base::Time style_change_event_time_;
 
   // Maintains a reference to the box that should be used as the containing
   // block for absolutely positioned elements (e.g. their first ancestor
