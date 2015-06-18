@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <cmath>
+
 #include "cobalt/math/matrix_interpolation.h"
 #include "cobalt/math/transform_2d.h"
 #include "testing/gtest/include/gtest/gtest.h"
