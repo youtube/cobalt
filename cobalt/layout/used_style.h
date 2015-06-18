@@ -25,6 +25,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
@@ -57,8 +58,7 @@ class UsedStyleProvider {
       const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const;
 
-  scoped_refptr<render_tree::Image> GetUsedBackgroundImage(
-      const scoped_refptr<cssom::PropertyValue>& background_image_refptr) const;
+  scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url) const;
 
  private:
   render_tree::ResourceProvider* const resource_provider_;
@@ -69,6 +69,32 @@ class UsedStyleProvider {
 
 render_tree::ColorRGBA GetUsedColor(
     const scoped_refptr<cssom::PropertyValue>& color_refptr);
+
+class UsedBackgroundNodeProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  UsedBackgroundNodeProvider(
+      const UsedStyleProvider* used_style_provider,
+      const math::SizeF& frame_size,
+      const scoped_refptr<cssom::PropertyValue>& background_size,
+      const scoped_refptr<cssom::PropertyValue>& background_position);
+
+  void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
+
+  scoped_refptr<render_tree::Node> background_node() {
+    return background_node_;
+  }
+
+ private:
+  const UsedStyleProvider* const used_style_provider_;
+  const math::SizeF frame_size_;
+  const scoped_refptr<cssom::PropertyValue> background_size_;
+  const scoped_refptr<cssom::PropertyValue> background_position_;
+
+  scoped_refptr<render_tree::Node> background_node_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundNodeProvider);
+};
 
 class UsedBackgroundPositionProvider
     : public cssom::NotReachedPropertyValueVisitor {
