@@ -20,6 +20,9 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
+using ::testing::A;
+using ::testing::InSequence;
 using ::testing::Return;
 
 namespace cobalt {
@@ -88,6 +91,63 @@ TEST_F(OperationsBindingsTest, OptionalArguments) {
 
   EXPECT_CALL(test_mock(), OptionalArgumentWithDefault(3.14));
   EXPECT_TRUE(EvaluateScript("test.optionalArgumentWithDefault(3.14);", NULL));
+}
+
+TEST_F(OperationsBindingsTest, OverloadedOperationByNumberOfArguments) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(test_mock(), OverloadedFunction());
+  EXPECT_TRUE(EvaluateScript("test.overloadedFunction();", NULL));
+
+  EXPECT_CALL(test_mock(), OverloadedFunction(_, _, A<int32_t>()));
+  EXPECT_TRUE(EvaluateScript("test.overloadedFunction(6, 8, 9);", NULL));
+
+  EXPECT_CALL(
+      test_mock(),
+      OverloadedFunction(_, _, A<const scoped_refptr<ArbitraryInterface>&>()));
+  EXPECT_TRUE(EvaluateScript(
+      "test.overloadedFunction(6, 8, new ArbitraryInterface());", NULL));
+}
+
+TEST_F(OperationsBindingsTest, OverloadedOperationInvalidNumberOfArguments) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_TRUE(EvaluateScript(
+      "var error = null;"
+      "try { test.overloadedFunction(1, 2); }"
+      "catch(e) { error = e; }",
+      NULL));
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(
+      "Object.getPrototypeOf(error) === TypeError.prototype;", &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(OperationsBindingsTest, OverloadedOperationByType) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(test_mock(), OverloadedFunction(A<int32_t>()));
+  EXPECT_TRUE(EvaluateScript("test.overloadedFunction(4);", NULL));
+
+  EXPECT_CALL(test_mock(), OverloadedFunction(A<const std::string&>()));
+  EXPECT_TRUE(EvaluateScript("test.overloadedFunction(\"foo\");", NULL));
+}
+
+TEST_F(OperationsBindingsTest, StaticMethodNotPartOfOverloadSet) {
+  EXPECT_CALL(OperationsTestInterface::static_methods_mock.Get(),
+              OverloadedFunction(_));
+  EXPECT_TRUE(
+      EvaluateScript("OperationsTestInterface.overloadedFunction(6.1);", NULL));
+}
+
+TEST_F(OperationsBindingsTest, OverloadedOperationByOptionality) {
+  InSequence in_sequence_dummy;
+
+  EXPECT_CALL(test_mock(), OverloadedNullable(A<int32_t>()));
+  EXPECT_TRUE(EvaluateScript("test.overloadedNullable(5);", NULL));
+
+  EXPECT_CALL(test_mock(), OverloadedNullable(base::optional<bool>()));
+  EXPECT_TRUE(EvaluateScript("test.overloadedNullable(null);", NULL));
 }
 
 }  // namespace testing
