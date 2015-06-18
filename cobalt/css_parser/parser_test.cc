@@ -466,18 +466,6 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
   EXPECT_EQ(0xffffffff, background_color->value());
 }
 
-TEST_F(ParserTest, ParsesBackgroundImageURL) {
-  scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseDeclarationList("background-image: url(sample.png);",
-                                   source_location_);
-
-  scoped_refptr<cssom::URLValue> image =
-      dynamic_cast<cssom::URLValue*>(style->background_image().get());
-
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), image);
-  EXPECT_EQ("sample.png", image->value());
-}
-
 TEST_F(ParserTest, ParsesBackgroundImageNone) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("background-image: none;", source_location_);
@@ -491,6 +479,45 @@ TEST_F(ParserTest, ParsesBackgroundImageInherit) {
                                    source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->background_image());
+}
+
+TEST_F(ParserTest, ParsesSingleBackgroundImageURL) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-image: url(foo.png);",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::URLValue> url_value_1 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
+  EXPECT_EQ("foo.png", url_value_1->value());
+}
+
+TEST_F(ParserTest, ParsesMultipleBackgroundImageURLs) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background-image: url(foo.png), url(bar.jpg), url(baz.png);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  EXPECT_EQ(3, background_image_list->value().size());
+
+  scoped_refptr<cssom::URLValue> url_value_1 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[0].get());
+  EXPECT_EQ("foo.png", url_value_1->value());
+
+  scoped_refptr<cssom::URLValue> url_value_2 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[1].get());
+  EXPECT_EQ("bar.jpg", url_value_2->value());
+
+  scoped_refptr<cssom::URLValue> url_value_3 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[2].get());
+  EXPECT_EQ("baz.png", url_value_3->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
