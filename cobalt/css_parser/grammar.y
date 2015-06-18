@@ -293,6 +293,7 @@
 %union { cssom::PropertyValue* property_value; }
 %type <property_value> auto_length_percent_property_value
                        background_color_property_value
+                       background_image_property_list_element
                        background_image_property_value
                        background_position_property_list_element
                        background_position_property_value
@@ -363,7 +364,8 @@
 %destructor { $$->Release(); } <style_rule>
 
 %union { cssom::PropertyListValue::Builder* background_property_list; }
-%type <background_property_list> maybe_background_size
+%type <background_property_list> comma_separated_background_image_list
+                                 maybe_background_size
                                  background_position_property_list
                                  background_size_property_list
 %destructor { delete $$; } <background_property_list>
@@ -1155,6 +1157,25 @@ background_color_property_value:
   | common_values
   ;
 
+// TODO(***REMOVED***): Parse linear gradient.
+background_image_property_list_element:
+    url {
+    $$ = $1;
+  }
+  ;
+
+comma_separated_background_image_list:
+    background_image_property_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_background_image_list comma
+    background_image_property_list_element {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+  }
+  ;
+
 // Images are drawn with the first specified one on top (closest to the user)
 // and each subsequent image behind the previous one.
 //   http://www.w3.org/TR/css3-background/#the-background-image
@@ -1162,7 +1183,12 @@ background_image_property_value:
     kNoneToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
-  | url
+  | comma_separated_background_image_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
   | common_values
   ;
 

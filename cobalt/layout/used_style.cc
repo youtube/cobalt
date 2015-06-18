@@ -24,6 +24,8 @@
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/image_node.h"
 
 namespace cobalt {
 namespace layout {
@@ -47,58 +49,6 @@ render_tree::FontStyle ConvertFontWeightToRenderTreeFontStyle(
     default:
       NOTREACHED() << "Not supported value: " << value;
       return render_tree::kNormal;
-  }
-}
-
-class UsedBackgroundImageProvider
-    : public cssom::NotReachedPropertyValueVisitor {
- public:
-  explicit UsedBackgroundImageProvider(loader::ImageCache* image_cache)
-      : image_cache_(image_cache) {}
-
-  void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-
-  const scoped_refptr<render_tree::Image>& used_background_image() const {
-    return used_background_image_;
-  }
-
- private:
-  loader::ImageCache* const image_cache_;
-  scoped_refptr<render_tree::Image> used_background_image_;
-
-  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundImageProvider);
-};
-
-void UsedBackgroundImageProvider::VisitAbsoluteURL(
-    cssom::AbsoluteURLValue* url_value) {
-  used_background_image_ = image_cache_->TryGetImage(url_value->value());
-}
-
-void UsedBackgroundImageProvider::VisitKeyword(cssom::KeywordValue* keyword) {
-  switch (keyword->value()) {
-    case cssom::KeywordValue::kNone:
-      used_background_image_ = NULL;
-      break;
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kAuto:
-    case cssom::KeywordValue::kBaseline:
-    case cssom::KeywordValue::kBlock:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kInline:
-    case cssom::KeywordValue::kInlineBlock:
-    case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kTop:
-    case cssom::KeywordValue::kVisible:
-    default:
-      NOTREACHED();
   }
 }
 
@@ -228,11 +178,9 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
       font_family->value().c_str(), font_style, font_size->value());
 }
 
-scoped_refptr<render_tree::Image> UsedStyleProvider::GetUsedBackgroundImage(
-    const scoped_refptr<cssom::PropertyValue>& background_image_refptr) const {
-  UsedBackgroundImageProvider used_background_image_provider(image_cache_);
-  background_image_refptr->Accept(&used_background_image_provider);
-  return used_background_image_provider.used_background_image();
+scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
+    const GURL& url) const {
+  return image_cache_->TryGetImage(url);
 }
 
 render_tree::ColorRGBA GetUsedColor(
@@ -240,6 +188,42 @@ render_tree::ColorRGBA GetUsedColor(
   cssom::RGBAColorValue* color =
       base::polymorphic_downcast<cssom::RGBAColorValue*>(color_refptr.get());
   return render_tree::ColorRGBA(color->value());
+}
+
+UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
+    const UsedStyleProvider* used_style_provider, const math::SizeF& frame_size,
+    const scoped_refptr<cssom::PropertyValue>& background_size,
+    const scoped_refptr<cssom::PropertyValue>& background_position)
+    : used_style_provider_(used_style_provider),
+      frame_size_(frame_size),
+      background_size_(background_size),
+      background_position_(background_position) {}
+
+void UsedBackgroundNodeProvider::VisitAbsoluteURL(
+    cssom::AbsoluteURLValue* url_value) {
+  // Deal with the case that background image is an image resource as opposed to
+  // "linear-gradient".
+  scoped_refptr<render_tree::Image> used_background_image =
+      used_style_provider_->ResolveURLToImage(url_value->value());
+
+  if (used_background_image) {
+    UsedBackgroundSizeProvider used_background_size_provider(
+        frame_size_, used_background_image->GetSize());
+    background_size_->Accept(&used_background_size_provider);
+
+    UsedBackgroundPositionProvider used_background_position_provider(
+        frame_size_, math::SizeF(used_background_size_provider.width(),
+                                 used_background_size_provider.height()));
+    background_position_->Accept(&used_background_position_provider);
+
+    math::Matrix3F local_transform_matrix =
+        math::TranslateMatrix(used_background_position_provider.translate_x(),
+                              used_background_position_provider.translate_y()) *
+        math::ScaleMatrix(used_background_size_provider.width_scale(),
+                          used_background_size_provider.height_scale());
+    background_node_ = new render_tree::ImageNode(
+        used_background_image, frame_size_, local_transform_matrix);
+  }
 }
 
 //   http://www.w3.org/TR/css3-background/#the-background-position
