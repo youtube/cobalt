@@ -15,7 +15,10 @@
  */
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
+#include "cobalt/bindings/testing/constructor_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::_;
 
 namespace cobalt {
 namespace bindings {
@@ -25,6 +28,8 @@ typedef BindingsTestBase ConstructorBindingsTest;
 }  // namespace
 
 TEST_F(ConstructorBindingsTest, CanConstructNewObject) {
+  EXPECT_CALL(ConstructorInterface::constructor_implementation_mock.Get(),
+              Constructor());
   EXPECT_TRUE(EvaluateScript("var obj = new ConstructorInterface()", NULL));
 
   std::string result;
@@ -53,8 +58,8 @@ TEST_F(ConstructorBindingsTest, CanConstructNewObjectWithArguments) {
   EXPECT_STREQ("foo", result.c_str());
 }
 
-// Length property is set to the least number of arguments of all constructor
-// overloads.
+// Length property is set to the length of the shortest argument list of all
+// overload sets.
 TEST_F(ConstructorBindingsTest, LengthPropertyIsSet) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("ConstructorInterface.length == 0", &result));
@@ -64,8 +69,18 @@ TEST_F(ConstructorBindingsTest, LengthPropertyIsSet) {
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_TRUE(
-      EvaluateScript("ConstructorWithArgumentsInterface.length == 3", &result));
+      EvaluateScript("ConstructorWithArgumentsInterface.length == 2", &result));
   EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(ConstructorBindingsTest, OverloadedConstructor) {
+  EXPECT_CALL(ConstructorInterface::constructor_implementation_mock.Get(),
+              Constructor());
+  EXPECT_TRUE(EvaluateScript("var obj = new ConstructorInterface()", NULL));
+
+  EXPECT_CALL(ConstructorInterface::constructor_implementation_mock.Get(),
+              Constructor(_));
+  EXPECT_TRUE(EvaluateScript("var obj = new ConstructorInterface(true)", NULL));
 }
 
 }  // namespace testing

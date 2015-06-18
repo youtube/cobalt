@@ -17,7 +17,9 @@
 #ifndef BINDINGS_TESTING_CONSTRUCTOR_INTERFACE_H_
 #define BINDINGS_TESTING_CONSTRUCTOR_INTERFACE_H_
 
+#include "base/lazy_instance.h"
 #include "cobalt/script/wrappable.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace bindings {
@@ -25,7 +27,22 @@ namespace testing {
 
 class ConstructorInterface : public script::Wrappable {
  public:
+  class ConstructorImplementationMock {
+   public:
+    MOCK_METHOD0(Constructor, void());
+    MOCK_METHOD1(Constructor, void(bool));
+  };
+  ConstructorInterface() {
+    constructor_implementation_mock.Get().Constructor();
+  }
+  explicit ConstructorInterface(bool arg) {
+    constructor_implementation_mock.Get().Constructor(arg);
+  }
+
   DEFINE_WRAPPABLE_TYPE(ConstructorInterface);
+
+  static base::LazyInstance< ::testing::StrictMock<
+      ConstructorImplementationMock> > constructor_implementation_mock;
 };
 
 }  // namespace testing
