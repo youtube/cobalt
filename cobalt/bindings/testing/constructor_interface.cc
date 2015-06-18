@@ -14,9 +14,17 @@
  * limitations under the License.
  */
 
-[
-  Constructor,
-  Constructor(boolean arg),
-]
-interface ConstructorInterface {
-};
+#include "cobalt/bindings/testing/constructor_interface.h"
+
+namespace cobalt {
+namespace bindings {
+namespace testing {
+
+base::LazyInstance<
+    ::testing::StrictMock<ConstructorInterface::ConstructorImplementationMock> >
+    ConstructorInterface::constructor_implementation_mock =
+        LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace testing
+}  // namespace bindings
+}  // namespace cobalt
