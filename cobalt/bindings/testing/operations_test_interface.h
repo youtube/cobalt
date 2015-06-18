@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/lazy_instance.h"
 #include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
@@ -30,6 +31,11 @@ namespace testing {
 
 class OperationsTestInterface : public script::Wrappable {
  public:
+  class StaticMethodsMock {
+   public:
+    MOCK_METHOD1(OverloadedFunction, void(double));
+  };
+
   MOCK_METHOD0(VoidFunctionNoArgs, void());
   MOCK_METHOD0(StringFunctionNoArgs, std::string());
   MOCK_METHOD0(ObjectFunctionNoArgs, scoped_refptr<ArbitraryInterface>());
@@ -52,7 +58,25 @@ class OperationsTestInterface : public script::Wrappable {
   MOCK_METHOD2(VariadicStringArgumentsAfterOptionalArgument,
                void(bool, const std::vector<std::string>));
 
+  MOCK_METHOD0(OverloadedFunction, void());
+  MOCK_METHOD1(OverloadedFunction, void(int32_t));
+  MOCK_METHOD1(OverloadedFunction, void(const std::string&));
+  MOCK_METHOD3(OverloadedFunction, void(int32_t, int32_t, int32_t));
+  MOCK_METHOD3(OverloadedFunction,
+               void(int32_t, int32_t,
+                    const scoped_refptr<ArbitraryInterface>&));
+
+  static void OverloadedFunction(double arg) {
+    static_methods_mock.Get().OverloadedFunction(arg);
+  }
+
+  MOCK_METHOD1(OverloadedNullable, void(int32_t));
+  MOCK_METHOD1(OverloadedNullable, void(base::optional<bool>));
+
   DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
+
+  static base::LazyInstance< ::testing::StrictMock<StaticMethodsMock> >
+      static_methods_mock;
 };
 
 }  // namespace testing

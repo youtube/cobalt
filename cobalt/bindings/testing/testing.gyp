@@ -79,6 +79,8 @@
       'sources': [
         '<@(generated_sources)',
         'constants_interface.cc',
+        'constructor_interface.cc',
+        'operations_test_interface.cc',
         'static_properties_interface.cc',
       ],
       'defines': [
