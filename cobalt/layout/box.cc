@@ -17,9 +17,9 @@
 #include "cobalt/layout/box.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
@@ -28,12 +28,10 @@
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/filter_node.h"
-#include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
-using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
 using cobalt::render_tree::animations::Animation;
@@ -254,31 +252,7 @@ void Box::AddBackgroundToRenderTree(
   scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
   composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
 
-  scoped_refptr<render_tree::Image> used_background_image =
-      used_style_provider_->GetUsedBackgroundImage(
-          computed_style_->background_image());
-
-  if (used_background_image) {
-    UsedBackgroundSizeProvider used_background_size_provider(
-        used_size(), used_background_image->GetSize());
-    computed_style_->background_size()->Accept(&used_background_size_provider);
-
-    UsedBackgroundPositionProvider used_background_position_provider(
-        used_size(), math::SizeF(used_background_size_provider.width(),
-                                 used_background_size_provider.height()));
-    computed_style_->background_position()->Accept(
-        &used_background_position_provider);
-
-    math::Matrix3F local_transform_matrix =
-        math::TranslateMatrix(used_background_position_provider.translate_x(),
-                              used_background_position_provider.translate_y()) *
-        math::ScaleMatrix(used_background_size_provider.width_scale(),
-                          used_background_size_provider.height_scale());
-
-    scoped_refptr<ImageNode> image_node(new ImageNode(
-        used_background_image, used_size(), local_transform_matrix));
-    composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
-  }
+  AddBackgroundImageToRenderTree(composition_node_builder);
 
   if (!transitions_->empty()) {
     AddTransitionAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
@@ -319,6 +293,31 @@ void Box::DumpProperties(std::ostream* stream) const {
 
 void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
                                  int /*indent*/) const {}
+
+void Box::AddBackgroundImageToRenderTree(
+    CompositionNode::Builder* composition_node_builder) const {
+  if (computed_style_->background_image() != cssom::KeywordValue::GetNone()) {
+    cssom::PropertyListValue* property_list =
+        base::polymorphic_downcast<cssom::PropertyListValue*>(
+            computed_style_->background_image().get());
+    // The farthest image is added to |composition_node_builder| first.
+    for (cssom::PropertyListValue::Builder::const_reverse_iterator
+             image_iterator = property_list->value().rbegin();
+         image_iterator != property_list->value().rend(); ++image_iterator) {
+      UsedBackgroundNodeProvider background_node_provider(
+          used_style_provider_, used_size(), computed_style_->background_size(),
+          computed_style_->background_position());
+      (*image_iterator)->Accept(&background_node_provider);
+      scoped_refptr<render_tree::Node> background_node =
+          background_node_provider.background_node();
+
+      if (background_node) {
+        composition_node_builder->AddChild(background_node,
+                                           math::Matrix3F::Identity());
+      }
+    }
+  }
+}
 
 }  // namespace layout
 }  // namespace cobalt
