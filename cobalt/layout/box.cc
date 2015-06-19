@@ -17,6 +17,7 @@
 #include "cobalt/layout/box.h"
 
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -245,21 +246,10 @@ void SetupRectNodeFromStyle(
 void Box::AddBackgroundToRenderTree(
     CompositionNode::Builder* composition_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  RectNode::Builder rect_node_builder(used_size(),
-                                      scoped_ptr<render_tree::Brush>());
-  SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
-
-  scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
-  composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
-
-  AddBackgroundImageToRenderTree(composition_node_builder);
-
-  if (!transitions_->empty()) {
-    AddTransitionAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
-                                      *computed_style_, rect_node,
-                                      *transitions_,
-                                      node_animations_map_builder);
-  }
+  AddBackgroundColorToRenderTree(composition_node_builder,
+                                 node_animations_map_builder);
+  AddBackgroundImageToRenderTree(composition_node_builder,
+                                 node_animations_map_builder);
 }
 
 bool Box::IsPositioned() const {
@@ -294,8 +284,38 @@ void Box::DumpProperties(std::ostream* stream) const {
 void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
                                  int /*indent*/) const {}
 
+void Box::AddBackgroundColorToRenderTree(
+    render_tree::CompositionNode::Builder* composition_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  // Only create the RectNode if the background color is not the initial value
+  // (which we know is transparent) and not transparent.  If it's animated,
+  // add it no matter what since its value may change over time to be
+  // non-transparent.
+  bool color_is_fully_transparent =
+      GetUsedColor(computed_style_->background_color()).a() == 0.0f;
+  bool color_is_animated = transitions_->GetTransitionForProperty(
+      cssom::kBackgroundColorPropertyName);
+  if (!color_is_fully_transparent || color_is_animated) {
+    RectNode::Builder rect_node_builder(used_size(),
+                                        scoped_ptr<render_tree::Brush>());
+    SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
+
+    scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
+    composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
+
+    if (!transitions_->empty()) {
+      AddTransitionAnimations<RectNode>(
+          base::Bind(&SetupRectNodeFromStyle), *computed_style_, rect_node,
+          *transitions_, node_animations_map_builder);
+    }
+  }
+}
+
 void Box::AddBackgroundImageToRenderTree(
-    CompositionNode::Builder* composition_node_builder) const {
+    CompositionNode::Builder* composition_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  UNREFERENCED_PARAMETER(node_animations_map_builder);
+
   if (computed_style_->background_image() != cssom::KeywordValue::GetNone()) {
     cssom::PropertyListValue* property_list =
         base::polymorphic_downcast<cssom::PropertyListValue*>(
