@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "media/base/video_frame.h"
+#include "media/filters/shell_video_decoder_impl.h"
 
 namespace media {
 
@@ -112,6 +113,12 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
       const scoped_refptr<FrameBuffer>& frame_buffer, const NV12Param& param,
       const base::TimeDelta& timestamp) = 0;
 #endif  // defined(__LB_PS4__)
+
+  // Most platforms limit the number of active raw video decoders to one.  The
+  // following functions enable the implementations on these platforms to check
+  // if there is more than one video decoder active.
+  virtual void Acquire(ShellRawVideoDecoder* owner) {}
+  virtual void Release(ShellRawVideoDecoder* owner) {}
 
  protected:
   ~ShellVideoDataAllocator() {}

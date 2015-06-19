@@ -23,6 +23,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_export.h"
+#include "media/base/shell_buffer_factory.h"
 #include "media/base/shell_video_data_allocator.h"
 #include "media/base/shell_video_frame_provider.h"
 
@@ -97,8 +98,8 @@ class MEDIA_EXPORT ShellMediaPlatform {
 
  private:
   // Platform specific media Init and Tear down.
-  virtual void InternalInitialize() const = 0;
-  virtual void InternalTerminate() const = 0;
+  virtual void InternalInitialize() {}
+  virtual void InternalTerminate() {}
 
   DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatform);
 };
@@ -110,11 +111,13 @@ class MEDIA_EXPORT ShellMediaPlatform {
     void ShellMediaPlatform::Initialize() {      \
       DCHECK(!Instance());                       \
       SetInstance(new ClassName);                \
+      ShellBufferFactory::Initialize();          \
       Instance()->InternalInitialize();          \
     }                                            \
     void ShellMediaPlatform::Terminate() {       \
       DCHECK(Instance());                        \
       Instance()->InternalTerminate();           \
+      ShellBufferFactory::Terminate();           \
       delete Instance();                         \
       SetInstance(NULL);                         \
     }                                            \
