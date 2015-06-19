@@ -225,9 +225,17 @@ class Box {
   }
 
  private:
+  // Renders the background color of the box.
+  void AddBackgroundColorToRenderTree(
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
+
   // Renders the background image of the box.
   void AddBackgroundImageToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder) const;
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
 
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
 

@@ -122,15 +122,23 @@ float TextBox::GetHeightAboveBaseline() const { return height_above_baseline_; }
 void TextBox::AddContentToRenderTree(
     render_tree::CompositionNode::Builder* composition_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
-    /* node_animations_map_builder */) const {
-  render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
+        node_animations_map_builder) const {
+  UNREFERENCED_PARAMETER(node_animations_map_builder);
 
-  // The render tree API considers text coordinates to be a position of
-  // a baseline, offset the text node accordingly.
-  composition_node_builder->AddChild(
-      new render_tree::TextNode(text_, used_font_, used_color),
-      math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
-                            height_above_baseline_));
+  // Only add the text node to the render tree if it actually has content.
+  if (!text_.empty()) {
+    render_tree::ColorRGBA used_color = GetUsedColor(computed_style()->color());
+
+    // Only render the text if it is not completely transparent.
+    if (used_color.a() > 0.0f) {
+      // The render tree API considers text coordinates to be a position of
+      // a baseline, offset the text node accordingly.
+      composition_node_builder->AddChild(
+          new render_tree::TextNode(text_, used_font_, used_color),
+          math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
+                                height_above_baseline_));
+    }
+  }
 }
 
 bool TextBox::IsTransformable() const { return false; }
