@@ -23,7 +23,6 @@
 #include "base/threading/thread.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/shell_buffer_factory.h"
-#include "media/base/shell_video_data_allocator.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/shell_video_decoder.h"
 
