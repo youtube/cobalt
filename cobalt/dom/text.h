@@ -34,7 +34,7 @@ class Text : public CharacterData {
   const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kTextNode; }
 
-  // Custom, not in any spec.
+  // Custom, not in any spec: Node.
   //
   bool IsText() const OVERRIDE { return true; }
 
@@ -42,6 +42,8 @@ class Text : public CharacterData {
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+
+  scoped_refptr<Node> Duplicate() const OVERRIDE { return new Text(data()); }
 
   DEFINE_WRAPPABLE_TYPE(Text);
 

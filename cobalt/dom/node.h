@@ -148,6 +148,8 @@ class Node : public EventTarget {
   virtual void set_text_content(
       const base::optional<std::string>& /* text_content */) {}
 
+  scoped_refptr<Node> CloneNode(bool deep) const;
+
   bool Contains(const scoped_refptr<Node>& other_name) const;
 
   virtual scoped_refptr<Node> InsertBefore(
@@ -199,6 +201,8 @@ class Node : public EventTarget {
   // double dispatch.
   virtual void Accept(NodeVisitor* visitor) = 0;
   virtual void Accept(ConstNodeVisitor* visitor) const = 0;
+
+  virtual scoped_refptr<Node> Duplicate() const = 0;
 
   DEFINE_WRAPPABLE_TYPE(Node);
 
