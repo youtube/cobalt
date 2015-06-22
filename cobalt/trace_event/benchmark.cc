@@ -78,11 +78,12 @@ void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
   // Output the results.
   for (std::vector<Benchmark::Result>::iterator iter = results.begin();
        iter != results.end(); ++iter) {
+    Output("  %s\n", iter->name.c_str());
     if (iter->samples.empty()) {
+      Output("    No samples found.\n");
       continue;
     }
 
-    Output("  %s\n", iter->name.c_str());
     double samples_average = 0;
     double samples_min = std::numeric_limits<double>::max();
     double samples_max = std::numeric_limits<double>::min();
