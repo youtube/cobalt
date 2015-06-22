@@ -42,6 +42,23 @@ void EventParser::ScopedEvent::Abort() {
   DCHECK_NE(kFlowEndedState, state_)
       << "There is no need to abort a totally completed event.";
 
+  // Report the event as complete, even though we aborted it.  The callee here
+  // is responsible for checking if the event values it is interested in are
+  // actually available before accessing them.  It is useful to report aborted
+  // events because events are only reported as ended when their entire flow
+  // has ended, but a benchmark may only be interested in the in-scope-duration,
+  // and thus events that are aborted can still provide information to
+  // benchmarks.
+  event_parser_->scoped_event_flow_end_callback_.Run(make_scoped_refptr(this));
+
+  if (parent_) {
+    DCHECK_GT(parent_->flow_active_children_, 0);
+    --parent_->flow_active_children_;
+    if (parent_->flow_active_children_ == 0) {
+      parent_->Abort();
+    }
+  }
+
   parent_ = NULL;
   state_ = kAbortedState;
 }
@@ -125,31 +142,81 @@ bool EventParser::ScopedEvent::AreEndFlowConditionsMet() const {
          flow_active_children_ == 0 && end_event_;
 }
 
+std::set<scoped_refptr<EventParser::ScopedEvent> >
+EventParser::ScopedEvent::GetLeafEvents() {
+  std::set<scoped_refptr<ScopedEvent> > results;
+  if (children_.empty()) {
+    results.insert(this);
+  } else {
+    for (size_t i = 0; i < children_.size(); ++i) {
+      std::set<scoped_refptr<ScopedEvent> > sub_results =
+          children_[i]->GetLeafEvents();
+      results.insert(sub_results.begin(), sub_results.end());
+    }
+  }
+  return results;
+}
+
 EventParser::EventParser(
     const ScopedEventFlowEndCallback& scoped_event_flow_end_callback) {
   scoped_event_flow_end_callback_ = scoped_event_flow_end_callback;
 }
 
 EventParser::~EventParser() {
+  // Knowing that there will be no future events, clear all existing events of
+  // "last touched" status as this may permit them to end normally.
+  for (ThreadMap::iterator thread_iter = thread_id_to_info_map_.begin();
+       thread_iter != thread_id_to_info_map_.end(); ++thread_iter) {
+    UpdateLastTouchedEvent(&thread_iter->second, NULL);
+  }
+
+  // Abort all leaf events.  When the last of a parent node's children is
+  // aborted, the parent node will itself be aborted and thus aborting all
+  // the leaf nodes will result in all nodes being aborted.
+  std::set<scoped_refptr<ScopedEvent> > leaf_events =
+      EventParser::GetLeafEvents();
+
+  for (std::set<scoped_refptr<ScopedEvent> >::const_iterator iter =
+           leaf_events.begin();
+       iter != leaf_events.end(); ++iter) {
+    (*iter)->Abort();
+  }
+}
+
+std::set<scoped_refptr<EventParser::ScopedEvent> >
+EventParser::GetLeafEvents() {
+  // Go through all root event handles we have and obtain the leaf nodes from
+  // each of their event flow trees.  Combine them all together into a set
+  // and return this set of all leaf event nodes.
+  std::set<scoped_refptr<ScopedEvent> > leaf_events;
+
+  // First go through all flow event handles.
   for (FlowEventMap::iterator flow_iter = flow_id_to_event_map_.begin();
        flow_iter != flow_id_to_event_map_.end(); ++flow_iter) {
     scoped_refptr<ScopedEvent> current_flow_event = flow_iter->second;
-    current_flow_event->Abort();
+    std::set<scoped_refptr<ScopedEvent> > current_leaf_events =
+        current_flow_event->GetLeafEvents();
+    leaf_events.insert(current_leaf_events.begin(), current_leaf_events.end());
   }
 
+  // Then go through all thread stacks.
   for (ThreadMap::iterator thread_iter = thread_id_to_info_map_.begin();
        thread_iter != thread_id_to_info_map_.end(); ++thread_iter) {
     std::vector<scoped_refptr<ScopedEvent> >* current_event_stack =
         &thread_iter->second.event_stack_;
-    while (!current_event_stack->empty()) {
-      current_event_stack->back()->Abort();
-      current_event_stack->pop_back();
+    if (!current_event_stack->empty()) {
+      // We only need to look at the last element of each stack, since we know
+      // that everything on top of that element is a parent of the element under
+      // it (and hence not a leaf node).
+      std::set<scoped_refptr<ScopedEvent> > current_leaf_events =
+          current_event_stack->back()->GetLeafEvents();
+      leaf_events.insert(current_leaf_events.begin(),
+                         current_leaf_events.end());
     }
-
-    UpdateLastTouchedEvent(&thread_iter->second, NULL);
   }
-}
 
+  return leaf_events;
+}
 
 namespace {
 
@@ -228,6 +295,7 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       scoped_refptr<ScopedEvent> ended_event = thread_info->event_stack_.back();
       UpdateLastTouchedEvent(thread_info, ended_event);
       DCHECK_EQ(std::string(event.name()), ended_event->begin_event().name());
+
       // Mark the event as ended.
       ended_event->OnEnd(event);
       thread_info->event_stack_.pop_back();

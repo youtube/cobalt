@@ -18,12 +18,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -81,12 +85,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -102,12 +110,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -184,12 +196,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -205,12 +221,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -226,12 +246,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_3) {\
       switch (measurement_type_3) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_3_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_3_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_3_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_3_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_3_last_begin_time_.is_null()) {\
@@ -328,12 +352,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -349,12 +377,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -370,12 +402,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_3) {\
       switch (measurement_type_3) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_3_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_3_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_3_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_3_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_3_last_begin_time_.is_null()) {\
@@ -391,12 +427,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_4) {\
       switch (measurement_type_4) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_4_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_4_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_4_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_4_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_4_last_begin_time_.is_null()) {\
@@ -512,12 +552,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -533,12 +577,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -554,12 +602,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_3) {\
       switch (measurement_type_3) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_3_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_3_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_3_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_3_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_3_last_begin_time_.is_null()) {\
@@ -575,12 +627,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_4) {\
       switch (measurement_type_4) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_4_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_4_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_4_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_4_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_4_last_begin_time_.is_null()) {\
@@ -596,12 +652,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_5) {\
       switch (measurement_type_5) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_5_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_5_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_5_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_5_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_5_last_begin_time_.is_null()) {\
@@ -737,12 +797,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -758,12 +822,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -779,12 +847,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_3) {\
       switch (measurement_type_3) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_3_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_3_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_3_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_3_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_3_last_begin_time_.is_null()) {\
@@ -800,12 +872,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_4) {\
       switch (measurement_type_4) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_4_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_4_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_4_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_4_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_4_last_begin_time_.is_null()) {\
@@ -821,12 +897,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_5) {\
       switch (measurement_type_5) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_5_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_5_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_5_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_5_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_5_last_begin_time_.is_null()) {\
@@ -842,12 +922,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_6) {\
       switch (measurement_type_6) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_6_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_6_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_6_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_6_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_6_last_begin_time_.is_null()) {\
@@ -1002,12 +1086,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_1_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_1_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_1_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_1_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_1_last_begin_time_.is_null()) {\
@@ -1023,12 +1111,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_2) {\
       switch (measurement_type_2) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_2_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_2_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_2_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_2_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_2_last_begin_time_.is_null()) {\
@@ -1044,12 +1136,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_3) {\
       switch (measurement_type_3) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_3_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_3_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_3_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_3_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_3_last_begin_time_.is_null()) {\
@@ -1065,12 +1161,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_4) {\
       switch (measurement_type_4) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_4_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_4_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_4_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_4_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_4_last_begin_time_.is_null()) {\
@@ -1086,12 +1186,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_5) {\
       switch (measurement_type_5) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_5_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_5_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_5_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_5_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_5_last_begin_time_.is_null()) {\
@@ -1107,12 +1211,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_6) {\
       switch (measurement_type_6) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_6_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_6_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_6_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_6_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_6_last_begin_time_.is_null()) {\
@@ -1128,12 +1236,16 @@ class benchmark : public cobalt::trace_event::Benchmark {\
     if (event->name() == event_name_7) {\
       switch (measurement_type_7) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_7_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_7_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_7_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_7_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_7_last_begin_time_.is_null()) {\
