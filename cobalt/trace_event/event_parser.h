@@ -17,6 +17,7 @@
 #ifndef TRACE_EVENT_EVENT_PARSER_H_
 #define TRACE_EVENT_EVENT_PARSER_H_
 
+#include <set>
 #include <vector>
 
 #include "base/debug/trace_event.h"
@@ -62,14 +63,25 @@ class EventParser {
     const std::string name() const { return begin_event().name(); }
 
     // Convenience method for returning the duration of this event's entire
-    // flow.
-    base::TimeDelta flow_duration() const {
-      return *end_flow_time() - begin_event().timestamp();
+    // flow.  This value may not exist if the trace was terminated before the
+    // end of the scoped event's flow occurs.
+    base::optional<base::TimeDelta> flow_duration() const {
+      if (end_flow_time()) {
+        return *end_flow_time() - begin_event().timestamp();
+      } else {
+        return base::nullopt;
+      }
     }
 
     // Convenience method for returning the duration of this event's scope.
-    base::TimeDelta in_scope_duration() const {
-      return end_event()->timestamp() - begin_event().timestamp();
+    // This value may not exist if the trace was terminated before the
+    // scoped event's end occurs.
+    base::optional<base::TimeDelta> in_scope_duration() const {
+      if (end_event()) {
+        return end_event()->timestamp() - begin_event().timestamp();
+      } else {
+        return base::nullopt;
+      }
     }
 
     // Returns the event's parent scope.  Informally, this is the scope that
@@ -164,6 +176,11 @@ class EventParser {
     void OnNotLastTouched();
     void Abort();
 
+    // Returns a set of all leaf nodes in the event tree rooted at this
+    // ScopedEvent node.  If this node is a leaf node, the returned set
+    // will contain this node as the single item.
+    std::set<scoped_refptr<ScopedEvent> > GetLeafEvents();
+
     scoped_refptr<ScopedEvent> parent_;
     std::vector<scoped_refptr<ScopedEvent> > children_;
 
@@ -217,6 +234,8 @@ class EventParser {
 
   void UpdateLastTouchedEvent(ThreadInfo* thread_info,
                               const scoped_refptr<ScopedEvent>& event);
+
+  std::set<scoped_refptr<ScopedEvent> > GetLeafEvents();
 
   friend class ScopedEvent;
 
