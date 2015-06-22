@@ -30,12 +30,16 @@ $for ARG
     if (event->name() == event_name_$(ARG)) {\
       switch (measurement_type_$(ARG)) {\
         case cobalt::trace_event::FLOW_DURATION: {\
-          event_$(ARG)_samples_.push_back(\
-              event->flow_duration().InSecondsF());\
+          if (event->flow_duration()) {\
+            event_$(ARG)_samples_.push_back(\
+                event->flow_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::IN_SCOPE_DURATION: {\
-          event_$(ARG)_samples_.push_back(\
-              event->in_scope_duration().InSecondsF());\
+          if (event->in_scope_duration()) {\
+            event_$(ARG)_samples_.push_back(\
+                event->in_scope_duration()->InSecondsF());\
+          }\
         } break;\
         case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
           if (!event_$(ARG)_last_begin_time_.is_null()) {\

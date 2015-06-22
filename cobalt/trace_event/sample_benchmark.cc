@@ -121,14 +121,20 @@ class SampleTestAdvancedBenchmark : public cobalt::trace_event::Benchmark {
   void AnalyzeTraceEvent(const scoped_refptr<
       cobalt::trace_event::EventParser::ScopedEvent>& event) OVERRIDE {
     if (event->name() == "LoopIteration") {
-      loop_iteration_times_in_seconds_.push_back(
-          event->flow_duration().InSecondsF());
+      if (event->flow_duration()) {
+        loop_iteration_times_in_seconds_.push_back(
+            event->flow_duration()->InSecondsF());
+      }
     } else if (event->name() == "SubEventA") {
-      sub_event_a_times_in_seconds_.push_back(
-          event->flow_duration().InSecondsF());
+      if (event->flow_duration()) {
+        sub_event_a_times_in_seconds_.push_back(
+            event->flow_duration()->InSecondsF());
+      }
     } else if (event->name() == "SubEventB") {
-      sub_event_b_times_in_seconds_.push_back(
-          event->flow_duration().InSecondsF());
+      if (event->flow_duration()) {
+        sub_event_b_times_in_seconds_.push_back(
+            event->flow_duration()->InSecondsF());
+      }
     }
   }
 
