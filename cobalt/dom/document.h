@@ -126,7 +126,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<EventListener> onload();
   void set_onload(const scoped_refptr<EventListener>& event_listener);
 
-  // Custom, not in any spec.
+  // Custom, not in any spec: Node.
   //
   bool IsDocument() const OVERRIDE { return true; }
 
@@ -135,6 +135,12 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
+  scoped_refptr<Node> Duplicate() const OVERRIDE {
+    return new Document(html_element_factory_, Options(url_));
+  }
+
+  // Custom, not in any spec.
+  //
   void AddObserver(DocumentObserver* observer);
   void RemoveObserver(DocumentObserver* observer);
 
@@ -158,7 +164,7 @@ class Document : public Node, public cssom::MutationObserver {
   //               (see http://www.w3.org/TR/dom/#mutation-observers).
   void RecordMutation();
 
-  // Override cssom::MutationObserver.
+  // From cssom::MutationObserver.
   void OnMutation() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(Document);

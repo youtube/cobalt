@@ -82,6 +82,19 @@ scoped_refptr<NodeList> Node::child_nodes() {
   return NodeList::CreateWithChildren(this);
 }
 
+scoped_refptr<Node> Node::CloneNode(bool deep) const {
+  scoped_refptr<Node> new_node = Duplicate();
+  if (deep) {
+    scoped_refptr<Node> child = first_child_;
+    while (child) {
+      scoped_refptr<Node> new_child = child->CloneNode(true);
+      new_node->AppendChild(new_child);
+      child = child->next_sibling_;
+    }
+  }
+  return new_node;
+}
+
 bool Node::Contains(const scoped_refptr<Node>& other_node) const {
   const Node* child = first_child_;
   while (child) {
