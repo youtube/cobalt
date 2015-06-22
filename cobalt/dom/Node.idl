@@ -37,6 +37,8 @@ interface Node : EventTarget {
   attribute DOMString? nodeValue;
   attribute DOMString? textContent;
 
+  Node cloneNode(optional boolean deep = false);
+
   boolean contains(Node? other);
 
   Node insertBefore(Node node, Node? child);

@@ -300,6 +300,12 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
+scoped_refptr<Node> Element::Duplicate() const {
+  Element* new_element = new Element(html_element_factory_);
+  new_element->attribute_map_ = attribute_map_;
+  return new_element;
+}
+
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() {}
