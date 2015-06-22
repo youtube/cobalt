@@ -51,6 +51,9 @@ class HTMLElement : public Element {
   //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
 
+  // Custom, not in any spec: Node.
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
+
   // Custom, not in any spec: Element.
   scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }
 

@@ -98,18 +98,21 @@ class Element : public Node {
   //
   // TODO(***REMOVED***): Implement QuerySelector|All.
 
-  // Custom, not in any spec.
+  // Custom, not in any spec: Node.
   //
-
-  // Returns a map that holds the actual attributes of the element.
-  const AttributeMap& attribute_map() const { return attribute_map_; }
-
   bool IsElement() const OVERRIDE { return true; }
 
   scoped_refptr<Element> AsElement() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
+
+  // Custom, not in any spec.
+  //
+  // Returns a map that holds the actual attributes of the element.
+  const AttributeMap& attribute_map() const { return attribute_map_; }
 
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
@@ -138,6 +141,8 @@ class Element : public Node {
 
   // Reference to HTML element factory, used for setting inner HTML attribute.
   HTMLElementFactory* html_element_factory_;
+
+  friend class HTMLElement;
 };
 
 }  // namespace dom
