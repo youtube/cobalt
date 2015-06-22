@@ -36,7 +36,7 @@ class Comment : public CharacterData {
   const std::string& node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
 
-  // Custom, not in any spec.
+  // Custom, not in any spec: Node.
   //
   bool IsComment() const OVERRIDE { return true; }
 
@@ -44,6 +44,8 @@ class Comment : public CharacterData {
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+
+  scoped_refptr<Node> Duplicate() const OVERRIDE { return new Comment(data()); }
 
   DEFINE_WRAPPABLE_TYPE(Comment);
 

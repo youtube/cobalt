@@ -58,6 +58,31 @@ TEST_F(NodeTest, CreateNode) {
   ASSERT_NE(NULL, node);
 }
 
+TEST_F(NodeTest, CloneNode) {
+  scoped_refptr<Element> root = new Element();
+  root->SetAttribute("id", "root");
+  root->AppendChild(new Text("text"));
+  scoped_refptr<Element> child = root->AppendChild(new Element())->AsElement();
+  child->SetAttribute("id", "child");
+
+  // Shallow clone should only clone the node itself.
+  scoped_refptr<Node> shallow_clone = root->CloneNode(false);
+  ASSERT_TRUE(shallow_clone->IsElement());
+  EXPECT_EQ("root", shallow_clone->AsElement()->GetAttribute("id").value());
+  EXPECT_FALSE(shallow_clone->HasChildNodes());
+
+  // Deep clone should clone the node and its descendants.
+  scoped_refptr<Node> deep_clone = root->CloneNode(true);
+  ASSERT_TRUE(deep_clone->IsElement());
+  EXPECT_EQ("root", deep_clone->AsElement()->GetAttribute("id").value());
+  ASSERT_EQ(2, deep_clone->child_nodes()->length());
+  EXPECT_TRUE(deep_clone->first_child()->IsText());
+  EXPECT_EQ("text", deep_clone->first_child()->AsText()->data());
+  EXPECT_TRUE(deep_clone->last_child()->IsElement());
+  EXPECT_EQ("child",
+            deep_clone->last_child()->AsElement()->GetAttribute("id").value());
+}
+
 TEST_F(NodeTest, AppendChild) {
   scoped_refptr<Node> root = new FakeNode();
 

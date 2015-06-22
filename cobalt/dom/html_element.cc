@@ -19,6 +19,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
+#include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
@@ -30,6 +31,13 @@
 
 namespace cobalt {
 namespace dom {
+
+scoped_refptr<Node> HTMLElement::Duplicate() const {
+  HTMLElement* new_html_element =
+      html_element_factory_->CreateHTMLElement(tag_name());
+  new_html_element->attribute_map_ = attribute_map_;
+  return new_html_element;
+}
 
 scoped_refptr<HTMLBodyElement> HTMLElement::AsHTMLBodyElement() { return NULL; }
 
