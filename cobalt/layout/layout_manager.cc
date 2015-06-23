@@ -167,17 +167,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   }
 
   if (document_->html()) {
-    // Determine the official time that this style change event took place. This
-    // is needed (as opposed to repeatedly calling base::Time::Now()) because
-    // all animations that may be triggered here must start at the exact same
-    // time if they were triggered in the same style change event.
-    //   http://www.w3.org/TR/css3-transitions/#starting
-    base::Time style_change_event_time = base::Time::Now();
-
     RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
         document_->html(), viewport_size_, user_agent_style_sheet_,
-        resource_provider_, line_break_iterator_.get(), style_change_event_time,
-        image_cache_.get());
+        resource_provider_, line_break_iterator_.get(), image_cache_.get());
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
         render_tree_with_animations.animations);
