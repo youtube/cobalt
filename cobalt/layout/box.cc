@@ -294,7 +294,7 @@ void Box::AddBackgroundColorToRenderTree(
   bool color_is_fully_transparent =
       GetUsedColor(computed_style_->background_color()).a() == 0.0f;
   bool color_is_animated = transitions_->GetTransitionForProperty(
-      cssom::kBackgroundColorPropertyName);
+      cssom::kBackgroundColorPropertyName) != NULL;
   if (!color_is_fully_transparent || color_is_animated) {
     RectNode::Builder rect_node_builder(used_size(),
                                         scoped_ptr<render_tree::Brush>());
