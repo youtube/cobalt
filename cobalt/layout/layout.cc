@@ -82,7 +82,6 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
     icu::BreakIterator* line_break_iterator,
-    const base::Time& style_change_event_time,
     loader::ImageCache* image_cache) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
@@ -103,6 +102,17 @@ RenderTreeWithAnimations Layout(
     TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
     initial_containing_block =
         CreateInitialContainingBlock(viewport_size, &used_style_provider);
+  }
+
+  base::Time style_change_event_time;
+  {
+    // Determine the official time that this style change event took place. This
+    // is needed (as opposed to repeatedly calling base::Time::Now()) because
+    // all animations that may be triggered here must start at the exact same
+    // time if they were triggered in the same style change event.
+    //   http://www.w3.org/TR/css3-transitions/#starting
+    TRACE_EVENT0("cobalt::layout", "Lock in Style Change Time");
+    style_change_event_time = base::Time::Now();
   }
 
   // Update the computed style of all elements in the subtree under root.
