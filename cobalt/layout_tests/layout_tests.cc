@@ -301,5 +301,11 @@ INSTANTIATE_TEST_CASE_P(
     CSSTransformsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")));
 
+// JavaScript HTML5 WebAPIs (http://www.w3.org/TR/html5/webappapis.html) test
+// cases.
+INSTANTIATE_TEST_CASE_P(
+    WebAppAPIsLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("webappapis")));
+
 }  // namespace layout_tests
 }  // namespace cobalt
