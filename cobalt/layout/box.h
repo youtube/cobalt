@@ -186,7 +186,26 @@ class Box {
   // Used by derived classes to dump their children.
   void DumpWithIndent(std::ostream* stream, int indent) const;
 
-  ContainerBox* parent() const { return parent_; }
+  ContainerBox* parent() { return parent_; }
+  const ContainerBox* parent() const { return parent_; }
+
+  ContainerBox* containing_block() { return containing_block_; }
+  const ContainerBox* containing_block() const { return containing_block_; }
+
+  ContainerBox* stacking_context() { return stacking_context_; }
+  const ContainerBox* stacking_context() const { return stacking_context_; }
+
+  // TODO(***REMOVED***): This only depends on the computed style, maybe this function
+  //               should move into a newly created CSSComputedStyleDeclaration
+  //               type?  This would apply to other values such as
+  //               IsPositioned().
+  // Returns the z-index of this box, based on its computed style.
+  int GetZIndex() const;
+
+  // Updates all cross-references to other boxes in the box tree (e.g. stacking
+  // contexts and containing blocks).  Calling this function will recursively
+  // resolve these links for all elements in the box tree.
+  void UpdateCrossReferences();
 
  protected:
   // Used values of "width" and "height" properties are writable only by the
@@ -224,7 +243,21 @@ class Box {
     return used_style_provider_;
   }
 
+  // Updates the box's cross references to other boxes in the box tree (e.g. its
+  // containing block and stacking context).  "Context" implies that the caller
+  // has already computed what the stacking context is and containing block
+  // for absolute elements.
+  virtual void UpdateCrossReferencesWithContext(
+      ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
+
  private:
+  // Sets up this box as a positioned box (thus, Box::IsPositioned() must return
+  // true) with the associated containing block and stacking context.
+  // Note that the box's parent node remains unchanged throughout this, and will
+  // always be the same as if the box was not positioned.
+  void SetupAsPositionedChild(ContainerBox* containing_block,
+                              ContainerBox* stacking_context);
+
   // Renders the background color of the box.
   void AddBackgroundColorToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
@@ -250,8 +283,19 @@ class Box {
   base::optional<float> maybe_used_width_;
   base::optional<float> maybe_used_height_;
 
+  // The parent of this box is the box that owns this child and is the direct
+  // parent.  If DOM element A is a parent of DOM element B, and box A is
+  // derived from DOM element A and box B is derived from DOM element B, then
+  // box A will be the parent of box B.
   ContainerBox* parent_;
+
+  // A pointer to this box's containing block.  The containing block is always
+  // an ancestor of this element, though not necessarily the direct parent.
   ContainerBox* containing_block_;
+
+  // A pointer to this box's stacking context.  The containing block is always
+  // an ancestor of this element, though not necessarily the direct parent.
+  ContainerBox* stacking_context_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;

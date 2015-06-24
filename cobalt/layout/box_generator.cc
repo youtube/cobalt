@@ -62,12 +62,10 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const UsedStyleProvider* used_style_provider,
-    icu::BreakIterator* line_break_iterator,
-    ContainerBox* containing_box_for_absolute)
+    icu::BreakIterator* line_break_iterator)
     : parent_computed_style_(parent_computed_style),
       used_style_provider_(used_style_provider),
-      line_break_iterator_(line_break_iterator),
-      containing_box_for_absolute_(containing_box_for_absolute) {}
+      line_break_iterator_(line_break_iterator) {}
 
 BoxGenerator::~BoxGenerator() {}
 
@@ -194,24 +192,14 @@ void BoxGenerator::VisitMediaElement(
 void BoxGenerator::VisitContainerElement(
     dom::HTMLElement* html_element,
     scoped_ptr<ContainerBox> first_container_box) {
-  // Find which containing block to use for absolutely positioned dependents.
-  ContainerBox* absolute_container_box = containing_box_for_absolute_;
-  if (first_container_box->ContainingBlockForAbsoluteElements()) {
-    // TODO(***REMOVED***): A value of "fixed" for position should also set a
-    //               containing block for absolutely positioned elements.
-    // Always use the first ContainerBox since it is positioned in the top-left
-    // corner, like we want.
-    absolute_container_box = first_container_box.get();
-  }
-
   boxes_.push_back(first_container_box.release());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(html_element->computed_style(),
-                                     used_style_provider_, line_break_iterator_,
-                                     absolute_container_box);
+                                     used_style_provider_,
+                                     line_break_iterator_);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();
@@ -235,11 +223,6 @@ void BoxGenerator::VisitContainerElement(
       //   in Cobalt, see |LineBox| for details.
       ContainerBox* last_container_box =
           base::polymorphic_downcast<ContainerBox*>(boxes_.back());
-
-      if (child_box->computed_style()->position() ==
-          cssom::KeywordValue::GetAbsolute()) {
-        absolute_container_box->AddPositionedChild(child_box.get());
-      }
 
       if (!last_container_box->TryAddChild(&child_box)) {
         boxes_.push_back(child_box.release());
