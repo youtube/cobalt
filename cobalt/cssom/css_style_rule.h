@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/hash_tables.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_rule.h"
@@ -61,6 +62,7 @@ class CSSStyleRule : public CSSRule {
 };
 
 typedef std::vector<scoped_refptr<cssom::CSSStyleRule> > Rules;
+typedef base::hash_set<scoped_refptr<cssom::CSSStyleRule> > RuleSet;
 typedef std::pair<scoped_refptr<cssom::CSSStyleRule>, cssom::CascadePriority>
     RuleWithCascadePriority;
 typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;

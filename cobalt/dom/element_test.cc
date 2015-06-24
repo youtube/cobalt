@@ -16,7 +16,10 @@
 
 #include "cobalt/dom/element.h"
 
+#include <vector>
+
 #include "base/run_loop.h"
+#include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_token_list.h"
@@ -40,9 +43,14 @@ class ElementTest : public ::testing::Test {
  protected:
   ElementTest();
   ~ElementTest() OVERRIDE;
+
+  scoped_ptr<css_parser::Parser> css_parser_;
+  dom::HTMLElementFactory html_element_factory_;
 };
 
-ElementTest::ElementTest() {
+ElementTest::ElementTest()
+    : css_parser_(css_parser::Parser::Create()),
+      html_element_factory_(NULL, css_parser_.get(), NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
@@ -277,8 +285,7 @@ TEST_F(ElementTest, GetElementsByTagName) {
 }
 
 TEST_F(ElementTest, InnerHTML) {
-  HTMLElementFactory html_element_factory(NULL, NULL, NULL, NULL);
-  scoped_refptr<Element> root = new Element(&html_element_factory);
+  scoped_refptr<Element> root = new Element(&html_element_factory_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -290,19 +297,19 @@ TEST_F(ElementTest, InnerHTML) {
   //     text
   //
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(NULL))->AsElement();
+      root->AppendChild(new Element())->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element(NULL))->AsElement();
+      element_a->AppendChild(new Element())->AsElement();
   element_b1->SetAttribute("just_key", "");
 
   element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element(NULL))->AsElement();
+      element_a->AppendChild(new Element())->AsElement();
   element_b2->AppendChild(new Text("Text"));
 
   element_a->AppendChild(new Text("\n"));
@@ -387,8 +394,7 @@ TEST_F(ElementTest, InnerHTML) {
 }
 
 TEST_F(ElementTest, OuterHTML) {
-  HTMLElementFactory html_element_factory(NULL, NULL, NULL, NULL);
-  scoped_refptr<Element> root = new Element(&html_element_factory);
+  scoped_refptr<Element> root = new Element(&html_element_factory_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -400,19 +406,19 @@ TEST_F(ElementTest, OuterHTML) {
   //     text
   //
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(&html_element_factory))->AsElement();
+      root->AppendChild(new Element(&html_element_factory_))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element(NULL))->AsElement();
+      element_a->AppendChild(new Element())->AsElement();
   element_b1->SetAttribute("just_key", "");
 
   element_a->AppendChild(new Text("\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element(NULL))->AsElement();
+      element_a->AppendChild(new Element())->AsElement();
   element_b2->AppendChild(new Text("Text"));
 
   element_a->AppendChild(new Text("\n"));
@@ -444,7 +450,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     comment_11
   //     text_12
   //
-  root->AppendChild(new Element(&html_element_factory));
+  root->AppendChild(new Element(&html_element_factory_));
   const char* kAnotherHTML =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
@@ -495,6 +501,16 @@ TEST_F(ElementTest, OuterHTML) {
 
   // Compare serialization result with the original HTML.
   EXPECT_EQ(kAnotherHTML, root->inner_html());
+}
+
+TEST_F(ElementTest, QuerySelector) {
+  scoped_refptr<Element> root = new Element(&html_element_factory_);
+  root->AppendChild(html_element_factory_.CreateHTMLElement("div"));
+  root->AppendChild(html_element_factory_.CreateHTMLElement("div"));
+  root->QuerySelector("div");
+  EXPECT_FALSE(root->QuerySelector("span"));
+  // QuerySelector should return first matching child.
+  EXPECT_EQ(root->first_element_child(), root->QuerySelector("div"));
 }
 
 TEST_F(ElementTest, NodeValueAndTextContent) {

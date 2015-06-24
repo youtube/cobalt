@@ -44,6 +44,8 @@ class HTMLElementFactory {
   scoped_refptr<HTMLElement> CreateHTMLElement(
       const base::StringPiece& tag_name);
 
+  cssom::CSSParser* css_parser() { return css_parser_; }
+
  private:
   typedef base::Callback<scoped_refptr<HTMLElement>()>
       CreateHTMLElementTCallback;

@@ -16,8 +16,11 @@
 
 #include "cobalt/dom/html_style_element.h"
 
+#include <string>
+
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_factory.h"
 
 namespace cobalt {
 namespace dom {
@@ -44,7 +47,8 @@ void HTMLStyleElement::SetOpeningTagLocation(
 void HTMLStyleElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      css_parser_->ParseStyleSheet(text_content().value(), content_location_);
+      html_element_factory()->css_parser()->ParseStyleSheet(
+          text_content().value(), content_location_);
   style_sheet->SetLocationUrl(GURL(content_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);
 }
