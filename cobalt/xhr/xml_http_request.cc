@@ -25,6 +25,7 @@
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/script/javascript_engine.h"
 #include "net/http/http_util.h"
 
 namespace cobalt {
@@ -81,7 +82,6 @@ void XMLHttpRequest::Abort() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // Terminate the request and update state.
   TerminateRequest();
-
   bool abort_is_no_op =
       state_ == kUnsent || state_ == kDone || (state_ == kOpened && !sent_);
   if (!abort_is_no_op) {
@@ -398,8 +398,6 @@ void XMLHttpRequest::OnDone() {
   ChangeState(kHeadersReceived);
   ChangeState(kLoading);
 
-  // Undo the ref we added in Send()
-  ReleaseExtraRef();
 
   ChangeState(kDone);
 
@@ -418,6 +416,9 @@ void XMLHttpRequest::OnDone() {
                     length_computable);
   FireProgressEvent(dom::EventNames::GetInstance()->load());
   FireProgressEvent(dom::EventNames::GetInstance()->loadend());
+
+  // Undo the ref we added in Send()
+  ReleaseExtraRef();
 }
 
 void XMLHttpRequest::OnError(const std::string& error) {
@@ -517,6 +518,9 @@ void XMLHttpRequest::AddExtraRef() {
 void XMLHttpRequest::ReleaseExtraRef() {
   DCHECK(did_add_ref_);
   did_add_ref_ = false;
+  // TODO(***REMOVED***): Call this once b/22057745 is implemented.
+  // settings_->javascript_engine()->ReportExtraMemoryCost(
+  // response_body_.size());
   Release();
 }
 
