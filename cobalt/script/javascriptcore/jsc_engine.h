@@ -16,11 +16,10 @@
 #ifndef SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 #define SCRIPT_JAVASCRIPTCORE_JSC_ENGINE_H_
 
-#include "config.h"
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/javascript_engine.h"
-
+#include "third_party/WebKit/Source/JavaScriptCore/config.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
 
 namespace cobalt {
@@ -32,6 +31,7 @@ class JSCEngine : public JavaScriptEngine {
   JSCEngine();
   scoped_refptr<GlobalObjectProxy> CreateGlobalObjectProxy() OVERRIDE;
   void CollectGarbage() OVERRIDE;
+  void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   JSC::JSGlobalData* global_data() { return global_data_.get(); }
 
  private:

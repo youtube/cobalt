@@ -25,7 +25,9 @@ namespace cobalt {
 namespace loader {
 class FetcherFactory;
 }
-
+namespace script {
+class JavaScriptEngine;
+}
 namespace dom {
 
 // A package of global state to be passed around to script objects
@@ -33,7 +35,8 @@ namespace dom {
 class DOMSettings : public script::EnvironmentSettings {
  public:
   DOMSettings(loader::FetcherFactory* fetcher_factory,
-              const scoped_refptr<Window>& window);
+              const scoped_refptr<Window>& window,
+              script::JavaScriptEngine* engine);
   ~DOMSettings() OVERRIDE;
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
@@ -43,6 +46,9 @@ class DOMSettings : public script::EnvironmentSettings {
     fetcher_factory_ = fetcher_factory;
   }
   loader::FetcherFactory* fetcher_factory() const { return fetcher_factory_; }
+  script::JavaScriptEngine* javascript_engine() const {
+    return javascript_engine_;
+  }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
@@ -50,6 +56,7 @@ class DOMSettings : public script::EnvironmentSettings {
  private:
   loader::FetcherFactory* fetcher_factory_;
   scoped_refptr<dom::Window> window_;
+  script::JavaScriptEngine* javascript_engine_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };

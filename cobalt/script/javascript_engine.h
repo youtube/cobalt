@@ -37,6 +37,10 @@ class JavaScriptEngine {
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;
 
+  // Indicate to the JS heap that extra bytes have been allocated by some
+  // Javascript object. This may mean collection needs to happen sooner.
+  virtual void ReportExtraMemoryCost(size_t bytes) = 0;
+
  protected:
   virtual ~JavaScriptEngine() {}
   friend class scoped_ptr<JavaScriptEngine>;

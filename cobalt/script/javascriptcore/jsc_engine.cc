@@ -40,6 +40,11 @@ void JSCEngine::CollectGarbage() {
   global_data_->heap.collectAllGarbage();
 }
 
+void JSCEngine::ReportExtraMemoryCost(size_t bytes) {
+  JSC::JSLockHolder lock(global_data_.get());
+  global_data_->heap.reportExtraMemoryCost(bytes);
+}
+
 }  // namespace javascriptcore
 
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine() {
