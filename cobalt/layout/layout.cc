@@ -23,6 +23,8 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_body_element.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
@@ -39,11 +41,11 @@ namespace {
 
 // The containing block in which the root element lives is a rectangle called
 // the initial containing block. For continuous media, it has the dimensions
-// of the viewport and is anchored at the canvas origin.
+// of the viewport and is anchored at the canvas origin. This calculates the
+// initial style for the initial containing block.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
-scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const math::SizeF& viewport_size,
-    const UsedStyleProvider* used_style_provider) {
+scoped_refptr<cssom::CSSStyleDeclarationData>
+CreateInitialContainingBlockComputedStyle(const math::SizeF& viewport_size) {
   scoped_refptr<cssom::CSSStyleDeclarationData>
       initial_containing_block_computed_style =
           new cssom::CSSStyleDeclarationData();
@@ -69,6 +71,69 @@ scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   PromoteToComputedStyle(initial_containing_block_computed_style, initial_style,
                          NULL);
 
+  return initial_containing_block_computed_style;
+}
+
+// Conditionally copies the background property. Returns true if anything is
+// copied.
+// The background color is copied if it is not transparent
+// The background image is copied if it is not 'None'.
+bool ConditionalCopyBackgroundStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& source_style,
+    scoped_refptr<cssom::CSSStyleDeclarationData> destination_style) {
+  bool background_color_is_transparent =
+      GetUsedColor(source_style->background_color()).a() == 0.0f;
+  bool background_image_is_none =
+      source_style->background_image() == cssom::KeywordValue::GetNone();
+
+  if (!background_color_is_transparent || !background_image_is_none) {
+    if (!background_color_is_transparent) {
+      destination_style->set_background_color(source_style->background_color());
+    }
+    if (!background_image_is_none) {
+      destination_style->set_background_image(source_style->background_image());
+    }
+    return true;
+  }
+  return false;
+}
+
+// This propagates the computed background style of the <html> or <body> element
+// to the given style for the initial containing block.
+//   http://www.w3.org/TR/css3-background/#body-background
+void PropagateBackgroundStyleToInitialStyle(
+    const scoped_refptr<dom::HTMLElement>& root,
+    scoped_refptr<cssom::CSSStyleDeclarationData>
+        initial_containing_block_computed_style) {
+  dom::HTMLHtmlElement* html_element = root->owner_document()->html();
+  if (html_element) {
+    // Propagate the background style from the <html> element if there is any
+    if (!ConditionalCopyBackgroundStyle(
+            html_element->computed_style(),
+            initial_containing_block_computed_style)) {
+      dom::HTMLBodyElement* body_element = root->owner_document()->body();
+      if (body_element) {
+        // Otherwise, propagate the background style from the <body> element.
+        ConditionalCopyBackgroundStyle(body_element->computed_style(),
+                                       initial_containing_block_computed_style);
+      }
+    }
+  }
+}
+
+// This creates the initial containing block after adding background color
+// and image to the initial style, when needed.
+//   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
+scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
+    const scoped_refptr<dom::HTMLElement>& root,
+    scoped_refptr<cssom::CSSStyleDeclarationData>
+        initial_containing_block_computed_style,
+    const UsedStyleProvider* used_style_provider) {
+  // The background color and image style may need to be propagated up from the
+  // <body> element to the parent <html> element.
+  //   http://www.w3.org/TR/css3-background/#body-background
+  PropagateBackgroundStyleToInitialStyle(
+      root, initial_containing_block_computed_style);
   return make_scoped_ptr(new BlockLevelBlockContainerBox(
       initial_containing_block_computed_style,
       cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
@@ -95,13 +160,13 @@ RenderTreeWithAnimations Layout(
     UpdateMatchingRules(root, user_agent_style_sheet, document->style_sheets());
   }
 
-  // Create initial containing block.
-  UsedStyleProvider used_style_provider(resource_provider, image_cache);
-  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block;
+  // Create the initial style for the initial containing block.
+  scoped_refptr<cssom::CSSStyleDeclarationData>
+      initial_containing_block_computed_style;
   {
-    TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
-    initial_containing_block =
-        CreateInitialContainingBlock(viewport_size, &used_style_provider);
+    TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlockComputedStyle");
+    initial_containing_block_computed_style =
+        CreateInitialContainingBlockComputedStyle(viewport_size);
   }
 
   base::Time style_change_event_time;
@@ -118,8 +183,17 @@ RenderTreeWithAnimations Layout(
   // Update the computed style of all elements in the subtree under root.
   {
     TRACE_EVENT0("cobalt::layout", "UpdateComputedStyle");
-    UpdateComputedStyles(root, initial_containing_block->computed_style(),
+    UpdateComputedStyles(root, initial_containing_block_computed_style,
                          style_change_event_time);
+  }
+
+  // Create initial containing block.
+  UsedStyleProvider used_style_provider(resource_provider, image_cache);
+  scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block;
+  {
+    TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
+    initial_containing_block = CreateInitialContainingBlock(
+        root, initial_containing_block_computed_style, &used_style_provider);
   }
 
   // Generate boxes.
