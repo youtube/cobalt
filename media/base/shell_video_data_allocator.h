@@ -19,9 +19,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "media/base/video_frame.h"
-#include "media/filters/shell_video_decoder_impl.h"
 
 namespace media {
+
+class ShellRawVideoDecoder;
 
 // This class is introduced to remove the hidden dependency on the platform
 // dependent graphics code from low level video decoders. It is possible that
