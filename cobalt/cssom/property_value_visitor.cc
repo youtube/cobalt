@@ -22,6 +22,7 @@
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -58,10 +59,14 @@ void DefaultingPropertyValueVisitor::VisitLength(LengthValue* length_value) {
   VisitDefault(length_value);
 }
 
+void DefaultingPropertyValueVisitor::VisitLinearGradient(
+    LinearGradientValue* linear_gradient_value) {
+  VisitDefault(linear_gradient_value);
+}
+
 void DefaultingPropertyValueVisitor::VisitNumber(NumberValue* number_value) {
   VisitDefault(number_value);
 }
-
 
 void DefaultingPropertyValueVisitor::VisitPercentage(
     PercentageValue* percentage_value) {
