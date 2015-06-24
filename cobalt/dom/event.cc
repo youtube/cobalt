@@ -16,11 +16,18 @@
 
 #include "cobalt/dom/event.h"
 
+#include "base/compiler_specific.h"
 #include "base/time.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
 namespace dom {
+
+Event::Event(UninitializedFlag uninitialized_flag)
+    : event_phase_(kNone), time_stamp_(base::Time::Now().ToJsTime()) {
+  UNREFERENCED_PARAMETER(uninitialized_flag);
+  InitEvent("", false, false);
+}
 
 Event::Event(const std::string& type)
     : event_phase_(kNone), time_stamp_(base::Time::Now().ToJsTime()) {
