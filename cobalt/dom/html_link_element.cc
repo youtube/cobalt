@@ -16,9 +16,12 @@
 
 #include "cobalt/dom/html_link_element.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_factory.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -87,7 +90,8 @@ void HTMLLinkElement::Obtain() {
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      css_parser_->ParseStyleSheet(content, base::SourceLocation(href(), 1, 1));
+      html_element_factory()->css_parser()->ParseStyleSheet(
+          content, base::SourceLocation(href(), 1, 1));
   style_sheet->SetLocationUrl(absolute_url_);
   owner_document()->style_sheets()->Append(style_sheet);
   StopLoading();

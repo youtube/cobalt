@@ -23,12 +23,12 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_body_element.h"
+#include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/rule_matching.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/declared_style.h"
 #include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/specified_style.h"
 #include "cobalt/layout/used_style.h"
@@ -157,7 +157,8 @@ RenderTreeWithAnimations Layout(
   // Update the matching rules of all elements in the subtree under root.
   {
     TRACE_EVENT0("cobalt::layout", "UpdateMatchingRules");
-    UpdateMatchingRules(root, user_agent_style_sheet, document->style_sheets());
+    dom::UpdateMatchingRules(root, user_agent_style_sheet,
+                             document->style_sheets());
   }
 
   // Create the initial style for the initial containing block.

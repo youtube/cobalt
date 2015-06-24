@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/document.h"
 
+#include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
@@ -24,7 +25,6 @@
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
-#include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/text.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,12 +40,13 @@ class DocumentTest : public ::testing::Test {
   DocumentTest();
   ~DocumentTest() OVERRIDE;
 
-  testing::StubCSSParser stub_css_parser_;
+  scoped_ptr<css_parser::Parser> css_parser_;
   HTMLElementFactory html_element_factory_;
 };
 
 DocumentTest::DocumentTest()
-    : html_element_factory_(NULL, &stub_css_parser_, NULL, NULL) {
+    : css_parser_(css_parser::Parser::Create()),
+      html_element_factory_(NULL, css_parser_.get(), NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
@@ -211,6 +212,17 @@ TEST_F(DocumentTest, StyleSheets) {
             document->style_sheets()->Item(1));
   EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
             document->style_sheets()->Item(2));
+}
+
+TEST_F(DocumentTest, QuerySelector) {
+  scoped_refptr<Document> document =
+      new Document(&html_element_factory_, Document::Options());
+  document->AppendChild(html_element_factory_.CreateHTMLElement("div"));
+  document->AppendChild(html_element_factory_.CreateHTMLElement("div"));
+  document->QuerySelector("div");
+  EXPECT_FALSE(document->QuerySelector("span"));
+  // QuerySelector should return first matching child.
+  EXPECT_EQ(document->first_element_child(), document->QuerySelector("div"));
 }
 
 }  // namespace dom

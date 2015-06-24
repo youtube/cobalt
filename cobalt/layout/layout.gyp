@@ -39,8 +39,6 @@
         'computed_style.h',
         'container_box.cc',
         'container_box.h',
-        'declared_style.cc',
-        'declared_style.h',
         'formatting_context.h',
         'html_elements.cc',
         'html_elements.h',
@@ -128,7 +126,6 @@
       'sources': [
         'cascaded_style_test.cc',
         'computed_style_test.cc',
-        'declared_style_test.cc',
         'used_style_test.cc',
         'white_space_processing_test.cc',
       ],

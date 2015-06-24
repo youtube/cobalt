@@ -17,6 +17,8 @@
 #ifndef DOM_ELEMENT_H_
 #define DOM_ELEMENT_H_
 
+#include <string>
+
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/dom/node.h"
@@ -92,11 +94,11 @@ class Element : public Node {
   std::string outer_html() const;
   void set_outer_html(const std::string& outer_html);
 
-  // Web API: Selectors API Level 1 (partial interface)
-  // This interface is extended in the spec Selectors API Level 1.
-  //   http://www.w3.org/TR/selectors-api/#interface-definitions
+  // Web API: Selectors API (partial interface)
+  // This interface is extended in the spec Selectors API.
+  //   http://www.w3.org/TR/selectors-api2/#interface-definitions
   //
-  // TODO(***REMOVED***): Implement QuerySelector|All.
+  scoped_refptr<Element> QuerySelector(const std::string& selectors);
 
   // Custom, not in any spec: Node.
   //
@@ -111,6 +113,11 @@ class Element : public Node {
 
   // Custom, not in any spec.
   //
+  // Returns whether the element has no children at all except comments or
+  // processing instructions.
+  //   http://www.w3.org/TR/selectors4/#empty-pseudo
+  bool IsEmpty();
+
   // Returns a map that holds the actual attributes of the element.
   const AttributeMap& attribute_map() const { return attribute_map_; }
 
@@ -126,10 +133,14 @@ class Element : public Node {
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 
+  HTMLElementFactory* html_element_factory() { return html_element_factory_; }
+
  private:
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 
+  // Reference to HTML element factory.
+  HTMLElementFactory* html_element_factory_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
@@ -138,9 +149,6 @@ class Element : public Node {
   // A weak pointer to a DOMTOkenList containing the the classes of the element.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<DOMTokenList> class_list_;
-
-  // Reference to HTML element factory, used for setting inner HTML attribute.
-  HTMLElementFactory* html_element_factory_;
 
   friend class HTMLElement;
 };
