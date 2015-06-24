@@ -123,6 +123,7 @@
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
+%token kToToken                         // to
 //%token kTopToken                      // top - also property name token
 %token kVisibleToken                    // visible
 
@@ -183,6 +184,7 @@
 %token kCalcFunctionToken               // calc(
 %token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
+%token kLinearGradientFunctionToken     // linear-gradient(
 %token kMatrixFunctionToken             // matrix(
 %token kMaxFunctionToken                // -webkit-max(
 %token kMinFunctionToken                // -webkit-min(
@@ -261,13 +263,21 @@
 
 %type <integer> integer
 
-%union { cssom::PercentageValue* percentage; }
-%type <percentage> percentage
-%destructor { $$->Release(); } <percentage>
+%union { cssom::RGBAColorValue* color; }
+%type <color> color
+%destructor { $$->Release(); } <color>
 
-%union { cssom::PercentageValue* positive_percentage; }
-%type <positive_percentage> positive_percentage
-%destructor { $$->Release(); } <positive_percentage>
+%union { cssom::ColorStop* color_stop; }
+%type <color_stop> color_stop
+%destructor { delete $$; } <color_stop>
+
+%union { cssom::LinearGradientValue::ColorStopList* color_stop_list; }
+%type <color_stop_list> comma_separated_color_stop_list
+%destructor { delete $$; } <color_stop_list>
+
+%union { cssom::PercentageValue* percentage; }
+%type <percentage> percentage positive_percentage
+%destructor { $$->Release(); } <percentage>
 
 %union { cssom::LengthValue* length; }
 %type <length> length
@@ -299,15 +309,16 @@
                        background_position_property_value
                        background_size_property_list_element
                        background_size_property_value
-                       border_radius_property_value color color_property_value
+                       border_radius_property_value color_property_value
                        common_values common_values_without_errors
                        display_property_value
                        font_family_property_value
                        font_family_name font_size_property_value
                        font_weight_property_value height_property_value
-                       line_height_property_value opacity_property_value
-                       overflow_property_value position_property_value
-                       transition_delay_property_value transform_property_value
+                       line_height_property_value linear_gradient_params
+                       opacity_property_value overflow_property_value
+                       position_property_value transition_delay_property_value
+                       transform_property_value
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
@@ -345,6 +356,9 @@
 %union { cssom::Selectors* selectors; }
 %type <selectors> selector_list
 %destructor { delete $$; } <selectors>
+
+%union { cssom::LinearGradientValue::SideOrCorner side_or_corner; }
+%type <side_or_corner> side side_or_corner
 
 %union { int sign; }
 %type <sign> maybe_sign_token
@@ -632,6 +646,9 @@ identifier_token:
   }
   | kStepStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStepStartKeywordName);
+  }
+  | kToToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kToKeywordName);
   }
   // This is redundant with the kTopPropertyName defined above.
   //| kTopToken {
@@ -1158,14 +1175,109 @@ background_property_value:
 // Background color of an element drawn behind any background images.
 //   http://www.w3.org/TR/css3-background/#the-background-color
 background_color_property_value:
-    color
+    color { $$ = $1; }
   | common_values
   ;
 
-// TODO(***REMOVED***): Parse linear gradient.
+color_stop:
+    color {
+    $$ = new cssom::ColorStop($1);
+  }
+  | color length {
+    $$ = new cssom::ColorStop($1, $2);
+  }
+  | color percentage {
+    $$ = new cssom::ColorStop($1, $2);
+  }
+  ;
+
+comma_separated_color_stop_list:
+    color_stop {
+    $$ = new cssom::LinearGradientValue::ColorStopList();
+    $$->push_back($1);
+  }
+  | comma_separated_color_stop_list comma color_stop {
+    $$ = $1;
+    $$->push_back($3);
+  }
+  ;
+
+side:
+    kBottomToken maybe_whitespace {
+    $$ = cssom::LinearGradientValue::kBottom;
+  }
+  | kLeftToken maybe_whitespace {
+    $$ = cssom::LinearGradientValue::kLeft;
+  }
+  | kRightToken maybe_whitespace {
+    $$ = cssom::LinearGradientValue::kRight;
+  }
+  | kTopToken maybe_whitespace {
+    $$ = cssom::LinearGradientValue::kTop;
+  }
+  ;
+
+side_or_corner:
+    side
+  | side side {
+    if ($1 == cssom::LinearGradientValue::kBottom) {
+      if($2 == cssom::LinearGradientValue::kLeft) {
+        $$ = cssom::LinearGradientValue::kBottomLeft;
+      } else if ($2 == cssom::LinearGradientValue::kRight) {
+        $$ = cssom::LinearGradientValue::kBottomRight;
+      } else {
+        parser_impl->LogWarning(@1, "Illegal corner value.");
+      }
+    } else if ($1 == cssom::LinearGradientValue::kLeft) {
+      if($2 == cssom::LinearGradientValue::kBottom) {
+        $$ = cssom::LinearGradientValue::kBottomLeft;
+      } else if ($2 == cssom::LinearGradientValue::kTop) {
+        $$ = cssom::LinearGradientValue::kTopLeft;
+      } else {
+        parser_impl->LogWarning(@1, "Illegal corner value.");
+      }
+    } else if ($1 == cssom::LinearGradientValue::kRight) {
+      if($2 == cssom::LinearGradientValue::kBottom) {
+        $$ = cssom::LinearGradientValue::kBottomRight;
+      } else if ($2 == cssom::LinearGradientValue::kTop) {
+        $$ = cssom::LinearGradientValue::kTopRight;
+      } else {
+        parser_impl->LogWarning(@1, "Illegal corner value.");
+      }
+    } else if ($1 == cssom::LinearGradientValue::kTop) {
+      if($2 == cssom::LinearGradientValue::kLeft) {
+        $$ = cssom::LinearGradientValue::kTopLeft;
+      } else if ($2 == cssom::LinearGradientValue::kRight) {
+        $$ = cssom::LinearGradientValue::kTopRight;
+      } else {
+        parser_impl->LogWarning(@1, "Illegal corner value.");
+      }
+    }
+  }
+  ;
+
+linear_gradient_params:
+    comma_separated_color_stop_list {
+    // If the first argument to the linear gradient function is omitted, it
+    // defaults to 'to bottom'.
+    $$ = AddRef(new cssom::LinearGradientValue(
+             cssom::LinearGradientValue::kBottom, $1));
+  }
+  | angle comma comma_separated_color_stop_list {
+    $$ = AddRef(new cssom::LinearGradientValue($1, $3));
+  }
+  | kToToken kWhitespaceToken maybe_whitespace side_or_corner comma
+    comma_separated_color_stop_list {
+    $$ = AddRef(new cssom::LinearGradientValue($4, $6));
+  }
+  ;
+
 background_image_property_list_element:
     url {
     $$ = $1;
+  }
+  | kLinearGradientFunctionToken maybe_whitespace linear_gradient_params ')' {
+    $$ = $3;
   }
   ;
 
@@ -1297,7 +1409,7 @@ border_radius_property_value:
 // Foreground color of an element's text content.
 //   http://www.w3.org/TR/css3-color/#foreground
 color_property_value:
-    color
+    color { $$ = $1; }
   | common_values
   ;
 
