@@ -32,6 +32,7 @@
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/ui_event.h"
 
 namespace cobalt {
 namespace dom {
@@ -87,6 +88,22 @@ scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
 
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
   return new Text(text);
+}
+
+scoped_refptr<Event> Document::CreateEvent(const std::string& interface_name) {
+  // http://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
+  // The match of interface name is case-insensitive.
+  if (strcasecmp(interface_name.c_str(), "event") == 0 ||
+      strcasecmp(interface_name.c_str(), "events") == 0) {
+    return new Event(Event::Uninitialized);
+  } else if (strcasecmp(interface_name.c_str(), "uievent") == 0 ||
+             strcasecmp(interface_name.c_str(), "uievents") == 0) {
+    return new UIEvent(Event::Uninitialized);
+  }
+
+  // TODO(***REMOVED***): throw NotSupportedError exception.
+  NOTREACHED();
+  return NULL;
 }
 
 scoped_refptr<Element> Document::GetElementById(const std::string& id) const {

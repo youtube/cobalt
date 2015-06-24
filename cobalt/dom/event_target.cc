@@ -47,6 +47,10 @@ void EventTarget::RemoveEventListener(
 // Dispatch event to a single event target outside the DOM tree. The event
 // propagation in the DOM tree is implemented inside Node::DispatchEvent().
 bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
+  DCHECK(event);
+  // TODO(***REMOVED***): Raise InvalidStateError exception.
+  DCHECK(event->initialized_flag());
+
   event->set_target(this);
   event->set_event_phase(Event::kAtTarget);
   FireEventOnListeners(event);
