@@ -47,7 +47,12 @@ class Event : public script::Wrappable {
 
   enum Cancelable { kNotCancelable, kCancelable };
 
-  // The default ctor creates an event that cannot be bubbled and cancelled.
+  enum UninitializedFlag { Uninitialized };
+
+  // Creates an event with its "initialized flag" unset.
+  explicit Event(UninitializedFlag uninitialized_flag);
+
+  // Creates an event that cannot be bubbled and cancelled.
   explicit Event(const std::string& type);
   Event(const std::string& type, Bubbles bubbles, Cancelable cancelable);
   ~Event() OVERRIDE;
@@ -84,6 +89,11 @@ class Event : public script::Wrappable {
   void set_target(const scoped_refptr<EventTarget>& target);
   void set_current_target(const scoped_refptr<EventTarget>& target);
   void set_event_phase(EventPhase event_phase) { event_phase_ = event_phase; }
+  // We link whether the event has the "initialized flag" set to whether it has
+  // a non-empty type.  Note that the spec doesn't explicitly prevent an Event
+  // to have empty string as its type but it is reasonable to make this
+  // assumption and Chrome has the same behavior.
+  bool initialized_flag() const { return !type_.empty(); }
 
   // The event dispatching process usually looks like:
   //

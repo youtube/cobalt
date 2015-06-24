@@ -41,6 +41,9 @@ const std::string& GetEventTypeName(const UIEvent::Type& type) {
 
 }  // namespace
 
+UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
+    : Event(uninitialized_flag) {}
+
 UIEvent::UIEvent(Type type) : type_enum_(type), Event(GetEventTypeName(type)) {}
 
 }  // namespace dom
