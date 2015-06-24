@@ -95,8 +95,8 @@ WebModule::WebModule(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
           script_runner_.get(), options.url, GetUserAgent(), error_callback)),
-      environment_settings_(
-          new dom::DOMSettings(fetcher_factory_.get(), window_)),
+      environment_settings_(new dom::DOMSettings(
+          fetcher_factory_.get(), window_, javascript_engine_.get())),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
                       fetcher_factory_.get(), options.layout_trigger,
