@@ -109,8 +109,6 @@ class HTMLElement : public Element {
 
   void AttachToDocument(Document* document) OVERRIDE;
 
-  cssom::CSSParser* const css_parser_;
-
  private:
   void UpdateTransitions(const cssom::CSSStyleDeclarationData* source,
                          const cssom::CSSStyleDeclarationData* destination);

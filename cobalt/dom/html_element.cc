@@ -66,7 +66,6 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
 HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory,
                          cssom::CSSParser* css_parser)
     : Element(html_element_factory),
-      css_parser_(css_parser),
       style_(new cssom::CSSStyleDeclaration(css_parser)) {}
 
 void HTMLElement::SetOpeningTagLocation(
