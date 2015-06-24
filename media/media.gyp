@@ -547,17 +547,23 @@
                 },
               },
             }],
-            ['target_arch=="ps3" or (target_arch=="xb1" and actual_target_arch!="win") or target_arch=="xb360"', {
+            ['(target_arch=="xb1" and actual_target_arch!="win") or target_arch=="xb360"', {
               'sources': [
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
             }],
             ['target_arch=="ps3"', {
+              'sources': [
+                '<!@(find . -type f -name "*<(target_arch)*")',
+              ],
               'sources/': [
                 # PS3 has its own implementations.
                 ['exclude', 'filters/shell_audio_decoder_impl'],
                 ['exclude', 'filters/shell_audio_renderer_impl'],
-              ]
+              ],
+              'dependencies' : [
+                'spurs_tasks',
+              ],
             }],
             ['target_arch=="xb1" or target_arch=="xb360"', {
               'sources/': [
@@ -1372,6 +1378,76 @@
           ],
           'sources': [
             'tools/tile_render_bench/tile_render_bench.cc',
+          ],
+        },
+      ],
+    }],
+    ['OS == "lb_shell" and target_arch == "ps3"', {
+      'targets': [
+        {
+          # this target builds SPU task objects into a PPU-linkable static library
+          # that is then linked with the main executable.
+          #
+          # HORRIBLENESS WARNING:
+          # the python script in the rule action contains compiler and linker
+          # flags and determines build configuration based on the presence of
+          # the string 'Debug' in the output directory. I'm very sorry.
+          # TODO: refactor script to take more defines from the command line..
+          'target_name': 'spurs_tasks',
+          'type': 'static_library',
+          'sources': [
+            '<(INTERMEDIATE_DIR)/sinc_resampler.o',
+          ],
+          'actions': [
+            {
+              'action_name' : 'spurs_tasks_builder',
+              'variables': {
+                'spu_source': [
+                  'audio/spurs/tasks/sinc_resampler.c',
+                ],
+                'spu_includes': [
+                  'audio/spurs/tasks/spu_log.h',
+                ],
+              },
+              'inputs' : [
+                '<@(spu_source)',
+                '<@(spu_includes)',
+              ],
+              'outputs' : [
+                '<(INTERMEDIATE_DIR)/sinc_resampler.o',
+              ],
+              'action': [
+                'python',
+                'audio/spurs/scripts/spu_task_to_ppu_obj.py',
+                '<(INTERMEDIATE_DIR)',
+                '<(SHARED_INTERMEDIATE_DIR)/spu',
+                '<@(spu_source)',
+              ],
+              'msvs_cygwin_shell' : 1,
+            },
+          ],
+          'dependencies': [
+            'sinc_resampler_table'
+          ],
+        },
+        {
+          'target_name': 'sinc_resampler_table',
+          'type': 'none',
+          'hard_dependency': 1,
+          'actions': [
+            {
+              'action_name': 'generate_sinc_resampler_table',
+              'inputs': [
+                'audio/spurs/scripts/build_sinc_table.py',
+              ],
+              'outputs': [
+                # please keep this list to just this one file
+                '<(SHARED_INTERMEDIATE_DIR)/spu/sinc_table.c',
+              ],
+              'action': ['python', 'audio/spurs/scripts/build_sinc_table.py', '<@(_outputs)'],
+              'message': 'generating sinc resampler table in <@(_outputs)',
+              'msvs_cygwin_shell' : 1,
+            },
           ],
         },
       ],
