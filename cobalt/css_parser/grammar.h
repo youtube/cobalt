@@ -45,6 +45,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"

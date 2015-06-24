@@ -27,6 +27,7 @@ class ConstStringListValue;
 class FontWeightValue;
 class KeywordValue;
 class LengthValue;
+class LinearGradientValue;
 class NumberValue;
 class PercentageValue;
 class PropertyListValue;
@@ -49,6 +50,8 @@ class PropertyValueVisitor {
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
+  virtual void VisitLinearGradient(
+      LinearGradientValue* linear_gradient_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitPercentage(PercentageValue* percentage_value) = 0;
   virtual void VisitPropertyList(PropertyListValue* property_list_value) = 0;
@@ -76,6 +79,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
+  void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
