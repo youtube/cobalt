@@ -22,8 +22,11 @@ namespace cobalt {
 namespace dom {
 
 DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
-                         const scoped_refptr<Window>& window)
-    : fetcher_factory_(fetcher_factory), window_(window) {}
+                         const scoped_refptr<Window>& window,
+                         script::JavaScriptEngine* engine)
+    : fetcher_factory_(fetcher_factory),
+      window_(window),
+      javascript_engine_(engine) {}
 DOMSettings::~DOMSettings() {}
 
 GURL DOMSettings::base_url() const {
