@@ -17,7 +17,9 @@
 #include "cobalt/layout/container_box.h"
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/number_value.h"
 #include "cobalt/layout/used_style.h"
+#include "cobalt/math/transform_2d.h"
 
 namespace cobalt {
 namespace layout {
@@ -88,51 +90,62 @@ void ContainerBox::MoveChildrenFrom(
 void ContainerBox::OnChildAdded(Box* child_box) {
   DCHECK(!child_box->parent());
   child_box->parent_ = this;
-
-  // If we're not an absolute positioned node (TODO(***REMOVED***): and also not fixed)
-  // but we are positioned, then our direct parent is our containing block, so
-  // set that up now.  If we are absolute or fixed position, then
-  // AddPositionedChild() must be called manually on the containing block.
-  if (child_box->IsPositioned()) {
-    if (child_box->computed_style()->position() !=
-        cssom::KeywordValue::GetAbsolute()) {
-      AddPositionedChild(child_box);
-    }
-  }
 }
 
 // Returns true if the given style allows a container box to act as a containing
 // block for absolutely positioned elements.  For example it will be true if
 // this box's style is itself 'absolute'.
-bool ContainerBox::ContainingBlockForAbsoluteElements() const {
-  return computed_style()->position() == cssom::KeywordValue::GetAbsolute() ||
+bool ContainerBox::IsContainingBlockForAbsoluteElements() const {
+  return parent() == NULL ||
+         computed_style()->position() == cssom::KeywordValue::GetAbsolute() ||
          computed_style()->position() == cssom::KeywordValue::GetRelative() ||
          computed_style()->transform() != cssom::KeywordValue::GetNone();
 }
 
-void ContainerBox::AddPositionedChild(Box* child_box) {
-  // Add this child to our list of positioned children.  This is also our
-  // opportunity to setup a containing_block link in the child node should
-  // we choose to introduce it.
-  DCHECK(child_box->IsPositioned());
+// Returns true if this container box serves as a stacking context for
+// descendant elements.
+bool ContainerBox::IsStackingContext() const {
+  return parent() == NULL ||
+         base::polymorphic_downcast<const cssom::NumberValue*>(
+             computed_style()->opacity().get())->value() < 1.0f ||
+         computed_style()->transform() != cssom::KeywordValue::GetNone() ||
+         (IsPositioned() &&
+          computed_style()->z_index() != cssom::KeywordValue::GetAuto());
+}
+
+void ContainerBox::AddContainingBlockChild(Box* child_box) {
+  DCHECK_EQ(this, child_box->containing_block());
   positioned_child_boxes_.push_back(child_box);
+}
+
+void ContainerBox::AddStackingContextChild(Box* child_box) {
+  DCHECK_EQ(this, child_box->stacking_context());
+  int child_z_index = child_box->GetZIndex();
+  DCHECK(child_z_index == 0 || IsStackingContext())
+      << "Children with non-zero z-indices can only be added to container "
+         "boxes that establish stacking contexts.";
+
+  if (child_z_index < 0) {
+    negative_z_index_child_.insert(child_box);
+  } else {
+    non_negative_z_index_child_.insert(child_box);
+  }
 }
 
 namespace {
 math::PointF GetUsedPositionRelativeToAncestor(Box* box,
-                                               ContainerBox* ancestor) {
-  math::PointF relative_position = box->used_position();
-  ContainerBox* current_ancestor = box->parent();
-  while (current_ancestor != ancestor) {
-    DCHECK(current_ancestor)
-        << "Unable to find ancestor while traversing parents.";
+                                               const ContainerBox* ancestor) {
+  math::PointF relative_position;
+  Box* current_box = box;
+  while (current_box != ancestor) {
+    DCHECK(current_box) << "Unable to find ancestor while traversing parents.";
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
     DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              current_ancestor->computed_style()->transform());
-    relative_position += current_ancestor->used_position().OffsetFromOrigin();
-    current_ancestor = current_ancestor->parent();
+              current_box->computed_style()->transform());
+    relative_position += current_box->used_position().OffsetFromOrigin();
+    current_box = current_box->parent();
   }
 
   return relative_position;
@@ -150,7 +163,8 @@ void ContainerBox::UpdateUsedSizeOfPositionedChildren(
 
     child_box->UpdateUsedSizeIfInvalid(child_layout_params);
     math::PointF static_position =
-        GetUsedPositionRelativeToAncestor(child_box, this);
+        GetUsedPositionRelativeToAncestor(child_box->parent(), this) +
+        child_box->used_position().OffsetFromOrigin();
 
     UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
         used_width(), *child_box->computed_style());
@@ -171,18 +185,58 @@ void ContainerBox::UpdateUsedSizeOfPositionedChildren(
   }
 }
 
-void ContainerBox::AddPositionedChildrenToRenderTree(
+void ContainerBox::AddStackingContextChildrenToRenderTree(
+    const ZIndexSortedList& z_index_child_list,
     render_tree::CompositionNode::Builder* composition_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
-  // Add all positioned children to the render tree.  It is important that
-  // these are added in their own group like this since they must appear
-  // above standard in-flow elements.
-  for (ChildBoxes::const_iterator iter = positioned_child_boxes_.begin();
-       iter != positioned_child_boxes_.end(); ++iter) {
+  // Render all children of the passed in list in sorted order.
+  for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
+       iter != z_index_child_list.end(); ++iter) {
     Box* child_box = *iter;
-    child_box->AddToRenderTree(composition_node_builder,
-                               node_animations_map_builder);
+    math::PointF position_offset =
+        GetUsedPositionRelativeToAncestor(child_box->containing_block(), this);
+
+    if (position_offset.x() == 0.0f && position_offset.y() == 0.0f) {
+      // If there is no offset between the child box's containing block
+      // and this box (the stacking context), we do not need a CompositionNode
+      // for positioning.
+      child_box->AddToRenderTree(composition_node_builder,
+                                 node_animations_map_builder);
+    } else {
+      // Since the child box was layed out relative to its containing block,
+      // but we are rendering it from the stacking context box, we must
+      // transform it by the relative transform between the containing block
+      // and stacking context.
+      render_tree::CompositionNode::Builder sub_composition_node_builder;
+      child_box->AddToRenderTree(&sub_composition_node_builder,
+                                 node_animations_map_builder);
+      composition_node_builder->AddChild(
+          new render_tree::CompositionNode(sub_composition_node_builder.Pass()),
+          math::TranslateMatrix(position_offset.x(), position_offset.y()));
+    }
+  }
+}
+
+void ContainerBox::UpdateCrossReferencesWithContext(
+    ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
+  // First setup this box with cross-references as necessary.
+  Box::UpdateCrossReferencesWithContext(absolute_containing_block,
+                                        stacking_context);
+
+  // In addition to updating our cross references like a normal Box, we
+  // also recursively update the cross-references of our children.
+  ContainerBox* absolute_containing_block_of_children =
+      IsContainingBlockForAbsoluteElements() ? this : absolute_containing_block;
+
+  ContainerBox* stacking_context_of_children =
+      IsStackingContext() ? this : stacking_context;
+
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    child_box->UpdateCrossReferencesWithContext(
+        absolute_containing_block_of_children, stacking_context_of_children);
   }
 }
 
@@ -190,7 +244,13 @@ void ContainerBox::AddContentToRenderTree(
     render_tree::CompositionNode::Builder* composition_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
-  // Render child boxes.
+  // Render all positioned children in our stacking context that have negative
+  // z-index values.
+  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
+  AddStackingContextChildrenToRenderTree(negative_z_index_child_,
+                                         composition_node_builder,
+                                         node_animations_map_builder);
+  // Render layed out child boxes.
   // TODO(***REMOVED***): Take a stacking context into account:
   //               http://www.w3.org/TR/CSS21/visuren.html#z-index
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
@@ -202,11 +262,11 @@ void ContainerBox::AddContentToRenderTree(
     }
   }
 
-  // Positioned children must be rendered on top of children rendered via the
-  // standard flow.
+  // Render all positioned children with non-negative z-index values.
   //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddPositionedChildrenToRenderTree(composition_node_builder,
-                                    node_animations_map_builder);
+  AddStackingContextChildrenToRenderTree(non_negative_z_index_child_,
+                                         composition_node_builder,
+                                         node_animations_map_builder);
 }
 
 void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,

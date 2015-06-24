@@ -17,6 +17,8 @@
 #ifndef LAYOUT_CONTAINER_BOX_H_
 #define LAYOUT_CONTAINER_BOX_H_
 
+#include <set>
+
 #include "base/memory/scoped_vector.h"
 #include "cobalt/layout/box.h"
 
@@ -57,22 +59,28 @@ class ContainerBox : public Box {
 
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
-  bool ContainingBlockForAbsoluteElements() const;
+  // Returns true if the given style allows a container box to act as a
+  // containing
+  // block for absolutely positioned elements.  For example it will be true if
+  // this box's style is itself 'absolute'.
+  bool IsContainingBlockForAbsoluteElements() const;
 
-  // Adds a positioned child (a Box for which Box::IsPositioned() returns
-  // true) to the set of positioned children for this container box.  Note that
-  // this does not imply that this is the child's parent, it just implies that
-  // this is the child's containing block.
-  void AddPositionedChild(Box* child_box);
+  // Returns true if this container box serves as a stacking context for
+  // descendant elements.
+  bool IsStackingContext() const;
 
  protected:
   typedef ScopedVector<Box> ChildBoxes;
 
+  class ZIndexComparator {
+   public:
+    bool operator()(const Box* lhs, const Box* rhs) const {
+      return lhs->GetZIndex() < rhs->GetZIndex();
+    }
+  };
+  typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
+
   void UpdateUsedSizeOfPositionedChildren(const LayoutParams& layout_params);
-  void AddPositionedChildrenToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
 
   // child_box will be added to the end of the list of direct children.
   void PushBackDirectChild(scoped_ptr<Box> child_box);
@@ -91,10 +99,28 @@ class ContainerBox : public Box {
 
   const ChildBoxes& child_boxes() const { return child_boxes_; }
 
+  void UpdateCrossReferencesWithContext(
+      ContainerBox* absolute_containing_block,
+      ContainerBox* stacking_context) OVERRIDE;
+
  private:
   static ChildBoxes::iterator RemoveConst(
       ChildBoxes* container, ChildBoxes::const_iterator const_iter);
   ContainerBox* FindContainingBlock(Box* box);
+
+  // These helper functions are called from Box::SetupAsPositionedChild().
+  void AddContainingBlockChild(Box* child_box);
+  void AddStackingContextChild(Box* child_box);
+
+  // Add children (sorted by z-index) that belong to our stacking context to the
+  // render tree.  The specific list of children to be rendered must be passed
+  // in also, though it will likely only ever be either negative_z_index_child_
+  // or non_negative_z_index_child_.
+  void AddStackingContextChildrenToRenderTree(
+      const ZIndexSortedList& z_index_child_list,
+      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
 
   // Introduces a child box into the box hierarchy as a direct child of this
   // container node.  Calling this function will result in other relationships
@@ -107,12 +133,25 @@ class ContainerBox : public Box {
   // as for 'absolute' or 'fixed' position elements).
   ChildBoxes child_boxes_;
 
-  // A list of our positioned child boxes.  These must be rendered after
-  // our standard in-flow children have been rendered.  For each box in our
-  // list of positioned_child_boxes_, we are that child's containing block.
+  // A list of our positioned child boxes.  For each box in our list of
+  // positioned_child_boxes_, we are that child's containing block.  This is
+  // used for properly positioning and sizing positioned child elements.
   std::vector<Box*> positioned_child_boxes_;
 
- private:
+  // A list of all children within our stacking context, sorted by z-index.
+  // Every positioned box should appear in exactly one z_index list somewhere
+  // in the box tree.  These lists are only used to determine render order.
+  ZIndexSortedList negative_z_index_child_;
+  ZIndexSortedList non_negative_z_index_child_;
+
+  // Boxes and ContainerBoxes are closely related.  For example, when
+  // Box::SetupAsPositionedChild() is called, it will internally call
+  // ContainerBox::AddContainingBlockChild() and
+  // ContainerBox::AddStackingContextChild().
+  // This mutual friendship is a result of the need to maintain 2-way links
+  // between boxes and containers.
+  friend class Box;
+
   DISALLOW_COPY_AND_ASSIGN(ContainerBox);
 };
 
