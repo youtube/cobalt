@@ -25,6 +25,7 @@ interface Document : Node {
   HTMLCollection getElementsByClassName(DOMString classNames);
   [NewObject] Element createElement(DOMString localName);
   [NewObject] Text createTextNode(DOMString data);
+  [NewObject] Event createEvent(DOMString interfaceName);
 };
 
 Document implements GlobalEventHandlers;
