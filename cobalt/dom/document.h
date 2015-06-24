@@ -17,6 +17,8 @@
 #ifndef DOM_DOCUMENT_H_
 #define DOM_DOCUMENT_H_
 
+#include <string>
+
 #include "base/observer_list.h"
 #include "base/string_piece.h"
 #include "cobalt/cssom/mutation_observer.h"
@@ -111,17 +113,17 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<HTMLHeadElement> head() const;
 
-  // Web API: Selectors API Level 1 (partial interface)
-  // This interface is extended in the spec Selectors API Level 1.
-  //   http://www.w3.org/TR/selectors-api/#interface-definitions
-  //
-  // TODO(***REMOVED***): Implement QuerySelector|All.
-
   // Web API: CSS Object Model (partial interface)
   //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
   const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
     return style_sheets_;
   }
+
+  // Web API: Selectors API (partial interface)
+  // This interface is extended in the spec Selectors API.
+  //   http://www.w3.org/TR/selectors-api2/#interface-definitions
+  //
+  scoped_refptr<Element> QuerySelector(const std::string& selectors);
 
   // Web API: GlobalEventHandlers (implements)
   //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
@@ -181,7 +183,7 @@ class Document : public Node, public cssom::MutationObserver {
   void SetHeadInternal(HTMLHeadElement* value);
   void SetHtmlInternal(HTMLHtmlElement* value);
 
-  // HTMLElement Factory, guaranteed to outlive Document.
+  // Reference to HTML element Factory.
   HTMLElementFactory* html_element_factory_;
   // Associated location obejct.
   scoped_refptr<Location> location_;

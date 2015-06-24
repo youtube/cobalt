@@ -16,11 +16,15 @@
 
 #include "cobalt/dom/node.h"
 
+#include <vector>
+
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/text.h"
 
@@ -385,6 +389,31 @@ void Node::UpdateNodeGeneration() {
   if (parent_) {
     parent_->UpdateNodeGeneration();
   }
+}
+
+scoped_refptr<Element> Node::QuerySelectorInternal(
+    const std::string& selectors, cssom::CSSParser* css_parser) {
+  DCHECK(css_parser);
+
+  // Generate a rule with the given selectors and no style.
+  scoped_refptr<cssom::CSSStyleRule> rule = css_parser->ParseStyleRule(
+      selectors + " {}", base::SourceLocation("[object Element]", 1, 1));
+
+  // Iterate through the descendants of the node and find the first matching
+  // element if any.
+  NodeDescendantsIterator iterator(this);
+  Node* child = iterator.First();
+  while (child) {
+    if (!child->IsElement()) {
+      continue;
+    }
+    scoped_refptr<Element> element = child->AsElement();
+    if (MatchRuleAndElement(rule, element)) {
+      return element;
+    }
+    child = iterator.Next();
+  }
+  return NULL;
 }
 
 }  // namespace dom

@@ -163,6 +163,10 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
 
 scoped_refptr<HTMLHeadElement> Document::head() const { return head_.get(); }
 
+scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
+  return QuerySelectorInternal(selectors, html_element_factory_->css_parser());
+}
+
 scoped_refptr<EventListener> Document::onload() {
   return GetAttributeEventListener("load");
 }

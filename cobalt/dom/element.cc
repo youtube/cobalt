@@ -17,6 +17,8 @@
 #include "cobalt/dom/element.h"
 
 #include "base/string_util.h"
+#include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_decoder.h"
 #include "cobalt/dom/dom_token_list.h"
@@ -179,6 +181,10 @@ void Element::set_outer_html(const std::string& outer_html) {
   dom_decoder.Finish();
 }
 
+scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
+  return QuerySelectorInternal(selectors, html_element_factory_->css_parser());
+}
+
 // Algorithm for GetAttribute:
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
 base::optional<std::string> Element::GetAttribute(
@@ -304,6 +310,17 @@ scoped_refptr<Node> Element::Duplicate() const {
   Element* new_element = new Element(html_element_factory_);
   new_element->attribute_map_ = attribute_map_;
   return new_element;
+}
+
+bool Element::IsEmpty() {
+  scoped_refptr<Node> child = first_child();
+  while (child) {
+    if (!child->IsComment()) {
+      return false;
+    }
+    child = child->next_sibling();
+  }
+  return true;
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
