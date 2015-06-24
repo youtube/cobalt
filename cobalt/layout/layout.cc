@@ -19,6 +19,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/initial_style.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -201,8 +202,7 @@ RenderTreeWithAnimations Layout(
   {
     TRACE_EVENT0("cobalt::layout", "BoxGeneration");
     BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                    &used_style_provider, line_break_iterator,
-                                    initial_containing_block.get());
+                                    &used_style_provider, line_break_iterator);
     root->Accept(&root_box_generator);
     BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
     for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();
@@ -214,6 +214,15 @@ RenderTreeWithAnimations Layout(
 
       initial_containing_block->AddChild(root_box.Pass());
     }
+  }
+
+  // Update node cross-references.
+  // "Cross-references" here refers to box node references to other boxes in the
+  // box tree.  For example, stacking contexts and container boxes are setup
+  // for each node in this pass.
+  {
+    TRACE_EVENT0("cobalt::layout", "UpdateCrossReferences");
+    initial_containing_block->UpdateCrossReferences();
   }
 
   // Layout.

@@ -47,12 +47,10 @@ class UsedStyleProvider;
 // As a side-effect, computed styles of visited HTML elements are updated.
 class BoxGenerator : public dom::NodeVisitor {
  public:
-  BoxGenerator(
-      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
-          parent_computed_style,
-      const UsedStyleProvider* used_style_provider,
-      icu::BreakIterator* line_break_iterator,
-      ContainerBox* containing_box_for_absolute);
+  BoxGenerator(const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+                   parent_computed_style,
+               const UsedStyleProvider* used_style_provider,
+               icu::BreakIterator* line_break_iterator);
   ~BoxGenerator();
 
   void Visit(dom::Comment* comment) OVERRIDE;
@@ -76,11 +74,6 @@ class BoxGenerator : public dom::NodeVisitor {
   icu::BreakIterator* const line_break_iterator_;
 
   Boxes boxes_;
-
-  // Maintains a reference to the box that should be used as the containing
-  // block for absolutely positioned elements (e.g. their first ancestor
-  // that is positioned).
-  ContainerBox* containing_box_for_absolute_;
 
   DISALLOW_COPY_AND_ASSIGN(BoxGenerator);
 };
