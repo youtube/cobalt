@@ -72,6 +72,8 @@
         'keyword_value.h',
         'length_value.cc',
         'length_value.h',
+        'linear_gradient_value.cc',
+        'linear_gradient_value.h',
         'list_value.h',
         'matrix_function.cc',
         'matrix_function.h',

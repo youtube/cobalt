@@ -21,6 +21,7 @@
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
@@ -47,6 +48,8 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
+  MOCK_METHOD1(VisitLinearGradient,
+               void(LinearGradientValue* linear_gradient_value));
   MOCK_METHOD1(VisitList, void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
@@ -62,7 +65,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
 };
 
-TEST(PropertyValueVisitorTest, VisitAbsoluteURLValue) {
+TEST(PropertyValueVisitorTest, VisitsAbsoluteURLValue) {
   scoped_refptr<AbsoluteURLValue> url_absolute_value =
       new AbsoluteURLValue(GURL("file:///sample.png"));
   MockPropertyValueVisitor mock_visitor;
@@ -85,6 +88,15 @@ TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
   inherit_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsLinearGradientValue) {
+  scoped_refptr<LinearGradientValue> linear_gradient_value =
+      new LinearGradientValue(LinearGradientValue::kTopLeft,
+                              new ScopedVector<ColorStop>());
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitLinearGradient(linear_gradient_value.get()));
+  linear_gradient_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsLengthValue) {
   scoped_refptr<LengthValue> length_value = new LengthValue(10, kPixelsUnit);
   MockPropertyValueVisitor mock_visitor;
@@ -99,14 +111,14 @@ TEST(PropertyValueVisitorTest, VisitsNumberValue) {
   number_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitPercentageValue) {
+TEST(PropertyValueVisitorTest, VisitsPercentageValue) {
   scoped_refptr<PercentageValue> percentage_value = new PercentageValue(1);
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPercentage(percentage_value.get()));
   percentage_value->Accept(&mock_visitor);
 }
 
-TEST(PropertyValueVisitorTest, VisitPropertyList) {
+TEST(PropertyValueVisitorTest, VisitsPropertyList) {
   scoped_refptr<PropertyListValue> property_list_value = new PropertyListValue(
       make_scoped_ptr(new ScopedRefListValue<PropertyValue>::Builder()));
   MockPropertyValueVisitor mock_visitor;

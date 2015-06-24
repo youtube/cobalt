@@ -28,6 +28,7 @@
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -519,6 +520,139 @@ TEST_F(ParserTest, ParsesMultipleBackgroundImageURLs) {
   scoped_refptr<cssom::URLValue> url_value_3 =
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[2].get());
   EXPECT_EQ("baz.png", url_value_3->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background-image: linear-gradient(180deg, rgba(34, 34, 34, 0) 50px,"
+          "rgba(34, 34, 34, 0) 100px);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
+      dynamic_cast<cssom::LinearGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
+                  *linear_gradient_value->angle_in_radians());
+  EXPECT_TRUE(!linear_gradient_value->side_or_corner());
+
+  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+      linear_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value->size());
+
+  float percentage_list[2] = {50.0f, 100.0f};
+
+  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
+    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    EXPECT_EQ(0x22222200, color->value());
+
+    scoped_refptr<cssom::LengthValue> position =
+        dynamic_cast<cssom::LengthValue*>(color_stop_value->position().get());
+    EXPECT_FLOAT_EQ(percentage_list[i], position->value());
+    EXPECT_EQ(cssom::kPixelsUnit, position->unit());
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background-image: linear-gradient(rgba(34, 34, 34, 0),"
+          "rgba(34, 34, 34, 0) 60%);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  EXPECT_EQ(1, background_image_list->value().size());
+
+  scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
+      dynamic_cast<cssom::LinearGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_TRUE(!linear_gradient_value->angle_in_radians());
+  EXPECT_EQ(cssom::LinearGradientValue::kBottom,
+            *linear_gradient_value->side_or_corner());
+
+  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+      linear_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value->size());
+
+  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
+    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    EXPECT_EQ(0x22222200, color->value());
+
+    if (i == 0) {
+      EXPECT_EQ(scoped_refptr<cssom::PropertyListValue>(),
+                color_stop_value->position());
+    } else {
+      scoped_refptr<cssom::PercentageValue> position =
+          dynamic_cast<cssom::PercentageValue*>(
+              color_stop_value->position().get());
+      EXPECT_FLOAT_EQ(0.6f, position->value());
+    }
+  }
+}
+
+TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "background-image: linear-gradient(to right top, "
+          "rgba(34, 34, 34, 0) 0%, rgba(34, 34, 34, 0) 80px), url(foo.png), "
+          "url(bar.jpg);",
+          source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_image_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
+  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  EXPECT_EQ(3, background_image_list->value().size());
+
+  scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
+      dynamic_cast<cssom::LinearGradientValue*>(
+          background_image_list->value()[0].get());
+  EXPECT_TRUE(!linear_gradient_value->angle_in_radians());
+  EXPECT_EQ(cssom::LinearGradientValue::kTopRight,
+            *linear_gradient_value->side_or_corner());
+
+  const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
+      linear_gradient_value->color_stop_list();
+  EXPECT_EQ(2, color_stop_list_value->size());
+
+  for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
+    const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
+    scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
+    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    EXPECT_EQ(0x22222200, color->value());
+
+    if (i == 0) {
+      scoped_refptr<cssom::PercentageValue> position =
+          dynamic_cast<cssom::PercentageValue*>(
+              color_stop_value->position().get());
+      EXPECT_FLOAT_EQ(0.0f, position->value());
+    } else {
+      scoped_refptr<cssom::LengthValue> position =
+          dynamic_cast<cssom::LengthValue*>(color_stop_value->position().get());
+      EXPECT_FLOAT_EQ(80.0f, position->value());
+      EXPECT_EQ(cssom::kPixelsUnit, position->unit());
+    }
+  }
+
+  scoped_refptr<cssom::URLValue> background_image_1 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[1].get());
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image_1);
+  EXPECT_EQ("foo.png", background_image_1->value());
+
+  scoped_refptr<cssom::URLValue> background_image_2 =
+      dynamic_cast<cssom::URLValue*>(background_image_list->value()[2].get());
+  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image_2);
+  EXPECT_EQ("bar.jpg", background_image_2->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundPositionCenter) {

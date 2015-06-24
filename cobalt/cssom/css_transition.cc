@@ -24,6 +24,7 @@
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -77,7 +78,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
     return animated_value_;
   }
 
-  void VisitAbsoluteURL(AbsoluteURLValue* absolute_url_value) OVERRIDE;
+  void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) OVERRIDE;
   void VisitConstStringList(
       ConstStringListValue* start_const_string_list_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
@@ -87,6 +88,8 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
+  void VisitLinearGradient(
+      LinearGradientValue* start_linear_gradient_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* start_transform_list_value) OVERRIDE;
@@ -313,7 +316,7 @@ scoped_refptr<PropertyValue> AnimateTransform(const PropertyValue* start_value,
 }  // namespace
 
 void AnimatorVisitor::VisitAbsoluteURL(
-    AbsoluteURLValue* /*absolute_url_value*/) {
+    AbsoluteURLValue* /*start_absolute_url_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }
@@ -362,6 +365,12 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
 }
 
 void AnimatorVisitor::VisitLength(LengthValue* /*start_length_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitLinearGradient(
+    LinearGradientValue* /*start_linear_gradient_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }
