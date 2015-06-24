@@ -37,6 +37,9 @@ class UIEvent : public Event {
     kKeyUp,
   };
 
+  // Creates an event with its "initialized flag" unset.
+  explicit UIEvent(UninitializedFlag uninitialized_flag);
+
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:

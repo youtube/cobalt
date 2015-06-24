@@ -31,6 +31,8 @@ namespace dom {
 // http://www.w3.org/TR/dom/#dispatching-events
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
+  // TODO(***REMOVED***): Raise InvalidStateError exception.
+  DCHECK(event->initialized_flag());
 
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;

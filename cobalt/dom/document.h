@@ -21,6 +21,7 @@
 #include "base/string_piece.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/dom/node.h"
 #include "googleurl/src/gurl.h"
 
@@ -93,6 +94,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<Element> CreateElement();
   scoped_refptr<Element> CreateElement(const std::string& tag_name);
   scoped_refptr<Text> CreateTextNode(const std::string& text);
+  scoped_refptr<Event> CreateEvent(const std::string& interface_name);
 
   // Web API: NonElementParentNode (implements)
   //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-nonelementparentnode
