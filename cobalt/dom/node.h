@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/event_target.h"
 
 namespace cobalt {
@@ -219,6 +220,9 @@ class Node : public EventTarget {
   virtual bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const;
   // Triggers a generation update in this node and all its ancestor nodes.
   void UpdateNodeGeneration();
+  // Implementation of QuerySelector on Document and Element;
+  scoped_refptr<Element> QuerySelectorInternal(const std::string& selectors,
+                                               cssom::CSSParser* css_parser);
 
  private:
   // Weak reference to the parent node.
