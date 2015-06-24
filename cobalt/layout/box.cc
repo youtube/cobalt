@@ -18,11 +18,13 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/initial_style.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/layout/container_box.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
@@ -49,7 +51,8 @@ Box::Box(
       transitions_(transitions),
       used_style_provider_(used_style_provider),
       parent_(NULL),
-      containing_block_(NULL) {
+      containing_block_(NULL),
+      stacking_context_(NULL) {
   DCHECK(transitions_);
   DCHECK(used_style_provider_);
 }
@@ -168,6 +171,12 @@ void Box::AddToRenderTree(
   // TODO(***REMOVED***): Implement borders.
   AddContentToRenderTree(&composition_node_builder,
                          node_animations_map_builder);
+
+  if (composition_node_builder.composed_children().empty()) {
+    // If there is no content to add for this box, do not proceed to the
+    // subsequent steps of determining the correct transform and filters.
+    return;
+  }
 
   scoped_refptr<render_tree::Node> content_node =
       new CompositionNode(composition_node_builder.Pass());
@@ -337,6 +346,64 @@ void Box::AddBackgroundImageToRenderTree(
       }
     }
   }
+}
+
+int Box::GetZIndex() const {
+  if (computed_style()->z_index() == cssom::KeywordValue::GetAuto()) {
+    return 0;
+  } else {
+    return base::polymorphic_downcast<cssom::IntegerValue*>(
+               computed_style()->z_index().get())->value();
+  }
+}
+
+void Box::UpdateCrossReferences() {
+  // TODO(***REMOVED***): While passing NULL into the following parameters works fine
+  //               for the initial containing block, if we wish to support
+  //               partial layouts, we will need to search up our ancestor
+  //               chain for the correct values to pass in here as context.
+  UpdateCrossReferencesWithContext(NULL, NULL);
+}
+
+void Box::UpdateCrossReferencesWithContext(
+    ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
+  if (IsPositioned()) {
+    // Stacking context and containing blocks only matter for positioned
+    // boxes.
+    ContainerBox* containing_block;
+    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+      containing_block = absolute_containing_block;
+    } else {
+      containing_block = parent_;
+    }
+
+    // Notify our containing block that we are a positioned child of theirs.
+    if (containing_block && stacking_context) {
+      SetupAsPositionedChild(containing_block, stacking_context);
+    }
+  }
+}
+
+void Box::SetupAsPositionedChild(ContainerBox* containing_block,
+                                 ContainerBox* stacking_context) {
+  DCHECK(IsPositioned());
+
+  DCHECK(!containing_block_);
+  DCHECK(!stacking_context_);
+
+  // Setup the link between this child box and its containing block.
+  containing_block_ = containing_block;
+
+  // Now setup this child box within its containing block/stacking context's
+  // list of children.
+  containing_block->AddContainingBlockChild(this);
+
+  if (GetZIndex() != 0) {
+    stacking_context_ = stacking_context;
+  } else {
+    stacking_context_ = containing_block;
+  }
+  stacking_context_->AddStackingContextChild(this);
 }
 
 }  // namespace layout
