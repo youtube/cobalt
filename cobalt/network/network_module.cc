@@ -32,14 +32,16 @@ void OnDestroy(scoped_ptr<URLRequestContext> url_request_context,
                scoped_ptr<NetworkDelegate> network_delegate) {}
 }  // namespace
 
-NetworkModule::NetworkModule() : io_thread_("IO Thread") {
+NetworkModule::NetworkModule()
+    : io_thread_(new base::Thread("IO Thread")),
+      object_watch_multiplexer_(new base::ObjectWatchMultiplexer()) {
   PlatformInit();
 
   // Launch the IO thread.
   base::Thread::Options io_thread_options;
   io_thread_options.message_loop_type = MessageLoop::TYPE_IO;
   io_thread_options.stack_size = 256 * 1024;
-  io_thread_.StartWithOptions(io_thread_options);
+  io_thread_->StartWithOptions(io_thread_options);
 
   base::WaitableEvent creation_event(true, false);
   // Run Network module startup on IO thread,
@@ -52,17 +54,25 @@ NetworkModule::NetworkModule() : io_thread_("IO Thread") {
   // have been constructed.
   creation_event.Wait();
   DCHECK(url_request_context_);
-  url_request_context_getter_ =
-      new network::URLRequestContextGetter(
-          url_request_context_.get(), &io_thread_);
+  url_request_context_getter_ = new network::URLRequestContextGetter(
+      url_request_context_.get(), io_thread_.get());
 }
 
 NetworkModule::~NetworkModule() {
+  // Order of destruction is important here.
+  // URLRequestContext and NetworkDelegate must be destroyed on the IO thread.
+  // The ObjectWatchMultiplexer must be destroyed last.  (The sockets owned
+  // by URLRequestContext will destroy their ObjectWatchers, which need the
+  // multiplexer.)
+  url_request_context_getter_ = NULL;
   message_loop_proxy()->PostTask(
       FROM_HERE, base::Bind(
           &OnDestroy,
           base::Passed(&url_request_context_),
           base::Passed(&network_delegate_)));
+  // This will run the above task, and then stop the thread.
+  io_thread_.reset(NULL);
+  object_watch_multiplexer_.reset(NULL);
   PlatformShutdown();
 }
 
