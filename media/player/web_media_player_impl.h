@@ -112,7 +112,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      MediaLog* media_log);
   virtual ~WebMediaPlayerImpl();
 
-  virtual void Load(const GURL& url, CORSMode cors_mode);
+  virtual void LoadMediaSource();
+  virtual void LoadProgressive(
+      const GURL& url,
+      const scoped_refptr<BufferedDataSource>& data_source,
+      CORSMode cors_mode);
   virtual void CancelLoad();
 
   // Playback controls.
@@ -234,9 +238,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetOpaque(bool);
 
  private:
-  // Called after asynchronous initialization of a data source completed.
-  void DataSourceInitialized(const GURL& gurl, bool success);
-
   // Called when the data source is downloading or paused.
   void NotifyDownloading(bool is_downloading);
 
