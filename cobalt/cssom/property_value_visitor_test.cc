@@ -18,6 +18,7 @@
 
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -45,6 +46,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
   MOCK_METHOD1(VisitAbsoluteURL, void(AbsoluteURLValue* absolute_url_value));
   MOCK_METHOD1(VisitConstStringList,
                void(ConstStringListValue* const_string_list_value));
+  MOCK_METHOD1(VisitFontStyle, void(FontStyleValue* font_style_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
@@ -71,6 +73,13 @@ TEST(PropertyValueVisitorTest, VisitsAbsoluteURLValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitAbsoluteURL(url_absolute_value.get()));
   url_absolute_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsFontStyleValue) {
+  scoped_refptr<FontStyleValue> font_style_value = FontStyleValue::GetNormal();
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitFontStyle(font_style_value.get()));
+  font_style_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsFontWeightValue) {

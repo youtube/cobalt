@@ -174,6 +174,14 @@ void CSSStyleDeclaration::set_font_size(const std::string& font_size) {
   SetPropertyValue(kFontSizePropertyName, font_size);
 }
 
+std::string CSSStyleDeclaration::font_style() const {
+  return data_->font_style() ? data_->font_style()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_font_style(const std::string& font_style) {
+  SetPropertyValue(kFontStylePropertyName, font_style);
+}
+
 std::string CSSStyleDeclaration::font_weight() const {
   return data_->font_weight() ? data_->font_weight()->ToString() : "";
 }

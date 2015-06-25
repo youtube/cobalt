@@ -29,6 +29,7 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString display;
   [TreatNullAs=EmptyString] attribute DOMString fontFamily;
   [TreatNullAs=EmptyString] attribute DOMString fontSize;
+  [TreatNullAs=EmptyString] attribute DOMString fontStyle;
   [TreatNullAs=EmptyString] attribute DOMString fontWeight;
   [TreatNullAs=EmptyString] attribute DOMString height;
   [TreatNullAs=EmptyString] attribute DOMString opacity;
