@@ -25,6 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/javascriptcore/js_object_cache.h"
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSGlobalData.h"
@@ -45,22 +46,11 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   // Create a new garbage-collected JSCGlobalObject instance.
   static JSCGlobalObject* Create(JSC::JSGlobalData* global_data);
 
-  // Get the cached object associated with this ClassInfo, or NULL if none
-  // exist.
-  JSC::JSObject* GetCachedObject(const JSC::ClassInfo* class_info);
-
-  // Cache the object associated with this ClassInfo.
-  void CacheObject(const JSC::ClassInfo* class_info,
-                   JSC::JSObject* object);
-
-  // Register a JavaScript object to which a reference is being held from
-  // Cobalt. As long as the JSCObjectOwner has not been deleted, the
-  // underlying JS object will not be garbage collected.
-  scoped_refptr<JSCObjectOwner> RegisterObjectOwner(JSC::JSObject* js_object);
-
   scoped_refptr<Wrappable> global_interface() { return global_interface_; }
 
   const WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
+
+  JSObjectCache* object_cache() { return object_cache_.get(); }
 
   // Getters for CallWith= arguments
   EnvironmentSettings* GetEnvironmentSettings() {
@@ -74,16 +64,16 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
   // finalizer method on creation.
   static const bool needsDestruction = false;
 
-  // Statically override this to ensure that we visit objects that this
-  // object holds handles to. This is generally called by JSCs garbage
-  // collector.
+  // Statically override this to ensure that we visit objects that are cached
+  // or otherwise should not be garbage collected.
   static void visitChildren(JSC::JSCell* cell,
                             JSC::SlotVisitor& visitor) {  // NOLINT
+    JSC::JSGlobalObject::visitChildren(cell, visitor);
     // Cast the JSC::JSCell* to a JSCGlobalObject, and call the non-static
     // visit_children function.
     ASSERT_GC_OBJECT_INHERITS(cell, &s_info);
     JSCGlobalObject* this_object = JSC::jsCast<JSCGlobalObject*>(cell);
-    this_object->visit_children(&visitor);
+    this_object->object_cache_->VisitChildren(&visitor);
   }
 
   // static override. This will be called when this object is garbage collected.
@@ -100,30 +90,9 @@ class JSCGlobalObject : public JSC::JSGlobalObject {
                   EnvironmentSettings* environment_settings);
 
  private:
-  // Called from the public static visitChildren method, defined above.
-  void visit_children(JSC::SlotVisitor* visitor);
-
-#if defined(__LB_LINUX__)
-  struct hash_function {
-    std::size_t operator()(const JSC::ClassInfo* class_info) const {
-      return BASE_HASH_NAMESPACE::hash<intptr_t>()(
-          reinterpret_cast<intptr_t>(class_info));
-    }
-  };
-  typedef base::hash_map<const JSC::ClassInfo*,
-                         JSC::WriteBarrier<JSC::JSObject>,
-                         hash_function> CachedObjectMap;
-#else
-  typedef base::hash_map<const JSC::ClassInfo*,
-                         JSC::WriteBarrier<JSC::JSObject> > CachedObjectMap;
-#endif
-
-  typedef std::vector<base::WeakPtr<JSCObjectOwner> > JSCObjectOwnerVector;
-
-  CachedObjectMap cached_objects_;
-  JSCObjectOwnerVector owned_objects_;
   scoped_refptr<Wrappable> global_interface_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  scoped_ptr<JSObjectCache> object_cache_;
   EnvironmentSettings* environment_settings_;
 };
 

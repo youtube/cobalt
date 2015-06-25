@@ -50,64 +50,9 @@ JSCGlobalObject::JSCGlobalObject(JSC::JSGlobalData* global_data,
                                  EnvironmentSettings* environment_settings)
     : JSC::JSGlobalObject(*global_data, structure),
       wrapper_factory_(wrapper_factory.Pass()),
+      object_cache_(new JSObjectCache(this)),
       global_interface_(wrappable),
       environment_settings_(environment_settings) {}
-
-JSC::JSObject* JSCGlobalObject::GetCachedObject(
-    const JSC::ClassInfo* class_info) {
-  CachedObjectMap::iterator it = cached_objects_.find(class_info);
-  if (it != cached_objects_.end()) {
-    return it->second.get();
-  }
-  return NULL;
-}
-
-void JSCGlobalObject::CacheObject(const JSC::ClassInfo* class_info,
-                                     JSC::JSObject* object) {
-  std::pair<CachedObjectMap::iterator, bool> pair_ib;
-  pair_ib = cached_objects_.insert(std::make_pair(
-      class_info,
-      JSC::WriteBarrier<JSC::JSObject>(this->globalData(), this, object)));
-  DCHECK(pair_ib.second)
-      << "Object was already registered for this ClassInfo";
-}
-
-scoped_refptr<JSCObjectOwner> JSCGlobalObject::RegisterObjectOwner(
-    JSC::JSObject* js_object) {
-  DCHECK(js_object);
-  scoped_refptr<JSCObjectOwner> object_owner = new JSCObjectOwner(
-      JSC::WriteBarrier<JSC::JSObject>(this->globalData(), this, js_object));
-  owned_objects_.push_back(object_owner->AsWeakPtr());
-  return object_owner;
-}
-
-void JSCGlobalObject::visit_children(JSC::SlotVisitor* visitor) {
-  JSC::JSGlobalObject::visitChildren(this, *visitor);
-
-  for (CachedObjectMap::iterator it = cached_objects_.begin();
-       it != cached_objects_.end(); ++it) {
-    visitor->append(&(it->second));
-  }
-
-  // If the object being pointed to by the weak handle has been deleted, then
-  // there are no more references to the JavaScript object in Cobalt. It is
-  // safe to be garbage collected.
-  size_t num_owned_objects = owned_objects_.size();
-  for (size_t i = 0; i < num_owned_objects;) {
-    base::WeakPtr<JSCObjectOwner>& owner_weak = owned_objects_[i];
-    if (owner_weak) {
-      visitor->append(&(owner_weak->js_object()));
-      ++i;
-    } else {
-      // Erase this by overwriting the current element with the last element
-      // to avoid copying the other elements in the vector when deleting from
-      // the middle.
-      owned_objects_[i] = owned_objects_[num_owned_objects - 1];
-      --num_owned_objects;
-    }
-  }
-  owned_objects_.resize(num_owned_objects);
-}
 
 }  // namespace javascriptcore
 }  // namespace script
