@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include "base/basictypes.h"
+
 namespace cobalt {
 namespace loader {
 
@@ -29,6 +31,13 @@ class Fetcher {
     virtual void OnReceived(const char* data, size_t size) = 0;
     virtual void OnDone() = 0;
     virtual void OnError(const std::string& error) = 0;
+
+   protected:
+    Handler() {}
+    virtual ~Handler() {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Handler);
   };
 
   // Concrete Fetcher subclass should start fetching immediately in constructor.

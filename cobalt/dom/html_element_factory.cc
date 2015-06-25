@@ -52,7 +52,8 @@ HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
 template <>
 scoped_refptr<HTMLElement>
 HTMLElementFactory::CreateHTMLElementT<HTMLMediaElement>() {
-  return new HTMLMediaElement(this, css_parser_, web_media_player_factory_);
+  return new HTMLMediaElement(this, css_parser_, fetcher_factory_,
+                              web_media_player_factory_);
 }
 
 HTMLElementFactory::HTMLElementFactory(
