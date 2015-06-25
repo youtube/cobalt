@@ -250,7 +250,7 @@ inline void FromJSValue(JSC::ExecState* exec_state, JSC::JSValue jsvalue,
       JSC::jsCast<JSC::JSFunction*>(jsvalue.asCell());
   DCHECK(js_function);
   scoped_refptr<JSCObjectOwner> object_owner =
-      global_object->RegisterObjectOwner(js_function);
+      global_object->object_cache()->RegisterObjectOwner(js_function);
 
   // JSCCallbackFunction keeps a handle to object_owner. As long as a reference
   // to the JSCCallbackFunction exists, therefore there is a reference to the
