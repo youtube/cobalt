@@ -34,7 +34,6 @@
       '<(fonts_dir)/DroidSansHebrew-Regular.ttf',
       '<(fonts_dir)/DroidSansJapanese.ttf',
       '<(fonts_dir)/DroidSansThai.ttf',
-      '<(fonts_dir)/icons.ttf',
       '<(fonts_dir)/Lohit-Bengali.ttf',
       '<(fonts_dir)/Lohit-Devanagari.ttf',
       '<(fonts_dir)/Lohit-Gujarati.ttf',
@@ -45,6 +44,8 @@
       '<(fonts_dir)/Lohit-Tamil.ttf',
       '<(fonts_dir)/Lohit-Telugu.ttf',
       '<(fonts_dir)/OpenSans-Regular.ttf',
+      # TODO(***REMOVED***): Remove the following two items and font files when @font-face is implemented.
+      '<(fonts_dir)/icons.ttf',
       '<(fonts_dir)/Roboto-Regular.ttf',
     ],
   },
