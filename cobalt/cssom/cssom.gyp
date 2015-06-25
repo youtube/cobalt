@@ -60,6 +60,8 @@
         'empty_pseudo_class.h',
         'following_sibling_combinator.cc',
         'following_sibling_combinator.h',
+        'font_style_value.cc',
+        'font_style_value.h',
         'font_weight_value.cc',
         'font_weight_value.h',
         'id_selector.cc',

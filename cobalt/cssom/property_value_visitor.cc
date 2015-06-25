@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -44,6 +45,11 @@ void DefaultingPropertyValueVisitor::VisitAbsoluteURL(
 void DefaultingPropertyValueVisitor::VisitConstStringList(
     ConstStringListValue* const_string_list_value) {
   VisitDefault(const_string_list_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitFontStyle(
+    FontStyleValue* font_style_value) {
+  VisitDefault(font_style_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitFontWeight(

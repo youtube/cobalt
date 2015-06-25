@@ -28,8 +28,7 @@ AnonymousBlockBox::AnonymousBlockBox(
     : BlockContainerBox(computed_style, transitions, used_style_provider),
       used_font_(used_style_provider->GetUsedFont(
           computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_weight())) {}
-
+          computed_style->font_style(), computed_style->font_weight())) {}
 
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 

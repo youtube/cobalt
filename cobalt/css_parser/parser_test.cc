@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -969,6 +970,13 @@ TEST_F(ParserTest, ParsesFontSize) {
   ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
   EXPECT_FLOAT_EQ(100, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
+}
+
+TEST_F(ParserTest, ParsesFontStyle) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("font-style: italic;", source_location_);
+
+  EXPECT_EQ(cssom::FontStyleValue::GetItalic(), style->font_style());
 }
 
 TEST_F(ParserTest, ParsesNormalFontWeight) {
