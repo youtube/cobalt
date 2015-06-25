@@ -29,6 +29,7 @@
 #include "cobalt/dom/media_key_error_event.h"
 #include "cobalt/dom/media_key_message_event.h"
 #include "cobalt/dom/media_key_needed_event.h"
+#include "cobalt/media/fetcher_buffered_data_source.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 
@@ -44,8 +45,10 @@ const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
 HTMLMediaElement::HTMLMediaElement(
     HTMLElementFactory* html_element_factory, cssom::CSSParser* css_parser,
+    loader::FetcherFactory* fetcher_factory,
     media::WebMediaPlayerFactory* web_media_player_factory)
     : HTMLElement(html_element_factory, css_parser),
+      fetcher_factory_(fetcher_factory),
       web_media_player_factory_(web_media_player_factory),
       load_state_(kWaitingForSource),
       event_queue_(this),
@@ -508,6 +511,8 @@ void HTMLMediaElement::PrepareForLoad() {
 }
 
 void HTMLMediaElement::LoadInternal() {
+  DCHECK(owner_document());
+
   // Select media resource.
   enum Mode { attribute, children };
 
@@ -540,8 +545,12 @@ void HTMLMediaElement::LoadInternal() {
     // failed step below.
     GURL media_url(src_);
     if (media_url.is_empty()) {
+      // Try to resolve it as a relative url.
+      media_url = owner_document()->url_as_gurl().Resolve(src_);
+    }
+    if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
-      DLOG(WARNING) << "HTMLMediaElement::LoadInternal, empty 'src'";
+      DLOG(WARNING) << "HTMLMediaElement::LoadInternal, invalid 'src' " << src_;
       return;
     }
 
@@ -586,7 +595,14 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   UpdateVolume();
 
   // TODO(***REMOVED***): deal with load error.
-  player_->Load(url, WebMediaPlayer::kCORSModeUnspecified);
+  if (!url.is_empty() && url.spec() == SourceURL()) {
+    player_->LoadMediaSource();
+  } else {
+    player_->LoadProgressive(url,
+                             new media::FetcherBufferedDataSource(
+                                 MessageLoop::current(), url, fetcher_factory_),
+                             WebMediaPlayer::kCORSModeUnspecified);
+  }
   // if (!player_->Load(url, WebMediaPlayer::kCORSModeUnspecified))
   //   MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
 }

@@ -29,7 +29,9 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         # Use test data from dom to avoid keeping two copies of video files.
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
+        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
+        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',

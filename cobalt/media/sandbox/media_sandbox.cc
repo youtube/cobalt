@@ -16,6 +16,7 @@
 
 #include "cobalt/media/sandbox/media_sandbox.h"
 
+#include "cobalt/media/fetcher_buffered_data_source.h"
 
 namespace cobalt {
 namespace media {
@@ -29,9 +30,13 @@ MediaSandbox::MediaSandbox(ResourceProvider* resource_provider)
     : media_module_(MediaModule::Create(resource_provider)),
       player_(media_module_->CreateWebMediaPlayer(this)) {}
 
-void MediaSandbox::LoadAndPlay(const GURL& url) {
+void MediaSandbox::LoadAndPlay(const GURL& url,
+                               loader::FetcherFactory* fetcher_factory) {
   player_->SetRate(1.0);
-  player_->Load(url, ::media::WebMediaPlayer::kCORSModeUnspecified);
+  player_->LoadProgressive(url,
+                           new FetcherBufferedDataSource(MessageLoop::current(),
+                                                         url, fetcher_factory),
+                           ::media::WebMediaPlayer::kCORSModeUnspecified);
   player_->Play();
 }
 
