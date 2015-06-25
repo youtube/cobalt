@@ -1153,6 +1153,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 10:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFontStylePropertyName)) {
+        *property_name_token = kFontStyleToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kBackgroundPropertyName)) {
         *property_name_token = kBackgroundToken;
         return true;
@@ -1345,6 +1349,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kInlineToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kItalicKeywordName)) {
+        *property_value_token = kItalicToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kLinearKeywordName)) {
         *property_value_token = kLinearToken;
         return true;
@@ -1378,6 +1386,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInitialKeywordName)) {
         *property_value_token = kInitialToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kObliqueKeywordName)) {
+        *property_value_token = kObliqueToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kVisibleKeywordName)) {

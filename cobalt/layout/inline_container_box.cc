@@ -32,7 +32,7 @@ InlineContainerBox::InlineContainerBox(
       height_above_baseline_(0),
       used_font_(used_style_provider->GetUsedFont(
           computed_style->font_family(), computed_style->font_size(),
-          computed_style->font_weight())) {}
+          computed_style->font_style(), computed_style->font_weight())) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
