@@ -22,6 +22,8 @@
         '<(lbshell_root)/src/platform/<(target_arch)',
       ],
       'sources': [
+        'fetcher_buffered_data_source.cc',
+        'fetcher_buffered_data_source.h',
         'media_module.cc',
         'media_module.h',
         'media_module_<(actual_target_arch).cc',

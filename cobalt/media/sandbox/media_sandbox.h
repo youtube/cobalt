@@ -20,6 +20,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/media/media_module.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
@@ -36,7 +37,7 @@ class MediaSandbox : public ::media::WebMediaPlayerClient {
   explicit MediaSandbox(
       cobalt::render_tree::ResourceProvider* resource_provider);
 
-  void LoadAndPlay(const GURL& url);
+  void LoadAndPlay(const GURL& url, loader::FetcherFactory* fetcher_factory);
   scoped_refptr<Image> GetCurrentFrame();
 
  private:

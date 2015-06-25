@@ -23,7 +23,12 @@ namespace {
 
 class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
  private:
-  void Load(const GURL& url, CORSMode cors_mode) OVERRIDE {}
+  typedef ::media::BufferedDataSource BufferedDataSource;
+
+  void LoadMediaSource() OVERRIDE {}
+  void LoadProgressive(const GURL& url,
+                       const scoped_refptr<BufferedDataSource>& data_source,
+                       ::media::WebMediaPlayer::CORSMode cors_mode) OVERRIDE {}
   void CancelLoad() OVERRIDE {}
 
   // Playback controls.
