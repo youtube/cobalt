@@ -281,7 +281,34 @@ URLSchemeForHistogram URLScheme(const GURL& url) {
 
 }  // anonymous namespace
 
-void WebMediaPlayerImpl::Load(const GURL& url, CORSMode cors_mode) {
+void WebMediaPlayerImpl::LoadMediaSource() {
+  DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  // Handle any volume changes that occured before load().
+  SetVolume(GetClient()->Volume());
+
+  SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
+  SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
+
+  scoped_refptr<base::MessageLoopProxy> message_loop =
+      message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
+
+  // Media source pipelines can start immediately.
+  chunk_demuxer_ = new ChunkDemuxer(
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
+      BIND_TO_RENDER_LOOP_2(&WebMediaPlayerImpl::OnNeedKey, "", ""),
+      base::Bind(&LogMediaSourceError, media_log_));
+
+  BuildMediaSourceCollection(
+      chunk_demuxer_, message_loop, filter_collection_.get());
+  supports_save_ = false;
+  StartPipeline();
+}
+
+void WebMediaPlayerImpl::LoadProgressive(
+    const GURL& url,
+    const scoped_refptr<BufferedDataSource>& data_source,
+    CORSMode cors_mode) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
@@ -296,33 +323,15 @@ void WebMediaPlayerImpl::Load(const GURL& url, CORSMode cors_mode) {
   scoped_refptr<base::MessageLoopProxy> message_loop =
       message_loop_factory_->GetMessageLoop(MessageLoopFactory::kPipeline);
 
-  // Media source pipelines can start immediately.
-  if (!url.is_empty() && url.spec() == GetClient()->SourceURL()) {
-    chunk_demuxer_ = new ChunkDemuxer(
-        BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
-        BIND_TO_RENDER_LOOP_2(&WebMediaPlayerImpl::OnNeedKey, "", ""),
-        base::Bind(&LogMediaSourceError, media_log_));
-
-    BuildMediaSourceCollection(
-        chunk_demuxer_, message_loop, filter_collection_.get());
-    supports_save_ = false;
-    StartPipeline();
-    return;
-  }
-
-// TODO(***REMOVED***) : Enable progressive playback when a proper URL fetcher is
-// available.
-// Otherwise it's a regular request which requires resolving the URL first.
-  proxy_->set_data_source(new BufferedDataSource(main_loop_));
-  proxy_->data_source()->Initialize(
-      url,
-      base::Bind(&WebMediaPlayerImpl::DataSourceInitialized, AsWeakPtr(), url));
+  proxy_->set_data_source(data_source);
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
   BuildDefaultCollection(proxy_->data_source(),
                          message_loop,
                          filter_collection_.get());
+
+  StartPipeline();
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -1098,18 +1107,6 @@ void WebMediaPlayerImpl::SetOpaque(bool opaque) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   GetClient()->SetOpaque(opaque);
-}
-
-void WebMediaPlayerImpl::DataSourceInitialized(const GURL& gurl, bool success) {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  if (!success) {
-    SetNetworkState(WebMediaPlayer::kNetworkStateFormatError);
-    Repaint();
-    return;
-  }
-
-  StartPipeline();
 }
 
 void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
