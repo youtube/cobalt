@@ -75,6 +75,7 @@
 %token kDisplayToken                          // display
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
+%token kFontStyleToken                        // font-style
 %token kFontWeightToken                       // font-weight
 %token kHeightToken                           // height
 %token kLeftToken                             // left
@@ -114,10 +115,12 @@
 %token kInitialToken                    // initial
 %token kInlineBlockToken                // inline-block
 %token kInlineToken                     // inline
+%token kItalicToken                     // italic
 %token kLinearToken                     // linear
 %token kMiddleToken                     // middle
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
+%token kObliqueToken                    // oblique
 %token kRelativeToken                   // relative
 %token kStartToken                      // start
 %token kStaticToken                     // static
@@ -314,11 +317,11 @@
                        display_property_value
                        font_family_property_value
                        font_family_name font_size_property_value
-                       font_weight_property_value height_property_value
-                       line_height_property_value linear_gradient_params
-                       opacity_property_value overflow_property_value
-                       position_property_value transition_delay_property_value
-                       transform_property_value
+                       font_style_property_value font_weight_property_value
+                       height_property_value line_height_property_value
+                       linear_gradient_params opacity_property_value
+                       overflow_property_value position_property_value
+                       transition_delay_property_value transform_property_value
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
@@ -620,6 +623,9 @@ identifier_token:
   | kInitialToken {
     $$ = TrivialStringPiece::FromCString(cssom::kInitialKeywordName);
   }
+  | kItalicToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kItalicKeywordName);
+  }
   | kLinearToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLinearKeywordName);
   }
@@ -631,6 +637,9 @@ identifier_token:
   }
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
+  }
+  | kObliqueToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
   }
   | kRelativeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRelativeKeywordName);
@@ -1456,6 +1465,20 @@ font_size_property_value:
   | common_values
   ;
 
+// The 'font-style' property allows italic or oblique faces to be selected.
+//   http://www.w3.org/TR/css3-fonts/#font-style-prop
+font_style_property_value:
+    kItalicToken maybe_whitespace {
+    $$ = AddRef(cssom::FontStyleValue::GetItalic().get());
+  }
+  | kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::FontStyleValue::GetNormal().get());
+  }
+  | kObliqueToken maybe_whitespace {
+    $$ = AddRef(cssom::FontStyleValue::GetOblique().get());
+  }
+  ;
+
 // The weight of glyphs in the font, their degree of blackness
 // or stroke thickness.
 //   http://www.w3.org/TR/css3-fonts/#font-weight-prop
@@ -2105,6 +2128,12 @@ maybe_declaration:
   | kFontSizeToken maybe_whitespace colon font_size_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kFontSizePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kFontStyleToken maybe_whitespace colon font_style_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontStylePropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

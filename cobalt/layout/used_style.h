@@ -56,6 +56,7 @@ class UsedStyleProvider {
   scoped_refptr<render_tree::Font> GetUsedFont(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
+      const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
       const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const;
 
   scoped_refptr<render_tree::Image> ResolveURLToImage(const GURL& url) const;

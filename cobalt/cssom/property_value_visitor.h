@@ -24,6 +24,7 @@ namespace cssom {
 
 class AbsoluteURLValue;
 class ConstStringListValue;
+class FontStyleValue;
 class FontWeightValue;
 class KeywordValue;
 class LengthValue;
@@ -47,6 +48,7 @@ class PropertyValueVisitor {
   virtual void VisitAbsoluteURL(AbsoluteURLValue* url_value) = 0;
   virtual void VisitConstStringList(
       ConstStringListValue* const_string_list_value) = 0;
+  virtual void VisitFontStyle(FontStyleValue* font_style_value) = 0;
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
@@ -76,6 +78,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
   void VisitConstStringList(
       ConstStringListValue* const_string_list_value) OVERRIDE;
+  void VisitFontStyle(FontStyleValue* font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;

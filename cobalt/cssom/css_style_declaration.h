@@ -90,6 +90,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string font_size() const;
   void set_font_size(const std::string& font_size);
 
+  std::string font_style() const;
+  void set_font_style(const std::string& font_style);
+
   std::string font_weight() const;
   void set_font_weight(const std::string& font_weight);
 

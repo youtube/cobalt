@@ -39,6 +39,7 @@
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
+#include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/initial_style.h"
