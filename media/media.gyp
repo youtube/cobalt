@@ -595,7 +595,6 @@
                 '../googleurl/googleurl.gyp:googleurl',
               ],
               'sources': [
-                'player/buffered_data_source.cc',
                 'player/buffered_data_source.h',
                 'player/crypto/key_systems.h',
                 'player/crypto/key_systems.cc',

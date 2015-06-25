@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 
+#include "base/basictypes.h"
 #include "base/message_loop.h"
 #include "googleurl/src/gurl.h"
 #include "media/base/data_source.h"
@@ -31,39 +32,13 @@ enum Preload {
   kPreloadAuto,
 };
 
-// TODO(***REMOVED***) : The temporary data source can only load local files and
-//                   ignore all I/O errors except file open error.
+// TODO(***REMOVED***, b/21471585): Investigate if we still need BufferedDataSource.
 class BufferedDataSource : public DataSource {
  public:
-  // All callbacks will be posted to the message_loop passed in.
-  explicit BufferedDataSource(MessageLoop* message_loop)
-      : size_(kInvalidSize), message_loop_(message_loop) {}
-
-  void Initialize(const GURL& url, const base::Callback<void(bool)>& init_cb);
-  virtual void SetPreload(Preload preload) {}
+  virtual void SetPreload(Preload preload) { UNREFERENCED_PARAMETER(preload); }
   virtual bool HasSingleOrigin() { return true; }
   virtual bool DidPassCORSAccessCheck() const { return true; }
   virtual void Abort() {}
-
-  // DataSource methods
-  void Read(int64 position,
-            int size,
-            uint8* data,
-            const DataSource::ReadCB& read_cb) OVERRIDE;
-  void Stop(const base::Closure& callback) OVERRIDE {}
-  bool GetSize(int64* size_out) OVERRIDE {
-    *size_out = size_;
-    return size_ != kInvalidSize;
-  }
-  bool IsStreaming() OVERRIDE { return false; }
-  void SetBitrate(int bitrate) OVERRIDE {}
-
- private:
-  static const int64 kInvalidSize = -1;
-
-  std::string file_name_;
-  int64 size_;
-  MessageLoop* message_loop_;
 };
 
 }  // namespace media

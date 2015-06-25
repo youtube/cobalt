@@ -19,6 +19,7 @@
 #include "media/base/ranges.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
+#include "media/player/buffered_data_source.h"
 #include "ui/gfx/size.h"
 
 // Disable `unreferenced formal parameter` as we have many stub functions in
@@ -75,7 +76,11 @@ class WebMediaPlayer {
 
   virtual ~WebMediaPlayer() {}
 
-  virtual void Load(const GURL& url, CORSMode cors_mode) = 0;
+  virtual void LoadMediaSource() = 0;
+  virtual void LoadProgressive(
+      const GURL& url,
+      const scoped_refptr<BufferedDataSource>& data_source,
+      CORSMode cors_mode) = 0;
   virtual void CancelLoad() = 0;
 
   // Playback controls.
