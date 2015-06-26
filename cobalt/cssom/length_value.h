@@ -37,7 +37,7 @@ class LengthValue : public PropertyValue {
  public:
   LengthValue(float value, LengthUnit unit) : value_(value), unit_(unit) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
