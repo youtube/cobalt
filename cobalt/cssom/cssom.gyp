@@ -68,6 +68,8 @@
         'id_selector.h',
         'initial_style.cc',
         'initial_style.h',
+        'integer_value.cc',
+        'integer_value.h',
         'keyword_names.cc',
         'keyword_names.h',
         'keyword_value.cc',

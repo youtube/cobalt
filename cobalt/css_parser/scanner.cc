@@ -1128,6 +1128,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kOpacityToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kZIndexPropertyName)) {
+        *property_name_token = kZIndexToken;
+        return true;
+      }
       return false;
 
     case 8:
