@@ -554,7 +554,20 @@
             }],
             ['target_arch=="ps3"', {
               'sources': [
-                '<!@(find . -type f -name "*<(target_arch)*")',
+                'audio/shell_audio_streamer_ps3.cc',
+                'audio/shell_audio_streamer_ps3.h',
+                'audio/shell_spurs_ps3.cc',
+                'audio/shell_spurs_ps3.h',
+                'filters/shell_audio_decoder_ps3.cc',
+                'filters/shell_audio_decoder_ps3.h',
+                'filters/shell_audio_renderer_ps3.cc',
+                'filters/shell_audio_renderer_ps3.h',
+                'filters/shell_audio_resampler_ps3.cc',
+                'filters/shell_audio_resampler_ps3.h',
+                'filters/shell_raw_video_decoder_ps3.cc',
+                'filters/shell_raw_video_decoder_ps3.h',
+                'filters/shell_vdec_helper_ps3.cc',
+                'filters/shell_vdec_helper_ps3.h',
               ],
               'sources/': [
                 # PS3 has its own implementations.
@@ -563,6 +576,19 @@
               ],
               'dependencies' : [
                 'spurs_tasks',
+              ],
+            }],
+            ['target_arch=="ps4"', {
+              'sources': [
+                'audio/shell_audio_streamer_ps4.cc',
+                'filters/shell_raw_audio_decoder_ps4.cc',
+                'filters/shell_raw_audio_decoder_ps4.h',
+                'filters/shell_raw_avc_decoder_ps4.cc',
+                'filters/shell_raw_avc_decoder_ps4.h',
+                'filters/shell_raw_video_decoder_ps4.cc',
+                'filters/shell_raw_video_decoder_ps4.h',
+                'filters/shell_raw_vp9_decoder_ps4.cc',
+                'filters/shell_raw_vp9_decoder_ps4.h',
               ],
             }],
             ['target_arch=="xb1" or target_arch=="xb360"', {
