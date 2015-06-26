@@ -483,8 +483,7 @@ def method_overloads_by_name(methods):
     # Filter to only methods that are actually overloaded
     method_counts = Counter(method['name'] for method in methods)
     overloaded_method_names = set(name
-                                  for name, count in method_counts.iteritems()
-                                  if count > 1)
+                                  for name, count in method_counts.iteritems())
     overloaded_methods = [method for method in methods
                           if method['name'] in overloaded_method_names]
 
@@ -637,7 +636,8 @@ def effective_overload_set(F):
         # if the argument is optional, and “required” otherwise.
         # (“optionality list”)
         # (We’re just using a boolean for optional vs. required.)
-        o = tuple(argument['is_optional'] for argument in arguments)
+        o = tuple(argument['is_optional'] or argument['is_variadic']
+                  for argument in arguments)
         # 4. Add to S the tuple <X, t0..n−1, o0..n−1>.
         S.append((X, t, o))
         # 5. If X is declared to be variadic, then:
