@@ -34,7 +34,7 @@ class StringValue : public PropertyValue {
  public:
   explicit StringValue(const std::string& value) : value_(value) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const std::string& value() const { return value_; }
 

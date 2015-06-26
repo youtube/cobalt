@@ -151,7 +151,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   Value value() const { return value_; }
 

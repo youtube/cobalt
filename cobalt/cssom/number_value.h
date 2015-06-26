@@ -30,7 +30,7 @@ class NumberValue : public PropertyValue {
  public:
   explicit NumberValue(float value) : value_(value) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   float value() const { return value_; }
 
