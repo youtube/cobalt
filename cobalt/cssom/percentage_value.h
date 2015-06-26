@@ -33,7 +33,7 @@ class PercentageValue : public PropertyValue {
   // A |value| is a normalized factor, where 1 means 100%.
   explicit PercentageValue(float value) : value_(value) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   // Returns a normalized factor, where 1 means 100%.
   float value() const { return value_; }

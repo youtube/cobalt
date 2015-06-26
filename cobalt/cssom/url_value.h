@@ -30,7 +30,7 @@ class URLValue : public PropertyValue {
  public:
   explicit URLValue(const std::string& url);
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const std::string& value() const { return url_; }
 

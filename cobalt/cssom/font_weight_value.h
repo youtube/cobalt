@@ -53,7 +53,7 @@ class FontWeightValue : public PropertyValue {
   static const scoped_refptr<FontWeightValue>& GetExtraBoldAka800();
   static const scoped_refptr<FontWeightValue>& GetBlackAka900();
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   Value value() const { return value_; }
 
