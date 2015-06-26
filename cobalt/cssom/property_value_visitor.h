@@ -26,6 +26,7 @@ class AbsoluteURLValue;
 class ConstStringListValue;
 class FontStyleValue;
 class FontWeightValue;
+class IntegerValue;
 class KeywordValue;
 class LengthValue;
 class LinearGradientValue;
@@ -50,6 +51,7 @@ class PropertyValueVisitor {
       ConstStringListValue* const_string_list_value) = 0;
   virtual void VisitFontStyle(FontStyleValue* font_style_value) = 0;
   virtual void VisitFontWeight(FontWeightValue* font_weight_value) = 0;
+  virtual void VisitInteger(IntegerValue* integer_value) = 0;
   virtual void VisitKeyword(KeywordValue* keyword_value) = 0;
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitLinearGradient(
@@ -81,6 +83,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitFontStyle(FontStyleValue* font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
   void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
+  void VisitInteger(IntegerValue* integer_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;

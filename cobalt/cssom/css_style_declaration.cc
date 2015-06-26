@@ -332,6 +332,14 @@ void CSSStyleDeclaration::set_width(const std::string& width) {
   SetPropertyValue(kWidthPropertyName, width);
 }
 
+std::string CSSStyleDeclaration::z_index() const {
+  return data_->z_index() ? data_->z_index()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_z_index(const std::string& z_index) {
+  SetPropertyValue(kZIndexPropertyName, z_index);
+}
+
 // TODO(***REMOVED***): The getter of css_text returns the result of serializing the
 // declarations, which is not required for Performance Spike. This should be
 // handled propertly afterwards.

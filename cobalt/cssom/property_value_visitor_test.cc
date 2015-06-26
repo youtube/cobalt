@@ -20,6 +20,7 @@
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -48,6 +49,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitFontStyle, void(FontStyleValue* font_style_value));
   MOCK_METHOD1(VisitFontWeight, void(FontWeightValue* font_weight_value));
+  MOCK_METHOD1(VisitInteger, void(IntegerValue* integer_value));
   MOCK_METHOD1(VisitKeyword, void(KeywordValue* keyword_value));
   MOCK_METHOD1(VisitLength, void(LengthValue* length_value));
   MOCK_METHOD1(VisitLinearGradient,
@@ -88,6 +90,13 @@ TEST(PropertyValueVisitorTest, VisitsFontWeightValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitFontWeight(font_weight_value.get()));
   font_weight_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsIntegerValue) {
+  scoped_refptr<IntegerValue> integer_value = new IntegerValue(101);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitInteger(integer_value.get()));
+  integer_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsKeywordValue) {
