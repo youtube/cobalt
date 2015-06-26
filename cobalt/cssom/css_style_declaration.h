@@ -145,6 +145,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string width() const;
   void set_width(const std::string& width);
 
+  std::string z_index() const;
+  void set_z_index(const std::string& z_index);
+
   std::string css_text() const;
   void set_css_text(const std::string& css_text);
 

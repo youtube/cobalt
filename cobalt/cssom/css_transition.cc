@@ -83,6 +83,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
       ConstStringListValue* start_const_string_list_value) OVERRIDE;
   void VisitFontStyle(FontStyleValue* start_font_style_value) OVERRIDE;
   void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
+  void VisitInteger(IntegerValue* integer_value) OVERRIDE;
   void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
@@ -331,6 +332,12 @@ void AnimatorVisitor::VisitFontStyle(
 void AnimatorVisitor::VisitFontWeight(
     FontWeightValue* /*start_font_weight_value*/) {
   NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitInteger(
+    IntegerValue* integer_value) {
+  UNREFERENCED_PARAMETER(integer_value);
   animated_value_ = end_value_;
 }
 
