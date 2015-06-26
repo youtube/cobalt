@@ -33,7 +33,7 @@ namespace javascriptcore {
 
 class JSCGlobalObject;
 
-class WrapperFactory {
+class WrapperFactory : public Wrappable::CachedWrapperAccessor {
  public:
   typedef base::Callback<JSC::JSObject*(
       JSCGlobalObject*, const scoped_refptr<Wrappable>&)> CreateWrapperFunction;

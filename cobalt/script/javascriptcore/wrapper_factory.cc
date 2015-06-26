@@ -39,9 +39,16 @@ JSC::JSObject* WrapperFactory::GetWrapper(
     return NULL;
   }
 
-  return JSCObjectHandle::GetJSObject(wrappable->GetWrapperHandle(
-      base::Bind(&WrapperFactory::CreateWrapper, base::Unretained(this),
-                 base::Unretained(global_object))));
+  JSC::JSObject* wrapper =
+      JSCObjectHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+  if (!wrapper) {
+    scoped_ptr<ScriptObjectHandle> object_handle =
+        WrapperFactory::CreateWrapper(global_object, wrappable);
+    SetCachedWrapper(wrappable.get(), object_handle.Pass());
+    wrapper = JSCObjectHandle::GetJSObject(GetCachedWrapper(wrappable.get()));
+  }
+  DCHECK(wrapper);
+  return wrapper;
 }
 
 const JSC::ClassInfo* WrapperFactory::GetClassInfo(
