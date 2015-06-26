@@ -27,6 +27,7 @@
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/initial_style.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -2269,6 +2270,26 @@ TEST_F(ParserTest, ParsesBottomWithAuto) {
       parser_.ParseDeclarationList("bottom: auto;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->bottom());
+}
+
+TEST_F(ParserTest, ParsesZIndex) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("z-index: 3;", source_location_);
+
+  scoped_refptr<cssom::IntegerValue> z_index =
+      dynamic_cast<cssom::IntegerValue*>(style->z_index().get());
+  ASSERT_NE(scoped_refptr<cssom::IntegerValue>(), z_index);
+  EXPECT_EQ(3, z_index->value());
+}
+
+TEST_F(ParserTest, ParsesNegativeZIndex) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("z-index: -2;", source_location_);
+
+  scoped_refptr<cssom::IntegerValue> z_index =
+      dynamic_cast<cssom::IntegerValue*>(style->z_index().get());
+  ASSERT_NE(scoped_refptr<cssom::IntegerValue>(), z_index);
+  EXPECT_EQ(-2, z_index->value());
 }
 
 }  // namespace css_parser
