@@ -31,7 +31,6 @@ class JSCObjectHandle : public ScriptObjectHandle {
   explicit JSCObjectHandle(JSC::PassWeak<JSC::JSObject> wrapper) {
     handle_ = wrapper;
   }
-  bool IsValidHandle() OVERRIDE { return handle_.get() != NULL; }
   static JSC::JSObject* GetJSObject(ScriptObjectHandle* handle) {
     if (handle) {
       return base::polymorphic_downcast<JSCObjectHandle*>(handle)
