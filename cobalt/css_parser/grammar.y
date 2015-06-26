@@ -93,6 +93,7 @@
 %token kTransitionToken                       // transition
 %token kVerticalAlignToken                    // vertical-align
 %token kWidthToken                            // width
+%token kZIndexToken                           // z-index
 
 // Property value tokens.
 // WARNING: every time a new name token is introduced, it should be added
@@ -326,6 +327,7 @@
                        transition_property_property_value
                        transition_timing_function_property_value url
                        vertical_align_property_value width_property_value
+                       z_index_property_value
 %destructor { $$->Release(); } <property_value>
 
 %union { TransitionShorthand* transition; }
@@ -570,6 +572,9 @@ identifier_token:
   }
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
+  }
+  | kZIndexToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kZIndexPropertyName);
   }
   // Property values.
   | kAbsoluteToken {
@@ -2002,6 +2007,16 @@ maybe_important:
   | kImportantToken maybe_whitespace { $$ = true; }
   ;
 
+z_index_property_value:
+  integer {
+    $$ = AddRef(new cssom::IntegerValue($1));
+  }
+  | kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | common_values
+  ;
+
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Animatable properties.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
@@ -2259,6 +2274,12 @@ maybe_declaration:
   | kWidthToken maybe_whitespace colon width_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kWidthPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kZIndexToken maybe_whitespace colon z_index_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kZIndexPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

@@ -21,6 +21,7 @@
 #include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
+#include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -55,6 +56,11 @@ void DefaultingPropertyValueVisitor::VisitFontStyle(
 void DefaultingPropertyValueVisitor::VisitFontWeight(
     FontWeightValue* font_weight_value) {
   VisitDefault(font_weight_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitInteger(
+    IntegerValue* integer_value) {
+  VisitDefault(integer_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitKeyword(KeywordValue* keyword_value) {
