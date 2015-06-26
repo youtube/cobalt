@@ -47,6 +47,7 @@
         'event.h',
         'event_listener.h',
         'event_names.cc',
+        'event_names.h',
         'event_queue.cc',
         'event_queue.h',
         'event_target.cc',
