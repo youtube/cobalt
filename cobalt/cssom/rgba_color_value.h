@@ -48,7 +48,7 @@ class RGBAColorValue : public PropertyValue {
       : value_(static_cast<uint32_t>(r << 24) | static_cast<uint32_t>(g << 16) |
                static_cast<uint32_t>(b << 8) | static_cast<uint32_t>(a << 0)) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   uint32_t value() const { return value_; }
 

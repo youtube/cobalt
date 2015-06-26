@@ -30,7 +30,7 @@ class AbsoluteURLValue : public PropertyValue {
  public:
   explicit AbsoluteURLValue(const GURL& absolute_url);
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   const GURL& value() const { return absolute_url_; }
 
