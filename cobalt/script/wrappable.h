@@ -22,25 +22,24 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/script_object_handle.h"
-#include "cobalt/script/script_object_handle_creator.h"
 
 namespace cobalt {
 namespace script {
 
 class Wrappable : public base::RefCounted<Wrappable> {
  public:
-  typedef base::Callback<scoped_ptr<ScriptObjectHandle>(
-      const scoped_refptr<Wrappable>&)> CreateWrapperFunction;
-
-  ScriptObjectHandle* GetWrapperHandle(
-      const CreateWrapperFunction& create_wrapper_function) {
-    if (!wrapper_handle_ || !wrapper_handle_->IsValidHandle()) {
-      wrapper_handle_ = create_wrapper_function.Run(this);
+  // A class that creates ScriptObjectHandles should inherit from this interface
+  // so that it can get/set the cached wrapper handle.
+  class CachedWrapperAccessor {
+   protected:
+    ScriptObjectHandle* GetCachedWrapper(Wrappable* wrappable) const {
+      return wrappable->cached_wrapper_.get();
     }
-    DCHECK(wrapper_handle_.get());
-    DCHECK(wrapper_handle_->IsValidHandle());
-    return wrapper_handle_.get();
-  }
+    void SetCachedWrapper(Wrappable* wrappable,
+                          scoped_ptr<ScriptObjectHandle> wrapper) const {
+      wrappable->cached_wrapper_ = wrapper.Pass();
+    }
+  };
 
   // Used for RTTI on wrappable types. This is implemented within the
   // DEFINE_WRAPPABLE_TYPE macro, defined below, which should be added to the
@@ -51,7 +50,10 @@ class Wrappable : public base::RefCounted<Wrappable> {
   virtual ~Wrappable() { }
 
  private:
-  scoped_ptr<ScriptObjectHandle> wrapper_handle_;
+  // A cached weak reference to the interface's corresponding wrapper object.
+  // This may get garbage-collected before the associated Wrappable is
+  // destroyed.
+  scoped_ptr<ScriptObjectHandle> cached_wrapper_;
 
   friend class base::RefCounted<Wrappable>;
 };
