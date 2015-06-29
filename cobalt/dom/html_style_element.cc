@@ -18,9 +18,10 @@
 
 #include <string>
 
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element_context.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,9 +29,8 @@ namespace dom {
 // static
 const char* HTMLStyleElement::kTagName = "style";
 
-HTMLStyleElement::HTMLStyleElement(HTMLElementFactory* html_element_factory,
-                                   cssom::CSSParser* css_parser)
-    : HTMLElement(html_element_factory, css_parser),
+HTMLStyleElement::HTMLStyleElement(HTMLElementContext* html_element_context)
+    : HTMLElement(html_element_context),
       content_location_("[object HTMLStyleElement]", 1, 1) {}
 
 const std::string& HTMLStyleElement::tag_name() const {
@@ -47,7 +47,7 @@ void HTMLStyleElement::SetOpeningTagLocation(
 void HTMLStyleElement::AttachToDocument(Document* document) {
   HTMLElement::AttachToDocument(document);
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      html_element_factory()->css_parser()->ParseStyleSheet(
+      html_element_context()->css_parser()->ParseStyleSheet(
           text_content().value(), content_location_);
   style_sheet->SetLocationUrl(GURL(content_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);

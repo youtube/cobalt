@@ -16,9 +16,11 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
@@ -34,7 +36,8 @@ namespace dom {
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
   HTMLElement* new_html_element =
-      html_element_factory_->CreateHTMLElement(tag_name());
+      html_element_context_->html_element_factory()->CreateHTMLElement(
+          tag_name());
   new_html_element->attribute_map_ = attribute_map_;
   return new_html_element;
 }
@@ -63,10 +66,10 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-HTMLElement::HTMLElement(HTMLElementFactory* html_element_factory,
-                         cssom::CSSParser* css_parser)
-    : Element(html_element_factory),
-      style_(new cssom::CSSStyleDeclaration(css_parser)) {}
+HTMLElement::HTMLElement(HTMLElementContext* html_element_context)
+    : Element(html_element_context),
+      style_(new cssom::CSSStyleDeclaration(
+          html_element_context ? html_element_context->css_parser() : NULL)) {}
 
 void HTMLElement::SetOpeningTagLocation(
     const base::SourceLocation& /*opening_tag_location*/) {}

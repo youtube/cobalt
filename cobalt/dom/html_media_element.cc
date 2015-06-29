@@ -26,11 +26,14 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_names.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/media_key_complete_event.h"
 #include "cobalt/dom/media_key_error_event.h"
 #include "cobalt/dom/media_key_message_event.h"
 #include "cobalt/dom/media_key_needed_event.h"
+#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 
@@ -44,13 +47,8 @@ const char HTMLMediaElement::kTagName[] = "video";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
-HTMLMediaElement::HTMLMediaElement(
-    HTMLElementFactory* html_element_factory, cssom::CSSParser* css_parser,
-    loader::FetcherFactory* fetcher_factory,
-    media::WebMediaPlayerFactory* web_media_player_factory)
-    : HTMLElement(html_element_factory, css_parser),
-      fetcher_factory_(fetcher_factory),
-      web_media_player_factory_(web_media_player_factory),
+HTMLMediaElement::HTMLMediaElement(HTMLElementContext* html_element_context)
+    : HTMLElement(html_element_context),
       load_state_(kWaitingForSource),
       event_queue_(this),
       playback_rate_(1.0f),
@@ -427,7 +425,9 @@ void HTMLMediaElement::AttachToDocument(Document* document) {
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
-  player_ = web_media_player_factory_->CreateWebMediaPlayer(this);
+  player_ =
+      html_element_context()->web_media_player_factory()->CreateWebMediaPlayer(
+          this);
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
@@ -601,7 +601,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   } else {
     player_->LoadProgressive(url,
                              new media::FetcherBufferedDataSource(
-                                 MessageLoop::current(), url, fetcher_factory_),
+                                 MessageLoop::current(), url,
+                                 html_element_context()->fetcher_factory()),
                              WebMediaPlayer::kCORSModeUnspecified);
   }
   // if (!player_->Load(url, WebMediaPlayer::kCORSModeUnspecified))

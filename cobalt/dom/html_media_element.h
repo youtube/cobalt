@@ -30,8 +30,6 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media/web_media_player_factory.h"
 #include "googleurl/src/gurl.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/player/web_media_player.h"
@@ -54,10 +52,7 @@ class HTMLMediaElement : public HTMLElement,
 
   static const char kTagName[];
 
-  HTMLMediaElement(HTMLElementFactory* html_element_factory,
-                   cssom::CSSParser* css_parser,
-                   loader::FetcherFactory* fetcher_factory,
-                   media::WebMediaPlayerFactory* web_media_player_factory);
+  explicit HTMLMediaElement(HTMLElementContext* html_element_context);
   ~HTMLMediaElement() OVERRIDE;
 
   // Web API: Element
@@ -240,8 +235,6 @@ class HTMLMediaElement : public HTMLElement,
 
   void SetSourceState(MediaSource::ReadyState ready_state);
 
-  loader::FetcherFactory* fetcher_factory_;
-  media::WebMediaPlayerFactory* web_media_player_factory_;
   scoped_ptr<WebMediaPlayer> player_;
 
   std::string src_;

@@ -36,7 +36,7 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_div_element.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/text.h"
@@ -49,13 +49,13 @@ class RuleMatchingTest : public ::testing::Test {
  protected:
   RuleMatchingTest()
       : css_parser_(css_parser::Parser::Create()),
-        html_element_factory(NULL, NULL, NULL, NULL),
-        root(new Element(&html_element_factory)) {}
+        html_element_context_(NULL, NULL, NULL, NULL),
+        root_(new Element(&html_element_context_)) {}
   ~RuleMatchingTest() OVERRIDE {}
 
-  HTMLElementFactory html_element_factory;
-  scoped_refptr<Element> root;
   scoped_ptr<css_parser::Parser> css_parser_;
+  HTMLElementContext html_element_context_;
+  scoped_refptr<Element> root_;
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   cssom::RulesWithCascadePriority matching_rules_;
 };
@@ -67,11 +67,11 @@ TEST_F(RuleMatchingTest, ClassSelectorMatch) {
       ".my-class {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
 
   // Generate DOM elements from the following HTML code.
-  root->set_inner_html("<div class=\"my-class\"/>");
+  root_->set_inner_html("<div class=\"my-class\"/>");
 
   // Get the matching rules and check the result.
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -81,10 +81,10 @@ TEST_F(RuleMatchingTest, ClassSelectorMatch) {
 TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div></div>");
+  root_->set_inner_html("<div></div>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -94,10 +94,10 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
 TEST_F(RuleMatchingTest, EmptyPseudoClassMatchCommentOnly) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><!--comment--></div>");
+  root_->set_inner_html("<div><!--comment--></div>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -107,10 +107,10 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatchCommentOnly) {
 TEST_F(RuleMatchingTest, EmptyPseudoClassMatchTextOnly) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div> </div>");
+  root_->set_inner_html("<div> </div>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   EXPECT_EQ(0, matching_rules_.size());
 }
@@ -119,10 +119,10 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatchTextOnly) {
 TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       ":empty {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><div></div></div>");
+  root_->set_inner_html("<div><div></div></div>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   EXPECT_EQ(0, matching_rules_.size());
 }
@@ -131,10 +131,10 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
 TEST_F(RuleMatchingTest, IdSelectorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "#div1 {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div id=\"div1\"/>");
+  root_->set_inner_html("<div id=\"div1\"/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -144,10 +144,10 @@ TEST_F(RuleMatchingTest, IdSelectorMatch) {
 TEST_F(RuleMatchingTest, TypeSelectorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div/>");
+  root_->set_inner_html("<div/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -158,10 +158,10 @@ TEST_F(RuleMatchingTest, CompoundSelectorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div.my-class {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div class=\"my-class\"/>");
+  root_->set_inner_html("<div class=\"my-class\"/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -172,14 +172,14 @@ TEST_F(RuleMatchingTest, CompoundSelectorNoMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div.my-class {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div/><span class=\"my-class\"/>");
+  root_->set_inner_html("<div/><span class=\"my-class\"/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   EXPECT_EQ(0, matching_rules_.size());
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->last_element_child()->AsHTMLElement(),
+                                 root_->last_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   EXPECT_EQ(0, matching_rules_.size());
 }
@@ -188,9 +188,9 @@ TEST_F(RuleMatchingTest, CompoundSelectorNoMatch) {
 TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><span><span></span></span></div>");
+  root_->set_inner_html("<div><span><span></span></span></div>");
 
-  GetMatchingRulesFromStyleSheet(style_sheet_, root->first_element_child()
+  GetMatchingRulesFromStyleSheet(style_sheet_, root_->first_element_child()
                                                    ->first_element_child()
                                                    ->first_element_child()
                                                    ->AsHTMLElement(),
@@ -203,11 +203,11 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorMatch) {
 TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorNoMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "span span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><span></span></div>");
+  root_->set_inner_html("<div><span></span></div>");
 
   GetMatchingRulesFromStyleSheet(
       style_sheet_,
-      root->first_element_child()->first_element_child()->AsHTMLElement(),
+      root_->first_element_child()->first_element_child()->AsHTMLElement(),
       &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(0, matching_rules_.size());
 }
@@ -216,11 +216,11 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorNoMatch) {
 TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div > span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><span></span></div>");
+  root_->set_inner_html("<div><span></span></div>");
 
   GetMatchingRulesFromStyleSheet(
       style_sheet_,
-      root->first_element_child()->first_element_child()->AsHTMLElement(),
+      root_->first_element_child()->first_element_child()->AsHTMLElement(),
       &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -231,9 +231,9 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorMatch) {
 TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorNoMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div > span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div><span><span></span></span></div>");
+  root_->set_inner_html("<div><span><span></span></span></div>");
 
-  GetMatchingRulesFromStyleSheet(style_sheet_, root->first_element_child()
+  GetMatchingRulesFromStyleSheet(style_sheet_, root_->first_element_child()
                                                    ->first_element_child()
                                                    ->first_element_child()
                                                    ->AsHTMLElement(),
@@ -246,10 +246,10 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "span + span {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<span/><span/>");
+  root_->set_inner_html("<span/><span/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->last_element_child()->AsHTMLElement(),
+                                 root_->last_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -260,10 +260,10 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorNoMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "span + span {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<span/><span/>");
+  root_->set_inner_html("<span/><span/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(0, matching_rules_.size());
 }
@@ -272,10 +272,10 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorNoMatch) {
 TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div ~ span {}", base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div/><span/><span/>");
+  root_->set_inner_html("<div/><span/><span/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->last_element_child()->AsHTMLElement(),
+                                 root_->last_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -286,10 +286,10 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorNoMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "span ~ span {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html("<div/><span/>");
+  root_->set_inner_html("<div/><span/>");
 
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->last_element_child()->AsHTMLElement(),
+                                 root_->last_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(0, matching_rules_.size());
 }
@@ -299,10 +299,10 @@ TEST_F(RuleMatchingTest, SelectorListMatchUseHighestSpecificity) {
       ".first-class, #my-id, .first-class.second-class {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
 
-  root->set_inner_html(
+  root_->set_inner_html(
       "<div class=\"first-class second-class\" id=\"my-id\"/>");
   GetMatchingRulesFromStyleSheet(style_sheet_,
-                                 root->first_element_child()->AsHTMLElement(),
+                                 root_->first_element_child()->AsHTMLElement(),
                                  &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
@@ -319,13 +319,13 @@ TEST_F(RuleMatchingTest, ComplexSelectorCombinedMatch) {
   style_sheet_ = css_parser_->ParseStyleSheet(
       "div ~ span + div ~ div + div > div + div {}",
       base::SourceLocation("[object RuleMatchingTest]", 1, 1));
-  root->set_inner_html(
+  root_->set_inner_html(
       "<div/><span/><span/><div/><span/><div/>"
       "<div><div/><div/></div>");
 
   GetMatchingRulesFromStyleSheet(
       style_sheet_,
-      root->last_element_child()->last_element_child()->AsHTMLElement(),
+      root_->last_element_child()->last_element_child()->AsHTMLElement(),
       &matching_rules_, cssom::kNormalAuthor);
   ASSERT_EQ(1, matching_rules_.size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0), matching_rules_[0].first);
