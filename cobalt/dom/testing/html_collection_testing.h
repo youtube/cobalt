@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -138,9 +139,12 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   //       c1
   //   a3
   //     d1
-  HTMLElementFactory html_element_factory(NULL, NULL, NULL, NULL);
+  HTMLElementFactory html_element_factory(NULL);
+  html_element_factory.CreateHTMLElement("a1");
+
   scoped_refptr<Node> a1 =
       node->AppendChild(html_element_factory.CreateHTMLElement("a1"));
+
   scoped_refptr<Node> a3 =
       node->AppendChild(html_element_factory.CreateHTMLElement("a2"));
   scoped_refptr<Node> b1 =

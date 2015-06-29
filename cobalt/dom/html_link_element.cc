@@ -19,9 +19,10 @@
 #include <string>
 
 #include "base/bind.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element_context.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -30,11 +31,8 @@ namespace dom {
 // static
 const char* HTMLLinkElement::kTagName = "link";
 
-HTMLLinkElement::HTMLLinkElement(HTMLElementFactory* html_element_factory,
-                                 cssom::CSSParser* css_parser,
-                                 loader::FetcherFactory* fetcher_factory)
-    : HTMLElement(html_element_factory, css_parser),
-      fetcher_factory_(fetcher_factory) {}
+HTMLLinkElement::HTMLLinkElement(HTMLElementContext* html_element_context)
+    : HTMLElement(html_element_context) {}
 
 const std::string& HTMLLinkElement::tag_name() const {
   static const std::string kLinkTagString(kTagName);
@@ -80,7 +78,8 @@ void HTMLLinkElement::Obtain() {
   // the default origin behaviour set to taint.
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory_), absolute_url_),
+                 base::Unretained(html_element_context()->fetcher_factory()),
+                 absolute_url_),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
@@ -89,7 +88,7 @@ void HTMLLinkElement::Obtain() {
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      html_element_factory()->css_parser()->ParseStyleSheet(
+      html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
   style_sheet->SetLocationUrl(absolute_url_);
   owner_document()->style_sheets()->Append(style_sheet);

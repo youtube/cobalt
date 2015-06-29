@@ -17,7 +17,8 @@
 #ifndef DOM_HTML_STYLE_ELEMENT_H_
 #define DOM_HTML_STYLE_ELEMENT_H_
 
-#include "cobalt/cssom/css_parser.h"
+#include <string>
+
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -32,8 +33,7 @@ class HTMLStyleElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLStyleElement(HTMLElementFactory* html_element_factory,
-                   cssom::CSSParser* css_parser);
+  explicit HTMLStyleElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
@@ -52,6 +52,8 @@ class HTMLStyleElement : public HTMLElement {
 
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
+
+  DEFINE_WRAPPABLE_TYPE(HTMLStyleElement);
 
  private:
   ~HTMLStyleElement() OVERRIDE;

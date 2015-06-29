@@ -23,7 +23,8 @@
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_token_list.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/stats.h"
@@ -45,12 +46,12 @@ class ElementTest : public ::testing::Test {
   ~ElementTest() OVERRIDE;
 
   scoped_ptr<css_parser::Parser> css_parser_;
-  dom::HTMLElementFactory html_element_factory_;
+  dom::HTMLElementContext html_element_context_;
 };
 
 ElementTest::ElementTest()
     : css_parser_(css_parser::Parser::Create()),
-      html_element_factory_(NULL, css_parser_.get(), NULL, NULL) {
+      html_element_context_(NULL, css_parser_.get(), NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
@@ -285,7 +286,7 @@ TEST_F(ElementTest, GetElementsByTagName) {
 }
 
 TEST_F(ElementTest, InnerHTML) {
-  scoped_refptr<Element> root = new Element(&html_element_factory_);
+  scoped_refptr<Element> root = new Element(&html_element_context_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -394,7 +395,7 @@ TEST_F(ElementTest, InnerHTML) {
 }
 
 TEST_F(ElementTest, OuterHTML) {
-  scoped_refptr<Element> root = new Element(&html_element_factory_);
+  scoped_refptr<Element> root = new Element(&html_element_context_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -406,7 +407,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     text
   //
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(&html_element_factory_))->AsElement();
+      root->AppendChild(new Element(&html_element_context_))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text("\n  "));
@@ -450,7 +451,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     comment_11
   //     text_12
   //
-  root->AppendChild(new Element(&html_element_factory_));
+  root->AppendChild(new Element(&html_element_context_));
   const char* kAnotherHTML =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
@@ -504,9 +505,11 @@ TEST_F(ElementTest, OuterHTML) {
 }
 
 TEST_F(ElementTest, QuerySelector) {
-  scoped_refptr<Element> root = new Element(&html_element_factory_);
-  root->AppendChild(html_element_factory_.CreateHTMLElement("div"));
-  root->AppendChild(html_element_factory_.CreateHTMLElement("div"));
+  scoped_refptr<Element> root = new Element(&html_element_context_);
+  root->AppendChild(
+      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
+  root->AppendChild(
+      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
   root->QuerySelector("div");
   EXPECT_FALSE(root->QuerySelector("span"));
   // QuerySelector should return first matching child.

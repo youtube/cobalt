@@ -37,7 +37,7 @@ namespace dom {
 class Console;
 class Document;
 class DocumentBuilder;
-class HTMLElementFactory;
+class HTMLElementContext;
 class Location;
 class Navigator;
 class WindowTimers;
@@ -103,7 +103,7 @@ class Window : public EventTarget {
   int width_;
   int height_;
 
-  scoped_ptr<HTMLElementFactory> html_element_factory_;
+  scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Document> document_;
   scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;

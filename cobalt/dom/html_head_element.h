@@ -17,6 +17,8 @@
 #ifndef DOM_HTML_HEAD_ELEMENT_H_
 #define DOM_HTML_HEAD_ELEMENT_H_
 
+#include <string>
+
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -30,8 +32,7 @@ class HTMLHeadElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLHeadElement(HTMLElementFactory* html_element_factory,
-                  cssom::CSSParser* css_parser);
+  explicit HTMLHeadElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
