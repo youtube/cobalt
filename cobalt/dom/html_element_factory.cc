@@ -16,9 +16,10 @@
 
 #include "cobalt/dom/html_element_factory.h"
 
-#include "base/logging.h"
+#include "base/bind.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
@@ -33,37 +34,11 @@ namespace dom {
 
 template <typename T>
 scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT() {
-  return new T(this, css_parser_);
+  return new T(html_element_context_);
 }
 
-template <>
-scoped_refptr<HTMLElement>
-HTMLElementFactory::CreateHTMLElementT<HTMLLinkElement>() {
-  return new HTMLLinkElement(this, css_parser_, fetcher_factory_);
-}
-
-template <>
-scoped_refptr<HTMLElement>
-HTMLElementFactory::CreateHTMLElementT<HTMLScriptElement>() {
-  return new HTMLScriptElement(this, css_parser_, fetcher_factory_,
-                               script_runner_);
-}
-
-template <>
-scoped_refptr<HTMLElement>
-HTMLElementFactory::CreateHTMLElementT<HTMLMediaElement>() {
-  return new HTMLMediaElement(this, css_parser_, fetcher_factory_,
-                              web_media_player_factory_);
-}
-
-HTMLElementFactory::HTMLElementFactory(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
-    media::WebMediaPlayerFactory* web_media_player_factory,
-    script::ScriptRunner* script_runner)
-    : fetcher_factory_(fetcher_factory),
-      css_parser_(css_parser),
-      web_media_player_factory_(web_media_player_factory),
-      script_runner_(script_runner) {
+HTMLElementFactory::HTMLElementFactory(HTMLElementContext* html_element_context)
+    : html_element_context_(html_element_context) {
   tag_name_to_create_html_element_t_callback_map_[HTMLBodyElement::kTagName] =
       base::Bind(&HTMLElementFactory::CreateHTMLElementT<HTMLBodyElement>,
                  base::Unretained(this));
@@ -103,7 +78,7 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
     return iter->second.Run();
   } else {
     // TODO(***REMOVED***): Report unknown HTML tag.
-    return new HTMLUnknownElement(this, css_parser_, tag_name);
+    return new HTMLUnknownElement(html_element_context_, tag_name);
   }
 }
 

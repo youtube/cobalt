@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/html_div_element.h"
+#include "cobalt/dom/html_element_context.h"
+
+#include "cobalt/dom/html_element_factory.h"
 
 namespace cobalt {
 namespace dom {
 
-// static
-const char* HTMLDivElement::kTagName = "div";
+HTMLElementContext::HTMLElementContext(
+    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    script::ScriptRunner* script_runner)
+    : fetcher_factory_(fetcher_factory),
+      css_parser_(css_parser),
+      web_media_player_factory_(web_media_player_factory),
+      script_runner_(script_runner),
+      html_element_factory_(new HTMLElementFactory(this)) {}
 
-HTMLDivElement::HTMLDivElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
-
-const std::string& HTMLDivElement::tag_name() const {
-  static const std::string kDivTagString(kTagName);
-  return kDivTagString;
-}
-
-HTMLDivElement::~HTMLDivElement() {}
+HTMLElementContext::~HTMLElementContext() {}
 
 }  // namespace dom
 }  // namespace cobalt

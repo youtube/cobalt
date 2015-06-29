@@ -35,7 +35,7 @@ class Element;
 class HTMLBodyElement;
 class HTMLCollection;
 class HTMLElement;
-class HTMLElementFactory;
+class HTMLElementContext;
 class HTMLHeadElement;
 class HTMLHtmlElement;
 class Location;
@@ -70,7 +70,7 @@ class Document : public Node, public cssom::MutationObserver {
     GURL url;
   };
 
-  Document(HTMLElementFactory* html_element_factory, const Options& options);
+  Document(HTMLElementContext* html_element_context, const Options& options);
 
   // Web API: Node
   //
@@ -140,7 +140,7 @@ class Document : public Node, public cssom::MutationObserver {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new Document(html_element_factory_, Options(url_));
+    return new Document(html_element_context_, Options(url_));
   }
 
   // Custom, not in any spec.
@@ -184,7 +184,7 @@ class Document : public Node, public cssom::MutationObserver {
   void SetHtmlInternal(HTMLHtmlElement* value);
 
   // Reference to HTML element Factory.
-  HTMLElementFactory* html_element_factory_;
+  HTMLElementContext* html_element_context_;
   // Associated location obejct.
   scoped_refptr<Location> location_;
   // Weak references to the elements that according to the spec should only

@@ -23,7 +23,7 @@
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_builder.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/window_timers.h"
@@ -59,13 +59,13 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const ErrorCallback& error_callback)
     : width_(width),
       height_(height),
-      html_element_factory_(new HTMLElementFactory(fetcher_factory, css_parser,
+      html_element_context_(new HTMLElementContext(fetcher_factory, css_parser,
                                                    web_media_player_factory,
                                                    script_runner)),
       document_(
-          new Document(html_element_factory_.get(), Document::Options(url))),
+          new Document(html_element_context_.get(), Document::Options(url))),
       document_builder_(new DocumentBuilder(document_, url, fetcher_factory,
-                                            html_element_factory_.get(),
+                                            html_element_context_.get(),
                                             base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
       relay_on_load_event_(new RelayOnLoadEvent(this)),
