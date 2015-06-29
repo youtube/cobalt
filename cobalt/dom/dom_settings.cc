@@ -23,10 +23,12 @@ namespace dom {
 
 DOMSettings::DOMSettings(loader::FetcherFactory* fetcher_factory,
                          const scoped_refptr<Window>& window,
-                         script::JavaScriptEngine* engine)
+                         script::JavaScriptEngine* engine,
+                         script::GlobalObjectProxy* global_object_proxy)
     : fetcher_factory_(fetcher_factory),
       window_(window),
-      javascript_engine_(engine) {}
+      javascript_engine_(engine),
+      global_object_proxy_(global_object_proxy) {}
 DOMSettings::~DOMSettings() {}
 
 GURL DOMSettings::base_url() const {

@@ -510,7 +510,8 @@ scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
 }
 
 void XMLHttpRequest::AddExtraRef() {
-  AddRef();
+  settings_->global_object()->PreventGarbageCollection(
+      make_scoped_refptr(this));
   DCHECK(!did_add_ref_);
   did_add_ref_ = true;
 }
@@ -518,10 +519,8 @@ void XMLHttpRequest::AddExtraRef() {
 void XMLHttpRequest::ReleaseExtraRef() {
   DCHECK(did_add_ref_);
   did_add_ref_ = false;
-  // TODO(***REMOVED***): Call this once b/22057745 is implemented.
-  // settings_->javascript_engine()->ReportExtraMemoryCost(
-  // response_body_.size());
-  Release();
+  settings_->javascript_engine()->ReportExtraMemoryCost(response_body_.size());
+  settings_->global_object()->AllowGarbageCollection(make_scoped_refptr(this));
 }
 
 }  // namespace xhr
