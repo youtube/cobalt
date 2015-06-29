@@ -57,13 +57,23 @@ class JSObjectCache {
   // underlying JS object will not be garbage collected.
   scoped_refptr<JSCObjectOwner> RegisterObjectOwner(JSC::JSObject* js_object);
 
+  // Cache a reference to this JS object internally and visit it during garbage
+  // collection. This will prevent it from being garbage collected.
+  // Calling this multiple times for the same object results in multiple
+  // references being stored.
+  void CacheJSObject(JSC::JSObject* js_object);
+
+  // Remove a reference to this JS object from the internal list of objects
+  // that are visited during garbage collection.
+  void UncacheJSObject(JSC::JSObject* js_object);
+
   // Called during garbage collection phase. Cached objects will be visited and
   // thus prevented from being garbage collected.
   void VisitChildren(JSC::SlotVisitor* visitor);
 
  private:
 #if defined(__LB_LINUX__)
-  struct hash_function {
+  struct class_info_hash_function {
     std::size_t operator()(const JSC::ClassInfo* class_info) const {
       return BASE_HASH_NAMESPACE::hash<intptr_t>()(
           reinterpret_cast<intptr_t>(class_info));
@@ -71,16 +81,28 @@ class JSObjectCache {
   };
   typedef base::hash_map<const JSC::ClassInfo*,
                          JSC::WriteBarrier<PrototypeBase>,
-                         hash_function> CachedPrototypeMap;
+                         class_info_hash_function> CachedPrototypeMap;
   typedef base::hash_map<const JSC::ClassInfo*,
                          JSC::WriteBarrier<ConstructorBase>,
-                         hash_function> CachedConstructorMap;
+                         class_info_hash_function> CachedConstructorMap;
+
+  struct write_barrier_hash_function {
+    template <typename T>
+    std::size_t operator()(const JSC::WriteBarrier<T>& write_barrier) const {
+      return BASE_HASH_NAMESPACE::hash<intptr_t>()(
+          reinterpret_cast<intptr_t>(write_barrier.get()));
+    }
+  };
+  typedef base::hash_multiset<JSC::WriteBarrier<JSC::JSObject>,
+                              write_barrier_hash_function> CachedObjectMultiset;
 #else
   typedef base::hash_map<const JSC::ClassInfo*,
                          JSC::WriteBarrier<PrototypeBase> > CachedPrototypeMap;
   typedef base::hash_map<const JSC::ClassInfo*,
                          JSC::WriteBarrier<ConstructorBase> >
       CachedConstructorMap;
+  typedef base::hash_multiset<JSC::WriteBarrier<JSC::JSObject> >
+      CachedObjectMultiset;
 #endif
   typedef std::vector<base::WeakPtr<JSCObjectOwner> > JSCObjectOwnerVector;
 
@@ -88,6 +110,7 @@ class JSObjectCache {
   JSCObjectOwnerVector owned_objects_;
   CachedPrototypeMap cached_prototypes_;
   CachedConstructorMap cached_constructors_;
+  CachedObjectMultiset cached_objects_;
 };
 
 }  // namespace javascriptcore
