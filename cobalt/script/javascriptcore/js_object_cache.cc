@@ -16,6 +16,15 @@
 
 #include "js_object_cache.h"
 
+#if defined(COBALT) && !defined(__LB_LINUX__)
+namespace BASE_HASH_NAMESPACE {
+template<>
+inline size_t hash_value(const JSC::WriteBarrier<JSC::JSObject>& value) {
+  return hash_value(value.get());
+}
+}  // namespace BASE_HASH_NAMESPACE
+#endif
+
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
@@ -68,6 +77,22 @@ scoped_refptr<JSCObjectOwner> JSObjectCache::RegisterObjectOwner(
   return object_owner;
 }
 
+void JSObjectCache::CacheJSObject(JSC::JSObject* js_object) {
+  cached_objects_.insert(JSC::WriteBarrier<JSC::JSObject>(
+      global_object_->globalData(), global_object_, js_object));
+}
+
+void JSObjectCache::UncacheJSObject(JSC::JSObject* js_object) {
+  JSC::WriteBarrier<JSC::JSObject> write_barrier(global_object_->globalData(),
+                                                 global_object_, js_object);
+  CachedObjectMultiset::iterator it = cached_objects_.find(write_barrier);
+  if (it != cached_objects_.end()) {
+    cached_objects_.erase(it);
+  } else {
+    DLOG(WARNING) << "JSObject is not cached.";
+  }
+}
+
 void JSObjectCache::VisitChildren(JSC::SlotVisitor* visitor) {
   for (CachedPrototypeMap::iterator it = cached_prototypes_.begin();
        it != cached_prototypes_.end(); ++it) {
@@ -76,6 +101,11 @@ void JSObjectCache::VisitChildren(JSC::SlotVisitor* visitor) {
   for (CachedConstructorMap::iterator it = cached_constructors_.begin();
        it != cached_constructors_.end(); ++it) {
     visitor->append(&(it->second));
+  }
+  for (CachedObjectMultiset::iterator it = cached_objects_.begin();
+       it != cached_objects_.end(); ++it) {
+    JSC::WriteBarrier<JSC::JSObject> write_barrier(*it);
+    visitor->append(&write_barrier);
   }
 
   // If the object being pointed to by the weak handle has been deleted, then
