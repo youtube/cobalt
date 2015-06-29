@@ -17,7 +17,8 @@
 #ifndef DOM_HTML_UNKNOWN_ELEMENT_H_
 #define DOM_HTML_UNKNOWN_ELEMENT_H_
 
-#include "base/memory/scoped_ptr.h"
+#include <string>
+
 #include "base/string_piece.h"
 #include "cobalt/dom/html_element.h"
 
@@ -29,12 +30,13 @@ namespace dom {
 //   http://www.w3.org/TR/html5/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
-  HTMLUnknownElement(HTMLElementFactory* html_element_factory,
-                     cssom::CSSParser* css_parser,
+  HTMLUnknownElement(HTMLElementContext* html_element_context,
                      const base::StringPiece& tag_name);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
+
+  DEFINE_WRAPPABLE_TYPE(HTMLUnknownElement);
 
  private:
   ~HTMLUnknownElement() OVERRIDE;

@@ -60,6 +60,8 @@
         'html_div_element.h',
         'html_element.cc',
         'html_element.h',
+        'html_element_context.cc',
+        'html_element_context.h',
         'html_element_factory.cc',
         'html_element_factory.h',
         'html_head_element.cc',

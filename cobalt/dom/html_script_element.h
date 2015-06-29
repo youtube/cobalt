@@ -17,13 +17,12 @@
 #ifndef DOM_HTML_SCRIPT_ELEMENT_H_
 #define DOM_HTML_SCRIPT_ELEMENT_H_
 
+#include <string>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
-#include "cobalt/loader/text_decoder.h"
-#include "cobalt/script/script_runner.h"
 
 namespace cobalt {
 namespace dom {
@@ -35,10 +34,7 @@ class HTMLScriptElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLScriptElement(HTMLElementFactory* html_element_factory,
-                    cssom::CSSParser* css_parser,
-                    loader::FetcherFactory* fetcher_factory,
-                    script::ScriptRunner* script_runner);
+  explicit HTMLScriptElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
   //
@@ -79,12 +75,8 @@ class HTMLScriptElement : public HTMLElement {
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
-  // FetcherFactory that is used to create a fetcher according to url.
-  loader::FetcherFactory* fetcher_factory_;
   // The loader.
   scoped_ptr<loader::Loader> loader_;
-  // Proxy to JavaScript Global Object in which scripts should be run
-  script::ScriptRunner* script_runner_;
   // Whether the script has been started.
   bool is_already_started_;
 };

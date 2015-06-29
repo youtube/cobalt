@@ -19,6 +19,10 @@
 #include "base/bind.h"
 #include "base/string_util.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_context.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/text_decoder.h"
+#include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -27,15 +31,9 @@ namespace dom {
 // static
 const char* HTMLScriptElement::kTagName = "script";
 
-HTMLScriptElement::HTMLScriptElement(HTMLElementFactory* html_element_factory,
-                                     cssom::CSSParser* css_parser,
-                                     loader::FetcherFactory* fetcher_factory,
-                                     script::ScriptRunner* script_runner)
-    : HTMLElement(html_element_factory, css_parser),
-      fetcher_factory_(fetcher_factory),
-      script_runner_(script_runner),
-      is_already_started_(false) {
-  DCHECK(script_runner_);
+HTMLScriptElement::HTMLScriptElement(HTMLElementContext* html_element_context)
+    : HTMLElement(html_element_context), is_already_started_(false) {
+  DCHECK(html_element_context->script_runner());
 }
 
 const std::string& HTMLScriptElement::tag_name() const {
@@ -55,7 +53,7 @@ void HTMLScriptElement::AttachToDocument(Document* document) {
     Prepare();
   } else {
     // Immediately execute the script.
-    script_runner_->Execute(text_content().value());
+    html_element_context()->script_runner()->Execute(text_content().value());
   }
 }
 
@@ -141,7 +139,8 @@ void HTMLScriptElement::Prepare() {
 
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory_), url),
+                 base::Unretained(html_element_context()->fetcher_factory()),
+                 url),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
           &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLScriptElement::OnLoadingError, base::Unretained(this))));
@@ -153,7 +152,7 @@ void HTMLScriptElement::Prepare() {
 void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
-  script_runner_->Execute(content);
+  html_element_context()->script_runner()->Execute(content);
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchOnLoad();
   StopLoading();
 }

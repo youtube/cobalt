@@ -17,9 +17,10 @@
 #ifndef DOM_HTML_LINK_ELEMENT_H_
 #define DOM_HTML_LINK_ELEMENT_H_
 
+#include <string>
+
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
@@ -34,9 +35,7 @@ class HTMLLinkElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLLinkElement(HTMLElementFactory* html_element_factory,
-                  cssom::CSSParser* css_parser,
-                  loader::FetcherFactory* fetcher_factory);
+  explicit HTMLLinkElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
   //
@@ -60,6 +59,8 @@ class HTMLLinkElement : public HTMLElement {
   // From Node.
   void AttachToDocument(Document* document) OVERRIDE;
 
+  DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
+
  private:
   ~HTMLLinkElement() OVERRIDE;
 
@@ -75,8 +76,6 @@ class HTMLLinkElement : public HTMLElement {
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
-  // FetcherFactory that is used to create a fetcher according to url.
-  loader::FetcherFactory* fetcher_factory_;
   // The loader.
   scoped_ptr<loader::Loader> loader_;
 

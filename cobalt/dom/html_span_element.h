@@ -17,6 +17,8 @@
 #ifndef DOM_HTML_SPAN_ELEMENT_H_
 #define DOM_HTML_SPAN_ELEMENT_H_
 
+#include <string>
+
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -30,14 +32,15 @@ class HTMLSpanElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLSpanElement(HTMLElementFactory* html_element_factory,
-                  cssom::CSSParser* css_parser);
+  explicit HTMLSpanElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
   const std::string& tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() OVERRIDE { return this; }
+
+  DEFINE_WRAPPABLE_TYPE(HTMLSpanElement);
 
  private:
   ~HTMLSpanElement() OVERRIDE;

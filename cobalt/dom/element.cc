@@ -24,7 +24,7 @@
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_serializer.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/text.h"
@@ -32,10 +32,10 @@
 namespace cobalt {
 namespace dom {
 
-Element::Element() : html_element_factory_(NULL) {}
+Element::Element() : html_element_context_(NULL) {}
 
-Element::Element(HTMLElementFactory* html_element_factory)
-    : html_element_factory_(html_element_factory) {}
+Element::Element(HTMLElementContext* html_element_context)
+    : html_element_context_(html_element_context) {}
 
 base::optional<std::string> Element::text_content() const {
   std::string content;
@@ -121,7 +121,7 @@ void Element::set_inner_html(const std::string& inner_html) {
   //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
       base::SourceLocation("[object Element]", 1, 1), this, NULL,
-      html_element_factory_, base::Callback<void(void)>(),
+      html_element_context_, base::Callback<void(void)>(),
       base::Bind(&Element::HTMLParseError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());
@@ -174,7 +174,7 @@ void Element::set_outer_html(const std::string& outer_html) {
   //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
       base::SourceLocation("[object Element]", 1, 1), parent, reference,
-      html_element_factory_, base::Callback<void(void)>(),
+      html_element_context_, base::Callback<void(void)>(),
       base::Bind(&Element::HTMLParseError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(outer_html.c_str(), outer_html.length());
@@ -182,7 +182,7 @@ void Element::set_outer_html(const std::string& outer_html) {
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_factory_->css_parser());
+  return QuerySelectorInternal(selectors, html_element_context_->css_parser());
 }
 
 // Algorithm for GetAttribute:
@@ -307,7 +307,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
-  Element* new_element = new Element(html_element_factory_);
+  Element* new_element = new Element(html_element_context_);
   new_element->attribute_map_ = attribute_map_;
   return new_element;
 }
