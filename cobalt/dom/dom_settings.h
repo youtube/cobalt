@@ -26,6 +26,7 @@ namespace loader {
 class FetcherFactory;
 }
 namespace script {
+class GlobalObjectProxy;
 class JavaScriptEngine;
 }
 namespace dom {
@@ -36,7 +37,8 @@ class DOMSettings : public script::EnvironmentSettings {
  public:
   DOMSettings(loader::FetcherFactory* fetcher_factory,
               const scoped_refptr<Window>& window,
-              script::JavaScriptEngine* engine);
+              script::JavaScriptEngine* engine,
+              script::GlobalObjectProxy* global_object_proxy);
   ~DOMSettings() OVERRIDE;
 
   void set_window(const scoped_refptr<Window>& window) { window_ = window; }
@@ -49,6 +51,9 @@ class DOMSettings : public script::EnvironmentSettings {
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
+  script::GlobalObjectProxy* global_object() const {
+    return global_object_proxy_;
+  }
 
   // An absolute URL used to resolve relative URLs.
   virtual GURL base_url() const;
@@ -57,6 +62,7 @@ class DOMSettings : public script::EnvironmentSettings {
   loader::FetcherFactory* fetcher_factory_;
   scoped_refptr<dom::Window> window_;
   script::JavaScriptEngine* javascript_engine_;
+  script::GlobalObjectProxy* global_object_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };
