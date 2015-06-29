@@ -21,7 +21,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "cobalt/base/source_location.h"
-#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
@@ -32,7 +31,7 @@ namespace dom {
 
 class HTMLBodyElement;
 class HTMLDivElement;
-class HTMLElementFactory;
+class HTMLElementContext;
 class HTMLHeadElement;
 class HTMLHtmlElement;
 class HTMLLinkElement;
@@ -103,8 +102,7 @@ class HTMLElement : public Element {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  HTMLElement(HTMLElementFactory* html_element_factory,
-              cssom::CSSParser* css_parser);
+  explicit HTMLElement(HTMLElementContext* html_element_context);
   ~HTMLElement() OVERRIDE;
 
   void AttachToDocument(Document* document) OVERRIDE;

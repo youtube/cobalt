@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
@@ -37,9 +38,9 @@
 namespace cobalt {
 namespace dom {
 
-Document::Document(HTMLElementFactory* html_element_factory,
+Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
-    : html_element_factory_(html_element_factory),
+    : html_element_context_(html_element_context),
       location_(new Location(options.url)),
       url_(options.url),
       style_sheets_(new cssom::StyleSheetList(this)),
@@ -82,8 +83,10 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
 scoped_refptr<Element> Document::CreateElement() { return new Element(); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
-  DCHECK(html_element_factory_);
-  return html_element_factory_->CreateHTMLElement(tag_name);
+  DCHECK(html_element_context_);
+  DCHECK(html_element_context_->html_element_factory());
+  return html_element_context_->html_element_factory()->CreateHTMLElement(
+      tag_name);
 }
 
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
@@ -164,7 +167,7 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
 scoped_refptr<HTMLHeadElement> Document::head() const { return head_.get(); }
 
 scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_factory_->css_parser());
+  return QuerySelectorInternal(selectors, html_element_context_->css_parser());
 }
 
 scoped_refptr<EventListener> Document::onload() {

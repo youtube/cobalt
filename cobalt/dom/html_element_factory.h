@@ -17,34 +17,25 @@
 #ifndef DOM_HTML_ELEMENT_FACTORY_H_
 #define DOM_HTML_ELEMENT_FACTORY_H_
 
-#include "cobalt/dom/html_element.h"
-
-#include "base/bind.h"
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
-#include "cobalt/cssom/css_parser.h"
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media/web_media_player_factory.h"
-#include "cobalt/script/script_runner.h"
 
 namespace cobalt {
 namespace dom {
 
+class HTMLElement;
+class HTMLElementContext;
+
 // This factory is responsible for creating HTML elements according to tag name.
 class HTMLElementFactory {
  public:
-  HTMLElementFactory(loader::FetcherFactory* fetcher_factory,
-                     cssom::CSSParser* css_parser,
-                     media::WebMediaPlayerFactory* web_media_player_factory,
-                     script::ScriptRunner* script_runner);
+  explicit HTMLElementFactory(HTMLElementContext* html_element_context);
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(
       const base::StringPiece& tag_name);
-
-  cssom::CSSParser* css_parser() { return css_parser_; }
 
  private:
   typedef base::Callback<scoped_refptr<HTMLElement>()>
@@ -55,10 +46,7 @@ class HTMLElementFactory {
   template <typename T>
   scoped_refptr<HTMLElement> CreateHTMLElementT();
 
-  loader::FetcherFactory* const fetcher_factory_;
-  cssom::CSSParser* const css_parser_;
-  media::WebMediaPlayerFactory* web_media_player_factory_;
-  script::ScriptRunner* const script_runner_;
+  HTMLElementContext* html_element_context_;
 
   TagNameToCreateHTMLElementTCallbackMap
       tag_name_to_create_html_element_t_callback_map_;

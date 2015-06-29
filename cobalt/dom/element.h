@@ -29,7 +29,7 @@ namespace dom {
 class DOMTokenList;
 class HTMLCollection;
 class HTMLElement;
-class HTMLElementFactory;
+class HTMLElementContext;
 class NamedNodeMap;
 
 // The Element interface represents an object of a Document. This interface
@@ -40,7 +40,7 @@ class Element : public Node {
   typedef base::hash_map<std::string, std::string> AttributeMap;
 
   Element();
-  explicit Element(HTMLElementFactory* html_element_factory);
+  explicit Element(HTMLElementContext* html_element_context);
 
   // Web API: Node
   //
@@ -133,14 +133,14 @@ class Element : public Node {
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 
-  HTMLElementFactory* html_element_factory() { return html_element_factory_; }
+  HTMLElementContext* html_element_context() { return html_element_context_; }
 
  private:
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 
   // Reference to HTML element factory.
-  HTMLElementFactory* html_element_factory_;
+  HTMLElementContext* html_element_context_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.

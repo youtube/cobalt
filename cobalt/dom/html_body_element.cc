@@ -24,9 +24,8 @@ namespace dom {
 // static
 const char* HTMLBodyElement::kTagName = "body";
 
-HTMLBodyElement::HTMLBodyElement(HTMLElementFactory* html_element_factory,
-                                 cssom::CSSParser* css_parser)
-    : HTMLElement(html_element_factory, css_parser) {}
+HTMLBodyElement::HTMLBodyElement(HTMLElementContext* html_element_context)
+    : HTMLElement(html_element_context) {}
 
 const std::string& HTMLBodyElement::tag_name() const {
   static const std::string kBodyTagString(kTagName);
