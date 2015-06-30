@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/atomic_sequence_num.h"
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
@@ -54,6 +55,11 @@ namespace {
 base::LazyInstance<base::ThreadLocalPointer<MessageLoop> > lazy_tls_ptr =
     LAZY_INSTANCE_INITIALIZER;
 
+// Assign a sequential number to each message loops ever created so that
+// we can use that as a unique ID for them, for debug tracing purposes.
+base::LazyInstance<base::AtomicSequenceNumber> s_id_generator =
+    LAZY_INSTANCE_INITIALIZER;
+
 // Logical events for Histogram profiling. Run with -message-loop-histogrammer
 // to get an accounting of messages and actions taken on each thread.
 const int kTaskRunEvent = 0x1;
@@ -100,7 +106,7 @@ MessageLoop::MessagePumpFactory* message_pump_for_ui_factory_ = NULL;
 // with MessageLoop pointers on other processes.
 uint64 GetTaskTraceID(const PendingTask& task, MessageLoop* loop) {
   return (static_cast<uint64>(task.sequence_num) << 32) |
-         ((static_cast<uint64>(reinterpret_cast<intptr_t>(loop)) << 32) >> 32);
+         loop->id();
 }
 
 }  // namespace
@@ -152,6 +158,8 @@ MessageLoop::MessageLoop(Type type)
       next_sequence_num_(0) {
   DCHECK(!current()) << "should only have one message loop per thread";
   lazy_tls_ptr.Pointer()->Set(this);
+
+  id_ = s_id_generator.Get().GetNext();
 
   message_loop_proxy_ = new base::MessageLoopProxyImpl();
   thread_task_runner_handle_.reset(
