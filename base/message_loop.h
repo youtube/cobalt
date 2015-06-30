@@ -396,6 +396,8 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // Can only be called from the thread that owns the MessageLoop.
   bool is_running() const;
 
+  int id() { return id_; }
+
   //----------------------------------------------------------------------------
  protected:
   friend class base::RunLoop;
@@ -531,6 +533,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // The message loop proxy associated with this message loop, if one exists.
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   scoped_ptr<base::ThreadTaskRunnerHandle> thread_task_runner_handle_;
+
+  // A unique ID (over time) identifying this message loop.
+  int id_;
 
  private:
   template <class T, class R> friend class base::subtle::DeleteHelperInternal;
