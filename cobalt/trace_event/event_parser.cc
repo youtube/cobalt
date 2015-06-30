@@ -39,8 +39,9 @@ EventParser::ScopedEvent::ScopedEvent(
 EventParser::ScopedEvent::~ScopedEvent() {}
 
 void EventParser::ScopedEvent::Abort() {
-  DCHECK_NE(kFlowEndedState, state_)
-      << "There is no need to abort a totally completed event.";
+  if (state_ == kFlowEndedState) {
+    return;
+  }
 
   // Report the event as complete, even though we aborted it.  The callee here
   // is responsible for checking if the event values it is interested in are
@@ -291,14 +292,19 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
     } break;
 
     case TRACE_EVENT_PHASE_END: {
-      // A TRACE_EVENT's scope has closed, ending the event.
-      scoped_refptr<ScopedEvent> ended_event = thread_info->event_stack_.back();
-      UpdateLastTouchedEvent(thread_info, ended_event);
-      DCHECK_EQ(std::string(event.name()), ended_event->begin_event().name());
+      // If the thread's stack is empty, we were not tracking when the currently
+      // ending scope had begun, so we ignore it.
+      if (!thread_info->event_stack_.empty()) {
+        // A TRACE_EVENT's scope has closed, ending the event.
+        scoped_refptr<ScopedEvent> ended_event =
+            thread_info->event_stack_.back();
+        UpdateLastTouchedEvent(thread_info, ended_event);
+        DCHECK_EQ(std::string(event.name()), ended_event->begin_event().name());
 
-      // Mark the event as ended.
-      ended_event->OnEnd(event);
-      thread_info->event_stack_.pop_back();
+        // Mark the event as ended.
+        ended_event->OnEnd(event);
+        thread_info->event_stack_.pop_back();
+      }
     } break;
 
     case TRACE_EVENT_PHASE_FLOW_BEGIN: {
@@ -323,13 +329,16 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       // Respond to a TRACE_EVENT_FLOW_STEP call.  When UpdateLastTouchedEvent()
       // is called for this event, it may end up being a parent if the next
       // call to TRACE_EVENT shares the same name as this event's step's name.
-      DCHECK(flow_id_to_event_map_.find(MakeFlowId(event)) !=
-                 flow_id_to_event_map_.end());
-      scoped_refptr<ScopedEvent> flow_event =
-          flow_id_to_event_map_[MakeFlowId(event)];
-      UpdateLastTouchedEvent(thread_info, flow_event);
-      DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
-      flow_event->AddInstantEvent(event);
+      // We only process this event if we have tracked the beginning of the
+      // event.
+      if (flow_id_to_event_map_.find(MakeFlowId(event)) !=
+          flow_id_to_event_map_.end()) {
+        scoped_refptr<ScopedEvent> flow_event =
+            flow_id_to_event_map_[MakeFlowId(event)];
+        UpdateLastTouchedEvent(thread_info, flow_event);
+        DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
+        flow_event->AddInstantEvent(event);
+      }
     } break;
 
     case TRACE_EVENT_PHASE_FLOW_END: {
@@ -340,12 +349,15 @@ void EventParser::ParseEvent(const base::debug::TraceEvent& event) {
       // message loops.
       FlowEventMap::iterator found =
           flow_id_to_event_map_.find(MakeFlowId(event));
-      DCHECK(found != flow_id_to_event_map_.end());
-      scoped_refptr<ScopedEvent> flow_event = found->second;
-      UpdateLastTouchedEvent(thread_info, flow_event);
-      DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
-      flow_event->OnEnd(event);
-      flow_id_to_event_map_.erase(found);
+      // Only process this flow end event if we were tracking when the beginning
+      // of the flow took place.
+      if (found != flow_id_to_event_map_.end()) {
+        scoped_refptr<ScopedEvent> flow_event = found->second;
+        UpdateLastTouchedEvent(thread_info, flow_event);
+        DCHECK_EQ(std::string(event.name()), flow_event->begin_event().name());
+        flow_event->OnEnd(event);
+        flow_id_to_event_map_.erase(found);
+      }
     } break;
   }
 }
