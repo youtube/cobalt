@@ -52,15 +52,23 @@ class Pipeline {
            const scoped_refptr<backend::RenderTarget>& render_target);
   ~Pipeline();
 
+  // Convenience function that assumes there are no animations and submits
+  // an empty animation map.
+  void Submit(const scoped_refptr<render_tree::Node>& render_tree);
+
   // Submit a new render tree to the renderer pipeline.  After calling this
   // method, the submitted render tree will eventually be the one rendered
   // by the rasterizer at the refresh rate.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
                   animations);
-  // Convenience function that assumes there are no animations and submits
-  // an empty animation map.
-  void Submit(const scoped_refptr<render_tree::Node>& render_tree);
+
+  // Submits a new render tree to the renderer pipeline, and sets up a callback
+  // function that will be called every time a frame submission completes.
+  void Submit(const scoped_refptr<render_tree::Node>& render_tree,
+              const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+                  animations,
+              const base::Closure& submit_complete_callback);
 
   // Returns the rate, in hertz, at which the current render tree is rasterized
   // and submitted to the display.
@@ -81,7 +89,8 @@ class Pipeline {
   void SetNewRenderTree(
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          animations);
+          animations,
+      const base::Closure& submit_complete_callback);
 
   // Called at a specified refresh rate (e.g. 60hz) on the rasterizer thread and
   // results in the rasterization of the current tree and submission of it to
@@ -116,6 +125,9 @@ class Pipeline {
   // to current_tree_) for all rasterizations until specifically updated by a
   // call to Submit().
   scoped_refptr<render_tree::animations::NodeAnimationsMap> current_animations_;
+
+  // A callback to be run each time a frame submission completes.
+  base::Closure current_submit_complete_callback_;
 
   // A timer that signals to the rasterizer to rasterize the next frame.
   // It is common for this to be set to 60hz, the refresh rate of most displays.

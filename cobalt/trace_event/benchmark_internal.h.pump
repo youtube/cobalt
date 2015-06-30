@@ -8,7 +8,7 @@ $$
 
 #include "base/compiler_specific.h"
 
-$var MAX_ARITY = 7
+$var MAX_ARITY = 10
 
 $range ARITY 1..MAX_ARITY
 

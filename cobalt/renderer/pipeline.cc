@@ -103,16 +103,27 @@ void Pipeline::Submit(const scoped_refptr<Node>& render_tree) {
 
 void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
                       const scoped_refptr<NodeAnimationsMap>& animations) {
+  // Execute the actual set of the new render tree on the rasterizer tree.
+  rasterizer_thread_->message_loop()->PostTask(
+      FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
+                            render_tree, animations, base::Closure()));
+}
+
+void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
+                      const scoped_refptr<NodeAnimationsMap>& animations,
+                      const base::Closure& submit_complete_callback) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree, animations));
+                            render_tree, animations, submit_complete_callback));
 }
+
 
 void Pipeline::SetNewRenderTree(
     const scoped_refptr<Node>& render_tree,
-    const scoped_refptr<NodeAnimationsMap>& animations) {
+    const scoped_refptr<NodeAnimationsMap>& animations,
+    const base::Closure& submit_complete_callback) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree.get());
 
@@ -125,6 +136,7 @@ void Pipeline::SetNewRenderTree(
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
   current_tree_ = render_tree;
   current_animations_ = animations;
+  current_submit_complete_callback_ = submit_complete_callback;
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
@@ -168,6 +180,10 @@ void Pipeline::RasterizeCurrentTree() {
 
   // Rasterize the animated render tree.
   rasterizer_->Submit(animated_render_tree, render_target_);
+
+  if (!current_submit_complete_callback_.is_null()) {
+    current_submit_complete_callback_.Run();
+  }
 }
 
 }  // namespace renderer
