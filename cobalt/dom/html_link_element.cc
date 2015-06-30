@@ -53,7 +53,6 @@ void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   const GURL base_url = owner_document()->url_as_gurl();
   absolute_url_ = base_url.Resolve(href());
 
-  // TODO(***REMOVED***): Report URL cannot be resolved.
   LOG_IF(INFO, !absolute_url_.is_valid())
       << href() << " cannot be resolved based on " << base_url;
 }
