@@ -18,6 +18,15 @@
 {
   'targets': [
     {
+      'target_name': 'Default',
+      'default_project': 1,
+      'type': 'none',
+      'dependencies': [
+        '<(DEPTH)/cobalt/browser/browser.gyp:cobalt',
+      ],
+    },
+
+    {
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
