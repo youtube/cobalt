@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <!--
- | One should be able to specify transform functions via 2x3 matrix.
- | This test should result in a skewed red rectangle output on the screen.
+ | One should be able to specify transform functions via rotate functions.
+ | This test should result in rectangle rotated clockwise by 45 degrees.
  -->
 <html>
 <head>
   <style>
     .transformed {
-      transform: matrix(2, 0,
-                        1, 2,
-                        100, 50);
+      transform: rotate(45deg);
+
       width: 100px;
-      height: 100px;
+      height: 50px;
       background-color: rgb(255, 100, 100);
     }
     .orientation-marker {
