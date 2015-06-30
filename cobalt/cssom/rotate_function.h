@@ -29,23 +29,23 @@ namespace cssom {
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-rotate
 class RotateFunction : public TransformFunction {
  public:
-  explicit RotateFunction(float angle_in_radians)
-      : angle_in_radians_(angle_in_radians) {}
+  explicit RotateFunction(float clockwise_angle_in_radians)
+      : clockwise_angle_in_radians_(clockwise_angle_in_radians) {}
 
   void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
-  float angle_in_radians() const {
-    return angle_in_radians_;
+  float clockwise_angle_in_radians() const {
+    return clockwise_angle_in_radians_;
   }
 
   bool operator==(const RotateFunction& other) const {
-    return angle_in_radians_ == other.angle_in_radians_;
+    return clockwise_angle_in_radians_ == other.clockwise_angle_in_radians_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RotateFunction);
 
  private:
-  const float angle_in_radians_;
+  const float clockwise_angle_in_radians_;
 };
 
 }  // namespace cssom

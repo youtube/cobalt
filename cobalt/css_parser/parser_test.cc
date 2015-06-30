@@ -1110,7 +1110,7 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
-                  rotate_function->angle_in_radians());
+                  rotate_function->clockwise_angle_in_radians());
 }
 
 TEST_F(ParserTest, ParsesRotateTransformInGradians) {
@@ -1128,7 +1128,7 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
-                  rotate_function->angle_in_radians());
+                  rotate_function->clockwise_angle_in_radians());
 }
 
 TEST_F(ParserTest, ParsesRotateTransformInRadians) {
@@ -1146,7 +1146,7 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
-                  rotate_function->angle_in_radians());
+                  rotate_function->clockwise_angle_in_radians());
 }
 
 TEST_F(ParserTest, ParsesRotateTransformInTurns) {
@@ -1164,7 +1164,7 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
-                  rotate_function->angle_in_radians());
+                  rotate_function->clockwise_angle_in_radians());
 }
 
 TEST_F(ParserTest, ParsesIsotropicScaleTransform) {

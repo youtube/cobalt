@@ -25,7 +25,7 @@ namespace math {
 cobalt::math::Matrix3F TranslateMatrix(float x, float y);
 cobalt::math::Matrix3F ScaleMatrix(float x_scale, float y_scale);
 cobalt::math::Matrix3F ScaleMatrix(float scale);
-cobalt::math::Matrix3F RotateMatrix(float theta_in_radians);
+cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
 
 }  // namespace math
 }  // namespace cobalt
