@@ -168,7 +168,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     return;
   }
 
+  bool was_dirty = layout_dirty_;
   if (layout_dirty_) {
+    TRACE_EVENT_BEGIN0("cobalt::layout", "Layout");
     // Update our computed style before running animation callbacks, so that
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
@@ -178,6 +180,13 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   window_->RunAnimationFrameCallbacks();
 
   if (layout_dirty_) {
+    if (!was_dirty) {
+      // We want to catch the beginning of all layout processing.  If we weren't
+      // dirty before the call to RunAnimationFrameCallbacks(), then the flow
+      // starts here instead of there.
+      TRACE_EVENT_BEGIN0("cobalt::layout", "Layout");
+    }
+
     RenderTreeWithAnimations render_tree_with_animations =
         layout::Layout(window_, user_agent_style_sheet_, resource_provider_,
                        line_break_iterator_.get(), image_cache_.get());
@@ -186,6 +195,8 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
         render_tree_with_animations.animations);
 
     layout_dirty_ = false;
+
+    TRACE_EVENT_END0("cobalt::layout", "Layout");
   }
 }
 
