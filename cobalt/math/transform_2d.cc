@@ -39,9 +39,9 @@ cobalt::math::Matrix3F ScaleMatrix(float scale) {
   return ScaleMatrix(scale, scale);
 }
 
-cobalt::math::Matrix3F RotateMatrix(float theta_in_radians) {
-  float sin_theta = sin(theta_in_radians);
-  float cos_theta = cos(theta_in_radians);
+cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians) {
+  float sin_theta = sin(counter_clockwise_angle_in_radians);
+  float cos_theta = cos(counter_clockwise_angle_in_radians);
 
   // Rotation matrix for a space where up is represented by negative y.
   return cobalt::math::Matrix3F::FromValues(
