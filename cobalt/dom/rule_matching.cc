@@ -331,10 +331,7 @@ void GetMatchingRulesFromStyleSheet(
     for (cssom::Selectors::const_iterator selector_iterator =
              rule->selectors().begin();
          selector_iterator != rule->selectors().end(); ++selector_iterator) {
-      // TODO(***REMOVED***): Remove this check when all selectors are implemented.
-      if (*selector_iterator == NULL) {
-        continue;
-      }
+      DCHECK(*selector_iterator);
       if (MatchSelectorAndElement(*selector_iterator, element)) {
         matches = true;
         if (specificity < (*selector_iterator)->GetSpecificity()) {

@@ -63,7 +63,6 @@ HTMLScriptElement::~HTMLScriptElement() {}
 
 // Algorithm for Prepare:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-// TODO(***REMOVED***): Support inline script.
 void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
