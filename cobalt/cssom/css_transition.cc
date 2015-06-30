@@ -180,10 +180,12 @@ void AnimateTransformFunction::VisitRotate(
       base::polymorphic_downcast<const RotateFunction*>(end_);
 
   // The rotate function's identity is the value 0.
-  float end_angle = rotate_end ? rotate_end->angle_in_radians() : 0.0f;
+  float end_angle = rotate_end ?
+                    rotate_end->clockwise_angle_in_radians() : 0.0f;
 
   animated_.reset(new RotateFunction(
-      Lerp(rotate_function->angle_in_radians(), end_angle, progress_)));
+      Lerp(rotate_function->clockwise_angle_in_radians(),
+           end_angle, progress_)));
 }
 
 void AnimateTransformFunction::VisitScale(const ScaleFunction* scale_function) {
