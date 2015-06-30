@@ -470,8 +470,8 @@ struct MaybeRefcount<true, T*> {
 // scoped_refptr<> inside the storage object already.
 template <typename T>
 struct MaybeRefcount<true, scoped_refptr<T> > {
-  static void AddRef(const scoped_refptr<T>& o) {}
-  static void Release(const scoped_refptr<T>& o) {}
+  static void AddRef(const scoped_refptr<T>&) {}
+  static void Release(const scoped_refptr<T>&) {}
 };
 
 template <typename T>

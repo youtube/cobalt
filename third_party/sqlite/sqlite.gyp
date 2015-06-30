@@ -114,6 +114,8 @@
           },
           'msvs_disabled_warnings': [
             4018, 4244,
+            # Unreferenced 'end_unlock' label
+            4102,
           ],
           'conditions': [
             ['OS=="linux"', {
