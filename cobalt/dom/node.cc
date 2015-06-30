@@ -404,12 +404,11 @@ scoped_refptr<Element> Node::QuerySelectorInternal(
   NodeDescendantsIterator iterator(this);
   Node* child = iterator.First();
   while (child) {
-    if (!child->IsElement()) {
-      continue;
-    }
-    scoped_refptr<Element> element = child->AsElement();
-    if (MatchRuleAndElement(rule, element)) {
-      return element;
+    if (child->IsElement()) {
+      scoped_refptr<Element> element = child->AsElement();
+      if (MatchRuleAndElement(rule, element)) {
+        return element;
+      }
     }
     child = iterator.Next();
   }
