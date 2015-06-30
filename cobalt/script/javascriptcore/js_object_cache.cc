@@ -78,11 +78,13 @@ scoped_refptr<JSCObjectOwner> JSObjectCache::RegisterObjectOwner(
 }
 
 void JSObjectCache::CacheJSObject(JSC::JSObject* js_object) {
+  JSC::JSLockHolder lock(&global_object_->globalData());
   cached_objects_.insert(JSC::WriteBarrier<JSC::JSObject>(
       global_object_->globalData(), global_object_, js_object));
 }
 
 void JSObjectCache::UncacheJSObject(JSC::JSObject* js_object) {
+  JSC::JSLockHolder lock(&global_object_->globalData());
   JSC::WriteBarrier<JSC::JSObject> write_barrier(global_object_->globalData(),
                                                  global_object_, js_object);
   CachedObjectMultiset::iterator it = cached_objects_.find(write_barrier);
