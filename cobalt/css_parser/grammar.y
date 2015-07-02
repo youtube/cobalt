@@ -80,6 +80,11 @@
 %token kHeightToken                           // height
 %token kLeftToken                             // left
 %token kLineHeightToken                       // line-height
+%token kMarginBottomToken                     // margin-bottom
+%token kMarginLeftToken                       // margin-left
+%token kMarginRightToken                      // margin-right
+%token kMarginTopToken                        // margin-top
+%token kMarginToken                           // margin
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
 %token kPositionToken                         // position
@@ -308,8 +313,7 @@
 // as long as web app does not rely on literal preservation of property values
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> auto_length_percent_property_value
-                       background_color_property_value
+%type <property_value> auto background_color_property_value
                        background_image_property_list_element
                        background_image_property_value
                        background_position_property_list_element
@@ -318,12 +322,12 @@
                        background_size_property_value
                        border_radius_property_value color_property_value
                        common_values common_values_without_errors
-                       display_property_value
-                       font_family_property_value
+                       display_property_value font_family_property_value
                        font_family_name font_size_property_value
                        font_style_property_value font_weight_property_value
                        height_property_value line_height_property_value
-                       linear_gradient_params opacity_property_value
+                       linear_gradient_params margin_side_property_value
+                       margin_width offset_property_value opacity_property_value
                        overflow_property_value position_property_value
                        text_align_property_value transition_delay_property_value
                        transform_property_value
@@ -333,6 +337,10 @@
                        vertical_align_property_value width_property_value
                        z_index_property_value
 %destructor { $$->Release(); } <property_value>
+
+%union { MarginOrPaddingShorthand* margin_or_padding_shorthand; }
+%type <margin_or_padding_shorthand> margin_property_value;
+%destructor { delete $$; } <margin_or_padding_shorthand>
 
 %union { TransitionShorthand* transition; }
 %type <transition> transition_property_value
@@ -532,6 +540,21 @@ identifier_token:
   }
   | kLineHeightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
+  }
+  | kMarginBottomToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMarginBottomPropertyName);
+  }
+  | kMarginLeftToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMarginLeftPropertyName);
+  }
+  | kMarginRightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMarginRightPropertyName);
+  }
+  | kMarginTopToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMarginTopPropertyName);
+  }
+  | kMarginToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMarginPropertyName);
   }
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
@@ -864,6 +887,11 @@ selector_list:
 // Common rules used in property values.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
+auto:
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+
 // The scanner that we adopted from WebKit was built with assumption that sign
 // is handled in the grammar. Practically this means that tokens of <number>
 // and <real> types has to be prepended with this rule.
@@ -1077,18 +1105,6 @@ url:
 // Property values.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
-auto_length_percent_property_value:
-    length {
-    $$ = $1;
-  }
-  | percentage {
-    $$ = $1;
-  }
-  | kAutoToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
-  }
-  ;
-
 background_property_element:
     color {
     if (!$<background_shorthand_layer>0->background_color) {
@@ -1149,7 +1165,7 @@ final_background_layer_without_position:
     $$ = new BackgroundShorthandLayer();
   }
   | final_background_layer background_property_element {
-    // Propogate the return value from the reduced list.
+    // Propagate the return value from the reduced list.
     // Appending of the new background_property_element to the list is done
     // within background_property_element's reduction.
     $$ = $1;
@@ -1169,7 +1185,7 @@ final_background_layer:
     $$ = $1;
   }
   | final_background_layer background_property_element {
-    // Propogate the return value from the reduced list.
+    // Propagate the return value from the reduced list.
     // Appending of the new background_property_element to the list is done
     // within background_property_element's reduction.
     $$ = $1;
@@ -1294,9 +1310,7 @@ linear_gradient_params:
   ;
 
 background_image_property_list_element:
-    url {
-    $$ = $1;
-  }
+    url { $$ = $1; }
   | kLinearGradientFunctionToken maybe_whitespace linear_gradient_params ')' {
     $$ = $3;
   }
@@ -1331,12 +1345,8 @@ background_image_property_value:
   ;
 
 background_position_property_list_element:
-    length {
-    $$ = $1;
-  }
-  | percentage {
-    $$ = $1;
-  }
+    length { $$ = $1; }
+  | percentage { $$ = $1; }
   | kCenterToken maybe_whitespace {
     $$ = AddRef(new cssom::PercentageValue(0.5f));
   }
@@ -1374,15 +1384,9 @@ background_position_property_value:
   ;
 
 background_size_property_list_element:
-    length {
-    $$ = $1;
-  }
-  | positive_percentage {
-    $$ = $1;
-  }
-  | kAutoToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
-  }
+    length { $$ = $1; }
+  | positive_percentage { $$ = $1; }
+  | auto
   ;
 
 background_size_property_list:
@@ -1514,9 +1518,7 @@ height_property_value:
     }
     $$ = AddRef(length.get());
   }
-  | positive_percentage {
-    $$ = $1;
-  }
+  | positive_percentage { $$ = $1; }
   | common_values
   ;
 
@@ -1533,6 +1535,60 @@ line_height_property_value:
     }
     $$ = AddRef(length.get());
   }
+  | common_values
+  ;
+
+// <margin-width> value type.
+//   http://www.w3.org/TR/CSS21/box.html#value-def-margin-width
+margin_width:
+    length { $$ = $1; }
+  | percentage { $$ = $1; }
+  | auto
+  ;
+
+// Specifies the width of a top, right, bottom, or left side of the margin area
+// of a box.
+//   http://www.w3.org/TR/CSS21/box.html#margin-properties
+margin_side_property_value:
+    margin_width
+  | common_values
+  ;
+
+// The "margin" property is a shorthand property for setting "margin-top",
+// "margin-right", "margin-bottom", and "margin-left" at the same place.
+//   http://www.w3.org/TR/CSS21/box.html#margin-properties
+margin_property_value:
+    // If there is only one component value, it applies to all sides.
+    margin_width {
+    $$ = new MarginOrPaddingShorthand($1, $1, $1, $1);
+  }
+    // If there are two values, the top and bottom margins are set to the first
+    // value and the right and left margins are set to the second.
+  | margin_width margin_width {
+    $$ = new MarginOrPaddingShorthand($1, $2, $1, $2);
+  }
+    // If there are three values, the top is set to the first value, the left
+    // and right are set to the second, and the bottom is set to the third.
+  | margin_width margin_width margin_width {
+    $$ = new MarginOrPaddingShorthand($1, $2, $3, $2);
+  }
+    // If there are four values, they apply to the top, right, bottom, and left,
+    // respectively.
+  | margin_width margin_width margin_width margin_width {
+    $$ = new MarginOrPaddingShorthand($1, $2, $3, $4);
+  }
+  | common_values {
+    $$ = $1 ? new MarginOrPaddingShorthand($1, $1, $1, $1) : NULL;
+  }
+  ;
+
+// Specifies top, right, bottom, or left offset of the box relatively
+// to the container block.
+//   http://www.w3.org/TR/CSS21/visuren.html#position-props
+offset_property_value:
+    length { $$ = $1; }
+  | percentage { $$ = $1; }
+  | auto
   | common_values
   ;
 
@@ -2019,9 +2075,7 @@ width_property_value:
     }
     $$ = AddRef(length.get());
   }
-  | positive_percentage {
-    $$ = $1;
-  }
+  | positive_percentage { $$ = $1; }
   | common_values
   ;
 
@@ -2139,7 +2193,7 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kBottomToken maybe_whitespace colon auto_length_percent_property_value
+  | kBottomToken maybe_whitespace colon offset_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBottomPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
@@ -2187,7 +2241,7 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kLeftToken maybe_whitespace colon auto_length_percent_property_value
+  | kLeftToken maybe_whitespace colon offset_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kLeftPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
@@ -2198,6 +2252,54 @@ maybe_declaration:
     $$ = $4 ? new PropertyDeclaration(cssom::kLineHeightPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
+  }
+  | kMarginBottomToken maybe_whitespace colon margin_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginBottomPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMarginLeftToken maybe_whitespace colon margin_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginLeftPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMarginRightToken maybe_whitespace colon margin_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginRightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMarginTopToken maybe_whitespace colon margin_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginTopPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kMarginToken maybe_whitespace colon margin_property_value maybe_important {
+    scoped_ptr<MarginOrPaddingShorthand> margin($4);
+    if (margin) {
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kMarginTopPropertyName, margin->top));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kMarginRightPropertyName, margin->right));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kMarginBottomPropertyName, margin->bottom));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kMarginLeftPropertyName, margin->left));
+
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
@@ -2217,7 +2319,7 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kRightToken maybe_whitespace colon auto_length_percent_property_value
+  | kRightToken maybe_whitespace colon offset_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kRightPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
@@ -2229,7 +2331,7 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kTopToken maybe_whitespace colon auto_length_percent_property_value
+  | kTopToken maybe_whitespace colon offset_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTopPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
