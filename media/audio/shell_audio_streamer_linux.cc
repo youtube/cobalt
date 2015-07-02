@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-#include "shell_audio_streamer_linux.h"
+#include "media/audio/shell_audio_streamer_linux.h"
 
 #include "base/logging.h"
 #include "lb_platform.h"
-#include "lb_pulse_audio.h"
 #include "media/audio/audio_parameters.h"
+#include "media/audio/shell_pulse_audio.h"
 #include "media/base/audio_bus.h"
 #include "media/mp4/aac.h"
+
+namespace media {
 
 namespace {
 
@@ -29,10 +31,10 @@ ShellAudioStreamerLinux* instance = NULL;
 
 }  // namespace
 
-class PulseAudioHost : public LBPulseAudioStream::Host {
+class PulseAudioHost : public ShellPulseAudioStream::Host {
  public:
-  PulseAudioHost(LBPulseAudioContext* pulse_audio_context,
-                 media::ShellAudioStream* stream, int rate, int channels);
+  PulseAudioHost(ShellPulseAudioContext* pulse_audio_context,
+                 ShellAudioStream* stream, int rate, int channels);
   ~PulseAudioHost();
   virtual void RequestFrame(size_t length, WriteFunc write) OVERRIDE;
 
@@ -43,37 +45,17 @@ class PulseAudioHost : public LBPulseAudioStream::Host {
     STATE_RUNNING,   // Voice is playing, reading new data when possible
   };
 
-  LBPulseAudioContext* pulse_audio_context_;
+  ShellPulseAudioContext* pulse_audio_context_;
   uint32 played_frames_;  // frames played by the audio driver
   uint32 written_frames_;  // frames written to the audio driver
   StreamState state_;
-  media::ShellAudioStream* lb_audio_stream_;
-  LBPulseAudioStream* pulse_audio_stream_;
+  ShellAudioStream* lb_audio_stream_;
+  ShellPulseAudioStream* pulse_audio_stream_;
 };
 
-namespace media {
-
-void ShellAudioStreamer::Initialize() {
-  CHECK(!instance);
-  new ShellAudioStreamerLinux();
-}
-
-void ShellAudioStreamer::Terminate() {
-  CHECK(instance);
-  delete instance;
-  instance = NULL;
-}
-
-ShellAudioStreamer* ShellAudioStreamer::Instance() {
-  CHECK(instance);
-  return instance;
-}
-
-}  // namespace media
-
-media::ShellAudioStreamer::Config ShellAudioStreamerLinux::GetConfig() const {
+ShellAudioStreamer::Config ShellAudioStreamerLinux::GetConfig() const {
   const uint32 initial_rebuffering_frames_per_channel =
-      media::mp4::AAC::kSamplesPerFrame * 32;
+      mp4::AAC::kSamplesPerFrame * 32;
   const uint32 sink_buffer_size_in_frames_per_channel =
       initial_rebuffering_frames_per_channel * 8;
   const uint32 max_hardware_channels = 2;
@@ -84,22 +66,22 @@ media::ShellAudioStreamer::Config ShellAudioStreamerLinux::GetConfig() const {
       max_hardware_channels, sizeof(float)  /* bytes_per_sample */);
 }
 
-bool ShellAudioStreamerLinux::AddStream(media::ShellAudioStream* stream) {
+bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
   base::AutoLock lock(streams_lock_);
 
   if (pulse_audio_context_ == NULL) {
-    pulse_audio_context_ = new LBPulseAudioContext;
+    pulse_audio_context_ = new ShellPulseAudioContext;
     DCHECK(pulse_audio_context_->Initialize());
   }
 
   // other basic checks, it is assumed that the decoder or renderer algorithm
   // will have rejected invalid configurations before creating a sink, so
   // here they are asserts instead of run-time errors
-  const media::AudioParameters& params = stream->GetAudioParameters();
+  const AudioParameters& params = stream->GetAudioParameters();
   DCHECK(params.channels() == 1 || params.channels() == 2);
   DCHECK_EQ(params.bits_per_sample(), 32);
 
-  const media::AudioParameters& audio_parameters = stream->GetAudioParameters();
+  const AudioParameters& audio_parameters = stream->GetAudioParameters();
   const int sample_rate = audio_parameters.sample_rate();
 
   streams_[stream] = new PulseAudioHost(pulse_audio_context_, stream,
@@ -108,7 +90,7 @@ bool ShellAudioStreamerLinux::AddStream(media::ShellAudioStream* stream) {
   return true;
 }
 
-void ShellAudioStreamerLinux::RemoveStream(media::ShellAudioStream* stream) {
+void ShellAudioStreamerLinux::RemoveStream(ShellAudioStream* stream) {
   base::AutoLock lock(streams_lock_);
 
   StreamMap::iterator it = streams_.find(stream);
@@ -123,12 +105,12 @@ void ShellAudioStreamerLinux::RemoveStream(media::ShellAudioStream* stream) {
   }
 }
 
-bool ShellAudioStreamerLinux::HasStream(media::ShellAudioStream* stream) const {
+bool ShellAudioStreamerLinux::HasStream(ShellAudioStream* stream) const {
   base::AutoLock lock(streams_lock_);
   return streams_.find(stream) != streams_.end();
 }
 
-bool ShellAudioStreamerLinux::SetVolume(media::ShellAudioStream* stream,
+bool ShellAudioStreamerLinux::SetVolume(ShellAudioStream* stream,
                                         double volume) {
   if (volume != 1.0) {
     NOTIMPLEMENTED();
@@ -145,8 +127,8 @@ ShellAudioStreamerLinux::~ShellAudioStreamerLinux() {
   instance = NULL;
 }
 
-PulseAudioHost::PulseAudioHost(LBPulseAudioContext* pulse_audio_context,
-                               media::ShellAudioStream* stream,
+PulseAudioHost::PulseAudioHost(ShellPulseAudioContext* pulse_audio_context,
+                               ShellAudioStream* stream,
                                int rate, int channels)
     : pulse_audio_context_(pulse_audio_context),
       played_frames_(0),
@@ -179,7 +161,7 @@ void PulseAudioHost::RequestFrame(size_t length, WriteFunc write) {
   const int kBytesPerFrame = sizeof(float) * 2;
   DCHECK_EQ(length % kBytesPerFrame, 0);
   length /= kBytesPerFrame;
-  const media::AudioBus* audio_bus = lb_audio_stream_->GetAudioBus();
+  const AudioBus* audio_bus = lb_audio_stream_->GetAudioBus();
 
   lb_audio_stream_->ConsumeFrames(frame_consumed);
   lb_audio_stream_->PullFrames(NULL, &frame_pulled);
@@ -216,3 +198,21 @@ void PulseAudioHost::RequestFrame(size_t length, WriteFunc write) {
       break;
   }
 }
+
+void ShellAudioStreamer::Initialize() {
+  CHECK(!instance);
+  new ShellAudioStreamerLinux();
+}
+
+void ShellAudioStreamer::Terminate() {
+  CHECK(instance);
+  delete instance;
+  instance = NULL;
+}
+
+ShellAudioStreamer* ShellAudioStreamer::Instance() {
+  CHECK(instance);
+  return instance;
+}
+
+}  // namespace media

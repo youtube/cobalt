@@ -16,19 +16,17 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "lb_ffmpeg.h"
 #include "media/base/shell_media_platform.h"
 #include "media/base/shell_video_data_allocator.h"
 #include "media/base/video_util.h"
+#include "media/filters/shell_ffmpeg.h"
 #include "media/filters/shell_video_decoder_impl.h"
 
+namespace media {
+
 using base::TimeDelta;
-using media::ShellMediaPlatform;
-using media::ShellVideoDataAllocator;
-typedef media::ShellVideoDataAllocator::FrameBuffer FrameBuffer;
-typedef media::ShellVideoDataAllocator::YV12Param YV12Param;
-using media::VideoFrame;
-using media::VideoCodecProfile;
+typedef ShellVideoDataAllocator::FrameBuffer FrameBuffer;
+typedef ShellVideoDataAllocator::YV12Param YV12Param;
 
 namespace {
 
@@ -58,19 +56,19 @@ VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
 
 int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
   switch (profile) {
-    case media::H264PROFILE_BASELINE:
+    case H264PROFILE_BASELINE:
       return FF_PROFILE_H264_BASELINE;
-    case media::H264PROFILE_MAIN:
+    case H264PROFILE_MAIN:
       return FF_PROFILE_H264_MAIN;
-    case media::H264PROFILE_EXTENDED:
+    case H264PROFILE_EXTENDED:
       return FF_PROFILE_H264_EXTENDED;
-    case media::H264PROFILE_HIGH:
+    case H264PROFILE_HIGH:
       return FF_PROFILE_H264_HIGH;
-    case media::H264PROFILE_HIGH10PROFILE:
+    case H264PROFILE_HIGH10PROFILE:
       return FF_PROFILE_H264_HIGH_10;
-    case media::H264PROFILE_HIGH422PROFILE:
+    case H264PROFILE_HIGH422PROFILE:
       return FF_PROFILE_H264_HIGH_422;
-    case media::H264PROFILE_HIGH444PREDICTIVEPROFILE:
+    case H264PROFILE_HIGH444PREDICTIVEPROFILE:
       return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
     default:
       DLOG(ERROR) << "Unknown VideoCodecProfile: " << profile;
@@ -90,7 +88,7 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
 
 // TODO(***REMOVED***) : Make this decoder handle decoder errors. Now it assumes
 // that the input stream is always correct.
-class ShellRawVideoDecoderLinux : public media::ShellRawVideoDecoder {
+class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
  public:
   ShellRawVideoDecoderLinux();
   ~ShellRawVideoDecoderLinux();
@@ -115,7 +113,7 @@ class ShellRawVideoDecoderLinux : public media::ShellRawVideoDecoder {
 ShellRawVideoDecoderLinux::ShellRawVideoDecoderLinux()
     : codec_context_(NULL),
       av_frame_(NULL) {
-  LB::EnsureFfmpegInitialized();
+  EnsureFfmpegInitialized();
 }
 
 ShellRawVideoDecoderLinux::~ShellRawVideoDecoderLinux() {
@@ -319,13 +317,10 @@ void ShellRawVideoDecoderLinux::ReleaseVideoBuffer(AVCodecContext*,
 
 }  // namespace
 
-namespace media {
-
 ShellRawVideoDecoder* ShellRawVideoDecoder::Create(
-    const VideoDecoderConfig& config,
-    media::Decryptor* decryptor,
+    const VideoDecoderConfig& config, Decryptor* decryptor,
     bool was_encrypted) {
-  DCHECK_EQ(config.codec(), media::kCodecH264)
+  DCHECK_EQ(config.codec(), kCodecH264)
       << "Video codec " << config.codec() << " is not supported.";
   scoped_ptr<ShellRawVideoDecoder> decoder(new ShellRawVideoDecoderLinux);
   if (decoder->UpdateConfig(config))
