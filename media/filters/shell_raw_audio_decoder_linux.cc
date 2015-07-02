@@ -16,17 +16,17 @@
 
 #include <memory.h>
 
-#include "lb_ffmpeg.h"
 #include "base/bind.h"
 #include "base/logging.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/shell_buffer_factory.h"
 #include "media/filters/shell_audio_decoder_impl.h"
+#include "media/filters/shell_ffmpeg.h"
 #include "media/mp4/aac.h"
 
-using media::AudioTimestampHelper;
-using media::DecoderBuffer;
+
+namespace media {
 
 namespace {
 
@@ -69,7 +69,7 @@ void ResampleToInterleavedFloat(int source_sample_format, int channel_layout,
 }
 
 
-class ShellRawAudioDecoderLinux : public media::ShellRawAudioDecoder {
+class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
  public:
   ShellRawAudioDecoderLinux();
   ~ShellRawAudioDecoderLinux();
@@ -95,11 +95,11 @@ class ShellRawAudioDecoderLinux : public media::ShellRawAudioDecoder {
 
   // Decoded audio format.
   int bits_per_channel_;
-  media::ChannelLayout channel_layout_;
+  ChannelLayout channel_layout_;
   int samples_per_second_;
 
   // Used for computing output timestamps.
-  scoped_ptr<media::AudioTimestampHelper> output_timestamp_helper_;
+  scoped_ptr<AudioTimestampHelper> output_timestamp_helper_;
   int bytes_per_frame_;
   base::TimeDelta last_input_timestamp_;
 
@@ -114,11 +114,11 @@ ShellRawAudioDecoderLinux::ShellRawAudioDecoderLinux()
     : codec_context_(NULL),
       av_frame_(NULL),
       bits_per_channel_(0),
-      channel_layout_(media::CHANNEL_LAYOUT_NONE),
+      channel_layout_(CHANNEL_LAYOUT_NONE),
       samples_per_second_(0),
       bytes_per_frame_(0),
-      last_input_timestamp_(media::kNoTimestamp()) {
-  LB::EnsureFfmpegInitialized();
+      last_input_timestamp_(kNoTimestamp()) {
+  EnsureFfmpegInitialized();
 }
 
 ShellRawAudioDecoderLinux::~ShellRawAudioDecoderLinux() {
@@ -128,9 +128,9 @@ ShellRawAudioDecoderLinux::~ShellRawAudioDecoderLinux() {
 scoped_refptr<DecoderBuffer> ShellRawAudioDecoderLinux::Decode(
     const scoped_refptr<DecoderBuffer>& buffer) {
   if (buffer && !buffer->IsEndOfStream()) {
-    if (last_input_timestamp_ == media::kNoTimestamp()) {
+    if (last_input_timestamp_ == kNoTimestamp()) {
       last_input_timestamp_ = buffer->GetTimestamp();
-    } else if (buffer->GetTimestamp() != media::kNoTimestamp()) {
+    } else if (buffer->GetTimestamp() != kNoTimestamp()) {
       DCHECK_GE(buffer->GetTimestamp().ToInternalValue(),
                last_input_timestamp_.ToInternalValue());
       last_input_timestamp_ = buffer->GetTimestamp();
@@ -235,7 +235,7 @@ bool ShellRawAudioDecoderLinux::UpdateConfig(const AudioDecoderConfig& config) {
   bits_per_channel_ = config.bits_per_channel();
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
-  output_timestamp_helper_.reset(new media::AudioTimestampHelper(
+  output_timestamp_helper_.reset(new AudioTimestampHelper(
       kSampleSizeInBytes, config.samples_per_second()));
 
   ResetTimestampState();
@@ -257,8 +257,8 @@ void ShellRawAudioDecoderLinux::ReleaseResource() {
 }
 
 void ShellRawAudioDecoderLinux::ResetTimestampState() {
-  output_timestamp_helper_->SetBaseTimestamp(media::kNoTimestamp());
-  last_input_timestamp_ = media::kNoTimestamp();
+  output_timestamp_helper_->SetBaseTimestamp(kNoTimestamp());
+  last_input_timestamp_ = kNoTimestamp();
 }
 
 void ShellRawAudioDecoderLinux::RunDecodeLoop(
@@ -280,10 +280,10 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
     packet.size -= result;
     packet.data += result;
 
-    if (output_timestamp_helper_->base_timestamp() == media::kNoTimestamp() &&
+    if (output_timestamp_helper_->base_timestamp() == kNoTimestamp() &&
         !input->IsEndOfStream()) {
       DCHECK_NE(input->GetTimestamp().ToInternalValue(),
-                media::kNoTimestamp().ToInternalValue());
+                kNoTimestamp().ToInternalValue());
       output_timestamp_helper_->SetBaseTimestamp(input->GetTimestamp());
     }
 
@@ -300,16 +300,16 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
 
     if (decoded_audio_size > 0) {
       // Copy the audio samples into an output buffer.
-      int buffer_size = kSampleSizeInBytes * media::mp4::AAC::kSamplesPerFrame *
+      int buffer_size = kSampleSizeInBytes * mp4::AAC::kSamplesPerFrame *
                         codec_context_->channels;
-      output = media::ShellBufferFactory::Instance()->AllocateBufferNow(
+      output = ShellBufferFactory::Instance()->AllocateBufferNow(
           buffer_size);
       DCHECK(output);
       // Interleave the planar samples to conform to the general decoder
       // requirement. This should eventually be lifted as WiiU is also planar.
       ResampleToInterleavedFloat(
           codec_context_->sample_fmt, codec_context_->channel_layout,
-          samples_per_second_, media::mp4::AAC::kSamplesPerFrame,
+          samples_per_second_, mp4::AAC::kSamplesPerFrame,
           av_frame_->extended_data,
           reinterpret_cast<uint8*>(output->GetWritableData()));
       output->SetTimestamp(output_timestamp_helper_->GetTimestamp());
@@ -335,8 +335,6 @@ void ShellRawAudioDecoderLinux::RunDecodeLoop(
 }
 
 }  // namespace
-
-namespace media {
 
 scoped_ptr<ShellRawAudioDecoder> ShellRawAudioDecoder::Create(
     const AudioDecoderConfig& config) {
