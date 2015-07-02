@@ -1024,6 +1024,122 @@ TEST_F(ParserTest, ParsesLineHeightInEm) {
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, line_height->unit());
 }
 
+TEST_F(ParserTest, ParsesMarginWith1Value) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_top());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_right());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_bottom());
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_left());
+}
+
+TEST_F(ParserTest, ParsesMarginWith2Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin: auto 0;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_top());
+
+  scoped_refptr<cssom::LengthValue> margin_right =
+      dynamic_cast<cssom::LengthValue*>(style->margin_right().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_right);
+  EXPECT_FLOAT_EQ(0, margin_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_bottom());
+
+  scoped_refptr<cssom::LengthValue> margin_left =
+      dynamic_cast<cssom::LengthValue*>(style->margin_left().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_left);
+  EXPECT_FLOAT_EQ(0, margin_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_left->unit());
+}
+
+TEST_F(ParserTest, ParsesMarginWith3Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin: 0 auto 10%;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> margin_top =
+      dynamic_cast<cssom::LengthValue*>(style->margin_top().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_top);
+  EXPECT_FLOAT_EQ(0, margin_top->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_right());
+
+  scoped_refptr<cssom::PercentageValue> margin_bottom =
+      dynamic_cast<cssom::PercentageValue*>(style->margin_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), margin_bottom);
+  EXPECT_FLOAT_EQ(0.1f, margin_bottom->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_left());
+}
+
+TEST_F(ParserTest, ParsesMarginWith4Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin: 10px 20px 30px 40px;",
+                                   source_location_);
+
+  scoped_refptr<cssom::LengthValue> margin_top =
+      dynamic_cast<cssom::LengthValue*>(style->margin_top().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_top);
+  EXPECT_FLOAT_EQ(10, margin_top->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
+
+  scoped_refptr<cssom::LengthValue> margin_right =
+      dynamic_cast<cssom::LengthValue*>(style->margin_right().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_right);
+  EXPECT_FLOAT_EQ(20, margin_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
+
+  scoped_refptr<cssom::LengthValue> margin_bottom =
+      dynamic_cast<cssom::LengthValue*>(style->margin_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_bottom);
+  EXPECT_FLOAT_EQ(30, margin_bottom->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_bottom->unit());
+
+  scoped_refptr<cssom::LengthValue> margin_left =
+      dynamic_cast<cssom::LengthValue*>(style->margin_left().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_left);
+  EXPECT_FLOAT_EQ(40, margin_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, margin_left->unit());
+}
+
+TEST_F(ParserTest, ParsesMarginBottom) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin-bottom: 1em;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> margin_bottom =
+      dynamic_cast<cssom::LengthValue*>(style->margin_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_bottom);
+  EXPECT_FLOAT_EQ(1, margin_bottom->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, margin_bottom->unit());
+}
+
+TEST_F(ParserTest, ParsesMarginLeft) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin-left: 5.5%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> margin_left =
+      dynamic_cast<cssom::PercentageValue*>(style->margin_left().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), margin_left);
+  EXPECT_FLOAT_EQ(0.055f, margin_left->value());
+}
+
+TEST_F(ParserTest, ParsesMarginRight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin-right: auto;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_right());
+}
+
+TEST_F(ParserTest, ParsesMarginTop) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("margin-top: initial;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->margin_top());
+}
+
 TEST_F(ParserTest, ParsesOpacity) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("opacity: 0.5;", source_location_);
