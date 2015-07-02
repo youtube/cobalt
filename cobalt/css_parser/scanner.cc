@@ -1122,6 +1122,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kHeightToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginPropertyName)) {
+        *property_name_token = kMarginToken;
+        return true;
+      }
       return false;
 
     case 7:
@@ -1170,6 +1174,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginTopPropertyName)) {
+        *property_name_token = kMarginTopToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTextAlignPropertyName)) {
         *property_name_token = kTextAlignToken;
         return true;
@@ -1193,12 +1201,28 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kLineHeightToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginLeftPropertyName)) {
+        *property_name_token = kMarginLeftToken;
+        return true;
+      }
+      return false;
+
+    case 12:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginRightPropertyName)) {
+        *property_name_token = kMarginRightToken;
+        return true;
+      }
       return false;
 
     case 13:
       if (IsEqualToCssIdentifier(
               name.begin, cssom::kBorderRadiusPropertyName)) {
         *property_name_token = kBorderRadiusToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kMarginBottomPropertyName)) {
+        *property_name_token = kMarginBottomToken;
         return true;
       }
       return false;
