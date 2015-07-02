@@ -130,7 +130,7 @@ TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
   style->set_background_image(background_image);
 }
 
-TEST(CSSStyleDeclarationTest, BorderRadiusdSetter) {
+TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
       new CSSStyleDeclaration(&css_parser);
