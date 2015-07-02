@@ -552,6 +552,19 @@
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
             }],
+            ['target_arch=="linux"', {
+              'sources': [
+                'audio/shell_audio_streamer_linux.cc',
+                'audio/shell_audio_streamer_linux.h',
+                'audio/shell_pulse_audio.cc',
+                'audio/shell_pulse_audio.h',
+                'filters/shell_ffmpeg.cc',
+                'filters/shell_ffmpeg.h',
+                'filters/shell_raw_audio_decoder_linux.cc',
+                'filters/shell_raw_audio_decoder_linux.h',
+                'filters/shell_raw_video_decoder_linux.cc',
+              ],
+            }],
             ['target_arch=="ps3"', {
               'sources': [
                 'audio/shell_audio_streamer_ps3.cc',

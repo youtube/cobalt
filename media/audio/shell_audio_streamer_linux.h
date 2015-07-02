@@ -14,36 +14,40 @@
  * limitations under the License.
  */
 
-#ifndef SRC_PLATFORM_LINUX_LB_SHELL_SHELL_AUDIO_STREAMER_LINUX_H_
-#define SRC_PLATFORM_LINUX_LB_SHELL_SHELL_AUDIO_STREAMER_LINUX_H_
+#ifndef MEDIA_AUDIO_SHELL_AUDIO_STREAMER_LINUX_H_
+#define MEDIA_AUDIO_SHELL_AUDIO_STREAMER_LINUX_H_
 
 #include <map>
 
 #include "base/synchronization/lock.h"
-#include "lb_pulse_audio.h"
 #include "media/audio/shell_audio_streamer.h"
+#include "media/audio/shell_pulse_audio.h"
+
+namespace media {
 
 class PulseAudioHost;
 
-class ShellAudioStreamerLinux : public media::ShellAudioStreamer {
+class ShellAudioStreamerLinux : public ShellAudioStreamer {
  public:
   ShellAudioStreamerLinux();
   ~ShellAudioStreamerLinux();
 
   virtual Config GetConfig() const OVERRIDE;
-  virtual bool AddStream(media::ShellAudioStream* stream) OVERRIDE;
-  virtual void RemoveStream(media::ShellAudioStream* stream) OVERRIDE;
-  virtual bool HasStream(media::ShellAudioStream* stream) const OVERRIDE;
-  virtual bool SetVolume(media::ShellAudioStream* stream, double volume)
+  virtual bool AddStream(ShellAudioStream* stream) OVERRIDE;
+  virtual void RemoveStream(ShellAudioStream* stream) OVERRIDE;
+  virtual bool HasStream(ShellAudioStream* stream) const OVERRIDE;
+  virtual bool SetVolume(ShellAudioStream* stream, double volume)
       OVERRIDE;
 
  private:
-  typedef std::map<media::ShellAudioStream*, PulseAudioHost*> StreamMap;
+  typedef std::map<ShellAudioStream*, PulseAudioHost*> StreamMap;
   StreamMap streams_;
   mutable base::Lock streams_lock_;
-  LBPulseAudioContext* pulse_audio_context_;
+  ShellPulseAudioContext* pulse_audio_context_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellAudioStreamerLinux);
 };
 
-#endif  // SRC_PLATFORM_LINUX_LB_SHELL_SHELL_AUDIO_STREAMER_LINUX_H_
+}  // namespace media
+
+#endif  // MEDIA_AUDIO_SHELL_AUDIO_STREAMER_LINUX_H_
