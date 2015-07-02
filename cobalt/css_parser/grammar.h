@@ -58,6 +58,7 @@
 namespace cobalt {
 namespace css_parser {
 
+struct MarginOrPaddingShorthand;
 class ParserImpl;
 struct PropertyDeclaration;
 
