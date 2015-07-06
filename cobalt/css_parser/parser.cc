@@ -16,9 +16,11 @@
 
 #include "cobalt/css_parser/parser.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <sstream>
+#include <string>
 
 #include "base/bind.h"
 #include "base/string_piece.h"
@@ -93,7 +95,7 @@ class ParserImpl {
              const Parser::OnMessageCallback& on_error_callback,
              Parser::MessageVerbosity message_verbosity);
 
-  cssom::CSSParser* const css_parser() { return css_parser_; }
+  cssom::CSSParser* css_parser() { return css_parser_; }
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
   scoped_refptr<cssom::CSSStyleRule> ParseStyleRule();
@@ -181,11 +183,11 @@ ParserImpl::ParserImpl(const std::string& input,
                        Parser::MessageVerbosity message_verbosity)
     : input_(input),
       input_location_(input_location),
-      css_parser_(css_parser),
-      scanner_(input_.c_str(), &string_pool_),
       on_warning_callback_(on_warning_callback),
       on_error_callback_(on_error_callback),
       message_verbosity_(message_verbosity),
+      css_parser_(css_parser),
+      scanner_(input_.c_str(), &string_pool_),
       into_declaration_list_(NULL) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {

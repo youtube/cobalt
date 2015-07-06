@@ -67,7 +67,7 @@ class Transition {
   const scoped_refptr<PropertyValue>& reversing_adjusted_start_value() const {
     return reversing_adjusted_start_value_;
   }
-  const float reversing_shortening_factor() const {
+  float reversing_shortening_factor() const {
     return reversing_shortening_factor_;
   }
 

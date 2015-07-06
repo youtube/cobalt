@@ -298,7 +298,9 @@ inline bool IsUriLetter(char character) {
 }
 
 inline bool IsCssLetter(char character) {
-  return character < 0 || kTypesOfAsciiCharacters[character] <= kDashCharacter;
+  return character < 0 ||
+         kTypesOfAsciiCharacters[static_cast<unsigned char>(character)] <=
+             kDashCharacter;
 }
 
 // Compares a character range with a zero terminated string.
@@ -341,9 +343,10 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
     }
 
     char first_character(*input_iterator_);
-    CharacterType character_type(first_character >= 0
-                                     ? kTypesOfAsciiCharacters[first_character]
-                                     : kIdentifierStartCharacter);
+    CharacterType character_type(
+        first_character >= 0 ? kTypesOfAsciiCharacters
+                                   [static_cast<unsigned char>(first_character)]
+                             : kIdentifierStartCharacter);
     switch (character_type) {
       case kCaselessUCharacter:
         return ScanFromCaselessU(token_value);
@@ -722,8 +725,10 @@ Token Scanner::ScanFromWhitespace() {
       line_start_ = input_iterator_ + 1;
     }
     ++input_iterator_;
-  } while (*input_iterator_ <= ' ' &&
-           (kTypesOfAsciiCharacters[*input_iterator_] == kWhitespaceCharacter));
+  } while (
+      *input_iterator_ <= ' ' &&
+      (kTypesOfAsciiCharacters[static_cast<unsigned char>(*input_iterator_)] ==
+       kWhitespaceCharacter));
   return kWhitespaceToken;
 }
 

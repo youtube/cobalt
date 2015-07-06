@@ -17,6 +17,7 @@
 #include "cobalt/css_parser/parser.h"
 
 #include <cmath>
+#include <string>
 
 #include "base/bind.h"
 #include "cobalt/cssom/const_string_list_value.h"
