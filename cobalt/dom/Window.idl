@@ -21,7 +21,12 @@
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
 
+  // TODO(***REMOVED***, b/21561006): Move the following functions, and the
+  // definition of FrameRequestCallback below into Window_AnimationTiming.idl
+  // and add these to Window via partial interface.
+  // http://www.w3.org/TR/animation-timing/#Window-interface-extensions
   long requestAnimationFrame(FrameRequestCallback callback);
+  void cancelAnimationFrame(long handle);
 
   // TODO(***REMOVED***, b/21560766, b/21560873, b/21561006): Change the following
   // method back to its original form in the spec, when "Function" and "any" are
@@ -33,5 +38,5 @@
 };
 Window implements GlobalEventHandlers;
 
-callback FrameRequestCallback = void(double time);
+callback FrameRequestCallback = void(DOMHighResTimeStamp time);
 callback TimerCallback = void();

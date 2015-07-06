@@ -72,7 +72,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       performance_(new Performance()),
       relay_on_load_event_(new RelayOnLoadEvent(this)),
       console_(new Console()),
-      window_timers_(new WindowTimers()) {
+      window_timers_(new WindowTimers()),
+      animation_frame_request_callback_list_(
+          new AnimationFrameRequestCallbackList()) {
   document_->AddObserver(relay_on_load_event_.get());
 }
 
@@ -106,6 +108,31 @@ void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 const scoped_refptr<Console>& Window::console() const { return console_; }
 
 Window::~Window() {}
+
+int32 Window::RequestAnimationFrame(
+    const scoped_refptr<FrameRequestCallback>& callback) {
+  return animation_frame_request_callback_list_->RequestAnimationFrame(
+      callback);
+}
+
+void Window::CancelAnimationFrame(int32 handle) {
+  animation_frame_request_callback_list_->CancelAnimationFrame(handle);
+}
+
+void Window::RunAnimationFrameCallbacks() {
+  // First grab the current list of frame request callbacks and hold on to it
+  // here locally.
+  scoped_ptr<AnimationFrameRequestCallbackList> frame_request_list =
+      animation_frame_request_callback_list_.Pass();
+
+  // Then setup the Window's frame request callback list with a freshly created
+  // and empty one.
+  animation_frame_request_callback_list_.reset(
+      new AnimationFrameRequestCallbackList());
+
+  // Now, iterate through each of the callbacks and call them.
+  frame_request_list->RunCallbacks(performance()->Now());
+}
 
 }  // namespace dom
 }  // namespace cobalt
