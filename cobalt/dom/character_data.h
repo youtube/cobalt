@@ -30,12 +30,13 @@ class CharacterData : public Node {
  public:
   // Web API: Node
   base::optional<std::string> node_value() const OVERRIDE { return data_; }
-  void set_node_value(const base::optional<std::string>& node_value) {
+  void set_node_value(const base::optional<std::string>& node_value) OVERRIDE {
     data_ = node_value.value_or("");
   }
 
   base::optional<std::string> text_content() const OVERRIDE { return data_; }
-  void set_text_content(const base::optional<std::string>& text_content) {
+  void set_text_content(
+      const base::optional<std::string>& text_content) OVERRIDE {
     data_ = text_content.value_or("");
   }
 

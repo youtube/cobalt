@@ -48,8 +48,8 @@ Box::Box(
     const cssom::TransitionSet* transitions,
     const UsedStyleProvider* used_style_provider)
     : computed_style_(computed_style),
-      transitions_(transitions),
       used_style_provider_(used_style_provider),
+      transitions_(transitions),
       parent_(NULL),
       containing_block_(NULL),
       stacking_context_(NULL) {
