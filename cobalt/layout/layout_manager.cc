@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/timer.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_html_element.h"
@@ -162,6 +163,11 @@ void LayoutManager::Impl::NotifyImageLoaded() {
 }
 
 void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
+  TRACE_EVENT0("cobalt::layout",
+               "LayoutManager::Impl::DoLayoutAndProduceRenderTree()");
+
+  window_->RunAnimationFrameCallbacks();
+
   if (!layout_dirty_) {
     return;
   }

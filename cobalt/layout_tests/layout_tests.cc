@@ -311,5 +311,11 @@ INSTANTIATE_TEST_CASE_P(
     WebAppAPIsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("webappapis")));
 
+// JavaScript HTML5 APIs that describe requestAnimationFrame().
+//   http://www.w3.org/TR/animation-timing/
+INSTANTIATE_TEST_CASE_P(
+    AnimationTimingAPILayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("animation-timing")));
+
 }  // namespace layout_tests
 }  // namespace cobalt

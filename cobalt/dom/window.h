@@ -24,7 +24,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
@@ -49,8 +51,9 @@ class WindowTimers;
 // TODO(***REMOVED***): Properly handle viewport resolution change event.
 class Window : public EventTarget {
  public:
-  typedef script::CallbackFunction<void(double)> FrameRequestCallback;
-  typedef script::CallbackFunction<void()> TimerCallback;
+  typedef AnimationFrameRequestCallbackList::FrameRequestCallback
+      FrameRequestCallback;
+  typedef WindowTimers::TimerCallback TimerCallback;
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          loader::FetcherFactory* fetcher_factory,
@@ -65,10 +68,10 @@ class Window : public EventTarget {
   scoped_refptr<Location> location() const;
   const scoped_refptr<Navigator>& navigator() const;
 
-  int32_t RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&) {
-    NOTIMPLEMENTED();
-    return 0;
-  }
+  // Web API: Timing control for script-based animations (partial interface)
+  //   http://www.w3.org/TR/animation-timing/#Window-interface-extensions
+  int32 RequestAnimationFrame(const scoped_refptr<FrameRequestCallback>&);
+  void CancelAnimationFrame(int32 handle);
 
   // Web API: CSSOM View Module (partial interface)
   //   http://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-window-interface
@@ -98,6 +101,10 @@ class Window : public EventTarget {
   // Custom, not in any spec.
   const scoped_refptr<Console>& console() const;
 
+  // Will fire the animation frame callbacks and reset the animation frame
+  // request callback list.
+  void RunAnimationFrameCallbacks();
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -116,6 +123,8 @@ class Window : public EventTarget {
   scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
   scoped_ptr<WindowTimers> window_timers_;
+  scoped_ptr<AnimationFrameRequestCallbackList>
+      animation_frame_request_callback_list_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
