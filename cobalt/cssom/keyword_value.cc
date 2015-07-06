@@ -33,12 +33,14 @@ struct KeywordValue::NonTrivialStaticFields {
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
         initial_value(new KeywordValue(KeywordValue::kInitial)),
-        inline_value(new KeywordValue(KeywordValue::kInline)),
         inline_block_value(new KeywordValue(KeywordValue::kInlineBlock)),
+        inline_value(new KeywordValue(KeywordValue::kInline)),
+        left_value(new KeywordValue(KeywordValue::kLeft)),
         middle_value(new KeywordValue(KeywordValue::kMiddle)),
         none_value(new KeywordValue(KeywordValue::kNone)),
         normal_value(new KeywordValue(KeywordValue::kNormal)),
         relative_value(new KeywordValue(KeywordValue::kRelative)),
+        right_value(new KeywordValue(KeywordValue::kRight)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
         top_value(new KeywordValue(KeywordValue::kTop)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
@@ -52,12 +54,14 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> hidden_value;
   const scoped_refptr<KeywordValue> inherit_value;
   const scoped_refptr<KeywordValue> initial_value;
-  const scoped_refptr<KeywordValue> inline_value;
   const scoped_refptr<KeywordValue> inline_block_value;
+  const scoped_refptr<KeywordValue> inline_value;
+  const scoped_refptr<KeywordValue> left_value;
   const scoped_refptr<KeywordValue> middle_value;
   const scoped_refptr<KeywordValue> none_value;
   const scoped_refptr<KeywordValue> normal_value;
   const scoped_refptr<KeywordValue> relative_value;
+  const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> top_value;
   const scoped_refptr<KeywordValue> visible_value;
@@ -118,6 +122,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetInlineBlock() {
   return non_trivial_static_fields.Get().inline_block_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetLeft() {
+  return non_trivial_static_fields.Get().left_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetMiddle() {
   return non_trivial_static_fields.Get().middle_value;
 }
@@ -132,6 +140,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
   return non_trivial_static_fields.Get().relative_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetRight() {
+  return non_trivial_static_fields.Get().right_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetStatic() {

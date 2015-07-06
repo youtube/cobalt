@@ -90,9 +90,17 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kInlineBlock,
 
+    // "left" is a value of "text-align" property that indicates that the
+    // content should be aligned horizontally to the left.
+    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    kLeft,
+
     // "middle" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically centered.
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
+    // "middle" is a value of "text-align" property that indicates that the
+    // content should be aligned horizontally centered.
+    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kMiddle,
 
     // "none" is a value of "transform" property which means that HTML element
@@ -111,6 +119,11 @@ class KeywordValue : public PropertyValue {
     // with respect to the box's in-flow position.
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
     kRelative,
+
+    // "right" is a value of "text-align" property that indicates that the
+    // content should be aligned horizontally to the right.
+    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    kRight,
 
     // "static" is a value of "position" property which indicates that a box
     // is laid out according to the normal flow.
@@ -143,10 +156,12 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInitial();
   static const scoped_refptr<KeywordValue>& GetInline();
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
+  static const scoped_refptr<KeywordValue>& GetLeft();
   static const scoped_refptr<KeywordValue>& GetMiddle();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNormal();
   static const scoped_refptr<KeywordValue>& GetRelative();
+  static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetVisible();
