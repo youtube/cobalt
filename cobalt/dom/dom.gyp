@@ -19,6 +19,8 @@
       'target_name': 'dom',
       'type': 'static_library',
       'sources': [
+        'animation_frame_request_callback_list.cc',
+        'animation_frame_request_callback_list.h',
         'array_buffer.cc',
         'array_buffer.h',
         'array_buffer_view.cc',
