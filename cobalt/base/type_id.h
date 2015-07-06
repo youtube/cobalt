@@ -61,7 +61,7 @@ class TypeId {
   intptr_t value_;
   template <typename T> friend TypeId GetTypeId();
 #if defined(COMPILER_GCC) && defined(__LB_LINUX__)
-  friend class BASE_HASH_NAMESPACE::hash<TypeId>;
+  friend struct BASE_HASH_NAMESPACE::hash<TypeId>;
 #else
   template <typename T, typename Predicate>
   friend class BASE_HASH_NAMESPACE::hash_compare;
