@@ -127,9 +127,11 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
