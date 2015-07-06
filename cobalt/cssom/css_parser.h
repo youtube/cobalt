@@ -78,7 +78,7 @@ class CSSParser {
       CSSStyleDeclarationData* style_declaration) = 0;
 
  protected:
-  ~CSSParser() {}
+  virtual ~CSSParser() {}
 };
 
 }  // namespace cssom

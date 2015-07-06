@@ -50,7 +50,7 @@ class DocumentObserver {
   virtual void OnMutation() = 0;
 
  protected:
-  ~DocumentObserver() {}
+  virtual ~DocumentObserver() {}
 };
 
 // The Document interface serves as an entry point into the web page's content

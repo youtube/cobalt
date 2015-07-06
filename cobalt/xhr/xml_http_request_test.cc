@@ -60,8 +60,8 @@ class ScopedLogInterceptor {
   }
 
  private:
-  logging::LogMessageHandlerFunction old_handler_;
   std::string* output_;
+  logging::LogMessageHandlerFunction old_handler_;
   static ScopedLogInterceptor* log_interceptor_;
 };
 
