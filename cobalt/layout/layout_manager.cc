@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
+#include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/layout.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
@@ -49,7 +50,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   const scoped_refptr<dom::Window> window_;
   const scoped_refptr<dom::Document> document_;
-  const math::SizeF viewport_size_;
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
@@ -106,8 +106,6 @@ LayoutManager::Impl::Impl(
     LayoutTrigger layout_trigger, float layout_refresh_rate)
     : window_(window),
       document_(window->document()),
-      viewport_size_(math::SizeF(static_cast<float>(window_->inner_width()),
-                                 static_cast<float>(window_->inner_height()))),
       resource_provider_(resource_provider),
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
@@ -166,19 +164,27 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   TRACE_EVENT0("cobalt::layout",
                "LayoutManager::Impl::DoLayoutAndProduceRenderTree()");
 
-  window_->RunAnimationFrameCallbacks();
-
-  if (!layout_dirty_) {
+  if (!document_->html()) {
     return;
   }
 
-  if (document_->html()) {
-    RenderTreeWithAnimations render_tree_with_animations = layout::Layout(
-        document_->html(), viewport_size_, user_agent_style_sheet_,
-        resource_provider_, line_break_iterator_.get(), image_cache_.get());
+  if (layout_dirty_) {
+    // Update our computed style before running animation callbacks, so that
+    // any transitioning elements adjusted during the animation callback will
+    // transition from their previously set value.
+    UpdateComputedStyles(window_, user_agent_style_sheet_);
+  }
+
+  window_->RunAnimationFrameCallbacks();
+
+  if (layout_dirty_) {
+    RenderTreeWithAnimations render_tree_with_animations =
+        layout::Layout(window_, user_agent_style_sheet_, resource_provider_,
+                       line_break_iterator_.get(), image_cache_.get());
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
         render_tree_with_animations.animations);
+
     layout_dirty_ = false;
   }
 }

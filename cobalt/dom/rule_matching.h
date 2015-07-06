@@ -20,6 +20,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,9 +46,8 @@ void GetMatchingRulesFromStyleSheet(
 // Those selectors that are supported are implemented after Selectors Level 4.
 //   http://www.w3.org/TR/selectors4/
 void UpdateMatchingRules(
-    dom::HTMLElement* root,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+    const scoped_refptr<dom::Document>& document,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
 }  // namespace dom
 }  // namespace cobalt
