@@ -328,6 +328,24 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
   style->set_position(position);
 }
 
+TEST(CSSStyleDeclarationTest, TextAlignSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string text_align = "middle";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kTextAlignPropertyName, text_align, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnMutation()).Times(1);
+
+  style->set_text_align(text_align);
+}
+
 TEST(CSSStyleDeclarationTest, TransformSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
