@@ -145,10 +145,12 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
@@ -336,10 +338,12 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kInline:
     case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kVisible:
@@ -407,10 +411,12 @@ class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kInitial:
       case cssom::KeywordValue::kInline:
       case cssom::KeywordValue::kInlineBlock:
+      case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNormal:
       case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kVisible:

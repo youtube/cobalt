@@ -84,6 +84,7 @@
 %token kOverflowToken                         // overflow
 %token kPositionToken                         // position
 %token kRightToken                            // right
+%token kTextAlignToken                        // text-align
 %token kTopToken                              // top
 %token kTransformToken                        // transform
 %token kTransitionDelayToken                  // transition-delay
@@ -118,17 +119,19 @@
 %token kInlineToken                     // inline
 %token kItalicToken                     // italic
 %token kLinearToken                     // linear
+// %token kLeftToken                    // left - also property name token
 %token kMiddleToken                     // middle
 %token kNoneToken                       // none
 %token kNormalToken                     // normal
 %token kObliqueToken                    // oblique
 %token kRelativeToken                   // relative
+// %token kRightToken                   // right - also property name token
 %token kStartToken                      // start
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
 %token kStepStartToken                  // step-start
 %token kToToken                         // to
-//%token kTopToken                      // top - also property name token
+// %token kTopToken                     // top - also property name token
 %token kVisibleToken                    // visible
 
 // Pseudo-class name tokens.
@@ -322,7 +325,8 @@
                        height_property_value line_height_property_value
                        linear_gradient_params opacity_property_value
                        overflow_property_value position_property_value
-                       transition_delay_property_value transform_property_value
+                       text_align_property_value transition_delay_property_value
+                       transform_property_value
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value url
@@ -540,6 +544,9 @@ identifier_token:
   }
   | kRightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRightPropertyName);
+  }
+  | kTextAlignToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTextAlignPropertyName);
   }
   | kTopToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTopPropertyName);
@@ -1577,6 +1584,22 @@ scale_function_parameters:
   }
   ;
 
+// This property describes how inline-level content of a block container is
+// aligned.
+//   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+text_align_property_value:
+    kLeftToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetLeft().get());
+  }
+  | kMiddleToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetMiddle().get());
+  }
+  | kRightToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRight().get());
+  }
+  | common_values
+  ;
+
 // The set of allowed transform functions.
 //   http://www.w3.org/TR/css3-transforms/#transform-functions
 transform_function:
@@ -2197,6 +2220,12 @@ maybe_declaration:
   | kRightToken maybe_whitespace colon auto_length_percent_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kRightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextAlignToken maybe_whitespace colon text_align_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextAlignPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

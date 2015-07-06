@@ -117,6 +117,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string right() const;
   void set_right(const std::string& right);
 
+  std::string text_align() const;
+  void set_text_align(const std::string& text_align);
+
   std::string top() const;
   void set_top(const std::string& top);
 
