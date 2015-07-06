@@ -18,7 +18,7 @@
 #define LAYOUT_LAYOUT_H_
 
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/dom/html_element.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -51,12 +51,10 @@ struct RenderTreeWithAnimations {
 // Produces the render tree (along with corresponding animations) which is a
 // result of recursive layout of the given HTML element.
 RenderTreeWithAnimations Layout(
-    const scoped_refptr<dom::HTMLElement>& root,
-    const math::SizeF& viewport_size,
+    const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
-    icu::BreakIterator* line_break_iterator,
-    loader::ImageCache* image_cache);
+    icu::BreakIterator* line_break_iterator, loader::ImageCache* image_cache);
 
 }  // namespace layout
 }  // namespace cobalt

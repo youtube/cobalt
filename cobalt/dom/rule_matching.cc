@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/debug/trace_event.h"
 #include "base/string_util.h"
 #include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -36,6 +37,7 @@
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_html_element.h"
 
 namespace cobalt {
 namespace dom {
@@ -274,6 +276,41 @@ Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element) {
   return selector_matcher.element();
 }
 
+void UpdateMatchingRulesRecursively(
+    HTMLElement* root,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  // Update matching rules for the root.
+  //
+  scoped_ptr<cssom::RulesWithCascadePriority> matching_rules(
+      new cssom::RulesWithCascadePriority());
+  // Match with user agent style sheet.
+  if (user_agent_style_sheet) {
+    GetMatchingRulesFromStyleSheet(user_agent_style_sheet, root,
+                                   matching_rules.get(),
+                                   cssom::kNormalUserAgent);
+  }
+  // Match with all author style sheets.
+  for (unsigned int style_sheet_index = 0;
+       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        author_style_sheets->Item(style_sheet_index);
+    GetMatchingRulesFromStyleSheet(style_sheet, root, matching_rules.get(),
+                                   cssom::kNormalAuthor);
+  }
+  root->set_matching_rules(matching_rules.Pass());
+
+  // Update matching rules for the root's descendants.
+  //
+  for (Element* element = root->first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    UpdateMatchingRulesRecursively(html_element, user_agent_style_sheet,
+                                   author_style_sheets);
+  }
+}
+
 }  // namespace
 
 //////////////////////////////////////////////////////////////////////////
@@ -351,38 +388,11 @@ void GetMatchingRulesFromStyleSheet(
 }
 
 void UpdateMatchingRules(
-    HTMLElement* root,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
-  // Update matching rules for the root.
-  //
-  scoped_ptr<cssom::RulesWithCascadePriority> matching_rules(
-      new cssom::RulesWithCascadePriority());
-  // Match with user agent style sheet.
-  if (user_agent_style_sheet) {
-    GetMatchingRulesFromStyleSheet(user_agent_style_sheet, root,
-                                   matching_rules.get(),
-                                   cssom::kNormalUserAgent);
-  }
-  // Match with all author style sheets.
-  for (unsigned int style_sheet_index = 0;
-       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
-    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index);
-    GetMatchingRulesFromStyleSheet(style_sheet, root, matching_rules.get(),
-                                   cssom::kNormalAuthor);
-  }
-  root->set_matching_rules(matching_rules.Pass());
-
-  // Update matching rules for the root's descendants.
-  //
-  for (Element* element = root->first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    UpdateMatchingRules(html_element, user_agent_style_sheet,
-                        author_style_sheets);
-  }
+    const scoped_refptr<dom::Document>& document,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
+  UpdateMatchingRulesRecursively(document->html().get(), user_agent_style_sheet,
+                                 document->style_sheets());
 }
 
 }  // namespace dom
