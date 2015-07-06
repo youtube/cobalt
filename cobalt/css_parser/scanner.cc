@@ -1170,6 +1170,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kBackgroundToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTextAlignPropertyName)) {
+        *property_name_token = kTextAlignToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTransitionPropertyName)) {
         *property_name_token = kTransitionToken;
         return true;

@@ -246,6 +246,14 @@ void CSSStyleDeclaration::set_right(const std::string& right) {
   SetPropertyValue(kRightPropertyName, right);
 }
 
+std::string CSSStyleDeclaration::text_align() const {
+  return data_->text_align() ? data_->text_align()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_text_align(const std::string& text_align) {
+  SetPropertyValue(kTextAlignPropertyName, text_align);
+}
+
 std::string CSSStyleDeclaration::top() const {
   return data_->top() ? data_->top()->ToString() : "";
 }
