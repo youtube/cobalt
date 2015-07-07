@@ -91,19 +91,21 @@ math::Matrix3F GetOffsetTransform(const math::PointF& offset) {
 // style property will also be taken into account, and therefore the layed
 // out size of the object is also required in order to resolve a
 // percentage-based transform-origin.
-math::Matrix3F GetCSSTransform(
-    const cssom::PropertyValue* transform_property_value,
-    const math::SizeF& used_size) {
+math::Matrix3F GetCSSTransform(cssom::PropertyValue* transform_property_value,
+                               const math::SizeF& used_size) {
   if (transform_property_value == cssom::KeywordValue::GetNone()) {
     return math::Matrix3F::Identity();
   }
 
-  const cssom::TransformFunctionListValue* transform =
-      base::polymorphic_downcast<const cssom::TransformFunctionListValue*>(
+  cssom::TransformFunctionListValue* transform =
+      base::polymorphic_downcast<cssom::TransformFunctionListValue*>(
           transform_property_value);
   DCHECK(!transform->value().empty());
 
-  math::Matrix3F css_transform_matrix(transform->ToMatrix());
+  scoped_refptr<cssom::TransformFunctionListValue> used_transform =
+      GetUsedTransformListValue(transform, used_size);
+
+  math::Matrix3F css_transform_matrix(used_transform->ToMatrix());
 
   // Apply the CSS transformations, taking into account the CSS
   // transform-origin property.
