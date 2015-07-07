@@ -223,6 +223,14 @@ class NET_EXPORT URLFetcher {
   virtual void SaveResponseToTemporaryFile(
       scoped_refptr<base::TaskRunner> file_task_runner) = 0;
 
+#if defined(COBALT)
+  // By default, the response is saved in a string. Call this method to
+  // discard the response instead. Must be called before Start().
+  // This may be useful if your delegate will be implementing
+  // ShouldSendDownloadData() and buffering it internally.
+  virtual void DiscardResponse() = 0;
+#endif
+
   // Retrieve the response headers from the request.  Must only be called after
   // the OnURLFetchComplete callback has run.
   virtual HttpResponseHeaders* GetResponseHeaders() const = 0;

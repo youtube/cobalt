@@ -117,6 +117,12 @@ void URLFetcherImpl::SaveResponseToTemporaryFile(
   core_->SaveResponseToTemporaryFile(file_task_runner);
 }
 
+#if defined(COBALT)
+void URLFetcherImpl::DiscardResponse() {
+  core_->DiscardResponse();
+}
+#endif
+
 HttpResponseHeaders* URLFetcherImpl::GetResponseHeaders() const {
   return core_->GetResponseHeaders();
 }

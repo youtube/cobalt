@@ -443,6 +443,12 @@ void URLFetcherCore::SaveResponseToTemporaryFile(
   response_destination_ = URLFetcherCore::TEMP_FILE;
 }
 
+#if defined(COBALT)
+void URLFetcherCore::DiscardResponse() {
+  response_destination_ = URLFetcherCore::DISCARD;
+}
+#endif
+
 HttpResponseHeaders* URLFetcherCore::GetResponseHeaders() const {
   return response_headers_;
 }
@@ -677,6 +683,12 @@ void URLFetcherCore::StartOnIOThread() {
           NOTREACHED();
       }
       break;
+
+#if defined(COBALT)
+    case DISCARD:
+      StartURLRequestWhenAppropriate();
+      break;
+#endif
 
     default:
       NOTREACHED();
@@ -972,6 +984,12 @@ bool URLFetcherCore::WriteBuffer(int num_bytes) {
       // The write is not done yet.
       write_complete = false;
       break;
+
+#if defined(COBALT)
+    case DISCARD:
+      write_complete = true;
+      break;
+#endif
 
     default:
       NOTREACHED();
