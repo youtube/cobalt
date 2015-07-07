@@ -33,6 +33,7 @@ NetFetcher::NetFetcher(const GURL& url, Handler* handler,
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->SetExtraRequestHeaders(options.request_headers);
+  url_fetcher_->DiscardResponse();
   if (options.request_body.size()) {
     // If applicable, the request body Content-Type is already set in
     // options.request_headers.
@@ -45,18 +46,18 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
-    std::string response_string;
-    if (source->GetResponseAsString(&response_string)) {
-      handler()->OnReceived(response_string.c_str(), response_string.length());
-    } else {
-      // The URLFetcher was misconfigured in this case.
-      NOTREACHED() << "GetResponseAsString() failed.";
-    }
     handler()->OnDone();
   } else {
     handler()->OnError(base::StringPrintf("NetFetcher error: %s",
                                           net::ErrorToString(status.error())));
   }
+}
+
+bool NetFetcher::ShouldSendDownloadData() { return true; }
+
+void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
+                                        scoped_ptr<std::string> download_data) {
+  handler()->OnReceived(download_data->data(), download_data->length());
 }
 
 NetFetcher::~NetFetcher() { DCHECK(thread_checker_.CalledOnValidThread()); }
