@@ -52,6 +52,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
 
+    // "center" is a value of "text-align" property that indicates that the
+    // content should be aligned horizontally centered.
+    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+    kCenter,
+
     // "contain" is a value of "background-size" property which scales the
     // image to the largest size such that both its width and its height can
     // completely cover the background positioning area.
@@ -98,9 +103,6 @@ class KeywordValue : public PropertyValue {
     // "middle" is a value of "vertical-align" property that indicates that the
     // content should be aligned vertically centered.
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
-    // "middle" is a value of "text-align" property that indicates that the
-    // content should be aligned horizontally centered.
-    //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kMiddle,
 
     // "none" is a value of "transform" property which means that HTML element
@@ -149,6 +151,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBaseline();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetCenter();
   static const scoped_refptr<KeywordValue>& GetContain();
   static const scoped_refptr<KeywordValue>& GetCover();
   static const scoped_refptr<KeywordValue>& GetHidden();
