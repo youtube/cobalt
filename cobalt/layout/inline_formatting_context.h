@@ -47,8 +47,9 @@ class LineBox;
 // |UpdateUsedLeftAndMaybeSplit| has been called for every child box.
 class InlineFormattingContext : public FormattingContext {
  public:
-  explicit InlineFormattingContext(const LayoutParams& layout_params,
-                                   float x_height);
+  InlineFormattingContext(
+      const LayoutParams& layout_params, float x_height,
+      const scoped_refptr<cssom::PropertyValue>& text_align);
   ~InlineFormattingContext() OVERRIDE;
 
   // Asynchronously updates used values of "left" and "top" for the given child
@@ -81,6 +82,9 @@ class InlineFormattingContext : public FormattingContext {
 
   // X-height of the font in the parent box.
   float x_height_;
+
+  // The alignment to be used in child boxes.
+  const scoped_refptr<cssom::PropertyValue> text_align_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };
