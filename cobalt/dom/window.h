@@ -40,6 +40,7 @@ class DocumentBuilder;
 class HTMLElementContext;
 class Location;
 class Navigator;
+class Performance;
 class WindowTimers;
 
 // The window object represents a window containing a DOM document.
@@ -90,6 +91,10 @@ class Window : public EventTarget {
 
   void ClearTimeout(int handle);
 
+  // Access to the Performance API (partial interface)
+  //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
+  const scoped_refptr<Performance>& performance() const;
+
   // Custom, not in any spec.
   const scoped_refptr<Console>& console() const;
 
@@ -107,6 +112,7 @@ class Window : public EventTarget {
   scoped_refptr<Document> document_;
   scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;
+  scoped_refptr<Performance> performance_;
   scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
   scoped_ptr<WindowTimers> window_timers_;
