@@ -17,9 +17,33 @@
 #include "cobalt/cssom/translate_function.h"
 
 #include "cobalt/cssom/transform_function_visitor.h"
+#include "cobalt/base/polymorphic_downcast.h"
 
 namespace cobalt {
 namespace cssom {
+
+
+TranslateFunction::OffsetType TranslateFunction::offset_type() const {
+  if (offset_->GetTypeId() == base::GetTypeId<LengthValue>()) {
+    return kLength;
+  } else if (offset_->GetTypeId() == base::GetTypeId<PercentageValue>()) {
+    return kPercentage;
+  } else {
+    NOTREACHED();
+    return kLength;
+  }
+}
+
+scoped_refptr<LengthValue> TranslateFunction::offset_as_length() const {
+  DCHECK_EQ(kLength, offset_type());
+  return scoped_refptr<LengthValue>(
+      base::polymorphic_downcast<LengthValue*>(offset_.get()));
+}
+scoped_refptr<PercentageValue> TranslateFunction::offset_as_percentage() const {
+  DCHECK_EQ(kPercentage, offset_type());
+  return scoped_refptr<PercentageValue>(
+      base::polymorphic_downcast<PercentageValue*>(offset_.get()));
+}
 
 void TranslateFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitTranslate(this);
