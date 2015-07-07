@@ -16,6 +16,8 @@
 
 #include "cobalt/layout/line_box.h"
 
+#include <algorithm>
+
 #include "cobalt/layout/box.h"
 #include "cobalt/cssom/keyword_value.h"
 
@@ -26,10 +28,12 @@ namespace layout {
 //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
 LineBox::LineBox(float used_top, float x_height,
                  ShouldTrimWhiteSpace should_trim_white_space,
+                 const scoped_refptr<cssom::PropertyValue>& text_align,
                  const LayoutParams& layout_params)
     : used_top_(used_top),
       x_height_(x_height),
       should_trim_white_space_(should_trim_white_space),
+      text_align_(text_align),
       layout_params_(layout_params),
       line_exists_(false),
       used_height_(0),
@@ -110,6 +114,41 @@ void LineBox::EndQueries() {
 
   SetLineBoxHeightFromChildBoxes();
   SetChildBoxTopPositions();
+  SetChildBoxLeftPositions();
+}
+
+float LineBox::GetShrinkToFitWidth() const {
+  return child_boxes_.empty() ? 0 : child_boxes_.back()->used_right();
+}
+
+void LineBox::CollapseTrailingWhiteSpace() const {
+  if (!last_non_collapsed_child_box_index_) {
+    return;
+  }
+
+  ChildBoxes::const_iterator child_box_iterator =
+      child_boxes_.begin() + static_cast<ChildBoxes::difference_type>(
+                                 *last_non_collapsed_child_box_index_);
+  Box* child_box = *child_box_iterator;
+  if (!child_box->HasTrailingWhiteSpace()) {
+    return;
+  }
+
+  // Collapse the trailing white space.
+  float child_box_pre_collapse_width = child_box->used_width();
+  child_box->CollapseTrailingWhiteSpace();
+  child_box->UpdateUsedSizeIfInvalid(layout_params_);
+  float collapsed_white_space_width =
+      child_box_pre_collapse_width - child_box->used_width();
+  DCHECK_GT(collapsed_white_space_width, 0);
+
+  // Adjust the positions of subsequent child boxes.
+  for (++child_box_iterator; child_box_iterator != child_boxes_.end();
+       ++child_box_iterator) {
+    child_box = *child_box_iterator;
+    child_box->set_used_left(child_box->used_left() -
+                             collapsed_white_space_width);
+  }
 }
 
 // Returns the height of half the given box above the 'middle' of the line box.
@@ -118,7 +157,7 @@ float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* box) {
 }
 
 // Loop over the child boxes and set the height_above_baseline_ and used_height_
-// such that all child boxes fit. Also updates line_exists_
+// such that all child boxes fit. Also updates line_exists_.
 void LineBox::SetLineBoxHeightFromChildBoxes() {
   // TODO(***REMOVED***): The minimum height consists of a minimum height above
   //               the baseline and a minimum depth below it, exactly as if
@@ -221,37 +260,31 @@ void LineBox::SetChildBoxTopPositions() {
   }
 }
 
-float LineBox::GetShrinkToFitWidth() const {
-  return child_boxes_.empty() ? 0 : child_boxes_.back()->used_right();
-}
-
-void LineBox::CollapseTrailingWhiteSpace() const {
-  if (!last_non_collapsed_child_box_index_) {
+void LineBox::SetChildBoxLeftPositions() {
+  // Set used left of the child boxes according to the value of text-align.
+  //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+  //
+  // Do not shift child boxes if text-align is 'left'.
+  if (text_align_ == cssom::KeywordValue::GetLeft()) {
     return;
   }
 
-  ChildBoxes::const_iterator child_box_iterator =
-      child_boxes_.begin() + static_cast<ChildBoxes::difference_type>(
-                                 *last_non_collapsed_child_box_index_);
-  Box* child_box = *child_box_iterator;
-  if (!child_box->HasTrailingWhiteSpace()) {
-    return;
+  // Calculate the amount to be shifted to the right.
+  float additional_left;
+  if (text_align_ == cssom::KeywordValue::GetCenter()) {
+    additional_left =
+        (layout_params_.containing_block_size.width() - GetShrinkToFitWidth()) /
+        2;
+  } else if (text_align_ == cssom::KeywordValue::GetRight()) {
+    additional_left =
+        layout_params_.containing_block_size.width() - GetShrinkToFitWidth();
   }
 
-  // Collapse the trailing white space.
-  float child_box_pre_collapse_width = child_box->used_width();
-  child_box->CollapseTrailingWhiteSpace();
-  child_box->UpdateUsedSizeIfInvalid(layout_params_);
-  float collapsed_white_space_width =
-      child_box_pre_collapse_width - child_box->used_width();
-  DCHECK_GT(collapsed_white_space_width, 0);
-
-  // Adjust the positions of subsequent child boxes.
-  for (++child_box_iterator; child_box_iterator != child_boxes_.end();
-       ++child_box_iterator) {
-    child_box = *child_box_iterator;
-    child_box->set_used_left(child_box->used_left() -
-                             collapsed_white_space_width);
+  // Shift all child boxes to the right the calculated amount.
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    child_box->set_used_left(child_box->used_left() + additional_left);
   }
 }
 

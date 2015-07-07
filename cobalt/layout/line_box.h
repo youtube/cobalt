@@ -57,8 +57,10 @@ class LineBox {
   };
 
   // x_height is the height of the 'x' glyph in the font for this box.
+  // text_align decides how the child boxes of this box should align.
   LineBox(float used_top, float x_height,
           ShouldTrimWhiteSpace should_trim_white_space,
+          const scoped_refptr<cssom::PropertyValue>& text_align,
           const LayoutParams& layout_params);
 
   float used_top() const { return used_top_; }
@@ -111,10 +113,12 @@ class LineBox {
   float GetHeightAboveMiddleAlignmentPoint(Box* box);
   void SetLineBoxHeightFromChildBoxes();
   void SetChildBoxTopPositions();
+  void SetChildBoxLeftPositions();
 
   const float used_top_;
   const float x_height_;
   const ShouldTrimWhiteSpace should_trim_white_space_;
+  const scoped_refptr<cssom::PropertyValue> text_align_;
   const LayoutParams layout_params_;
 
   bool line_exists_;
