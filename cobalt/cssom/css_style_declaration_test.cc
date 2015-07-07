@@ -333,7 +333,7 @@ TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   scoped_refptr<CSSStyleDeclaration> style =
       new CSSStyleDeclaration(&css_parser);
 
-  const std::string text_align = "middle";
+  const std::string text_align = "center";
   MockMutationObserver observer;
   style->set_mutation_observer(&observer);
 

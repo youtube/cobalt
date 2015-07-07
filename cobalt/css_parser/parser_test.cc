@@ -1454,11 +1454,11 @@ TEST_F(ParserTest, ParsesLeftTextAlign) {
   EXPECT_EQ(cssom::KeywordValue::GetLeft(), style->text_align());
 }
 
-TEST_F(ParserTest, ParsesMiddleTextAlign) {
+TEST_F(ParserTest, ParsesCenterTextAlign) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
-      parser_.ParseDeclarationList("text-align: middle;", source_location_);
+      parser_.ParseDeclarationList("text-align: center;", source_location_);
 
-  EXPECT_EQ(cssom::KeywordValue::GetMiddle(), style->text_align());
+  EXPECT_EQ(cssom::KeywordValue::GetCenter(), style->text_align());
 }
 
 TEST_F(ParserTest, ParsesRightTextAlign) {

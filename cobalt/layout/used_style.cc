@@ -138,6 +138,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:
@@ -333,6 +334,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -404,6 +406,7 @@ class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kCenter:
       case cssom::KeywordValue::kContain:
       case cssom::KeywordValue::kCover:
       case cssom::KeywordValue::kHidden:

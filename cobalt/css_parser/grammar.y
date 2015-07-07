@@ -1647,8 +1647,8 @@ text_align_property_value:
     kLeftToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetLeft().get());
   }
-  | kMiddleToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetMiddle().get());
+  | kCenterToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCenter().get());
   }
   | kRightToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetRight().get());
