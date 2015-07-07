@@ -390,9 +390,14 @@ void GetMatchingRulesFromStyleSheet(
 void UpdateMatchingRules(
     const scoped_refptr<dom::Document>& document,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
-  TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
-  UpdateMatchingRulesRecursively(document->html().get(), user_agent_style_sheet,
-                                 document->style_sheets());
+  if (document->rule_matches_dirty()) {
+    TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
+    UpdateMatchingRulesRecursively(document->html().get(),
+                                   user_agent_style_sheet,
+                                   document->style_sheets());
+
+    document->clear_rule_matches_dirty();
+  }
 }
 
 }  // namespace dom

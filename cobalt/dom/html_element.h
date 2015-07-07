@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/dom/element.h"
 
 namespace cobalt {
@@ -43,12 +44,15 @@ class HTMLStyleElement;
 // The basic interface, from which all the HTML elements' interfaces inherit,
 // and which must be used by elements that have no additional requirements.
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
-class HTMLElement : public Element {
+class HTMLElement : public Element, public cssom::MutationObserver {
  public:
   // Web API: ElementCSSInlineStyle
   // Extended in CSSOM specification.
   //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
+
+  // From cssom::CSSStyleDeclaration::MutationObserver.
+  void OnCSSMutation();
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE;
@@ -83,8 +87,15 @@ class HTMLElement : public Element {
   // style into HTMLElement class.
   void set_computed_style(
       const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
+    DCHECK(computed_style);
+    computed_style_invalid_ = false;
     computed_style_ = computed_style;
   }
+
+  // Returns true if the computed style for this node must be re-computed.
+  // In this case, the old value of computed style is still needed so that
+  // we can use it to determine transitions.
+  bool computed_style_invalid() const { return computed_style_invalid_; }
 
   // Used by layout engine to cache the rule matching results.
   cssom::RulesWithCascadePriority* matching_rules() {
@@ -94,7 +105,10 @@ class HTMLElement : public Element {
   // into HTMLElement class.
   void set_matching_rules(
       scoped_ptr<cssom::RulesWithCascadePriority> matching_rules) {
-    matching_rules_.reset(matching_rules.release());
+    matching_rules_ = matching_rules.Pass();
+
+    // Invalidate the computed style of this node.
+    computed_style_invalid_ = true;
   }
 
   cssom::TransitionSet* transitions() { return &transitions_; }
@@ -105,8 +119,6 @@ class HTMLElement : public Element {
   explicit HTMLElement(HTMLElementContext* html_element_context);
   ~HTMLElement() OVERRIDE;
 
-  void AttachToDocument(Document* document) OVERRIDE;
-
  private:
   void UpdateTransitions(const cssom::CSSStyleDeclarationData* source,
                          const cssom::CSSStyleDeclarationData* destination);
@@ -116,6 +128,10 @@ class HTMLElement : public Element {
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
 
   cssom::TransitionSet transitions_;
+
+  // Keeps track of whether the HTML element's current computed style is out
+  // of date or not.
+  bool computed_style_invalid_;
 };
 
 }  // namespace dom
