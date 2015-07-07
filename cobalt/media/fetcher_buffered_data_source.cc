@@ -73,12 +73,19 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
 }
 
 void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
-  base::AutoLock auto_lock(lock_);
+  {
+    base::AutoLock auto_lock(lock_);
 
-  if (!pending_read_cb_.is_null()) {
-    base::ResetAndReturn(&pending_read_cb_).Run(0);
+    if (!pending_read_cb_.is_null()) {
+      base::ResetAndReturn(&pending_read_cb_).Run(0);
+    }
   }
-  message_loop_->PostTask(FROM_HERE, callback);
+
+  // We cannot post the callback using the MessageLoop as we share the
+  // same MessageLoop as WebMediaPlayerImpl (WMPI) and WMPI::Destroy()
+  // waits on an event during video Stop.  The posted task will never be
+  // run and will cause dead lock.
+  callback.Run();
 }
 
 bool FetcherBufferedDataSource::GetSize(int64* size_out) {
