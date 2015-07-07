@@ -34,7 +34,7 @@ class CSSStyleSheet;
 //
 // While the specification theoretically allows style sheets of type other
 // than CSS, Cobalt is hard-coded to support CSS only.
-class StyleSheetList : public script::Wrappable {
+class StyleSheetList : public script::Wrappable, public MutationObserver {
  public:
   // If no layout mutation reporting needed, |observer| can be null.
   explicit StyleSheetList(MutationObserver* observer);
@@ -48,6 +48,9 @@ class StyleSheetList : public script::Wrappable {
 
   // Returns the number of CSS style sheets represented by the collection.
   unsigned int length() const;
+
+  // From cssom::MutationObserver.
+  void OnCSSMutation();
 
   // Custom, not in any spec.
   //

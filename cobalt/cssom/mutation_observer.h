@@ -22,7 +22,7 @@ namespace cssom {
 
 class MutationObserver {
  public:
-  virtual void OnMutation() = 0;
+  virtual void OnCSSMutation() = 0;
 };
 
 }  // namespace cssom

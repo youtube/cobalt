@@ -371,13 +371,13 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
 void CSSStyleDeclaration::AttachToStyleSheet(StyleSheet* style_sheet) {
   DCHECK(style_sheet);
   DCHECK(style_sheet->ParentStyleSheetList());
-  mutation_observer_ = style_sheet->ParentStyleSheetList()->mutation_observer();
+  mutation_observer_ = style_sheet->ParentStyleSheetList();
 }
 
 void CSSStyleDeclaration::RecordMutation() {
   if (mutation_observer_) {
     // Trigger layout update.
-    mutation_observer_->OnMutation();
+    mutation_observer_->OnCSSMutation();
   }
 }
 
