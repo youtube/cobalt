@@ -16,7 +16,6 @@
 
 #include "cobalt/layout/inline_container_box.h"
 
-#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/line_box.h"
 #include "cobalt/layout/used_style.h"
 
@@ -69,7 +68,7 @@ void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   // trimming.
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
   LineBox line_box(0, font_metrics.x_height, LineBox::kShouldNotTrimWhiteSpace,
-                   layout_params);
+                   computed_style()->text_align(), layout_params);
 
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {

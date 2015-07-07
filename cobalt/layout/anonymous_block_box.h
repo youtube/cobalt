@@ -18,6 +18,7 @@
 #define LAYOUT_ANONYMOUS_BLOCK_BOX_H_
 
 #include "cobalt/layout/block_container_box.h"
+#include "cobalt/layout/box.h"
 #include "cobalt/render_tree/font.h"
 
 namespace cobalt {
