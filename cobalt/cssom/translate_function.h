@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/transform_function.h"
 
 namespace cobalt {
@@ -35,29 +36,35 @@ class TranslateFunction : public TransformFunction {
     kYAxis,
     kZAxis,
   };
+  enum OffsetType {
+    kLength,
+    kPercentage,
+  };
 
   explicit TranslateFunction(Axis axis,
-                             const scoped_refptr<LengthValue>& offset) :
-      axis_(axis),
-      offset_(offset) {
+                             const scoped_refptr<PropertyValue>& offset)
+      : axis_(axis), offset_(offset) {
     DCHECK(offset);
   }
 
   void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
-  const scoped_refptr<LengthValue>& offset() const { return offset_; }
+  OffsetType offset_type() const;
+
+  scoped_refptr<LengthValue> offset_as_length() const;
+  scoped_refptr<PercentageValue> offset_as_percentage() const;
 
   Axis axis() const { return axis_; }
 
   bool operator==(const TranslateFunction& other) const {
-    return *offset_ == *other.offset_ && axis_ == other.axis_;
+    return offset_->Equals(*other.offset_) && axis_ == other.axis_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TranslateFunction);
 
  private:
   const Axis axis_;
-  const scoped_refptr<LengthValue> offset_;
+  const scoped_refptr<PropertyValue> offset_;
 };
 
 }  // namespace cssom
