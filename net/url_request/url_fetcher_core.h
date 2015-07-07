@@ -95,6 +95,10 @@ class URLFetcherCore
       scoped_refptr<base::TaskRunner> file_task_runner);
   void SaveResponseToTemporaryFile(
       scoped_refptr<base::TaskRunner> file_task_runner);
+#if defined(COBALT)
+  // Don't save the response.
+  void DiscardResponse();
+#endif
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   bool WasFetchedViaProxy() const;
@@ -140,6 +144,9 @@ class URLFetcherCore
     STRING,  // Default: In a std::string
     PERMANENT_FILE,  // Write to a permanent file.
     TEMP_FILE,  // Write to a temporary file.
+#if defined(COBALT)
+    DISCARD,  // Don't store the response.
+#endif
   };
 
   class Registry {
