@@ -368,9 +368,11 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kInitial:
     case KeywordValue::kInline:
     case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kVisible:
