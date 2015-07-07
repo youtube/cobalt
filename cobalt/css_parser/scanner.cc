@@ -1137,6 +1137,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kOpacityToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingPropertyName)) {
+        *property_name_token = kPaddingToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kZIndexPropertyName)) {
         *property_name_token = kZIndexToken;
         return true;
@@ -1205,11 +1209,19 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kMarginLeftToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingTopPropertyName)) {
+        *property_name_token = kPaddingTopToken;
+        return true;
+      }
       return false;
 
     case 12:
       if (IsEqualToCssIdentifier(name.begin, cssom::kMarginRightPropertyName)) {
         *property_name_token = kMarginRightToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingLeftPropertyName)) {
+        *property_name_token = kPaddingLeftToken;
         return true;
       }
       return false;
@@ -1225,9 +1237,19 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kMarginBottomToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kPaddingRightPropertyName)) {
+        *property_name_token = kPaddingRightToken;
+        return true;
+      }
       return false;
 
     case 14:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kPaddingBottomPropertyName)) {
+        *property_name_token = kPaddingBottomToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin,
                                  cssom::kVerticalAlignPropertyName)) {
         *property_name_token = kVerticalAlignToken;
