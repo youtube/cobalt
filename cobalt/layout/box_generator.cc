@@ -122,6 +122,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kHidden:

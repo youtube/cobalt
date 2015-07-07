@@ -361,6 +361,7 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kCenter:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
     case KeywordValue::kHidden:
