@@ -80,7 +80,8 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
   //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
-      new InlineFormattingContext(child_layout_params, font_metrics.x_height));
+      new InlineFormattingContext(child_layout_params, font_metrics.x_height,
+                                  computed_style()->text_align()));
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;

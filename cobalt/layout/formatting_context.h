@@ -18,6 +18,7 @@
 #define LAYOUT_FORMATTING_CONTEXT_H_
 
 #include "base/optional.h"
+#include "cobalt/math/size_f.h"
 
 namespace cobalt {
 namespace layout {

@@ -16,16 +16,21 @@
 
 #include "cobalt/layout/inline_formatting_context.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
-#include "cobalt/layout/box.h"
 #include "cobalt/layout/line_box.h"
 
 namespace cobalt {
 namespace layout {
 
 InlineFormattingContext::InlineFormattingContext(
-    const LayoutParams& layout_params, float x_height)
-    : layout_params_(layout_params), line_count_(0), x_height_(x_height) {}
+    const LayoutParams& layout_params, float x_height,
+    const scoped_refptr<cssom::PropertyValue>& text_align)
+    : layout_params_(layout_params),
+      line_count_(0),
+      x_height_(x_height),
+      text_align_(text_align) {}
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
@@ -54,7 +59,7 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   OnLineBoxDestroying();
   line_box_ = make_scoped_ptr(new LineBox(used_height(), x_height_,
                                           LineBox::kShouldTrimWhiteSpace,
-                                          layout_params_));
+                                          text_align_, layout_params_));
 
   // A sequence of collapsible spaces at the beginning of a line is removed.
   //   http://www.w3.org/TR/css3-text/#white-space-phase-2
