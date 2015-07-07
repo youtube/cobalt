@@ -432,7 +432,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
     media_source_->SetPlayer(player_.get());
   }
   if (owner_document()) {
-    owner_document()->RecordMutation();
+    owner_document()->OnDOMMutation();
   }
 }
 
@@ -621,7 +621,7 @@ void HTMLMediaElement::ClearMediaPlayer() {
   load_state_ = kWaitingForSource;
 
   if (owner_document()) {
-    owner_document()->RecordMutation();
+    owner_document()->OnDOMMutation();
   }
 }
 

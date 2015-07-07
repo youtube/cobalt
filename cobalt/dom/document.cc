@@ -45,7 +45,9 @@ Document::Document(HTMLElementContext* html_element_context,
       url_(options.url),
       style_sheets_(new cssom::StyleSheetList(this)),
       loading_counter_(0),
-      should_dispatch_on_load_(true) {
+      should_dispatch_on_load_(true),
+      rule_matches_dirty_(true),
+      computed_style_dirty_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
 }
 
@@ -216,10 +218,33 @@ void Document::SignalOnLoadToObservers() {
 
 void Document::RecordMutation() {
   TRACE_EVENT0("cobalt::dom", "Document::RecordMutation()");
+
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
 
-void Document::OnMutation() { RecordMutation(); }
+void Document::OnDOMMutation() {
+  // Something in the document's DOM has been modified, but we don't know what,
+  // so set the flag indicating that rule matching needs to be done.
+  rule_matches_dirty_ = true;
+  computed_style_dirty_ = true;
+
+  RecordMutation();
+}
+
+void Document::OnCSSMutation() {
+  // Something in the document's CSS rules has been modified, but we don't know
+  // what, so set the flag indicating that rule matching needs to be done.
+  rule_matches_dirty_ = true;
+  computed_style_dirty_ = true;
+
+  RecordMutation();
+}
+
+void Document::OnElementInlineStyleMutation() {
+  computed_style_dirty_ = true;
+
+  RecordMutation();
+}
 
 Document::~Document() {}
 

@@ -169,7 +169,23 @@ class Document : public Node, public cssom::MutationObserver {
   void RecordMutation();
 
   // From cssom::MutationObserver.
-  void OnMutation() OVERRIDE;
+  void OnCSSMutation() OVERRIDE;
+
+  // Marks the document as no longer needing to do a rule match / recalculate
+  // computed style before the next layout.
+  void clear_rule_matches_dirty() { rule_matches_dirty_ = false; }
+  void clear_computed_style_dirty() { computed_style_dirty_ = false; }
+
+  // Returns true if the document should have rule matches / computed style
+  // recomputed for its elements before the next layout.
+  bool rule_matches_dirty() const { return rule_matches_dirty_; }
+  bool computed_style_dirty() const { return computed_style_dirty_; }
+
+  // Called when the inline style of an element is modified.
+  void OnElementInlineStyleMutation();
+
+  // Called when the DOM is mutated in some way.
+  void OnDOMMutation();
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -202,6 +218,11 @@ class Document : public Node, public cssom::MutationObserver {
   bool should_dispatch_on_load_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
+
+  // Indicates if rule matching/computed style is dirty and needs to be
+  // recomputed before the next layout.
+  bool rule_matches_dirty_;
+  bool computed_style_dirty_;
 
   friend class HTMLBodyElement;
   friend class HTMLHeadElement;

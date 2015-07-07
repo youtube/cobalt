@@ -164,7 +164,7 @@ scoped_refptr<Node> Node::InsertBefore(
   new_child->UpdateNodeGeneration();
   if (owner_document_) {
     new_child->AttachToDocument(owner_document_.get());
-    owner_document_->RecordMutation();
+    owner_document_->OnDOMMutation();
   }
 
   return new_child;
@@ -276,7 +276,7 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
 
   // Custom, not in any spec.
   if (previous_owner_document) {
-    previous_owner_document->RecordMutation();
+    previous_owner_document->OnDOMMutation();
   }
 
   return node;

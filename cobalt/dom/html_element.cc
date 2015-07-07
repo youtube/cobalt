@@ -69,16 +69,23 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
 HTMLElement::HTMLElement(HTMLElementContext* html_element_context)
     : Element(html_element_context),
       style_(new cssom::CSSStyleDeclaration(
-          html_element_context ? html_element_context->css_parser() : NULL)) {}
+          html_element_context ? html_element_context->css_parser() : NULL)),
+      computed_style_invalid_(true) {
+  style_->set_mutation_observer(this);
+}
 
 void HTMLElement::SetOpeningTagLocation(
     const base::SourceLocation& /*opening_tag_location*/) {}
 
 HTMLElement::~HTMLElement() {}
 
-void HTMLElement::AttachToDocument(Document* document) {
-  Node::AttachToDocument(document);
-  style_->set_mutation_observer(document);
+void HTMLElement::OnCSSMutation() {
+  // Invalidate the computed style of this node.
+  computed_style_invalid_ = true;
+
+  if (owner_document()) {
+    owner_document()->OnElementInlineStyleMutation();
+  }
 }
 
 }  // namespace dom
