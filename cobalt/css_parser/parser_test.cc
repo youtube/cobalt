@@ -1184,6 +1184,135 @@ TEST_F(ParserTest, ParsesVisibleOverflow) {
   EXPECT_EQ(cssom::KeywordValue::GetVisible(), style->overflow());
 }
 
+TEST_F(ParserTest, ParsesPaddingWith1Value) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding: inherit;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->padding_top());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->padding_right());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->padding_bottom());
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->padding_left());
+}
+
+TEST_F(ParserTest, ParsesPaddingWith2Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding: 10% 1.2em;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> padding_top =
+      dynamic_cast<cssom::PercentageValue*>(style->padding_top().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_top);
+  EXPECT_FLOAT_EQ(0.1f, padding_top->value());
+
+  scoped_refptr<cssom::LengthValue> padding_right =
+      dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  EXPECT_FLOAT_EQ(1.2f, padding_right->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
+
+  scoped_refptr<cssom::PercentageValue> padding_bottom =
+      dynamic_cast<cssom::PercentageValue*>(style->padding_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_bottom);
+  EXPECT_FLOAT_EQ(0.1f, padding_bottom->value());
+
+  scoped_refptr<cssom::LengthValue> padding_left =
+      dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  EXPECT_FLOAT_EQ(1.2f, padding_left->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_left->unit());
+}
+
+TEST_F(ParserTest, ParsesPaddingWith3Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding: 10% 1.2em 20%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> padding_top =
+      dynamic_cast<cssom::PercentageValue*>(style->padding_top().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_top);
+  EXPECT_FLOAT_EQ(0.1f, padding_top->value());
+
+  scoped_refptr<cssom::LengthValue> padding_right =
+      dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  EXPECT_FLOAT_EQ(1.2f, padding_right->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
+
+  scoped_refptr<cssom::PercentageValue> padding_bottom =
+      dynamic_cast<cssom::PercentageValue*>(style->padding_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_bottom);
+  EXPECT_FLOAT_EQ(0.2f, padding_bottom->value());
+
+  scoped_refptr<cssom::LengthValue> padding_left =
+      dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  EXPECT_FLOAT_EQ(1.2f, padding_left->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_left->unit());
+}
+
+TEST_F(ParserTest, ParsesPaddingWith4Values) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding: 10px 20px 30px 40px;",
+                                   source_location_);
+
+  scoped_refptr<cssom::LengthValue> padding_top =
+      dynamic_cast<cssom::LengthValue*>(style->padding_top().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_top);
+  EXPECT_FLOAT_EQ(10, padding_top->value());
+  EXPECT_EQ(cssom::kPixelsUnit, padding_top->unit());
+
+  scoped_refptr<cssom::LengthValue> padding_right =
+      dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  EXPECT_FLOAT_EQ(20, padding_right->value());
+  EXPECT_EQ(cssom::kPixelsUnit, padding_right->unit());
+
+  scoped_refptr<cssom::LengthValue> padding_bottom =
+      dynamic_cast<cssom::LengthValue*>(style->padding_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_bottom);
+  EXPECT_FLOAT_EQ(30, padding_bottom->value());
+  EXPECT_EQ(cssom::kPixelsUnit, padding_bottom->unit());
+
+  scoped_refptr<cssom::LengthValue> padding_left =
+      dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  EXPECT_FLOAT_EQ(40, padding_left->value());
+  EXPECT_EQ(cssom::kPixelsUnit, padding_left->unit());
+}
+
+TEST_F(ParserTest, ParsesPaddingBottom) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding-bottom: 1em;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> padding_bottom =
+      dynamic_cast<cssom::LengthValue*>(style->padding_bottom().get());
+  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_bottom);
+  EXPECT_FLOAT_EQ(1, padding_bottom->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_bottom->unit());
+}
+
+TEST_F(ParserTest, ParsesPaddingLeft) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding-left: 5.5%;", source_location_);
+
+  scoped_refptr<cssom::PercentageValue> padding_left =
+      dynamic_cast<cssom::PercentageValue*>(style->padding_left().get());
+  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_left);
+  EXPECT_FLOAT_EQ(0.055f, padding_left->value());
+}
+
+TEST_F(ParserTest, ParsesPaddingRight) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding-right: inherit;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(), style->padding_right());
+}
+
+TEST_F(ParserTest, ParsesPaddingTop) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("padding-top: initial;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(), style->padding_top());
+}
+
 TEST_F(ParserTest, ParsesStaticPosition) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("position: static;", source_location_);
