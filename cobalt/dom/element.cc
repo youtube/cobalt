@@ -232,7 +232,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   }
 
   if (owner_document()) {
-    owner_document()->RecordMutation();
+    owner_document()->OnDOMMutation();
   }
 }
 
@@ -262,7 +262,7 @@ void Element::RemoveAttribute(const std::string& name) {
   }
 
   if (owner_document()) {
-    owner_document()->RecordMutation();
+    owner_document()->OnDOMMutation();
   }
 }
 
