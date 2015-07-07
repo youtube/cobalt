@@ -25,6 +25,7 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString backgroundPosition;
   [TreatNullAs=EmptyString] attribute DOMString backgroundSize;
   [TreatNullAs=EmptyString] attribute DOMString borderRadius;
+  [TreatNullAs=EmptyString] attribute DOMString bottom;
   [TreatNullAs=EmptyString] attribute DOMString color;
   [TreatNullAs=EmptyString] attribute DOMString display;
   [TreatNullAs=EmptyString] attribute DOMString fontFamily;
@@ -32,14 +33,21 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString] attribute DOMString fontStyle;
   [TreatNullAs=EmptyString] attribute DOMString fontWeight;
   [TreatNullAs=EmptyString] attribute DOMString height;
+  [TreatNullAs=EmptyString] attribute DOMString left;
+  [TreatNullAs=EmptyString] attribute DOMString lineHeight;
   [TreatNullAs=EmptyString] attribute DOMString opacity;
   [TreatNullAs=EmptyString] attribute DOMString overflow;
+  [TreatNullAs=EmptyString] attribute DOMString position;
+  [TreatNullAs=EmptyString] attribute DOMString right;
+  [TreatNullAs=EmptyString] attribute DOMString textAlign;
+  [TreatNullAs=EmptyString] attribute DOMString top;
   [TreatNullAs=EmptyString] attribute DOMString transform;
   [TreatNullAs=EmptyString] attribute DOMString transition;
   [TreatNullAs=EmptyString] attribute DOMString transitionDelay;
   [TreatNullAs=EmptyString] attribute DOMString transitionDuration;
   [TreatNullAs=EmptyString] attribute DOMString transitionProperty;
   [TreatNullAs=EmptyString] attribute DOMString transitionTimingFunction;
+  [TreatNullAs=EmptyString] attribute DOMString verticalAlign;
   [TreatNullAs=EmptyString] attribute DOMString width;
   [TreatNullAs=EmptyString] attribute DOMString zIndex;
 
