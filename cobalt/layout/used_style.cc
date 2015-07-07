@@ -22,8 +22,13 @@
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/rotate_function.h"
+#include "cobalt/cssom/scale_function.h"
+#include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/image_node.h"
@@ -379,6 +384,165 @@ void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
   used_line_height_ = length->value();
+}
+
+namespace {
+
+class TransformFunctionContainsPercentageVisitor
+    : public cssom::TransformFunctionVisitor {
+ public:
+  TransformFunctionContainsPercentageVisitor() : contains_percentage_(false) {}
+
+  void VisitMatrix(const cssom::MatrixFunction* matrix_function) OVERRIDE {
+    UNREFERENCED_PARAMETER(matrix_function);
+  }
+  void VisitRotate(const cssom::RotateFunction* rotate_function) OVERRIDE {
+    UNREFERENCED_PARAMETER(rotate_function);
+  }
+  void VisitScale(const cssom::ScaleFunction* scale_function) OVERRIDE {
+    UNREFERENCED_PARAMETER(scale_function);
+  }
+  void VisitTranslate(
+      const cssom::TranslateFunction* translate_function) OVERRIDE {
+    contains_percentage_ = (translate_function->offset_type() ==
+                            cssom::TranslateFunction::kPercentage);
+  }
+
+  bool contains_percentage() const { return contains_percentage_; }
+
+ private:
+  bool contains_percentage_;
+};
+
+bool TransformListContainsPercentage(
+    const cssom::TransformFunctionListValue* transform_list) {
+  for (cssom::TransformFunctionListValue::Builder::const_iterator iter =
+           transform_list->value().begin();
+       iter != transform_list->value().end(); ++iter) {
+    cssom::TransformFunction* transform_function = *iter;
+
+    TransformFunctionContainsPercentageVisitor contains_percentage_visitor;
+    transform_function->Accept(&contains_percentage_visitor);
+    if (contains_percentage_visitor.contains_percentage()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+class UsedTransformFunctionProvider : public cssom::TransformFunctionVisitor {
+ public:
+  explicit UsedTransformFunctionProvider(const math::SizeF& bounding_box);
+
+  void VisitMatrix(const cssom::MatrixFunction* matrix_function) OVERRIDE;
+  void VisitRotate(const cssom::RotateFunction* rotate_function) OVERRIDE;
+  void VisitScale(const cssom::ScaleFunction* scale_function) OVERRIDE;
+  void VisitTranslate(
+      const cssom::TranslateFunction* translate_function) OVERRIDE;
+
+  scoped_ptr<cssom::TransformFunction> PassUsedTransformFunction() {
+    return used_transform_function_.Pass();
+  }
+
+ private:
+  scoped_ptr<cssom::TransformFunction> used_transform_function_;
+  math::SizeF bounding_box_;
+};
+
+UsedTransformFunctionProvider::UsedTransformFunctionProvider(
+    const math::SizeF& bounding_box)
+    : bounding_box_(bounding_box) {}
+
+void UsedTransformFunctionProvider::VisitMatrix(
+    const cssom::MatrixFunction* matrix_function) {
+  used_transform_function_.reset(new cssom::MatrixFunction(*matrix_function));
+}
+
+void UsedTransformFunctionProvider::VisitRotate(
+    const cssom::RotateFunction* rotate_function) {
+  used_transform_function_.reset(new cssom::RotateFunction(*rotate_function));
+}
+
+void UsedTransformFunctionProvider::VisitScale(
+    const cssom::ScaleFunction* scale_function) {
+  used_transform_function_.reset(new cssom::ScaleFunction(*scale_function));
+}
+
+void UsedTransformFunctionProvider::VisitTranslate(
+    const cssom::TranslateFunction* translate_function) {
+  switch (translate_function->offset_type()) {
+    case cssom::TranslateFunction::kLength: {
+      // Length values pass through without modification.
+      used_transform_function_.reset(
+          new cssom::TranslateFunction(*translate_function));
+    } break;
+    case cssom::TranslateFunction::kPercentage: {
+      // Convert the percentage value to a length value based on the bounding
+      // box size.
+
+      // First extract the side of the bounding box based on the translation
+      // axis.
+      float bounding_size;
+      switch (translate_function->axis()) {
+        case cssom::TranslateFunction::kXAxis: {
+          bounding_size = bounding_box_.width();
+        } break;
+        case cssom::TranslateFunction::kYAxis: {
+          bounding_size = bounding_box_.height();
+        } break;
+        case cssom::TranslateFunction::kZAxis: {
+          DLOG(FATAL) << "Percentage values along the z-axis not supported.";
+          bounding_size = 0;
+        } break;
+        default: {
+          NOTREACHED();
+          bounding_size = 0;
+        }
+      }
+
+      // Update the used function with the new length-based translation
+      // function.
+      used_transform_function_.reset(new cssom::TranslateFunction(
+          translate_function->axis(),
+          new cssom::LengthValue(
+              translate_function->offset_as_percentage()->value() *
+                  bounding_size,
+              cssom::kPixelsUnit)));
+    } break;
+    default: { NOTREACHED(); }
+  }
+}
+
+}  // namespace
+
+scoped_refptr<cssom::TransformFunctionListValue> GetUsedTransformListValue(
+    cssom::TransformFunctionListValue* transform_list,
+    const math::SizeF& bounding_box) {
+  if (!TransformListContainsPercentage(transform_list)) {
+    // If there are no percentages in our transform list, simply return the
+    // input list as-is.
+    return scoped_refptr<cssom::TransformFunctionListValue>(transform_list);
+  } else {
+    // At least one transform function in the list contains a percentage value,
+    // so we must resolve it.
+    cssom::TransformFunctionListValue::Builder used_list_builder;
+
+    for (cssom::TransformFunctionListValue::Builder::const_iterator iter =
+             transform_list->value().begin();
+         iter != transform_list->value().end(); ++iter) {
+      cssom::TransformFunction* transform_function = *iter;
+
+      UsedTransformFunctionProvider used_transform_function_provider(
+          bounding_box);
+      transform_function->Accept(&used_transform_function_provider);
+
+      used_list_builder.push_back(
+          used_transform_function_provider.PassUsedTransformFunction()
+              .release());
+    }
+
+    return new cssom::TransformFunctionListValue(used_list_builder.Pass());
+  }
 }
 
 // UsedSizeMetricProvider is a visitor that is intended to visit property values

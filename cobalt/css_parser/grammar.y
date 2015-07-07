@@ -320,21 +320,35 @@
                        background_position_property_value
                        background_size_property_list_element
                        background_size_property_value
-                       border_radius_property_value color_property_value
-                       common_values common_values_without_errors
-                       display_property_value font_family_property_value
-                       font_family_name font_size_property_value
-                       font_style_property_value font_weight_property_value
-                       height_property_value line_height_property_value
-                       linear_gradient_params margin_side_property_value
-                       margin_width offset_property_value opacity_property_value
-                       overflow_property_value position_property_value
-                       text_align_property_value transition_delay_property_value
+                       border_radius_property_value
+                       color_property_value
+                       common_values
+                       common_values_without_errors
+                       display_property_value
+                       font_family_name
+                       font_family_property_value
+                       font_size_property_value
+                       font_style_property_value
+                       font_weight_property_value
+                       height_property_value
+                       length_percent_property_value
+                       line_height_property_value
+                       linear_gradient_params
+                       margin_side_property_value
+                       margin_width
+                       offset_property_value
+                       opacity_property_value
+                       overflow_property_value
+                       position_property_value
+                       text_align_property_value
                        transform_property_value
+                       transition_delay_property_value
                        transition_duration_property_value
                        transition_property_property_value
-                       transition_timing_function_property_value url
-                       vertical_align_property_value width_property_value
+                       transition_timing_function_property_value
+                       url
+                       vertical_align_property_value
+                       width_property_value
                        z_index_property_value
 %destructor { $$->Release(); } <property_value>
 
@@ -1105,6 +1119,15 @@ url:
 // Property values.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
+length_percent_property_value:
+    length {
+    $$ = $1;
+  }
+  | percentage {
+    $$ = $1;
+  }
+  ;
+
 background_property_element:
     color {
     if (!$<background_shorthand_layer>0->background_color) {
@@ -1678,13 +1701,13 @@ transform_function:
   }
   // Specifies a translation by the given amount in the X direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
-  | kTranslateXFunctionToken maybe_whitespace length ')'
+  | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kXAxis, $3);
   }
   // Specifies a translation by the given amount in the Y direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
-  | kTranslateYFunctionToken maybe_whitespace length ')'
+  | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
     $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kYAxis, $3);
   }
