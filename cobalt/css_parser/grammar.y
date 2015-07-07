@@ -83,10 +83,15 @@
 %token kMarginBottomToken                     // margin-bottom
 %token kMarginLeftToken                       // margin-left
 %token kMarginRightToken                      // margin-right
-%token kMarginTopToken                        // margin-top
 %token kMarginToken                           // margin
+%token kMarginTopToken                        // margin-top
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
+%token kPaddingBottomToken                    // padding-bottom
+%token kPaddingLeftToken                      // padding-left
+%token kPaddingRightToken                     // padding-right
+%token kPaddingToken                          // padding
+%token kPaddingTopToken                       // padding-top
 %token kPositionToken                         // position
 %token kRightToken                            // right
 %token kTextAlignToken                        // text-align
@@ -313,7 +318,8 @@
 // as long as web app does not rely on literal preservation of property values
 // exposed by cssom::CSSStyleDeclaration (semantics is always preserved).
 %union { cssom::PropertyValue* property_value; }
-%type <property_value> auto background_color_property_value
+%type <property_value> auto
+                       background_color_property_value
                        background_image_property_list_element
                        background_image_property_value
                        background_position_property_list_element
@@ -339,6 +345,8 @@
                        offset_property_value
                        opacity_property_value
                        overflow_property_value
+                       padding_side_property_value
+                       padding_width
                        position_property_value
                        text_align_property_value
                        transform_property_value
@@ -353,7 +361,7 @@
 %destructor { $$->Release(); } <property_value>
 
 %union { MarginOrPaddingShorthand* margin_or_padding_shorthand; }
-%type <margin_or_padding_shorthand> margin_property_value;
+%type <margin_or_padding_shorthand> margin_property_value padding_property_value
 %destructor { delete $$; } <margin_or_padding_shorthand>
 
 %union { TransitionShorthand* transition; }
@@ -575,6 +583,21 @@ identifier_token:
   }
   | kOverflowToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
+  }
+  | kPaddingBottomToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPaddingBottomPropertyName);
+  }
+  | kPaddingLeftToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPaddingLeftPropertyName);
+  }
+  | kPaddingRightToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPaddingRightPropertyName);
+  }
+  | kPaddingTopToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPaddingTopPropertyName);
+  }
+  | kPaddingToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPaddingPropertyName);
   }
   | kPositionToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPositionPropertyName);
@@ -949,9 +972,11 @@ positive_percentage:
     scoped_refptr<cssom::PercentageValue> percentage =
         MakeScopedRefPtrAndRelease($1);
     if (percentage && percentage->value() < 0) {
+      $$ = NULL;
       parser_impl->LogWarning(@1, "negative values of percentage are illegal");
+    } else {
+      $$ = AddRef(percentage.get());
     }
-    $$ = AddRef(percentage.get());
   }
   ;
 
@@ -1537,9 +1562,11 @@ height_property_value:
     length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
     if (length && length->value() < 0) {
+      $$ = NULL;
       parser_impl->LogWarning(@1, "negative values of height are illegal");
+    } else {
+      $$ = AddRef(length.get());
     }
-    $$ = AddRef(length.get());
   }
   | positive_percentage { $$ = $1; }
   | common_values
@@ -1554,9 +1581,11 @@ line_height_property_value:
   | length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
     if (length && length->value() < 0) {
+      $$ = NULL;
       parser_impl->LogWarning(@1, "negative values of line-height are illegal");
+    } else {
+      $$ = AddRef(length.get());
     }
-    $$ = AddRef(length.get());
   }
   | common_values
   ;
@@ -1583,25 +1612,25 @@ margin_side_property_value:
 margin_property_value:
     // If there is only one component value, it applies to all sides.
     margin_width {
-    $$ = new MarginOrPaddingShorthand($1, $1, $1, $1);
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
   }
     // If there are two values, the top and bottom margins are set to the first
     // value and the right and left margins are set to the second.
   | margin_width margin_width {
-    $$ = new MarginOrPaddingShorthand($1, $2, $1, $2);
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $1, $2).release();
   }
     // If there are three values, the top is set to the first value, the left
     // and right are set to the second, and the bottom is set to the third.
   | margin_width margin_width margin_width {
-    $$ = new MarginOrPaddingShorthand($1, $2, $3, $2);
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $2).release();
   }
     // If there are four values, they apply to the top, right, bottom, and left,
     // respectively.
   | margin_width margin_width margin_width margin_width {
-    $$ = new MarginOrPaddingShorthand($1, $2, $3, $4);
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $4).release();
   }
   | common_values {
-    $$ = $1 ? new MarginOrPaddingShorthand($1, $1, $1, $1) : NULL;
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
   }
   ;
 
@@ -1634,6 +1663,66 @@ overflow_property_value:
     $$ = AddRef(cssom::KeywordValue::GetVisible().get());
   }
   | common_values
+  ;
+
+// <padding-width> value type.
+//   http://www.w3.org/TR/CSS21/box.html#value-def-padding-width
+padding_width:
+    length {
+    scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
+    if (length && length->value() < 0) {
+      $$ = NULL;
+      parser_impl->LogWarning(@1, "negative values of padding are illegal");
+    } else {
+      $$ = AddRef(length.get());
+    }
+  }
+  | percentage {
+    scoped_refptr<cssom::PercentageValue> percentage =
+        MakeScopedRefPtrAndRelease($1);
+    if (percentage && percentage->value() < 0) {
+      $$ = NULL;
+      parser_impl->LogWarning(@1, "negative values of padding are illegal");
+    } else {
+      $$ = AddRef(percentage.get());
+    }
+  }
+  ;
+
+// Specifies the width of a top, right, bottom, or left side of the padding area
+// of a box.
+//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+padding_side_property_value:
+    padding_width
+  | common_values
+  ;
+
+// The "padding" property is a shorthand property for setting "padding-top",
+// "padding-right", "padding-bottom", and "padding-left" at the same place.
+//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+padding_property_value:
+    // If there is only one component value, it applies to all sides.
+    padding_width {
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
+  }
+    // If there are two values, the top and bottom paddings are set to the first
+    // value and the right and left paddings are set to the second.
+  | padding_width padding_width {
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $1, $2).release();
+  }
+    // If there are three values, the top is set to the first value, the left
+    // and right are set to the second, and the bottom is set to the third.
+  | padding_width padding_width padding_width {
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $2).release();
+  }
+    // If there are four values, they apply to the top, right, bottom, and left,
+    // respectively.
+  | padding_width padding_width padding_width padding_width {
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $4).release();
+  }
+  | common_values {
+    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
+  }
   ;
 
 // Determines which of the positioning algorithms is used to calculate
@@ -2094,9 +2183,11 @@ width_property_value:
     length {
     scoped_refptr<cssom::LengthValue> length = MakeScopedRefPtrAndRelease($1);
     if (length && length->value() < 0) {
+      $$ = NULL;
       parser_impl->LogWarning(@1, "negative values of width are illegal");
+    } else {
+      $$ = AddRef(length.get());
     }
-    $$ = AddRef(length.get());
   }
   | positive_percentage { $$ = $1; }
   | common_values
@@ -2335,6 +2426,55 @@ maybe_declaration:
     $$ = $4 ? new PropertyDeclaration(cssom::kOverflowPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
+  }
+  | kPaddingBottomToken maybe_whitespace colon padding_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingBottomPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kPaddingLeftToken maybe_whitespace colon padding_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingLeftPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kPaddingRightToken maybe_whitespace colon padding_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingRightPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kPaddingTopToken maybe_whitespace colon padding_side_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingTopPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kPaddingToken maybe_whitespace colon padding_property_value
+      maybe_important {
+    scoped_ptr<MarginOrPaddingShorthand> padding($4);
+    if (padding) {
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kPaddingTopPropertyName, padding->top));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kPaddingRightPropertyName, padding->right));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kPaddingBottomPropertyName, padding->bottom));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::NameValuePair(
+              cssom::kPaddingLeftPropertyName, padding->left));
+
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kPositionToken maybe_whitespace colon position_property_value
       maybe_important {
