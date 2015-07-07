@@ -28,6 +28,7 @@ struct KeywordValue::NonTrivialStaticFields {
         auto_value(new KeywordValue(KeywordValue::kAuto)),
         baseline_value(new KeywordValue(KeywordValue::kBaseline)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
+        center_value(new KeywordValue(KeywordValue::kCenter)),
         contain_value(new KeywordValue(KeywordValue::kContain)),
         cover_value(new KeywordValue(KeywordValue::kCover)),
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
@@ -49,6 +50,7 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> baseline_value;
   const scoped_refptr<KeywordValue> block_value;
+  const scoped_refptr<KeywordValue> center_value;
   const scoped_refptr<KeywordValue> contain_value;
   const scoped_refptr<KeywordValue> cover_value;
   const scoped_refptr<KeywordValue> hidden_value;
@@ -92,6 +94,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetBaseline() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
   return non_trivial_static_fields.Get().block_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetCenter() {
+  return non_trivial_static_fields.Get().center_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetContain() {
