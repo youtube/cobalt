@@ -26,6 +26,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
+#include "cobalt/dom/performance.h"
 #include "cobalt/dom/window_timers.h"
 
 namespace cobalt {
@@ -68,6 +69,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                                             html_element_context_.get(),
                                             base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
+      performance_(new Performance()),
       relay_on_load_event_(new RelayOnLoadEvent(this)),
       console_(new Console()),
       window_timers_(new WindowTimers()) {
@@ -81,6 +83,10 @@ scoped_refptr<Location> Window::location() const {
 }
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
+
+const scoped_refptr<Performance>& Window::performance() const {
+  return performance_;
+}
 
 scoped_refptr<EventListener> Window::onload() {
   return GetAttributeEventListener("load");
