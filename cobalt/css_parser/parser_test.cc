@@ -1323,7 +1323,7 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   EXPECT_FLOAT_EQ(9, scale_function->y_factor());
 }
 
-TEST_F(ParserTest, ParsesTranslateXTransform) {
+TEST_F(ParserTest, ParsesTranslateXTransformLength) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transform: translateX(0);",
                                    source_location_);
@@ -1338,13 +1338,39 @@ TEST_F(ParserTest, ParsesTranslateXTransform) {
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
+  ASSERT_EQ(cssom::TranslateFunction::kLength,
+            translate_function->offset_type());
+  scoped_refptr<cssom::LengthValue> offset =
+      translate_function->offset_as_length();
   EXPECT_FLOAT_EQ(0, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
   EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function->axis());
 }
 
-TEST_F(ParserTest, ParsesTranslateYTransform) {
+TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: translateX(20%);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+
+  ASSERT_EQ(cssom::TranslateFunction::kPercentage,
+            translate_function->offset_type());
+  scoped_refptr<cssom::PercentageValue> offset =
+      translate_function->offset_as_percentage();
+  EXPECT_FLOAT_EQ(0.2f, offset->value());
+  EXPECT_EQ(cssom::TranslateFunction::kXAxis, translate_function->axis());
+}
+
+TEST_F(ParserTest, ParsesTranslateYTransformLength) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transform: translateY(30em);",
                                    source_location_);
@@ -1359,13 +1385,39 @@ TEST_F(ParserTest, ParsesTranslateYTransform) {
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
+  ASSERT_EQ(cssom::TranslateFunction::kLength,
+            translate_function->offset_type());
+  scoped_refptr<cssom::LengthValue> offset =
+      translate_function->offset_as_length();
   EXPECT_FLOAT_EQ(30, offset->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, offset->unit());
   EXPECT_EQ(cssom::TranslateFunction::kYAxis, translate_function->axis());
 }
 
-TEST_F(ParserTest, ParsesTranslateZTransform) {
+TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("transform: translateY(30%);",
+                                   source_location_);
+
+  scoped_refptr<cssom::TransformFunctionListValue> transform_list =
+      dynamic_cast<cssom::TransformFunctionListValue*>(
+          style->transform().get());
+  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_EQ(1, transform_list->value().size());
+
+  const cssom::TranslateFunction* translate_function =
+      dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
+  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+
+  ASSERT_EQ(cssom::TranslateFunction::kPercentage,
+            translate_function->offset_type());
+  scoped_refptr<cssom::PercentageValue> offset =
+      translate_function->offset_as_percentage();
+  EXPECT_FLOAT_EQ(0.3f, offset->value());
+  EXPECT_EQ(cssom::TranslateFunction::kYAxis, translate_function->axis());
+}
+
+TEST_F(ParserTest, ParsesTranslateZTransformLength) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("transform: translateZ(-22px);",
                                    source_location_);
@@ -1380,7 +1432,10 @@ TEST_F(ParserTest, ParsesTranslateZTransform) {
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
   ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
 
-  scoped_refptr<cssom::LengthValue> offset = translate_function->offset();
+  ASSERT_EQ(cssom::TranslateFunction::kLength,
+            translate_function->offset_type());
+  scoped_refptr<cssom::LengthValue> offset =
+      translate_function->offset_as_length();
   EXPECT_FLOAT_EQ(-22, offset->value());
   EXPECT_EQ(cssom::kPixelsUnit, offset->unit());
   EXPECT_EQ(cssom::TranslateFunction::kZAxis, translate_function->axis());

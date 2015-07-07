@@ -211,20 +211,47 @@ void AnimateTransformFunction::VisitTranslate(
   const TranslateFunction* translate_end =
       base::polymorphic_downcast<const TranslateFunction*>(end_);
   if (translate_end) {
-    DCHECK_EQ(translate_function->offset()->unit(),
-              translate_end->offset()->unit());
-    DCHECK_EQ(translate_function->axis(),
-              translate_end->axis());
+    // TODO(***REMOVED***): Eventually we'll have to support calc() so that we can
+    //               animate from one unit (e.g. length) to another
+    //               (e.g. percentage) for not just translations but other
+    //               length/percentage property values also.
+    DCHECK_EQ(translate_function->offset_type(), translate_end->offset_type())
+        << "calc() is needed for animating mixed units, but is not yet "
+           "supported.";
+
+    DCHECK_EQ(translate_function->axis(), translate_end->axis());
   }
 
-  // The transform function's identity is the value 0.0f.
-  float end_offset = translate_end ? translate_end->offset()->value() : 0.0f;
+  switch (translate_function->offset_type()) {
+    case TranslateFunction::kLength: {
+      DCHECK_EQ(kPixelsUnit, translate_function->offset_as_length()->unit());
+      if (translate_end) {
+        DCHECK_EQ(kPixelsUnit, translate_end->offset_as_length()->unit());
+      }
 
-  animated_.reset(new TranslateFunction(
-      translate_function->axis(),
-      new LengthValue(
-          Lerp(translate_function->offset()->value(), end_offset, progress_),
-          translate_function->offset()->unit())));
+      // The transform function's identity is the value 0.0f.
+      float end_offset =
+          translate_end ? translate_end->offset_as_length()->value() : 0.0f;
+
+      animated_.reset(new TranslateFunction(
+          translate_function->axis(),
+          new LengthValue(Lerp(translate_function->offset_as_length()->value(),
+                               end_offset, progress_),
+                          kPixelsUnit)));
+    } break;
+    case TranslateFunction::kPercentage: {
+      // The transform function's identity is the value 0.0f.
+      float end_offset =
+          translate_end ? translate_end->offset_as_percentage()->value() : 0.0f;
+
+      animated_.reset(new TranslateFunction(
+          translate_function->axis(),
+          new PercentageValue(
+              Lerp(translate_function->offset_as_percentage()->value(),
+                   end_offset, progress_))));
+    } break;
+    default: { NOTREACHED(); }
+  }
 }
 
 // Returns true if two given transform function lists have the same number of

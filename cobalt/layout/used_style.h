@@ -21,6 +21,7 @@
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/size_f.h"
@@ -163,6 +164,10 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
+
+scoped_refptr<cssom::TransformFunctionListValue> GetUsedTransformListValue(
+    cssom::TransformFunctionListValue* transform_list,
+    const math::SizeF& bounding_box);
 
 // This class should be used when one needs to determine any of the margin,
 // padding, position (e.g. 'left'/'top') or content size properties.  Since much
