@@ -185,6 +185,7 @@
           'NDEBUG',
           'COBALT_BUILD_TYPE_GOLD',
           '__LB_SHELL__FOR_RELEASE__',
+          'TRACING_DISABLED',
         ],
       }, # end of gold_base
     }, # end of configurations
