@@ -50,7 +50,7 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
   unsigned int length() const;
 
   // From cssom::MutationObserver.
-  void OnCSSMutation();
+  void OnCSSMutation() OVERRIDE;
 
   // Custom, not in any spec.
   //

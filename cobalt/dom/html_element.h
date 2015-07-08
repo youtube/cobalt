@@ -52,7 +52,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
 
   // From cssom::CSSStyleDeclaration::MutationObserver.
-  void OnCSSMutation();
+  void OnCSSMutation() OVERRIDE;
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE;
