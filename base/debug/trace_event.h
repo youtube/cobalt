@@ -157,6 +157,41 @@
 #include "base/debug/trace_event_impl.h"
 #include "build/build_config.h"
 
+#if defined(TRACING_DISABLED)
+
+inline void NullAddTraceEvent(
+        char phase,
+        const unsigned char* category_enabled,
+        const char* name,
+        unsigned long long id,
+        int num_args,
+        const char** arg_names,
+        const unsigned char* arg_types,
+        const unsigned long long* arg_values,
+        unsigned char flags) {
+    UNREFERENCED_PARAMETER(phase);
+    UNREFERENCED_PARAMETER(category_enabled);
+    UNREFERENCED_PARAMETER(name);
+    UNREFERENCED_PARAMETER(id);
+    UNREFERENCED_PARAMETER(num_args);
+    UNREFERENCED_PARAMETER(arg_names);
+    UNREFERENCED_PARAMETER(arg_types);
+    UNREFERENCED_PARAMETER(arg_values);
+    UNREFERENCED_PARAMETER(flags);
+}
+
+#define TRACE_EVENT_API_ADD_TRACE_EVENT NullAddTraceEvent
+
+#define INTERNAL_TRACE_EVENT_ADD(phase, category, name, flags, ...) \
+    (void)0
+#define INTERNAL_TRACE_EVENT_ADD_SCOPED(category, name, ...) \
+    (void)0
+#define INTERNAL_TRACE_EVENT_ADD_WITH_ID(phase, category, name, id, flags, \
+                                         ...) \
+    (void)0
+
+#endif // #if defined(TRACING_DISABLED)
+
 // By default, const char* argument values are assumed to have long-lived scope
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) \
@@ -561,6 +596,7 @@
 #define TRACE_EVENT_API_GET_CATEGORY_ENABLED \
     base::debug::TraceLog::GetCategoryEnabled
 
+#if !defined(TRACING_DISABLED)
 // Add a trace event to the platform tracing system.
 // void TRACE_EVENT_API_ADD_TRACE_EVENT(
 //                    char phase,
@@ -574,6 +610,7 @@
 //                    unsigned char flags)
 #define TRACE_EVENT_API_ADD_TRACE_EVENT \
     base::debug::TraceLog::GetInstance()->AddTraceEvent
+#endif  // !defined(TRACING_DISABLED)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -604,6 +641,7 @@
               INTERNAL_TRACE_EVENT_UID(catstatic))); \
     }
 
+#if !defined(TRACING_DISABLED)
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD(phase, category, name, flags, ...) \
@@ -649,6 +687,7 @@
             ##__VA_ARGS__); \
       } \
     } while (0)
+#endif  // #if !defined(TRACING_DISABLED)
 
 // Notes regarding the following definitions:
 // New values can be added and propagated to third party libraries, but existing
