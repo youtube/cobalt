@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,16 +34,26 @@ void TimeRanges::TimeRange::MergeWith(const TimeRange& that) {
   end_ = std::max(end_, that.end_);
 }
 
-double TimeRanges::Start(uint32 index) const {
-  // TODO(***REMOVED***): Should throw INDEX_SIZE_ERR exception.
-  DCHECK_LT(index, ranges_.size());
-  return index < ranges_.size() ? ranges_[index].start() : 0.0;
+double TimeRanges::Start(uint32 index,
+                         script::ExceptionState* exception_state) const {
+  if (index >= ranges_.size()) {
+    exception_state->SetException(
+        make_scoped_refptr(new DOMException(DOMException::kIndexSizeErr)));
+    // Return value should be ignored.
+    return 0.0;
+  }
+  return ranges_[index].start();
 }
 
-double TimeRanges::End(uint32 index) const {
-  // TODO(***REMOVED***): Should throw INDEX_SIZE_ERR exception.
-  DCHECK_LT(index, ranges_.size());
-  return index < ranges_.size() ? ranges_[index].end() : 0.0;
+double TimeRanges::End(uint32 index,
+                       script::ExceptionState* exception_state) const {
+  if (index >= ranges_.size()) {
+    exception_state->SetException(
+        make_scoped_refptr(new DOMException(DOMException::kIndexSizeErr)));
+    // Return value should be ignored.
+    return 0.0;
+  }
+  return ranges_[index].end();
 }
 
 bool TimeRanges::Contains(double time) const {

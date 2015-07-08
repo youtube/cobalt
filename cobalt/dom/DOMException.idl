@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+exception DOMException {
+  readonly attribute unsigned short code;
+  readonly attribute DOMString name;
+  readonly attribute DOMString message;
 
-interface TimeRanges {
-  readonly attribute unsigned long length;
-  [RaisesException] double start(unsigned long index);
-  [RaisesException] double end(unsigned long index);
+  // List of exceptions and codes found here:
+  //   http://heycam.github.io/webidl/#idl-DOMException-error-names
+  const unsigned short INDEX_SIZE_ERR = 1;
 };
