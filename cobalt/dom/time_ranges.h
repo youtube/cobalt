@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -38,8 +39,8 @@ class TimeRanges : public script::Wrappable {
   // Web API: TimeRanges
   //
   uint32 length() const { return static_cast<uint32>(ranges_.size()); }
-  double Start(uint32 index) const;
-  double End(uint32 index) const;
+  double Start(uint32 index, script::ExceptionState* exception_state) const;
+  double End(uint32 index, script::ExceptionState* exception_state) const;
 
   // Custom, not in any spec.
   //

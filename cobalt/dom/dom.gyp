@@ -39,6 +39,8 @@
         'document_builder.h',
         'dom_decoder.cc',
         'dom_decoder.h',
+        'dom_exception.cc',
+        'dom_exception.h',
         'dom_token_list.cc',
         'dom_token_list.h',
         'dom_settings.cc',
