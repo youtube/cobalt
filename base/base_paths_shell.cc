@@ -33,13 +33,12 @@ bool PathProviderShell(int key, FilePath* result) {
       return true;
 
     case base::DIR_SOURCE_ROOT:
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+      // TODO(aabtop): When Cobalt's primary use-case ceases to be serving
+      //               web-pages locally, we should add a check here to ensure
+      //               that release builds do not try to access DIR_SOURCE_ROOT.
+      //               b/22359828
       *result = FilePath(global_values->dir_source_root);
       return true;
-#else
-      DLOG(ERROR) << "DIR_SOURCE_ROOT unsupported";
-      return false;
-#endif
 
     case base::DIR_CACHE:
       *result = FilePath(global_values->tmp_path).Append("cache");
