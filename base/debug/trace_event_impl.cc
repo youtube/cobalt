@@ -476,6 +476,9 @@ void TraceLog::GetKnownCategories(std::vector<std::string>* categories) {
 
 void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
                           const std::vector<std::string>& excluded_categories) {
+#if defined(TRACING_DISABLED)
+  return;
+#else  // defined(TRACING_DISABLED)
   AutoLock lock(lock_);
   if (enabled_)
     return;
@@ -501,6 +504,7 @@ void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
     EnableMatchingCategories(included_categories_, CATEGORY_ENABLED, 0);
   else
     EnableMatchingCategories(excluded_categories_, 0, CATEGORY_ENABLED);
+#endif  // defined(TRACING_DISABLED)
 }
 
 void TraceLog::SetEnabled(const std::string& categories) {
