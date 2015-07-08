@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "base/rand_util.h"
+#include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/storage/virtual_file.h"
 #include "cobalt/storage/virtual_file_system.h"
@@ -199,8 +200,10 @@ int VfsDelete(sqlite3_vfs* sql_vfs, const char* path, int sync_dir) {
 int VfsFullPathname(sqlite3_vfs* sql_vfs, const char* path, int out_size,
                     char* out_path) {
   UNREFERENCED_PARAMETER(sql_vfs);
-  memcpy(out_path, path, out_size);
-  return SQLITE_OK;
+  if (base::strlcpy(out_path, path, out_size) < out_size) {
+    return SQLITE_OK;
+  }
+  return SQLITE_ERROR;
 }
 
 int VfsAccess(sqlite3_vfs* sql_vfs, const char* name, int flags, int* result) {
