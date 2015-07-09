@@ -19,6 +19,8 @@
       'type': 'static_library',
       'sources': [
         'input_device_manager.h',
+        'input_device_manager_fuzzer.cc',
+        'input_device_manager_fuzzer.h',
         'input_device_manager_<(actual_target_arch).cc',
         'input_device_manager_<(actual_target_arch).h',
         'keyboard_code.h',

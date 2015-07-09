@@ -17,8 +17,11 @@
 #include "cobalt/browser/browser_module.h"
 
 #include "base/bind.h"
+#include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "cobalt/browser/switches.h"
+#include "cobalt/input/input_device_manager_fuzzer.h"
 
 namespace cobalt {
 namespace browser {
@@ -41,9 +44,23 @@ BrowserModule::BrowserModule(const Options& options)
                   math::Size(kInitialWidth, kInitialHeight),
                   renderer_module_.pipeline()->GetResourceProvider(),
                   renderer_module_.pipeline()->refresh_rate(),
-                  options.web_module_options),
-      input_device_manager_(input::InputDeviceManager::Create(base::Bind(
-          &BrowserModule::OnKeyEventProduced, base::Unretained(this)))) {}
+                  options.web_module_options) {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+
+  input::KeyboardEventCallback keyboard_event_callback =
+      base::Bind(&BrowserModule::OnKeyEventProduced, base::Unretained(this));
+
+  // If the user has asked to activate the input fuzzer, then we wire up the
+  // input fuzzer key generator to our keyboard event callback.  Otherwise, we
+  // create and connect the platform-specific input event generator.
+  if (command_line->HasSwitch(switches::kInputFuzzer)) {
+    input_device_manager_ = scoped_ptr<input::InputDeviceManager>(
+        new input::InputDeviceManagerFuzzer(keyboard_event_callback));
+  } else {
+    input_device_manager_ =
+        input::InputDeviceManager::Create(keyboard_event_callback);
+  }
+}
 
 BrowserModule::~BrowserModule() {}
 
