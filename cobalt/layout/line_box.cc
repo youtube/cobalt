@@ -270,7 +270,7 @@ void LineBox::SetChildBoxLeftPositions() {
   }
 
   // Calculate the amount to be shifted to the right.
-  float additional_left;
+  float additional_left = 0;
   if (text_align_ == cssom::KeywordValue::GetCenter()) {
     additional_left =
         (layout_params_.containing_block_size.width() - GetShrinkToFitWidth()) /
