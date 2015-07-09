@@ -31,6 +31,10 @@ const char kInitialURL[] = "url";
 // "timed_trace.json" in the log output directory.
 const char kTimedTrace[] = "timed_trace";
 
+// If this flag is set, input will be continuously generated randomly instead of
+// taken from an external input device (like a controller).
+const char kInputFuzzer[] = "input_fuzzer";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt
