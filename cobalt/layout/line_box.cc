@@ -43,6 +43,18 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
     Box* child_box, scoped_ptr<Box>* child_box_after_split) {
   DCHECK(!*child_box_after_split);
 
+  // TODO(***REMOVED***): A position of "fixed" is also out-of-flow and should not
+  //               affect the block formatting context's state.
+  if (child_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()) {
+    // TODO(***REMOVED***): Reimplement this crude approximation of static position
+    //               in order to take horizontal and vertical alignments
+    //               into consideration.
+    child_box->set_used_left(GetShrinkToFitWidth());
+    child_box->set_used_top(0);
+    return true;
+  }
+
   child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
   // Horizontal margins, borders, and padding are respected between boxes.
@@ -68,6 +80,18 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
 }
 
 void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
+  // TODO(***REMOVED***): A position of "fixed" is also out-of-flow and should not
+  //               affect the block formatting context's state.
+  if (child_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()) {
+    // TODO(***REMOVED***): Reimplement this crude approximation of static position
+    //               in order to take horizontal and vertical alignments
+    //               into consideration.
+    child_box->set_used_left(GetShrinkToFitWidth());
+    child_box->set_used_top(0);
+    return;
+  }
+
   child_box->UpdateUsedSizeIfInvalid(layout_params_);
 
   bool should_collapse_leading_white_space =

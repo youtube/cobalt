@@ -80,7 +80,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
   // computed value.
-  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() {
+  scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
     return computed_style_;
   }
   // TODO(***REMOVED***): Get rid of this setter by moving the update of a computed
