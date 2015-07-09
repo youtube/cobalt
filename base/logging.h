@@ -732,12 +732,12 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 #define DPCHECK(condition)                                          \
   __analysis_assume(!!(condition)), EAT_STREAM_PARAMETERS
 #else
-#define DCHECK(condition)                                           \
-  LAZY_STREAM(LOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))   \
+#define DCHECK(condition)                                                  \
+  LAZY_STREAM(LOG_STREAM(DCHECK), DCHECK_IS_ON() ? !(condition) : false)   \
   << "Check failed: " #condition ". "
 
-#define DPCHECK(condition)                                          \
-  LAZY_STREAM(PLOG_STREAM(DCHECK), DCHECK_IS_ON() && !(condition))  \
+#define DPCHECK(condition)                                                 \
+  LAZY_STREAM(PLOG_STREAM(DCHECK), DCHECK_IS_ON() ? !(condition) : false)  \
   << "Check failed: " #condition ". "
 #endif
 
