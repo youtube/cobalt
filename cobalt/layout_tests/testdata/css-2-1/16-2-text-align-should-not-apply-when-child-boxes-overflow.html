@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | Do not shift child boxes when the inline-level boxes already overflow.
+ |   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
+ -->
+<head>
+  <style>
+    body {
+      width: 200px;
+      font-size: 15px;
+      color: #999;
+    }
+
+    div.bluebg {
+      background: #2020F0;
+    }
+    div.greybg {
+      background: #B0B0B0;
+    }
+
+    div.container {
+      background: #999;
+      width: 10px;
+    }
+
+    div.left {
+      text-align: left;
+    }
+    div.center {
+      text-align: center;
+    }
+    div.right {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="container left">
+    <div class="bluebg">a loooooong child box</div>
+  </div>
+
+  <div class="container center">
+    <div class="greybg">a loooooong child box</div>
+  </div>
+
+  <div class="container right">
+    <div class="bluebg">a loooooong child box</div>
+  </div>
+</body>
+</html>
