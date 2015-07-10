@@ -288,8 +288,15 @@ void LineBox::SetChildBoxLeftPositions() {
   // Set used left of the child boxes according to the value of text-align.
   //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
   //
-  // Do not shift child boxes if text-align is 'left'.
-  if (text_align_ == cssom::KeywordValue::GetLeft()) {
+
+  // When the total width of the inline-level boxes on a line is less than the
+  // width of the line box containing them, their horizontal distribution within
+  // the line box is determined by the 'text-align' property.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  // So do not shift child boxes when the inline-level boxes already overflow,
+  // also do not shift if text-align is 'left'.
+  if (text_align_ == cssom::KeywordValue::GetLeft() ||
+      layout_params_.containing_block_size.width() < GetShrinkToFitWidth()) {
     return;
   }
 
