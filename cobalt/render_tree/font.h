@@ -61,12 +61,13 @@ enum FontStyle {
 // to a rasterizer-specific type through base::Downcast().
 class Font : public base::RefCountedThreadSafe<Font> {
  public:
-  // Returns the bounding box for a given text string.  The size is guaranteeed
-  // to be consistent with the given font and include every glyph.  Note that
-  // since text is output with the origin horizontally on the left and
-  // vertically on the baseline, the left and top of the bounding box will
-  // likely be non-zero and are used to indicate the offset of the text bounding
-  // box from the origin.  The return value is given in units of pixels.
+  // Returns the bounding box for a given text string.  The size is guaranteed
+  // to be consistent with |text| in this font, including the possible spaces
+  // around the glyphs in the characters.  While left is always zero, note that
+  // since the text is output with the origin vertically on the baseline, the
+  // top of the bounding box will likely be non-zero and is used to indicate the
+  // offset of the text bounding box from the origin.  The return value is given
+  // in units of pixels.
   virtual math::RectF GetBounds(const std::string& text) const = 0;
 
   // Returns the metrics common for all glyphs in the font. Used to calculate

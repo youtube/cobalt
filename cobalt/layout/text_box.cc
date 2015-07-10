@@ -44,9 +44,6 @@ void TextBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
   space_width_ = used_font_->GetBounds(" ").width();
 
   math::RectF text_bounds = used_font_->GetBounds(text_);
-  // TODO(***REMOVED***): GetBounds() may return a rect with x() < 0.  If this is
-  //               undesired, it should be officially specified by GetBounds()
-  //               interface, and enforced in GetBound()' implementation.
   set_used_width(GetLeadingWhiteSpaceWidth() + text_bounds.width() +
                  GetTrailingWhiteSpaceWidth());
 
