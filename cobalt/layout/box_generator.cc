@@ -149,9 +149,29 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
 
-  ContainerBoxGenerator container_box_generator(html_element->computed_style(),
-                                                html_element->transitions(),
-                                                used_style_provider_);
+  scoped_refptr<dom::HTMLMediaElement> media_element =
+      html_element->AsHTMLMediaElement();
+  if (media_element) {
+    VisitMediaElement(media_element);
+  } else {
+    VisitContainerElement(html_element);
+  }
+}
+
+void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
+  // For video elements, create a ReplacedBox and return that as the set of
+  // boxes generated for this HTML element.
+  scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
+      media_element->computed_style(), media_element->transitions(),
+      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
+      used_style_provider_));
+  boxes_.push_back(replaced_box.release());
+}
+
+void BoxGenerator::VisitContainerElement(dom::HTMLElement* html_element) {
+  ContainerBoxGenerator container_box_generator(
+      html_element->computed_style(), html_element->transitions(),
+      used_style_provider_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_ptr<ContainerBox> container_box_before_split =
       container_box_generator.PassContainerBox();
@@ -164,38 +184,7 @@ void BoxGenerator::Visit(dom::Element* element) {
     return;
   }
 
-  // For video elements, immediately create a replaced box and attach it to
-  // the container box and return.  Thus, there will be two boxes associated
-  // with every video, the ReplacedBox referencing the video, and the container
-  // box referencing the ReplacedBox.  Keeping the container around is useful
-  // because it allows ReplacedBox to re-use the layout logic that the container
-  // box implements.
-  scoped_refptr<dom::HTMLMediaElement> media_element =
-      html_element->AsHTMLMediaElement();
-  if (media_element) {
-    VisitMediaElement(media_element, container_box_before_split.Pass());
-  } else {
-    VisitContainerElement(html_element, container_box_before_split.Pass());
-  }
-}
-
-void BoxGenerator::VisitMediaElement(
-    dom::HTMLMediaElement* media_element,
-    scoped_ptr<ContainerBox> first_container_box) {
-  scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
-      first_container_box->computed_style(),
-      cssom::TransitionSet::EmptyTransitionSet(),
-      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
-      used_style_provider_));
-  bool added = first_container_box->TryAddChild(&replaced_box);
-  DCHECK(added);
-  boxes_.push_back(first_container_box.release());
-}
-
-void BoxGenerator::VisitContainerElement(
-    dom::HTMLElement* html_element,
-    scoped_ptr<ContainerBox> first_container_box) {
-  boxes_.push_back(first_container_box.release());
+  boxes_.push_back(container_box_before_split.release());
 
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();

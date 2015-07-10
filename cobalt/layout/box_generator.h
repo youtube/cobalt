@@ -63,10 +63,8 @@ class BoxGenerator : public dom::NodeVisitor {
   Boxes PassBoxes();
 
  private:
-  void VisitMediaElement(dom::HTMLMediaElement* media_element,
-                         scoped_ptr<ContainerBox> first_container_box);
-  void VisitContainerElement(dom::HTMLElement* html_element,
-                             scoped_ptr<ContainerBox> first_container_box);
+  void VisitMediaElement(dom::HTMLMediaElement* media_element);
+  void VisitContainerElement(dom::HTMLElement* html_element);
 
   const scoped_refptr<const cssom::CSSStyleDeclarationData>
       parent_computed_style_;
