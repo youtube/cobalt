@@ -60,7 +60,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
     size = std::min<int>(size, buffer_.size() - position);
   }
 
-  if (position + size < static_cast<int64>(buffer_.size())) {
+  if (position + size <= static_cast<int64>(buffer_.size())) {
     memcpy(data, &buffer_[position], size);
     message_loop_->PostTask(FROM_HERE, base::Bind(read_cb, size));
     return;
