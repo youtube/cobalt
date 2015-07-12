@@ -116,21 +116,15 @@ void SanitizeInputsForInterpolation(
   }
 
   // Don’t rotate the long way around.
-  if (*a_angle_sanitized == 0.0f) {
-    *a_angle_sanitized = 2 * kPi;
-  }
-
-  if (b.angle == 0.0f) {
-    *b_angle_sanitized = 2 * kPi;
-  } else {
-    *b_angle_sanitized = b.angle;
-  }
-
-  if (std::abs(*a_angle_sanitized - *b_angle_sanitized) > kPi) {
+  *b_angle_sanitized = b.angle;
+  float angle_difference = std::abs(*a_angle_sanitized - *b_angle_sanitized);
+  if (angle_difference > kPi) {
+    float rounded_up_revolutions_difference =
+        std::ceil(angle_difference / (2 * kPi));
     if (*a_angle_sanitized > *b_angle_sanitized) {
-      *a_angle_sanitized -= 2 * kPi;
+      *a_angle_sanitized -= 2 * kPi * rounded_up_revolutions_difference;
     } else {
-      *b_angle_sanitized -= 2 * kPi;
+      *b_angle_sanitized -= 2 * kPi * rounded_up_revolutions_difference;
     }
   }
 }
