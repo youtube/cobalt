@@ -71,5 +71,19 @@ TEST(MatrixInterpolationTest,
   EXPECT_TRUE(input.IsNear(DecomposeAndRecompose(input), 0.001f));
 }
 
+TEST(MatrixInterpolationTest, InterpolatingIdentitiesGivesIdentity) {
+  // We expect that interpolating two identity matrices will give us the
+  // identity matrix back.
+  Matrix3F a(Matrix3F::Identity());
+  Matrix3F b(Matrix3F::Identity());
+
+  static const int kNumSamples = 10;
+  for (int i = 0; i < kNumSamples + 1; ++i) {
+    math::Matrix3F interpolated =
+        InterpolateMatrices(a, b, i / static_cast<float>(kNumSamples));
+    EXPECT_EQ(Matrix3F::Identity(), interpolated);
+  }
+}
+
 }  // namespace math
 }  // namespace cobalt
