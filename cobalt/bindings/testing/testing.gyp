@@ -31,12 +31,12 @@
         'ConstantsInterface.idl',
         'ConstructorInterface.idl',
         'ConstructorWithArgumentsInterface.idl',
+        'DOMStringTestInterface.idl',
         'DerivedGetterSetterInterface.idl',
         'DerivedInterface.idl',
-        'DOMStringTestInterface.idl',
         'EnumerationInterface.idl',
-        'ExceptionsInterface.idl',
         'ExceptionObjectInterface.idl',
+        'ExceptionsInterface.idl',
         'ExtendedIDLAttributesInterface.idl',
         'GetterSetterInterface.idl',
         'GlobalInterfaceParent.idl',
@@ -91,8 +91,8 @@
         '__DISABLE_WTF_LOGGING__',
       ],
       'dependencies': [
-        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
         '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:javascriptcore',
         # generated_bindings target is defined in javascriptcore_bindings.gypi
         'generated_bindings',
       ],
@@ -103,9 +103,9 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'boolean_type_bindings_test.cc',
+        'callback_function_test.cc',
         'constants_bindings_test.cc',
         'constructor_bindings_test.cc',
-        'callback_function_test.cc',
         'dependent_interface_test.cc',
         'dom_string_bindings_test.cc',
         'enumeration_bindings_test.cc',
@@ -123,12 +123,12 @@
         'variadic_arguments_bindings_test.cc',
       ],
       'dependencies': [
-        'bindings',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'bindings',
       ],
     },
 
@@ -151,9 +151,9 @@
         'bindings_sandbox_main.cc',
       ],
       'dependencies': [
-        'bindings',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
+        'bindings',
       ]
     },
 

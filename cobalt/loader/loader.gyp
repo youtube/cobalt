@@ -63,9 +63,9 @@
       'target_name': 'loader_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'image_decoder/any_image_decoder_test.cc',
         'fetcher_factory_test.cc',
         'file_fetcher_test.cc',
+        'image_decoder/any_image_decoder_test.cc',
         'loader_test.cc',
         'text_decoder_test.cc',
       ],
@@ -75,9 +75,9 @@
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'image_decoder',
         'loader',
         'loader_copy_test_data',
-        'image_decoder',
       ],
     },
 
