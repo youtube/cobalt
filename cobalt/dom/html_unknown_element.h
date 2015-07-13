@@ -34,7 +34,7 @@ class HTMLUnknownElement : public HTMLElement {
                      const base::StringPiece& tag_name);
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE;
+  std::string tag_name() const OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLUnknownElement);
 

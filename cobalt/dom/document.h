@@ -75,7 +75,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Web API: Node
   //
   NodeType node_type() const OVERRIDE { return Node::kDocumentNode; }
-  const std::string& node_name() const OVERRIDE;
+  std::string node_name() const OVERRIDE;
 
   scoped_refptr<Node> InsertBefore(
       const scoped_refptr<Node>& new_child,

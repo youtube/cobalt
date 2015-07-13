@@ -17,6 +17,8 @@
 #ifndef DOM_TEXT_H_
 #define DOM_TEXT_H_
 
+#include <string>
+
 #include "base/string_piece.h"
 #include "cobalt/dom/character_data.h"
 
@@ -31,7 +33,7 @@ class Text : public CharacterData {
 
   // Web API: Node
   //
-  const std::string& node_name() const OVERRIDE;
+  std::string node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kTextNode; }
 
   // Custom, not in any spec: Node.

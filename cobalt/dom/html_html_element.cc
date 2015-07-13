@@ -27,9 +27,8 @@ const char* HTMLHtmlElement::kTagName = "html";
 HTMLHtmlElement::HTMLHtmlElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context) {}
 
-const std::string& HTMLHtmlElement::tag_name() const {
-  static const std::string kHtmlTagString(kTagName);
-  return kHtmlTagString;
+std::string HTMLHtmlElement::tag_name() const {
+  return kTagName;
 }
 
 HTMLHtmlElement::~HTMLHtmlElement() {}

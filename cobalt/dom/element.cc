@@ -75,8 +75,8 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
   return named_node_map;
 }
 
-const std::string& Element::tag_name() const {
-  static const std::string kElementName("#element");
+std::string Element::tag_name() const {
+  static const char* kElementName = "#element";
   return kElementName;
 }
 

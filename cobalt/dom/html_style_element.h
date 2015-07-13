@@ -36,7 +36,7 @@ class HTMLStyleElement : public HTMLElement {
   explicit HTMLStyleElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE;
+  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLStyleElement
   std::string type() const { return GetAttribute("type").value_or(""); }
