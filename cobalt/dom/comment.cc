@@ -21,8 +21,8 @@ namespace dom {
 
 Comment::Comment(const base::StringPiece& comment) : CharacterData(comment) {}
 
-const std::string& Comment::node_name() const {
-  static const std::string kCommentName("#comment");
+std::string Comment::node_name() const {
+  static const char* kCommentName = "#comment";
   return kCommentName;
 }
 

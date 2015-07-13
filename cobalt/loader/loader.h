@@ -17,6 +17,8 @@
 #ifndef LOADER_LOADER_H_
 #define LOADER_LOADER_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"

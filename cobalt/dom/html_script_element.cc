@@ -36,9 +36,8 @@ HTMLScriptElement::HTMLScriptElement(HTMLElementContext* html_element_context)
   DCHECK(html_element_context->script_runner());
 }
 
-const std::string& HTMLScriptElement::tag_name() const {
-  static const std::string kScriptTagString(kTagName);
-  return kScriptTagString;
+std::string HTMLScriptElement::tag_name() const {
+  return kTagName;
 }
 
 void HTMLScriptElement::AttachToDocument(Document* document) {
