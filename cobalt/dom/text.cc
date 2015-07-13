@@ -21,8 +21,8 @@ namespace dom {
 
 Text::Text(const base::StringPiece& text) : CharacterData(text) {}
 
-const std::string& Text::node_name() const {
-  static const std::string kTextName("#text");
+std::string Text::node_name() const {
+  static const char* kTextName = "#text";
   return kTextName;
 }
 

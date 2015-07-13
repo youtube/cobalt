@@ -51,8 +51,8 @@ Document::Document(HTMLElementContext* html_element_context,
   DCHECK(url_.is_empty() || url_.is_valid());
 }
 
-const std::string& Document::node_name() const {
-  static const std::string kDocumentName("#document");
+std::string Document::node_name() const {
+  static const char* kDocumentName = "#document";
   return kDocumentName;
 }
 

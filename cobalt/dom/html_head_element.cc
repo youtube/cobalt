@@ -27,9 +27,8 @@ const char* HTMLHeadElement::kTagName = "head";
 HTMLHeadElement::HTMLHeadElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context) {}
 
-const std::string& HTMLHeadElement::tag_name() const {
-  static const std::string kHeadTagString(kTagName);
-  return kHeadTagString;
+std::string HTMLHeadElement::tag_name() const {
+  return kTagName;
 }
 
 HTMLHeadElement::~HTMLHeadElement() {}

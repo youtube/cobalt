@@ -34,9 +34,8 @@ const char* HTMLLinkElement::kTagName = "link";
 HTMLLinkElement::HTMLLinkElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context) {}
 
-const std::string& HTMLLinkElement::tag_name() const {
-  static const std::string kLinkTagString(kTagName);
-  return kLinkTagString;
+std::string HTMLLinkElement::tag_name() const {
+  return kTagName;
 }
 
 void HTMLLinkElement::AttachToDocument(Document* document) {
