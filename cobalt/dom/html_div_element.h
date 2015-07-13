@@ -35,7 +35,7 @@ class HTMLDivElement : public HTMLElement {
   explicit HTMLDivElement(HTMLElementContext* html_element_context);
 
   // Web API: Element
-  const std::string& tag_name() const OVERRIDE;
+  std::string tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
   scoped_refptr<HTMLDivElement> AsHTMLDivElement() OVERRIDE { return this; }

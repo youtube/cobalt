@@ -17,6 +17,8 @@
 #ifndef DOM_COMMENT_H_
 #define DOM_COMMENT_H_
 
+#include <string>
+
 #include "base/string_piece.h"
 #include "cobalt/dom/character_data.h"
 
@@ -33,7 +35,7 @@ class Comment : public CharacterData {
 
   // Web API: Node
   //
-  const std::string& node_name() const OVERRIDE;
+  std::string node_name() const OVERRIDE;
   NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
 
   // Custom, not in any spec: Node.
