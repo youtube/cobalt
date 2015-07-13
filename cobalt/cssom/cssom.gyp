@@ -119,9 +119,9 @@
         'timing_function_list_value.h',
         'transform_function.cc',
         'transform_function.h',
-        'transform_function_visitor.h',
         'transform_function_list_value.cc',
         'transform_function_list_value.h',
+        'transform_function_visitor.h',
         'translate_function.cc',
         'translate_function.h',
         'type_selector.cc',
@@ -131,8 +131,8 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/cobalt/math/math.gyp:math',
+        '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
 
