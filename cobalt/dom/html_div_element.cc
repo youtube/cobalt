@@ -25,9 +25,8 @@ const char* HTMLDivElement::kTagName = "div";
 HTMLDivElement::HTMLDivElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context) {}
 
-const std::string& HTMLDivElement::tag_name() const {
-  static const std::string kDivTagString(kTagName);
-  return kDivTagString;
+std::string HTMLDivElement::tag_name() const {
+  return kTagName;
 }
 
 HTMLDivElement::~HTMLDivElement() {}

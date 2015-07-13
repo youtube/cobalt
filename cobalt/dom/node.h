@@ -123,7 +123,7 @@ class Node : public EventTarget {
   // Web API: Node
   //
   virtual NodeType node_type() const = 0;
-  virtual const std::string& node_name() const = 0;
+  virtual std::string node_name() const = 0;
 
   scoped_refptr<Document> owner_document();
   scoped_refptr<Node> parent_node() const { return parent_.get(); }

@@ -39,7 +39,7 @@ class HTMLLinkElement : public HTMLElement {
 
   // Web API: Element
   //
-  const std::string& tag_name() const OVERRIDE;
+  std::string tag_name() const OVERRIDE;
 
   // Web API: HTMLLinkElement
   //

@@ -27,9 +27,8 @@ const char* HTMLBodyElement::kTagName = "body";
 HTMLBodyElement::HTMLBodyElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context) {}
 
-const std::string& HTMLBodyElement::tag_name() const {
-  static const std::string kBodyTagString(kTagName);
-  return kBodyTagString;
+std::string HTMLBodyElement::tag_name() const {
+  return kTagName;
 }
 
 HTMLBodyElement::~HTMLBodyElement() {}
