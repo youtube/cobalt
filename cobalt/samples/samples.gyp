@@ -24,8 +24,8 @@
       'target_name': 'simple_example_lib',
       'type': 'static_library',
       'sources': [
-        'simple_example.h',
         'simple_example.cc',
+        'simple_example.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -59,9 +59,9 @@
         'simple_example_main.cc',
       ],
       'dependencies': [
-        'simple_example_lib',
-        'simple_example_content',
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        'simple_example_content',
+        'simple_example_lib',
       ],
     },
 
@@ -91,10 +91,10 @@
         'simple_example_test.cc',
       ],
       'dependencies': [
-        'simple_example_lib',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'simple_example_lib',
       ],
 
       # This section is optional and is only needed if tests are using

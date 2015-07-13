@@ -19,14 +19,14 @@
       'target_name': 'trace_event',
       'type': 'static_library',
       'sources': [
-        'json_file_outputter.cc',
-        'json_file_outputter.h',
-        'scoped_trace_to_file.cc',
-        'scoped_trace_to_file.h',
-        'scoped_event_parser_trace.cc',
-        'scoped_event_parser_trace.h',
         'event_parser.cc',
         'event_parser.h',
+        'json_file_outputter.cc',
+        'json_file_outputter.h',
+        'scoped_event_parser_trace.cc',
+        'scoped_event_parser_trace.h',
+        'scoped_trace_to_file.cc',
+        'scoped_trace_to_file.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
@@ -78,8 +78,8 @@
       'target_name': 'run_all_benchmarks',
       'type': 'static_library',
       'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/base/base.gyp:base',
+        '<(DEPTH)/cobalt/base/base.gyp:base',
         'benchmark',
       ],
       'sources': [
