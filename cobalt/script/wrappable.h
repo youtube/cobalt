@@ -46,6 +46,13 @@ class Wrappable : public base::RefCounted<Wrappable> {
   // class definition of each wrappable type.
   virtual base::TypeId GetWrappableType() = 0;
 
+  // If this function returns true, the JavaScript engine will keep the wrapper
+  // for this Wrappable from being garbage collected even if there are no strong
+  // references to it. If this Wrappable is no longer referenced from anything
+  // other than the wrapper, the wrappable will be garbage collected despite
+  // this (which will result in the Wrappable being destructed as well.)
+  virtual bool ShouldKeepWrapperAlive() { return false; }
+
  protected:
   virtual ~Wrappable() { }
 
