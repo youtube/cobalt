@@ -60,6 +60,10 @@ class EventTarget : public script::Wrappable,
   scoped_refptr<EventListener> GetAttributeEventListener(
       const std::string& type);
 
+  // script::Wrappable
+  //
+  bool ShouldKeepWrapperAlive() OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(EventTarget);
 
  protected:
