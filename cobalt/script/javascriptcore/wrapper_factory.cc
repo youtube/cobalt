@@ -15,11 +15,53 @@
  */
 #include "cobalt/script/javascriptcore/wrapper_factory.h"
 
+#include "base/lazy_instance.h"
 #include "cobalt/script/javascriptcore/jsc_object_handle.h"
+#include "cobalt/script/javascriptcore/wrapper_base.h"
+#include "third_party/WebKit/Source/JavaScriptCore/heap/WeakHandleOwner.h"
 
 namespace cobalt {
 namespace script {
 namespace javascriptcore {
+namespace {
+
+class CachedHandleOwner : public JSC::WeakHandleOwner {
+ public:
+  // Return true if handle can be reached from some root unknown to JSC.
+  // This can be used to keep a cached wrapper from being garbage collected
+  // even though there are no strong references to it.
+  bool isReachableFromOpaqueRoots(
+      JSC::Handle<JSC::Unknown> handle,
+      void* context,
+      JSC::SlotVisitor& visitor) OVERRIDE {  // NOLINT(runtime/references)
+    WrapperBase* wrapper = JSC::jsCast<WrapperBase*>(handle.get().asCell());
+    // Check if we might want to keep this cached wrapper alive despite it not
+    // being referenced anywhere
+    if (!ShouldKeepWrapperAlive(wrapper))
+      return false;
+
+    // If the implementation has only one reference, that reference must be the
+    // one on the WrapperBase object. Therefore, the wrapper is not reachable
+    // so can be garbage collected (which will in turn destroy the Wrappable).
+    return !wrapper->wrappable()->HasOneRef();
+  }
+
+ private:
+  bool ShouldKeepWrapperAlive(WrapperBase* wrapper) {
+    // If a custom property has been set on the wrapper object, we should keep
+    // it alive so that the property persists next time the object is
+    // referenced from JS.
+    if (wrapper->hasCustomProperties())
+      return true;
+
+    // Check if the wrapper should be kept alive based on the impl's state.
+    return wrapper->wrappable()->ShouldKeepWrapperAlive();
+  }
+};
+
+base::LazyInstance<CachedHandleOwner> cached_handle_owner =
+    LAZY_INSTANCE_INITIALIZER;
+}  // namespace
 
 void WrapperFactory::RegisterWrappableType(
     base::TypeId wrappable_type, const JSC::ClassInfo* class_info,
@@ -74,7 +116,8 @@ scoped_ptr<ScriptObjectHandle> WrapperFactory::CreateWrapper(
   }
   return make_scoped_ptr<ScriptObjectHandle>(
       new JSCObjectHandle(JSC::PassWeak<JSC::JSObject>(
-          it->second.create_function.Run(global_object, wrappable))));
+          it->second.create_function.Run(global_object, wrappable),
+          cached_handle_owner.Pointer())));
 }
 
 }  // namespace javascriptcore
