@@ -642,9 +642,13 @@ bool HttpStreamFactoryImpl::Job::ShouldForceSpdyWithoutSSL() const {
 }
 
 bool HttpStreamFactoryImpl::Job::ShouldForceQuic() const {
+#if defined(__LB_SHELL__)
+  return false;
+#else
   return session_->params().origin_port_to_force_quic_on == origin_.port()
       && session_->params().origin_port_to_force_quic_on != 0
       && proxy_info_.is_direct();
+#endif
 }
 
 int HttpStreamFactoryImpl::Job::DoWaitForJob() {
@@ -930,7 +934,11 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
 
   const ProxyServer& proxy_server = proxy_info_.proxy_server();
 
+#if defined(__LB_SHELL__)
+  if (false) {
+#else
   if (using_quic_) {
+#endif
     return quic_request_.Request(HostPortProxyPair(origin_, proxy_server),
                                  net_log_, io_callback_);
   }
@@ -1017,7 +1025,11 @@ int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
   if (result < 0)
     return result;
 
+#if defined(__LB_SHELL__)
+  if (false) {
+#else
   if (using_quic_) {
+#endif
     stream_ = quic_request_.ReleaseStream();
   }
 
