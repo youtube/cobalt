@@ -236,24 +236,24 @@ class Lock;
 // Keep a mention of passed variables to avoid unused variable warnings in
 // release build if these variables are only used in macros.
 #define DISCARD_2_ARGUMENTS(a, b) \
-  while (0) { \
+  do { \
     static_cast<void>(a); \
     static_cast<void>(b); \
- }
+ } while(false)
 #define DISCARD_3_ARGUMENTS(a, b, c) \
-  while (0) { \
+  do { \
     static_cast<void>(a); \
     static_cast<void>(b); \
     static_cast<void>(c); \
- }
-#define DISCARD_5_ARGUMENTS(a, b, c, d ,e) \
-  while (0) { \
+ } while(false)
+#define DISCARD_5_ARGUMENTS(a, b, c, d, e) \
+  do { \
     static_cast<void>(a); \
     static_cast<void>(b); \
     static_cast<void>(c); \
     static_cast<void>(d); \
     static_cast<void>(e); \
- }
+ } while(false)
 #define DHISTOGRAM_TIMES(name, sample) \
     DISCARD_2_ARGUMENTS(name, sample)
 
@@ -285,6 +285,35 @@ class Lock;
 // to record histogram data, and have the data submitted/uploaded via UMA.
 // Not all systems support such UMA, but if they do, the following macros
 // should work with the service.
+#if defined(__LB_SHELL__FOR_RELEASE__)
+
+#define UMA_HISTOGRAM_TIMES(name, sample) DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_MEDIUM_TIMES(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
+
+// Use this macro when times can routinely be much longer than 10 seconds.
+#define UMA_HISTOGRAM_LONG_TIMES(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
+    DISCARD_5_ARGUMENTS(name, sample, min, max, bucket_count)
+#define UMA_HISTOGRAM_COUNTS(name, sample) DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_COUNTS_100(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_COUNTS_10000(name, sample) \
+    DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
+    DISCARD_5_ARGUMENTS(name, sample, min, max, bucket_count)
+#define UMA_HISTOGRAM_MEMORY_KB(name, sample) DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_MEMORY_MB(name, sample) DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
+    DISCARD_2_ARGUMENTS(name, under_one_hundred)
+#define UMA_HISTOGRAM_BOOLEAN(name, sample) DISCARD_2_ARGUMENTS(name, sample)
+#define UMA_HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
+    DISCARD_3_ARGUMENTS(name, sample, boundary_value)
+#define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
+    DISCARD_3_ARGUMENTS(name, sample, custom_ranges)
+
+#else
 
 #define UMA_HISTOGRAM_TIMES(name, sample) UMA_HISTOGRAM_CUSTOM_TIMES( \
     name, sample, base::TimeDelta::FromMilliseconds(1), \
@@ -343,6 +372,7 @@ class Lock;
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
             base::Histogram::kUmaTargetedHistogramFlag))
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
 
 //------------------------------------------------------------------------------
 
