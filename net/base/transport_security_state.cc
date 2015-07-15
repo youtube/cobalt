@@ -944,6 +944,7 @@ static const struct HSTSPreload* GetHSTSPreload(
 // static
 bool TransportSecurityState::IsGooglePinnedProperty(const std::string& host,
                                                     bool sni_enabled) {
+#if !defined(__LB_SHELL__)
   std::string canonicalized_host = CanonicalizeHost(host);
   const struct HSTSPreload* entry =
       GetHSTSPreload(canonicalized_host, kPreloadedSTS, kNumPreloadedSTS);
@@ -957,12 +958,13 @@ bool TransportSecurityState::IsGooglePinnedProperty(const std::string& host,
     if (entry && entry->pins.required_hashes == kGoogleAcceptableCerts)
       return true;
   }
-
+#endif  // !defined(__LB_SHELL__)
   return false;
 }
 
 // static
 void TransportSecurityState::ReportUMAOnPinFailure(const std::string& host) {
+#if !defined(__LB_SHELL__)
   std::string canonicalized_host = CanonicalizeHost(host);
 
   const struct HSTSPreload* entry =
@@ -984,6 +986,7 @@ void TransportSecurityState::ReportUMAOnPinFailure(const std::string& host) {
 
   UMA_HISTOGRAM_ENUMERATION("Net.PublicKeyPinFailureDomain",
                             entry->second_level_domain_name, DOMAIN_NUM_EVENTS);
+#endif  // !defined(__LB_SHELL__)
 }
 
 // static
@@ -1013,7 +1016,7 @@ bool TransportSecurityState::GetStaticDomainState(
     bool sni_enabled,
     DomainState* out) {
   DCHECK(CalledOnValidThread());
-
+#if !defined(__LB_SHELL__)
   out->upgrade_mode = DomainState::MODE_FORCE_HTTPS;
   out->include_subdomains = false;
 
@@ -1042,7 +1045,7 @@ bool TransportSecurityState::GetStaticDomainState(
       return ret;
     }
   }
-
+#endif  // !defined(__LB_SHELL__)
   return false;
 }
 
