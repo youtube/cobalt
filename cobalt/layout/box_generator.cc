@@ -154,7 +154,7 @@ void BoxGenerator::Visit(dom::Element* element) {
   if (media_element) {
     VisitMediaElement(media_element);
   } else {
-    VisitContainerElement(html_element);
+    VisitNonReplacedElement(html_element);
   }
 }
 
@@ -168,7 +168,7 @@ void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
   boxes_.push_back(replaced_box.release());
 }
 
-void BoxGenerator::VisitContainerElement(dom::HTMLElement* html_element) {
+void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->computed_style(), html_element->transitions(),
       used_style_provider_);
