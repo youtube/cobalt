@@ -190,4 +190,19 @@
       }, # end of gold_base
     }, # end of configurations
   }, # end of target_defaults
+
+  # For configurations other than Gold, set the flag that lets test data files
+  # be copied and carried along with the build.
+  'conditions': [
+    ['cobalt_config != "Gold"', {
+      'variables' : {
+        'cobalt_copy_test_data': 1,
+      },
+    },
+    {
+      'variables' : {
+        'cobalt_copy_test_data': 0,
+      },
+    }],
+  ],
 }
