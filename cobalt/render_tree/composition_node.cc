@@ -38,8 +38,8 @@ math::RectF CompositionNode::GetBounds() const {
            data_.composed_children().begin();
        iter != data_.composed_children().end(); ++iter) {
     const ComposedChild& child = *iter;
-    math::QuadF transformed_child_bounds(iter->transform,
-                                         iter->node->GetBounds());
+    math::QuadF transformed_child_bounds(child.transform,
+                                         child.node->GetBounds());
     bounds.Union(transformed_child_bounds.BoundingBox());
   }
 
