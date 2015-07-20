@@ -70,7 +70,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                                             base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
       performance_(new Performance()),
-      relay_on_load_event_(new RelayOnLoadEvent(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          relay_on_load_event_(new RelayOnLoadEvent(this))),
       console_(new Console()),
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(

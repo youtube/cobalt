@@ -50,7 +50,7 @@ const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 HTMLMediaElement::HTMLMediaElement(HTMLElementContext* html_element_context)
     : HTMLElement(html_element_context),
       load_state_(kWaitingForSource),
-      event_queue_(this),
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.0f),
       default_playback_rate_(1.0f),
       network_state_(kNetworkEmpty),
@@ -89,7 +89,9 @@ void HTMLMediaElement::set_src(const std::string& src) {
   ScheduleLoad();
 }
 
-uint16_t HTMLMediaElement::network_state() const { return network_state_; }
+uint16_t HTMLMediaElement::network_state() const {
+  return static_cast<uint16_t>(network_state_);
+}
 
 scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   if (!player_) {
@@ -110,11 +112,14 @@ void HTMLMediaElement::Load() {
 }
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) const {
+  UNREFERENCED_PARAMETER(mime_type);
   return "probably";
 }
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) const {
+  UNREFERENCED_PARAMETER(mime_type);
+  UNREFERENCED_PARAMETER(key_system);
   return "probably";
   /*  WebMediaPlayer::SupportsType support =
         WebMediaPlayer::supportsType(content_type(mime_type), key_system);
@@ -708,8 +713,8 @@ void HTMLMediaElement::StartPlaybackProgressTimer() {
 
   previous_progress_time_ = base::Time::Now().ToDoubleT();
   playback_progress_timer_.Start(
-      FROM_HERE,
-      base::TimeDelta::FromMilliseconds(kMaxTimeupdateEventFrequency * 1000),
+      FROM_HERE, base::TimeDelta::FromMilliseconds(
+                     static_cast<int64>(kMaxTimeupdateEventFrequency * 1000)),
       this, &HTMLMediaElement::OnPlaybackProgressTimer);
 }
 
@@ -895,6 +900,7 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
 }
 
 void HTMLMediaElement::Seek(float time, ExceptionCode* ec) {
+  UNREFERENCED_PARAMETER(ec);
   // 4.8.9.9 Seeking
 
   // 1 - If the media element's readyState is
@@ -957,7 +963,7 @@ void HTMLMediaElement::Seek(float time, ExceptionCode* ec) {
     seeking_ = false;
     return;
   }
-  time = seekable_ranges->Nearest(time);
+  time = static_cast<float>(seekable_ranges->Nearest(time));
 
   if (playing_) {
     if (last_seek_time_ < now) {
@@ -1138,6 +1144,7 @@ void HTMLMediaElement::ReadyStateChanged() {
 }
 
 void HTMLMediaElement::VolumeChanged(float volume) {
+  UNREFERENCED_PARAMETER(volume);
   BeginProcessingMediaPlayerCallback();
   if (player_) {
     float vol = 1.0;  // player_->Volume();
@@ -1151,6 +1158,7 @@ void HTMLMediaElement::VolumeChanged(float volume) {
 }
 
 void HTMLMediaElement::MuteChanged(bool mute) {
+  UNREFERENCED_PARAMETER(mute);
   BeginProcessingMediaPlayerCallback();
   NOTIMPLEMENTED();
   // if (player_) { setMuted(player_->muted()); }

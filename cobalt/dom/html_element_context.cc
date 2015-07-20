@@ -29,7 +29,8 @@ HTMLElementContext::HTMLElementContext(
       css_parser_(css_parser),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
-      html_element_factory_(new HTMLElementFactory(this)) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          html_element_factory_(new HTMLElementFactory(this))) {}
 
 HTMLElementContext::~HTMLElementContext() {}
 

@@ -31,7 +31,9 @@ NamedNodeMap::NamedNodeMap(const scoped_refptr<Element>& element)
   Stats::GetInstance()->Add(this);
 }
 
-unsigned int NamedNodeMap::length() const { return attribute_names_.size(); }
+unsigned int NamedNodeMap::length() const {
+  return static_cast<unsigned int>(attribute_names_.size());
+}
 
 scoped_refptr<Attr> NamedNodeMap::Item(unsigned int item) {
   if (item < attribute_names_.size()) {

@@ -65,7 +65,7 @@ void SourceBuffer::Append(const scoped_refptr<Uint8Array>& data) {
   }
 
   if (data->length()) {
-    media_source_->Append(this, data->data(), data->length());
+    media_source_->Append(this, data->data(), static_cast<int>(data->length()));
   }
 }
 
