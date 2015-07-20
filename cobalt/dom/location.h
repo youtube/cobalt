@@ -35,10 +35,16 @@ class Location : public script::Wrappable {
 
   // Web API: Location
   std::string href() const;
-  void set_href(const std::string& search) { NOTIMPLEMENTED(); }
+  void set_href(const std::string& href) {
+    UNREFERENCED_PARAMETER(href);
+    NOTIMPLEMENTED();
+  }
 
   std::string search() const;
-  void set_search(const std::string& search) { NOTIMPLEMENTED(); }
+  void set_search(const std::string& search) {
+    UNREFERENCED_PARAMETER(search);
+    NOTIMPLEMENTED();
+  }
 
   DEFINE_WRAPPABLE_TYPE(Location);
 

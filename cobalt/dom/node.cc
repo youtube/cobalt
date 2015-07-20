@@ -379,6 +379,7 @@ void Node::DetachFromDocument() {
 }
 
 bool Node::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
+  UNREFERENCED_PARAMETER(child);
   return true;
 }
 

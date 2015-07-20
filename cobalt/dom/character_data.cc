@@ -23,6 +23,7 @@ CharacterData::CharacterData(const base::StringPiece& data)
     : data_(data.begin(), data.end()) {}
 
 bool CharacterData::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
+  UNREFERENCED_PARAMETER(child);
   // Can't attach children nodes to a character data node (text or comment).
   return false;
 }

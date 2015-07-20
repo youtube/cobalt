@@ -28,7 +28,7 @@ MediaKeyErrorEvent::MediaKeyErrorEvent(const std::string& key_system,
     : Event(EventNames::GetInstance()->keyerror(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
-      error_code_(error_code),
+      error_code_(static_cast<uint16>(error_code)),
       system_code_(system_code) {}
 
 }  // namespace dom

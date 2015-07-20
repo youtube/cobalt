@@ -24,18 +24,21 @@ namespace cobalt {
 namespace dom {
 
 Event::Event(UninitializedFlag uninitialized_flag)
-    : event_phase_(kNone), time_stamp_(base::Time::Now().ToJsTime()) {
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
   UNREFERENCED_PARAMETER(uninitialized_flag);
   InitEvent("", false, false);
 }
 
 Event::Event(const std::string& type)
-    : event_phase_(kNone), time_stamp_(base::Time::Now().ToJsTime()) {
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
   InitEvent(type, false, false);
 }
 
 Event::Event(const std::string& type, Bubbles bubbles, Cancelable cancelable)
-    : event_phase_(kNone), time_stamp_(base::Time::Now().ToJsTime()) {
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
   InitEvent(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
