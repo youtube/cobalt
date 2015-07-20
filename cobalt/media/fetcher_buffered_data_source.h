@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -45,7 +46,7 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   void Stop(const base::Closure& callback) OVERRIDE;
   bool GetSize(int64* size_out) OVERRIDE;
   bool IsStreaming() OVERRIDE { return false; }
-  void SetBitrate(int bitrate) OVERRIDE {}
+  void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
  private:
   enum State { kReading, kFinishedReading, kError };

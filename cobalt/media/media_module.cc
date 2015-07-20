@@ -16,6 +16,8 @@
 
 #include "cobalt/media/media_module.h"
 
+#include "base/compiler_specific.h"
+
 namespace cobalt {
 namespace media {
 
@@ -28,7 +30,11 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   void LoadMediaSource() OVERRIDE {}
   void LoadProgressive(const GURL& url,
                        const scoped_refptr<BufferedDataSource>& data_source,
-                       ::media::WebMediaPlayer::CORSMode cors_mode) OVERRIDE {}
+                       ::media::WebMediaPlayer::CORSMode cors_mode) OVERRIDE {
+    UNREFERENCED_PARAMETER(url);
+    UNREFERENCED_PARAMETER(data_source);
+    UNREFERENCED_PARAMETER(cors_mode);
+  }
   void CancelLoad() OVERRIDE {}
 
   // Playback controls.
@@ -36,11 +42,11 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   void Pause() OVERRIDE {}
   bool SupportsFullscreen() const OVERRIDE { return false; }
   bool SupportsSave() const OVERRIDE { return false; }
-  void Seek(float seconds) OVERRIDE {}
-  void SetEndTime(float seconds) OVERRIDE {}
-  void SetRate(float rate) OVERRIDE {}
-  void SetVolume(float volume) OVERRIDE {}
-  void SetVisible(bool visible) OVERRIDE {}
+  void Seek(float seconds) OVERRIDE { UNREFERENCED_PARAMETER(seconds); }
+  void SetEndTime(float seconds) OVERRIDE { UNREFERENCED_PARAMETER(seconds); }
+  void SetRate(float rate) OVERRIDE { UNREFERENCED_PARAMETER(rate); }
+  void SetVolume(float volume) OVERRIDE { UNREFERENCED_PARAMETER(volume); }
+  void SetVisible(bool visible) OVERRIDE { UNREFERENCED_PARAMETER(visible); }
   const ::media::Ranges<base::TimeDelta>& Buffered() OVERRIDE {
     return buffer_;
   }
@@ -72,7 +78,10 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   bool HasSingleSecurityOrigin() const OVERRIDE { return false; }
   bool DidPassCORSAccessCheck() const OVERRIDE { return false; }
 
-  float MediaTimeForTimeValue(float timeValue) const OVERRIDE { return 0.f; }
+  float MediaTimeForTimeValue(float time_value) const OVERRIDE {
+    UNREFERENCED_PARAMETER(time_value);
+    return 0.f;
+  }
 
   unsigned DecodedFrameCount() const OVERRIDE { return 0; }
   unsigned DroppedFrameCount() const OVERRIDE { return 0; }
@@ -88,6 +97,7 @@ using ::media::WebMediaPlayer;
 
 scoped_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     ::media::WebMediaPlayerClient* client) {
+  UNREFERENCED_PARAMETER(client);
   return make_scoped_ptr<WebMediaPlayer>(new DummyWebMediaPlayer);
 }
 
