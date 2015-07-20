@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+    i = 0;
+    handle = window.setTimeout(callback, 500);
+
+    function callback() {
+      i = i + 1;
+      console.log(i);
+      handle = window.setTimeout(callback, 200);
+      if (i == 10) {
+        window.clearTimeout(handle);
+      }
+    }
+  </script>
+</head>
+
+<body>
+</body>
+</html>

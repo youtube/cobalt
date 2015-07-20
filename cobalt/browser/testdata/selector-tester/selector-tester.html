@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="selector-tester.css">
+  <script type="text/javascript" src="selector-tester.js" async></script>
+</head>
+
+<body>
+  <ul id="selector-list">
+    <p>div</p>
+    <p>span</p>
+    <p>.foo</p>
+    <p>#title</p>
+    <p>:empty</p>
+    <p>span.bar</p>
+    <p>.foo.bar</p>
+    <p>.foo .foo</p>
+    <p>.bar > .bar</p>
+    <p>.foo + .bar</p>
+    <p>.foo ~ .bar</p>
+    <p>.bar > .foo + .bar</p>
+    <p>div, .foo</p>
+    <p>div, span</p>
+  </ul>
+
+  <p class="white">|</p>
+  <p>__________________________________________________________</p>
+  <p class="white">|</p>
+
+  <div id="title">
+  <markup>&lt;div id="titile"&gt;</markup>
+    Hello, Cobalt!
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <div>
+  <markup>&lt;div&gt;</markup>
+    div
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <span>
+  <markup>&lt;span&gt;</markup>
+    span
+  <markup>&lt;/span&gt;</markup>
+  </span>
+
+  <div class="foo">
+  <markup>&lt;div class="foo"&gt;</markup>
+    foo div
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <span class="foo">
+  <markup>&lt;span class="foo"&gt;</markup>
+    foo span
+  <markup>&lt;/span&gt;</markup>
+  </span>
+
+  <div class="bar">
+  <markup>&lt;div class="bar"&gt;</markup>
+    bar div
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <span class="bar">
+  <markup>&lt;span class="bar"&gt;</markup>
+    bar span
+  <markup>&lt;/span&gt;</markup>
+  </span>
+
+  <div class="foo bar">
+  <markup>&lt;div class="foo bar"&gt;</markup>
+    foo bar div
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <p class="white">|</p>
+
+  <div class="foo">
+  <markup>&lt;div class="foo"&gt;</markup>
+  <p/>
+    outer foo div
+    <div class="bar">
+    <markup>&lt;div class="bar"&gt;</markup>
+    <p/>
+      middle bar div
+      <div class="foo">
+      <markup>&lt;div class="foo"&gt;</markup>
+        inner foo div
+      <markup>&lt;/div&gt;</markup>
+      </div>
+
+      <div class="bar">
+      <markup>&lt;div class="bar"&gt;</markup>
+        inner bar div
+      <markup>&lt;/div&gt;</markup>
+      </div>
+
+      <span class="bar">
+      <markup>&lt;span class="bar"&gt;</markup>
+        inner bar span
+      <markup>&lt;/span&gt;</markup>
+      </span>
+    <p/>
+    <markup>&lt;/div&gt;</markup>
+    </div>
+  <p/>
+  <markup>&lt;/div&gt;</markup>
+  </div>
+
+  <p class="white">|</p>
+
+  <div><!--comment--></div>
+  <markup>&lt;div&gt;&lt;!--comment--&gt;&lt;/div&gt;</markup>
+
+</body>
+</html>

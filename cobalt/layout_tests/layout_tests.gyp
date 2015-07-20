@@ -24,9 +24,9 @@
         '<(DEPTH)/base/base.gyp:run_all_unittests',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-        # Depend on dom_copy_test_data so that we ensure external tests files
-        # from DOM that we link to are available.
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
+        # Depend on browser_copy_test_data so that we ensure external tests
+        # files from browser that we link to are available.
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:render_tree_pixel_tester',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/testing/gmock.gyp:gmock',

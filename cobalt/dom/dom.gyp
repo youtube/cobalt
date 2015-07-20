@@ -166,23 +166,6 @@
     },
 
     {
-      'target_name': 'dom_copy_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'dom_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/dom/testdata/',
-            ],
-            'output_dir': 'cobalt/dom/testdata/',
-          },
-          'includes': [ '../build/copy_data.gypi' ],
-        },
-      ],
-    },
-
-    {
       'target_name': 'dom_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -220,7 +203,18 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'dom',
-        'dom_copy_test_data',
+      ],
+      'actions': [
+        {
+          'action_name': 'dom_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/dom/testdata/',
+            ],
+            'output_dir': 'cobalt/dom/testdata/',
+          },
+          'includes': [ '../build/copy_data.gypi' ],
+        },
       ],
     },
 
