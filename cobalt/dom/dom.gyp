@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'cobalt_code': 1,
+  },
   'targets': [
     {
       'target_name': 'dom',
@@ -153,6 +156,12 @@
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
+      ],
+      'conditions': [
+        ['actual_target_arch=="win"', {
+          # Disable warning C4702: unreachable code in xtree.
+          'msvs_disabled_warnings': [ 4702 ],
+        }],
       ],
     },
 

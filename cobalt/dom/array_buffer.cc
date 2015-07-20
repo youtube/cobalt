@@ -26,9 +26,10 @@ ArrayBuffer::ArrayBuffer(uint32 length) : bytes_(length) {}
 scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(int start, int end) {
   int clamped_start;
   int clamped_end;
-  ClampRange(start, end, byte_length(), &clamped_start, &clamped_end);
+  ClampRange(start, end, static_cast<int>(byte_length()), &clamped_start,
+             &clamped_end);
   scoped_refptr<ArrayBuffer> slice(
-      new ArrayBuffer(clamped_end - clamped_start));
+      new ArrayBuffer(static_cast<uint32>(clamped_end - clamped_start)));
   slice->bytes_.insert(slice->bytes_.begin(), bytes_.begin() + clamped_start,
                        bytes_.begin() + clamped_end);
   return slice;

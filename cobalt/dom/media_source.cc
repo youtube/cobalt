@@ -112,7 +112,7 @@ void MediaSource::Registry::Unregister(const std::string& blob_url) {
 MediaSource::MediaSource()
     : ready_state_(kReadyStateClosed),
       player_(NULL),
-      event_queue_(this),
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(&event_queue_)) {}
 
 scoped_refptr<SourceBufferList> MediaSource::source_buffers() const {
@@ -286,7 +286,8 @@ scoped_refptr<TimeRanges> MediaSource::GetBuffered(
   ::media::Ranges<base::TimeDelta> media_time_ranges =
       player_->SourceBuffered(source_buffer->id());
   scoped_refptr<TimeRanges> dom_time_ranges = new TimeRanges;
-  for (size_t index = 0; index < media_time_ranges.size(); ++index) {
+  for (int index = 0; index < static_cast<int>(media_time_ranges.size());
+       ++index) {
     dom_time_ranges->Add(media_time_ranges.start(index).InSecondsF(),
                          media_time_ranges.end(index).InSecondsF());
   }
@@ -336,7 +337,7 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
   while (offset < size) {
     int chunk_size = std::min(size - offset, kMaxAppendSize);
     if (!player_->SourceAppend(source_buffer->id(), buffer + offset,
-                               chunk_size)) {
+                               static_cast<unsigned int>(chunk_size))) {
       // TODO(***REMOVED***): raise SYNTAX_ERR.
       NOTREACHED();
       return;

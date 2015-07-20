@@ -60,7 +60,7 @@ TEST(EventTest, TimeStamp) {
   // increasing, we use a 60 seconds episilon as it is large enough to ensure
   // the test is not flaky but small enough to no being affected by any zoning
   // issue.
-  uint64 now_in_js = base::Time::Now().ToJsTime();
+  uint64 now_in_js = static_cast<uint64>(base::Time::Now().ToJsTime());
   uint64 episilon_in_ms = base::Time::kMillisecondsPerSecond * 60;
   scoped_refptr<Event> event = new Event("event");
 
@@ -69,7 +69,7 @@ TEST(EventTest, TimeStamp) {
 
 TEST(EventTest, InitEvent) {
   scoped_refptr<Event> event = new Event("event_1");
-  double time_stamp = event->time_stamp();
+  double time_stamp = static_cast<double>(event->time_stamp());
 
   event->StopImmediatePropagation();
   event->PreventDefault();
