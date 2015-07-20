@@ -40,7 +40,7 @@ std::string GetInitialURL() {
   }
 
   static const char* kDefaultInitialURL =
-      "file:///cobalt/dom/testdata/cobalt-oxide/cobalt-oxide.html";
+      "file:///cobalt/browser/testdata/performance-spike/index.html";
   return std::string(kDefaultInitialURL);
 }
 
