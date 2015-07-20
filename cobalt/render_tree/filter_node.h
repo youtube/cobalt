@@ -35,13 +35,13 @@ class FilterNode : public Node {
     Builder(const OpacityFilter& opacity_filter,
             const scoped_refptr<render_tree::Node>& source);
 
-    // The source tree, which will be used as the input to the filters specified
-    // in this FilterNode.
-    scoped_refptr<render_tree::Node> source;
-
     // If set, this filter will make the source subtree appear transaprent,
     // with the level of transparency dictated by the OpacityFilter's value.
     base::optional<OpacityFilter> opacity_filter;
+
+    // The source tree, which will be used as the input to the filters specified
+    // in this FilterNode.
+    scoped_refptr<render_tree::Node> source;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
