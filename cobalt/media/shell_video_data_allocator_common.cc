@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
@@ -51,6 +52,8 @@ ShellVideoDataAllocatorCommon::ShellVideoDataAllocatorCommon(
 scoped_refptr<ShellVideoDataAllocator::FrameBuffer>
 ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
                                                    size_t alignment) {
+  UNREFERENCED_PARAMETER(size);
+  UNREFERENCED_PARAMETER(alignment);
   scoped_ptr<RawImageMemory> raw_image_memory =
       resource_provider_->AllocateRawImageMemory(kMaxYUVFrameSizeInBytes,
                                                  kVideoFrameAlignment);
