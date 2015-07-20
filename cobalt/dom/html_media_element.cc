@@ -222,9 +222,9 @@ void HTMLMediaElement::CancelKeyRequest(
   }
 
   // The rest is handled by WebMediaPlayer::CancelKeyRequest().
-  WebMediaPlayer::MediaKeyException exception =
-      player_->CancelKeyRequest(key_system, session_id.value_or(""));
-  // TODO(***REMOVED***): Throw exception according to 'exception'.
+  player_->CancelKeyRequest(key_system, session_id.value_or(""));
+  // TODO(***REMOVED***): Throw exception according to CancelKeyRequest's return
+  // value.
 }
 
 WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
