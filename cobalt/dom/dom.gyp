@@ -13,8 +13,10 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'cobalt_code': 1,
+  },
   'targets': [
-
     {
       'target_name': 'dom',
       'type': 'static_library',
@@ -227,6 +229,5 @@
       },
       'includes': [ '../build/deploy.gypi' ],
     },
-
   ],
 }
