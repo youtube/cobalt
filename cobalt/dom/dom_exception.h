@@ -38,7 +38,7 @@ class DOMException : public script::Wrappable {
   explicit DOMException(ExceptionCode code);
   DOMException(ExceptionCode code, const std::string& message);
 
-  uint16 code() const { return code_; }
+  uint16 code() const { return static_cast<uint16>(code_); }
   const std::string& name() const { return name_; }
   const std::string& message() const { return message_; }
 

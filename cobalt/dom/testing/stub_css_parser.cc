@@ -28,30 +28,44 @@ namespace testing {
 
 scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(input);
+  UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSStyleSheet();
 }
 
 scoped_refptr<cssom::CSSStyleRule> StubCSSParser::ParseStyleRule(
     const std::string& input, const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(input);
+  UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSStyleRule(cssom::Selectors(), NULL);
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData>
 StubCSSParser::ParseDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(input);
+  UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSStyleDeclarationData();
 }
 
 scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location) {
+  UNREFERENCED_PARAMETER(property_name);
+  UNREFERENCED_PARAMETER(property_value);
+  UNREFERENCED_PARAMETER(property_location);
   return NULL;
 }
 
 void StubCSSParser::ParsePropertyIntoStyle(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location,
-    cssom::CSSStyleDeclarationData* style_declaration) {}
+    cssom::CSSStyleDeclarationData* style_declaration) {
+  UNREFERENCED_PARAMETER(property_name);
+  UNREFERENCED_PARAMETER(property_value);
+  UNREFERENCED_PARAMETER(property_location);
+  UNREFERENCED_PARAMETER(style_declaration);
+}
 
 }  // namespace testing
 }  // namespace dom

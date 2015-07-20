@@ -46,7 +46,7 @@ unsigned int DOMTokenList::length() const {
   // Custom, not in any spec.
   MaybeRefresh();
 
-  return tokens_.size();
+  return static_cast<unsigned int>(tokens_.size());
 }
 
 // Algorithm for Item:

@@ -94,7 +94,7 @@ void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
 template <typename NodeIterator>
 unsigned int NodeCollection<NodeIterator>::length() const {
   MaybeRefreshCollection();
-  return cached_collection_.size();
+  return static_cast<unsigned int>(cached_collection_.size());
 }
 
 template <typename NodeIterator>
@@ -111,7 +111,7 @@ template <typename NodeIterator>
 scoped_refptr<Element> NodeCollection<NodeIterator>::NamedItem(
     const std::string& name) const {
   MaybeRefreshCollection();
-  for (int i = 0; i < cached_collection_.size(); ++i) {
+  for (size_t i = 0; i < cached_collection_.size(); ++i) {
     scoped_refptr<Element> element = cached_collection_[i];
     if (element && element->id() == name) {
       return element;
