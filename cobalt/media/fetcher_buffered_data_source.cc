@@ -48,6 +48,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
                                      const ReadCB& read_cb) {
   DCHECK_GE(position, 0);
   DCHECK_GE(size, 0);
+
   base::AutoLock auto_lock(lock_);
   DCHECK(pending_read_cb_.is_null());
   if (state_ == kError) {
@@ -55,13 +56,17 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
     return;
   }
 
+  int64 buffer_size = static_cast<int64>(buffer_.size());
+  DCHECK_GE(buffer_size, 0);
+
   if (state_ == kFinishedReading) {
-    position = std::min<int>(position, buffer_.size());
-    size = std::min<int>(size, buffer_.size() - position);
+    position = std::min(position, buffer_size);
+    size = static_cast<int>(std::min<int64>(size, buffer_size - position));
   }
 
-  if (position + size <= static_cast<int64>(buffer_.size())) {
-    memcpy(data, &buffer_[position], size);
+  if (position + size <= buffer_size) {
+    memcpy(data, &buffer_[static_cast<size_t>(position)],
+           static_cast<size_t>(size));
     message_loop_->PostTask(FROM_HERE, base::Bind(read_cb, size));
     return;
   }
@@ -92,7 +97,8 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
   if (state_ == kFinishedReading) {
     // No need to acquire the lock as when state_ is kFinishedReading the
     // fetcher_ will no longer call any callbacks.
-    *size_out = buffer_.size();
+    *size_out = static_cast<int64>(buffer_.size());
+    DCHECK_GE(*size_out, 0);
     return true;
   }
   return false;
@@ -118,6 +124,9 @@ void FetcherBufferedDataSource::OnDone() {
 }
 
 void FetcherBufferedDataSource::OnError(const std::string& error) {
+  DLOG(ERROR) << "FetcherBufferedDataSource::OnError() called with error "
+              << error;
+
   DCHECK_EQ(state_, kReading);
   base::AutoLock auto_lock(lock_);
   state_ = kError;
