@@ -27,8 +27,8 @@
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        # Use test data from dom to avoid keeping two copies of video files.
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
+        # Use test data from browser to avoid keeping two copies of video files.
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',

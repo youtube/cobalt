@@ -24,12 +24,14 @@
         'main.cc',
       ],
       'dependencies': [
-        # TODO(***REMOVED***): This is only for testing and should be removed for
-        #               production build.
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_copy_test_data',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
         'browser',
+      ],
+      'conditions': [
+        ['cobalt_copy_test_data == 1', {
+          'dependencies': ['browser_copy_test_data'],
+        }],
       ],
     },
 
@@ -73,6 +75,23 @@
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+      ],
+    },
+
+    {
+      'target_name': 'browser_copy_test_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'browser_copy_test_data',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/browser/testdata/',
+            ],
+            'output_dir': 'cobalt/browser/testdata/',
+          },
+          'includes': [ '../build/copy_data.gypi' ],
+        },
       ],
     },
   ],
