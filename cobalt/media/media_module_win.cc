@@ -16,6 +16,8 @@
 
 #include "cobalt/media/media_module.h"
 
+#include "base/compiler_specific.h"
+
 namespace cobalt {
 namespace media {
 
@@ -23,6 +25,7 @@ namespace media {
 // directly on Windows. So MediaModule on windows does nothing.
 scoped_ptr<MediaModule> MediaModule::Create(
     render_tree::ResourceProvider* resource_provider) {
+  UNREFERENCED_PARAMETER(resource_provider);
   return make_scoped_ptr(new MediaModule);
 }
 
