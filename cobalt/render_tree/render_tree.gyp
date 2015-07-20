@@ -13,6 +13,10 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'cobalt_code': 1,
+  },
+
   'targets': [
     # Compiles code related to the definition of the render tree.  The render
     # tree is the output of the layout stage and the input to the rendering
