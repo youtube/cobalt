@@ -28,8 +28,8 @@ MediaKeyMessageEvent::MediaKeyMessageEvent(
             kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
-      message_(message),
-      default_url_(default_url) {}
+      default_url_(default_url),
+      message_(message) {}
 
 }  // namespace dom
 }  // namespace cobalt
