@@ -64,9 +64,9 @@ bool TimeRanges::Contains(double time) const {
 
 void TimeRanges::Add(double start, double end) {
   // Use index instead of iterator as we are going to modify ranges_.
-  uint32 lower_bound =
+  uint32 lower_bound = static_cast<uint32>(
       std::lower_bound(ranges_.begin(), ranges_.end(), start, LessThan) -
-      ranges_.begin();
+      ranges_.begin());
   ranges_.insert(ranges_.begin() + lower_bound, TimeRange(start, end));
   while (ranges_.size() > lower_bound + 1) {
     if (!ranges_[lower_bound].IsOverlapped(ranges_[lower_bound + 1])) {

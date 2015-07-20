@@ -34,7 +34,7 @@ scoped_refptr<NodeList> NodeList::CreateWithChildren(
 
 unsigned int NodeList::length() {
   MaybeRefreshCollection();
-  return cached_collection_.size();
+  return static_cast<unsigned int>(cached_collection_.size());
 }
 
 scoped_refptr<Node> NodeList::Item(unsigned int item) {
