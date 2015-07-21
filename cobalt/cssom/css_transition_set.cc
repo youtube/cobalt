@@ -66,8 +66,8 @@ TransitionSet::TransitionSet() {}
 
 void TransitionSet::UpdateTransitions(
     const base::Time& current_time,
-    const cssom::CSSStyleDeclarationData& source_computed_style,
-    const cssom::CSSStyleDeclarationData& destination_computed_style) {
+    const CSSStyleDeclarationData& source_computed_style,
+    const CSSStyleDeclarationData& destination_computed_style) {
   TimeListValue* transition_duration =
       base::polymorphic_downcast<TimeListValue*>(
           destination_computed_style.transition_duration().get());
@@ -177,7 +177,7 @@ void TransitionSet::UpdateTransitionForProperty(
     const char* property_name, const base::Time& current_time,
     const scoped_refptr<PropertyValue>& start_value,
     const scoped_refptr<PropertyValue>& end_value,
-    const cssom::CSSStyleDeclarationData& transition_style) {
+    const CSSStyleDeclarationData& transition_style) {
   // This method essentially implements the logic defined at
   //   http://www.w3.org/TR/css3-transitions/#starting
 
@@ -267,7 +267,7 @@ const Transition* TransitionSet::GetTransitionForProperty(
 
 void TransitionSet::ApplyTransitions(
     const base::Time& current_time,
-    cssom::CSSStyleDeclarationData* target_style) const {
+    CSSStyleDeclarationData* target_style) const {
   // For each animatable property, check if it's transitioning, and if so,
   // evaluate its new animated value given the current time and update the
   // target_style.
