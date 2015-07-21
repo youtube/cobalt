@@ -46,8 +46,8 @@ class TransitionSet {
   // transitions.  The implementation of this method is defined here:
   //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
   void UpdateTransitions(const base::Time& current_time,
-                         const cssom::CSSStyleDeclarationData& source,
-                         const cssom::CSSStyleDeclarationData& destination);
+                         const CSSStyleDeclarationData& source,
+                         const CSSStyleDeclarationData& destination);
 
   // Given the name of a property, returns the active transition corresponding
   // to it.  If no transition currently exists for this property, this method
@@ -61,14 +61,14 @@ class TransitionSet {
   // transitioning by this TransitionSet.  Non-animated properties are not
   // adjusted on the target style.
   void ApplyTransitions(const base::Time& current_time,
-                        cssom::CSSStyleDeclarationData* target_style) const;
+                        CSSStyleDeclarationData* target_style) const;
 
  private:
   void UpdateTransitionForProperty(
       const char* property_name, const base::Time& current_time,
       const scoped_refptr<PropertyValue>& source_value,
       const scoped_refptr<PropertyValue>& destination_value,
-      const cssom::CSSStyleDeclarationData& transition_style);
+      const CSSStyleDeclarationData& transition_style);
 
   // Inserts or replaces an existing value in the internal map.  Essentially
   // this method behaves like InternalTransitionMap::operator[], but does not
