@@ -73,7 +73,9 @@ class DummyImage : public Image {
 };
 
 class DummyBrush : public Brush {
-  void Accept(BrushVisitor* visitor) const OVERRIDE {}
+  void Accept(BrushVisitor* visitor) const OVERRIDE {
+    UNREFERENCED_PARAMETER(visitor);
+  }
 };
 
 }  // namespace
@@ -99,6 +101,7 @@ namespace {
 class DummyFont : public Font {
  public:
   cobalt::math::RectF GetBounds(const std::string& text) const OVERRIDE {
+    UNREFERENCED_PARAMETER(text);
     return cobalt::math::RectF();
   }
 
