@@ -280,5 +280,40 @@ void Document::SetHtmlInternal(HTMLHtmlElement* value) {
   }
 }
 
+void Document::UpdateMatchingRules(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
+  if (rule_matches_dirty_) {
+    TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
+    html()->UpdateMatchingRulesRecursively(user_agent_style_sheet,
+                                           style_sheets());
+
+    rule_matches_dirty_ = false;
+  }
+}
+
+void Document::UpdateComputedStyles(
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
+  TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
+
+  UpdateMatchingRules(user_agent_style_sheet);
+
+  if (computed_style_dirty_) {
+    // Determine the official time that this style change event took place. This
+    // is needed (as opposed to repeatedly calling base::Time::Now()) because
+    // all animations that may be triggered here must start at the exact same
+    // time if they were triggered in the same style change event.
+    //   http://www.w3.org/TR/css3-transitions/#starting
+    base::Time style_change_event_time = base::Time::Now();
+
+    TRACE_EVENT0("cobalt::layout", "UpdateComputedStyle");
+    html()->UpdateComputedStyleRecursively(root_computed_style,
+                                           style_change_event_time, true);
+
+    computed_style_dirty_ = false;
+  }
+}
+
 }  // namespace dom
 }  // namespace cobalt

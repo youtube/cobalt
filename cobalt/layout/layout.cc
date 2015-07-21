@@ -17,17 +17,16 @@
 #include "cobalt/layout/layout.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/box_generator.h"
-#include "cobalt/layout/computed_style.h"
-#include "cobalt/layout/html_elements.h"
 #include "cobalt/layout/initial_containing_block.h"
-#include "cobalt/layout/specified_style.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 
@@ -44,13 +43,20 @@ RenderTreeWithAnimations Layout(
   scoped_refptr<dom::Document> document = window->document();
 
   // Update the computed style of all elements in the DOM, if necessary.
-  UpdateComputedStyles(window, user_agent_style_sheet);
+  scoped_refptr<cssom::CSSStyleDeclarationData> initial_containing_block_style =
+      CreateInitialContainingBlockComputedStyle(window);
+
+  document->UpdateComputedStyles(
+      initial_containing_block_style,
+      user_agent_style_sheet);
 
   UsedStyleProvider used_style_provider(resource_provider, image_cache);
 
   // Create initial containing block.
   scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =
-      CreateInitialContainingBlock(window, &used_style_provider);
+      CreateInitialContainingBlock(
+          initial_containing_block_style, window->document(),
+          &used_style_provider);
 
   // Generate boxes.
   {

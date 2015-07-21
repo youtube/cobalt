@@ -17,16 +17,16 @@
 #include "cobalt/layout/initial_containing_block.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
+#include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
-#include "cobalt/layout/specified_style.h"
-#include "cobalt/layout/computed_style.h"
 
 namespace cobalt {
 namespace layout {
@@ -110,22 +110,20 @@ void PropagateBackgroundStyleToInitialStyle(
 }
 
 scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const scoped_refptr<dom::Window>& window,
+    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+        initial_containing_block_style,
+    const scoped_refptr<dom::Document>& document,
     const UsedStyleProvider* used_style_provider) {
   TRACE_EVENT0("cobalt::layout", "CreateInitialContainingBlock");
-
-  scoped_refptr<cssom::CSSStyleDeclarationData>
-      initial_containing_block_computed_style =
-          CreateInitialContainingBlockComputedStyle(window);
 
   // The background color and image style may need to be propagated up from the
   // <body> element to the parent <html> element.
   //   http://www.w3.org/TR/css3-background/#body-background
   PropagateBackgroundStyleToInitialStyle(
-      window->document(), initial_containing_block_computed_style);
+      document, initial_containing_block_style);
 
   return make_scoped_ptr(new BlockLevelBlockContainerBox(
-      initial_containing_block_computed_style,
+      initial_containing_block_style,
       cssom::TransitionSet::EmptyTransitionSet(), used_style_provider));
 }
 

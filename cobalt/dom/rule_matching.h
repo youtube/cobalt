@@ -20,7 +20,6 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/style_sheet_list.h"
-#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
@@ -37,17 +36,6 @@ void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     dom::HTMLElement* element, cssom::RulesWithCascadePriority* matching_rules,
     cssom::Origin origin);
-
-// Scans the user agent style sheet and all style sheets in the given style
-// sheet list and updates the matching rules of the root element and its
-// descendants by performing rule matching. Only a subset of selectors is
-// supported as specified here:
-//   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
-// Those selectors that are supported are implemented after Selectors Level 4.
-//   http://www.w3.org/TR/selectors4/
-void UpdateMatchingRules(
-    const scoped_refptr<dom::Document>& document,
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
 }  // namespace dom
 }  // namespace cobalt

@@ -16,10 +16,10 @@
 
 #include "cobalt/layout/block_formatting_block_container_box.h"
 
+#include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/block_formatting_context.h"
-#include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/used_style.h"
 
 namespace cobalt {
