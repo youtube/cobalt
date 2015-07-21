@@ -13,9 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'cobalt_code': 1,
-  },
   'targets': [
     {
       'target_name': 'dom',
