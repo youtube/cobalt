@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
@@ -26,7 +27,6 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
-#include "cobalt/layout/computed_style.h"
 #include "cobalt/layout/inline_container_box.h"
 #include "cobalt/layout/replaced_box.h"
 #include "cobalt/layout/text_box.h"

@@ -25,6 +25,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/mutation_observer.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
 
 namespace cobalt {
@@ -83,33 +84,32 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style() const {
     return computed_style_;
   }
-  // TODO(***REMOVED***): Get rid of this setter by moving the update of a computed
-  // style into HTMLElement class.
-  void set_computed_style(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& computed_style) {
-    DCHECK(computed_style);
-    computed_style_invalid_ = false;
-    computed_style_ = computed_style;
-  }
-
-  // Returns true if the computed style for this node must be re-computed.
-  // In this case, the old value of computed style is still needed so that
-  // we can use it to determine transitions.
-  bool computed_style_invalid() const { return computed_style_invalid_; }
 
   // Used by layout engine to cache the rule matching results.
   cssom::RulesWithCascadePriority* matching_rules() {
     return matching_rules_.get();
   }
-  // TODO(***REMOVED***): Get rid of this setter by moving the update of matching rules
-  // into HTMLElement class.
-  void set_matching_rules(
-      scoped_ptr<cssom::RulesWithCascadePriority> matching_rules) {
-    matching_rules_ = matching_rules.Pass();
 
-    // Invalidate the computed style of this node.
-    computed_style_invalid_ = true;
-  }
+  // Updates the cached set of CSS rules that match with this HTML element.
+  void UpdateMatchingRules(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+  // Calls UpdateMatchingRules() on itself and all descendants.
+  void UpdateMatchingRulesRecursively(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+
+  // Updates the cached computed style of one HTML element.
+  //   http://www.w3.org/TR/css-cascade-3/#value-stages
+  void UpdateComputedStyle(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          parent_computed_style,
+      const base::Time& style_change_event_time, bool ancestors_were_valid);
+  // Calls UpdateComputedStyle() on itself and all descendants.
+  void UpdateComputedStyleRecursively(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+          parent_computed_style,
+      const base::Time& style_change_event_time, bool ancestors_were_valid);
 
   cssom::TransitionSet* transitions() { return &transitions_; }
 
@@ -131,7 +131,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
-  bool computed_style_invalid_;
+  bool computed_style_valid_;
 };
 
 }  // namespace dom
