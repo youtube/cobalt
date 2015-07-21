@@ -24,7 +24,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/embedded_resources.h"  // Generated file.
-#include "cobalt/layout/html_elements.h"
+#include "cobalt/layout/initial_containing_block.h"
 #include "cobalt/layout/layout.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
@@ -174,7 +174,9 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     // Update our computed style before running animation callbacks, so that
     // any transitioning elements adjusted during the animation callback will
     // transition from their previously set value.
-    UpdateComputedStyles(window_, user_agent_style_sheet_);
+    document_->UpdateComputedStyles(
+        CreateInitialContainingBlockComputedStyle(window_),
+        user_agent_style_sheet_);
   }
 
   window_->RunAnimationFrameCallbacks();
