@@ -171,15 +171,20 @@ class Document : public Node, public cssom::MutationObserver {
   // From cssom::MutationObserver.
   void OnCSSMutation() OVERRIDE;
 
-  // Marks the document as no longer needing to do a rule match / recalculate
-  // computed style before the next layout.
-  void clear_rule_matches_dirty() { rule_matches_dirty_ = false; }
-  void clear_computed_style_dirty() { computed_style_dirty_ = false; }
+  // Scans the user agent style sheet and all style sheets in the document's
+  // style sheet list and updates the cached matching rules of the document's
+  // elements by performing rule matching. Only a subset of selectors is
+  // supported as specified here:
+  //   http://***REMOVED***cobalt-css#heading=h.s82z8u3l3se
+  // Those selectors that are supported are implemented after Selectors Level 4.
+  //   http://www.w3.org/TR/selectors4/
+  void UpdateMatchingRules(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
-  // Returns true if the document should have rule matches / computed style
-  // recomputed for its elements before the next layout.
-  bool rule_matches_dirty() const { return rule_matches_dirty_; }
-  bool computed_style_dirty() const { return computed_style_dirty_; }
+  // Updates the computed styles of all of this document's HTML elements.
+  void UpdateComputedStyles(
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
   // Called when the inline style of an element is modified.
   void OnElementInlineStyleMutation();
