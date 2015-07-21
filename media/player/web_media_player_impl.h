@@ -110,105 +110,104 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      AudioRendererSink* audio_renderer_sink,
                      MessageLoopFactory* message_loop_factory,
                      MediaLog* media_log);
-  virtual ~WebMediaPlayerImpl();
+  ~WebMediaPlayerImpl() OVERRIDE;
 
-  virtual void LoadMediaSource();
-  virtual void LoadProgressive(
-      const GURL& url,
-      const scoped_refptr<BufferedDataSource>& data_source,
-      CORSMode cors_mode);
-  virtual void CancelLoad();
+  void LoadMediaSource() OVERRIDE;
+  void LoadProgressive(const GURL& url,
+                       const scoped_refptr<BufferedDataSource>& data_source,
+                       CORSMode cors_mode) OVERRIDE;
+  void CancelLoad() OVERRIDE;
 
   // Playback controls.
-  virtual void Play();
-  virtual void Pause();
-  virtual bool SupportsFullscreen() const;
-  virtual bool SupportsSave() const;
-  virtual void Seek(float seconds);
-  virtual void SetEndTime(float seconds);
-  virtual void SetRate(float rate);
-  virtual void SetVolume(float volume);
-  virtual void SetVisible(bool visible);
+  void Play() OVERRIDE;
+  void Pause() OVERRIDE;
+  bool SupportsFullscreen() const OVERRIDE;
+  bool SupportsSave() const OVERRIDE;
+  void Seek(float seconds) OVERRIDE;
+  void SetEndTime(float seconds) OVERRIDE;
+  void SetRate(float rate) OVERRIDE;
+  void SetVolume(float volume) OVERRIDE;
+  void SetVisible(bool visible) OVERRIDE;
   virtual bool GetTotalBytesKnown();
-  virtual const Ranges<base::TimeDelta>& Buffered();
-  virtual float MaxTimeSeekable() const;
+  const Ranges<base::TimeDelta>& Buffered() OVERRIDE;
+  float MaxTimeSeekable() const OVERRIDE;
 
   // True if the loaded media has a playable video/audio track.
-  virtual bool HasVideo() const;
-  virtual bool HasAudio() const;
+  bool HasVideo() const OVERRIDE;
+  bool HasAudio() const OVERRIDE;
 
   // Dimensions of the video.
-  virtual gfx::Size NaturalSize() const;
+  gfx::Size NaturalSize() const OVERRIDE;
 
   // Getters of playback state.
-  virtual bool Paused() const;
-  virtual bool Seeking() const;
-  virtual float Duration() const;
-  virtual float CurrentTime() const;
+  bool Paused() const OVERRIDE;
+  bool Seeking() const OVERRIDE;
+  float Duration() const OVERRIDE;
+  float CurrentTime() const OVERRIDE;
 
   // Get rate of loading the resource.
-  virtual int32 DataRate() const;
+  int32 DataRate() const OVERRIDE;
 
   // Internal states of loading and network.
   // TODO(hclam): Ask the pipeline about the state rather than having reading
   // them from members which would cause race conditions.
-  virtual WebMediaPlayer::NetworkState GetNetworkState() const;
-  virtual WebMediaPlayer::ReadyState GetReadyState() const;
+  WebMediaPlayer::NetworkState GetNetworkState() const OVERRIDE;
+  WebMediaPlayer::ReadyState GetReadyState() const OVERRIDE;
 
-  virtual bool DidLoadingProgress() const;
-  virtual unsigned long long TotalBytes() const;
+  bool DidLoadingProgress() const OVERRIDE;
+  unsigned long long TotalBytes() const OVERRIDE;
 
-  virtual bool HasSingleSecurityOrigin() const;
-  virtual bool DidPassCORSAccessCheck() const;
+  bool HasSingleSecurityOrigin() const OVERRIDE;
+  bool DidPassCORSAccessCheck() const OVERRIDE;
 
-  virtual float MediaTimeForTimeValue(float timeValue) const;
+  float MediaTimeForTimeValue(float timeValue) const OVERRIDE;
 
-  virtual unsigned DecodedFrameCount() const;
-  virtual unsigned DroppedFrameCount() const;
-  virtual unsigned AudioDecodedByteCount() const;
-  virtual unsigned VideoDecodedByteCount() const;
+  unsigned DecodedFrameCount() const OVERRIDE;
+  unsigned DroppedFrameCount() const OVERRIDE;
+  unsigned AudioDecodedByteCount() const OVERRIDE;
+  unsigned VideoDecodedByteCount() const OVERRIDE;
 
   // TODO(***REMOVED***) : Investigate if we should make ShellVideoFrameProvider
   // into a non-singleton class to support play back multiple videos
   // concurrently.
-  virtual ShellVideoFrameProvider* GetVideoFrameProvider();
+  ShellVideoFrameProvider* GetVideoFrameProvider() OVERRIDE;
   // TODO(***REMOVED***) : Remove Get/PutCurrentFrame.
-  virtual scoped_refptr<VideoFrame> GetCurrentFrame();
-  virtual void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame);
+  scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
+  void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) OVERRIDE;
 
-  virtual AddIdStatus SourceAddId(const std::string& id,
-                                  const std::string& type,
-                                  const std::vector<std::string>& codecs);
-  virtual bool SourceRemoveId(const std::string& id);
-  virtual Ranges<base::TimeDelta> SourceBuffered(const std::string& id);
-  virtual bool SourceAppend(const std::string& id,
-                            const unsigned char* data,
-                            unsigned length);
-  virtual bool SourceAbort(const std::string& id);
-  virtual double SourceGetDuration() const;
-  virtual void SourceSetDuration(double new_duration);
-  virtual void SourceEndOfStream(EndOfStreamStatus status);
-  virtual bool SourceSetTimestampOffset(const std::string& id, double offset);
+  AddIdStatus SourceAddId(const std::string& id,
+                          const std::string& type,
+                          const std::vector<std::string>& codecs) OVERRIDE;
+  bool SourceRemoveId(const std::string& id) OVERRIDE;
+  Ranges<base::TimeDelta> SourceBuffered(const std::string& id) OVERRIDE;
+  bool SourceAppend(const std::string& id,
+                    const unsigned char* data,
+                    unsigned length) OVERRIDE;
+  bool SourceAbort(const std::string& id) OVERRIDE;
+  double SourceGetDuration() const OVERRIDE;
+  void SourceSetDuration(double new_duration) OVERRIDE;
+  void SourceEndOfStream(EndOfStreamStatus status) OVERRIDE;
+  bool SourceSetTimestampOffset(const std::string& id, double offset) OVERRIDE;
 
-  virtual MediaKeyException GenerateKeyRequest(const std::string& key_system,
-                                               const unsigned char* init_data,
-                                               unsigned init_data_length);
+  MediaKeyException GenerateKeyRequest(const std::string& key_system,
+                                       const unsigned char* init_data,
+                                       unsigned init_data_length) OVERRIDE;
 
-  virtual MediaKeyException AddKey(const std::string& key_system,
-                                   const unsigned char* key,
-                                   unsigned key_length,
-                                   const unsigned char* init_data,
-                                   unsigned init_data_length,
-                                   const std::string& session_id);
+  MediaKeyException AddKey(const std::string& key_system,
+                           const unsigned char* key,
+                           unsigned key_length,
+                           const unsigned char* init_data,
+                           unsigned init_data_length,
+                           const std::string& session_id) OVERRIDE;
 
-  virtual MediaKeyException CancelKeyRequest(const std::string& key_system,
-                                             const std::string& session_id);
+  MediaKeyException CancelKeyRequest(const std::string& key_system,
+                                     const std::string& session_id) OVERRIDE;
 
   // As we are closing the tab or even the browser, |main_loop_| is destroyed
   // even before this object gets destructed, so we need to know when
   // |main_loop_| is being destroyed and we can stop posting repaint task
   // to it.
-  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
+  void WillDestroyCurrentMessageLoop() OVERRIDE;
 
   void Repaint();
 
