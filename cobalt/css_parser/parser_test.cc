@@ -183,17 +183,17 @@ TEST_F(ParserTest, ParsesClassSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_TRUE(compound_selector);
+  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::ClassSelector* class_selector = dynamic_cast<cssom::ClassSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_TRUE(class_selector);
+  ASSERT_NE(static_cast<cssom::ClassSelector*>(NULL), class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
 
@@ -206,18 +206,18 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_TRUE(compound_selector);
+  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::EmptyPseudoClass* empty_pseudo_class =
       dynamic_cast<cssom::EmptyPseudoClass*>(
           const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_TRUE(empty_pseudo_class);
+  ASSERT_NE(static_cast<cssom::EmptyPseudoClass*>(NULL), empty_pseudo_class);
 }
 
 TEST_F(ParserTest, ParsesIdSelector) {
@@ -229,17 +229,17 @@ TEST_F(ParserTest, ParsesIdSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_TRUE(compound_selector);
+  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::IdSelector* id_selector = dynamic_cast<cssom::IdSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_TRUE(id_selector);
+  ASSERT_NE(static_cast<cssom::IdSelector*>(NULL), id_selector);
   EXPECT_EQ("my-id", id_selector->id());
 }
 
@@ -252,17 +252,17 @@ TEST_F(ParserTest, ParsesTypeSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_TRUE(compound_selector);
+  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_TRUE(type_selector);
+  ASSERT_NE(static_cast<cssom::TypeSelector*>(NULL), type_selector);
   EXPECT_EQ("div", type_selector->element_name());
 }
 
@@ -275,21 +275,21 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_TRUE(compound_selector);
+  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
   ASSERT_EQ(2, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_TRUE(type_selector);
+  ASSERT_NE(static_cast<cssom::TypeSelector*>(NULL), type_selector);
   EXPECT_EQ("div", type_selector->element_name());
   cssom::ClassSelector* class_selector = dynamic_cast<cssom::ClassSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[1]));
-  ASSERT_TRUE(class_selector);
+  ASSERT_NE(static_cast<cssom::ClassSelector*>(NULL), class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
 
@@ -302,12 +302,13 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::DescendantCombinator* descendant_combinator =
       dynamic_cast<cssom::DescendantCombinator*>(
           const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(descendant_combinator);
+  ASSERT_NE(static_cast<cssom::DescendantCombinator*>(NULL),
+            descendant_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
@@ -319,12 +320,13 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::FollowingSiblingCombinator* following_sibling_combinator =
       dynamic_cast<cssom::FollowingSiblingCombinator*>(
           const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_TRUE(following_sibling_combinator);
+  ASSERT_NE(static_cast<cssom::FollowingSiblingCombinator*>(NULL),
+            following_sibling_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
@@ -336,16 +338,16 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   ASSERT_EQ(1, adjacent_selector->combinators().size());
   cssom::ChildCombinator* child_combinator =
       dynamic_cast<cssom::ChildCombinator*>(
           const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
-  ASSERT_TRUE(child_combinator);
+  ASSERT_NE(static_cast<cssom::ChildCombinator*>(NULL), child_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
@@ -357,16 +359,17 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_TRUE(complex_selector);
+  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_TRUE(adjacent_selector);
+  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
   ASSERT_EQ(1, adjacent_selector->combinators().size());
   cssom::NextSiblingCombinator* next_sibling_combinator =
       dynamic_cast<cssom::NextSiblingCombinator*>(
           const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
-  ASSERT_TRUE(next_sibling_combinator);
+  ASSERT_NE(static_cast<cssom::NextSiblingCombinator*>(NULL),
+            next_sibling_combinator);
 }
 
 TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
@@ -551,7 +554,6 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPosition) {
   EXPECT_FLOAT_EQ(0.45f, percentage_value_right->value());
 }
 
-
 TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("background: 70px 45% rgba(0, 0, 0, .8);",
@@ -663,7 +665,6 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
   EXPECT_FLOAT_EQ(80, size_value_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, size_value_right->unit());
 }
-
 
 TEST_F(ParserTest, ParsesBackgroundColor) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
