@@ -46,17 +46,17 @@ class CSSParser {
 
   // Parses the entire stylesheet.
   // Always returns non-NULL style sheet, even if an error occurred.
-  virtual scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
+  virtual scoped_refptr<CSSStyleSheet> ParseStyleSheet(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the style rule.
   // Always returns non-NULL style rule, even if an error occurred.
-  virtual scoped_refptr<cssom::CSSStyleRule> ParseStyleRule(
+  virtual scoped_refptr<CSSStyleRule> ParseStyleRule(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the contents of a HTMLElement.style attribute.
   // Always returns non-NULL declaration, even if an error occurred.
-  virtual scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList(
+  virtual scoped_refptr<CSSStyleDeclarationData> ParseDeclarationList(
       const std::string& input, const base::SourceLocation& input_location) = 0;
 
   // Parses the property value.
@@ -64,7 +64,7 @@ class CSSParser {
   // May return NULL which is considered a valid property value.
   // This method is primarily for use by tests, since it is not able to
   // handle parsing of shorthand properties.
-  virtual scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
+  virtual scoped_refptr<PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) = 0;
 

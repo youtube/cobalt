@@ -45,25 +45,25 @@ class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
   RuleIndexer(CSSStyleRule* css_style_rule, CSSStyleSheet* css_style_sheet)
       : css_style_rule_(css_style_rule), css_style_sheet_(css_style_sheet) {}
 
-  void VisitClassSelector(cssom::ClassSelector* class_selector) OVERRIDE {
+  void VisitClassSelector(ClassSelector* class_selector) OVERRIDE {
     StringToCSSRuleSetMap& rules_map =
         css_style_sheet_->class_selector_rules_map_;
     rules_map[class_selector->class_name()].insert(css_style_rule_);
   }
 
-  void VisitIdSelector(cssom::IdSelector* id_selector) OVERRIDE {
+  void VisitIdSelector(IdSelector* id_selector) OVERRIDE {
     StringToCSSRuleSetMap& rules_map = css_style_sheet_->id_selector_rules_map_;
     rules_map[id_selector->id()].insert(css_style_rule_);
   }
 
-  void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
+  void VisitTypeSelector(TypeSelector* type_selector) OVERRIDE {
     StringToCSSRuleSetMap& rules_map =
         css_style_sheet_->type_selector_rules_map_;
     rules_map[type_selector->element_name()].insert(css_style_rule_);
   }
 
   void VisitEmptyPseudoClass(
-      cssom::EmptyPseudoClass* /* empty_pseudo_class */) OVERRIDE {
+      EmptyPseudoClass* /* empty_pseudo_class */) OVERRIDE {
     css_style_sheet_->empty_pseudo_class_rules_.insert(css_style_rule_);
   }
 

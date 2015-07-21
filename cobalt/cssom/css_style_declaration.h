@@ -174,7 +174,7 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   scoped_refptr<CSSStyleDeclarationData> data_;
 
-  cssom::CSSParser* const css_parser_;
+  CSSParser* const css_parser_;
   MutationObserver* mutation_observer_;
 };
 

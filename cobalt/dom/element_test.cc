@@ -46,7 +46,7 @@ class ElementTest : public ::testing::Test {
   ~ElementTest() OVERRIDE;
 
   scoped_ptr<css_parser::Parser> css_parser_;
-  dom::HTMLElementContext html_element_context_;
+  HTMLElementContext html_element_context_;
 };
 
 ElementTest::ElementTest()
