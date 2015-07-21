@@ -35,32 +35,29 @@ namespace cobalt {
 namespace cssom {
 
 namespace {
-scoped_refptr<cssom::TimeListValue> MakeTimeListWithSingleTime(
-    float time_in_seconds) {
-  scoped_ptr<cssom::TimeListValue::Builder> time_list(
-      new cssom::TimeListValue::Builder());
+scoped_refptr<TimeListValue> MakeTimeListWithSingleTime(float time_in_seconds) {
+  scoped_ptr<TimeListValue::Builder> time_list(new TimeListValue::Builder());
   time_list->push_back(base::TimeDelta::FromMicroseconds(static_cast<int64>(
       time_in_seconds * base::Time::kMicrosecondsPerSecond)));
-  return make_scoped_refptr(new cssom::TimeListValue(time_list.Pass()));
+  return make_scoped_refptr(new TimeListValue(time_list.Pass()));
 }
 
-scoped_refptr<cssom::ConstStringListValue>
-MakePropertyNameListWithSingleProperty(const char* property) {
-  scoped_ptr<cssom::ConstStringListValue::Builder> property_name_list(
-      new cssom::ConstStringListValue::Builder());
+scoped_refptr<ConstStringListValue> MakePropertyNameListWithSingleProperty(
+    const char* property) {
+  scoped_ptr<ConstStringListValue::Builder> property_name_list(
+      new ConstStringListValue::Builder());
   property_name_list->push_back(property);
   return make_scoped_refptr(
-      new cssom::ConstStringListValue(property_name_list.Pass()));
+      new ConstStringListValue(property_name_list.Pass()));
 }
 
-scoped_refptr<cssom::TimingFunctionListValue>
-MakeTimingFunctionWithSingleProperty(
-    const scoped_refptr<cssom::TimingFunction>& timing_function) {
-  scoped_ptr<cssom::TimingFunctionListValue::Builder> timing_function_list(
-      new cssom::TimingFunctionListValue::Builder());
+scoped_refptr<TimingFunctionListValue> MakeTimingFunctionWithSingleProperty(
+    const scoped_refptr<TimingFunction>& timing_function) {
+  scoped_ptr<TimingFunctionListValue::Builder> timing_function_list(
+      new TimingFunctionListValue::Builder());
   timing_function_list->push_back(timing_function);
   return make_scoped_refptr(
-      new cssom::TimingFunctionListValue(timing_function_list.Pass()));
+      new TimingFunctionListValue(timing_function_list.Pass()));
 }
 
 scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {

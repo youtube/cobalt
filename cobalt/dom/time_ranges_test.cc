@@ -28,7 +28,7 @@ class FakeExceptionState : public script::ExceptionState {
   void SetException(
       const scoped_refptr<script::Wrappable>& exception) OVERRIDE {
     dom_exception_ = make_scoped_refptr(
-        base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+        base::polymorphic_downcast<DOMException*>(exception.get()));
   }
   void SetSimpleException(
       script::ExceptionState::SimpleExceptionType simple_exception_type,
@@ -36,7 +36,7 @@ class FakeExceptionState : public script::ExceptionState {
     simple_exception_ = simple_exception_type;
     simple_exception_message_ = message;
   }
-  scoped_refptr<dom::DOMException> dom_exception_;
+  scoped_refptr<DOMException> dom_exception_;
   script::ExceptionState::SimpleExceptionType simple_exception_;
   std::string simple_exception_message_;
 };

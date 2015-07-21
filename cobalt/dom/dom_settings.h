@@ -60,7 +60,7 @@ class DOMSettings : public script::EnvironmentSettings {
 
  private:
   loader::FetcherFactory* fetcher_factory_;
-  scoped_refptr<dom::Window> window_;
+  scoped_refptr<Window> window_;
   script::JavaScriptEngine* javascript_engine_;
   script::GlobalObjectProxy* global_object_proxy_;
 

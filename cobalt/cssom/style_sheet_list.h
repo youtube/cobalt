@@ -49,7 +49,7 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
   // Returns the number of CSS style sheets represented by the collection.
   unsigned int length() const;
 
-  // From cssom::MutationObserver.
+  // From MutationObserver.
   void OnCSSMutation() OVERRIDE;
 
   // Custom, not in any spec.
