@@ -39,7 +39,9 @@ scoped_refptr<cssom::CSSStyleDeclarationData>
 // and image to the initial style, when needed.
 //   http://www.w3.org/TR/CSS2/visudet.html#containing-block-details
 scoped_ptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
-    const scoped_refptr<dom::Window>& window,
+    const scoped_refptr<cssom::CSSStyleDeclarationData>&
+        initial_containing_block_style,
+    const scoped_refptr<dom::Document>& document,
     const UsedStyleProvider* used_style_provider);
 
 }  // namespace layout
