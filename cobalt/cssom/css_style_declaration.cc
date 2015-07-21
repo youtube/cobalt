@@ -46,7 +46,7 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 
 }  // namespace
 
-CSSStyleDeclaration::CSSStyleDeclaration(cssom::CSSParser* css_parser)
+CSSStyleDeclaration::CSSStyleDeclaration(CSSParser* css_parser)
     : data_(new CSSStyleDeclarationData),
       css_parser_(css_parser),
       mutation_observer_(NULL) {}
