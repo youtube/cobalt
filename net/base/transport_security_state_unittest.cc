@@ -34,6 +34,32 @@
 #include "crypto/nss_util.h"
 #endif
 
+#if defined(__LB_SHELL__)
+// We don't support cert pinning, so it's not compiled in.
+// Disable all tests related to cert pins.
+#define MAYBE_IsPreloaded DISABLED_IsPreloaded
+#define MAYBE_PreloadedDomainSet DISABLED_PreloadedDomainSet
+#define MAYBE_Preloaded DISABLED_Preloaded
+#define MAYBE_BuiltinCertPins DISABLED_BuiltinCertPins
+#define MAYBE_PinValidationWithRejectedCerts DISABLED_PinValidationWithRejectedCerts
+#define MAYBE_PinValidationWithoutRejectedCerts DISABLED_PinValidationWithoutRejectedCerts
+#define MAYBE_PinValidationWithRejectedCertsMixedHashes DISABLED_PinValidationWithRejectedCertsMixedHashes
+#define MAYBE_OptionalHSTSCertPins DISABLED_OptionalHSTSCertPins
+#define MAYBE_OverrideBuiltins DISABLED_OverrideBuiltins
+#define MAYBE_GooglePinnedProperties DISABLED_GooglePinnedProperties
+#else
+#define MAYBE_IsPreloaded IsPreloaded
+#define MAYBE_PreloadedDomainSet PreloadedDomainSet
+#define MAYBE_Preloaded Preloaded
+#define MAYBE_BuiltinCertPins BuiltinCertPins
+#define MAYBE_PinValidationWithRejectedCerts PinValidationWithRejectedCerts
+#define MAYBE_PinValidationWithoutRejectedCerts PinValidationWithoutRejectedCerts
+#define MAYBE_PinValidationWithRejectedCertsMixedHashes PinValidationWithRejectedCertsMixedHashes
+#define MAYBE_OptionalHSTSCertPins OptionalHSTSCertPins
+#define MAYBE_OverrideBuiltins OverrideBuiltins
+#define MAYBE_GooglePinnedProperties GooglePinnedProperties
+#endif
+
 namespace net {
 
 class TransportSecurityStateTest : public testing::Test {
@@ -535,7 +561,7 @@ TEST_F(TransportSecurityStateTest, DeleteHost) {
   EXPECT_FALSE(state.GetDomainState("yahoo.com", true, &domain_state));
 }
 
-TEST_F(TransportSecurityStateTest, IsPreloaded) {
+TEST_F(TransportSecurityStateTest, MAYBE_IsPreloaded) {
   const std::string paypal =
       TransportSecurityState::CanonicalizeHost("paypal.com");
   const std::string www_paypal =
@@ -561,7 +587,7 @@ TEST_F(TransportSecurityStateTest, IsPreloaded) {
   EXPECT_FALSE(state.GetStaticDomainState(aypal, true, &domain_state));
 }
 
-TEST_F(TransportSecurityStateTest, PreloadedDomainSet) {
+TEST_F(TransportSecurityStateTest, MAYBE_PreloadedDomainSet) {
   TransportSecurityState state;
   TransportSecurityState::DomainState domain_state;
 
@@ -612,7 +638,7 @@ static bool OnlyPinning(const char *hostname) {
          !domain_state.ShouldRedirectHTTPToHTTPS();
 }
 
-TEST_F(TransportSecurityStateTest, Preloaded) {
+TEST_F(TransportSecurityStateTest, MAYBE_Preloaded) {
   TransportSecurityState state;
   TransportSecurityState::DomainState domain_state;
 
@@ -866,7 +892,7 @@ TEST_F(TransportSecurityStateTest, LongNames) {
   EXPECT_FALSE(state.GetDomainState(kLongName, true, &domain_state));
 }
 
-TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
+TEST_F(TransportSecurityStateTest, MAYBE_BuiltinCertPins) {
   TransportSecurityState state;
   TransportSecurityState::DomainState domain_state;
 
@@ -929,7 +955,7 @@ static bool AddHash(const std::string& type_and_base64,
   return true;
 }
 
-TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
+TEST_F(TransportSecurityStateTest, MAYBE_PinValidationWithRejectedCerts) {
   // kGoodPath is plus.google.com via Google Internet Authority.
   static const char* kGoodPath[] = {
     "sha1/4BjDjn8v2lWeUFQnqSs0BgbIcrU=",
@@ -966,7 +992,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
 }
 
-TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
+TEST_F(TransportSecurityStateTest, MAYBE_PinValidationWithoutRejectedCerts) {
   // kGoodPath is blog.torproject.org.
   static const char* kGoodPath[] = {
     "sha1/m9lHYJYke9k0GtVZ+bXSQYE8nDI=",
@@ -1002,7 +1028,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
 }
 
-TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCertsMixedHashes) {
+TEST_F(TransportSecurityStateTest, MAYBE_PinValidationWithRejectedCertsMixedHashes) {
   static const char* ee_sha1 = "sha1/4BjDjn8v2lWeUFQnqSs0BgbIcrU=";
   static const char* ee_sha256 =
       "sha256/sRJBQqWhpaKIGcc1NA7/jJ4vgWj+47oYfyU7waOS1+I=";
@@ -1096,7 +1122,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCertsMixedHashes) {
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(validated_chain));
 }
 
-TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
+TEST_F(TransportSecurityStateTest, MAYBE_OptionalHSTSCertPins) {
   TransportSecurityState state;
   TransportSecurityState::DomainState domain_state;
 
@@ -1124,7 +1150,7 @@ TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {
   EXPECT_FALSE(HasPins("a.googlegroups.com", false));
 }
 
-TEST_F(TransportSecurityStateTest, OverrideBuiltins) {
+TEST_F(TransportSecurityStateTest, MAYBE_OverrideBuiltins) {
   EXPECT_TRUE(HasPins("google.com"));
   EXPECT_FALSE(ShouldRedirect("google.com"));
   EXPECT_FALSE(ShouldRedirect("www.google.com"));
@@ -1139,7 +1165,7 @@ TEST_F(TransportSecurityStateTest, OverrideBuiltins) {
   EXPECT_TRUE(state.GetDomainState("www.google.com", true, &domain_state));
 }
 
-TEST_F(TransportSecurityStateTest, GooglePinnedProperties) {
+TEST_F(TransportSecurityStateTest, MAYBE_GooglePinnedProperties) {
   EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
       "www.example.com", true));
   EXPECT_FALSE(TransportSecurityState::IsGooglePinnedProperty(
