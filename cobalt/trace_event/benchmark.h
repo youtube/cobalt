@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/singleton.h"
@@ -116,6 +117,9 @@ class Benchmark {
   friend class BenchmarkRegisterer;
 };
 
+typedef std::map<std::string, std::vector<Benchmark::Result> >
+    BenchmarkResultsMap;
+
 // The BenchmarkRegistrar is a singleton that collects all defined Benchmarks
 // in a central location so that they can be executed on demand.
 class BenchmarkRegistrar {
@@ -129,14 +133,14 @@ class BenchmarkRegistrar {
   // typically called via the TRACE_EVENT_REGISTER_BENCHMARK macro.
   void RegisterBenchmark(Benchmark* benchmark);
 
-  // Execute all registered benchmarks and report their results.
-  void ExecuteBenchmarks();
+  // Execute all registered benchmarks and return their results.
+  BenchmarkResultsMap ExecuteBenchmarks();
 
  private:
   BenchmarkRegistrar();
   friend struct DefaultSingletonTraits<BenchmarkRegistrar>;
 
-  void ExecuteBenchmark(Benchmark* benchmark);
+  std::vector<Benchmark::Result> ExecuteBenchmark(Benchmark* benchmark);
 
   typedef std::vector<Benchmark*> BenchmarkList;
   BenchmarkList benchmarks_;
