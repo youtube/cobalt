@@ -118,8 +118,6 @@
       'target_name': 'layout_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'cascaded_style_test.cc',
-        'computed_style_test.cc',
         'used_style_test.cc',
         'white_space_processing_test.cc',
       ],
