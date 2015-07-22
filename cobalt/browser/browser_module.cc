@@ -38,13 +38,14 @@ BrowserModule::BrowserModule(const Options& options)
     : storage_manager_(options.storage_manager_options),
       renderer_module_(options.renderer_module_options),
       network_module_(&storage_manager_),
-      web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
-                             base::Unretained(this)),
-                  WebModule::ErrorCallback(), &network_module_,
-                  math::Size(kInitialWidth, kInitialHeight),
-                  renderer_module_.pipeline()->GetResourceProvider(),
-                  renderer_module_.pipeline()->refresh_rate(),
-                  options.web_module_options) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
+                                 base::Unretained(this)),
+                      WebModule::ErrorCallback(), &network_module_,
+                      math::Size(kInitialWidth, kInitialHeight),
+                      renderer_module_.pipeline()->GetResourceProvider(),
+                      renderer_module_.pipeline()->refresh_rate(),
+                      options.web_module_options)) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
   input::KeyboardEventCallback keyboard_event_callback =
