@@ -45,6 +45,7 @@ class FetcherHandlerForTest : public Fetcher::Handler {
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
   void OnError(const std::string& error) OVERRIDE {
+    UNREFERENCED_PARAMETER(error);
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
 

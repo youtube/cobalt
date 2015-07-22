@@ -57,6 +57,7 @@ bool NetFetcher::ShouldSendDownloadData() { return true; }
 
 void NetFetcher::OnURLFetchDownloadData(const net::URLFetcher* source,
                                         scoped_ptr<std::string> download_data) {
+  UNREFERENCED_PARAMETER(source);
   handler()->OnReceived(download_data->data(), download_data->length());
 }
 
