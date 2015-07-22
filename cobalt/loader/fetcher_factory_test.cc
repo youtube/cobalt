@@ -27,9 +27,14 @@ namespace {
 class StubFetcherHandler : public Fetcher::Handler {
  public:
   // From Fetcher::Handler.
-  void OnReceived(const char* data, size_t size) OVERRIDE {}
+  void OnReceived(const char* data, size_t size) OVERRIDE {
+    UNREFERENCED_PARAMETER(data);
+    UNREFERENCED_PARAMETER(size);
+  }
   void OnDone() OVERRIDE {}
-  void OnError(const std::string& error) OVERRIDE {}
+  void OnError(const std::string& error) OVERRIDE {
+    UNREFERENCED_PARAMETER(error);
+  }
 };
 
 }  // namespace
