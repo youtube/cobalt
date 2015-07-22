@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cstdio>
-
 #include "cobalt/trace_event/benchmark.h"
 #include "cobalt/trace_event/scoped_event_parser_trace.h"
 
@@ -43,29 +41,17 @@ void BenchmarkRegistrar::RegisterBenchmark(Benchmark* benchmark) {
   benchmarks_.push_back(benchmark);
 }
 
-void BenchmarkRegistrar::ExecuteBenchmarks() {
+BenchmarkResultsMap BenchmarkRegistrar::ExecuteBenchmarks() {
+  BenchmarkResultsMap result;
   for (BenchmarkList::iterator iter = benchmarks_.begin();
        iter != benchmarks_.end(); ++iter) {
-    ExecuteBenchmark(*iter);
+    result[(*iter)->name()] = ExecuteBenchmark(*iter);
   }
+  return result;
 }
 
-namespace {
-void Output(const char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  std::vfprintf(stderr, fmt, ap);
-
-  va_end(ap);
-
-  std::fflush(stderr);
-}
-}  // namespace
-
-void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
-  Output("Executing benchmark: %s\n", benchmark->name().c_str());
-
+std::vector<Benchmark::Result> BenchmarkRegistrar::ExecuteBenchmark(
+    Benchmark* benchmark) {
   {
     ScopedEventParserTrace event_watcher(
         base::Bind(&Benchmark::AnalyzeTraceEvent, base::Unretained(benchmark)),
@@ -73,34 +59,7 @@ void BenchmarkRegistrar::ExecuteBenchmark(Benchmark* benchmark) {
     benchmark->Experiment();
   }
 
-  std::vector<Benchmark::Result> results = benchmark->CompileResults();
-
-  // Output the results.
-  for (std::vector<Benchmark::Result>::iterator iter = results.begin();
-       iter != results.end(); ++iter) {
-    Output("  %s\n", iter->name.c_str());
-    if (iter->samples.empty()) {
-      Output("    No samples found.\n");
-      continue;
-    }
-
-    double samples_average = 0;
-    double samples_min = std::numeric_limits<double>::max();
-    double samples_max = std::numeric_limits<double>::min();
-    for (std::vector<double>::iterator sample = iter->samples.begin();
-         sample != iter->samples.end(); ++sample) {
-      samples_average += *sample;
-      samples_min = std::min(samples_min, *sample);
-      samples_max = std::max(samples_max, *sample);
-    }
-    samples_average /= iter->samples.size();
-    Output("    Number of samples: %d\n", iter->samples.size());
-    if (!iter->samples.empty()) {
-      Output("    Average: %f\n", samples_average);
-      Output("    Minimum: %f\n", samples_min);
-      Output("    Maximum: %f\n", samples_max);
-    }
-  }
+  return benchmark->CompileResults();
 }
 
 }  // namespace trace_event
