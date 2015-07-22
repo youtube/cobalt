@@ -89,8 +89,8 @@ WebModule::WebModule(
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      media_module_(media::MediaModule::Create(resource_provider)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
+      media_module_(media::MediaModule::Create(resource_provider)),
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
