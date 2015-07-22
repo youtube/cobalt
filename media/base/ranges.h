@@ -119,12 +119,12 @@ size_t Ranges<T>::size() const {
 
 template<class T>
 T Ranges<T>::start(int i) const {
-  return ranges_[i].first;
+  return ranges_[static_cast<size_t>(i)].first;
 }
 
 template<class T>
 T Ranges<T>::end(int i) const {
-  return ranges_[i].second;
+  return ranges_[static_cast<size_t>(i)].second;
 }
 
 template<class T>
