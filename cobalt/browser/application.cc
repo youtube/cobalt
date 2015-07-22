@@ -46,7 +46,7 @@ std::string GetInitialURL() {
 
 base::TimeDelta GetTimedTraceDuration() {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  int duration_in_seconds;
+  int duration_in_seconds = 0;
   if (command_line->HasSwitch(switches::kTimedTrace) &&
       base::StringToInt(
           command_line->GetSwitchValueASCII(switches::kTimedTrace),
