@@ -31,7 +31,7 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
       file_(base::kInvalidPlatformFileValue),
       file_offset_(0),
       io_message_loop_(options.io_message_loop),
-      weak_ptr_factory_(this) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK_GT(buffer_size_, 0);
 
   // Get the actual file path by prepending DIR_SOURCE_ROOT to the file path.
@@ -98,6 +98,16 @@ const char* FileFetcher::PlatformFileErrorToString(
       return kPlatformFileErrorInvalidUrl;
     case base::PLATFORM_FILE_ERROR_ABORT:
       return kPlatformFileErrorAbort;
+    case base::PLATFORM_FILE_ERROR_FAILED:
+    case base::PLATFORM_FILE_ERROR_EXISTS:
+    case base::PLATFORM_FILE_ERROR_TOO_MANY_OPENED:
+    case base::PLATFORM_FILE_ERROR_NO_MEMORY:
+    case base::PLATFORM_FILE_ERROR_NO_SPACE:
+    case base::PLATFORM_FILE_ERROR_NOT_A_DIRECTORY:
+    case base::PLATFORM_FILE_ERROR_INVALID_OPERATION:
+    case base::PLATFORM_FILE_ERROR_NOT_A_FILE:
+    case base::PLATFORM_FILE_ERROR_NOT_EMPTY:
+    case base::PLATFORM_FILE_ERROR_MAX:
     default:
       break;
   }
@@ -132,7 +142,7 @@ void FileFetcher::DidRead(base::PlatformFileError error, const char* data,
     return;
   }
 
-  handler()->OnReceived(data, num_bytes_read);
+  handler()->OnReceived(data, static_cast<size_t>(num_bytes_read));
 
   file_offset_ += num_bytes_read;
   ReadNextChunk();
