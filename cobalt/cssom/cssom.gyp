@@ -147,6 +147,8 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'cascade_priority_test.cc',
+        'cascaded_style_test.cc',
+        'computed_style_test.cc',
         'css_style_declaration_data_test.cc',
         'css_style_declaration_test.cc',
         'css_style_sheet_test.cc',
