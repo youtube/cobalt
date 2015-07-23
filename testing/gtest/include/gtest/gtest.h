@@ -1394,18 +1394,23 @@ AssertionResult CmpHelperEQ(const char* expected_expression,
                             const char* actual_expression,
                             const T1& expected,
                             const T2& actual) {
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 # pragma warning(push)          // Saves the current warning state.
 # pragma warning(disable:4389)  // Temporarily disables warning on
                                 // signed/unsigned mismatch.
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-compare"
 #endif
 
   if (expected == actual) {
     return AssertionSuccess();
   }
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 # pragma warning(pop)          // Restores the warning state.
+#elif defined(__clang__)
+#pragma clang diagnostic pop
 #endif
 
   return EqFailure(expected_expression,
