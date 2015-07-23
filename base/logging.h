@@ -564,7 +564,25 @@ std::string* MakeCheckOpString<std::string, std::string>(
     if (v1 op v2) return NULL; \
     else return MakeCheckOpString(v1, v2, names); \
   }
+
+// Turn off sign-conversion warnings for DCHECK_EQ. This is for
+// consistency with EXPECT_EQ and ASSERT_EQ in gtest.
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4389)
+#elif defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-compare"
+#endif
+
 DEFINE_CHECK_OP_IMPL(EQ, ==)
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#elif defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 DEFINE_CHECK_OP_IMPL(NE, !=)
 DEFINE_CHECK_OP_IMPL(LE, <=)
 DEFINE_CHECK_OP_IMPL(LT, < )
