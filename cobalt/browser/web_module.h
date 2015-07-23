@@ -66,6 +66,7 @@ class WebModule {
   typedef base::Callback<void(const std::string&)> ErrorCallback;
   WebModule(const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const ErrorCallback& error_callback,
+            media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
@@ -98,9 +99,6 @@ class WebModule {
 
   // FetcherFactory that is used to create a fetcher according to URL.
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-
-  // Controls all media playback related objects/resources.
-  scoped_ptr<media::MediaModule> media_module_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;

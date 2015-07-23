@@ -37,11 +37,14 @@ const int kInitialHeight = 1080;
 BrowserModule::BrowserModule(const Options& options)
     : storage_manager_(options.storage_manager_options),
       renderer_module_(options.renderer_module_options),
+      media_module_(media::MediaModule::Create(
+          renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           web_module_(base::Bind(&BrowserModule::OnRenderTreeProduced,
                                  base::Unretained(this)),
-                      WebModule::ErrorCallback(), &network_module_,
+                      WebModule::ErrorCallback(), media_module_.get(),
+                      &network_module_,
                       math::Size(kInitialWidth, kInitialHeight),
                       renderer_module_.pipeline()->GetResourceProvider(),
                       renderer_module_.pipeline()->refresh_rate(),
