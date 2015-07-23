@@ -153,7 +153,7 @@ TEST(PromoteToComputedStyle, BackgroundImageAbsoluteURL) {
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           computed_style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   ASSERT_EQ(1, background_image_list->value().size());
 
   GURL value = base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
@@ -189,7 +189,7 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(
           computed_style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   ASSERT_EQ(1, background_image_list->value().size());
 
   GURL value = base::polymorphic_downcast<cssom::AbsoluteURLValue*>(

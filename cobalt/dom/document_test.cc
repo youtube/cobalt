@@ -62,7 +62,7 @@ DocumentTest::~DocumentTest() {
 TEST_F(DocumentTest, Create) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
-  ASSERT_NE(NULL, document);
+  ASSERT_TRUE(document);
 
   EXPECT_EQ(Node::kDocumentNode, document->node_type());
   EXPECT_EQ("#document", document->node_name());
@@ -182,7 +182,7 @@ TEST_F(DocumentTest, OwnerDocument) {
 TEST_F(DocumentTest, Location) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
-  EXPECT_NE(scoped_refptr<Location>(), document->location());
+  EXPECT_TRUE(document->location());
 }
 
 TEST_F(DocumentTest, StyleSheets) {
@@ -208,14 +208,11 @@ TEST_F(DocumentTest, StyleSheets) {
   element3->set_text_content(std::string("p { color: green }"));
   document->AppendChild(element3);
 
-  EXPECT_NE(scoped_refptr<cssom::StyleSheetList>(), document->style_sheets());
+  EXPECT_TRUE(document->style_sheets());
   EXPECT_EQ(3, document->style_sheets()->length());
-  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
-            document->style_sheets()->Item(0));
-  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
-            document->style_sheets()->Item(1));
-  EXPECT_NE(scoped_refptr<cssom::CSSStyleSheet>(),
-            document->style_sheets()->Item(2));
+  EXPECT_TRUE(document->style_sheets()->Item(0));
+  EXPECT_TRUE(document->style_sheets()->Item(1));
+  EXPECT_TRUE(document->style_sheets()->Item(2));
 }
 
 TEST_F(DocumentTest, QuerySelector) {
