@@ -1077,7 +1077,7 @@ UChar32 Scanner::ScanEscape() {
 //          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
                                       Token* property_name_token) const {
-  DCHECK_GT(name.size(), 0);
+  DCHECK_GT(name.size(), 0U);
 
   switch (name.size()) {
     case 3:
@@ -1329,7 +1329,7 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 //          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
                                        Token* property_value_token) const {
-  DCHECK_GT(name.size(), 0);
+  DCHECK_GT(name.size(), 0U);
 
   switch (name.size()) {
     case 2:
@@ -1509,7 +1509,7 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
 //          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPseudoClassNameToken(const TrivialStringPiece& name,
                                          Token* property_value_token) const {
-  DCHECK_GT(name.size(), 0);
+  DCHECK_GT(name.size(), 0U);
 
   switch (name.size()) {
     case 5:
@@ -1553,7 +1553,7 @@ bool Scanner::DetectSupportsToken(const TrivialStringPiece& name,
 
 bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
     const TrivialStringPiece& name, Token* known_function_token) {
-  DCHECK_GT(name.size(), 0);
+  DCHECK_GT(name.size(), 0U);
 
   switch (name.size()) {
     case 3:
@@ -1892,7 +1892,7 @@ bool Scanner::TryScanNthChildExtra(TrivialStringPiece* nth) {
 bool Scanner::DetectUnitToken(const TrivialStringPiece& unit,
                               Token* token) const {
   std::size_t length(unit.size());
-  DCHECK_GT(length, 0);
+  DCHECK_GT(length, 0U);
 
   switch (ToAsciiLowerUnchecked(unit.begin[0])) {
     case 'c':
@@ -2113,7 +2113,7 @@ inline bool Scanner::DetectAtTokenAndMaybeChangeParsingMode(
     const TrivialStringPiece& name, bool has_escape, Token* at_token) {
   std::size_t length(name.size());
   DCHECK_EQ(name.begin[0], '@');
-  DCHECK_GE(length, 2);
+  DCHECK_GE(length, 2U);
 
   // charset, font-face, import, media, namespace, page, supports,
   // -webkit-keyframes, and -webkit-mediaquery are not affected by hasEscape.
