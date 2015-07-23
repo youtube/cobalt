@@ -105,22 +105,17 @@ void InspectSchemaVersionCallback(SqlContext* sql_context) {
 
 class StorageManagerTest : public ::testing::Test {
  protected:
-  StorageManagerTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
-    ReInitStorageManager();
-  }
+  StorageManagerTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {}
 
   ~StorageManagerTest() { storage_manager_.reset(NULL); }
 
-  // Circumvent the usual StorageManager API so we can test it directly.
-  Savegame* savegame() { return storage_manager_->savegame_.get(); }
-
-  void ReInitStorageManager() {
+  void InitStorageManager(bool delete_savegame = true) {
     // Destroy the current one first. We can't have two VFSs with the same name
     // concurrently.
     storage_manager_.reset(NULL);
     StorageManager::Options options;
-    // We'll handle deletion manually.
-    options.savegame_options.delete_on_destruction = false;
+
+    options.savegame_options.delete_on_destruction = delete_savegame;
     options.savegame_options.path_override = GetSavePath();
     storage_manager_.reset(new StorageManager(options));
   }
@@ -131,26 +126,27 @@ class StorageManagerTest : public ::testing::Test {
 
 TEST_F(StorageManagerTest, ObtainConnection) {
   // Verify that the SQL connection is non-null.
+  InitStorageManager();
   SqlWaiter waiter;
   storage_manager_->GetSqlContext(
       base::Bind(&SqlWaiter::OnSqlConnection, base::Unretained(&waiter)));
   message_loop_.RunUntilIdle();
   EXPECT_EQ(true, waiter.TimedWait());
-  savegame()->options().delete_on_destruction = true;
 }
 
 TEST_F(StorageManagerTest, Flush) {
   // Ensure the Flush callback is called.
+  InitStorageManager();
   storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
   message_loop_.RunUntilIdle();
   FlushWaiter waiter;
   storage_manager_->Flush(
       base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
   EXPECT_EQ(true, waiter.TimedWait());
-  savegame()->options().delete_on_destruction = true;
 }
 
 TEST_F(StorageManagerTest, QuerySchemaVersion) {
+  InitStorageManager(false /* delete_savegame */);
   storage_manager_->GetSqlContext(base::Bind(&QuerySchemaCallback));
   message_loop_.RunUntilIdle();
 
@@ -160,10 +156,9 @@ TEST_F(StorageManagerTest, QuerySchemaVersion) {
       base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
   EXPECT_EQ(true, waiter.TimedWait());
 
-  ReInitStorageManager();
+  InitStorageManager();
   storage_manager_->GetSqlContext(base::Bind(&InspectSchemaVersionCallback));
   message_loop_.RunUntilIdle();
-  savegame()->options().delete_on_destruction = true;
 }
 
 }  // namespace storage
