@@ -19,8 +19,10 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/i18n/icu_util.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "cobalt/deprecated/platform_delegate.h"
+#include "lbshell/src/lb_memory_manager.h"
 
 namespace cobalt {
 namespace {
@@ -28,6 +30,24 @@ namespace {
 void AtExitCallback(void* /*param*/) {
   deprecated::PlatformDelegate::Teardown();
 }
+
+#if LB_ENABLE_MEMORY_DEBUGGING
+
+// Define some functions that will be used by the memory log writer system which
+// does not have access to base::Time.
+
+base::LazyInstance<base::Time> s_program_start_time = LAZY_INSTANCE_INITIALIZER;
+
+void SetupProgramStartTime() {
+  s_program_start_time.Get() = base::Time::Now();
+}
+
+uint32 GetLifetimeInMS() {
+  return static_cast<uint32>(
+      (base::Time::Now() - s_program_start_time.Get()).InMilliseconds());
+}
+
+#endif
 
 }  // namespace
 
@@ -38,6 +58,15 @@ void InitCobalt(int argc, char* argv[]) {
   // Register a callback to be called during program termination.
   // This will fail if AtExitManager wasn't created before calling InitCobalt.
   base::AtExitManager::RegisterCallback(&AtExitCallback, NULL);
+
+#if LB_ENABLE_MEMORY_DEBUGGING
+  if (LB::Memory::IsContinuousLogEnabled()) {
+    SetupProgramStartTime();
+    // Initialize the writer (we should already be recording to memory) now that
+    // the filesystem and threading system are initialized.
+    LB::Memory::InitLogWriter(&GetLifetimeInMS);
+  }
+#endif
 
   bool icu_initialized = icu_util::Initialize();
   LOG_IF(ERROR, !icu_initialized) << "ICU initialization failed.";
