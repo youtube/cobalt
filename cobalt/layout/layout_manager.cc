@@ -109,12 +109,10 @@ LayoutManager::Impl::Impl(
       resource_provider_(resource_provider),
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
-MSVC_PUSH_DISABLE_WARNING(4355)  // this used in base member initializer list
-      image_cache_(new loader::ImageCache(
+      ALLOW_THIS_IN_INITIALIZER_LIST(image_cache_(new loader::ImageCache(
           resource_provider_, fetcher_factory,
           base::Bind(&LayoutManager::Impl::NotifyImageLoaded,
-                     base::Unretained(this)))),
-MSVC_POP_WARNING()
+                     base::Unretained(this))))),
       layout_trigger_(layout_trigger),
       layout_dirty_(false),
       layout_timer_(true, true) {
