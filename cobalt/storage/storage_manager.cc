@@ -108,7 +108,7 @@ StorageManager::StorageManager(const Options& options)
     : options_(options),
       sql_thread_(new base::Thread("StorageManager")),
       io_thread_(new base::Thread("StorageIO")),
-      sql_context_(new SqlContext(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
       storage_ready_(true /* manual reset */, false /* initially signalled */),
       connection_(new sql::Connection()),
       loaded_database_version_(0),
@@ -155,7 +155,7 @@ void StorageManager::Flush(const base::Closure& callback) {
   // to OnFlushIO for a blocking write to the savegame.
   scoped_ptr<Savegame::ByteVector> raw_bytes_ptr;
   int size = vfs_->Serialize(NULL, true /*dry_run*/);
-  raw_bytes_ptr.reset(new Savegame::ByteVector(size));
+  raw_bytes_ptr.reset(new Savegame::ByteVector(static_cast<size_t>(size)));
   if (size > 0) {
     Savegame::ByteVector& raw_bytes = *raw_bytes_ptr;
     vfs_->Serialize(&raw_bytes[0], false /*dry_run*/);
@@ -231,9 +231,10 @@ void StorageManager::FinishInit() {
 
     if (VirtualFileSystem::GetHeaderVersion(header) == -1) {
       VirtualFile* vf = vfs_->Open(kDefaultSaveFile);
-      vf->Write(&raw_bytes[0], raw_bytes.size(), 0 /* offset */);
+      vf->Write(&raw_bytes[0], static_cast<int>(raw_bytes.size()),
+                0 /* offset */);
     } else {
-      vfs_->Deserialize(&raw_bytes[0], raw_bytes.size());
+      vfs_->Deserialize(&raw_bytes[0], static_cast<int>(raw_bytes.size()));
     }
   }
   // Finished with this, so empty it out.

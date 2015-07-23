@@ -35,13 +35,13 @@ int WriteBuffer(uint8* buffer, const uint8* source, int size,
                 bool dry_run) WARN_UNUSED_RESULT;
 
 int ReadBuffer(uint8* dest, const uint8* buffer, int size) {
-  memcpy(dest, buffer, size);
+  memcpy(dest, buffer, static_cast<size_t>(size));
   return size;
 }
 
 int WriteBuffer(uint8* buffer, const uint8* source, int size, bool dry_run) {
   if (!dry_run) {
-    memcpy(buffer, source, size);
+    memcpy(buffer, source, static_cast<size_t>(size));
   }
   return size;
 }
@@ -60,16 +60,20 @@ int VirtualFile::Read(void* dest, int bytes, int offset) const {
   if (bytes_to_read == 0) {
     return 0;
   }
-  memcpy(dest, &buffer_[offset], bytes_to_read);
+  memcpy(dest, &buffer_[static_cast<size_t>(offset)],
+         static_cast<size_t>(bytes_to_read));
   return bytes_to_read;
 }
 
 int VirtualFile::Write(const void* source, int bytes, int offset) {
-  if (buffer_.size() < offset + bytes) {
-    buffer_.resize(offset + bytes);
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(bytes, 0);
+  if (static_cast<int>(buffer_.size()) < offset + bytes) {
+    buffer_.resize(static_cast<size_t>(offset + bytes));
   }
 
-  memcpy(&buffer_[offset], source, bytes);
+  memcpy(&buffer_[static_cast<size_t>(offset)], source,
+         static_cast<size_t>(bytes));
   size_ = std::max(size_, offset + bytes);
   return bytes;
 }
@@ -92,11 +96,11 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
   // Write the filename
   cur_buffer +=
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(name_.c_str()),
-                  name_length, dry_run);
+                  static_cast<int>(name_length), dry_run);
 
   // NOTE(***REMOVED***): Ensure the file size is 64-bit for compatibility
   // with any existing serialized files.
-  uint64 file_size = size_;
+  uint64 file_size = static_cast<uint64>(size_);
   // Write the file contents size
   cur_buffer +=
       WriteBuffer(cur_buffer, reinterpret_cast<const uint8*>(&file_size),
@@ -106,7 +110,7 @@ int VirtualFile::Serialize(uint8* dest, bool dry_run) {
   cur_buffer += WriteBuffer(cur_buffer, &buffer_[0], size_, dry_run);
 
   // Return the number of bytes written
-  return std::distance(dest, cur_buffer);
+  return static_cast<int>(std::distance(dest, cur_buffer));
 }
 
 int VirtualFile::Deserialize(const uint8* source) {
@@ -122,22 +126,22 @@ int VirtualFile::Deserialize(const uint8* source) {
   }
   // Read in filename
   char name[kMaxVfsPathname];
-  cur_buffer +=
-      ReadBuffer(reinterpret_cast<uint8*>(name), cur_buffer, name_length);
+  cur_buffer += ReadBuffer(reinterpret_cast<uint8*>(name), cur_buffer,
+                           static_cast<int>(name_length));
   name_.assign(name, name_length);
 
   // Read in file contents size.
   uint64 file_size;
   cur_buffer += ReadBuffer(reinterpret_cast<uint8*>(&file_size), cur_buffer,
                            sizeof(file_size));
-  size_ = file_size;
+  size_ = static_cast<int>(file_size);
 
   // Read in the file contents
-  buffer_.resize(size_);
+  buffer_.resize(static_cast<size_t>(size_));
   cur_buffer += ReadBuffer(&buffer_[0], cur_buffer, size_);
 
   // Return the number of bytes read
-  return std::distance(source, cur_buffer);
+  return static_cast<int>(std::distance(source, cur_buffer));
 }
 
 }  // namespace storage
