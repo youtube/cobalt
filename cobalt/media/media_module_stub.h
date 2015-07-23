@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-#include "cobalt/media/media_module.h"
+#ifndef MEDIA_MEDIA_MODULE_STUB_H_
+#define MEDIA_MEDIA_MODULE_STUB_H_
 
-#include "base/compiler_specific.h"
-#include "cobalt/media/media_module_stub.h"
+#include "cobalt/media/media_module.h"
 
 namespace cobalt {
 namespace media {
 
-// There is no media stack on Windows and the XB1 media stack cannot be used
-// directly on Windows. So MediaModule on windows does nothing.
-scoped_ptr<MediaModule> MediaModule::Create(
-    render_tree::ResourceProvider* resource_provider) {
-  UNREFERENCED_PARAMETER(resource_provider);
-  return make_scoped_ptr(new MediaModuleStub);
-}
+class MediaModuleStub : public MediaModule {
+ public:
+  MediaModuleStub() {}
+
+  scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      ::media::WebMediaPlayerClient* client) OVERRIDE;
+};
 
 }  // namespace media
 }  // namespace cobalt
+
+#endif  // MEDIA_MEDIA_MODULE_STUB_H_

@@ -66,6 +66,9 @@ class BrowserModule {
   // display and graphics context to the rasterizer and rendering pipeline.
   renderer::RendererModule renderer_module_;
 
+  // Controls all media playback related objects/resources.
+  scoped_ptr<media::MediaModule> media_module_;
+
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
 
