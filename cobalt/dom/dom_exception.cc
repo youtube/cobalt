@@ -27,6 +27,18 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "";
     case DOMException::kIndexSizeErr:
       return "IndexSizeError";
+    case DOMException::kNotFoundErr:
+      return "NotFoundErr";
+    case DOMException::kNotSupportedErr:
+      return "NotSupportedErr";
+    case DOMException::kInvalidStateErr:
+      return "InvalidStateErr";
+    case DOMException::kSyntaxErr:
+      return "SyntaxErr";
+    case DOMException::kInvalidAccessErr:
+      return "InvalidAccessErr";
+    case DOMException::kQuotaExceededErr:
+      return "QuotaExceededErr";
   }
   NOTREACHED();
   return "";
@@ -38,6 +50,12 @@ DOMException::DOMException(ExceptionCode code)
 
 DOMException::DOMException(ExceptionCode code, const std::string& message)
     : code_(code), name_(GetErrorName(code)), message_(message) {}
+
+// static
+void DOMException::Raise(ExceptionCode code,
+                         script::ExceptionState* exception_state) {
+  exception_state->SetException(make_scoped_refptr(new DOMException(code)));
+}
 
 }  // namespace dom
 }  // namespace cobalt
