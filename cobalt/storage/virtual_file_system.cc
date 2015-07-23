@@ -37,7 +37,7 @@ int VirtualFileSystem::GetHeaderVersion(const SerializedHeader& header) {
 
   if (memcmp(version, kVersion, 3) != 0) {
     return -1;
-  } else if (header.file_size < sizeof(SerializedHeader)) {
+  } else if (header.file_size < static_cast<int>(sizeof(SerializedHeader))) {
     return -1;
   } else {
     return version[3] - '0';
@@ -109,17 +109,17 @@ int VirtualFileSystem::Serialize(uint8* buffer, bool dry_run) {
     buffer += file_bytes;
     valid_file_count++;
   }
-
+  const int bytes_written = static_cast<int>(buffer - original);
   if (!dry_run) {
     // Now we can write the header to the beginning of the buffer.
     SerializedHeader header;
     header.version = GetCurrentVersion();
     header.file_count = valid_file_count;
-    header.file_size = buffer - original;
+    header.file_size = bytes_written;
     memcpy(original, &header, sizeof(SerializedHeader));
   }
 
-  return buffer - original;
+  return bytes_written;
 }
 
 void VirtualFileSystem::Deserialize(const uint8* buffer, int buffer_size) {

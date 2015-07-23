@@ -35,7 +35,7 @@ TEST(Savegame, Basic) {
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
-    buf.push_back(i);
+    buf.push_back(static_cast<uint8>(i % 256));
   }
   bool ok = savegame->Write(buf);
   EXPECT_EQ(true, ok);
