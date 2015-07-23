@@ -183,17 +183,17 @@ TEST_F(ParserTest, ParsesClassSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
+  ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::ClassSelector* class_selector = dynamic_cast<cssom::ClassSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ClassSelector*>(NULL), class_selector);
+  ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
 
@@ -206,18 +206,18 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
+  ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::EmptyPseudoClass* empty_pseudo_class =
       dynamic_cast<cssom::EmptyPseudoClass*>(
           const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::EmptyPseudoClass*>(NULL), empty_pseudo_class);
+  ASSERT_TRUE(empty_pseudo_class);
 }
 
 TEST_F(ParserTest, ParsesIdSelector) {
@@ -229,17 +229,17 @@ TEST_F(ParserTest, ParsesIdSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
+  ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::IdSelector* id_selector = dynamic_cast<cssom::IdSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::IdSelector*>(NULL), id_selector);
+  ASSERT_TRUE(id_selector);
   EXPECT_EQ("my-id", id_selector->id());
 }
 
@@ -252,17 +252,17 @@ TEST_F(ParserTest, ParsesTypeSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
+  ASSERT_TRUE(compound_selector);
   ASSERT_EQ(1, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::TypeSelector*>(NULL), type_selector);
+  ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
 }
 
@@ -275,21 +275,21 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   cssom::CompoundSelector* compound_selector =
       adjacent_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::CompoundSelector*>(NULL), compound_selector);
+  ASSERT_TRUE(compound_selector);
   ASSERT_EQ(2, compound_selector->selectors().size());
   cssom::TypeSelector* type_selector = dynamic_cast<cssom::TypeSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::TypeSelector*>(NULL), type_selector);
+  ASSERT_TRUE(type_selector);
   EXPECT_EQ("div", type_selector->element_name());
   cssom::ClassSelector* class_selector = dynamic_cast<cssom::ClassSelector*>(
       const_cast<cssom::Selector*>(compound_selector->selectors()[1]));
-  ASSERT_NE(static_cast<cssom::ClassSelector*>(NULL), class_selector);
+  ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
 }
 
@@ -302,13 +302,12 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::DescendantCombinator* descendant_combinator =
       dynamic_cast<cssom::DescendantCombinator*>(
           const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_NE(static_cast<cssom::DescendantCombinator*>(NULL),
-            descendant_combinator);
+  ASSERT_TRUE(descendant_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
@@ -320,13 +319,12 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::FollowingSiblingCombinator* following_sibling_combinator =
       dynamic_cast<cssom::FollowingSiblingCombinator*>(
           const_cast<cssom::Combinator*>(complex_selector->combinators()[0]));
-  ASSERT_NE(static_cast<cssom::FollowingSiblingCombinator*>(NULL),
-            following_sibling_combinator);
+  ASSERT_TRUE(following_sibling_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
@@ -338,16 +336,16 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   ASSERT_EQ(1, adjacent_selector->combinators().size());
   cssom::ChildCombinator* child_combinator =
       dynamic_cast<cssom::ChildCombinator*>(
           const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
-  ASSERT_NE(static_cast<cssom::ChildCombinator*>(NULL), child_combinator);
+  ASSERT_TRUE(child_combinator);
 }
 
 TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
@@ -359,17 +357,16 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
           style_sheet->css_rules()->Item(0)->selectors()[0]));
-  ASSERT_NE(static_cast<cssom::ComplexSelector*>(NULL), complex_selector);
+  ASSERT_TRUE(complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
-  ASSERT_NE(static_cast<cssom::AdjacentSelector*>(NULL), adjacent_selector);
+  ASSERT_TRUE(adjacent_selector);
   ASSERT_EQ(1, adjacent_selector->combinators().size());
   cssom::NextSiblingCombinator* next_sibling_combinator =
       dynamic_cast<cssom::NextSiblingCombinator*>(
           const_cast<cssom::Combinator*>(adjacent_selector->combinators()[0]));
-  ASSERT_NE(static_cast<cssom::NextSiblingCombinator*>(NULL),
-            next_sibling_combinator);
+  ASSERT_TRUE(next_sibling_combinator);
 }
 
 TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
@@ -1559,7 +1556,7 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
 
   const cssom::RotateFunction* rotate_function =
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
 }
@@ -1577,7 +1574,7 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
 
   const cssom::RotateFunction* rotate_function =
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
 }
@@ -1595,7 +1592,7 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
 
   const cssom::RotateFunction* rotate_function =
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
 }
@@ -1613,7 +1610,7 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
 
   const cssom::RotateFunction* rotate_function =
       dynamic_cast<const cssom::RotateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::RotateFunction*>(NULL), rotate_function);
+  ASSERT_TRUE(rotate_function);
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   rotate_function->clockwise_angle_in_radians());
 }
@@ -1630,7 +1627,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
 
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
+  ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(1.5, scale_function->x_factor());
   EXPECT_FLOAT_EQ(1.5, scale_function->y_factor());
 }
@@ -1652,7 +1649,7 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
 
   const cssom::ScaleFunction* scale_function =
       dynamic_cast<const cssom::ScaleFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::ScaleFunction*>(NULL), scale_function);
+  ASSERT_TRUE(scale_function);
   EXPECT_FLOAT_EQ(16, scale_function->x_factor());
   EXPECT_FLOAT_EQ(9, scale_function->y_factor());
 }
@@ -1670,7 +1667,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformLength) {
 
   const cssom::TranslateFunction* translate_function =
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+  ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
             translate_function->offset_type());
@@ -1694,7 +1691,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
 
   const cssom::TranslateFunction* translate_function =
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+  ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
             translate_function->offset_type());
@@ -1717,7 +1714,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformLength) {
 
   const cssom::TranslateFunction* translate_function =
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+  ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
             translate_function->offset_type());
@@ -1741,7 +1738,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
 
   const cssom::TranslateFunction* translate_function =
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+  ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kPercentage,
             translate_function->offset_type());
@@ -1764,7 +1761,7 @@ TEST_F(ParserTest, ParsesTranslateZTransformLength) {
 
   const cssom::TranslateFunction* translate_function =
       dynamic_cast<const cssom::TranslateFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::TranslateFunction*>(NULL), translate_function);
+  ASSERT_TRUE(translate_function);
 
   ASSERT_EQ(cssom::TranslateFunction::kLength,
             translate_function->offset_type());
@@ -1788,7 +1785,7 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
 
   const cssom::MatrixFunction* matrix_function =
       dynamic_cast<const cssom::MatrixFunction*>(transform_list->value()[0]);
-  ASSERT_NE(static_cast<cssom::MatrixFunction*>(NULL), matrix_function);
+  ASSERT_TRUE(matrix_function);
 
   EXPECT_FLOAT_EQ(1.0f, matrix_function->value().Get(0, 0));
   EXPECT_FLOAT_EQ(3.0f, matrix_function->value().Get(0, 1));
@@ -1811,12 +1808,10 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
           style->transform().get());
   ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
   ASSERT_EQ(2, transform_list->value().size());
-  EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
-            transform_list->value()[0]);
+  EXPECT_TRUE(transform_list->value()[0]);
   EXPECT_EQ(base::GetTypeId<cssom::ScaleFunction>(),
             transform_list->value()[0]->GetTypeId());
-  EXPECT_NE(static_cast<cssom::TransformFunction*>(NULL),
-            transform_list->value()[1]);
+  EXPECT_TRUE(transform_list->value()[1]);
   EXPECT_EQ(base::GetTypeId<cssom::TranslateFunction>(),
             transform_list->value()[1]->GetTypeId());
 }
@@ -1933,8 +1928,7 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
       dynamic_cast<cssom::ConstStringListValue*>(
           parser_.ParsePropertyValue("transition-property", "color",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
@@ -1946,8 +1940,7 @@ TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
           parser_.ParsePropertyValue("transition-property",
                                      "color, transform , background-color",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(3, property_name_list->value().size());
   EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
@@ -1961,8 +1954,7 @@ TEST_F(ParserTest, ParsesTransitionPropertyWithAllValue) {
       dynamic_cast<cssom::ConstStringListValue*>(
           parser_.ParsePropertyValue("transition-property", "all",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kAllPropertyName, property_name_list->value()[0]);
@@ -1983,7 +1975,7 @@ TEST_F(ParserTest, ParsesTimeListWithSingleValue) {
       dynamic_cast<cssom::TimeListValue*>(
           parser_.ParsePropertyValue("transition-duration", "1s",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+  ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(1, time_list_value->value().size());
   EXPECT_DOUBLE_EQ(1.0, time_list_value->value()[0].InSecondsF());
@@ -1995,7 +1987,7 @@ TEST_F(ParserTest, ParsesTimeListWithMultipleValues) {
           parser_.ParsePropertyValue("transition-duration",
                                      "2s, 1ms, 0, 2ms, 3s, 3ms",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+  ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(6, time_list_value->value().size());
   EXPECT_DOUBLE_EQ(2, time_list_value->value()[0].InSecondsF());
@@ -2011,7 +2003,7 @@ TEST_F(ParserTest, ParsesNegativeTimeList) {
       dynamic_cast<cssom::TimeListValue*>(
           parser_.ParsePropertyValue("transition-duration", "-4s",
                                      source_location_).get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), time_list_value.get());
+  ASSERT_TRUE(time_list_value.get());
 
   ASSERT_EQ(1, time_list_value->value().size());
   EXPECT_DOUBLE_EQ(-4, time_list_value->value()[0].InSecondsF());
@@ -2024,8 +2016,7 @@ TEST_F(ParserTest, ParsesTransitionDelayWithSingleValue) {
   scoped_refptr<cssom::ListValue<base::TimeDelta> > transition_delay =
       dynamic_cast<cssom::ListValue<base::TimeDelta>*>(
           style->transition_delay().get());
-  EXPECT_NE(static_cast<cssom::ListValue<base::TimeDelta>*>(NULL),
-            transition_delay.get());
+  EXPECT_TRUE(transition_delay.get());
   ASSERT_EQ(1, transition_delay->value().size());
   EXPECT_DOUBLE_EQ(1, transition_delay->value()[0].InSecondsF());
 }
@@ -2037,8 +2028,7 @@ TEST_F(ParserTest, ParsesTransitionDurationWithSingleValue) {
 
   scoped_refptr<cssom::TimeListValue> transition_duration =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  EXPECT_NE(static_cast<cssom::TimeListValue*>(NULL),
-            transition_duration.get());
+  EXPECT_TRUE(transition_duration.get());
   ASSERT_EQ(1, transition_duration->value().size());
   EXPECT_DOUBLE_EQ(1, transition_duration->value()[0].InSecondsF());
 }
@@ -2153,8 +2143,7 @@ TEST_F(ParserTest, ParsesMultipleTransitionTimingFunctions) {
   scoped_refptr<cssom::TimingFunctionListValue> transition_timing_function =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            transition_timing_function.get());
+  ASSERT_TRUE(transition_timing_function.get());
 
   scoped_ptr<cssom::TimingFunctionListValue::Builder>
       expected_result_list_builder(
@@ -2231,8 +2220,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(2, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2241,7 +2229,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(2, duration_list->value().size());
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
   EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
@@ -2250,8 +2238,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(2, timing_function_list->value().size());
   EXPECT_TRUE(timing_function_list->value()[0]->Equals(
       *cssom::TimingFunction::GetEaseIn()));
@@ -2261,7 +2248,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(2, delay_list->value().size());
   EXPECT_DOUBLE_EQ(0.5, delay_list->value()[0].InSecondsF());
   EXPECT_DOUBLE_EQ(0.5, delay_list->value()[1].InSecondsF());
@@ -2277,8 +2264,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2286,7 +2272,7 @@ TEST_F(ParserTest,
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_EQ(
       base::polymorphic_downcast<const cssom::TimeListValue*>(
@@ -2297,8 +2283,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
                   cssom::GetInitialStyle()->transition_timing_function().get())
@@ -2308,7 +2293,7 @@ TEST_F(ParserTest,
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2325,8 +2310,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2334,7 +2318,7 @@ TEST_F(ParserTest,
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
@@ -2342,8 +2326,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
                   cssom::GetInitialStyle()->transition_timing_function().get())
@@ -2353,7 +2336,7 @@ TEST_F(ParserTest,
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2370,8 +2353,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2379,7 +2361,7 @@ TEST_F(ParserTest,
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
@@ -2387,8 +2369,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(timing_function_list->value()[0]->Equals(
       *cssom::TimingFunction::GetEaseIn()));
@@ -2396,7 +2377,7 @@ TEST_F(ParserTest,
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2414,8 +2395,7 @@ TEST_F(
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2423,7 +2403,7 @@ TEST_F(
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
 
@@ -2431,8 +2411,7 @@ TEST_F(
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(timing_function_list->value()[0]->Equals(
       *cssom::TimingFunction::GetEaseIn()));
@@ -2440,7 +2419,7 @@ TEST_F(
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2457,8 +2436,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(2, property_name_list->value().size());
   EXPECT_EQ(cssom::kBackgroundColorPropertyName,
             property_name_list->value()[0]);
@@ -2467,7 +2445,7 @@ TEST_F(ParserTest,
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(2, duration_list->value().size());
   EXPECT_DOUBLE_EQ(1, duration_list->value()[0].InSecondsF());
   EXPECT_DOUBLE_EQ(2, duration_list->value()[1].InSecondsF());
@@ -2476,8 +2454,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(2, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
                   cssom::GetInitialStyle()->transition_timing_function().get())
@@ -2491,7 +2468,7 @@ TEST_F(ParserTest,
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(2, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2515,28 +2492,26 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(0, property_name_list->value().size());
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(0, duration_list->value().size());
 
   // Test transition-timing-function was set properly.
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(0, timing_function_list->value().size());
 
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(0, delay_list->value().size());
 
   // Test that despite the error, display inline was still set correctly.
@@ -2557,28 +2532,26 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(0, property_name_list->value().size());
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(0, duration_list->value().size());
 
   // Test transition-timing-function was set properly.
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(0, timing_function_list->value().size());
 
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(0, delay_list->value().size());
 }
 
@@ -2597,15 +2570,14 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::ConstStringListValue> property_name_list =
       dynamic_cast<cssom::ConstStringListValue*>(
           style->transition_property().get());
-  ASSERT_NE(static_cast<cssom::ConstStringListValue*>(NULL),
-            property_name_list.get());
+  ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
   EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_DOUBLE_EQ(2, duration_list->value()[0].InSecondsF());
 
@@ -2613,8 +2585,7 @@ TEST_F(ParserTest,
   scoped_refptr<cssom::TimingFunctionListValue> timing_function_list =
       dynamic_cast<cssom::TimingFunctionListValue*>(
           style->transition_timing_function().get());
-  ASSERT_NE(static_cast<cssom::TimingFunctionListValue*>(NULL),
-            timing_function_list.get());
+  ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
                   cssom::GetInitialStyle()->transition_timing_function().get())
@@ -2624,7 +2595,7 @@ TEST_F(ParserTest,
   // Test transition-delay was set properly.
   scoped_refptr<cssom::TimeListValue> delay_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), delay_list.get());
+  ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
   EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
                 cssom::GetInitialStyle()->transition_delay().get())->value()[0],
@@ -2642,7 +2613,7 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
       dynamic_cast<cssom::TimeListValue*>(style->transition_duration().get());
-  ASSERT_NE(static_cast<cssom::TimeListValue*>(NULL), duration_list.get());
+  ASSERT_TRUE(duration_list.get());
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_DOUBLE_EQ(0, duration_list->value()[0].InSecondsF());
 }
@@ -2653,7 +2624,7 @@ TEST_F(ParserTest, ParsesLeftWithLength) {
 
   scoped_refptr<cssom::LengthValue> length =
       dynamic_cast<cssom::LengthValue*>(style->left().get());
-  ASSERT_TRUE(length != NULL);
+  ASSERT_TRUE(length);
   EXPECT_EQ(10, length->value());
   EXPECT_EQ(cssom::kPixelsUnit, length->unit());
 }
@@ -2664,7 +2635,7 @@ TEST_F(ParserTest, ParsesLeftWithPercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->left().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(0.1f, percentage->value());
 }
 
@@ -2674,7 +2645,7 @@ TEST_F(ParserTest, ParsesLeftWithNegativePercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->left().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
@@ -2691,7 +2662,7 @@ TEST_F(ParserTest, ParsesTopWithLength) {
 
   scoped_refptr<cssom::LengthValue> length =
       dynamic_cast<cssom::LengthValue*>(style->top().get());
-  ASSERT_TRUE(length != NULL);
+  ASSERT_TRUE(length);
   EXPECT_EQ(10, length->value());
   EXPECT_EQ(cssom::kPixelsUnit, length->unit());
 }
@@ -2702,7 +2673,7 @@ TEST_F(ParserTest, ParsesTopWithPercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->top().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(0.1f, percentage->value());
 }
 
@@ -2712,7 +2683,7 @@ TEST_F(ParserTest, ParsesTopWithNegativePercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->top().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
@@ -2729,7 +2700,7 @@ TEST_F(ParserTest, ParsesRightWithLength) {
 
   scoped_refptr<cssom::LengthValue> length =
       dynamic_cast<cssom::LengthValue*>(style->right().get());
-  ASSERT_TRUE(length != NULL);
+  ASSERT_TRUE(length);
   EXPECT_EQ(10, length->value());
   EXPECT_EQ(cssom::kPixelsUnit, length->unit());
 }
@@ -2740,7 +2711,7 @@ TEST_F(ParserTest, ParsesRightWithPercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->right().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(0.1f, percentage->value());
 }
 
@@ -2750,7 +2721,7 @@ TEST_F(ParserTest, ParsesRightWithNegativePercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->right().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
@@ -2767,7 +2738,7 @@ TEST_F(ParserTest, ParsesBottomWithLength) {
 
   scoped_refptr<cssom::LengthValue> length =
       dynamic_cast<cssom::LengthValue*>(style->bottom().get());
-  ASSERT_TRUE(length != NULL);
+  ASSERT_TRUE(length);
   EXPECT_EQ(10, length->value());
   EXPECT_EQ(cssom::kPixelsUnit, length->unit());
 }
@@ -2778,7 +2749,7 @@ TEST_F(ParserTest, ParsesBottomWithPercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->bottom().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(0.1f, percentage->value());
 }
 
@@ -2788,7 +2759,7 @@ TEST_F(ParserTest, ParsesBottomWithNegativePercentage) {
 
   scoped_refptr<cssom::PercentageValue> percentage =
       dynamic_cast<cssom::PercentageValue*>(style->bottom().get());
-  ASSERT_TRUE(percentage != NULL);
+  ASSERT_TRUE(percentage);
   EXPECT_FLOAT_EQ(-0.1f, percentage->value());
 }
 
