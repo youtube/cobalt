@@ -41,7 +41,7 @@ TEST_F(CallbackFunctionTest, ScriptCallbackCanBeCalledFromC) {
       .WillOnce(SaveArg<0>(&void_function));
   EXPECT_TRUE(EvaluateScript(
       "test.takesVoidFunction(function() { was_called = true });", NULL));
-  ASSERT_NE(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+  ASSERT_TRUE(void_function);
 
   void_function->Run();
   EXPECT_TRUE(EvaluateScript("was_called;", &result));
@@ -57,7 +57,7 @@ TEST_F(CallbackFunctionTest, ScriptFunctionIsNotGarbageCollected) {
       .WillOnce(SaveArg<0>(&void_function));
   EXPECT_TRUE(EvaluateScript(
       "test.takesVoidFunction(function() { num_called++ });", NULL));
-  ASSERT_NE(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+  ASSERT_TRUE(void_function);
 
   void_function->Run();
   EXPECT_TRUE(EvaluateScript("num_called == 1;", &result));
@@ -84,7 +84,7 @@ TEST_F(CallbackFunctionTest, CallbackWithOneParameter) {
       "test.takesFunctionWithOneParameter(function(value) { "
       "callback_value = value });",
       NULL));
-  ASSERT_NE(NULL, reinterpret_cast<intptr_t>(function_with_parameter.get()));
+  ASSERT_TRUE(function_with_parameter);
 
   // Run the callback, and check that the value was passed through to script.
   function_with_parameter->Run(5);
@@ -108,8 +108,7 @@ TEST_F(CallbackFunctionTest, CallbackWithSeveralParameters) {
       "function(param1, param2, param3) { "
       "value1 = param1; value2 = param2; value3 = param3; });",
       NULL));
-  ASSERT_NE(NULL,
-            reinterpret_cast<intptr_t>(function_with_several_parameters.get()));
+  ASSERT_TRUE(function_with_several_parameters);
 
   // Execute the callback
   scoped_refptr<ArbitraryInterface> some_object =
@@ -143,8 +142,7 @@ TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
       "function(param1, param2, param3) { "
       "value1 = param1; value2 = param2; value3 = param3; });",
       NULL));
-  ASSERT_NE(NULL, reinterpret_cast<intptr_t>(
-                      function_with_nullable_parameters.get()));
+  ASSERT_TRUE(function_with_nullable_parameters);
 
   // Execute the callback
   function_with_nullable_parameters->Run(base::nullopt, base::nullopt, NULL);
@@ -173,7 +171,7 @@ TEST_F(CallbackFunctionTest, CallbackAttribute) {
       "var callback_function = function() { ++num_called; };", NULL));
   EXPECT_TRUE(
       EvaluateScript("test.callbackAttribute = callback_function;", NULL));
-  ASSERT_NE(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+  ASSERT_TRUE(void_function);
 
   // Execute the callback
   void_function->Run();
@@ -207,12 +205,12 @@ TEST_F(CallbackFunctionTest, SetNullableCallbackAttribute) {
   EXPECT_TRUE(EvaluateScript(
       "test.nullableCallbackAttribute = function() { /* empty function */ };",
       NULL));
-  EXPECT_NE(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+  EXPECT_TRUE(void_function);
 
   EXPECT_CALL(test_mock(), set_nullable_callback_attribute(_))
       .WillOnce(SaveArg<0>(&void_function));
   EXPECT_TRUE(EvaluateScript("test.nullableCallbackAttribute = null;", NULL));
-  EXPECT_EQ(NULL, reinterpret_cast<intptr_t>(void_function.get()));
+  EXPECT_FALSE(void_function);
 }
 
 TEST_F(CallbackFunctionTest, GetNullableCallbackAttribute) {

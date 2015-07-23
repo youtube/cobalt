@@ -98,7 +98,7 @@ ParserTest::ParserTest()
 TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
@@ -109,7 +109,7 @@ TEST_F(ParserTest, HandlesUnrecoverableSyntaxError) {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("@casino-royale", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
@@ -120,7 +120,7 @@ TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "cucumber", base::SourceLocation("[object ParserTest]", 10, 10));
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
@@ -133,14 +133,14 @@ TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
       "\n"
       "cucumber",
       base::SourceLocation("[object ParserTest]", 10, 10));
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(0, style_sheet->css_rules()->length());
 }
 
 TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("<!-- body {} -->", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(1, style_sheet->css_rules()->length());
 }
 
@@ -150,7 +150,7 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @cobalt-magic; div {}", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
 
@@ -160,7 +160,7 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @charset 'utf-8'; div {}", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
   EXPECT_EQ(2, style_sheet->css_rules()->length());
 }
 
@@ -170,8 +170,8 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
 
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("body {} !important {} div {}", source_location_);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
-  ASSERT_NE(scoped_refptr<cssom::CSSStyleSheet>(), style_sheet);
+  ASSERT_TRUE(style_sheet);
+  ASSERT_TRUE(style_sheet);
 }
 
 TEST_F(ParserTest, ParsesClassSelector) {
@@ -376,8 +376,8 @@ TEST_F(ParserTest, ParsesDeclarationListWithTrailingSemicolon) {
           "font-size: 100px;\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
-  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+  EXPECT_TRUE(style->color());
+  EXPECT_TRUE(style->font_size());
 }
 
 TEST_F(ParserTest, ParsesDeclarationListWithoutTrailingSemicolon) {
@@ -387,8 +387,8 @@ TEST_F(ParserTest, ParsesDeclarationListWithoutTrailingSemicolon) {
           "font-size: 100px\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
-  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+  EXPECT_TRUE(style->color());
+  EXPECT_TRUE(style->font_size());
 }
 
 TEST_F(ParserTest, ParsesDeclarationListWithEmptyDeclaration) {
@@ -399,8 +399,8 @@ TEST_F(ParserTest, ParsesDeclarationListWithEmptyDeclaration) {
           "font-size: 100px;\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
-  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+  EXPECT_TRUE(style->color());
+  EXPECT_TRUE(style->font_size());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
@@ -415,8 +415,8 @@ TEST_F(ParserTest, RecoversFromInvalidPropertyDeclaration) {
           "font-size: 100px;\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), style->color());
-  EXPECT_NE(scoped_refptr<cssom::LengthValue>(), style->font_size());
+  EXPECT_TRUE(style->color());
+  EXPECT_TRUE(style->font_size());
 }
 
 TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
@@ -428,7 +428,7 @@ TEST_F(ParserTest, SilentlyIgnoresNonWebKitProperties) {
           "transform: scale(2);\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->transform());
+  EXPECT_TRUE(style->transform());
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
@@ -446,7 +446,7 @@ TEST_F(ParserTest, WarnsAboutInvalidStandardAndWebKitProperties) {
           "color: #9edbf9;\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+  EXPECT_TRUE(style->color());
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
@@ -460,8 +460,8 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
           "color: #fff;\n",
           source_location_);
 
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), style->background_color());
-  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+  EXPECT_FALSE(style->background_color());
+  EXPECT_TRUE(style->color());
 }
 
 TEST_F(ParserTest, ParsesInherit) {
@@ -487,7 +487,7 @@ TEST_F(ParserTest, ParsesBackgroundWithOnlyColor) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 }
 
@@ -498,12 +498,12 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndURL) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
   scoped_refptr<cssom::URLValue> background_image =
       dynamic_cast<cssom::URLValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  ASSERT_TRUE(background_image);
   EXPECT_EQ("foo.png", background_image->value());
 }
 
@@ -514,12 +514,12 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndURLInDifferentOrder) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
   scoped_refptr<cssom::URLValue> background_image =
       dynamic_cast<cssom::URLValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  ASSERT_TRUE(background_image);
   EXPECT_EQ("foo.png", background_image->value());
 }
 
@@ -530,14 +530,13 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPosition) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
 
   scoped_refptr<cssom::LengthValue> length_value_left =
       dynamic_cast<cssom::LengthValue*>(
@@ -559,8 +558,7 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
 
   scoped_refptr<cssom::LengthValue> length_value_left =
       dynamic_cast<cssom::LengthValue*>(
@@ -575,7 +573,7 @@ TEST_F(ParserTest, ParsesBackgroundWithColorAndPositionInDifferentOrder) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0x000000cc, background_color->value());
 }
 
@@ -587,14 +585,13 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
   scoped_refptr<cssom::URLValue> background_image =
       dynamic_cast<cssom::URLValue*>(style->background_image().get());
 
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  ASSERT_TRUE(background_image);
   EXPECT_EQ("foo.png", background_image->value());
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
 
   scoped_refptr<cssom::PercentageValue> position_value_left =
       dynamic_cast<cssom::PercentageValue*>(
@@ -608,7 +605,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSize) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
 
   scoped_refptr<cssom::LengthValue> size_value_left =
       dynamic_cast<cssom::LengthValue*>(background_size_list->value()[0].get());
@@ -629,14 +626,13 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
   scoped_refptr<cssom::URLValue> background_image =
       dynamic_cast<cssom::URLValue*>(style->background_image().get());
 
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image);
+  ASSERT_TRUE(background_image);
   EXPECT_EQ("foo.png", background_image->value());
 
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
 
   scoped_refptr<cssom::PercentageValue> position_value_left =
       dynamic_cast<cssom::PercentageValue*>(
@@ -650,7 +646,7 @@ TEST_F(ParserTest, ParsesBackgroundWithURLPositionAndSizeInDifferentOrder) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
 
   scoped_refptr<cssom::LengthValue> size_value_left =
       dynamic_cast<cssom::LengthValue*>(background_size_list->value()[0].get());
@@ -669,7 +665,7 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
 
   scoped_refptr<cssom::RGBAColorValue> background_color =
       dynamic_cast<cssom::RGBAColorValue*>(style->background_color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), background_color);
+  ASSERT_TRUE(background_color);
   EXPECT_EQ(0xffffffff, background_color->value());
 }
 
@@ -695,7 +691,7 @@ TEST_F(ParserTest, ParsesSingleBackgroundImageURL) {
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   EXPECT_EQ(1, background_image_list->value().size());
 
   scoped_refptr<cssom::URLValue> url_value_1 =
@@ -711,7 +707,7 @@ TEST_F(ParserTest, ParsesMultipleBackgroundImageURLs) {
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   EXPECT_EQ(3, background_image_list->value().size());
 
   scoped_refptr<cssom::URLValue> url_value_1 =
@@ -736,7 +732,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   EXPECT_EQ(1, background_image_list->value().size());
 
   scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
@@ -744,7 +740,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
           background_image_list->value()[0].get());
   EXPECT_FLOAT_EQ(static_cast<float>(M_PI),
                   *linear_gradient_value->angle_in_radians());
-  EXPECT_TRUE(!linear_gradient_value->side_or_corner());
+  EXPECT_FALSE(linear_gradient_value->side_or_corner());
 
   const cssom::LinearGradientValue::ColorStopList* color_stop_list_value =
       linear_gradient_value->color_stop_list();
@@ -755,7 +751,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithDirection) {
   for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
     const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
-    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
 
     scoped_refptr<cssom::LengthValue> position =
@@ -774,13 +770,13 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   EXPECT_EQ(1, background_image_list->value().size());
 
   scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
       dynamic_cast<cssom::LinearGradientValue*>(
           background_image_list->value()[0].get());
-  EXPECT_TRUE(!linear_gradient_value->angle_in_radians());
+  EXPECT_FALSE(linear_gradient_value->angle_in_radians());
   EXPECT_EQ(cssom::LinearGradientValue::kBottom,
             *linear_gradient_value->side_or_corner());
 
@@ -791,12 +787,11 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientWithoutDirection) {
   for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
     const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
-    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
 
     if (i == 0) {
-      EXPECT_EQ(scoped_refptr<cssom::PropertyListValue>(),
-                color_stop_value->position());
+      EXPECT_FALSE(color_stop_value->position());
     } else {
       scoped_refptr<cssom::PercentageValue> position =
           dynamic_cast<cssom::PercentageValue*>(
@@ -816,13 +811,13 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
 
   scoped_refptr<cssom::PropertyListValue> background_image_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_image().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_image_list);
+  ASSERT_TRUE(background_image_list);
   EXPECT_EQ(3, background_image_list->value().size());
 
   scoped_refptr<cssom::LinearGradientValue> linear_gradient_value =
       dynamic_cast<cssom::LinearGradientValue*>(
           background_image_list->value()[0].get());
-  EXPECT_TRUE(!linear_gradient_value->angle_in_radians());
+  EXPECT_FALSE(linear_gradient_value->angle_in_radians());
   EXPECT_EQ(cssom::LinearGradientValue::kTopRight,
             *linear_gradient_value->side_or_corner());
 
@@ -833,7 +828,7 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
   for (size_t i = 0; i < color_stop_list_value->size(); ++i) {
     const cssom::ColorStop* color_stop_value = (*color_stop_list_value)[i];
     scoped_refptr<cssom::RGBAColorValue> color = color_stop_value->rgba();
-    ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+    ASSERT_TRUE(color);
     EXPECT_EQ(0x22222200, color->value());
 
     if (i == 0) {
@@ -851,12 +846,12 @@ TEST_F(ParserTest, ParsesBackgroundImageLinearGradientAndURL) {
 
   scoped_refptr<cssom::URLValue> background_image_1 =
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[1].get());
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image_1);
+  ASSERT_TRUE(background_image_1);
   EXPECT_EQ("foo.png", background_image_1->value());
 
   scoped_refptr<cssom::URLValue> background_image_2 =
       dynamic_cast<cssom::URLValue*>(background_image_list->value()[2].get());
-  ASSERT_NE(scoped_refptr<cssom::URLValue>(), background_image_2);
+  ASSERT_TRUE(background_image_2);
   EXPECT_EQ("bar.jpg", background_image_2->value());
 }
 
@@ -868,8 +863,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionCenter) {
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
   EXPECT_EQ(2, background_position_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage_value_left =
@@ -891,8 +885,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionDoublePercentage) {
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
   EXPECT_EQ(2, background_position_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage_value_left =
@@ -914,8 +907,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionDoubleLength) {
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
   EXPECT_EQ(2, background_position_list->value().size());
 
   scoped_refptr<cssom::LengthValue> length_value_left =
@@ -939,8 +931,7 @@ TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
   scoped_refptr<cssom::PropertyListValue> background_position_list =
       dynamic_cast<cssom::PropertyListValue*>(
           style->background_position().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(),
-            background_position_list);
+  ASSERT_TRUE(background_position_list);
   EXPECT_EQ(2, background_position_list->value().size());
 
   scoped_refptr<cssom::LengthValue> length_value_left =
@@ -976,7 +967,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeSingleAuto) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[1]);
@@ -989,7 +980,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeDoubleAuto) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[0]);
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), background_size_list->value()[1]);
@@ -1001,7 +992,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeSinglePercentage) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage_value =
@@ -1018,7 +1009,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeDoublePercentage) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage_value_left =
@@ -1039,7 +1030,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeOneAutoOnePercentage) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
 
   EXPECT_EQ(cssom::KeywordValue::GetAuto(),
@@ -1058,7 +1049,7 @@ TEST_F(ParserTest, ParsesBackgroundSizeOnePercentageOneAuto) {
 
   scoped_refptr<cssom::PropertyListValue> background_size_list =
       dynamic_cast<cssom::PropertyListValue*>(style->background_size().get());
-  ASSERT_NE(scoped_refptr<cssom::PropertyListValue>(), background_size_list);
+  ASSERT_TRUE(background_size_list);
   EXPECT_EQ(2, background_size_list->value().size());
 
   scoped_refptr<cssom::PercentageValue> percentage_value =
@@ -1076,7 +1067,7 @@ TEST_F(ParserTest, ParsesBorderRadius) {
 
   scoped_refptr<cssom::LengthValue> border_radius =
       dynamic_cast<cssom::LengthValue*>(style->border_radius().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), border_radius);
+  ASSERT_TRUE(border_radius);
   EXPECT_FLOAT_EQ(0.2f, border_radius->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
 }
@@ -1087,7 +1078,7 @@ TEST_F(ParserTest, Parses3DigitColor) {
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  ASSERT_TRUE(color);
   EXPECT_EQ(0x112233ff, color->value());
 }
 
@@ -1098,7 +1089,7 @@ TEST_F(ParserTest, Parses6DigitColor) {
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  ASSERT_TRUE(color);
   EXPECT_EQ(0x0047abff, color->value());
 }
 
@@ -1109,7 +1100,7 @@ TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  ASSERT_TRUE(color);
   EXPECT_EQ(0xff0000ff, color->value());
 }
 
@@ -1120,7 +1111,7 @@ TEST_F(ParserTest, ParsesRGBAColorWithIntegers) {
 
   scoped_refptr<cssom::RGBAColorValue> color =
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
-  ASSERT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  ASSERT_TRUE(color);
   EXPECT_EQ(0xff80017f, color->value());
 }
 
@@ -1159,7 +1150,7 @@ TEST_F(ParserTest, ParsesFontFamily) {
 
   scoped_refptr<cssom::StringValue> font_family =
       dynamic_cast<cssom::StringValue*>(style->font_family().get());
-  ASSERT_NE(scoped_refptr<cssom::StringValue>(), font_family);
+  ASSERT_TRUE(font_family);
   EXPECT_EQ("Droid Sans", font_family->value());
 }
 
@@ -1171,7 +1162,7 @@ TEST_F(ParserTest, ParsesFontSize) {
 
   scoped_refptr<cssom::LengthValue> font_size =
       dynamic_cast<cssom::LengthValue*>(style->font_size().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), font_size);
+  ASSERT_TRUE(font_size);
   EXPECT_FLOAT_EQ(100, font_size->value());
   EXPECT_EQ(cssom::kPixelsUnit, font_size->unit());
 }
@@ -1203,7 +1194,7 @@ TEST_F(ParserTest, ParsesHeight) {
 
   scoped_refptr<cssom::LengthValue> height =
       dynamic_cast<cssom::LengthValue*>(style->height().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), height);
+  ASSERT_TRUE(height);
   EXPECT_FLOAT_EQ(100, height->value());
   EXPECT_EQ(cssom::kPixelsUnit, height->unit());
 }
@@ -1221,7 +1212,7 @@ TEST_F(ParserTest, ParsesLineHeightInEm) {
 
   scoped_refptr<cssom::LengthValue> line_height =
       dynamic_cast<cssom::LengthValue*>(style->line_height().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), line_height);
+  ASSERT_TRUE(line_height);
   EXPECT_FLOAT_EQ(1.2f, line_height->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, line_height->unit());
 }
@@ -1244,7 +1235,7 @@ TEST_F(ParserTest, ParsesMarginWith2Values) {
 
   scoped_refptr<cssom::LengthValue> margin_right =
       dynamic_cast<cssom::LengthValue*>(style->margin_right().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_right);
+  ASSERT_TRUE(margin_right);
   EXPECT_FLOAT_EQ(0, margin_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
 
@@ -1252,7 +1243,7 @@ TEST_F(ParserTest, ParsesMarginWith2Values) {
 
   scoped_refptr<cssom::LengthValue> margin_left =
       dynamic_cast<cssom::LengthValue*>(style->margin_left().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_left);
+  ASSERT_TRUE(margin_left);
   EXPECT_FLOAT_EQ(0, margin_left->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_left->unit());
 }
@@ -1263,7 +1254,7 @@ TEST_F(ParserTest, ParsesMarginWith3Values) {
 
   scoped_refptr<cssom::LengthValue> margin_top =
       dynamic_cast<cssom::LengthValue*>(style->margin_top().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_top);
+  ASSERT_TRUE(margin_top);
   EXPECT_FLOAT_EQ(0, margin_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
 
@@ -1271,7 +1262,7 @@ TEST_F(ParserTest, ParsesMarginWith3Values) {
 
   scoped_refptr<cssom::PercentageValue> margin_bottom =
       dynamic_cast<cssom::PercentageValue*>(style->margin_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), margin_bottom);
+  ASSERT_TRUE(margin_bottom);
   EXPECT_FLOAT_EQ(0.1f, margin_bottom->value());
 
   EXPECT_EQ(cssom::KeywordValue::GetAuto(), style->margin_left());
@@ -1284,25 +1275,25 @@ TEST_F(ParserTest, ParsesMarginWith4Values) {
 
   scoped_refptr<cssom::LengthValue> margin_top =
       dynamic_cast<cssom::LengthValue*>(style->margin_top().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_top);
+  ASSERT_TRUE(margin_top);
   EXPECT_FLOAT_EQ(10, margin_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_top->unit());
 
   scoped_refptr<cssom::LengthValue> margin_right =
       dynamic_cast<cssom::LengthValue*>(style->margin_right().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_right);
+  ASSERT_TRUE(margin_right);
   EXPECT_FLOAT_EQ(20, margin_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_right->unit());
 
   scoped_refptr<cssom::LengthValue> margin_bottom =
       dynamic_cast<cssom::LengthValue*>(style->margin_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_bottom);
+  ASSERT_TRUE(margin_bottom);
   EXPECT_FLOAT_EQ(30, margin_bottom->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_bottom->unit());
 
   scoped_refptr<cssom::LengthValue> margin_left =
       dynamic_cast<cssom::LengthValue*>(style->margin_left().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_left);
+  ASSERT_TRUE(margin_left);
   EXPECT_FLOAT_EQ(40, margin_left->value());
   EXPECT_EQ(cssom::kPixelsUnit, margin_left->unit());
 }
@@ -1313,7 +1304,7 @@ TEST_F(ParserTest, ParsesMarginBottom) {
 
   scoped_refptr<cssom::LengthValue> margin_bottom =
       dynamic_cast<cssom::LengthValue*>(style->margin_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), margin_bottom);
+  ASSERT_TRUE(margin_bottom);
   EXPECT_FLOAT_EQ(1, margin_bottom->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, margin_bottom->unit());
 }
@@ -1324,7 +1315,7 @@ TEST_F(ParserTest, ParsesMarginLeft) {
 
   scoped_refptr<cssom::PercentageValue> margin_left =
       dynamic_cast<cssom::PercentageValue*>(style->margin_left().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), margin_left);
+  ASSERT_TRUE(margin_left);
   EXPECT_FLOAT_EQ(0.055f, margin_left->value());
 }
 
@@ -1348,7 +1339,7 @@ TEST_F(ParserTest, ParsesOpacity) {
 
   scoped_refptr<cssom::NumberValue> translucent =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), translucent);
+  ASSERT_TRUE(translucent);
   EXPECT_FLOAT_EQ(0.5f, translucent->value());
 }
 
@@ -1358,7 +1349,7 @@ TEST_F(ParserTest, ClampsOpacityToZero) {
 
   scoped_refptr<cssom::NumberValue> transparent =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), transparent);
+  ASSERT_TRUE(transparent);
   EXPECT_FLOAT_EQ(0, transparent->value());
 }
 
@@ -1368,7 +1359,7 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
 
   scoped_refptr<cssom::NumberValue> opaque =
       dynamic_cast<cssom::NumberValue*>(style->opacity().get());
-  ASSERT_NE(scoped_refptr<cssom::NumberValue>(), opaque);
+  ASSERT_TRUE(opaque);
   EXPECT_FLOAT_EQ(1, opaque->value());
 }
 
@@ -1402,23 +1393,23 @@ TEST_F(ParserTest, ParsesPaddingWith2Values) {
 
   scoped_refptr<cssom::PercentageValue> padding_top =
       dynamic_cast<cssom::PercentageValue*>(style->padding_top().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_top);
+  ASSERT_TRUE(padding_top);
   EXPECT_FLOAT_EQ(0.1f, padding_top->value());
 
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  ASSERT_TRUE(padding_right);
   EXPECT_FLOAT_EQ(1.2f, padding_right->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
 
   scoped_refptr<cssom::PercentageValue> padding_bottom =
       dynamic_cast<cssom::PercentageValue*>(style->padding_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_bottom);
+  ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(0.1f, padding_bottom->value());
 
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  ASSERT_TRUE(padding_left);
   EXPECT_FLOAT_EQ(1.2f, padding_left->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_left->unit());
 }
@@ -1429,23 +1420,23 @@ TEST_F(ParserTest, ParsesPaddingWith3Values) {
 
   scoped_refptr<cssom::PercentageValue> padding_top =
       dynamic_cast<cssom::PercentageValue*>(style->padding_top().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_top);
+  ASSERT_TRUE(padding_top);
   EXPECT_FLOAT_EQ(0.1f, padding_top->value());
 
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  ASSERT_TRUE(padding_right);
   EXPECT_FLOAT_EQ(1.2f, padding_right->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_right->unit());
 
   scoped_refptr<cssom::PercentageValue> padding_bottom =
       dynamic_cast<cssom::PercentageValue*>(style->padding_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_bottom);
+  ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(0.2f, padding_bottom->value());
 
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  ASSERT_TRUE(padding_left);
   EXPECT_FLOAT_EQ(1.2f, padding_left->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_left->unit());
 }
@@ -1457,25 +1448,25 @@ TEST_F(ParserTest, ParsesPaddingWith4Values) {
 
   scoped_refptr<cssom::LengthValue> padding_top =
       dynamic_cast<cssom::LengthValue*>(style->padding_top().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_top);
+  ASSERT_TRUE(padding_top);
   EXPECT_FLOAT_EQ(10, padding_top->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_top->unit());
 
   scoped_refptr<cssom::LengthValue> padding_right =
       dynamic_cast<cssom::LengthValue*>(style->padding_right().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_right);
+  ASSERT_TRUE(padding_right);
   EXPECT_FLOAT_EQ(20, padding_right->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_right->unit());
 
   scoped_refptr<cssom::LengthValue> padding_bottom =
       dynamic_cast<cssom::LengthValue*>(style->padding_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_bottom);
+  ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(30, padding_bottom->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_bottom->unit());
 
   scoped_refptr<cssom::LengthValue> padding_left =
       dynamic_cast<cssom::LengthValue*>(style->padding_left().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_left);
+  ASSERT_TRUE(padding_left);
   EXPECT_FLOAT_EQ(40, padding_left->value());
   EXPECT_EQ(cssom::kPixelsUnit, padding_left->unit());
 }
@@ -1486,7 +1477,7 @@ TEST_F(ParserTest, ParsesPaddingBottom) {
 
   scoped_refptr<cssom::LengthValue> padding_bottom =
       dynamic_cast<cssom::LengthValue*>(style->padding_bottom().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), padding_bottom);
+  ASSERT_TRUE(padding_bottom);
   EXPECT_FLOAT_EQ(1, padding_bottom->value());
   EXPECT_EQ(cssom::kFontSizesAkaEmUnit, padding_bottom->unit());
 }
@@ -1497,7 +1488,7 @@ TEST_F(ParserTest, ParsesPaddingLeft) {
 
   scoped_refptr<cssom::PercentageValue> padding_left =
       dynamic_cast<cssom::PercentageValue*>(style->padding_left().get());
-  ASSERT_NE(scoped_refptr<cssom::PercentageValue>(), padding_left);
+  ASSERT_TRUE(padding_left);
   EXPECT_FLOAT_EQ(0.055f, padding_left->value());
 }
 
@@ -1551,7 +1542,7 @@ TEST_F(ParserTest, ParsesRotateTransformInDegrees) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -1569,7 +1560,7 @@ TEST_F(ParserTest, ParsesRotateTransformInGradians) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -1587,7 +1578,7 @@ TEST_F(ParserTest, ParsesRotateTransformInRadians) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -1605,7 +1596,7 @@ TEST_F(ParserTest, ParsesRotateTransformInTurns) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::RotateFunction* rotate_function =
@@ -1622,7 +1613,7 @@ TEST_F(ParserTest, ParsesIsotropicScaleTransform) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -1644,7 +1635,7 @@ TEST_F(ParserTest, ParsesAnisotropicScaleTransform) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::ScaleFunction* scale_function =
@@ -1662,7 +1653,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformLength) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -1686,7 +1677,7 @@ TEST_F(ParserTest, ParsesTranslateXTransformPercentage) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -1709,7 +1700,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformLength) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -1733,7 +1724,7 @@ TEST_F(ParserTest, ParsesTranslateYTransformPercentage) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -1756,7 +1747,7 @@ TEST_F(ParserTest, ParsesTranslateZTransformLength) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::TranslateFunction* translate_function =
@@ -1780,7 +1771,7 @@ TEST_F(ParserTest, ParsesMatrixTransform) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(1, transform_list->value().size());
 
   const cssom::MatrixFunction* matrix_function =
@@ -1806,7 +1797,7 @@ TEST_F(ParserTest, ParsesMultipleTransforms) {
   scoped_refptr<cssom::TransformFunctionListValue> transform_list =
       dynamic_cast<cssom::TransformFunctionListValue*>(
           style->transform().get());
-  ASSERT_NE(scoped_refptr<cssom::TransformFunctionListValue>(), transform_list);
+  ASSERT_TRUE(transform_list);
   ASSERT_EQ(2, transform_list->value().size());
   EXPECT_TRUE(transform_list->value()[0]);
   EXPECT_EQ(base::GetTypeId<cssom::ScaleFunction>(),
@@ -1828,7 +1819,7 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
           "color: #000;\n",
           source_location_);
 
-  EXPECT_NE(scoped_refptr<cssom::PropertyValue>(), style->color());
+  EXPECT_TRUE(style->color());
 }
 
 TEST_F(ParserTest, ParsesLeftTextAlign) {
@@ -1880,7 +1871,7 @@ TEST_F(ParserTest, ParsesWidth) {
 
   scoped_refptr<cssom::LengthValue> width =
       dynamic_cast<cssom::LengthValue*>(style->width().get());
-  ASSERT_NE(scoped_refptr<cssom::LengthValue>(), width);
+  ASSERT_TRUE(width);
   EXPECT_FLOAT_EQ(100, width->value());
   EXPECT_EQ(cssom::kPixelsUnit, width->unit());
 }
@@ -1890,7 +1881,7 @@ TEST_F(ParserTest, ParsesValidPropertyValue) {
       dynamic_cast<cssom::RGBAColorValue*>(
           parser_.ParsePropertyValue("color", "#c0ffee", source_location_)
               .get());
-  EXPECT_NE(scoped_refptr<cssom::RGBAColorValue>(), color);
+  EXPECT_TRUE(color);
 }
 
 TEST_F(ParserTest, WarnsAboutImportantInPropertyValue) {
@@ -1901,7 +1892,7 @@ TEST_F(ParserTest, WarnsAboutImportantInPropertyValue) {
 
   scoped_refptr<cssom::PropertyValue> null_value = parser_.ParsePropertyValue(
       "color", "#f0000d !important", source_location_);
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_FALSE(null_value);
 }
 
 TEST_F(ParserTest, FailsIfPropertyValueHasTrailingSemicolon) {
@@ -1911,7 +1902,7 @@ TEST_F(ParserTest, FailsIfPropertyValueHasTrailingSemicolon) {
 
   scoped_refptr<cssom::PropertyValue> null_value =
       parser_.ParsePropertyValue("color", "#baaaad;", source_location_);
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_FALSE(null_value);
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
@@ -1920,7 +1911,7 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
 
   scoped_refptr<cssom::PropertyValue> null_value =
       parser_.ParsePropertyValue("color", "spring grass", source_location_);
-  EXPECT_EQ(scoped_refptr<cssom::PropertyValue>(), null_value);
+  EXPECT_FALSE(null_value);
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
@@ -2776,7 +2767,7 @@ TEST_F(ParserTest, ParsesZIndex) {
 
   scoped_refptr<cssom::IntegerValue> z_index =
       dynamic_cast<cssom::IntegerValue*>(style->z_index().get());
-  ASSERT_NE(scoped_refptr<cssom::IntegerValue>(), z_index);
+  ASSERT_TRUE(z_index);
   EXPECT_EQ(3, z_index->value());
 }
 
@@ -2786,7 +2777,7 @@ TEST_F(ParserTest, ParsesNegativeZIndex) {
 
   scoped_refptr<cssom::IntegerValue> z_index =
       dynamic_cast<cssom::IntegerValue*>(style->z_index().get());
-  ASSERT_NE(scoped_refptr<cssom::IntegerValue>(), z_index);
+  ASSERT_TRUE(z_index);
   EXPECT_EQ(-2, z_index->value());
 }
 
