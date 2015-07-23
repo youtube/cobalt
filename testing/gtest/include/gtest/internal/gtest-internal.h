@@ -1115,17 +1115,27 @@ class NativeArray {
            "  Actual: it doesn't.")
 
 
+// Help Microsoft code analysis tool to understand that the expression
+// being asserted must be true.
+// Note that the code under _PREFAST_ macro is not actually executed, only
+// analyzed.
+#if defined(COBALT) && defined(_PREFAST_)
+#define GTEST_TEST_BOOLEAN_(expression, text, actual, expected, fail) \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
+  __analysis_assume(!!(expression))
+#else
 // Implements Boolean test assertions such as EXPECT_TRUE. expression can be
 // either a boolean expression or an AssertionResult. text is a textual
 // represenation of expression as it was passed into the EXPECT_TRUE.
 #define GTEST_TEST_BOOLEAN_(expression, text, actual, expected, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
   if (const ::testing::AssertionResult gtest_ar_ = \
-      ::testing::AssertionResult(expression)) \
+      ::testing::AssertionResult(!!(expression))) \
     ; \
   else \
     fail(::testing::internal::GetBoolAssertionFailureMessage(\
         gtest_ar_, text, #actual, #expected).c_str())
+#endif  // defined(COBALT) && defined(_PREFAST_)
 
 #define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
