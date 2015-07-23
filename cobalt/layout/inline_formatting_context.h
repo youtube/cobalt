@@ -69,7 +69,7 @@ class InlineFormattingContext : public FormattingContext {
   // WARNING: All public methods below may be called only after |EndQueries|.
 
  private:
-  void OnLineBoxDestroying();
+  void DestroyLineBox();
 
   const LayoutParams layout_params_;
 
