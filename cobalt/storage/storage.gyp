@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'cobalt_code': 1,
+  },
   'targets': [
     {
       'target_name': 'storage',
@@ -43,6 +46,10 @@
           'sources': [
             'savegame_file.cc',
           ],
+        }],
+        ['actual_target_arch=="win"', {
+          # Disable warning C4702: unreachable code in xtree.
+          'msvs_disabled_warnings': [ 4702 ],
         }],
       ],
     },

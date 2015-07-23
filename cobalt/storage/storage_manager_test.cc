@@ -61,7 +61,10 @@ class FlushWaiter : public CallbackWaiter {
 class SqlWaiter : public CallbackWaiter {
  public:
   SqlWaiter() {}
-  void OnSqlConnection(SqlContext* sql_context) { Signal(); }
+  void OnSqlConnection(SqlContext* sql_context) {
+    UNREFERENCED_PARAMETER(sql_context);
+    Signal();
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SqlWaiter);

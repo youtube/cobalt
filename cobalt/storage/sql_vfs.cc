@@ -47,14 +47,14 @@ int VfsClose(sqlite3_file* file) {
 
 int VfsRead(sqlite3_file* file, void* out, int bytes, sqlite_int64 offset) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
-  vfile->file->Read(out, bytes, offset);
+  vfile->file->Read(out, bytes, static_cast<int>(offset));
   return SQLITE_OK;
 }
 
 int VfsWrite(sqlite3_file* file, const void* data, int bytes,
              sqlite3_int64 offset) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
-  vfile->file->Write(data, bytes, offset);
+  vfile->file->Write(data, bytes, static_cast<int>(offset));
   return SQLITE_OK;
 }
 
@@ -155,11 +155,14 @@ int VfsFileSize(sqlite3_file* file, sqlite3_int64* out_size) {
 
 int VfsTruncate(sqlite3_file* file, sqlite3_int64 size) {
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
-  vfile->file->Truncate(size);
+  vfile->file->Truncate(static_cast<int>(size));
   return SQLITE_OK;
 }
 
-int VfsDeviceCharacteristics(sqlite3_file* file) { return 0; }
+int VfsDeviceCharacteristics(sqlite3_file* file) {
+  UNREFERENCED_PARAMETER(file);
+  return 0;
+}
 
 const sqlite3_io_methods s_cobalt_vfs_io = {
     1,                        // Structure version number
@@ -179,6 +182,8 @@ const sqlite3_io_methods s_cobalt_vfs_io = {
 
 int VfsOpen(sqlite3_vfs* sql_vfs, const char* path, sqlite3_file* file,
             int flags, int* out_flags) {
+  UNREFERENCED_PARAMETER(flags);
+  UNREFERENCED_PARAMETER(out_flags);
   DCHECK(path) << "NULL filename not supported.";
   virtual_file* vfile = reinterpret_cast<virtual_file*>(file);
   vfile->lock = new base::Lock;
@@ -191,6 +196,7 @@ int VfsOpen(sqlite3_vfs* sql_vfs, const char* path, sqlite3_file* file,
 }
 
 int VfsDelete(sqlite3_vfs* sql_vfs, const char* path, int sync_dir) {
+  UNREFERENCED_PARAMETER(sync_dir);
   VirtualFileSystem* vfs =
       reinterpret_cast<VirtualFileSystem*>(sql_vfs->pAppData);
   vfs->Delete(path);
@@ -200,14 +206,17 @@ int VfsDelete(sqlite3_vfs* sql_vfs, const char* path, int sync_dir) {
 int VfsFullPathname(sqlite3_vfs* sql_vfs, const char* path, int out_size,
                     char* out_path) {
   UNREFERENCED_PARAMETER(sql_vfs);
-  if (base::strlcpy(out_path, path, out_size) < out_size) {
+  size_t path_size = static_cast<size_t>(out_size);
+  if (base::strlcpy(out_path, path, path_size) < path_size) {
     return SQLITE_OK;
   }
   return SQLITE_ERROR;
 }
 
 int VfsAccess(sqlite3_vfs* sql_vfs, const char* name, int flags, int* result) {
+  UNREFERENCED_PARAMETER(name);
   UNREFERENCED_PARAMETER(sql_vfs);
+  UNREFERENCED_PARAMETER(flags);
   // We should always have a valid, readable/writable file.
   *result |= SQLITE_ACCESS_EXISTS | SQLITE_ACCESS_READWRITE;
   return SQLITE_OK;
@@ -215,7 +224,7 @@ int VfsAccess(sqlite3_vfs* sql_vfs, const char* name, int flags, int* result) {
 
 int VfsRandomness(sqlite3_vfs* sql_vfs, int bytes, char* out) {
   UNREFERENCED_PARAMETER(sql_vfs);
-  base::RandBytes(out, bytes);
+  base::RandBytes(out, static_cast<size_t>(bytes));
   return SQLITE_OK;
 }
 
