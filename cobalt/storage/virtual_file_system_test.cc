@@ -65,7 +65,7 @@ TEST_F(VirtualFileSystemTest, ReadWriteOffsets) {
   EXPECT_EQ(sizeof(expected1), file->Size());
 
   bytes = file->Read(out_data, sizeof(out_data), 0);
-  EXPECT_EQ(0, memcmp(expected1, out_data, bytes));
+  EXPECT_EQ(0, memcmp(expected1, out_data, static_cast<size_t>(bytes)));
 
   // Try to read past the end.
   const int kOffsetPastEnd = 100000;
@@ -78,7 +78,7 @@ TEST_F(VirtualFileSystemTest, ReadWriteOffsets) {
 
   // Make sure the write past the end worked.
   bytes = file->Read(out_data, sizeof(out_data), kOffsetPastEnd);
-  EXPECT_EQ(0, memcmp(expected, out_data, bytes));
+  EXPECT_EQ(0, memcmp(expected, out_data, static_cast<size_t>(bytes)));
 }
 
 TEST_F(VirtualFileSystemTest, Open) {
@@ -118,7 +118,7 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
 
   // First perform a dry run to figure out how much space we need.
   int bytes = vfs_.Serialize(NULL, true /*dry run*/);
-  scoped_array<uint8> buffer(new uint8[bytes]);
+  scoped_array<uint8> buffer(new uint8[static_cast<size_t>(bytes)]);
 
   // Now serialize and deserialize
   vfs_.Serialize(buffer.get(), false /*dry run*/);
@@ -133,13 +133,13 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   EXPECT_TRUE(file != NULL);
   bytes = file->Read(file_contents, sizeof(file_contents), 0);
   EXPECT_EQ(data1_size, bytes);
-  EXPECT_EQ(0, memcmp(file_contents, data1, bytes));
+  EXPECT_EQ(0, memcmp(file_contents, data1, static_cast<size_t>(bytes)));
 
   file = new_vfs.Open("file2.tmp");
   EXPECT_TRUE(file != NULL);
   bytes = file->Read(file_contents, sizeof(file_contents), 0);
   EXPECT_EQ(data2_size, bytes);
-  EXPECT_EQ(0, memcmp(file_contents, data2, bytes));
+  EXPECT_EQ(0, memcmp(file_contents, data2, static_cast<size_t>(bytes)));
 }
 
 TEST_F(VirtualFileSystemTest, GetHeaderVersion) {
