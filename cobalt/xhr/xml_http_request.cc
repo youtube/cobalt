@@ -325,7 +325,7 @@ void XMLHttpRequest::set_response_type(const std::string& response_type) {
     NOTIMPLEMENTED();
     return;
   }
-  for (int i = 0; i < arraysize(s_response_types); ++i) {
+  for (int i = 0; i < static_cast<int>(arraysize(s_response_types)); ++i) {
     if (response_type == s_response_types[i]) {
       DCHECK_LT(i, kResponseTypeCodeMax);
       response_type_ = static_cast<ResponseTypeCode>(i);

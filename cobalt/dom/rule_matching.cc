@@ -186,7 +186,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   //   http://www.w3.org/TR/selectors4/#compound
   void VisitCompoundSelector(
       cssom::CompoundSelector* compound_selector) OVERRIDE {
-    DCHECK_GT(compound_selector->selectors().size(), 0);
+    DCHECK_GT(compound_selector->selectors().size(), 0U);
     // Iterate through all the simple selectors. If any of the simple selectors
     // doesn't match, the compound selector doesn't match.
     for (cssom::Selectors::const_iterator selector_iterator =
