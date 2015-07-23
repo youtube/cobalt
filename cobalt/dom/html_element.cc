@@ -114,6 +114,8 @@ void HTMLElement::UpdateMatchingRules(
     GetMatchingRulesFromStyleSheet(style_sheet, this, matching_rules_.get(),
                                    cssom::kNormalAuthor);
   }
+
+  computed_style_valid_ = false;
 }
 
 void HTMLElement::UpdateMatchingRulesRecursively(
@@ -134,13 +136,7 @@ void HTMLElement::UpdateMatchingRulesRecursively(
 void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const base::Time& style_change_event_time, bool ancestors_were_valid) {
-  bool is_valid = computed_style_valid_ && ancestors_were_valid;
-  if (is_valid) {
-    // Nothing to do if the computed style is already up to date.
-    return;
-  }
-
+    const base::Time& style_change_event_time) {
   scoped_refptr<Document> document = owner_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
@@ -195,16 +191,19 @@ void HTMLElement::UpdateComputedStyleRecursively(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const base::Time& style_change_event_time, bool ancestors_were_valid) {
-  bool was_valid = computed_style_valid_;
-  UpdateComputedStyle(parent_computed_style, style_change_event_time,
-                      ancestors_were_valid);
+  bool is_valid = ancestors_were_valid && computed_style_valid_;
+  if (!is_valid) {
+    UpdateComputedStyle(parent_computed_style, style_change_event_time);
+    DCHECK(computed_style_valid_);
+  }
+
   // Update computed style for this element's descendants.
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     DCHECK(html_element);
     html_element->UpdateComputedStyleRecursively(
-        computed_style(), style_change_event_time, was_valid);
+        computed_style(), style_change_event_time, is_valid);
   }
 }
 
