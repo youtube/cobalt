@@ -42,6 +42,12 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   if (line_box_ &&
       line_box_->TryQueryUsedRectAndMaybeSplit(child_box,
                                                &child_box_after_split)) {
+    // If a split has occurred, then nothing else will fit on the current line.
+    // Handle line box destruction now, so that an unnecessary split won't be
+    // attempted the next time through.
+    if (child_box_after_split) {
+      DestroyLineBox();
+    }
     return child_box_after_split.Pass();
   }
 
@@ -56,7 +62,7 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  OnLineBoxDestroying();
+  DestroyLineBox();
   line_box_ = make_scoped_ptr(new LineBox(used_height(), x_height_,
                                           LineBox::kShouldTrimWhiteSpace,
                                           text_align_, layout_params_));
@@ -73,6 +79,11 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
     // box.
     //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
     line_box_->QueryUsedRectAndMaybeOverflow(child_box);
+  } else if (child_box_after_split) {
+    // If a split has occurred, then nothing else will fit on the current line.
+    // Handle line box destruction now, so that an unnecessary split won't be
+    // attempted the next time through.
+    DestroyLineBox();
   }
 
   return child_box_after_split.Pass();
@@ -81,10 +92,10 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
 void InlineFormattingContext::EndQueries() {
   // Treat the end of child boxes almost as an explicit line break,
   // but don't create the new line box.
-  OnLineBoxDestroying();
+  DestroyLineBox();
 }
 
-void InlineFormattingContext::OnLineBoxDestroying() {
+void InlineFormattingContext::DestroyLineBox() {
   if (line_box_) {
     line_box_->EndQueries();
 
@@ -112,6 +123,8 @@ void InlineFormattingContext::OnLineBoxDestroying() {
           line_count_ > 1 ? layout_params_.containing_block_size.width() : 0);
       bounding_box_of_used_children_.set_width(shrink_to_fit_width);
     }
+
+    line_box_.reset();
   }
 }
 
