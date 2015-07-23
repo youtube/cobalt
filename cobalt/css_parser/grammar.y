@@ -2138,7 +2138,7 @@ transition_property_value:
     const cssom::ConstStringListValue::Builder& property_list_builder =
         *(transition_builder->property_list_builder);
     if (property_list_builder.size() > 1) {
-      for (int i = 0; i < property_list_builder.size(); ++i) {
+      for (int i = 0; i < static_cast<int>(property_list_builder.size()); ++i) {
         if (property_list_builder[i] == cssom::kNoneKeywordName) {
           parser_impl->LogWarning(
               @1, "If 'none' is specified, transition can only have one item.");
@@ -2579,7 +2579,7 @@ maybe_declaration:
   }
   | kIdentifierToken maybe_whitespace colon errors {
     std::string property_name = $1.ToString();
-    DCHECK_GT(property_name.size(), 0);
+    DCHECK_GT(property_name.size(), 0U);
 
     // Do not warn about non-standard or non-WebKit properties.
     if (property_name[0] != '-' ||
