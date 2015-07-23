@@ -39,18 +39,12 @@ class MediaModule : public WebMediaPlayerFactory {
   // Provide a default implementation to create a dummy WebMediaPlayer instance.
   // Inherited class can override it and create real WebMediaPlayer accordingly.
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      ::media::WebMediaPlayerClient* client) OVERRIDE;
+      ::media::WebMediaPlayerClient* client) = 0;
 
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
       render_tree::ResourceProvider* resource_provider);
-
- protected:
-  MediaModule() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MediaModule);
 };
 
 }  // namespace media
