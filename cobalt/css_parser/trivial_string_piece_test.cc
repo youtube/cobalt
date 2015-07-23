@@ -38,15 +38,15 @@ TEST(TrivialStringPieceTest, CreateFromNonEmptyCString) {
 }
 
 TEST(TrivialStringPieceTest, CompareWithEqualString) {
-  EXPECT_EQ(TrivialStringPiece::FromCString("inherit"), "inherit");
+  EXPECT_EQ("inherit", TrivialStringPiece::FromCString("inherit"));
 }
 
 TEST(TrivialStringPieceTest, CompareWithShorterString) {
-  EXPECT_NE(TrivialStringPiece::FromCString("inherit"), "");
+  EXPECT_NE("", TrivialStringPiece::FromCString("inherit"));
 }
 
 TEST(TrivialStringPieceTest, CompareWithLongerString) {
-  EXPECT_NE(TrivialStringPiece::FromCString(""), "inherit");
+  EXPECT_NE("inherit", TrivialStringPiece::FromCString(""));
 }
 
 }  // namespace css_parser

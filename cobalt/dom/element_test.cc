@@ -65,7 +65,7 @@ ElementTest::~ElementTest() {
 
 TEST_F(ElementTest, CreateElement) {
   scoped_refptr<Element> element = new Element();
-  ASSERT_NE(NULL, element);
+  ASSERT_TRUE(element);
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
   EXPECT_EQ("#element", element->node_name());
@@ -223,7 +223,7 @@ TEST_F(ElementTest, AttributesPropertyTransfer) {
 
   // Should work this time around since we deleted attribute from element1.
   scoped_refptr<Attr> previous_attribute = attributes2->SetNamedItem(attribute);
-  ASSERT_NE(NULL, previous_attribute);
+  ASSERT_TRUE(previous_attribute);
   EXPECT_EQ("2", previous_attribute->value());
   EXPECT_EQ(std::string("1"), element2->GetAttribute("a"));
 
@@ -544,7 +544,7 @@ TEST_F(ElementTest, NodeValueAndTextContent) {
 
   // There should be only one text child node.
   scoped_refptr<Node> child = root->first_child();
-  EXPECT_NE(NULL, child);
+  EXPECT_TRUE(child);
   EXPECT_TRUE(child->IsText());
   EXPECT_EQ(child, root->last_child());
 

@@ -112,8 +112,7 @@ TEST_F(TransitionSetTest, TransitionPropertyOfAllGeneratesATransition) {
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
-  EXPECT_NE(
-      static_cast<Transition*>(NULL),
+  EXPECT_TRUE(
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName));
 }
 
@@ -128,8 +127,7 @@ TEST_F(TransitionSetTest,
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
-  EXPECT_NE(
-      static_cast<Transition*>(NULL),
+  EXPECT_TRUE(
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName));
 }
 
@@ -182,7 +180,7 @@ TEST_F(TransitionSetTest, TransitionDelayIsAccountedFor) {
 
   const Transition* transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
   EXPECT_EQ(base::TimeDelta::FromSeconds(1), transition->delay());
 }
 
@@ -221,7 +219,7 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
 
   Transition expected_transition(
       kBackgroundColorPropertyName, new RGBAColorValue(0xffffffff),
@@ -238,7 +236,7 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
   EXPECT_FALSE(transition_set.empty());
   transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(expected_transition, *transition);
 }
@@ -253,8 +251,7 @@ TEST_F(TransitionSetTest, TransitionSetRemovesTransitionAfterCompletion) {
   transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
-  EXPECT_NE(
-      static_cast<Transition*>(NULL),
+  EXPECT_TRUE(
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName));
 
   transition_set.UpdateTransitions(base::Time::FromDoubleT(2.0), *end_, *end_);
@@ -291,7 +288,7 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
       Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
@@ -319,7 +316,7 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
       Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
@@ -336,7 +333,7 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   EXPECT_FALSE(transition_set.empty());
   transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
-  ASSERT_NE(static_cast<Transition*>(NULL), transition);
+  ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
       Transition(kBackgroundColorPropertyName, new RGBAColorValue(0xc0c0c0c0),

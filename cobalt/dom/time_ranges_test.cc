@@ -185,14 +185,14 @@ TEST(TimeRangesTest, IndexOutOfRangeException) {
   {
     FakeExceptionState exception_state;
     time_ranges->Start(2, &exception_state);
-    ASSERT_NE(static_cast<DOMException*>(NULL), exception_state.dom_exception_);
+    ASSERT_TRUE(exception_state.dom_exception_);
     EXPECT_EQ(DOMException::kIndexSizeErr,
               exception_state.dom_exception_->code());
   }
   {
     FakeExceptionState exception_state;
     time_ranges->End(2, &exception_state);
-    ASSERT_NE(static_cast<DOMException*>(NULL), exception_state.dom_exception_);
+    ASSERT_TRUE(exception_state.dom_exception_);
     EXPECT_EQ(DOMException::kIndexSizeErr,
               exception_state.dom_exception_->code());
   }

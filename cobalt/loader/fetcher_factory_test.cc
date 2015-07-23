@@ -87,11 +87,11 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
 
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-1"),
                                             &stub_fetcher_handler);
-  EXPECT_TRUE(dynamic_cast<FileFetcher*>(fetcher_.get()));
+  EXPECT_TRUE(fetcher_);
 
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-2"),
                                             &stub_fetcher_handler);
-  EXPECT_TRUE(dynamic_cast<FileFetcher*>(fetcher_.get()));
+  EXPECT_TRUE(fetcher_);
   run_loop.Run();
 }
 

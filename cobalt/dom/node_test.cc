@@ -55,7 +55,7 @@ NodeTest::~NodeTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
 
 TEST_F(NodeTest, CreateNode) {
   scoped_refptr<Node> node = new FakeNode();
-  ASSERT_NE(NULL, node);
+  ASSERT_TRUE(node);
 }
 
 TEST_F(NodeTest, CloneNode) {
@@ -87,9 +87,9 @@ TEST_F(NodeTest, AppendChild) {
   scoped_refptr<Node> root = new FakeNode();
 
   scoped_refptr<Node> child1 = root->AppendChild(new FakeNode());
-  ASSERT_NE(NULL, child1);
+  ASSERT_TRUE(child1);
   scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
-  ASSERT_NE(NULL, child2);
+  ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
   EXPECT_EQ(NULL, root->AppendChild(NULL));
@@ -143,11 +143,11 @@ TEST_F(NodeTest, InsertBefore) {
   scoped_refptr<Node> root = new FakeNode();
 
   scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
-  ASSERT_NE(NULL, child1);
+  ASSERT_TRUE(child1);
   scoped_refptr<Node> child3 = root->InsertBefore(new FakeNode(), NULL);
-  ASSERT_NE(NULL, child3);
+  ASSERT_TRUE(child3);
   scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), child3);
-  ASSERT_NE(NULL, child2);
+  ASSERT_TRUE(child2);
 
   // Properly handle NULL input.
   EXPECT_EQ(NULL, root->InsertBefore(NULL, NULL));
@@ -164,7 +164,7 @@ TEST_F(NodeTest, InsertBeforeTwice) {
   scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
   scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), NULL);
 
-  EXPECT_NE(NULL, root->InsertBefore(child2, child1));
+  EXPECT_TRUE(root->InsertBefore(child2, child1));
 
   scoped_refptr<Node> children[] = {child2, child1};
   ExpectNodeChildrenEq(children, root);
@@ -176,7 +176,7 @@ TEST_F(NodeTest, InsertBeforeSelf) {
   scoped_refptr<Node> child1 = root->InsertBefore(new FakeNode(), NULL);
   scoped_refptr<Node> child2 = root->InsertBefore(new FakeNode(), NULL);
 
-  EXPECT_NE(NULL, root->InsertBefore(child2, child2));
+  EXPECT_TRUE(root->InsertBefore(child2, child2));
 
   scoped_refptr<Node> children[] = {child1, child2};
   ExpectNodeChildrenEq(children, root);
@@ -189,8 +189,8 @@ TEST_F(NodeTest, RemoveChild) {
   scoped_refptr<Node> child2 = root->AppendChild(new FakeNode());
   scoped_refptr<Node> child3 = root->AppendChild(new FakeNode());
 
-  EXPECT_NE(NULL, root->RemoveChild(child1));
-  EXPECT_NE(NULL, root->RemoveChild(child3));
+  EXPECT_TRUE(root->RemoveChild(child1));
+  EXPECT_TRUE(root->RemoveChild(child3));
 
   // Properly handle NULL input.
   EXPECT_EQ(NULL, root->RemoveChild(NULL));
@@ -249,7 +249,7 @@ TEST_F(NodeTest, ParentNode) {
   EXPECT_EQ(2, node->child_element_count());
   EXPECT_EQ(child1, node->first_element_child());
   EXPECT_EQ(child2, node->last_element_child());
-  ASSERT_NE(kNullCollection, children);
+  ASSERT_TRUE(children);
   EXPECT_EQ(2, children->length());
   EXPECT_EQ(child1, children->Item(0));
   EXPECT_EQ(child2, children->Item(1));
