@@ -35,12 +35,12 @@ int32 AnimationFrameRequestCallbackList::RequestAnimationFrame(
   return static_cast<int32>(frame_request_callbacks_.size());
 }
 
-void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 handle) {
+void AnimationFrameRequestCallbackList::CancelAnimationFrame(int32 in_handle) {
   // If the handle is valid, set the "cancelled" flag on the specified
   // frame request callback.
+  const size_t handle = static_cast<size_t>(in_handle);
   if (handle > 0 && handle <= frame_request_callbacks_.size()) {
-    frame_request_callbacks_[static_cast<size_t>(handle - 1)].cancelled =
-        true;
+    frame_request_callbacks_[handle - 1].cancelled = true;
   }
 }
 void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
