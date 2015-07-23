@@ -18,15 +18,12 @@
   readonly attribute SourceBufferList sourceBuffers;
   readonly attribute SourceBufferList activeSourceBuffers;
 
-  // TODO(***REMOVED***): raise DOMException
-  attribute double duration;
+  [RaisesException] attribute double duration;
 
-  // TODO(***REMOVED***): raise DOMException
-  SourceBuffer addSourceBuffer(DOMString type);
-  void removeSourceBuffer(SourceBuffer sourceBuffer);
+  [RaisesException] SourceBuffer addSourceBuffer(DOMString type);
+  [RaisesException] void removeSourceBuffer(SourceBuffer sourceBuffer);
 
   readonly attribute DOMString readyState;
 
-  // TODO(***REMOVED***): raise DOMException
-  void endOfStream(optional DOMString error);
+  [RaisesException] void endOfStream(optional DOMString error);
 };
