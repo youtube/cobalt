@@ -91,8 +91,7 @@ TEST_F(UnionTypesBindingsTest, ConvertFromJS) {
   EXPECT_TRUE(
       EvaluateScript("test.unionProperty = new ArbitraryInterface();", NULL));
   ASSERT_TRUE(union_type.IsType<scoped_refptr<ArbitraryInterface> >());
-  EXPECT_NE((ArbitraryInterface*)NULL,
-            union_type.AsType<scoped_refptr<ArbitraryInterface> >());
+  EXPECT_TRUE(union_type.AsType<scoped_refptr<ArbitraryInterface> >());
 }
 
 TEST_F(UnionTypesBindingsTest, SetNullableUnion) {
