@@ -20,11 +20,13 @@
 #include <limits>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_names.h"
 
@@ -124,7 +126,9 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
   return source_buffers_;
 }
 
-double MediaSource::duration() const {
+double MediaSource::duration(script::ExceptionState* exception_state) const {
+  UNREFERENCED_PARAMETER(exception_state);
+
   if (ready_state_ == kReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }
@@ -133,15 +137,14 @@ double MediaSource::duration() const {
   return player_->SourceGetDuration();
 }
 
-void MediaSource::set_duration(double duration) {
+void MediaSource::set_duration(double duration,
+                               script::ExceptionState* exception_state) {
   if (duration < 0.0 || isnan(duration)) {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
   if (ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
   DCHECK(player_);
@@ -149,12 +152,12 @@ void MediaSource::set_duration(double duration) {
 }
 
 scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
-    const std::string& type) {
+    const std::string& type, script::ExceptionState* exception_state) {
   DLOG(INFO) << "add SourceBuffer with type " << type;
 
   if (type.empty()) {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
+    // Return value should be ignored.
     return NULL;
   }
 
@@ -162,14 +165,14 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   std::vector<std::string> codecs;
 
   if (!ParseContentType(type, &mime, &codecs)) {
-    // TODO(***REMOVED***): raise NOT_SUPPORTED_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+    // Return value should be ignored.
     return NULL;
   }
 
   if (!player_ || ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value should be ignored.
     return NULL;
   }
 
@@ -184,12 +187,12 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
       source_buffers_->Add(source_buffer);
       return source_buffer;
     case WebMediaPlayer::kAddIdStatusNotSupported:
-      // TODO(***REMOVED***): raise NOT_SUPPORTED_ERR.
-      NOTREACHED();
+      DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+      // Return value should be ignored.
       return NULL;
     case WebMediaPlayer::kAddIdStatusReachedIdLimit:
-      // TODO(***REMOVED***): raise QUOTA_EXCEEDED_ERR.
-      NOTREACHED();
+      DOMException::Raise(DOMException::kQuotaExceededErr, exception_state);
+      // Return value should be ignored.
       return NULL;
   }
 
@@ -198,22 +201,20 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
 }
 
 void MediaSource::RemoveSourceBuffer(
-    const scoped_refptr<SourceBuffer>& source_buffer) {
+    const scoped_refptr<SourceBuffer>& source_buffer,
+    script::ExceptionState* exception_state) {
   if (source_buffer == NULL) {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
   if (!player_ || source_buffers_->length() == 0) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
   if (!source_buffers_->Remove(source_buffer)) {
-    // TODO(***REMOVED***): raise NOT_FOUND_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kNotFoundErr, exception_state);
     return;
   }
 
@@ -233,15 +234,15 @@ std::string MediaSource::ready_state() const {
   return "";
 }
 
-void MediaSource::EndOfStream() {
+void MediaSource::EndOfStream(script::ExceptionState* exception_state) {
   // If there is no error string provided, treat it as empty.
-  EndOfStream("");
+  EndOfStream("", exception_state);
 }
 
-void MediaSource::EndOfStream(const std::string& error) {
+void MediaSource::EndOfStream(const std::string& error,
+                              script::ExceptionState* exception_state) {
   if (!player_ || ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
@@ -255,8 +256,7 @@ void MediaSource::EndOfStream(const std::string& error) {
   } else if (error == "decode") {
     eos_status = WebMediaPlayer::kEndOfStreamStatusDecodeError;
   } else {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
@@ -276,10 +276,11 @@ void MediaSource::ScheduleEvent(const std::string& event_name) {
 }
 
 scoped_refptr<TimeRanges> MediaSource::GetBuffered(
-    const SourceBuffer* source_buffer) {
+    const SourceBuffer* source_buffer,
+    script::ExceptionState* exception_state) {
   if (!player_ || ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value should be ignored.
     return NULL;
   }
 
@@ -295,32 +296,31 @@ scoped_refptr<TimeRanges> MediaSource::GetBuffered(
 }
 
 bool MediaSource::SetTimestampOffset(const SourceBuffer* source_buffer,
-                                     double timestamp_offset) {
+                                     double timestamp_offset,
+                                     script::ExceptionState* exception_state) {
   if (!player_ || ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value should be ignored.
     return false;
   }
   if (!player_->SourceSetTimestampOffset(source_buffer->id(),
                                          timestamp_offset)) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value should be ignored.
     return false;
   }
   return true;
 }
 
 void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
-                         int size) {
+                         int size, script::ExceptionState* exception_state) {
   if (!buffer) {
-    // TODO(***REMOVED***): raise INVALID_ACCESS_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }
 
   if (!player_ || ready_state_ == kReadyStateClosed) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
@@ -338,18 +338,17 @@ void MediaSource::Append(const SourceBuffer* source_buffer, const uint8* buffer,
     int chunk_size = std::min(size - offset, kMaxAppendSize);
     if (!player_->SourceAppend(source_buffer->id(), buffer + offset,
                                static_cast<unsigned int>(chunk_size))) {
-      // TODO(***REMOVED***): raise SYNTAX_ERR.
-      NOTREACHED();
+      DOMException::Raise(DOMException::kSyntaxErr, exception_state);
       return;
     }
     offset += chunk_size;
   }
 }
 
-void MediaSource::Abort(const SourceBuffer* source_buffer) {
+void MediaSource::Abort(const SourceBuffer* source_buffer,
+                        script::ExceptionState* exception_state) {
   if (!player_ || ready_state_ != kReadyStateOpen) {
-    // TODO(***REMOVED***): raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 

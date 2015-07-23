@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -33,6 +34,12 @@ class DOMException : public script::Wrappable {
     // If the error name does not have a corresponding code, set the code to 0.
     kNone = 0,
     kIndexSizeErr = 1,
+    kNotFoundErr = 8,
+    kNotSupportedErr = 9,
+    kInvalidStateErr = 11,
+    kSyntaxErr = 12,
+    kInvalidAccessErr = 15,
+    kQuotaExceededErr = 22,
   };
 
   explicit DOMException(ExceptionCode code);
@@ -41,6 +48,10 @@ class DOMException : public script::Wrappable {
   uint16 code() const { return static_cast<uint16>(code_); }
   const std::string& name() const { return name_; }
   const std::string& message() const { return message_; }
+
+  // Helper function to raise a DOMException in the ExceptionState passed in.
+  static void Raise(ExceptionCode code,
+                    script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(DOMException);
 

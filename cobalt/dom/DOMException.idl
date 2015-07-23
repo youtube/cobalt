@@ -21,4 +21,10 @@ exception DOMException {
   // List of exceptions and codes found here:
   //   http://heycam.github.io/webidl/#idl-DOMException-error-names
   const unsigned short INDEX_SIZE_ERR = 1;
+  const unsigned short NOT_FOUND_ERR = 8;
+  const unsigned short NOT_SUPPORTED_ERR = 9;
+  const unsigned short INVALID_STATE_ERR = 11;
+  const unsigned short SYNTAX_ERR = 12;
+  const unsigned short INVALID_ACCESS_ERR = 15;
+  const unsigned short QUOTA_EXCEEDED_ERR = 22;
 };

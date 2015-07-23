@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -41,11 +42,14 @@ class SourceBuffer : public script::Wrappable {
 
   // Web API: SourceBuffer
   //
-  scoped_refptr<TimeRanges> buffered() const;
-  double timestamp_offset() const;
-  void set_timestamp_offset(double offset);
-  void Append(const scoped_refptr<Uint8Array>& data);
-  void Abort();
+  scoped_refptr<TimeRanges> buffered(
+      script::ExceptionState* exception_state) const;
+  double timestamp_offset(script::ExceptionState* exception_state) const;
+  void set_timestamp_offset(double offset,
+                            script::ExceptionState* exception_state);
+  void Append(const scoped_refptr<Uint8Array>& data,
+              script::ExceptionState* exception_state);
+  void Abort(script::ExceptionState* exception_state);
 
   // Custom, not in any spec.
   //
