@@ -15,15 +15,9 @@
  */
 
 interface SourceBuffer {
-  // TODO(***REMOVED***): raise DOMException
-  readonly attribute TimeRanges buffered;
+  [RaisesException] readonly attribute TimeRanges buffered;
+  [RaisesException] attribute double timestampOffset;
 
-  // TODO(***REMOVED***): raise DOMException
-  attribute double timestampOffset;
-
-  // TODO(***REMOVED***): raise DOMException
-  void append(Uint8Array data);
-
-  // TODO(***REMOVED***): raise DOMException
-  void abort();
+  [RaisesException] void append(Uint8Array data);
+  [RaisesException] void abort();
 };

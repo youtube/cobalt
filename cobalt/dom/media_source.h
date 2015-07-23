@@ -24,6 +24,7 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
+#include "cobalt/script/exception_state.h"
 #include "media/player/web_media_player.h"
 
 namespace cobalt {
@@ -67,15 +68,18 @@ class MediaSource : public EventTarget {
   //
   scoped_refptr<SourceBufferList> source_buffers() const;
   scoped_refptr<SourceBufferList> active_source_buffers() const;
-  double duration() const;
-  void set_duration(double duration);
-  scoped_refptr<SourceBuffer> AddSourceBuffer(const std::string& type);
-  void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer);
+  double duration(script::ExceptionState* exception_state) const;
+  void set_duration(double duration, script::ExceptionState* exception_state);
+  scoped_refptr<SourceBuffer> AddSourceBuffer(
+      const std::string& type, script::ExceptionState* exception_state);
+  void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
+                          script::ExceptionState* exception_state);
 
   std::string ready_state() const;
 
-  void EndOfStream();
-  void EndOfStream(const std::string& error);
+  void EndOfStream(script::ExceptionState* exception_state);
+  void EndOfStream(const std::string& error,
+                   script::ExceptionState* exception_state);
 
   // Custom, not in any spec.
   //
@@ -86,11 +90,16 @@ class MediaSource : public EventTarget {
   void ScheduleEvent(const std::string& event_name);
 
   // Methods used by SourceBuffer.
-  scoped_refptr<TimeRanges> GetBuffered(const SourceBuffer* source_buffer);
+  scoped_refptr<TimeRanges> GetBuffered(
+      const SourceBuffer* source_buffer,
+      script::ExceptionState* exception_state);
   bool SetTimestampOffset(const SourceBuffer* source_buffer,
-                          double timestamp_offset);
-  void Append(const SourceBuffer* source_buffer, const uint8* buffer, int size);
-  void Abort(const SourceBuffer* source_buffer);
+                          double timestamp_offset,
+                          script::ExceptionState* exception_state);
+  void Append(const SourceBuffer* source_buffer, const uint8* buffer, int size,
+              script::ExceptionState* exception_state);
+  void Abort(const SourceBuffer* source_buffer,
+             script::ExceptionState* exception_state);
 
   // Methods used by HTMLMediaElement
   ReadyState GetReadyState() const;

@@ -18,9 +18,11 @@
 
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/media_source.h"
 
 namespace cobalt {
@@ -33,50 +35,54 @@ SourceBuffer::SourceBuffer(const scoped_refptr<MediaSource>& media_source,
   DCHECK(!id_.empty());
 }
 
-scoped_refptr<TimeRanges> SourceBuffer::buffered() const {
+scoped_refptr<TimeRanges> SourceBuffer::buffered(
+    script::ExceptionState* exception_state) const {
   if (!media_source_) {
-    // TODO(***REMOVED***): Raise INVALID_STATE_ERR.
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value should be ignored.
     return NULL;
   }
 
-  return media_source_->GetBuffered(this);
+  return media_source_->GetBuffered(this, exception_state);
 }
 
-double SourceBuffer::timestamp_offset() const { return timestamp_offset_; }
+double SourceBuffer::timestamp_offset(
+    script::ExceptionState* exception_state) const {
+  UNREFERENCED_PARAMETER(exception_state);
+  return timestamp_offset_;
+}
 
-void SourceBuffer::set_timestamp_offset(double offset) {
+void SourceBuffer::set_timestamp_offset(
+    double offset, script::ExceptionState* exception_state) {
   if (!media_source_) {
-    // TODO(***REMOVED***): Raise INVALID_STATE_ERR if media_source_ is NULL;
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
-  if (media_source_->SetTimestampOffset(this, offset)) {
+  if (media_source_->SetTimestampOffset(this, offset, exception_state)) {
     timestamp_offset_ = offset;
   }
 }
 
-void SourceBuffer::Append(const scoped_refptr<Uint8Array>& data) {
+void SourceBuffer::Append(const scoped_refptr<Uint8Array>& data,
+                          script::ExceptionState* exception_state) {
   if (!media_source_) {
-    // TODO(***REMOVED***): Raise INVALID_STATE_ERR if media_source_ is NULL;
-    NOTREACHED();
-    return;
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
   }
 
   if (data->length()) {
-    media_source_->Append(this, data->data(), static_cast<int>(data->length()));
+    media_source_->Append(this, data->data(), static_cast<int>(data->length()),
+                          exception_state);
   }
 }
 
-void SourceBuffer::Abort() {
+void SourceBuffer::Abort(script::ExceptionState* exception_state) {
   if (!media_source_) {
-    // TODO(***REMOVED***): Raise INVALID_STATE_ERR if media_source_ is NULL;
-    NOTREACHED();
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
-  media_source_->Abort(this);
+  media_source_->Abort(this, exception_state);
 }
 
 void SourceBuffer::Close() { media_source_ = NULL; }
