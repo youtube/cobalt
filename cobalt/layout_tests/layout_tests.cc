@@ -27,6 +27,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/media_module_stub.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -184,9 +185,13 @@ TEST_P(LayoutTest, LayoutTest) {
           : base::Bind(&AcceptRenderTreeForTest, GetParam().base_file_path,
                        &pixel_tester, &run_loop, &result));
 
+  scoped_ptr<media::MediaModule> stub_media_module(
+      new media::MediaModuleStub());
+
   // Create the web module.
   browser::WebModule web_module(
       callback_function, base::Bind(&AcceptDocumentError, &run_loop),
+      stub_media_module.get(),
       NULL /* network_module */,
       kTestViewportSize, pixel_tester.GetResourceProvider(),
       60.0f,  // Layout refresh rate. Doesn't matter much for layout tests.

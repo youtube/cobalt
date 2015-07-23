@@ -80,8 +80,8 @@ std::string WebModule::GetUserAgent() const {
 
 WebModule::WebModule(
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
-    const ErrorCallback& error_callback, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
+    const ErrorCallback& error_callback, media::MediaModule* media_module,
+    network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : css_parser_(css_parser::Parser::Create()),
@@ -90,10 +90,9 @@ WebModule::WebModule(
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
-      media_module_(media::MediaModule::Create(resource_provider)),
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
-          css_parser_.get(), fetcher_factory_.get(), media_module_.get(),
+          css_parser_.get(), fetcher_factory_.get(), media_module,
           script_runner_.get(), options.url, GetUserAgent(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),

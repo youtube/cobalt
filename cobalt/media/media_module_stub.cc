@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/media/media_module.h"
+#include "cobalt/media/media_module_stub.h"
 
 #include "base/compiler_specific.h"
 
@@ -95,7 +95,7 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
 
 using ::media::WebMediaPlayer;
 
-scoped_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
+scoped_ptr<WebMediaPlayer> MediaModuleStub::CreateWebMediaPlayer(
     ::media::WebMediaPlayerClient* client) {
   UNREFERENCED_PARAMETER(client);
   return make_scoped_ptr<WebMediaPlayer>(new DummyWebMediaPlayer);
