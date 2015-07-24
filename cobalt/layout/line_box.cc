@@ -62,6 +62,17 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
   // TODO(***REMOVED***): Implement the above.
   float available_width =
       layout_params_.containing_block_size.width() - GetShrinkToFitWidth();
+
+  // Allow overflow if the line box has no non-collapsed child boxes. The line
+  // box allows overflow in the case where no smaller split is available until
+  // one non-collapsed box is added (according to the CSS 2.1 specification, an
+  // anonymous inline box is not generated when the whitespace content is
+  // collapsed away--this case is represented by collapsed text boxes in our
+  // implementation).
+  //  http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  //  http://www.w3.org/TR/CSS21/visuren.html#anonymous
+  bool allow_overflow = !last_non_collapsed_child_box_index_;
+
   if (child_box->used_width() <= available_width) {
     QueryUsedRectAndMaybeOverflow(child_box);
     return true;
@@ -69,10 +80,13 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
 
   // When an inline box exceeds the width of a line box, it is split.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  *child_box_after_split = child_box->TrySplitAt(available_width);
+  *child_box_after_split =
+      child_box->TrySplitAt(available_width, allow_overflow);
   if (*child_box_after_split) {
     QueryUsedRectAndMaybeOverflow(child_box);
-    DCHECK_LE(child_box->used_width(), available_width);
+    if (!allow_overflow) {
+      DCHECK_LE(child_box->used_width(), available_width);
+    }
     return true;
   }
 

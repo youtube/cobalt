@@ -85,7 +85,8 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   UpdateUsedSizeOfPositionedChildren(child_layout_params);
 }
 
-scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/) {
+scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/,
+                                              bool /*allow_overflow*/) {
   return scoped_ptr<Box>();
 }
 
