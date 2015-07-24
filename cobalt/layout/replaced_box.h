@@ -45,7 +45,8 @@ class ReplacedBox : public Box {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
-  scoped_ptr<Box> TrySplitAt(float available_width) OVERRIDE;
+  scoped_ptr<Box> TrySplitAt(float available_width,
+                             bool allow_overflow) OVERRIDE;
 
   bool IsCollapsed() const OVERRIDE { return false; }
   bool HasLeadingWhiteSpace() const OVERRIDE { return false; }

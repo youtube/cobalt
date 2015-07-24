@@ -132,9 +132,15 @@ class Box {
   bool IsPositioned() const;
 
   // Attempts to split the box, so that the part before the split would fit
-  // the available width. Returns the part after the split if the split
-  // succeeded. Note that only inline boxes are splittable.
-  virtual scoped_ptr<Box> TrySplitAt(float available_width) = 0;
+  // the available width. However, if |allow_overflow| is true, then the split
+  // is permitted to overflow the available width if no smaller split is
+  // available.
+  //
+  // Returns the part after the split if the split succeeded.
+  //
+  // Note that only inline boxes are splittable.
+  virtual scoped_ptr<Box> TrySplitAt(float available_width,
+                                     bool allow_overflow) = 0;
 
   // A box is collapsed if it has no text or white space, nor have its children.
   // A collapsed box may still have a non-zero width. Atomic inline-level boxes
