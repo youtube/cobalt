@@ -3,6 +3,7 @@ cobalt-oxide, file:///cobalt/browser/testdata/cobalt-oxide/cobalt-oxide.html
 divs-with-background-color-and-text
 fixed-width-divs-with-background-color
 font-weight
+inline-box-with-overflow-words
 relative-font-size
 simple-transform-text
 transform-translate-with-em-units
