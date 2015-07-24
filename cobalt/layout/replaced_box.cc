@@ -98,7 +98,8 @@ void ReplacedBox::UpdateUsedSize(const LayoutParams& layout_params) {
   set_used_height(*vertical_metrics.size);
 }
 
-scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/) {
+scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
+                                        bool /*allow_overflow*/) {
   return scoped_ptr<Box>();
 }
 

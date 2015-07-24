@@ -86,9 +86,13 @@ void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   height_above_baseline_ = line_box.height_above_baseline();
 }
 
-scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width) {
-  // Leave first N children that fit completely into the available width
-  // in this box.
+scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
+                                               bool allow_overflow) {
+  // Leave first N children that fit completely in the available width in this
+  // box. The first child that does not fit within the width may also be split
+  // and partially left in this box. Additionally, if |allow_overflow| is true,
+  // then overflows past the available width are allowed until a child with a
+  // used width greater than 0 has been added.
   ChildBoxes::const_iterator child_box_iterator;
   for (child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
@@ -98,16 +102,25 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width) {
     // Leave its part before the split in this box.
     if (available_width < child_box->used_width()) {
       scoped_ptr<Box> child_box_after_split =
-          child_box->TrySplitAt(available_width);
+          child_box->TrySplitAt(available_width, allow_overflow);
       if (child_box_after_split) {
         ++child_box_iterator;
         child_box_iterator =
             InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+      } else if (allow_overflow) {
+        // Unable to split the child, but overflow is allowed, so increment
+        // |child_box_iterator| because the whole first child box is being left
+        // in this box.
+        ++child_box_iterator;
       }
+
       break;
     }
 
     available_width -= child_box->used_width();
+
+    // Only continue allowing overflow if the box that was added is collapsed.
+    allow_overflow &= child_box->IsCollapsed();
   }
 
   // The first child cannot be split, so this box cannot be split either.
