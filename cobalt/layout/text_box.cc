@@ -68,7 +68,8 @@ void TextBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
   height_above_baseline_ = font_metrics.ascent + leading / 2;
 }
 
-scoped_ptr<Box> TextBox::TrySplitAt(float /*available_width*/) {
+scoped_ptr<Box> TextBox::TrySplitAt(float /*available_width*/,
+                                    bool /*allow_overflow*/) {
   // Text boxes were pre-split by soft wrap opportunities in a box generator,
   // no further split is possible.
   return scoped_ptr<Box>();
