@@ -51,7 +51,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   DCHECK_EQ(1, num_configs);
 }
 
-GraphicsSystemEGL::~GraphicsSystemEGL() {}
+GraphicsSystemEGL::~GraphicsSystemEGL() { eglTerminate(display_); }
 
 scoped_ptr<Display> GraphicsSystemEGL::CreateDefaultDisplay() {
   return scoped_ptr<Display>(
