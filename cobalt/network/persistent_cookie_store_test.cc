@@ -81,6 +81,13 @@ class FlushWaiter : public CallbackWaiter {
 class CookieLoader : public CallbackWaiter {
  public:
   CookieLoader() {}
+  ~CookieLoader() {
+    for (std::vector<net::CanonicalCookie*>::iterator it = cookies.begin();
+         it != cookies.end(); ++it) {
+      delete *it;
+    }
+  }
+
   void OnCookieLoad(const std::vector<net::CanonicalCookie*>& loaded_cookies) {
     cookies = loaded_cookies;
     Signal();
