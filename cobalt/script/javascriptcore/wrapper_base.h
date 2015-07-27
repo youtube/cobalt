@@ -18,7 +18,9 @@
 
 #include "base/memory/ref_counted.h"
 
+#include "cobalt/script/script_exception.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/WebKit/Source/JavaScriptCore/runtime/ErrorInstance.h"
 #include "third_party/WebKit/Source/JavaScriptCore/runtime/JSDestructibleObject.h"
 
 namespace cobalt {
@@ -29,14 +31,22 @@ namespace javascriptcore {
 // common base class for all wrapper objects. It holds a reference-counted
 // handle to a Wrappable object, which is the base class of all objects that
 // can be referenced from JavaScript.
-class WrapperBase : public JSC::JSDestructibleObject {
+// The WrappableBase template class must be derived from script::Wrappable.
+template <typename JSCBaseClass, typename WrappableBase>
+class WrapperBase : public JSCBaseClass {
  public:
-  scoped_refptr<Wrappable>& wrappable() { return wrappable_; }
+  scoped_refptr<WrappableBase>& wrappable() { return wrappable_; }
+
+  static scoped_refptr<WrappableBase>& GetWrappable(JSC::JSObject* js_object) {
+    ASSERT_GC_OBJECT_INHERITS(js_object, &WrapperBase::s_info);
+    WrapperBase* wrapper_base = JSC::jsCast<WrapperBase*>(js_object);
+    return wrapper_base->wrappable_;
+  }
 
  protected:
   WrapperBase(JSC::JSGlobalData* global_data, JSC::Structure* structure,
-              const scoped_refptr<Wrappable>& impl)
-      : JSC::JSDestructibleObject(*global_data, structure), wrappable_(impl) {}
+              const scoped_refptr<WrappableBase>& impl)
+      : JSCBaseClass(*global_data, structure), wrappable_(impl) {}
 
   // static override. This will be called when this object is garbage collected.
   static void destroy(JSC::JSCell* cell) {
@@ -51,10 +61,14 @@ class WrapperBase : public JSC::JSDestructibleObject {
     static_cast<WrapperBase*>(cell)->~WrapperBase();
   }
 
-
  private:
-  scoped_refptr<Wrappable> wrappable_;
+  scoped_refptr<WrappableBase> wrappable_;
 };
+
+// Base for regular interfaces.
+typedef WrapperBase<JSC::JSDestructibleObject, Wrappable> InterfaceBase;
+// Base for exception interfaces.
+typedef WrapperBase<JSC::ErrorInstance, ScriptException> ExceptionBase;
 
 }  // namespace javascriptcore
 }  // namespace script
