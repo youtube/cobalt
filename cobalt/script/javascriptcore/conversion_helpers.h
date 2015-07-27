@@ -71,10 +71,10 @@ inline T* JSObjectToWrappable(JSC::ExecState* exec_state,
   // to the Wrappable.
   if (js_object == global_object) {
     wrappable = global_object->global_interface().get();
+  } else if (js_object->isErrorInstance()) {
+    wrappable = ExceptionBase::GetWrappable(js_object).get();
   } else {
-    ASSERT_GC_OBJECT_INHERITS(js_object, &WrapperBase::s_info);
-    WrapperBase* wrapper_base = JSC::jsCast<WrapperBase*>(js_object);
-    wrappable = wrapper_base->wrappable().get();
+    wrappable = InterfaceBase::GetWrappable(js_object).get();
   }
   return base::polymorphic_downcast<T*>(wrappable);
 }
