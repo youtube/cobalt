@@ -55,6 +55,7 @@ class BoxGenerator : public dom::NodeVisitor {
 
   void Visit(dom::Comment* comment) OVERRIDE;
   void Visit(dom::Document* document) OVERRIDE;
+  void Visit(dom::DocumentType* document_type) OVERRIDE;
   void Visit(dom::Element* element) OVERRIDE;
   void Visit(dom::Text* text) OVERRIDE;
 
