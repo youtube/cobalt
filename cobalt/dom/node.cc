@@ -20,6 +20,7 @@
 
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/node_descendants_iterator.h"
@@ -345,6 +346,8 @@ scoped_refptr<Element> Node::next_element_sibling() {
 scoped_refptr<Comment> Node::AsComment() { return NULL; }
 
 scoped_refptr<Document> Node::AsDocument() { return NULL; }
+
+scoped_refptr<DocumentType> Node::AsDocumentType() { return NULL; }
 
 scoped_refptr<Element> Node::AsElement() { return NULL; }
 
