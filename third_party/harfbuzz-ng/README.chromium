@@ -1,0 +1,15 @@
+Name: harfbuzz-ng
+Short Name: harfbuzz-ng
+URL: http://freedesktop.org/wiki/Software/HarfBuzz
+Version: unknown
+Date: 20121102
+Revision: 431bef2e16c7888ca3960f5797432d3a20903550
+Security Critical: yes
+License: MIT
+License File: NOT_SHIPPED
+
+Description:
+This is harfbuzz-ng, a new implementation of harfbuzz with a different
+API from the old one.
+
+I also deleted all unneeded files from the root directory (but left src/ alone).
