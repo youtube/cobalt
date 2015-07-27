@@ -29,6 +29,7 @@ namespace dom {
 
 class Comment;
 class Document;
+class DocumentType;
 class Element;
 class HTMLCollection;
 class NodeList;
@@ -40,6 +41,7 @@ class NodeVisitor {
  public:
   virtual void Visit(Comment* comment) = 0;
   virtual void Visit(Document* document) = 0;
+  virtual void Visit(DocumentType* document_type) = 0;
   virtual void Visit(Element* element) = 0;
   virtual void Visit(Text* text) = 0;
 
@@ -51,6 +53,7 @@ class ConstNodeVisitor {
  public:
   virtual void Visit(const Comment* comment) = 0;
   virtual void Visit(const Document* document) = 0;
+  virtual void Visit(const DocumentType* document_type) = 0;
   virtual void Visit(const Element* element) = 0;
   virtual void Visit(const Text* text) = 0;
 
@@ -107,6 +110,7 @@ class Node : public EventTarget {
     kTextNode = 3,
     kCommentNode = 8,
     kDocumentNode = 9,
+    kDocumentTypeNode = 10,
   };
 
   // Custom, not in any spec.
@@ -183,6 +187,7 @@ class Node : public EventTarget {
 
   virtual bool IsComment() const { return false; }
   virtual bool IsDocument() const { return false; }
+  virtual bool IsDocumentType() const { return false; }
   virtual bool IsElement() const { return false; }
   virtual bool IsText() const { return false; }
 
@@ -190,6 +195,7 @@ class Node : public EventTarget {
   // possible or return NULL otherwise.
   virtual scoped_refptr<Comment> AsComment();
   virtual scoped_refptr<Document> AsDocument();
+  virtual scoped_refptr<DocumentType> AsDocumentType();
   virtual scoped_refptr<Element> AsElement();
   virtual scoped_refptr<Text> AsText();
 

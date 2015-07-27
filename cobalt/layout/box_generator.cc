@@ -232,6 +232,8 @@ void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
 
 void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
+void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
+
 // Split the text node into non-breakable segments at soft wrap opportunities
 // (http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity) according to
 // the Unicode line breaking algorithm (http://www.unicode.org/reports/tr14/).
