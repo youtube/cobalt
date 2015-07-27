@@ -15,8 +15,7 @@
  */
 
 // https://www.khronos.org/registry/typedarray/specs/latest/
-// TODO(***REMOVED***): Restore this when b/21609186 is fixed
-// [NoInterfaceObject]
+[NoInterfaceObject]
 interface ArrayBufferView {
     readonly attribute ArrayBuffer buffer;
     readonly attribute unsigned long byteOffset;
