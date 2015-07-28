@@ -31,6 +31,7 @@ namespace cobalt {
 namespace dom {
 
 class Attr;
+class DOMImplementation;
 class Element;
 class HTMLBodyElement;
 class HTMLCollection;
@@ -83,6 +84,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Web API: Document
   //
+  scoped_refptr<DOMImplementation> implementation();
   const std::string& url() const { return url_.spec(); }
   const std::string& document_uri() const { return url_.spec(); }
 
@@ -145,6 +147,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Custom, not in any spec.
   //
+  virtual bool IsXMLDocument() const { return false; }
+
   void AddObserver(DocumentObserver* observer);
   void RemoveObserver(DocumentObserver* observer);
 
@@ -194,9 +198,10 @@ class Document : public Node, public cssom::MutationObserver {
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
- private:
+ protected:
   ~Document() OVERRIDE;
 
+ private:
   // These functions are called when body, head, html elements are attached to/
   // detached from the document. This causes these elements to be friend classes
   // of Document.
@@ -206,6 +211,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Reference to HTML element Factory.
   HTMLElementContext* html_element_context_;
+  // Associated DOM implementation obejct.
+  scoped_refptr<DOMImplementation> implementation_;
   // Associated location obejct.
   scoped_refptr<Location> location_;
   // Weak references to the elements that according to the spec should only
@@ -232,6 +239,7 @@ class Document : public Node, public cssom::MutationObserver {
   friend class HTMLBodyElement;
   friend class HTMLHeadElement;
   friend class HTMLHtmlElement;
+  friend class XMLDocument;
 };
 
 }  // namespace dom
