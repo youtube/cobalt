@@ -21,6 +21,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_collection.h"
@@ -41,6 +42,7 @@ namespace dom {
 Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : html_element_context_(html_element_context),
+      implementation_(new DOMImplementation(html_element_context)),
       location_(new Location(options.url)),
       url_(options.url),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -74,10 +76,15 @@ scoped_refptr<Node> Document::InsertBefore(
   return new_child;
 }
 
+scoped_refptr<DOMImplementation> Document::implementation() {
+  return implementation_;
+}
+
 scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
     const std::string& class_name) const {
   return HTMLCollection::CreateWithElementsByClassName(this, class_name);
 }
+
 scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
     const std::string& tag_name) const {
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
