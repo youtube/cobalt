@@ -19,6 +19,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_style_element.h"
@@ -72,6 +73,12 @@ TEST_F(DocumentTest, Create) {
   EXPECT_EQ(url.spec(), document->url());
   EXPECT_EQ(url.spec(), document->document_uri());
   EXPECT_EQ(url, document->url_as_gurl());
+}
+
+TEST_F(DocumentTest, IsNotXMLDocument) {
+  scoped_refptr<Document> document =
+      new Document(&html_element_context_, Document::Options());
+  EXPECT_FALSE(document->IsXMLDocument());
 }
 
 TEST_F(DocumentTest, DocumentElement) {
@@ -177,6 +184,12 @@ TEST_F(DocumentTest, OwnerDocument) {
   document->RemoveChild(element1);
   EXPECT_EQ(NULL, element1->owner_document());
   EXPECT_EQ(NULL, element2->owner_document());
+}
+
+TEST_F(DocumentTest, Implementation) {
+  scoped_refptr<Document> document =
+      new Document(&html_element_context_, Document::Options());
+  EXPECT_TRUE(document->implementation());
 }
 
 TEST_F(DocumentTest, Location) {
