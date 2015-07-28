@@ -57,7 +57,7 @@ scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
   //
   // We tackle this problem one split (and one line) at the time.
 
-  // Create the new line box and overwrite the previous one.
+  // Destroy the previous line box (if it exists) and create the new one.
   //
   // Line boxes are stacked with no vertical separation and they never
   // overlap.
