@@ -45,6 +45,8 @@
         'dom_decoder.h',
         'dom_exception.cc',
         'dom_exception.h',
+        'dom_implementation.cc',
+        'dom_implementation.h',
         'dom_settings.cc',
         'dom_settings.h',
         'dom_token_list.cc',
@@ -150,6 +152,7 @@
         'window.h',
         'window_timers.cc',
         'window_timers.h',
+        'xml_document.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -174,6 +177,7 @@
         'comment_test.cc',
         'document_builder_test.cc',
         'document_test.cc',
+        'dom_implementation_test.cc',
         'element_test.cc',
         'event_queue_test.cc',
         'event_target_test.cc',
@@ -197,6 +201,7 @@
         'text_test.cc',
         'time_ranges_test.cc',
         'uint8_array_test.cc',
+        'xml_document_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',
