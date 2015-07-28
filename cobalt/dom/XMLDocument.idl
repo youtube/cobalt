@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,4 @@
 
 // http://www.w3.org/TR/2015/WD-dom-20150428/#interface-document
 
-interface Document : Node {
-  [SameObject] readonly attribute DOMImplementation implementation;
-  readonly attribute DOMString URL;
-  readonly attribute DOMString documentURI;
-  readonly attribute Element? documentElement;
-
-  HTMLCollection getElementsByTagName(DOMString localName);
-  HTMLCollection getElementsByClassName(DOMString classNames);
-  [NewObject] Element createElement(DOMString localName);
-  [NewObject] Text createTextNode(DOMString data);
-  [NewObject] Event createEvent(DOMString interfaceName);
-};
-
-Document implements GlobalEventHandlers;
+interface XMLDocument : Document {};
