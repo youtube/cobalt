@@ -13,3 +13,7 @@ This is harfbuzz-ng, a new implementation of harfbuzz with a different
 API from the old one.
 
 I also deleted all unneeded files from the root directory (but left src/ alone).
+
+MSVS compiler warnings 4334, 4800, and 4805 have been disabled in harfbuzz.gyp
+when the target architecture is "win" to enable building harfbuzz-ng on Windows
+when warnings are set to break the build.
