@@ -117,6 +117,16 @@
                 '-Wno-unused-value',
               ]
             }],
+            # Disable windows harfbuzz warnings:
+            #   4334: '<<' : result of 32-bit shift implicitly converted to 64
+            #       bits (was 64-bit shift intended?)
+            #   4800: 'hb_bool_t' : forcing value to bool 'true' or 'false'
+            #       (performance warning)
+            #   4805: '|=' : unsafe mix of type 'bool' and type 'hb_bool_t' in
+            #       operation
+            ['actual_target_arch=="win"', {
+              'msvs_disabled_warnings': [ 4334, 4800, 4805 ],
+            }],
           ],
         },
       ],
