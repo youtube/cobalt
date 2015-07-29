@@ -56,10 +56,14 @@ VideoRendererBase::VideoRendererBase(
       set_opaque_cb_(set_opaque_cb),
       maximum_frames_cached_(0) {
   DCHECK(!paint_cb_.is_null());
+#if defined(__LB_SHELL__)
+  frame_provider_ = ShellMediaPlatform::Instance()->GetVideoFrameProvider();
+
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   late_frames_ = 0;
   DLOG(INFO) << "Start playing back video " << videos_played_;
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // defined(__LB_SHELL__)
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
@@ -142,9 +146,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     base::PlatformThread::Join(thread_to_join);
 
 #if defined(__LB_SHELL__)
-  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
-      GetVideoFrameProvider();
-  if (frame_provider) { frame_provider->Stop(); }
+  if (frame_provider_) { frame_provider_->Stop(); }
 #endif  // defined(__LB_SHELL__)
 
   if (decrypting_demuxer_stream_) {
@@ -595,15 +597,14 @@ void VideoRendererBase::FrameReady(
   }
 
 #if defined(__LB_SHELL__)
-  if (!frame->IsEndOfStream()) {
-    ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
-        GetVideoFrameProvider();
-    if (frame_provider) {
-      frame_provider->AddFrame(frame);
-      base::TimeDelta timestamp = frame->GetTimestamp();
-      frame = VideoFrame::CreatePunchOutFrame(frame->visible_rect().size());
-      frame->SetTimestamp(timestamp);
-    }
+  scoped_refptr<VideoFrame> original_frame;
+  if (frame_provider_ && !frame->IsEndOfStream()) {
+    // Save the frame to original_frame so it can be added into frame_provider
+    // later.
+    original_frame = frame;
+    frame = VideoFrame::CreatePunchOutFrame(
+        original_frame->visible_rect().size());
+    frame->SetTimestamp(original_frame->GetTimestamp());
   }
 #endif  // defined(__LB_SHELL__)
 
@@ -614,6 +615,12 @@ void VideoRendererBase::FrameReady(
     AttemptRead_Locked();
     return;
   }
+
+#if defined(__LB_SHELL__)
+  if (frame_provider_ && original_frame) {
+    frame_provider_->AddFrame(original_frame);
+  }
+#endif  // defined(__LB_SHELL__)
 
   if (prerolling_delayed_frame_) {
     DCHECK_EQ(state_, kPrerolling);
@@ -824,9 +831,7 @@ void VideoRendererBase::AttemptFlush_Locked() {
   maximum_frames_cached_ = 0;
 
 #if defined(__LB_SHELL__)
-  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
-      GetVideoFrameProvider();
-  if (frame_provider) { frame_provider->Flush(); }
+  if (frame_provider_) { frame_provider_->Flush(); }
 #endif  // defined(__LB_SHELL__)
 
   if (!pending_paint_ && !pending_read_) {
@@ -860,10 +865,8 @@ void VideoRendererBase::DoStopOrError_Locked() {
 
 int VideoRendererBase::NumFrames_Locked() const {
   lock_.AssertAcquired();
-  ShellVideoFrameProvider* frame_provider = ShellMediaPlatform::Instance()->
-      GetVideoFrameProvider();
-  if (frame_provider) {
-    return frame_provider->GetNumOfFramesCached();
+  if (frame_provider_) {
+    return frame_provider_->GetNumOfFramesCached();
   }
 
   int outstanding_frames =
