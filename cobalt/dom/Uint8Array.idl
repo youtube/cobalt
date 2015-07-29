@@ -16,11 +16,9 @@
 
 // https://www.khronos.org/registry/typedarray/specs/latest/#7.1
 [
+    Constructor(unsigned long length),
+    Constructor(Uint8Array array),
     Constructor(ArrayBuffer array_buffer, optional unsigned long offset, optional unsigned long length)
-    // TODO(***REMOVED***): Add these other constructors once overloads are
-    // supported.
-    // Constructor(unsigned long length)
-    // Constructor(Uint8Array)
 ]
 interface Uint8Array : ArrayBufferView {
     const unsigned long BYTES_PER_ELEMENT = 1;
@@ -34,9 +32,8 @@ interface Uint8Array : ArrayBufferView {
     // them here.
     //void set(sequence<long> array, optional unsigned long offset);
 
-    // TODO(***REMOVED***): When overloads are supported, add this.
     // Copy items into this array from source, starting at this[offset].
-    //void set(Uint8Array source, optional unsigned long offset);
+    void set(Uint8Array source, optional unsigned long offset);
 
     // Return a new Uint8Array that is a view on top of this one.
     // Contains this[start]..this[end]. end defaults to length if unspecified.
