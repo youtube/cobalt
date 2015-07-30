@@ -115,6 +115,9 @@ class Window : public EventTarget {
   const scoped_refptr<Performance>& performance() const;
 
   // Custom, not in any spec.
+  //
+  HTMLElementContext* html_element_context() const;
+
   const scoped_refptr<Console>& console() const;
 
   // Will fire the animation frame callbacks and reset the animation frame

@@ -45,7 +45,7 @@ Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
-      implementation_(new DOMImplementation(html_element_context)),
+      implementation_(new DOMImplementation()),
       location_(new Location(options.url)),
       url_(options.url),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -83,13 +83,15 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
 }
 
-scoped_refptr<Element> Document::CreateElement() { return new Element(this); }
-
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
-  DCHECK(html_element_context_);
-  DCHECK(html_element_context_->html_element_factory());
-  return html_element_context_->html_element_factory()->CreateHTMLElement(
-      this, tag_name);
+  if (IsXMLDocument()) {
+    return new Element(this, tag_name);
+  } else {
+    DCHECK(html_element_context_);
+    DCHECK(html_element_context_->html_element_factory());
+    return html_element_context_->html_element_factory()->CreateHTMLElement(
+        this, tag_name);
+  }
 }
 
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
