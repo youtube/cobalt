@@ -34,8 +34,8 @@ namespace dom {
 //   http://www.w3.org/TR/2015/WD-dom-20150618/#interface-domimplementation
 class DOMImplementation : public script::Wrappable {
  public:
-  explicit DOMImplementation(HTMLElementContext* html_element_context)
-      : html_element_context_(html_element_context) {}
+  DOMImplementation() {}
+  ~DOMImplementation() OVERRIDE {}
 
   // Web API: DOMImplementation
   scoped_refptr<XMLDocument> CreateDocument(
@@ -48,7 +48,7 @@ class DOMImplementation : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DOMImplementation);
 
  private:
-  HTMLElementContext* html_element_context_;
+  DISALLOW_COPY_AND_ASSIGN(DOMImplementation);
 };
 
 }  // namespace dom

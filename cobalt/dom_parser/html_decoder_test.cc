@@ -50,6 +50,7 @@ class HTMLDecoderTest : public ::testing::Test {
   dom::testing::StubScriptRunner stub_script_runner_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;
+  scoped_refptr<dom::Element> root_;
   base::SourceLocation source_location_;
   MockErrorCallback mock_error_callback_;
   HTMLDecoder* html_decoder_;
@@ -64,15 +65,16 @@ HTMLDecoderTest::HTMLDecoderTest()
                             &stub_script_runner_),
       document_(
           new dom::Document(&html_element_context_, dom::Document::Options())),
+      root_(new dom::Element(document_)),
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {
 }
 
-TEST_F(HTMLDecoderTest, DocumentFullShouldAddImpliedTags) {
+TEST_F(HTMLDecoderTest, DecodingWholeDocumentShouldAddImpliedTags) {
   const std::string input = "<p></p>";
   html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFull, source_location_,
-      base::Closure(), base::Bind(&MockErrorCallback::Run,
-                                  base::Unretained(&mock_error_callback_)));
+      document_, document_, NULL, source_location_, base::Closure(),
+      base::Bind(&MockErrorCallback::Run,
+                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -90,17 +92,16 @@ TEST_F(HTMLDecoderTest, DocumentFullShouldAddImpliedTags) {
   EXPECT_FALSE(element->HasChildNodes());
 }
 
-TEST_F(HTMLDecoderTest, DocumentFragmentShouldNotAddImpliedTags) {
+TEST_F(HTMLDecoderTest, DecodingDocumentFragmentShouldNotAddImpliedTags) {
   const std::string input = "<p></p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
   EXPECT_FALSE(element->HasChildNodes());
@@ -108,15 +109,14 @@ TEST_F(HTMLDecoderTest, DocumentFragmentShouldNotAddImpliedTags) {
 
 TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
   const std::string input = "<div a b=2 c d></div>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("div", element->tag_name());
   EXPECT_TRUE(element->HasAttributes());
@@ -133,15 +133,14 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
 
 TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
   const std::string input = "<div a= b=2 c=></div>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("div", element->tag_name());
   EXPECT_TRUE(element->HasAttributes());
@@ -154,15 +153,14 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
 
 TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
   const std::string input = "<p><p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -173,15 +171,14 @@ TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
 
 TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
   const std::string input = "<p>text</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -193,15 +190,14 @@ TEST_F(HTMLDecoderTest, CanParseNormalCharacters) {
 // Test a decimal and hex escaped supplementary (not in BMP) character.
 TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
   const std::string input = "<p>&#128169;</p><p>&#x1f4a9;</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -221,15 +217,14 @@ TEST_F(HTMLDecoderTest, CanParseEscapedCharacters) {
 // Test an escaped invalid Unicode character.
 TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
   const std::string input = "<p>&#xe62b;</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -241,15 +236,14 @@ TEST_F(HTMLDecoderTest, CanParseEscapedInvalidUnicodeCharacters) {
 // Test a UTF8 encoded supplementary (not in BMP) character.
 TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
   const std::string input = "<p>💩</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -264,16 +258,14 @@ TEST_F(HTMLDecoderTest, CanParseUTF8EncodedSupplementaryCharacters) {
 // The current version DOES NOT handle the error as outlined in the link above.
 TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
   const std::string input = "<p>1<b>2<i>3</b>4</i>5</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
-
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
 
@@ -292,22 +284,51 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
 // The current version DOES NOT handle the error as outlined in the link above.
 TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
   const std::string input = "<b>1<p>2</b>3</p>";
-  html_decoder_ = new HTMLDecoder(
-      document_, document_, NULL, HTMLDecoder::kDocumentFragment,
-      source_location_, base::Closure(),
-      base::Bind(&MockErrorCallback::Run,
-                 base::Unretained(&mock_error_callback_)));
-
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
-  dom::Element* element = document_->first_element_child();
+  dom::Element* element = root_->first_element_child();
   ASSERT_TRUE(element);
   EXPECT_EQ("b", element->tag_name());
 
   element = element->next_element_sibling();
   ASSERT_TRUE(element);
   EXPECT_EQ("p", element->tag_name());
+}
+
+TEST_F(HTMLDecoderTest, TagNamesShouldBeCaseInsensitive) {
+  const std::string input = "<DIV></DIV>";
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = root_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("div", element->tag_name());
+}
+
+TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
+  const std::string input = "<div A></div>";
+  html_decoder_ =
+      new HTMLDecoder(document_, root_, NULL, source_location_, base::Closure(),
+                      base::Bind(&MockErrorCallback::Run,
+                                 base::Unretained(&mock_error_callback_)));
+  html_decoder_->DecodeChunk(input.c_str(), input.length());
+  html_decoder_->Finish();
+
+  dom::Element* element = root_->first_element_child();
+  ASSERT_TRUE(element);
+  EXPECT_EQ("div", element->tag_name());
+  EXPECT_TRUE(element->HasAttributes());
+  EXPECT_EQ(1, element->attributes()->length());
+  EXPECT_EQ("a", element->attributes()->Item(0)->name());
 }
 
 }  // namespace dom_parser
