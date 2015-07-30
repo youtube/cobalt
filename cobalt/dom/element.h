@@ -17,10 +17,12 @@
 #ifndef DOM_ELEMENT_H_
 #define DOM_ELEMENT_H_
 
+#include <base/hash_tables.h>
 #include <string>
 
 #include "base/optional.h"
 #include "base/string_piece.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -40,7 +42,10 @@ class Element : public Node {
   typedef base::hash_map<std::string, std::string> AttributeMap;
 
   explicit Element(Document* document);
+  Element(Document* document, const std::string& tag_name);
   Element(Document* document, HTMLElementContext* html_element_context);
+  Element(Document* document, const std::string& tag_name,
+          HTMLElementContext* html_element_context);
 
   // Web API: Node
   //
@@ -56,12 +61,7 @@ class Element : public Node {
   // Web API: Element
   //
 
-  // Note: tag_name is implemented differently from the spec.
-  // To save memory, there's no member variable storing the tag name. For an
-  // Element that is not an HTMLElement, tag_name() always returns "#element".
-  // For an HTMLElement, each subclass will be responsible for reporting its
-  // own tag name.
-  virtual std::string tag_name() const;
+  virtual std::string tag_name() const { return tag_name_; }
 
   std::string id() const { return GetAttribute("id").value_or(""); }
   void set_id(const std::string& value) { SetAttribute("id", value); }
@@ -123,6 +123,12 @@ class Element : public Node {
 
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
+  // Points to ">" of opening tag.
+  virtual void SetOpeningTagLocation(
+      const base::SourceLocation& opening_tag_location) {
+    UNREFERENCED_PARAMETER(opening_tag_location);
+  }
+
   DEFINE_WRAPPABLE_TYPE(Element);
 
  protected:
@@ -139,14 +145,16 @@ class Element : public Node {
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
 
-  // Reference to HTML element factory.
+  // Tag name of the element.
+  std::string tag_name_;
+  // Reference to HTML element context.
   HTMLElementContext* html_element_context_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<NamedNodeMap> named_node_map_;
-  // A weak pointer to a DOMTOkenList containing the the classes of the element.
+  // A weak pointer to a DOMTokenList containing the the classes of the element.
   // This heavy weight object is kept in memory only when needed by the user.
   base::WeakPtr<DOMTokenList> class_list_;
 

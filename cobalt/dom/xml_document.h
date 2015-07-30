@@ -24,12 +24,12 @@ namespace dom {
 
 class XMLDocument : public Document {
  public:
-  XMLDocument(HTMLElementContext* html_element_context, const Options& options)
-      : Document(html_element_context, options) {}
+  XMLDocument() : Document(NULL, Document::Options()) {}
+  explicit XMLDocument(const Options& options) : Document(NULL, options) {}
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new XMLDocument(html_element_context_, Options(url_));
+    return new XMLDocument(Document::Options(url_));
   }
 
   // Custom, not in any spec: Document.
@@ -39,6 +39,8 @@ class XMLDocument : public Document {
 
  private:
   ~XMLDocument() {}
+
+  DISALLOW_COPY_AND_ASSIGN(XMLDocument);
 };
 
 }  // namespace dom

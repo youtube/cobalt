@@ -32,11 +32,19 @@
 namespace cobalt {
 namespace dom {
 
-Element::Element(Document* document)
-    : Node(document), html_element_context_(NULL) {}
+Element::Element(Document* document) : Node(document) {}
+
+Element::Element(Document* document, const std::string& tag_name)
+    : Node(document), tag_name_(tag_name) {}
 
 Element::Element(Document* document, HTMLElementContext* html_element_context)
     : Node(document), html_element_context_(html_element_context) {}
+
+Element::Element(Document* document, const std::string& tag_name,
+                 HTMLElementContext* html_element_context)
+    : Node(document),
+      tag_name_(tag_name),
+      html_element_context_(html_element_context) {}
 
 base::optional<std::string> Element::text_content() const {
   std::string content;
@@ -74,11 +82,6 @@ scoped_refptr<NamedNodeMap> Element::attributes() {
     named_node_map_ = named_node_map->AsWeakPtr();
   }
   return named_node_map;
-}
-
-std::string Element::tag_name() const {
-  static const char* kElementName = "#element";
-  return kElementName;
 }
 
 scoped_refptr<DOMTokenList> Element::class_list() {
@@ -184,13 +187,15 @@ base::optional<std::string> Element::GetAttribute(
     const std::string& name) const {
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
-  std::string name_lower_case = name;
-  StringToLowerASCII(&name_lower_case);
+  std::string attr_name = name;
+  if (!owner_document()->IsXMLDocument()) {
+    StringToLowerASCII(&attr_name);
+  }
 
   // 2. Return the value of the attribute in element's attribute list whose
   //    namespace is namespace and local name is localName, if it has one, and
   //    null otherwise.
-  AttributeMap::const_iterator iter = attribute_map_.find(name_lower_case);
+  AttributeMap::const_iterator iter = attribute_map_.find(attr_name);
   if (iter != attribute_map_.end()) {
     return iter->second;
   }
@@ -204,8 +209,10 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 
   // 2. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
-  std::string name_lower_case = name;
-  StringToLowerASCII(&name_lower_case);
+  std::string attr_name = name;
+  if (!owner_document()->IsXMLDocument()) {
+    StringToLowerASCII(&attr_name);
+  }
 
   // 3. Let attribute be the first attribute in the context object's attribute
   //    list whose name is name, or null if there is no such attribute.
@@ -213,20 +220,18 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    value is value, and then append this attribute to the context object and
   //    terminate these steps.
   // 5. Change attribute from context object to value.
-  attribute_map_[name_lower_case] = value;
+  attribute_map_[attr_name] = value;
 
   // Custom, not in any spec.
   // Changing the class name may affect the contents of proxy objects.
-  if (name_lower_case == "class") {
+  if (attr_name == "class") {
     UpdateNodeGeneration();
   }
   if (named_node_map_) {
-    named_node_map_->SetAttributeInternal(name_lower_case, value);
+    named_node_map_->SetAttributeInternal(attr_name, value);
   }
 
-  if (owner_document()) {
-    owner_document()->OnDOMMutation();
-  }
+  owner_document()->OnDOMMutation();
 }
 
 // Algorithm for RemoveAttribute:
@@ -234,12 +239,14 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
 void Element::RemoveAttribute(const std::string& name) {
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
-  std::string name_lower_case = name;
-  StringToLowerASCII(&name_lower_case);
+  std::string attr_name = name;
+  if (!owner_document()->IsXMLDocument()) {
+    StringToLowerASCII(&attr_name);
+  }
 
   // 2. Remove the first attribute from the context object whose name is name,
   //    if any.
-  AttributeMap::iterator iter = attribute_map_.find(name_lower_case);
+  AttributeMap::iterator iter = attribute_map_.find(attr_name);
   if (iter == attribute_map_.end()) {
     return;
   }
@@ -247,16 +254,14 @@ void Element::RemoveAttribute(const std::string& name) {
 
   // Custom, not in any spec.
   // Changing the class name may affect the contents of proxy objects.
-  if (name_lower_case == "class") {
+  if (attr_name == "class") {
     UpdateNodeGeneration();
   }
   if (named_node_map_) {
-    named_node_map_->RemoveAttributeInternal(name_lower_case);
+    named_node_map_->RemoveAttributeInternal(attr_name);
   }
 
-  if (owner_document()) {
-    owner_document()->OnDOMMutation();
-  }
+  owner_document()->OnDOMMutation();
 }
 
 // Algorithm for HasAttribute:
@@ -264,12 +269,14 @@ void Element::RemoveAttribute(const std::string& name) {
 bool Element::HasAttribute(const std::string& name) const {
   // 1. If the context object is in the HTML namespace and its node document is
   //    an HTML document, let name be converted to ASCII lowercase.
-  std::string name_lower_case = name;
-  StringToLowerASCII(&name_lower_case);
+  std::string attr_name = name;
+  if (!owner_document()->IsXMLDocument()) {
+    StringToLowerASCII(&attr_name);
+  }
 
   // 2. Return true if the context object has an attribute whose name is name,
   //    and false otherwise.
-  AttributeMap::const_iterator iter = attribute_map_.find(name_lower_case);
+  AttributeMap::const_iterator iter = attribute_map_.find(attr_name);
   return iter != attribute_map_.end();
 }
 

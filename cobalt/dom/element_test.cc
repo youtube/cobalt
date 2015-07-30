@@ -71,13 +71,13 @@ ElementTest::~ElementTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(ElementTest, CreateElement) {
-  scoped_refptr<Element> element = new Element(document_);
+  scoped_refptr<Element> element = new Element(document_, "element");
   ASSERT_TRUE(element);
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
-  EXPECT_EQ("#element", element->node_name());
+  EXPECT_EQ("element", element->node_name());
 
-  EXPECT_EQ("#element", element->tag_name());
+  EXPECT_EQ("element", element->tag_name());
   EXPECT_EQ("", element->id());
   EXPECT_EQ("", element->class_name());
 
@@ -304,8 +304,6 @@ TEST_F(ElementTest, GetElementsByTagName) {
 }
 
 TEST_F(ElementTest, InnerHTML) {
-  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
-
   // Manually construct the DOM tree and compare serialization result:
   // root
   //   element_a
@@ -315,29 +313,30 @@ TEST_F(ElementTest, InnerHTML) {
   //     element_b2
   //     text
   //
+  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(document_))->AsElement();
+      root->AppendChild(new Element(document_, "element_a"))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element(document_))->AsElement();
+      element_a->AppendChild(new Element(document_, "element_b1"))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
   element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element(document_))->AsElement();
+      element_a->AppendChild(new Element(document_, "element_b2"))->AsElement();
   element_b2->AppendChild(new Text(document_, "Text"));
 
   element_a->AppendChild(new Text(document_, "\n"));
 
   const char* kExpectedHTML =
-      "<#element key=\"value\">\n"
-      "  <#element just_key></#element>\n"
-      "  <#element>Text</#element>\n"
-      "</#element>";
+      "<element_a key=\"value\">\n"
+      "  <element_b1 just_key></element_b1>\n"
+      "  <element_b2>Text</element_b2>\n"
+      "</element_a>";
   EXPECT_EQ(kExpectedHTML, root->inner_html());
 
   // Setting inner HTML should remove all previous children.
@@ -413,8 +412,6 @@ TEST_F(ElementTest, InnerHTML) {
 }
 
 TEST_F(ElementTest, OuterHTML) {
-  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
-
   // Manually construct the DOM tree and compare serialization result:
   // root
   //   element_a
@@ -424,30 +421,32 @@ TEST_F(ElementTest, OuterHTML) {
   //     element_b2
   //     text
   //
+  scoped_refptr<Element> root =
+      new Element(document_, "root", &html_element_context_);
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(document_, &html_element_context_))
-          ->AsElement();
+      root->AppendChild(new Element(document_, "element_a",
+                                    &html_element_context_))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element(document_))->AsElement();
+      element_a->AppendChild(new Element(document_, "element_b1"))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
   element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element(document_))->AsElement();
+      element_a->AppendChild(new Element(document_, "element_b2"))->AsElement();
   element_b2->AppendChild(new Text(document_, "Text"));
 
   element_a->AppendChild(new Text(document_, "\n"));
 
   const char* kExpectedHTML =
-      "<#element><#element key=\"value\">\n"
-      "  <#element just_key></#element>\n"
-      "  <#element>Text</#element>\n"
-      "</#element></#element>";
+      "<root><element_a key=\"value\">\n"
+      "  <element_b1 just_key></element_b1>\n"
+      "  <element_b2>Text</element_b2>\n"
+      "</element_a></root>";
   EXPECT_EQ(kExpectedHTML, root->outer_html());
 
   // Setting outer HTML should remove the node from its parent.

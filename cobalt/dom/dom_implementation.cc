@@ -31,7 +31,7 @@ scoped_refptr<XMLDocument> DOMImplementation::CreateDocument(
   UNREFERENCED_PARAMETER(namespace_name);
   UNREFERENCED_PARAMETER(qualified_name);
   DCHECK(!doctype);
-  return new XMLDocument(html_element_context_, Document::Options());
+  return new XMLDocument();
 }
 
 }  // namespace dom

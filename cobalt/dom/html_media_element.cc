@@ -418,9 +418,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
   if (media_source_) {
     media_source_->SetPlayer(player_.get());
   }
-  if (owner_document()) {
-    owner_document()->OnDOMMutation();
-  }
+  owner_document()->OnDOMMutation();
 }
 
 void HTMLMediaElement::ScheduleLoad() {
