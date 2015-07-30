@@ -43,6 +43,9 @@
     }],
     ['OS=="lb_shell"', {
       'sources/': [
+        # Re-include things in media/audio and media/filters
+        ['include', 'audio/shell_.*<(target_arch)'],
+        ['include', 'filters/shell_.*<(target_arch)'],
         # Re-include things in lbshell
         ['include', 'lbshell/src/platform/<(target_arch)'],
         ['include', 'lbshell/src/platform/<(actual_target_arch)'],
