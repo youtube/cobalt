@@ -48,6 +48,7 @@
         'resource_provider_stub.h',
         'text_node.cc',
         'text_node.h',
+        'viewport_filter.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
