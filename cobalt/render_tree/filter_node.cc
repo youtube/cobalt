@@ -20,13 +20,24 @@
 namespace cobalt {
 namespace render_tree {
 
+FilterNode::Builder::Builder(const scoped_refptr<render_tree::Node>& source)
+    : source(source) {}
+
 FilterNode::Builder::Builder(const OpacityFilter& opacity_filter,
                              const scoped_refptr<render_tree::Node>& source)
     : opacity_filter(opacity_filter), source(source) {}
 
+FilterNode::Builder::Builder(const ViewportFilter& viewport_filter,
+                             const scoped_refptr<render_tree::Node>& source)
+    : viewport_filter(viewport_filter), source(source) {}
+
 FilterNode::FilterNode(const OpacityFilter& opacity_filter,
                        const scoped_refptr<render_tree::Node>& source)
     : data_(opacity_filter, source) {}
+
+FilterNode::FilterNode(const ViewportFilter& viewport_filter,
+                       const scoped_refptr<render_tree::Node>& source)
+    : data_(viewport_filter, source) {}
 
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
