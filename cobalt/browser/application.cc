@@ -94,6 +94,21 @@ void Application::Quit() {
 void Application::Run() {
   base::RunLoop run_loop;
   quit_closure_ = run_loop.QuitClosure();
+
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  int duration_in_seconds = 0;
+  if (command_line->HasSwitch(switches::kShutdownAfter) &&
+      base::StringToInt(
+          command_line->GetSwitchValueASCII(switches::kShutdownAfter),
+          &duration_in_seconds)) {
+    // If the "shutdown_after" command line option is specified, setup a delayed
+    // message to quit the application after the specified number of seconds
+    // have passed.
+    ui_message_loop_.PostDelayedTask(
+        FROM_HERE, quit_closure_,
+        base::TimeDelta::FromSeconds(duration_in_seconds));
+  }
+
   run_loop.Run();
 }
 
