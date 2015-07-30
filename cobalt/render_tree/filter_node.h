@@ -21,6 +21,7 @@
 #include "base/optional.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/opacity_filter.h"
+#include "cobalt/render_tree/viewport_filter.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -32,21 +33,33 @@ namespace render_tree {
 class FilterNode : public Node {
  public:
   struct Builder {
+    explicit Builder(const scoped_refptr<render_tree::Node>& source);
+
     Builder(const OpacityFilter& opacity_filter,
             const scoped_refptr<render_tree::Node>& source);
 
-    // If set, this filter will make the source subtree appear transaprent,
-    // with the level of transparency dictated by the OpacityFilter's value.
-    base::optional<OpacityFilter> opacity_filter;
+    Builder(const ViewportFilter& viewport_filter,
+            const scoped_refptr<render_tree::Node>& source);
 
     // The source tree, which will be used as the input to the filters specified
     // in this FilterNode.
     scoped_refptr<render_tree::Node> source;
+
+    // If set, this filter will make the source subtree appear transparent,
+    // with the level of transparency dictated by the OpacityFilter's value.
+    base::optional<OpacityFilter> opacity_filter;
+
+    // If set, this filter will specify the viewport of source content. Only
+    // the source content within the viewport rectangle will be rendered.
+    base::optional<ViewportFilter> viewport_filter;
   };
 
   explicit FilterNode(const Builder& builder) : data_(builder) {}
 
   FilterNode(const OpacityFilter& opacity_filter,
+             const scoped_refptr<render_tree::Node>& source);
+
+  FilterNode(const ViewportFilter& viewport_filter,
              const scoped_refptr<render_tree::Node>& source);
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
