@@ -15,6 +15,7 @@
 {
   'variables': {
     'cobalt_code': 1,
+    'static_contents_dir': '<(DEPTH)/lbshell/content',
   },
   'targets': [
     {
@@ -41,6 +42,11 @@
           'sources': [
             'savegame_ps3.cc',
           ],
+          'copies': [
+          {
+            'destination': '<(PRODUCT_DIR)/content/data',
+            'files': ['<(static_contents_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
+          }],
         }],
         ['actual_target_arch in ["linux", "win"]', {
           'sources': [
@@ -57,6 +63,7 @@
       'target_name': 'storage_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'savegame_fake.cc',
         'savegame_test.cc',
         'storage_manager_test.cc',
         'virtual_file_system_test.cc',
