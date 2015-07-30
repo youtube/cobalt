@@ -35,6 +35,10 @@ const char kTimedTrace[] = "timed_trace";
 // taken from an external input device (like a controller).
 const char kInputFuzzer[] = "input_fuzzer";
 
+// If this flag is set, Cobalt will automatically shutdown after the specified
+// number of seconds have passed.
+const char kShutdownAfter[] = "shutdown_after";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt
