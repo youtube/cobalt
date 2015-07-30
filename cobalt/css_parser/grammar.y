@@ -1266,13 +1266,15 @@ background_color_property_value:
 
 color_stop:
     color {
-    $$ = new cssom::ColorStop($1);
+    $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1));
   }
   | color length {
-    $$ = new cssom::ColorStop($1, $2);
+    $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1),
+                              MakeScopedRefPtrAndRelease($2));
   }
   | color percentage {
-    $$ = new cssom::ColorStop($1, $2);
+    $$ = new cssom::ColorStop(MakeScopedRefPtrAndRelease($1),
+                              MakeScopedRefPtrAndRelease($2));
   }
   ;
 
@@ -1612,22 +1614,47 @@ margin_side_property_value:
 margin_property_value:
     // If there is only one component value, it applies to all sides.
     margin_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
+    scoped_refptr<cssom::PropertyValue> width = MakeScopedRefPtrAndRelease($1);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+        width, width, width, width).release();
   }
     // If there are two values, the top and bottom margins are set to the first
     // value and the right and left margins are set to the second.
   | margin_width margin_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $1, $2).release();
+    scoped_refptr<cssom::PropertyValue> vertical_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> horizontal_width =
+        MakeScopedRefPtrAndRelease($2);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             vertical_width, horizontal_width,
+             vertical_width, horizontal_width).release();
   }
     // If there are three values, the top is set to the first value, the left
     // and right are set to the second, and the bottom is set to the third.
   | margin_width margin_width margin_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $2).release();
+    scoped_refptr<cssom::PropertyValue> top_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> horizontal_width =
+        MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<cssom::PropertyValue> bottom_width =
+        MakeScopedRefPtrAndRelease($3);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             top_width, horizontal_width,
+             bottom_width, horizontal_width).release();
   }
     // If there are four values, they apply to the top, right, bottom, and left,
     // respectively.
   | margin_width margin_width margin_width margin_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $4).release();
+    scoped_refptr<cssom::PropertyValue> top_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> left_width =
+        MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<cssom::PropertyValue> bottom_width =
+        MakeScopedRefPtrAndRelease($3);
+    scoped_refptr<cssom::PropertyValue> right_width =
+        MakeScopedRefPtrAndRelease($4);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             top_width, left_width, bottom_width, right_width).release();
   }
   | common_values {
     $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
@@ -1703,22 +1730,48 @@ padding_side_property_value:
 padding_property_value:
     // If there is only one component value, it applies to all sides.
     padding_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
+    scoped_refptr<cssom::PropertyValue> width =
+        MakeScopedRefPtrAndRelease($1);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             width, width, width, width).release();
   }
     // If there are two values, the top and bottom paddings are set to the first
     // value and the right and left paddings are set to the second.
   | padding_width padding_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $1, $2).release();
+    scoped_refptr<cssom::PropertyValue> vertical_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> horizontal_width =
+        MakeScopedRefPtrAndRelease($2);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             vertical_width, horizontal_width,
+             vertical_width, horizontal_width).release();
   }
     // If there are three values, the top is set to the first value, the left
     // and right are set to the second, and the bottom is set to the third.
   | padding_width padding_width padding_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $2).release();
+    scoped_refptr<cssom::PropertyValue> top_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> horizontal_width =
+        MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<cssom::PropertyValue> bottom_width =
+        MakeScopedRefPtrAndRelease($3);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             top_width, horizontal_width,
+             bottom_width, horizontal_width).release();
   }
     // If there are four values, they apply to the top, right, bottom, and left,
     // respectively.
   | padding_width padding_width padding_width padding_width {
-    $$ = MarginOrPaddingShorthand::TryCreate($1, $2, $3, $4).release();
+    scoped_refptr<cssom::PropertyValue> top_width =
+        MakeScopedRefPtrAndRelease($1);
+    scoped_refptr<cssom::PropertyValue> left_width =
+        MakeScopedRefPtrAndRelease($2);
+    scoped_refptr<cssom::PropertyValue> bottom_width =
+        MakeScopedRefPtrAndRelease($3);
+    scoped_refptr<cssom::PropertyValue> right_width =
+        MakeScopedRefPtrAndRelease($4);
+    $$ = MarginOrPaddingShorthand::TryCreate(
+             top_width, left_width, bottom_width, right_width).release();
   }
   | common_values {
     $$ = MarginOrPaddingShorthand::TryCreate($1, $1, $1, $1).release();
@@ -1792,20 +1845,23 @@ transform_function:
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatex
   | kTranslateXFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kXAxis, $3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kXAxis,
+                                      MakeScopedRefPtrAndRelease($3));
   }
   // Specifies a translation by the given amount in the Y direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatey
   | kTranslateYFunctionToken maybe_whitespace length_percent_property_value ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kYAxis, $3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kYAxis,
+                                      MakeScopedRefPtrAndRelease($3));
   }
   // Specifies a 3D translation by the vector [0,0,z] with the given amount
   // in the Z direction.
   //   http://www.w3.org/TR/css3-transforms/#funcdef-translatez
   | kTranslateZFunctionToken maybe_whitespace length ')'
       maybe_whitespace {
-    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kZAxis, $3);
+    $$ = new cssom::TranslateFunction(cssom::TranslateFunction::kZAxis,
+                                      MakeScopedRefPtrAndRelease($3));
   }
   ;
 
@@ -2619,7 +2675,8 @@ declaration_list:
 
 declaration_block:
     '{' maybe_whitespace declaration_list '}' maybe_whitespace {
-    $$ = AddRef(new cssom::CSSStyleDeclaration($3, parser_impl->css_parser()));
+    $$ = AddRef(new cssom::CSSStyleDeclaration(
+             MakeScopedRefPtrAndRelease($3), parser_impl->css_parser()));
   }
   ;
 
