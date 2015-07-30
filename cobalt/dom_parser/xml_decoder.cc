@@ -14,35 +14,35 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom_parser/html_decoder.h"
+#include "cobalt/dom_parser/xml_decoder.h"
 
-#include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
+#include "cobalt/dom_parser/libxml_xml_parser_wrapper.h"
 
 namespace cobalt {
 namespace dom_parser {
 
-HTMLDecoder::HTMLDecoder(
-    const scoped_refptr<dom::Document>& document,
+XMLDecoder::XMLDecoder(
+    const scoped_refptr<dom::XMLDocument>& xml_document,
     const scoped_refptr<dom::Node>& parent_node,
     const scoped_refptr<dom::Node>& reference_node,
     const base::SourceLocation& input_location,
     const base::Closure& done_callback,
     const base::Callback<void(const std::string&)>& error_callback)
-    : libxml_html_parser_wrapper_(
-          new LibxmlHTMLParserWrapper(document, parent_node, reference_node,
-                                      input_location, error_callback)),
+    : libxml_xml_parser_wrapper_(
+          new LibxmlXMLParserWrapper(xml_document, parent_node, reference_node,
+                                     input_location, error_callback)),
       done_callback_(done_callback) {}
 
-HTMLDecoder::~HTMLDecoder() {}
+XMLDecoder::~XMLDecoder() {}
 
-void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
+void XMLDecoder::DecodeChunk(const char* data, size_t size) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  libxml_html_parser_wrapper_->DecodeChunk(data, size);
+  libxml_xml_parser_wrapper_->DecodeChunk(data, size);
 }
 
-void HTMLDecoder::Finish() {
+void XMLDecoder::Finish() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  libxml_html_parser_wrapper_->Finish();
+  libxml_xml_parser_wrapper_->Finish();
   if (!done_callback_.is_null()) {
     done_callback_.Run();
   }

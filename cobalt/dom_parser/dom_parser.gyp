@@ -23,8 +23,16 @@
       'sources': [
         'html_decoder.cc',
         'html_decoder.h',
+        'libxml_html_parser_wrapper.cc',
+        'libxml_html_parser_wrapper.h',
+        'libxml_parser_wrapper.cc',
+        'libxml_parser_wrapper.h',
+        'libxml_xml_parser_wrapper.cc',
+        'libxml_xml_parser_wrapper.h',
         'parser.cc',
         'parser.h',
+        'xml_decoder.cc',
+        'xml_decoder.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -39,6 +47,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'html_decoder_test.cc',
+        'xml_decoder_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:run_all_unittests',

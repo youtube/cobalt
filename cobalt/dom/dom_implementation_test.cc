@@ -25,8 +25,7 @@ namespace cobalt {
 namespace dom {
 
 TEST(DOMImplementationTest, CreateDocumentShouldCreateXMLDocument) {
-  scoped_refptr<DOMImplementation> dom_implementation =
-      new DOMImplementation(NULL);
+  scoped_refptr<DOMImplementation> dom_implementation = new DOMImplementation();
   scoped_refptr<Document> document =
       dom_implementation->CreateDocument(base::optional<std::string>(""), "");
   EXPECT_TRUE(document->IsXMLDocument());

@@ -43,6 +43,8 @@
         'dom_exception.h',
         'dom_implementation.cc',
         'dom_implementation.h',
+        'dom_parser.cc',
+        'dom_parser.h',
         'dom_settings.cc',
         'dom_settings.h',
         'dom_token_list.cc',
