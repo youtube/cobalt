@@ -36,22 +36,11 @@ FilePath GetSavegamePath() {
 
 }  // namespace
 
+// Savegame implementation that writes to a regular file, using file_util.
 class SavegameFile : public Savegame {
  public:
-  explicit SavegameFile(const Options& options) : Savegame(options) {
-    if (options.path_override.length() > 0) {
-      savegame_path_ = FilePath(options.path_override);
-    } else {
-      savegame_path_ = GetSavegamePath();
-    }
-  }
-
-  ~SavegameFile() OVERRIDE {
-    if (options_.delete_on_destruction) {
-      Delete();
-    }
-  }
-
+  explicit SavegameFile(const Options& options);
+  ~SavegameFile() OVERRIDE;
   bool PlatformRead(ByteVector* bytes) OVERRIDE;
   bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
   bool PlatformDelete() OVERRIDE;
@@ -59,6 +48,20 @@ class SavegameFile : public Savegame {
  private:
   FilePath savegame_path_;
 };
+
+SavegameFile::SavegameFile(const Options& options) : Savegame(options) {
+  if (options.path_override.length() > 0) {
+    savegame_path_ = FilePath(options.path_override);
+  } else {
+    savegame_path_ = GetSavegamePath();
+  }
+}
+
+SavegameFile::~SavegameFile() {
+  if (options_.delete_on_destruction) {
+    Delete();
+  }
+}
 
 bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
   if (!file_util::PathExists(savegame_path_)) {
@@ -88,7 +91,11 @@ bool SavegameFile::PlatformWrite(const ByteVector& bytes) {
 }
 
 bool SavegameFile::PlatformDelete() {
-  return file_util::Delete(savegame_path_, false /* recursive */);
+  if (file_util::PathExists(savegame_path_)) {
+    return file_util::Delete(savegame_path_, false /* recursive */);
+  } else {
+    return false;
+  }
 }
 
 // static

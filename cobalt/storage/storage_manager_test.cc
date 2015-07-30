@@ -25,6 +25,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/storage/savegame_fake.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -70,12 +71,6 @@ class SqlWaiter : public CallbackWaiter {
   DISALLOW_COPY_AND_ASSIGN(SqlWaiter);
 };
 
-std::string GetSavePath() {
-  FilePath test_path;
-  CHECK(PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
-  return test_path.Append("storage_manager_test.bin").value();
-}
-
 void FlushCallback(SqlContext* sql_context) {
   sql::Connection* conn = sql_context->sql_connection();
   bool ok = conn->Execute("CREATE TABLE FlushTest(test_name TEXT);");
@@ -119,7 +114,7 @@ class StorageManagerTest : public ::testing::Test {
     StorageManager::Options options;
 
     options.savegame_options.delete_on_destruction = delete_savegame;
-    options.savegame_options.path_override = GetSavePath();
+    options.savegame_options.factory = &SavegameFake::Create;
     storage_manager_.reset(new StorageManager(options));
   }
 
