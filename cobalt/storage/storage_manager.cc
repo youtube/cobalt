@@ -284,7 +284,7 @@ void StorageManager::OnInitIO() {
   DCHECK(io_message_loop_->BelongsToCurrentThread());
 
   // Create a savegame object on the storage I/O thread.
-  savegame_ = Savegame::Create(options_.savegame_options);
+  savegame_ = options_.savegame_options.CreateSavegame();
 
   // Load the save data into our VFS, if it exists.
   loaded_raw_bytes_.reset(new Savegame::ByteVector());

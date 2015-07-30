@@ -25,27 +25,78 @@
 namespace cobalt {
 namespace storage {
 
-TEST(Savegame, Basic) {
+namespace {
+scoped_ptr<Savegame> CreateSavegame() {
   Savegame::Options options;
   FilePath test_path;
   CHECK(PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
   options.path_override = test_path.Append("test.db").value();
-
   scoped_ptr<Savegame> savegame = Savegame::Create(options);
+  return savegame.Pass();
+}
+
+}  // namespace
+
+TEST(Savegame, Basic) {
+  scoped_ptr<Savegame> savegame = CreateSavegame();
 
   Savegame::ByteVector buf;
   for (int i = 0; i < 1024; ++i) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
-  bool ok = savegame->Write(buf);
-  EXPECT_EQ(true, ok);
+  EXPECT_EQ(true, savegame->Write(buf));
 
   Savegame::ByteVector buf2;
-  ok = savegame->Read(&buf2);
-  EXPECT_EQ(true, ok);
+  EXPECT_EQ(true, savegame->Read(&buf2));
   EXPECT_EQ(buf, buf2);
 
-  ok = savegame->Delete();
+  EXPECT_EQ(true, savegame->Delete());
+}
+
+TEST(Savegame, DoubleRead) {
+  // Verify that reading the save twice gives us the same data.
+  scoped_ptr<Savegame> savegame = CreateSavegame();
+  Savegame::ByteVector buf;
+  for (int i = 0; i < 1024; ++i) {
+    buf.push_back(static_cast<uint8>(i % 256));
+  }
+
+  EXPECT_EQ(true, savegame->Write(buf));
+  Savegame::ByteVector buf2;
+  EXPECT_EQ(true, savegame->Read(&buf2));
+  EXPECT_EQ(buf, buf2);
+
+  Savegame::ByteVector buf3;
+  EXPECT_EQ(true, savegame->Read(&buf3));
+  EXPECT_EQ(buf2, buf3);
+}
+
+TEST(Savegame, ReadAfterDelete) {
+  // Verify that reading after delete fails.
+  scoped_ptr<Savegame> savegame = CreateSavegame();
+
+  Savegame::ByteVector buf;
+  for (int i = 0; i < 1024; ++i) {
+    buf.push_back(static_cast<uint8>(i % 256));
+  }
+
+  EXPECT_EQ(true, savegame->Write(buf));
+  Savegame::ByteVector buf2;
+  EXPECT_EQ(true, savegame->Delete());
+  EXPECT_EQ(false, savegame->Read(&buf2));
+}
+
+TEST(Savegame, DoubleDelete) {
+  scoped_ptr<Savegame> savegame = CreateSavegame();
+
+  Savegame::ByteVector buf;
+  for (int i = 0; i < 1024; ++i) {
+    buf.push_back(static_cast<uint8>(i % 256));
+  }
+
+  EXPECT_EQ(true, savegame->Write(buf));
+  EXPECT_EQ(true, savegame->Delete());
+  EXPECT_EQ(false, savegame->Delete());
 }
 
 }  // namespace storage

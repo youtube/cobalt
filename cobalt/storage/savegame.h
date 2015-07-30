@@ -36,9 +36,17 @@ namespace storage {
 class Savegame {
  public:
   typedef std::vector<uint8> ByteVector;
+  struct Options;
+
+  typedef scoped_ptr<Savegame>(*Factory)(const Options& options);
 
   struct Options {
-    Options() : delete_on_destruction(false) {}
+    Options() : factory(&Create), delete_on_destruction(false) {}
+    scoped_ptr<Savegame> CreateSavegame() { return factory(*this); }
+
+    // Factory method for constructing a Savegame instance.
+    // Defaults to Savegame::Create() but can be overriden for tests.
+    Savegame::Factory factory;
     // File path the Savegame should read/write from, rather than its default.
     std::string path_override;
     // Delete the savegame file when the Savegame object goes out of scope.
