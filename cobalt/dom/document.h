@@ -91,7 +91,6 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<HTMLCollection> GetElementsByClassName(
       const std::string& class_name) const;
 
-  scoped_refptr<Element> CreateElement();
   scoped_refptr<Element> CreateElement(const std::string& tag_name);
   scoped_refptr<Text> CreateTextNode(const std::string& text);
   scoped_refptr<Event> CreateEvent(const std::string& interface_name);
@@ -205,7 +204,7 @@ class Document : public Node, public cssom::MutationObserver {
   void SetHeadInternal(HTMLHeadElement* value);
   void SetHtmlInternal(HTMLHtmlElement* value);
 
-  // Reference to HTML element Factory.
+  // Reference to HTML element context.
   HTMLElementContext* html_element_context_;
   // Associated DOM implementation obejct.
   scoped_refptr<DOMImplementation> implementation_;

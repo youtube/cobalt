@@ -106,10 +106,10 @@ TEST_F(DocumentTest, DocumentElement) {
 TEST_F(DocumentTest, CreateElement) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
-  scoped_refptr<Element> element = document->CreateElement();
+  scoped_refptr<Element> element = document->CreateElement("element");
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
-  EXPECT_EQ("#element", element->node_name());
+  EXPECT_EQ("element", element->node_name());
 
   EXPECT_EQ(document, element->owner_document());
   EXPECT_EQ(NULL, element->parent_node());

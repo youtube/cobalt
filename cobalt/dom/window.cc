@@ -87,6 +87,10 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   document_->AddObserver(relay_on_load_event_.get());
 }
 
+HTMLElementContext* Window::html_element_context() const {
+  return html_element_context_.get();
+}
+
 const scoped_refptr<Document>& Window::document() const { return document_; }
 
 scoped_refptr<Location> Window::location() const {

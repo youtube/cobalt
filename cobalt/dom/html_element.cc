@@ -83,17 +83,6 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-HTMLElement::HTMLElement(Document* document,
-                         HTMLElementContext* html_element_context)
-    : Element(document, html_element_context),
-      style_(new cssom::CSSStyleDeclaration(
-          html_element_context ? html_element_context->css_parser() : NULL)),
-      computed_style_valid_(false) {
-  style_->set_mutation_observer(this);
-}
-
-HTMLElement::~HTMLElement() {}
-
 void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
@@ -206,6 +195,17 @@ void HTMLElement::UpdateMatchingRulesRecursively(
                                                  author_style_sheets);
   }
 }
+
+HTMLElement::HTMLElement(Document* document,
+                         HTMLElementContext* html_element_context)
+    : Element(document, html_element_context),
+      style_(new cssom::CSSStyleDeclaration(
+          html_element_context ? html_element_context->css_parser() : NULL)),
+      computed_style_valid_(false) {
+  style_->set_mutation_observer(this);
+}
+
+HTMLElement::~HTMLElement() {}
 
 }  // namespace dom
 }  // namespace cobalt
