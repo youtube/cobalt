@@ -25,11 +25,11 @@ FilterNode::Builder::Builder(const scoped_refptr<render_tree::Node>& source)
 
 FilterNode::Builder::Builder(const OpacityFilter& opacity_filter,
                              const scoped_refptr<render_tree::Node>& source)
-    : opacity_filter(opacity_filter), source(source) {}
+    : source(source), opacity_filter(opacity_filter) {}
 
 FilterNode::Builder::Builder(const ViewportFilter& viewport_filter,
                              const scoped_refptr<render_tree::Node>& source)
-    : viewport_filter(viewport_filter), source(source) {}
+    : source(source), viewport_filter(viewport_filter) {}
 
 FilterNode::FilterNode(const OpacityFilter& opacity_filter,
                        const scoped_refptr<render_tree::Node>& source)
