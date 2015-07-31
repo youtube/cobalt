@@ -212,11 +212,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
                               aac.GetOutputSamplesPerSecond(has_sbr_),
-#if defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
                               &aac.raw_data().front(), aac.raw_data().size(),
-#else  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
                               NULL, 0,
-#endif  // defined(__LB_XB1__) || defined(__LB_XB360__) || defined(__LB_ANDROID__)
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
                               is_audio_track_encrypted_, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
