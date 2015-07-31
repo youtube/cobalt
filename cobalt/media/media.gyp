@@ -46,38 +46,14 @@
       'conditions': [
         ['target_arch == "linux"', {
           'sources': [
-            '<(lbshell_root)/src/platform/linux/lb_shell/lb_ffmpeg.cc',
-            '<(lbshell_root)/src/platform/linux/lb_shell/lb_ffmpeg.h',
-            '<(lbshell_root)/src/platform/linux/lb_shell/lb_pulse_audio.cc',
-            '<(lbshell_root)/src/platform/linux/lb_shell/lb_pulse_audio.h',
-            '<(lbshell_root)/src/platform/linux/lb_shell/shell_audio_streamer_linux.cc',
-            '<(lbshell_root)/src/platform/linux/lb_shell/shell_audio_streamer_linux.h',
-            '<(lbshell_root)/src/platform/linux/lb_shell/shell_raw_audio_decoder_linux.cc',
-            '<(lbshell_root)/src/platform/linux/lb_shell/shell_raw_video_decoder_linux.cc',
             'shell_media_platform_linux.cc',
             'shell_media_platform_linux.h',
           ],
         }],
         ['target_arch == "ps3"', {
           'sources': [
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_audio_resampler_ps3.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_main_memory_decoder_buffer_ps3.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_spurs.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_vdec_helper_ps3.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/lb_vdec_helper_ps3.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_audio_streamer_ps3.h',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.cc',
-            '<(lbshell_root)/src/platform/ps3/lb_shell/shell_raw_video_decoder_ps3.h',
             'shell_media_platform_ps3.cc',
             'shell_media_platform_ps3.h',
-          ],
-          'dependencies': [
-            # For resampler
-            '<(lbshell_root)/build/platforms/ps3.gyp:spurs_tasks',
           ],
         }],
       ],
