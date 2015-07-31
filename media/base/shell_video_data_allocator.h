@@ -17,6 +17,7 @@
 #ifndef MEDIA_BASE_SHELL_VIDEO_DATA_ALLOCATOR_H_
 #define MEDIA_BASE_SHELL_VIDEO_DATA_ALLOCATOR_H_
 
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/video_frame.h"
 
@@ -118,8 +119,12 @@ class MEDIA_EXPORT ShellVideoDataAllocator {
   // Most platforms limit the number of active raw video decoders to one.  The
   // following functions enable the implementations on these platforms to check
   // if there is more than one video decoder active.
-  virtual void Acquire(ShellRawVideoDecoder* owner) {}
-  virtual void Release(ShellRawVideoDecoder* owner) {}
+  virtual void Acquire(ShellRawVideoDecoder* owner) {
+    UNREFERENCED_PARAMETER(owner);
+  }
+  virtual void Release(ShellRawVideoDecoder* owner) {
+    UNREFERENCED_PARAMETER(owner);
+  }
 
  protected:
   ~ShellVideoDataAllocator() {}
