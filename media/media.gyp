@@ -541,7 +541,7 @@
                 },
               },
             }],
-            ['target_arch=="android" or target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
+            ['target_arch=="ps3" or target_arch=="xb1" or target_arch=="xb360"', {
               'sources': [
                 '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
               ],
@@ -1092,7 +1092,7 @@
                 'yuv_convert_simd_x86',
               ],
             }],
-            [ 'target_arch == "arm" or target_arch == "mipsel" or (OS == "lb_shell" and target_arch == "android")', {
+            [ 'target_arch == "arm" or target_arch == "mipsel"', {
               'dependencies': [
                 'yuv_convert_simd_c',
               ],
@@ -1389,7 +1389,7 @@
         },
       ],
     }],
-    ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
+    ['OS == "android"', {
       'targets': [
         {
           'target_name': 'media_player_jni_headers',

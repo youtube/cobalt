@@ -34,9 +34,7 @@ using base::TimeDelta;
 namespace media {
 
 // TODO(***REMOVED***) : These should be eventually get from the low level decoder.
-#if defined(__LB_ANDROID__)
-const int kAudioBytesPerSample = sizeof(int16);
-#elif defined(__LB_LINUX__)
+#if defined(__LB_LINUX__)
 const int kAudioBytesPerSample = sizeof(float);
 #elif defined(__LB_PS4__)
 const int kAudioBytesPerSample = sizeof(float);
