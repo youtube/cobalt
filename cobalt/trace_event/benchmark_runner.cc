@@ -25,7 +25,7 @@ namespace {
 using cobalt::trace_event::Benchmark;
 using cobalt::trace_event::BenchmarkResultsMap;
 
-void Output(const char* fmt, ...) {
+PRINTF_FORMAT(1, 2) void Output(const char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
@@ -63,7 +63,7 @@ void YamlPrint(const BenchmarkResultsMap& benchmarks) {
         }
         average /= result->samples.size();
 
-        Output("    \"Number of samples\": %f\n", count);
+        Output("    \"Number of samples\": %d\n", count);
         Output("    Average: %f\n", average);
         Output("    Minimum: %f\n", minimum);
         Output("    Maximum: %f\n", maximum);
