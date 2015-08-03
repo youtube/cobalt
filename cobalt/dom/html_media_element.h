@@ -65,7 +65,7 @@ class HTMLMediaElement : public HTMLElement,
   scoped_refptr<MediaError> error() const { return error_; }
 
   // Network state
-  const std::string& src() const { return src_; }
+  std::string src() const;
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
@@ -237,7 +237,6 @@ class HTMLMediaElement : public HTMLElement,
 
   scoped_ptr<WebMediaPlayer> player_;
 
-  std::string src_;
   std::string current_src_;
   // Loading state.
   enum LoadState { kWaitingForSource, kLoadingFromSrcAttr };
