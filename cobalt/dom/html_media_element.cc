@@ -83,8 +83,12 @@ std::string HTMLMediaElement::tag_name() const {
   return kTagName;
 }
 
+std::string HTMLMediaElement::src() const {
+  return GetAttribute("src").value_or("");
+}
+
 void HTMLMediaElement::set_src(const std::string& src) {
-  src_ = src;
+  SetAttribute("src", src);
   ClearMediaPlayer();
   ScheduleLoad();
 }
@@ -519,11 +523,12 @@ void HTMLMediaElement::LoadInternal() {
   DCHECK(owner_document());
 
   // Select media resource.
-  enum Mode { attribute, children };
+  enum Mode { kAttribute, kChildren };
 
-  // 3 - If the media element has a src attribute, then let mode be attribute.
-  Mode mode = attribute;
-  if (src_.empty()) {
+  // 3 - If the media element has a src attribute, then let mode be kAttribute.
+  std::string src = this->src();
+  Mode mode = kAttribute;
+  if (src.empty()) {
     // Otherwise the media element has neither a src attribute nor a source
     // element child: set the networkState to kNetworkEmpty, and abort these
     // steps; the synchronous section ends.
@@ -542,20 +547,20 @@ void HTMLMediaElement::LoadInternal() {
   // element.
   ScheduleEvent(EventNames::GetInstance()->loadstart());
 
-  // 6 - If mode is attribute, then run these substeps.
-  if (mode == attribute) {
+  // 6 - If mode is kAttribute, then run these substeps.
+  if (mode == kAttribute) {
     load_state_ = kLoadingFromSrcAttr;
 
     // If the src attribute's value is the empty string ... jump down to the
     // failed step below.
-    GURL media_url(src_);
+    GURL media_url(src);
     if (media_url.is_empty()) {
       // Try to resolve it as a relative url.
-      media_url = owner_document()->url_as_gurl().Resolve(src_);
+      media_url = owner_document()->url_as_gurl().Resolve(src);
     }
     if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
-      DLOG(WARNING) << "HTMLMediaElement::LoadInternal, invalid 'src' " << src_;
+      DLOG(WARNING) << "HTMLMediaElement::LoadInternal, invalid 'src' " << src;
       return;
     }
 
