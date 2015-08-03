@@ -371,7 +371,7 @@ void MediaSource::SetReadyState(ReadyState ready_state) {
   if (ready_state_ == kReadyStateClosed) {
     source_buffers_->Clear();
     player_ = NULL;
-    ScheduleEvent(EventNames::GetInstance()->sourceclosed());
+    ScheduleEvent(EventNames::GetInstance()->sourceclose());
     return;
   }
 
