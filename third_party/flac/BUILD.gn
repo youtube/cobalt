@@ -61,7 +61,7 @@ source_set("flac") {
     ":flac_config",
     "//build/config/compiler:no_chromium_code",
   ]
-  direct_dependent_configs = [ ":flac_config" ]
+  public_configs = [ ":flac_config" ]
 
   include_dirs = [
     "include",
