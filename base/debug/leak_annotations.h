@@ -29,6 +29,22 @@
 #define ANNOTATE_LEAKING_OBJECT_PTR(X) \
     HeapLeakChecker::IgnoreObject(X)
 
+#elif defined(ADDRESS_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+
+class ScopedLeakSanitizerDisabler {
+ public:
+  ScopedLeakSanitizerDisabler() { __lsan_disable(); }
+  ~ScopedLeakSanitizerDisabler() { __lsan_enable(); }
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ScopedLeakSanitizerDisabler);
+};
+
+#define ANNOTATE_SCOPED_MEMORY_LEAK \
+    ScopedLeakSanitizerDisabler leak_sanitizer_disabler; static_cast<void>(0)
+
+#define ANNOTATE_LEAKING_OBJECT_PTR(X) __lsan_ignore_object(X);
+
 #else
 
 // If tcmalloc is not used, the annotations should be no-ops.
