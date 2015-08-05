@@ -36,6 +36,7 @@
 #include "cobalt/media/web_media_player_factory.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
+#include "media/player/can_play_type.h"
 
 namespace cobalt {
 namespace dom {
@@ -116,36 +117,15 @@ void HTMLMediaElement::Load() {
 }
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) const {
-  UNREFERENCED_PARAMETER(mime_type);
-  return "probably";
+  return CanPlayType(mime_type, "");
 }
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) const {
-  UNREFERENCED_PARAMETER(mime_type);
-  UNREFERENCED_PARAMETER(key_system);
-  return "probably";
-  /*  WebMediaPlayer::SupportsType support =
-        WebMediaPlayer::supportsType(content_type(mime_type), key_system);
-    std::string canPlay;
-
-    // 4.8.10.3
-    switch (support) {
-      case WebMediaPlayer::IsNotSupported:
-        canPlay = "";
-        break;
-      case WebMediaPlayer::MayBeSupported:
-        canPlay = "maybe";
-        break;
-      case WebMediaPlayer::IsSupported:
-        canPlay = "probably";
-        break;
-    }
-
-    DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
-               << key_system << ") -> " << canPlay;
-
-    return canPlay;*/
+  std::string result = ::media::CanPlayType(mime_type, key_system);
+  DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
+             << key_system << ") -> " << result;
+  return result;
 }
 
 void HTMLMediaElement::GenerateKeyRequest(
