@@ -37,6 +37,7 @@ using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
+using cobalt::render_tree::ViewportFilter;
 using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::NodeAnimationsMap;
 
@@ -183,11 +184,25 @@ void Box::AddToRenderTree(
   scoped_refptr<render_tree::Node> content_node =
       new CompositionNode(composition_node_builder.Pass());
 
-  // Apply opacity if it is either not 1 or animated.
-  if (opacity < 1.0f ||
+  bool overflow_hidden =
+      computed_style_->overflow().get() == cssom::KeywordValue::GetHidden();
+
+  // Apply filters.
+  if (overflow_hidden || opacity < 1.0f ||
       transitions_->GetTransitionForProperty(cssom::kOpacityPropertyName)) {
-    scoped_refptr<FilterNode> filter_node =
-        new FilterNode(OpacityFilter(opacity), content_node);
+    FilterNode::Builder filter_node_builder(content_node);
+
+    if (overflow_hidden) {
+      filter_node_builder.viewport_filter =
+          ViewportFilter(math::RectF(used_width(), used_height()));
+    }
+
+    if (opacity < 1.0f) {
+      filter_node_builder.opacity_filter = OpacityFilter(opacity);
+    }
+
+    scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);
+
     if (!transitions_->empty()) {
       // Possibly setup an animation for transitioning opacity.
       AddTransitionAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
