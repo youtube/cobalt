@@ -641,6 +641,8 @@
               ],
               'sources': [
                 'player/buffered_data_source.h',
+                'player/can_play_type.cc',
+                'player/can_play_type.h',
                 'player/crypto/key_systems.h',
                 'player/crypto/key_systems.cc',
                 'player/crypto/proxy_decryptor.cc',
