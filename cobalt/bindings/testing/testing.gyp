@@ -72,7 +72,7 @@
 
   'targets': [
     {
-      'target_name': 'bindings',
+      'target_name': 'testing_bindings',
       'type': 'static_library',
       'include_dirs': [
         '<(DEPTH)/third_party/WebKit/Source/JavaScriptCore',
@@ -128,7 +128,7 @@
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        'bindings',
+        'testing_bindings',
       ],
     },
 
@@ -153,7 +153,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:engine',
-        'bindings',
+        'testing_bindings',
       ]
     },
 
