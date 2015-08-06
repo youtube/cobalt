@@ -22,7 +22,6 @@
 #include "base/bind_helpers.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/document_builder.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
@@ -53,21 +52,18 @@ class Window::RelayOnLoadEvent : public DocumentObserver {
 };
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
-               loader::FetcherFactory* fetcher_factory,
+               Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ScriptRunner* script_runner, const GURL& url,
                const std::string& user_agent,
-               const ErrorCallback& error_callback)
+               const base::Callback<void(const std::string&)>& error_callback)
     : width_(width),
       height_(height),
-      html_element_context_(new HTMLElementContext(fetcher_factory, css_parser,
-                                                   web_media_player_factory,
-                                                   script_runner)),
+      html_element_context_(
+          new HTMLElementContext(fetcher_factory, css_parser, dom_parser,
+                                 web_media_player_factory, script_runner)),
       document_(
           new Document(html_element_context_.get(), Document::Options(url))),
-      document_builder_(new DocumentBuilder(document_, url, fetcher_factory,
-                                            html_element_context_.get(),
-                                            base::Closure(), error_callback)),
       navigator_(new Navigator(user_agent)),
       performance_(new Performance()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -76,7 +72,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList()) {
+  UNREFERENCED_PARAMETER(error_callback);
   document_->AddObserver(relay_on_load_event_.get());
+  dom_parser->BuildDocument(url, document_);
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }

@@ -35,9 +35,7 @@ HTMLLinkElement::HTMLLinkElement(Document* document,
                                  HTMLElementContext* html_element_context)
     : HTMLElement(document, html_element_context) {}
 
-std::string HTMLLinkElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLLinkElement::tag_name() const { return kTagName; }
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

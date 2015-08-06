@@ -48,7 +48,7 @@ class DocumentTest : public ::testing::Test {
 
 DocumentTest::DocumentTest()
     : css_parser_(css_parser::Parser::Create()),
-      html_element_context_(NULL, css_parser_.get(), NULL, NULL) {
+      html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 

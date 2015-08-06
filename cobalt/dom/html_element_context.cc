@@ -23,10 +23,11 @@ namespace dom {
 
 HTMLElementContext::HTMLElementContext(
     loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
-    media::WebMediaPlayerFactory* web_media_player_factory,
+    Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
+      dom_parser_(dom_parser),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
       ALLOW_THIS_IN_INITIALIZER_LIST(

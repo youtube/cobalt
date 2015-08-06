@@ -28,9 +28,7 @@ HTMLHeadElement::HTMLHeadElement(Document* document,
                                  HTMLElementContext* html_element_context)
     : HTMLElement(document, html_element_context) {}
 
-std::string HTMLHeadElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLHeadElement::tag_name() const { return kTagName; }
 
 HTMLHeadElement::~HTMLHeadElement() {}
 
