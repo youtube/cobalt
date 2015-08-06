@@ -34,9 +34,7 @@ HTMLStyleElement::HTMLStyleElement(Document* document,
     : HTMLElement(document, html_element_context),
       content_location_("[object HTMLStyleElement]", 1, 1) {}
 
-std::string HTMLStyleElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLStyleElement::tag_name() const { return kTagName; }
 
 void HTMLStyleElement::SetOpeningTagLocation(
     const base::SourceLocation& opening_tag_location) {

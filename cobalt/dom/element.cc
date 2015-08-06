@@ -20,13 +20,13 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_decoder.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_serializer.h"
 #include "cobalt/dom/named_node_map.h"
+#include "cobalt/dom/parser.h"
 #include "cobalt/dom/text.h"
 
 namespace cobalt {
@@ -117,16 +117,12 @@ void Element::set_inner_html(const std::string& inner_html) {
     child = next_child;
   }
 
-  // Use DOMDecoder to parse the HTML and generate children nodes.
+  // Use the DOM parser to parse the HTML input and generate children nodes.
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
-  DOMDecoder dom_decoder(
-      owner_document(), base::SourceLocation("[object Element]", 1, 1), this,
-      NULL, html_element_context_, base::Callback<void(void)>(),
-      base::Bind(&Element::HTMLParseError, base::Unretained(this)),
-      DOMDecoder::kDocumentFragment);
-  dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());
-  dom_decoder.Finish();
+  html_element_context_->dom_parser()->ParseDocumentFragment(
+      inner_html, owner_document(), this, NULL,
+      base::SourceLocation("[object Element]", 1, 1));
 }
 
 // Algorithm for outer_html:
@@ -170,16 +166,12 @@ void Element::set_outer_html(const std::string& outer_html) {
   scoped_refptr<Node> reference = next_sibling();
   parent->RemoveChild(this);
 
-  // Use DOMDecoder to parse the HTML and generate children nodes.
+  // Use the DOM parser to parse the HTML input and generate children nodes.
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
-  DOMDecoder dom_decoder(
-      owner_document(), base::SourceLocation("[object Element]", 1, 1), parent,
-      reference, html_element_context_, base::Callback<void(void)>(),
-      base::Bind(&Element::HTMLParseError, base::Unretained(this)),
-      DOMDecoder::kDocumentFragment);
-  dom_decoder.DecodeChunk(outer_html.c_str(), outer_html.length());
-  dom_decoder.Finish();
+  html_element_context_->dom_parser()->ParseDocumentFragment(
+      outer_html, owner_document(), parent, reference,
+      base::SourceLocation("[object Element]", 1, 1));
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
