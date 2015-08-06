@@ -34,28 +34,41 @@ class CachedHandleOwner : public JSC::WeakHandleOwner {
       JSC::Handle<JSC::Unknown> handle,
       void* context,
       JSC::SlotVisitor& visitor) OVERRIDE {  // NOLINT(runtime/references)
-    WrapperBase* wrapper = JSC::jsCast<WrapperBase*>(handle.get().asCell());
+    JSC::JSObject* js_object = JSC::asObject(handle.get().asCell());
+    if (js_object->isGlobalObject()) {
+      NOTREACHED() << "CachedHandleOwner shouldn't refer to a global object";
+      return false;
+    }
+
+    if (js_object->isErrorInstance()) {
+      return IsReachableFromOpaqueRoots(JSC::jsCast<ExceptionBase*>(js_object));
+    } else {
+      return IsReachableFromOpaqueRoots(JSC::jsCast<InterfaceBase*>(js_object));
+    }
+  }
+
+ private:
+  template <class T>
+  bool IsReachableFromOpaqueRoots(T* wrapper_base) {
     // Check if we might want to keep this cached wrapper alive despite it not
     // being referenced anywhere
-    if (!ShouldKeepWrapperAlive(wrapper))
-      return false;
+    if (!ShouldKeepWrapperAlive(wrapper_base)) return false;
 
     // If the implementation has only one reference, that reference must be the
     // one on the WrapperBase object. Therefore, the wrapper is not reachable
     // so can be garbage collected (which will in turn destroy the Wrappable).
-    return !wrapper->wrappable()->HasOneRef();
+    return !wrapper_base->wrappable()->HasOneRef();
   }
 
- private:
-  bool ShouldKeepWrapperAlive(WrapperBase* wrapper) {
+  template <class T>
+  bool ShouldKeepWrapperAlive(T* wrapper_base) {
     // If a custom property has been set on the wrapper object, we should keep
     // it alive so that the property persists next time the object is
     // referenced from JS.
-    if (wrapper->hasCustomProperties())
-      return true;
+    if (wrapper_base->hasCustomProperties()) return true;
 
     // Check if the wrapper should be kept alive based on the impl's state.
-    return wrapper->wrappable()->ShouldKeepWrapperAlive();
+    return wrapper_base->wrappable()->ShouldKeepWrapperAlive();
   }
 };
 
