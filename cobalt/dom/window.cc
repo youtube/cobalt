@@ -26,6 +26,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/storage.h"
 #include "cobalt/dom/window_timers.h"
 
 namespace cobalt {
@@ -53,6 +54,7 @@ class Window::RelayOnLoadEvent : public DocumentObserver {
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
+               LocalStorageDatabase* local_storage_database,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ScriptRunner* script_runner, const GURL& url,
                const std::string& user_agent,
@@ -71,7 +73,11 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       console_(new Console()),
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(
-          new AnimationFrameRequestCallbackList()) {
+          new AnimationFrameRequestCallbackList()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
+          new Storage(this, Storage::kLocalStorage, local_storage_database))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          session_storage_(new Storage(this, Storage::kSessionStorage, NULL))) {
   UNREFERENCED_PARAMETER(error_callback);
   document_->AddObserver(relay_on_load_event_.get());
   dom_parser->BuildDocument(url, document_);
@@ -103,6 +109,11 @@ int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
 }
 
 void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
+
+scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
+scoped_refptr<Storage> Window::session_storage() const {
+  return session_storage_;
+}
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
 

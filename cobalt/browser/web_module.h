@@ -22,6 +22,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/layout/layout_manager.h"
@@ -37,6 +38,10 @@
 namespace cobalt {
 namespace network {
 class NetworkModule;
+}
+
+namespace storage {
+class StorageManager;
 }
 
 namespace browser {
@@ -102,6 +107,9 @@ class WebModule {
 
   // FetcherFactory that is used to create a fetcher according to URL.
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+
+  // Interface between LocalStorage and the Storage Manager.
+  dom::LocalStorageDatabase local_storage_database_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
