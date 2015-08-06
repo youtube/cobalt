@@ -83,33 +83,31 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-void HTMLElement::UpdateComputedStyle(
+namespace {
+
+scoped_refptr<cssom::CSSStyleDeclarationData>
+PromoteMatchingRulesToComputedStyle(
+    cssom::RulesWithCascadePriority* matching_rules,
+    cssom::GURLMap* property_name_to_base_url_map,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& inline_style,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const base::Time& style_change_event_time) {
-  scoped_refptr<Document> document = owner_document();
-  DCHECK(document) << "Element should be attached to document in order to "
-                      "participate in layout.";
-
+    const base::Time& style_change_event_time,
+    cssom::TransitionSet* transitions,
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+        previous_computed_style) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
       new cssom::CSSStyleDeclarationData();
 
   // Get the element's inline styles.
-  computed_style->AssignFrom(*style_->data());
-
-  // TODO(***REMOVED***): It maybe helpful to generalize this mapping framework in the
-  // future to allow more data and context about where a cssom::PropertyValue
-  // came from.
-  cssom::GURLMap property_name_to_base_url_map;
-  property_name_to_base_url_map[cssom::kBackgroundImagePropertyName] =
-      document->url_as_gurl();
+  computed_style->AssignFrom(*inline_style);
 
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
   // property declaration importance.
-  cssom::PromoteToCascadedStyle(computed_style, matching_rules_.get(),
-                                &property_name_to_base_url_map);
+  cssom::PromoteToCascadedStyle(computed_style, matching_rules,
+                                property_name_to_base_url_map);
 
   // Up to this point many properties may lack a value. Perform defaulting
   // in order to ensure that every property has a value. Resolve "initial" and
@@ -123,17 +121,57 @@ void HTMLElement::UpdateComputedStyle(
   // the same as specified value. Declarations that cannot be absolutized
   // easily, like "width: auto;", will be resolved during layout.
   cssom::PromoteToComputedStyle(computed_style, parent_computed_style,
-                                &property_name_to_base_url_map);
+                                property_name_to_base_url_map);
 
-  if (computed_style_) {
+  if (previous_computed_style) {
     // Now that we have updated our computed style, compare it to the previous
     // style and see if we need to adjust our animations.
-    transitions_.UpdateTransitions(style_change_event_time, *computed_style_,
-                                   *computed_style);
+    transitions->UpdateTransitions(style_change_event_time,
+                                   *previous_computed_style, *computed_style);
   }
 
+  return computed_style;
   // Cache the results of the computed style calculation.
-  computed_style_ = computed_style;
+}
+
+}  // namespace
+
+void HTMLElement::UpdateComputedStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>&
+        parent_computed_style,
+    const base::Time& style_change_event_time) {
+  scoped_refptr<Document> document = owner_document();
+  DCHECK(document) << "Element should be attached to document in order to "
+                      "participate in layout.";
+
+  // TODO(***REMOVED***): It maybe helpful to generalize this mapping framework in the
+  // future to allow more data and context about where a cssom::PropertyValue
+  // came from.
+  cssom::GURLMap property_name_to_base_url_map;
+  property_name_to_base_url_map[cssom::kBackgroundImagePropertyName] =
+      document->url_as_gurl();
+
+  computed_style_ = PromoteMatchingRulesToComputedStyle(
+      matching_rules(), &property_name_to_base_url_map, style_->data(),
+      parent_computed_style, style_change_event_time, transitions(),
+      computed_style());
+
+  // Promote the matching rules for all known pseudo elements.
+  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
+       ++pseudo_element_type) {
+    if (pseudo_elements_[pseudo_element_type]) {
+      scoped_refptr<cssom::CSSStyleDeclarationData>
+          pseudo_elemnent_computed_style = PromoteMatchingRulesToComputedStyle(
+              pseudo_elements_[pseudo_element_type]->matching_rules(),
+              &property_name_to_base_url_map, style_->data(), computed_style_,
+              style_change_event_time,
+              pseudo_elements_[pseudo_element_type]->transitions(),
+              pseudo_elements_[pseudo_element_type]->computed_style());
+
+      pseudo_elements_[pseudo_element_type]->set_computed_style(
+          pseudo_elemnent_computed_style);
+    }
+  }
   computed_style_valid_ = true;
 }
 
@@ -157,25 +195,35 @@ void HTMLElement::UpdateComputedStyleRecursively(
   }
 }
 
+void HTMLElement::ClearMatchingRules() {
+  matching_rules_.reset(new cssom::RulesWithCascadePriority());
+  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
+       ++pseudo_element_type) {
+    if (pseudo_elements_[pseudo_element_type]) {
+      pseudo_elements_[pseudo_element_type]->clear_matching_rules();
+    }
+  }
+}
+
 void HTMLElement::UpdateMatchingRules(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
   // Update matching rules for this element.
   //
-  matching_rules_.reset(new cssom::RulesWithCascadePriority());
+  ClearMatchingRules();
+
   // Match with user agent style sheet.
   if (user_agent_style_sheet) {
     GetMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
-                                   matching_rules_.get(),
                                    cssom::kNormalUserAgent);
   }
   // Match with all author style sheets.
+  DCHECK(author_style_sheets);
   for (unsigned int style_sheet_index = 0;
        style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         author_style_sheets->Item(style_sheet_index);
-    GetMatchingRulesFromStyleSheet(style_sheet, this, matching_rules_.get(),
-                                   cssom::kNormalAuthor);
+    GetMatchingRulesFromStyleSheet(style_sheet, this, cssom::kNormalAuthor);
   }
 
   computed_style_valid_ = false;

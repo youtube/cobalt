@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_style_rule.h"
-
-#include "cobalt/cssom/css_style_declaration.h"
+#ifndef CSSOM_PSEUDO_ELEMENT_NAMES_H_
+#define CSSOM_PSEUDO_ELEMENT_NAMES_H_
 
 namespace cobalt {
 namespace cssom {
 
-CSSStyleRule::CSSStyleRule(Selectors selectors,
-                           const scoped_refptr<CSSStyleDeclaration>& style)
-    : selectors_(selectors.Pass()), style_(style) {}
-
-const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() const {
-  return style_;
-}
-
-void CSSStyleRule::AttachToStyleSheet(StyleSheet* style_sheet) {
-  parent_style_sheet_ = style_sheet;
-  style_->AttachToStyleSheet(style_sheet);
-}
-
-CSSStyleRule::~CSSStyleRule() {}
+// Names of pseudo-elements.
+extern const char* const kAfterPseudoElementName;
+extern const char* const kBeforePseudoElementName;
 
 }  // namespace cssom
 }  // namespace cobalt
+
+#endif  // CSSOM_PSEUDO_ELEMENT_NAMES_H_

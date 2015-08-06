@@ -26,6 +26,7 @@
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
+#include "cobalt/cssom/pseudo_element_names.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
 
 namespace cobalt {
@@ -449,6 +450,12 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
     if (DetectPseudoClassNameToken(token_value->string,
                                    &pseudo_class_name_token)) {
       return pseudo_class_name_token;
+    }
+
+    Token pseudo_element_name_token;
+    if (DetectPseudoElementNameToken(token_value->string,
+                                     &pseudo_element_name_token)) {
+      return pseudo_element_name_token;
     }
   }
 
@@ -1129,6 +1136,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       return false;
 
     case 7:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kContentPropertyName)) {
+        *property_name_token = kContentToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kDisplayPropertyName)) {
         *property_name_token = kDisplayToken;
         return true;
@@ -1533,13 +1544,37 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
 // WARNING: every time a new value token is introduced, it should be added
 //          to |identifier_token| rule in grammar.y.
 bool Scanner::DetectPseudoClassNameToken(const TrivialStringPiece& name,
-                                         Token* property_value_token) const {
+                                         Token* pseudo_class_name_token) const {
   DCHECK_GT(name.size(), 0U);
 
   switch (name.size()) {
     case 5:
       if (IsEqualToCssIdentifier(name.begin, cssom::kEmptyPseudoClassName)) {
-        *property_value_token = kEmptyToken;
+        *pseudo_class_name_token = kEmptyToken;
+        return true;
+      }
+      return false;
+  }
+
+  return false;
+}
+
+// WARNING: every time a new value token is introduced, it should be added
+//          to |identifier_token| rule in grammar.y.
+bool Scanner::DetectPseudoElementNameToken(
+    const TrivialStringPiece& name, Token* pseudo_element_name_token) const {
+  DCHECK_GT(name.size(), 0U);
+
+  switch (name.size()) {
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kAfterPseudoElementName)) {
+        *pseudo_element_name_token = kAfterToken;
+        return true;
+      }
+      return false;
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kBeforePseudoElementName)) {
+        *pseudo_element_name_token = kBeforeToken;
         return true;
       }
       return false;

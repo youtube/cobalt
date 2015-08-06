@@ -26,6 +26,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/pseudo_element.h"
 
 namespace cobalt {
 namespace dom {
@@ -40,6 +41,15 @@ class HTMLMediaElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
 class HTMLStyleElement;
+
+// The enum PseudoElementType is used to track the type of pseudo element
+enum PseudoElementType {
+  kAfterPseudoElementType,
+  kBeforePseudoElementType,
+  kMaxPseudoElementType,
+  kNotPseudoElementType = kMaxPseudoElementType,
+  kMaxAnyElementType,
+};
 
 // The basic interface, from which all the HTML elements' interfaces inherit,
 // and which must be used by elements that have no additional requirements.
@@ -81,7 +91,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   // Used by layout engine to cache the rule matching results.
-  cssom::RulesWithCascadePriority* matching_rules() {
+  cssom::RulesWithCascadePriority* matching_rules() const {
     return matching_rules_.get();
   }
 
@@ -99,6 +109,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
           parent_computed_style,
       const base::Time& style_change_event_time, bool ancestors_were_valid);
 
+  // Clears the cached set of CSS rules that match with this HTML element.
+  void ClearMatchingRules();
   // Updates the cached set of CSS rules that match with this HTML element.
   void UpdateMatchingRules(
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
@@ -108,6 +120,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
       const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
+  PseudoElement* pseudo_element(PseudoElementType type) const {
+    DCHECK(type < kMaxPseudoElementType);
+    return pseudo_elements_[type].get();
+  }
+
+  void set_pseudo_element(PseudoElementType type, PseudoElement* element) {
+    DCHECK(type < kMaxPseudoElementType);
+    return pseudo_elements_[type].reset(element);
+  }
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -115,13 +137,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   ~HTMLElement() OVERRIDE;
 
  private:
-  void UpdateTransitions(const cssom::CSSStyleDeclarationData* source,
-                         const cssom::CSSStyleDeclarationData* destination);
-
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
   cssom::TransitionSet transitions_;
+  scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.

@@ -21,6 +21,8 @@
 #include "base/debug/trace_event.h"
 #include "base/string_util.h"
 #include "cobalt/cssom/adjacent_selector.h"
+#include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/combinator.h"
@@ -38,6 +40,7 @@
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/pseudo_element.h"
 
 namespace cobalt {
 namespace dom {
@@ -62,8 +65,15 @@ void CopyMatchingRules(const cssom::StringToCSSRuleSetMap& map,
 
 // Matches an element against a selector. If the element doesn't match, returns
 // NULL, otherwise returns the result of advancing the pointer to the element
-// according to the combinators.
-Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element);
+// according to the combinators. If the optional pseudo_element_type output is
+// given, it will be set to the type of pseudo element addressed by the
+// selector, or to kNotPseudoElementType if no pseudo element is addressed.
+Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
+                                 PseudoElementType* pseudo_element_type);
+Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element) {
+  return MatchSelectorAndElement(selector, element, NULL);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Combinator matcher
@@ -141,8 +151,41 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
 
 class SelectorMatcher : public cssom::SelectorVisitor {
  public:
-  explicit SelectorMatcher(Element* element) : element_(element) {
+  explicit SelectorMatcher(Element* element,
+                           PseudoElementType* pseudo_element_type)
+      : element_(element), pseudo_element_type_(pseudo_element_type) {
     DCHECK(element);
+    if (pseudo_element_type_) {
+      *pseudo_element_type_ = kNotPseudoElementType;
+    }
+  }
+  explicit SelectorMatcher(Element* element)
+      : element_(element), pseudo_element_type_(NULL) {
+    DCHECK(element);
+  }
+
+  // The :after pseudo-element represents a generated element.
+  //   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+  void VisitAfterPseudoElement(cssom::AfterPseudoElement*) OVERRIDE {
+    // Only matches if we asked for the PseudoElementType
+    if (pseudo_element_type_) {
+      DCHECK_NE(*pseudo_element_type_, kBeforePseudoElementType);
+      *pseudo_element_type_ = kAfterPseudoElementType;
+    } else {
+      element_ = NULL;
+    }
+  }
+
+  // The :before pseudo-element represents a generated element.
+  //   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+  void VisitBeforePseudoElement(cssom::BeforePseudoElement*) OVERRIDE {
+    // Only matches if we asked for the PseudoElementType
+    if (pseudo_element_type_) {
+      DCHECK_NE(*pseudo_element_type_, kAfterPseudoElementType);
+      *pseudo_element_type_ = kBeforePseudoElementType;
+    } else {
+      element_ = NULL;
+    }
   }
 
   // The class selector represents an element belonging to the class identified
@@ -193,7 +236,8 @@ class SelectorMatcher : public cssom::SelectorVisitor {
              compound_selector->selectors().begin();
          selector_iterator != compound_selector->selectors().end();
          ++selector_iterator) {
-      element_ = MatchSelectorAndElement(*selector_iterator, element_);
+      element_ = MatchSelectorAndElement(*selector_iterator, element_,
+                                         pseudo_element_type_);
       if (!element_) {
         return;
       }
@@ -206,8 +250,8 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   void VisitAdjacentSelector(
       cssom::AdjacentSelector* adjacent_selector) OVERRIDE {
     // Match the element against the last compound selector.
-    element_ =
-        MatchSelectorAndElement(adjacent_selector->last_selector(), element_);
+    element_ = MatchSelectorAndElement(adjacent_selector->last_selector(),
+                                       element_, pseudo_element_type_);
     if (!element_) {
       return;
     }
@@ -233,8 +277,8 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   //   http://www.w3.org/TR/selectors4/#complex
   void VisitComplexSelector(cssom::ComplexSelector* complex_selector) OVERRIDE {
     // Match the element against the last adjacent selector.
-    element_ =
-        MatchSelectorAndElement(complex_selector->last_selector(), element_);
+    element_ = MatchSelectorAndElement(complex_selector->last_selector(),
+                                       element_, pseudo_element_type_);
     if (!element_) {
       return;
     }
@@ -255,10 +299,11 @@ class SelectorMatcher : public cssom::SelectorVisitor {
     }
   }
 
-  Element* element() { return element_; }
+  Element* element() const { return element_; }
 
  private:
   Element* element_;
+  PseudoElementType* pseudo_element_type_;
   DISALLOW_COPY_AND_ASSIGN(SelectorMatcher);
 };
 
@@ -266,12 +311,13 @@ class SelectorMatcher : public cssom::SelectorVisitor {
 // Helper functions
 //////////////////////////////////////////////////////////////////////////
 
-Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element) {
+Element* MatchSelectorAndElement(cssom::Selector* selector, Element* element,
+                                 PseudoElementType* pseudo_element_type) {
   DCHECK(selector);
   if (!element) {
     return NULL;
   }
-  SelectorMatcher selector_matcher(element);
+  SelectorMatcher selector_matcher(element, pseudo_element_type);
   selector->Accept(&selector_matcher);
   return selector_matcher.element();
 }
@@ -296,17 +342,20 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
 
 void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
-    HTMLElement* element, cssom::RulesWithCascadePriority* matching_rules,
-    cssom::Origin origin) {
+    HTMLElement* element, cssom::Origin origin) {
   cssom::RuleSet candidate_rules;
 
+  // TODO(***REMOVED***): Take !important into consideration
+  // If the rule has '!important', the origin value used for the
+  // cssom::CascadePriority should not be kNormal(.*) but kImportant${1}
+
+  DCHECK(element->matching_rules());
   // Add candidate rules according to class name.
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   for (unsigned int index = 0; index < class_list->length(); ++index) {
     CopyMatchingRules(style_sheet->class_selector_rules_map(),
                       class_list->Item(index).value(), &candidate_rules);
   }
-
   // Add candidate rules according to id.
   CopyMatchingRules(style_sheet->id_selector_rules_map(), element->id(),
                     &candidate_rules);
@@ -321,6 +370,8 @@ void GetMatchingRulesFromStyleSheet(
                            style_sheet->empty_pseudo_class_rules().end());
   }
 
+  scoped_ptr<PseudoElement> pseudo_elements[kMaxPseudoElementType];
+
   // Go through all the candidate rules.
   for (cssom::RuleSet::const_iterator rule_iterator = candidate_rules.begin();
        rule_iterator != candidate_rules.end(); ++rule_iterator) {
@@ -328,26 +379,59 @@ void GetMatchingRulesFromStyleSheet(
     // Match the element against all selectors in the selector list of the
     // rule. Add the rule to matching rules if any selector matches the element,
     // and use the highest specificity.
-    bool matches = false;
-    cssom::Specificity specificity;
+    bool matches[kMaxAnyElementType] = {false};
+
+    cssom::Specificity specificity[kMaxAnyElementType];
     for (cssom::Selectors::const_iterator selector_iterator =
              rule->selectors().begin();
          selector_iterator != rule->selectors().end(); ++selector_iterator) {
       DCHECK(*selector_iterator);
-      if (MatchSelectorAndElement(*selector_iterator, element)) {
-        matches = true;
-        if (specificity < (*selector_iterator)->GetSpecificity()) {
-          specificity = (*selector_iterator)->GetSpecificity();
+      PseudoElementType pseudo_element_type;
+      if (MatchSelectorAndElement(*selector_iterator, element,
+                                  &pseudo_element_type)) {
+        matches[pseudo_element_type] = true;
+        if (specificity[pseudo_element_type] <
+            (*selector_iterator)->GetSpecificity()) {
+          specificity[pseudo_element_type] =
+              (*selector_iterator)->GetSpecificity();
         }
       }
     }
-    if (matches) {
+
+    if (matches[kNotPseudoElementType]) {
       // TODO(***REMOVED***): When importance is implemented, change origin according
       // to the importance of the declaration.
       cssom::CascadePriority cascade_priority(
-          origin, specificity,
+          origin, specificity[kNotPseudoElementType],
           cssom::Appearance(style_sheet->index(), rule->index()));
-      matching_rules->push_back(std::make_pair(rule, cascade_priority));
+      element->matching_rules()->push_back(
+          std::make_pair(rule, cascade_priority));
+    }
+
+    for (int pseudo_element_type = 0;
+         pseudo_element_type < kMaxPseudoElementType; ++pseudo_element_type) {
+      if (matches[pseudo_element_type]) {
+        // TODO(***REMOVED***): When importance is implemented, change origin according
+        // to the importance of the declaration.
+        cssom::CascadePriority cascade_priority(
+            origin, specificity[pseudo_element_type],
+            cssom::Appearance(style_sheet->index(), rule->index()));
+        if (!pseudo_elements[pseudo_element_type]) {
+          pseudo_elements[pseudo_element_type].reset(new dom::PseudoElement());
+        }
+        pseudo_elements[pseudo_element_type]->matching_rules()->push_back(
+            std::make_pair(rule, cascade_priority));
+      }
+    }
+  }
+
+  // Add all rules matching normal elements to the pseudo elements with a
+  // matching rule, and set the rules on the element.
+  for (int i = 0; i < kMaxPseudoElementType; ++i) {
+    PseudoElementType pseudo_element_type = static_cast<PseudoElementType>(i);
+    if (pseudo_elements[pseudo_element_type]) {
+      element->set_pseudo_element(
+          pseudo_element_type, pseudo_elements[pseudo_element_type].release());
     }
   }
 }
