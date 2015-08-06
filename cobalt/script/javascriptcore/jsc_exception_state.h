@@ -30,7 +30,7 @@ class JSCExceptionState : public ExceptionState {
   explicit JSCExceptionState(JSCGlobalObject* global_object)
       : global_object_(global_object), exception_(NULL) {}
   // ExceptionState interface
-  void SetException(const scoped_refptr<Wrappable>& exception) OVERRIDE;
+  void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE;
   void SetSimpleException(SimpleExceptionType simple_exception,
                           const std::string& message) OVERRIDE;
 
