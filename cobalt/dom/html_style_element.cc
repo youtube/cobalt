@@ -29,8 +29,9 @@ namespace dom {
 // static
 const char* HTMLStyleElement::kTagName = "style";
 
-HTMLStyleElement::HTMLStyleElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context),
+HTMLStyleElement::HTMLStyleElement(Document* document,
+                                   HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context),
       content_location_("[object HTMLStyleElement]", 1, 1) {}
 
 std::string HTMLStyleElement::tag_name() const {
@@ -43,8 +44,8 @@ void HTMLStyleElement::SetOpeningTagLocation(
   ++content_location_.column_number;  // CSS code starts after ">".
 }
 
-void HTMLStyleElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLStyleElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       html_element_context()->css_parser()->ParseStyleSheet(
           text_content().value(), content_location_);

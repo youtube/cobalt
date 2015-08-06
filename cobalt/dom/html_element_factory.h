@@ -21,6 +21,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
+#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
@@ -35,16 +36,16 @@ class HTMLElementFactory {
   ~HTMLElementFactory();
 
   scoped_refptr<HTMLElement> CreateHTMLElement(
-      const base::StringPiece& tag_name);
+      Document* document, const base::StringPiece& tag_name);
 
  private:
-  typedef base::Callback<scoped_refptr<HTMLElement>()>
+  typedef base::Callback<scoped_refptr<HTMLElement>(Document* document)>
       CreateHTMLElementTCallback;
   typedef base::hash_map<base::StringPiece, CreateHTMLElementTCallback>
       TagNameToCreateHTMLElementTCallbackMap;
 
   template <typename T>
-  scoped_refptr<HTMLElement> CreateHTMLElementT();
+  scoped_refptr<HTMLElement> CreateHTMLElementT(Document* document);
 
   HTMLElementContext* html_element_context_;
 

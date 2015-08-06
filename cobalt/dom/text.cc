@@ -16,10 +16,22 @@
 
 #include "cobalt/dom/text.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
+
 namespace cobalt {
 namespace dom {
 
-Text::Text(const base::StringPiece& text) : CharacterData(text) {}
+Text::Text(script::EnvironmentSettings* env_settings,
+           const base::StringPiece& comment)
+    : CharacterData(base::polymorphic_downcast<DOMSettings*>(env_settings)
+                        ->window()
+                        ->document()
+                        .get(),
+                    comment) {}
+
+Text::Text(Document* document, const base::StringPiece& text)
+    : CharacterData(document, text) {}
 
 std::string Text::node_name() const {
   static const char* kTextName = "#text";

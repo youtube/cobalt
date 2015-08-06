@@ -32,10 +32,11 @@
 namespace cobalt {
 namespace dom {
 
-Element::Element() : html_element_context_(NULL) {}
+Element::Element(Document* document)
+    : Node(document), html_element_context_(NULL) {}
 
-Element::Element(HTMLElementContext* html_element_context)
-    : html_element_context_(html_element_context) {}
+Element::Element(Document* document, HTMLElementContext* html_element_context)
+    : Node(document), html_element_context_(html_element_context) {}
 
 base::optional<std::string> Element::text_content() const {
   std::string content;
@@ -59,7 +60,7 @@ void Element::set_text_content(
   }
   std::string new_text_content = text_content.value_or("");
   if (!new_text_content.empty()) {
-    AppendChild(new Text(new_text_content));
+    AppendChild(new Text(owner_document(), new_text_content));
   }
 }
 
@@ -120,8 +121,8 @@ void Element::set_inner_html(const std::string& inner_html) {
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
-      base::SourceLocation("[object Element]", 1, 1), this, NULL,
-      html_element_context_, base::Callback<void(void)>(),
+      owner_document(), base::SourceLocation("[object Element]", 1, 1), this,
+      NULL, html_element_context_, base::Callback<void(void)>(),
       base::Bind(&Element::HTMLParseError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(inner_html.c_str(), inner_html.length());
@@ -173,8 +174,8 @@ void Element::set_outer_html(const std::string& outer_html) {
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
   DOMDecoder dom_decoder(
-      base::SourceLocation("[object Element]", 1, 1), parent, reference,
-      html_element_context_, base::Callback<void(void)>(),
+      owner_document(), base::SourceLocation("[object Element]", 1, 1), parent,
+      reference, html_element_context_, base::Callback<void(void)>(),
       base::Bind(&Element::HTMLParseError, base::Unretained(this)),
       DOMDecoder::kDocumentFragment);
   dom_decoder.DecodeChunk(outer_html.c_str(), outer_html.length());
@@ -307,7 +308,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
-  Element* new_element = new Element(html_element_context_);
+  Element* new_element = new Element(owner_document(), html_element_context_);
   new_element->attribute_map_ = attribute_map_;
   return new_element;
 }

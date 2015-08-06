@@ -52,7 +52,8 @@ class HTMLMediaElement : public HTMLElement,
 
   static const char kTagName[];
 
-  explicit HTMLMediaElement(HTMLElementContext* html_element_context);
+  HTMLMediaElement(Document* document,
+                   HTMLElementContext* html_element_context);
   ~HTMLMediaElement() OVERRIDE;
 
   // Web API: Element
@@ -134,7 +135,7 @@ class HTMLMediaElement : public HTMLElement,
   // Custom, not in any spec
   //
   // From Node
-  void AttachToDocument(Document* document) OVERRIDE;
+  void OnInsertedIntoDocument() OVERRIDE;
   // From HTMLElement
   scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() OVERRIDE { return this; }
 

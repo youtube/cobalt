@@ -129,11 +129,11 @@ class Node : public EventTarget {
   virtual NodeType node_type() const = 0;
   virtual std::string node_name() const = 0;
 
-  scoped_refptr<Document> owner_document();
+  scoped_refptr<Document> owner_document() const;
   scoped_refptr<Node> parent_node() const { return parent_.get(); }
   scoped_refptr<Element> parent_element() const;
   bool HasChildNodes() const;
-  scoped_refptr<NodeList> child_nodes();
+  scoped_refptr<NodeList> child_nodes() const;
   scoped_refptr<Node> first_child() const { return first_child_; }
   scoped_refptr<Node> last_child() const { return last_child_.get(); }
   scoped_refptr<Node> next_sibling() const { return next_sibling_; }
@@ -214,13 +214,15 @@ class Node : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(Node);
 
  protected:
-  Node();
+  explicit Node(Document* document);
   virtual ~Node();
 
-  // Called to attach the node and all its descendants to a given document.
-  virtual void AttachToDocument(Document* document);
-  // Called to detach the node and all its descendants from the document.
-  virtual void DetachFromDocument();
+  // Called to notify that the node and all its descendants has been inserted to
+  // its owner document.
+  virtual void OnInsertedIntoDocument();
+  // Called to notify that the node and all its descendants has been removeed
+  // from its owner document.
+  virtual void OnRemovedFromDocument();
   // Derived class can override this method to prevent certain children types
   // from being appended.
   virtual bool CheckAcceptAsChild(const scoped_refptr<Node>& child) const;
@@ -244,6 +246,11 @@ class Node : public EventTarget {
   base::WeakPtr<Node> last_child_;
   // Weak reference to the containing document.
   base::WeakPtr<Document> owner_document_;
+  // Its value is true if the node is currently inserted into its owner
+  // document.  Note that a node always has an owner document after it is
+  // created but it may not be attached to the document until functions like
+  // AppendChild() is called.
+  bool inserted_into_document_;
   // Node generation counter.
   uint32_t node_generation_;
 

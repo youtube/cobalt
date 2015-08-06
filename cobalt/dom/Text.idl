@@ -14,5 +14,8 @@
  * limitations under the License.
  */
 
-[Constructor(optional DOMString data = "")]
+[
+    Constructor(optional DOMString data = ""),
+    ConstructorCallWith=EnvironmentSettings
+]
 interface Text : CharacterData {};
