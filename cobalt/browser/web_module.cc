@@ -92,11 +92,12 @@ WebModule::WebModule(
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
-      window_(new dom::Window(window_dimensions.width(),
-                              window_dimensions.height(), css_parser_.get(),
-                              dom_parser_.get(), fetcher_factory_.get(),
-                              media_module, script_runner_.get(), options.url,
-                              GetUserAgent(), error_callback)),
+      local_storage_database_(network_module->storage_manager()),
+      window_(new dom::Window(
+          window_dimensions.width(), window_dimensions.height(),
+          css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
+          &local_storage_database_, media_module, script_runner_.get(),
+          options.url, GetUserAgent(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),
