@@ -220,6 +220,24 @@ TEST(CSSStyleDeclarationTest, ColorSetter) {
   style->set_color(color);
 }
 
+TEST(CSSStyleDeclarationTest, ContentSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string content = "url(foo.png)";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kContentPropertyName, content, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_content(content);
+}
+
 TEST(CSSStyleDeclarationTest, DisplaySetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =

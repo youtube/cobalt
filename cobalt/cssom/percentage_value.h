@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -37,6 +38,10 @@ class PercentageValue : public PropertyValue {
 
   // Returns a normalized factor, where 1 means 100%.
   float value() const { return value_; }
+
+  std::string ToString() OVERRIDE {
+    return base::StringPrintf("%f%%", value_ * 100);
+  }
 
   bool operator==(const PercentageValue& other) const {
     return value_ == other.value_;

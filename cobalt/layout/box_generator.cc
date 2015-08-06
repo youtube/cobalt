@@ -170,6 +170,81 @@ void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
   boxes_.push_back(replaced_box.release());
 }
 
+void BoxGenerator::AppendChildBoxToLine(Box* child_box_ptr) {
+  // When an inline box contains an in-flow block-level box, the inline box
+  // (and its inline ancestors within the same block container box*) are
+  // broken around the block-level box, splitting the inline box into two
+  // boxes (even if either side is empty), one on each side of
+  // the block-level box. The line boxes before the break and after
+  // the break are enclosed in anonymous block boxes, and the block-level
+  // box becomes a sibling of those anonymous boxes.
+  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
+  //
+  // * CSS 2.1 says "the same line box" but line boxes are not real boxes
+  //   in Cobalt, see |LineBox| for details.
+  ContainerBox* last_container_box =
+      base::polymorphic_downcast<ContainerBox*>(boxes_.back());
+
+  scoped_ptr<Box> child_box(child_box_ptr);
+  if (!last_container_box->TryAddChild(&child_box)) {
+    boxes_.push_back(child_box.release());
+
+    scoped_ptr<ContainerBox> next_container_box =
+        last_container_box->TrySplitAtEnd();
+    DCHECK(next_container_box);
+    boxes_.push_back(next_container_box.release());
+  }
+}
+
+void BoxGenerator::AppendPseudoElementToLine(
+    dom::HTMLElement* html_element,
+    dom::PseudoElementType pseudo_element_type) {
+  // Add boxes with generated content from :before or :after pseudo elements to
+  // the line.
+  //   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+  dom::PseudoElement* pseudo_element =
+      html_element->pseudo_element(pseudo_element_type);
+  if (pseudo_element) {
+    ContainerBoxGenerator pseudo_element_box_generator(
+        pseudo_element->computed_style(), pseudo_element->transitions(),
+        used_style_provider_);
+    pseudo_element->computed_style()->display()->Accept(
+        &pseudo_element_box_generator);
+    scoped_ptr<ContainerBox> pseudo_element_box =
+        pseudo_element_box_generator.PassContainerBox();
+    // A pseudo element with "display: none" generates no boxes and has no
+    // effect on layout.
+    if (pseudo_element_box != NULL) {
+      // Generate the box(es) to be added to the associated html element, using
+      // the computed style of the pseudo element.
+
+      // The generated content is a text node with the string value of the
+      // 'content' property.
+      const std::string& content_string =
+          pseudo_element->computed_style()->content()->ToString();
+      scoped_refptr<dom::Text> child_node(
+          new dom::Text(html_element->owner_document(), content_string));
+
+      BoxGenerator child_box_generator(pseudo_element->computed_style(),
+                                       used_style_provider_,
+                                       line_break_iterator_);
+      child_node->Accept(&child_box_generator);
+      Boxes child_boxes = child_box_generator.PassBoxes();
+      for (Boxes::iterator child_box_iterator = child_boxes.begin();
+           child_box_iterator != child_boxes.end(); ++child_box_iterator) {
+        scoped_ptr<Box> child_box(*child_box_iterator);
+        *child_box_iterator = NULL;
+        if (!pseudo_element_box->TryAddChild(&child_box)) {
+          return;
+        }
+      }
+
+      // Add the box(es) from the pseudo element to the associated element.
+      AppendChildBoxToLine(pseudo_element_box.release());
+    }
+  }
+}
+
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->computed_style(), html_element->transitions(),
@@ -188,6 +263,8 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
 
   boxes_.push_back(container_box_before_split.release());
 
+  AppendPseudoElementToLine(html_element, dom::kBeforePseudoElementType);
+
   // Generate child boxes.
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
@@ -200,34 +277,14 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     for (Boxes::iterator child_box_iterator = child_boxes.begin();
          child_box_iterator != child_boxes.end(); ++child_box_iterator) {
       // Transfer the ownership of the child box from |ScopedVector|
-      // to |scoped_ptr|.
-      scoped_ptr<Box> child_box(*child_box_iterator);
+      // to AppendChildBoxToLine().
+      Box* child_box_ptr = *child_box_iterator;
       *child_box_iterator = NULL;
-
-      // When an inline box contains an in-flow block-level box, the inline box
-      // (and its inline ancestors within the same block container box*) are
-      // broken around the block-level box, splitting the inline box into two
-      // boxes (even if either side is empty), one on each side of
-      // the block-level box. The line boxes before the break and after
-      // the break are enclosed in anonymous block boxes, and the block-level
-      // box becomes a sibling of those anonymous boxes.
-      //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-      //
-      // * CSS 2.1 says "the same line box" but line boxes are not real boxes
-      //   in Cobalt, see |LineBox| for details.
-      ContainerBox* last_container_box =
-          base::polymorphic_downcast<ContainerBox*>(boxes_.back());
-
-      if (!last_container_box->TryAddChild(&child_box)) {
-        boxes_.push_back(child_box.release());
-
-        scoped_ptr<ContainerBox> next_container_box =
-            last_container_box->TrySplitAtEnd();
-        DCHECK(next_container_box);
-        boxes_.push_back(next_container_box.release());
-      }
+      AppendChildBoxToLine(child_box_ptr);
     }
   }
+
+  AppendPseudoElementToLine(html_element, dom::kAfterPseudoElementType);
 }
 
 void BoxGenerator::Visit(dom::Comment* /*comment*/) {}
