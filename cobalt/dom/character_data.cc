@@ -19,8 +19,8 @@
 namespace cobalt {
 namespace dom {
 
-CharacterData::CharacterData(const base::StringPiece& data)
-    : data_(data.begin(), data.end()) {}
+CharacterData::CharacterData(Document* document, const base::StringPiece& data)
+    : Node(document), data_(data.begin(), data.end()) {}
 
 bool CharacterData::CheckAcceptAsChild(const scoped_refptr<Node>& child) const {
   UNREFERENCED_PARAMETER(child);

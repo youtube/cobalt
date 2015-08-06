@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/node.h"
 
+#include "cobalt/dom/document.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/fake_node.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
@@ -81,6 +83,9 @@ class NodeDispatchEventTest : public ::testing::Test {
   NodeDispatchEventTest();
   ~NodeDispatchEventTest() OVERRIDE;
 
+  HTMLElementContext html_element_context_;
+  scoped_refptr<Document> document_;
+
   scoped_refptr<Node> grand_parent_;
   scoped_refptr<Node> parent_;
   scoped_refptr<Node> child_;
@@ -88,12 +93,15 @@ class NodeDispatchEventTest : public ::testing::Test {
   scoped_refptr<MockEventListener> event_listener_bubbling_;
 };
 
-NodeDispatchEventTest::NodeDispatchEventTest() {
+NodeDispatchEventTest::NodeDispatchEventTest()
+    : html_element_context_(NULL, NULL, NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 
-  grand_parent_ = new FakeNode();
-  parent_ = grand_parent_->AppendChild(new FakeNode());
-  child_ = parent_->AppendChild(new FakeNode());
+  document_ = new Document(&html_element_context_, Document::Options());
+
+  grand_parent_ = new FakeNode(document_);
+  parent_ = grand_parent_->AppendChild(new FakeNode(document_));
+  child_ = parent_->AppendChild(new FakeNode(document_));
   event_listener_capture_ = MockEventListener::CreateAsNonAttribute();
   event_listener_bubbling_ = MockEventListener::CreateAsNonAttribute();
 
@@ -111,6 +119,8 @@ NodeDispatchEventTest::~NodeDispatchEventTest() {
   child_ = NULL;
   event_listener_capture_ = NULL;
   event_listener_bubbling_ = NULL;
+
+  document_ = NULL;
 
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }

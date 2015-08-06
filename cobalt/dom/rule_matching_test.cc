@@ -50,11 +50,14 @@ class RuleMatchingTest : public ::testing::Test {
   RuleMatchingTest()
       : css_parser_(css_parser::Parser::Create()),
         html_element_context_(NULL, NULL, NULL, NULL),
-        root_(new Element(&html_element_context_)) {}
+        document_(new Document(&html_element_context_, Document::Options())),
+        root_(new Element(document_, &html_element_context_)) {}
   ~RuleMatchingTest() OVERRIDE {}
 
   scoped_ptr<css_parser::Parser> css_parser_;
   HTMLElementContext html_element_context_;
+  scoped_refptr<Document> document_;
+
   scoped_refptr<Element> root_;
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   cssom::RulesWithCascadePriority matching_rules_;

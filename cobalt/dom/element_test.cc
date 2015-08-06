@@ -47,15 +47,18 @@ class ElementTest : public ::testing::Test {
 
   scoped_ptr<css_parser::Parser> css_parser_;
   HTMLElementContext html_element_context_;
+  scoped_refptr<Document> document_;
 };
 
 ElementTest::ElementTest()
     : css_parser_(css_parser::Parser::Create()),
       html_element_context_(NULL, css_parser_.get(), NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  document_ = new Document(&html_element_context_, Document::Options());
 }
 
 ElementTest::~ElementTest() {
+  document_ = NULL;
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
@@ -64,7 +67,7 @@ ElementTest::~ElementTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(ElementTest, CreateElement) {
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Element> element = new Element(document_);
   ASSERT_TRUE(element);
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
@@ -86,8 +89,8 @@ TEST_F(ElementTest, CreateElement) {
 }
 
 TEST_F(ElementTest, AsElement) {
-  scoped_refptr<Element> element = new Element();
-  scoped_refptr<Text> text = new Text("text");
+  scoped_refptr<Element> element = new Element(document_);
+  scoped_refptr<Text> text = new Text(document_, "text");
   scoped_refptr<Node> node = element;
 
   EXPECT_EQ(element, node->AsElement());
@@ -95,7 +98,7 @@ TEST_F(ElementTest, AsElement) {
 }
 
 TEST_F(ElementTest, AttributeMethods) {
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Element> element = new Element(document_);
 
   element->SetAttribute("a", "1");
   EXPECT_TRUE(element->HasAttribute("a"));
@@ -116,7 +119,7 @@ TEST_F(ElementTest, AttributeMethods) {
 }
 
 TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Element> element = new Element(document_);
   scoped_refptr<NamedNodeMap> attributes = element->attributes();
 
   // Start with nothing.
@@ -180,7 +183,7 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
 }
 
 TEST_F(ElementTest, AttributesPropertySet) {
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Element> element = new Element(document_);
 
   scoped_refptr<Attr> attribute = new Attr("a", "1", NULL);
   EXPECT_EQ("1", attribute->value());
@@ -197,8 +200,8 @@ TEST_F(ElementTest, AttributesPropertySet) {
 }
 
 TEST_F(ElementTest, AttributesPropertyTransfer) {
-  scoped_refptr<Element> element1 = new Element();
-  scoped_refptr<Element> element2 = new Element();
+  scoped_refptr<Element> element1 = new Element(document_);
+  scoped_refptr<Element> element2 = new Element(document_);
 
   scoped_refptr<NamedNodeMap> attributes1 = element1->attributes();
   scoped_refptr<NamedNodeMap> attributes2 = element2->attributes();
@@ -233,7 +236,7 @@ TEST_F(ElementTest, AttributesPropertyTransfer) {
 }
 
 TEST_F(ElementTest, ClassList) {
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Element> element = new Element(document_);
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   element->set_class_name("  a             a b d");
   EXPECT_EQ(4, class_list->length());
@@ -276,17 +279,17 @@ TEST_F(ElementTest, ClassList) {
 }
 
 TEST_F(ElementTest, GetElementsByClassName) {
-  scoped_refptr<Element> root = new Element();
+  scoped_refptr<Element> root = new Element(document_);
   testing::TestGetElementsByClassName(root);
 }
 
 TEST_F(ElementTest, GetElementsByTagName) {
-  scoped_refptr<Element> root = new Element();
+  scoped_refptr<Element> root = new Element(document_);
   testing::TestGetElementsByTagName(root);
 }
 
 TEST_F(ElementTest, InnerHTML) {
-  scoped_refptr<Element> root = new Element(&html_element_context_);
+  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -298,22 +301,22 @@ TEST_F(ElementTest, InnerHTML) {
   //     text
   //
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element())->AsElement();
+      root->AppendChild(new Element(document_))->AsElement();
   element_a->SetAttribute("key", "value");
 
-  element_a->AppendChild(new Text("\n  "));
+  element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element())->AsElement();
+      element_a->AppendChild(new Element(document_))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
-  element_a->AppendChild(new Text("\n  "));
+  element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element())->AsElement();
-  element_b2->AppendChild(new Text("Text"));
+      element_a->AppendChild(new Element(document_))->AsElement();
+  element_b2->AppendChild(new Text(document_, "Text"));
 
-  element_a->AppendChild(new Text("\n"));
+  element_a->AppendChild(new Text(document_, "\n"));
 
   const char* kExpectedHTML =
       "<#element key=\"value\">\n"
@@ -395,7 +398,7 @@ TEST_F(ElementTest, InnerHTML) {
 }
 
 TEST_F(ElementTest, OuterHTML) {
-  scoped_refptr<Element> root = new Element(&html_element_context_);
+  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
 
   // Manually construct the DOM tree and compare serialization result:
   // root
@@ -407,22 +410,23 @@ TEST_F(ElementTest, OuterHTML) {
   //     text
   //
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(&html_element_context_))->AsElement();
+      root->AppendChild(new Element(document_, &html_element_context_))
+          ->AsElement();
   element_a->SetAttribute("key", "value");
 
-  element_a->AppendChild(new Text("\n  "));
+  element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b1 =
-      element_a->AppendChild(new Element())->AsElement();
+      element_a->AppendChild(new Element(document_))->AsElement();
   element_b1->SetAttribute("just_key", "");
 
-  element_a->AppendChild(new Text("\n  "));
+  element_a->AppendChild(new Text(document_, "\n  "));
 
   scoped_refptr<Element> element_b2 =
-      element_a->AppendChild(new Element())->AsElement();
-  element_b2->AppendChild(new Text("Text"));
+      element_a->AppendChild(new Element(document_))->AsElement();
+  element_b2->AppendChild(new Text(document_, "Text"));
 
-  element_a->AppendChild(new Text("\n"));
+  element_a->AppendChild(new Text(document_, "\n"));
 
   const char* kExpectedHTML =
       "<#element><#element key=\"value\">\n"
@@ -451,7 +455,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     comment_11
   //     text_12
   //
-  root->AppendChild(new Element(&html_element_context_));
+  root->AppendChild(new Element(document_, &html_element_context_));
   const char* kAnotherHTML =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
@@ -505,11 +509,13 @@ TEST_F(ElementTest, OuterHTML) {
 }
 
 TEST_F(ElementTest, QuerySelector) {
-  scoped_refptr<Element> root = new Element(&html_element_context_);
+  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
   root->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
+      html_element_context_.html_element_factory()->CreateHTMLElement(document_,
+                                                                      "div"));
   root->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
+      html_element_context_.html_element_factory()->CreateHTMLElement(document_,
+                                                                      "div"));
   root->QuerySelector("div");
   EXPECT_FALSE(root->QuerySelector("span"));
   // QuerySelector should return first matching child.
@@ -527,11 +533,15 @@ TEST_F(ElementTest, NodeValueAndTextContent) {
   //     comment("not ")
   //   element
   //     text("Sparta.")
-  scoped_refptr<Element> root = new Element();
-  root->AppendChild(new Element())->AppendChild(new Text("This "));
-  root->AppendChild(new Element())->AppendChild(new Text("is "));
-  root->AppendChild(new Element())->AppendChild(new Comment("not "));
-  root->AppendChild(new Element())->AppendChild(new Text("Sparta."));
+  scoped_refptr<Element> root = new Element(document_);
+  root->AppendChild(new Element(document_))
+      ->AppendChild(new Text(document_, "This "));
+  root->AppendChild(new Element(document_))
+      ->AppendChild(new Text(document_, "is "));
+  root->AppendChild(new Element(document_))
+      ->AppendChild(new Comment(document_, "not "));
+  root->AppendChild(new Element(document_))
+      ->AppendChild(new Text(document_, "Sparta."));
   // NodeValue should always be NULL.
   EXPECT_EQ(base::nullopt, root->node_value());
   // TextContent should be all texts concatenated.

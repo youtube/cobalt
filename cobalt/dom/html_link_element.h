@@ -35,7 +35,7 @@ class HTMLLinkElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLLinkElement(HTMLElementContext* html_element_context);
+  HTMLLinkElement(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Element
   //
@@ -57,7 +57,7 @@ class HTMLLinkElement : public HTMLElement {
   scoped_refptr<HTMLLinkElement> AsHTMLLinkElement() OVERRIDE { return this; }
 
   // From Node.
-  void AttachToDocument(Document* document) OVERRIDE;
+  void OnInsertedIntoDocument() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 

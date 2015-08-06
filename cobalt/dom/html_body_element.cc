@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLBodyElement::kTagName = "body";
 
-HTMLBodyElement::HTMLBodyElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLBodyElement::HTMLBodyElement(Document* document,
+                                 HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLBodyElement::tag_name() const {
   return kTagName;
@@ -33,14 +34,14 @@ std::string HTMLBodyElement::tag_name() const {
 
 HTMLBodyElement::~HTMLBodyElement() {}
 
-void HTMLBodyElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLBodyElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
   owner_document()->SetBodyInternal(this);
 }
 
-void HTMLBodyElement::DetachFromDocument() {
+void HTMLBodyElement::OnRemovedFromDocument() {
   owner_document()->SetBodyInternal(NULL);
-  Node::DetachFromDocument();
+  Node::OnRemovedFromDocument();
 }
 
 }  // namespace dom

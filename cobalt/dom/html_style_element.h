@@ -33,7 +33,8 @@ class HTMLStyleElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLStyleElement(HTMLElementContext* html_element_context);
+  HTMLStyleElement(Document* document,
+                   HTMLElementContext* html_element_context);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -51,7 +52,7 @@ class HTMLStyleElement : public HTMLElement {
       const base::SourceLocation& opening_tag_location) OVERRIDE;
 
   // From Node.
-  void AttachToDocument(Document* document) OVERRIDE;
+  void OnInsertedIntoDocument() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLStyleElement);
 
