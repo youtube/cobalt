@@ -31,6 +31,7 @@
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -46,13 +47,16 @@ class ElementTest : public ::testing::Test {
   ~ElementTest() OVERRIDE;
 
   scoped_ptr<css_parser::Parser> css_parser_;
+  scoped_ptr<dom_parser::Parser> dom_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
 
 ElementTest::ElementTest()
     : css_parser_(css_parser::Parser::Create()),
-      html_element_context_(NULL, css_parser_.get(), NULL, NULL) {
+      dom_parser_(new dom_parser::Parser()),
+      html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
+                            NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_, Document::Options());
 }

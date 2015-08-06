@@ -37,12 +37,8 @@
         'console.h',
         'document.cc',
         'document.h',
-        'document_builder.cc',
-        'document_builder.h',
         'document_type.cc',
         'document_type.h',
-        'dom_decoder.cc',
-        'dom_decoder.h',
         'dom_exception.cc',
         'dom_exception.h',
         'dom_implementation.cc',
@@ -82,8 +78,6 @@
         'html_link_element.h',
         'html_media_element.cc',
         'html_media_element.h',
-        'html_parser.cc',
-        'html_parser.h',
         'html_script_element.cc',
         'html_script_element.h',
         'html_serializer.cc',
@@ -160,7 +154,6 @@
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
-        '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
       ],
       'conditions': [
         ['actual_target_arch=="win"', {
@@ -171,23 +164,9 @@
     },
 
     {
-      'target_name': 'dom_test',
-      'type': '<(gtest_target_type)',
+      'target_name': 'dom_testing',
+      'type': 'static_library',
       'sources': [
-        'comment_test.cc',
-        'document_builder_test.cc',
-        'document_test.cc',
-        'dom_implementation_test.cc',
-        'element_test.cc',
-        'event_queue_test.cc',
-        'event_target_test.cc',
-        'event_test.cc',
-        'html_parser_test.cc',
-        'location_test.cc',
-        'node_dispatch_event_test.cc',
-        'node_test.cc',
-        'performance_test.cc',
-        'rule_matching_test.cc',
         'testing/fake_node.h',
         'testing/gtest_workarounds.h',
         'testing/html_collection_testing.h',
@@ -198,43 +177,7 @@
         'testing/stub_script_runner.h',
         'testing/switches.cc',
         'testing/switches.h',
-        'text_test.cc',
-        'time_ranges_test.cc',
-        'uint8_array_test.cc',
-        'xml_document_test.cc',
       ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'dom',
-      ],
-      'actions': [
-        {
-          'action_name': 'dom_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/dom/testdata/',
-            ],
-            'output_dir': 'cobalt/dom/testdata/',
-          },
-          'includes': [ '../build/copy_data.gypi' ],
-        },
-      ],
-    },
-
-    {
-      'target_name': 'dom_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'dom_test',
-      ],
-      'variables': {
-        'executable_name': 'dom_test',
-      },
-      'includes': [ '../build/deploy.gypi' ],
     },
   ],
 }

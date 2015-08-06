@@ -35,6 +35,8 @@
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:*',
         '<(DEPTH)/cobalt/dom/dom.gyp:*',
+        '<(DEPTH)/cobalt/dom/dom_test.gyp:*',
+        '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:*',
         '<(DEPTH)/cobalt/input/input.gyp:*',
         '<(DEPTH)/cobalt/layout/layout.gyp:*',
         '<(DEPTH)/cobalt/layout_benchmarks/layout_benchmarks.gyp:*',

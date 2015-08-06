@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/dom/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_runner.h"
@@ -34,7 +35,7 @@ class HTMLElementFactory;
 class HTMLElementContext {
  public:
   HTMLElementContext(loader::FetcherFactory* fetcher_factory,
-                     cssom::CSSParser* css_parser,
+                     cssom::CSSParser* css_parser, Parser* dom_parser,
                      media::WebMediaPlayerFactory* web_media_player_factory,
                      script::ScriptRunner* script_runner);
   ~HTMLElementContext();
@@ -42,6 +43,8 @@ class HTMLElementContext {
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
 
   cssom::CSSParser* css_parser() { return css_parser_; }
+
+  Parser* dom_parser() { return dom_parser_; }
 
   media::WebMediaPlayerFactory* web_media_player_factory() {
     return web_media_player_factory_;
@@ -56,6 +59,7 @@ class HTMLElementContext {
  private:
   loader::FetcherFactory* const fetcher_factory_;
   cssom::CSSParser* const css_parser_;
+  Parser* const dom_parser_;
   media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
 

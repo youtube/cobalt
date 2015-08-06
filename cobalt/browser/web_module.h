@@ -23,6 +23,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/dom_parser/parser.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
@@ -63,15 +64,13 @@ class WebModule {
 
   typedef layout::LayoutManager::OnRenderTreeProducedCallback
       OnRenderTreeProducedCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
   WebModule(const OnRenderTreeProducedCallback& render_tree_produced_callback,
-            const ErrorCallback& error_callback,
+            const base::Callback<void(const std::string&)>& error_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
-            float layout_refresh_rate,
-            const Options& options);
+            float layout_refresh_rate, const Options& options);
   ~WebModule();
 
   // Call this to inject a key event into the web module which will ultimately
@@ -85,7 +84,11 @@ class WebModule {
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
 
+  // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
+
+  // DOM (HTML / XML) parser.
+  scoped_ptr<dom_parser::Parser> dom_parser_;
 
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;

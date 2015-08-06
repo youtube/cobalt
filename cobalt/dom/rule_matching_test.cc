@@ -34,12 +34,14 @@
 #include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_unknown_element.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -49,16 +51,20 @@ class RuleMatchingTest : public ::testing::Test {
  protected:
   RuleMatchingTest()
       : css_parser_(css_parser::Parser::Create()),
-        html_element_context_(NULL, NULL, NULL, NULL),
+        dom_parser_(new dom_parser::Parser()),
+        html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
+                              NULL),
         document_(new Document(&html_element_context_, Document::Options())),
         root_(new Element(document_, &html_element_context_)) {}
+
   ~RuleMatchingTest() OVERRIDE {}
 
   scoped_ptr<css_parser::Parser> css_parser_;
+  scoped_ptr<dom_parser::Parser> dom_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
-
   scoped_refptr<Element> root_;
+
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   cssom::RulesWithCascadePriority matching_rules_;
 };
