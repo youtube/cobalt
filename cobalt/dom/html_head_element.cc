@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLHeadElement::kTagName = "head";
 
-HTMLHeadElement::HTMLHeadElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLHeadElement::HTMLHeadElement(Document* document,
+                                 HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLHeadElement::tag_name() const {
   return kTagName;
@@ -33,14 +34,14 @@ std::string HTMLHeadElement::tag_name() const {
 
 HTMLHeadElement::~HTMLHeadElement() {}
 
-void HTMLHeadElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLHeadElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
   owner_document()->SetHeadInternal(this);
 }
 
-void HTMLHeadElement::DetachFromDocument() {
+void HTMLHeadElement::OnRemovedFromDocument() {
   owner_document()->SetHeadInternal(NULL);
-  Node::DetachFromDocument();
+  Node::OnRemovedFromDocument();
 }
 
 }  // namespace dom

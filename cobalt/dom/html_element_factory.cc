@@ -33,8 +33,9 @@ namespace cobalt {
 namespace dom {
 
 template <typename T>
-scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT() {
-  return new T(html_element_context_);
+scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElementT(
+    Document* document) {
+  return new T(document, html_element_context_);
 }
 
 HTMLElementFactory::HTMLElementFactory(HTMLElementContext* html_element_context)
@@ -71,14 +72,14 @@ HTMLElementFactory::HTMLElementFactory(HTMLElementContext* html_element_context)
 HTMLElementFactory::~HTMLElementFactory() {}
 
 scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
-    const base::StringPiece& tag_name) {
+    Document* document, const base::StringPiece& tag_name) {
   TagNameToCreateHTMLElementTCallbackMap::const_iterator iter =
       tag_name_to_create_html_element_t_callback_map_.find(tag_name);
   if (iter != tag_name_to_create_html_element_t_callback_map_.end()) {
-    return iter->second.Run();
+    return iter->second.Run(document);
   } else {
     // TODO(***REMOVED***): Report unknown HTML tag.
-    return new HTMLUnknownElement(html_element_context_, tag_name);
+    return new HTMLUnknownElement(document, html_element_context_, tag_name);
   }
 }
 

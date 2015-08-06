@@ -32,7 +32,7 @@ class HTMLSpanElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLSpanElement(HTMLElementContext* html_element_context);
+  HTMLSpanElement(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;

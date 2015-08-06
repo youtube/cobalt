@@ -56,7 +56,7 @@ class CharacterData : public Node {
   DEFINE_WRAPPABLE_TYPE(CharacterData);
 
  protected:
-  explicit CharacterData(const base::StringPiece& data);
+  CharacterData(Document* document, const base::StringPiece& data);
   ~CharacterData() OVERRIDE {}
 
  private:

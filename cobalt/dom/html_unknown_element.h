@@ -30,7 +30,8 @@ namespace dom {
 //   http://www.w3.org/TR/html5/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
-  HTMLUnknownElement(HTMLElementContext* html_element_context,
+  HTMLUnknownElement(Document* document,
+                     HTMLElementContext* html_element_context,
                      const base::StringPiece& tag_name);
 
   // Web API: Element

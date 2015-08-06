@@ -39,8 +39,8 @@ class Element : public Node {
  public:
   typedef base::hash_map<std::string, std::string> AttributeMap;
 
-  Element();
-  explicit Element(HTMLElementContext* html_element_context);
+  explicit Element(Document* document);
+  Element(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Node
   //

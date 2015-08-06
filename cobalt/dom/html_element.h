@@ -116,7 +116,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  explicit HTMLElement(HTMLElementContext* html_element_context);
+  HTMLElement(Document* document, HTMLElementContext* html_element_context);
   ~HTMLElement() OVERRIDE;
 
  private:

@@ -32,7 +32,7 @@ class HTMLDivElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLDivElement(HTMLElementContext* html_element_context);
+  HTMLDivElement(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;

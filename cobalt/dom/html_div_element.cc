@@ -22,8 +22,9 @@ namespace dom {
 // static
 const char* HTMLDivElement::kTagName = "div";
 
-HTMLDivElement::HTMLDivElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLDivElement::HTMLDivElement(Document* document,
+                               HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLDivElement::tag_name() const {
   return kTagName;

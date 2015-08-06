@@ -16,7 +16,9 @@
 
 #include "cobalt/dom/text.h"
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,21 +34,31 @@ class TextTest : public ::testing::Test {
  protected:
   TextTest();
   ~TextTest() OVERRIDE;
+
+  HTMLElementContext html_element_context_;
+  scoped_refptr<Document> document_;
 };
 
-TextTest::TextTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+TextTest::TextTest()
+    : html_element_context_(NULL, NULL, NULL, NULL) {
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  document_ = new Document(&html_element_context_, Document::Options());
+}
 
-TextTest::~TextTest() { EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks()); }
+TextTest::~TextTest() {
+  document_ = NULL;
+  EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Test cases
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(TextTest, CheckAttach) {
-  scoped_refptr<Element> root = new Element();
+  scoped_refptr<Element> root = new Element(document_);
 
-  scoped_refptr<Node> text = root->AppendChild(new Text("text"));
-  scoped_refptr<Node> other_text = new Text("other_text");
+  scoped_refptr<Node> text = root->AppendChild(new Text(document_, "text"));
+  scoped_refptr<Node> other_text = new Text(document_, "other_text");
 
   // Checks that we can't attach text nodes to other text nodes.
   EXPECT_EQ(NULL, text->AppendChild(other_text));
@@ -54,12 +66,12 @@ TEST_F(TextTest, CheckAttach) {
 }
 
 TEST_F(TextTest, NodeValue) {
-  scoped_refptr<Text> text = new Text("text");
+  scoped_refptr<Text> text = new Text(document_, "text");
   EXPECT_EQ("text", text->node_value().value());
 }
 
 TEST_F(TextTest, TextContent) {
-  scoped_refptr<Text> text = new Text("text");
+  scoped_refptr<Text> text = new Text(document_, "text");
   EXPECT_EQ("text", text->text_content().value());
 }
 
