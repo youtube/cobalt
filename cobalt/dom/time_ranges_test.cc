@@ -26,7 +26,7 @@ namespace {
 class FakeExceptionState : public script::ExceptionState {
  public:
   void SetException(
-      const scoped_refptr<script::ScriptException>& exception) OVERRIDE {
+      const scoped_refptr<script::Wrappable>& exception) OVERRIDE {
     dom_exception_ = make_scoped_refptr(
         base::polymorphic_downcast<DOMException*>(exception.get()));
   }

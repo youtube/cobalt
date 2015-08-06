@@ -20,12 +20,12 @@
 #include <string>
 
 #include "cobalt/script/exception_state.h"
-#include "cobalt/script/script_exception.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
 
-class DOMException : public script::ScriptException {
+class DOMException : public script::Wrappable {
  public:
   // List of exceptions and codes found here:
   //   http://heycam.github.io/webidl/#idl-DOMException-error-names
@@ -46,8 +46,8 @@ class DOMException : public script::ScriptException {
   DOMException(ExceptionCode code, const std::string& message);
 
   uint16 code() const { return static_cast<uint16>(code_); }
-  std::string name() const OVERRIDE { return name_; }
-  std::string message() const OVERRIDE { return message_; }
+  const std::string& name() const { return name_; }
+  const std::string& message() const { return message_; }
 
   // Helper function to raise a DOMException in the ExceptionState passed in.
   static void Raise(ExceptionCode code,
