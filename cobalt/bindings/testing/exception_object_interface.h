@@ -17,18 +17,17 @@
 #ifndef BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
 #define BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
 
-#include "cobalt/script/script_exception.h"
+#include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class ExceptionObjectInterface : public script::ScriptException {
+class ExceptionObjectInterface : public script::Wrappable {
  public:
-  MOCK_CONST_METHOD0(error, std::string());
-  MOCK_CONST_METHOD0(message, std::string());
-  MOCK_CONST_METHOD0(name, std::string());
+  MOCK_METHOD0(error, std::string());
+  MOCK_METHOD0(message, std::string());
 
   DEFINE_WRAPPABLE_TYPE(ExceptionObjectInterface);
 };
