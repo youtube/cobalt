@@ -30,6 +30,11 @@ class WaitableEvent;
 }  // namespace base
 
 namespace cobalt {
+
+namespace storage {
+class StorageManager;
+}  // namespace storage
+
 namespace network {
 
 // NetworkModule wraps various networking-related components such as
@@ -52,6 +57,7 @@ class NetworkModule {
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy() const {
     return io_thread_->message_loop_proxy();
   }
+  storage::StorageManager* storage_manager() const { return storage_manager_; }
 
  private:
   void OnCreate(base::WaitableEvent* creation_event);

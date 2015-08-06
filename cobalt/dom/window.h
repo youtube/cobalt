@@ -40,9 +40,11 @@ namespace dom {
 class Console;
 class Document;
 class HTMLElementContext;
+class LocalStorageDatabase;
 class Location;
 class Navigator;
 class Performance;
+class Storage;
 class WindowTimers;
 
 // The window object represents a window containing a DOM document.
@@ -56,6 +58,7 @@ class Window : public EventTarget {
   typedef WindowTimers::TimerCallback TimerCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
+         LocalStorageDatabase* local_storage_database,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ScriptRunner* script_runner, const GURL& url,
          const std::string& user_agent,
@@ -94,6 +97,10 @@ class Window : public EventTarget {
 
   void ClearTimeout(int handle);
 
+  // Web API: Storage (implements)
+  scoped_refptr<Storage> local_storage() const;
+  scoped_refptr<Storage> session_storage() const;
+
   // Access to the Performance API (partial interface)
   //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
   const scoped_refptr<Performance>& performance() const;
@@ -124,6 +131,9 @@ class Window : public EventTarget {
   scoped_ptr<WindowTimers> window_timers_;
   scoped_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
+
+  scoped_refptr<Storage> local_storage_;
+  scoped_refptr<Storage> session_storage_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
