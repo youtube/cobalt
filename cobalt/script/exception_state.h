@@ -18,7 +18,7 @@
 
 #include <string>
 
-#include "cobalt/script/wrappable.h"
+#include "cobalt/script/script_exception.h"
 
 namespace cobalt {
 namespace script {
@@ -35,7 +35,8 @@ class ExceptionState {
     kURIError
   };
   // IDL for this object must be an exception interface.
-  virtual void SetException(const scoped_refptr<Wrappable>& exception) = 0;
+  virtual void SetException(
+      const scoped_refptr<ScriptException>& exception) = 0;
   virtual void SetSimpleException(SimpleExceptionType simple_error,
                                   const std::string& message) = 0;
 };
