@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-[PrimaryGlobal]
-/*sealed*/ interface Window : EventTarget {
-  // [Unforgeable] readonly attribute WindowProxy window;
-  [Unforgeable] readonly attribute Document document;
-  [PutForwards=href, Unforgeable] readonly attribute Location location;
-  readonly attribute Navigator navigator;
-  readonly attribute Console console;
+// http://www.w3.org/TR/2015/CR-webstorage-20150609/
+interface StorageEvent : Event {
+  readonly attribute DOMString? key;
+  readonly attribute DOMString? oldValue;
+  readonly attribute DOMString? newValue;
+  readonly attribute DOMString url;
+  readonly attribute Storage? storageArea;
 };
-Window implements GlobalEventHandlers;
-Window implements WindowSessionStorage;
-Window implements WindowLocalStorage;
