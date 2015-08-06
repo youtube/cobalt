@@ -26,9 +26,7 @@ HTMLSpanElement::HTMLSpanElement(Document* document,
                                  HTMLElementContext* html_element_context)
     : HTMLElement(document, html_element_context) {}
 
-std::string HTMLSpanElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLSpanElement::tag_name() const { return kTagName; }
 
 HTMLSpanElement::~HTMLSpanElement() {}
 

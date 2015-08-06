@@ -26,6 +26,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/parser.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -38,7 +39,6 @@ namespace dom {
 
 class Console;
 class Document;
-class DocumentBuilder;
 class HTMLElementContext;
 class Location;
 class Navigator;
@@ -54,12 +54,12 @@ class Window : public EventTarget {
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
   typedef WindowTimers::TimerCallback TimerCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
   Window(int width, int height, cssom::CSSParser* css_parser,
-         loader::FetcherFactory* fetcher_factory,
+         Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
          media::WebMediaPlayerFactory* web_media_player_factory,
          script::ScriptRunner* script_runner, const GURL& url,
-         const std::string& user_agent, const ErrorCallback& error_callback);
+         const std::string& user_agent,
+         const base::Callback<void(const std::string&)>& error_callback);
 
   // Web API: Window
   //
@@ -117,7 +117,6 @@ class Window : public EventTarget {
 
   scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Document> document_;
-  scoped_ptr<DocumentBuilder> document_builder_;
   scoped_refptr<Navigator> navigator_;
   scoped_refptr<Performance> performance_;
   scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;

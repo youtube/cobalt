@@ -37,9 +37,7 @@ HTMLScriptElement::HTMLScriptElement(Document* document,
   DCHECK(html_element_context->script_runner());
 }
 
-std::string HTMLScriptElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLScriptElement::tag_name() const { return kTagName; }
 
 void HTMLScriptElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

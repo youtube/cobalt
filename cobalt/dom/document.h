@@ -148,6 +148,10 @@ class Document : public Node, public cssom::MutationObserver {
   void AddObserver(DocumentObserver* observer);
   void RemoveObserver(DocumentObserver* observer);
 
+  virtual HTMLElementContext* html_element_context() {
+    return html_element_context_;
+  }
+
   scoped_refptr<HTMLHtmlElement> html() const;
 
   // Count all ongoing loadings, including document itself and its dependent
