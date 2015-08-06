@@ -45,8 +45,6 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     scoped_refptr<const CSSStyleDeclarationData> declared_style =
         rule_iterator->first->style()->data();
 
-    // TODO(***REMOVED***): Take !important into consideration
-    //               (it should override even already set value).
     // TODO(***REMOVED***): Iterate only over non-null properties in the rule.
     if (!style->background_color() && declared_style->background_color()) {
       style->set_background_color(declared_style->background_color());
@@ -73,6 +71,9 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     }
     if (!style->color() && declared_style->color()) {
       style->set_color(declared_style->color());
+    }
+    if (!style->content() && declared_style->content()) {
+      style->set_content(declared_style->content());
     }
     if (!style->display() && declared_style->display()) {
       style->set_display(declared_style->display());

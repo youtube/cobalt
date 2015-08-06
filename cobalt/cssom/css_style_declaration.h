@@ -84,6 +84,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string color() const;
   void set_color(const std::string& color);
 
+  std::string content() const;
+  void set_content(const std::string& content);
+
   std::string display() const;
   void set_display(const std::string& display);
 

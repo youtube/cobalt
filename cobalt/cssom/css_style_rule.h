@@ -40,7 +40,7 @@ class CSSStyleRule : public CSSRule {
                const scoped_refptr<CSSStyleDeclaration>& style);
 
   // Web API: CSSStyleRule
-  const scoped_refptr<CSSStyleDeclaration>& style();
+  const scoped_refptr<CSSStyleDeclaration>& style() const;
 
   // Custom, not in any spec.
   //

@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -56,6 +57,10 @@ class RGBAColorValue : public PropertyValue {
   uint8_t g() const { return static_cast<uint8_t>((value_ >> 16) & 0xFF); }
   uint8_t b() const { return static_cast<uint8_t>((value_ >> 8) & 0xFF); }
   uint8_t a() const { return static_cast<uint8_t>((value_ >> 0) & 0xFF); }
+
+  std::string ToString() OVERRIDE {
+    return base::StringPrintf("rgba(%u,%u,%u,%f)", r(), g(), b(), a() / 255.0);
+  }
 
   bool operator==(const RGBAColorValue& other) const {
     return value_ == other.value_;

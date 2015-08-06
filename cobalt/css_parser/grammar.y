@@ -73,6 +73,7 @@
 %token kBorderRadiusToken                     // border-radius
 %token kBottomToken                           // bottom
 %token kColorToken                            // color
+%token kContentToken                          // content
 %token kDisplayToken                          // display
 %token kFontFamilyToken                       // font-family
 %token kFontSizeToken                         // font-size
@@ -153,6 +154,12 @@
 // WARNING: every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kEmptyToken                      // empty
+
+// Pseudo-element name tokens.
+// WARNING: every time a new name token is introduced, it should be added
+//          to |identifier_token| rule below.
+%token kAfterToken                      // after
+%token kBeforeToken                     // before
 
 // Attribute matching tokens.
 %token kIncludesToken                   // ~=
@@ -337,6 +344,7 @@
                        color_property_value
                        common_values
                        common_values_without_errors
+                       content_property_value
                        display_property_value
                        font_family_name
                        font_family_property_value
@@ -383,7 +391,7 @@
 
 %union { cssom::Selector* selector; }
 %type <selector> class_selector_token id_selector_token pseudo_class_token
-                 simple_selector_token type_selector_token
+                 pseudo_element_token simple_selector_token type_selector_token
                  universal_selector_token
 %destructor { delete $$; } <selector>
 
@@ -555,6 +563,9 @@ identifier_token:
   }
   | kColorToken {
     $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
+  }
+  | kContentToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kContentPropertyName);
   }
   | kDisplayToken {
     $$ = TrivialStringPiece::FromCString(cssom::kDisplayPropertyName);
@@ -768,6 +779,13 @@ identifier_token:
   | kEmptyToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEmptyPseudoClassName);
   }
+  // Pseudo-element names.
+  | kAfterToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kAfterPseudoElementName);
+  }
+  | kBeforeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBeforePseudoElementName);
+  }
   ;
 
 // A type selector represents an instance of the element type in the document
@@ -826,10 +844,37 @@ pseudo_class_token:
   //   http://www.w3.org/TR/selectors4/#empty-pseudo
     ':' kEmptyToken {
     $$ = new cssom::EmptyPseudoClass();
-    break;
   }
   | ':' errors {
     parser_impl->LogWarning(@1, "unsupported pseudo-class");
+    $$ = NULL;
+  }
+  ;
+
+// Pseudo-elements create abstractions about the document tree beyond those
+// specified by the document language.
+//   http://www.w3.org/TR/selectors4/#pseudo-elements
+pseudo_element_token:
+// Authors specify the style and location of generated content with the
+// :before and :after pseudo-elements.
+//   http://www.w3.org/TR/CSS21/generate.html#before-after-content
+// User agents must also accept the previous one-colon notation for
+// pseudo-elements introduced in CSS levels 1 and 2.
+//   http://www.w3.org/TR/selectors4/#pseudo-elements
+    ':' kAfterToken {
+    $$ = new cssom::AfterPseudoElement();
+  }
+  | ':' kBeforeToken {
+    $$ = new cssom::BeforePseudoElement();
+  }
+  | ':' ':' kAfterToken {
+    $$ = new cssom::AfterPseudoElement();
+  }
+  | ':' ':' kBeforeToken {
+    $$ = new cssom::BeforePseudoElement();
+  }
+  | ':' ':' errors {
+    parser_impl->LogWarning(@1, "unsupported pseudo-element");
     $$ = NULL;
   }
   ;
@@ -842,6 +887,7 @@ simple_selector_token:
   | class_selector_token
   | id_selector_token
   | pseudo_class_token
+  | pseudo_element_token
   ;
 
 // A compound selector is a chain of simple selectors that are not separated by
@@ -1568,6 +1614,22 @@ color_property_value:
     color { $$ = $1; }
   | common_values
   ;
+
+// Used to add generated content with a :before or :after pseudo-element.
+//   http://www.w3.org/TR/CSS21/generate.html#content
+content_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNormal().get());
+  }
+  | url { $$ = $1; }
+  | kStringToken maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1.ToString()));
+  }
+  | common_values
+;
 
 // Controls the generation of boxes.
 //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
@@ -2459,6 +2521,12 @@ maybe_declaration:
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kColorPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kContentToken maybe_whitespace colon content_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kContentPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

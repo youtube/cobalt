@@ -30,6 +30,8 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
@@ -195,6 +197,98 @@ TEST_F(ParserTest, ParsesClassSelector) {
       const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
   ASSERT_TRUE(class_selector);
   EXPECT_EQ("my-class", class_selector->class_name());
+}
+
+TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":after {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
+          style_sheet->css_rules()->Item(0)->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::AdjacentSelector* adjacent_selector =
+      complex_selector->last_selector();
+  ASSERT_TRUE(adjacent_selector);
+  cssom::CompoundSelector* compound_selector =
+      adjacent_selector->last_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->selectors().size());
+  cssom::AfterPseudoElement* after_pseudo_element =
+      dynamic_cast<cssom::AfterPseudoElement*>(
+          const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
+  ASSERT_TRUE(after_pseudo_element);
+}
+
+TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("::after {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
+          style_sheet->css_rules()->Item(0)->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::AdjacentSelector* adjacent_selector =
+      complex_selector->last_selector();
+  ASSERT_TRUE(adjacent_selector);
+  cssom::CompoundSelector* compound_selector =
+      adjacent_selector->last_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->selectors().size());
+  cssom::AfterPseudoElement* after_pseudo_element =
+      dynamic_cast<cssom::AfterPseudoElement*>(
+          const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
+  ASSERT_TRUE(after_pseudo_element);
+}
+
+TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet(":before {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
+          style_sheet->css_rules()->Item(0)->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::AdjacentSelector* adjacent_selector =
+      complex_selector->last_selector();
+  ASSERT_TRUE(adjacent_selector);
+  cssom::CompoundSelector* compound_selector =
+      adjacent_selector->last_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->selectors().size());
+  cssom::BeforePseudoElement* before_pseudo_element =
+      dynamic_cast<cssom::BeforePseudoElement*>(
+          const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
+  ASSERT_TRUE(before_pseudo_element);
+}
+
+TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      parser_.ParseStyleSheet("::before {}", source_location_);
+
+  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  cssom::ComplexSelector* complex_selector =
+      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
+          style_sheet->css_rules()->Item(0)->selectors()[0]));
+  ASSERT_TRUE(complex_selector);
+  cssom::AdjacentSelector* adjacent_selector =
+      complex_selector->last_selector();
+  ASSERT_TRUE(adjacent_selector);
+  cssom::CompoundSelector* compound_selector =
+      adjacent_selector->last_selector();
+  ASSERT_TRUE(compound_selector);
+  ASSERT_EQ(1, compound_selector->selectors().size());
+  cssom::BeforePseudoElement* before_pseudo_element =
+      dynamic_cast<cssom::BeforePseudoElement*>(
+          const_cast<cssom::Selector*>(compound_selector->selectors()[0]));
+  ASSERT_TRUE(before_pseudo_element);
 }
 
 TEST_F(ParserTest, ParsesEmptyPseudoClass) {
@@ -1176,6 +1270,41 @@ TEST_F(ParserTest, Parses6DigitColor) {
       dynamic_cast<cssom::RGBAColorValue*>(style->color().get());
   ASSERT_TRUE(color);
   EXPECT_EQ(0x0047abff, color->value());
+}
+
+TEST_F(ParserTest, ParsesNoneContent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("content: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->content());
+}
+
+TEST_F(ParserTest, ParsesNormalContent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("content: normal;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->content());
+}
+
+TEST_F(ParserTest, ParsesURLContent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("content: url(foo.png);", source_location_);
+
+  scoped_refptr<cssom::URLValue> content_image =
+      dynamic_cast<cssom::URLValue*>(style->content().get());
+  ASSERT_TRUE(content_image);
+  EXPECT_EQ("foo.png", content_image->value());
+}
+
+TEST_F(ParserTest, ParsesStringContent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("content: \"cobalt FTW!\";",
+                                   source_location_);
+
+  scoped_refptr<cssom::StringValue> content =
+      dynamic_cast<cssom::StringValue*>(style->content().get());
+  ASSERT_TRUE(content);
+  EXPECT_EQ("cobalt FTW!", content->value());
 }
 
 TEST_F(ParserTest, ParsesRGBColorWithOutOfRangeIntegers) {

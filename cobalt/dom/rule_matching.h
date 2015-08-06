@@ -34,8 +34,7 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
 // matching rules to |matching_rules|;
 void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
-    HTMLElement* element, cssom::RulesWithCascadePriority* matching_rules,
-    cssom::Origin origin);
+    HTMLElement* element, cssom::Origin origin);
 
 }  // namespace dom
 }  // namespace cobalt

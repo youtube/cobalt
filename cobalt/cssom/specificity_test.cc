@@ -21,7 +21,6 @@
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/descendant_combinator.h"
-#include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/type_selector.h"
 #include "testing/gtest/include/gtest/gtest.h"

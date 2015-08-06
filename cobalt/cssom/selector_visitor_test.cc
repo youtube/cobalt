@@ -17,6 +17,8 @@
 #include "cobalt/cssom/selector_visitor.h"
 
 #include "cobalt/cssom/adjacent_selector.h"
+#include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
@@ -31,6 +33,10 @@ namespace cssom {
 
 class MockSelectorVisitor : public SelectorVisitor {
  public:
+  MOCK_METHOD1(VisitAfterPseudoElement,
+               void(AfterPseudoElement* after_pseudo_element));
+  MOCK_METHOD1(VisitBeforePseudoElement,
+               void(BeforePseudoElement* before_pseudo_element));
   MOCK_METHOD1(VisitClassSelector, void(ClassSelector* class_selector));
   MOCK_METHOD1(VisitEmptyPseudoClass,
                void(EmptyPseudoClass* empty_pseudo_class));
@@ -43,6 +49,20 @@ class MockSelectorVisitor : public SelectorVisitor {
                void(AdjacentSelector* adjacent_selector));
   MOCK_METHOD1(VisitComplexSelector, void(ComplexSelector* complex_selector));
 };
+
+TEST(SelectorVisitorTest, VisitsAfterPseudoElement) {
+  AfterPseudoElement after_pseudo_element;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitAfterPseudoElement(&after_pseudo_element));
+  after_pseudo_element.Accept(&mock_visitor);
+}
+
+TEST(SelectorVisitorTest, VisitsBeforePseudoElement) {
+  BeforePseudoElement before_pseudo_element;
+  MockSelectorVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitBeforePseudoElement(&before_pseudo_element));
+  before_pseudo_element.Accept(&mock_visitor);
+}
 
 TEST(SelectorVisitorTest, VisitsClassSelector) {
   ClassSelector class_selector("my-class");

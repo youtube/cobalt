@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -41,6 +42,12 @@ class LengthValue : public PropertyValue {
 
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
+
+  std::string ToString() OVERRIDE {
+    return base::StringPrintf(
+        "%f%s", value_,
+        unit_ == kFontSizesAkaEmUnit ? "em" : unit_ == kPixelsUnit ? "px" : "");
+  }
 
   bool operator==(const LengthValue& other) const {
     return value_ == other.value_ && unit_ == other.unit_;

@@ -125,6 +125,7 @@
         'performance_timing.h',
         'progress_event.cc',
         'progress_event.h',
+        'pseudo_element.h',
         'rule_matching.cc',
         'rule_matching.h',
         'script_event_listener.cc',
