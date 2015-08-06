@@ -24,7 +24,7 @@ namespace script {
 namespace javascriptcore {
 
 void JSCExceptionState::SetException(
-    const scoped_refptr<Wrappable>& exception) {
+    const scoped_refptr<ScriptException>& exception) {
   DCHECK(thread_checker_.CalledOnValidThread());
   JSC::JSLockHolder lock(&global_object_->globalData());
   exception_ =

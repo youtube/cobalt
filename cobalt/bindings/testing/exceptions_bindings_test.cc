@@ -52,13 +52,13 @@ class ExceptionObjectSetter {
   explicit ExceptionObjectSetter(
       const scoped_refptr<ExceptionObjectInterface>& exception)
       : exception_object_(
-            make_scoped_refptr<script::Wrappable>(exception.get())) {}
+            make_scoped_refptr<script::ScriptException>(exception.get())) {}
   void FireException(script::ExceptionState* exception) {
     exception->SetException(exception_object_);
   }
 
  private:
-  scoped_refptr<script::Wrappable> exception_object_;
+  scoped_refptr<script::ScriptException> exception_object_;
 };
 }  // namespace
 
@@ -120,6 +120,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
   InSequence in_sequence_dummy;
   EXPECT_CALL(test_mock(), FunctionThrowsException(_)).WillOnce(
       Invoke(&exception_setter, &ExceptionObjectSetter::FireException));
+  EXPECT_CALL(*exception_object, message()).WillOnce(Return("the message"));
   EXPECT_TRUE(EvaluateScript(
       "var error = null;"
       "try { test.functionThrowsException(); }"

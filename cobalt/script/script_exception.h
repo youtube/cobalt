@@ -13,28 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef SCRIPT_SCRIPT_EXCEPTION_H_
+#define SCRIPT_SCRIPT_EXCEPTION_H_
 
-#ifndef BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
-#define BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
-
-#include "cobalt/script/script_exception.h"
-#include "testing/gmock/include/gmock/gmock.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
-namespace bindings {
-namespace testing {
+namespace script {
 
-class ExceptionObjectInterface : public script::ScriptException {
+class ScriptException : public Wrappable {
  public:
-  MOCK_CONST_METHOD0(error, std::string());
-  MOCK_CONST_METHOD0(message, std::string());
-  MOCK_CONST_METHOD0(name, std::string());
-
-  DEFINE_WRAPPABLE_TYPE(ExceptionObjectInterface);
+  virtual std::string message() const = 0;
+  virtual std::string name() const = 0;
 };
 
-}  // namespace testing
-}  // namespace bindings
+}  // namespace script
 }  // namespace cobalt
 
-#endif  // BINDINGS_TESTING_EXCEPTION_OBJECT_INTERFACE_H_
+
+#endif  // SCRIPT_SCRIPT_EXCEPTION_H_
