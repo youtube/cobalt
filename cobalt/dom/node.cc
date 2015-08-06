@@ -77,7 +77,14 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   return !event->default_prevented();
 }
 
-scoped_refptr<Document> Node::owner_document() { return owner_document_.get(); }
+// Return NULL if the node itself is Document.
+//   http://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
+scoped_refptr<Document> Node::owner_document() const {
+  if (owner_document_ == this) {
+    return NULL;
+  }
+  return owner_document_.get();
+}
 
 scoped_refptr<Element> Node::parent_element() const {
   return parent_ ? parent_->AsElement() : NULL;
@@ -85,7 +92,7 @@ scoped_refptr<Element> Node::parent_element() const {
 
 bool Node::HasChildNodes() const { return first_child_ != NULL; }
 
-scoped_refptr<NodeList> Node::child_nodes() {
+scoped_refptr<NodeList> Node::child_nodes() const {
   return NodeList::CreateWithChildren(this);
 }
 
@@ -163,8 +170,9 @@ scoped_refptr<Node> Node::InsertBefore(
   new_child->next_sibling_ = next_sibling;
 
   new_child->UpdateNodeGeneration();
-  if (owner_document_) {
-    new_child->AttachToDocument(owner_document_.get());
+
+  if (inserted_into_document_) {
+    new_child->OnInsertedIntoDocument();
     owner_document_->OnDOMMutation();
   }
 
@@ -252,9 +260,9 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   }
 
   // Custom, not in any spec.
-  scoped_refptr<Document> previous_owner_document = node->owner_document_.get();
-  if (previous_owner_document) {
-    node->DetachFromDocument();
+  bool was_inserted_to_document = node->inserted_into_document_;
+  if (was_inserted_to_document) {
+    node->OnRemovedFromDocument();
   }
   node->UpdateNodeGeneration();
 
@@ -276,8 +284,8 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   node->next_sibling_ = NULL;
 
   // Custom, not in any spec.
-  if (previous_owner_document) {
-    previous_owner_document->OnDOMMutation();
+  if (was_inserted_to_document) {
+    node->owner_document()->OnDOMMutation();
   }
 
   return node;
@@ -353,30 +361,36 @@ scoped_refptr<Element> Node::AsElement() { return NULL; }
 
 scoped_refptr<Text> Node::AsText() { return NULL; }
 
-Node::Node() : node_generation_(kInitialNodeGeneration) {
+Node::Node(Document* document)
+    : owner_document_(base::AsWeakPtr(document)),
+      inserted_into_document_(false),
+      node_generation_(kInitialNodeGeneration) {
+  DCHECK(owner_document_);
+
   Stats::GetInstance()->Add(this);
 }
 
 Node::~Node() { Stats::GetInstance()->Remove(this); }
 
-void Node::AttachToDocument(Document* document) {
-  DCHECK(!owner_document_);
-  owner_document_ = base::AsWeakPtr(document);
+void Node::OnInsertedIntoDocument() {
+  DCHECK(owner_document_);
+  DCHECK(!inserted_into_document_);
+  inserted_into_document_ = true;
 
   Node* child = first_child_;
   while (child) {
-    child->AttachToDocument(document);
+    child->OnInsertedIntoDocument();
     child = child->next_sibling_;
   }
 }
 
-void Node::DetachFromDocument() {
-  DCHECK(owner_document_);
-  owner_document_.reset();
+void Node::OnRemovedFromDocument() {
+  DCHECK(inserted_into_document_);
+  inserted_into_document_ = false;
 
   Node* child = first_child_;
   while (child) {
-    child->DetachFromDocument();
+    child->OnRemovedFromDocument();
     child = child->next_sibling_;
   }
 }

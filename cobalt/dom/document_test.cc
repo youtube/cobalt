@@ -86,8 +86,8 @@ TEST_F(DocumentTest, DocumentElement) {
       new Document(&html_element_context_, Document::Options());
   EXPECT_EQ(NULL, document->document_element());
 
-  scoped_refptr<Text> text = new Text("test_text");
-  scoped_refptr<Element> element = new Element();
+  scoped_refptr<Text> text = new Text(document, "test_text");
+  scoped_refptr<Element> element = new Element(document);
   document->AppendChild(text);
   document->AppendChild(element);
   EXPECT_EQ(element, document->document_element());
@@ -101,8 +101,7 @@ TEST_F(DocumentTest, CreateElement) {
   EXPECT_EQ(Node::kElementNode, element->node_type());
   EXPECT_EQ("#element", element->node_name());
 
-  // Make sure that the element is not attached to anything.
-  EXPECT_EQ(NULL, element->owner_document());
+  EXPECT_EQ(document, element->owner_document());
   EXPECT_EQ(NULL, element->parent_node());
   EXPECT_EQ(NULL, element->first_child());
   EXPECT_EQ(NULL, element->last_child());
@@ -116,9 +115,7 @@ TEST_F(DocumentTest, CreateTextNode) {
   EXPECT_EQ(Node::kTextNode, text->node_type());
   EXPECT_EQ("#text", text->node_name());
   EXPECT_EQ("test_text", text->data());
-
-  // Make sure that the text is not attached to anything.
-  EXPECT_EQ(NULL, text->owner_document());
+  EXPECT_EQ(document, text->owner_document());
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
@@ -144,11 +141,11 @@ TEST_F(DocumentTest, GetElementById) {
   //       c1
   //   a2
   //     d1
-  scoped_refptr<Node> a1 = document->AppendChild(new Element());
-  scoped_refptr<Node> a2 = document->AppendChild(new Element());
-  scoped_refptr<Node> b1 = a1->AppendChild(new Element());
-  scoped_refptr<Node> c1 = b1->AppendChild(new Element());
-  scoped_refptr<Node> d1 = a2->AppendChild(new Element());
+  scoped_refptr<Node> a1 = document->AppendChild(new Element(document));
+  scoped_refptr<Node> a2 = document->AppendChild(new Element(document));
+  scoped_refptr<Node> b1 = a1->AppendChild(new Element(document));
+  scoped_refptr<Node> c1 = b1->AppendChild(new Element(document));
+  scoped_refptr<Node> d1 = a2->AppendChild(new Element(document));
 
   EXPECT_EQ(NULL, document->GetElementById("id"));
 
@@ -169,11 +166,11 @@ TEST_F(DocumentTest, OwnerDocument) {
   //     element2
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
-  scoped_refptr<Node> element1 = new Element();
-  scoped_refptr<Node> element2 = new Element();
+  scoped_refptr<Node> element1 = new Element(document);
+  scoped_refptr<Node> element2 = new Element(document);
 
   EXPECT_EQ(NULL, document->owner_document());
-  EXPECT_EQ(NULL, element1->owner_document());
+  EXPECT_EQ(document, element1->owner_document());
 
   element1->AppendChild(element2);
   document->AppendChild(element1);
@@ -182,8 +179,8 @@ TEST_F(DocumentTest, OwnerDocument) {
   EXPECT_EQ(document, element2->owner_document());
 
   document->RemoveChild(element1);
-  EXPECT_EQ(NULL, element1->owner_document());
-  EXPECT_EQ(NULL, element2->owner_document());
+  EXPECT_EQ(document, element1->owner_document());
+  EXPECT_EQ(document, element2->owner_document());
 }
 
 TEST_F(DocumentTest, Implementation) {
@@ -204,20 +201,20 @@ TEST_F(DocumentTest, StyleSheets) {
 
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          HTMLStyleElement::kTagName);
+          document, HTMLStyleElement::kTagName);
   element1->set_text_content(
       std::string("body { background-color: lightgray }"));
   document->AppendChild(element1);
 
   scoped_refptr<HTMLElement> element2 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          HTMLStyleElement::kTagName);
+          document, HTMLStyleElement::kTagName);
   element2->set_text_content(std::string("h1 { color: blue }"));
   document->AppendChild(element2);
 
   scoped_refptr<HTMLElement> element3 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
-          HTMLStyleElement::kTagName);
+          document, HTMLStyleElement::kTagName);
   element3->set_text_content(std::string("p { color: green }"));
   document->AppendChild(element3);
 
@@ -232,9 +229,11 @@ TEST_F(DocumentTest, QuerySelector) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
   document->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
+      html_element_context_.html_element_factory()->CreateHTMLElement(document,
+                                                                      "div"));
   document->AppendChild(
-      html_element_context_.html_element_factory()->CreateHTMLElement("div"));
+      html_element_context_.html_element_factory()->CreateHTMLElement(document,
+                                                                      "div"));
   document->QuerySelector("div");
   EXPECT_FALSE(document->QuerySelector("span"));
   // QuerySelector should return first matching child.

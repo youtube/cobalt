@@ -32,7 +32,7 @@ class HTMLBodyElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLBodyElement(HTMLElementContext* html_element_context);
+  HTMLBodyElement(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -45,8 +45,8 @@ class HTMLBodyElement : public HTMLElement {
  private:
   ~HTMLBodyElement() OVERRIDE;
 
-  void AttachToDocument(Document* document) OVERRIDE;
-  void DetachFromDocument() OVERRIDE;
+  void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 };
 
 }  // namespace dom

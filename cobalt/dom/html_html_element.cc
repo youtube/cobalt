@@ -24,8 +24,9 @@ namespace dom {
 // static
 const char* HTMLHtmlElement::kTagName = "html";
 
-HTMLHtmlElement::HTMLHtmlElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLHtmlElement::HTMLHtmlElement(Document* document,
+                                 HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLHtmlElement::tag_name() const {
   return kTagName;
@@ -33,14 +34,14 @@ std::string HTMLHtmlElement::tag_name() const {
 
 HTMLHtmlElement::~HTMLHtmlElement() {}
 
-void HTMLHtmlElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLHtmlElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
   owner_document()->SetHtmlInternal(this);
 }
 
-void HTMLHtmlElement::DetachFromDocument() {
+void HTMLHtmlElement::OnRemovedFromDocument() {
   owner_document()->SetHtmlInternal(NULL);
-  Node::DetachFromDocument();
+  Node::OnRemovedFromDocument();
 }
 
 }  // namespace dom

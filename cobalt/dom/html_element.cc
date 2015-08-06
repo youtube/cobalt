@@ -43,7 +43,7 @@ namespace dom {
 scoped_refptr<Node> HTMLElement::Duplicate() const {
   HTMLElement* new_html_element =
       html_element_context_->html_element_factory()->CreateHTMLElement(
-          tag_name());
+          owner_document(), tag_name());
   new_html_element->attribute_map_ = attribute_map_;
   return new_html_element;
 }
@@ -72,8 +72,9 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
   return NULL;
 }
 
-HTMLElement::HTMLElement(HTMLElementContext* html_element_context)
-    : Element(html_element_context),
+HTMLElement::HTMLElement(Document* document,
+                         HTMLElementContext* html_element_context)
+    : Element(document, html_element_context),
       style_(new cssom::CSSStyleDeclaration(
           html_element_context ? html_element_context->css_parser() : NULL)),
       computed_style_valid_(false) {
