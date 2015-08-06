@@ -81,9 +81,7 @@ HTMLMediaElement::~HTMLMediaElement() {
   SetSourceState(MediaSource::kReadyStateClosed);
 }
 
-std::string HTMLMediaElement::tag_name() const {
-  return kTagName;
-}
+std::string HTMLMediaElement::tag_name() const { return kTagName; }
 
 std::string HTMLMediaElement::src() const {
   return GetAttribute("src").value_or("");
