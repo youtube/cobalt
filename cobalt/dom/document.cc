@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
@@ -41,7 +42,8 @@ namespace dom {
 
 Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
-    : html_element_context_(html_element_context),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
+      html_element_context_(html_element_context),
       implementation_(new DOMImplementation(html_element_context)),
       location_(new Location(options.url)),
       url_(options.url),
@@ -52,6 +54,9 @@ Document::Document(HTMLElementContext* html_element_context,
       rule_matches_dirty_(true),
       computed_style_dirty_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
+  // Call OnInsertedIntoDocument() immediately to ensure that the Document
+  // object itself is considered to be "in the document".
+  OnInsertedIntoDocument();
 }
 
 std::string Document::node_name() const {
@@ -61,19 +66,6 @@ std::string Document::node_name() const {
 
 scoped_refptr<Element> Document::document_element() {
   return first_element_child();
-}
-
-scoped_refptr<Node> Document::InsertBefore(
-    const scoped_refptr<Node>& new_child,
-    const scoped_refptr<Node>& reference_child) {
-  Node::InsertBefore(new_child, reference_child);
-  // After inserting a child to Document, the child needs to be attached to the
-  // Document. This is because Document's owner_document is NULL, so the
-  // attachment won't happen in Node::InsertBefore(). Same is true for
-  // the mutation recording.
-  new_child->AttachToDocument(this);
-  RecordMutation();
-  return new_child;
 }
 
 scoped_refptr<DOMImplementation> Document::implementation() {
@@ -90,17 +82,17 @@ scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
 }
 
-scoped_refptr<Element> Document::CreateElement() { return new Element(); }
+scoped_refptr<Element> Document::CreateElement() { return new Element(this); }
 
 scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
   DCHECK(html_element_context_);
   DCHECK(html_element_context_->html_element_factory());
   return html_element_context_->html_element_factory()->CreateHTMLElement(
-      tag_name);
+      this, tag_name);
 }
 
 scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
-  return new Text(text);
+  return new Text(this, text);
 }
 
 scoped_refptr<Event> Document::CreateEvent(const std::string& interface_name) {

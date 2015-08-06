@@ -22,8 +22,9 @@ namespace dom {
 // static
 const char* HTMLSpanElement::kTagName = "span";
 
-HTMLSpanElement::HTMLSpanElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLSpanElement::HTMLSpanElement(Document* document,
+                                 HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLSpanElement::tag_name() const {
   return kTagName;

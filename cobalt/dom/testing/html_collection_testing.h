@@ -17,6 +17,7 @@
 #ifndef DOM_TESTING_HTML_COLLECTION_TESTING_H_
 #define DOM_TESTING_HTML_COLLECTION_TESTING_H_
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
@@ -46,6 +47,13 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   const scoped_refptr<Node> kNullNode;
   const scoped_refptr<HTMLCollection> kNullCollection;
 
+  Document* document = node->owner_document().get();
+
+  if (!document) {
+    document = node->AsDocument().get();
+    DCHECK(document);
+  }
+
   // Construct a tree:
   // node
   //   a1
@@ -54,12 +62,12 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   //   a2
   //     d1
   //     d2
-  scoped_refptr<Node> a1 = node->AppendChild(new Element());
-  scoped_refptr<Node> a2 = node->AppendChild(new Element());
-  scoped_refptr<Node> b1 = a1->AppendChild(new Element());
-  scoped_refptr<Node> c1 = b1->AppendChild(new Element());
-  scoped_refptr<Node> d1 = a2->AppendChild(new Element());
-  scoped_refptr<Node> d2 = a2->AppendChild(new Element());
+  scoped_refptr<Node> a1 = node->AppendChild(new Element(document));
+  scoped_refptr<Node> a2 = node->AppendChild(new Element(document));
+  scoped_refptr<Node> b1 = a1->AppendChild(new Element(document));
+  scoped_refptr<Node> c1 = b1->AppendChild(new Element(document));
+  scoped_refptr<Node> d1 = a2->AppendChild(new Element(document));
+  scoped_refptr<Node> d2 = a2->AppendChild(new Element(document));
 
   scoped_refptr<HTMLCollection> collection =
       node->GetElementsByClassName("class");
@@ -131,6 +139,12 @@ template <typename T>
 void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   const scoped_refptr<Node> kNullNode;
   const scoped_refptr<HTMLCollection> kNullCollection;
+  Document* document = node->owner_document().get();
+
+  if (!document) {
+    document = node->AsDocument().get();
+    DCHECK(document);
+  }
 
   // Construct a tree:
   // node
@@ -140,19 +154,19 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   //   a3
   //     d1
   HTMLElementFactory html_element_factory(NULL);
-  html_element_factory.CreateHTMLElement("a1");
+  html_element_factory.CreateHTMLElement(document, "a1");
 
   scoped_refptr<Node> a1 =
-      node->AppendChild(html_element_factory.CreateHTMLElement("a1"));
+      node->AppendChild(html_element_factory.CreateHTMLElement(document, "a1"));
 
   scoped_refptr<Node> a3 =
-      node->AppendChild(html_element_factory.CreateHTMLElement("a2"));
+      node->AppendChild(html_element_factory.CreateHTMLElement(document, "a2"));
   scoped_refptr<Node> b1 =
-      a1->AppendChild(html_element_factory.CreateHTMLElement("b1"));
+      a1->AppendChild(html_element_factory.CreateHTMLElement(document, "b1"));
   scoped_refptr<Node> c1 =
-      b1->AppendChild(html_element_factory.CreateHTMLElement("tag"));
+      b1->AppendChild(html_element_factory.CreateHTMLElement(document, "tag"));
   scoped_refptr<Node> d1 =
-      a3->AppendChild(html_element_factory.CreateHTMLElement("tag"));
+      a3->AppendChild(html_element_factory.CreateHTMLElement(document, "tag"));
 
   // GetElementsByTagName should return all elements when provided with
   // parameter "*".
@@ -183,8 +197,8 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   EXPECT_EQ(d1, collection->NamedItem("id"));
 
   // Add a new node with a matching tag.
-  scoped_refptr<Node> a2 =
-      node->InsertBefore(html_element_factory.CreateHTMLElement("tag"), a3);
+  scoped_refptr<Node> a2 = node->InsertBefore(
+      html_element_factory.CreateHTMLElement(document, "tag"), a3);
   EXPECT_EQ(3, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(a2, collection->Item(1));

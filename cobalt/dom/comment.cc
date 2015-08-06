@@ -16,10 +16,22 @@
 
 #include "cobalt/dom/comment.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_settings.h"
+
 namespace cobalt {
 namespace dom {
 
-Comment::Comment(const base::StringPiece& comment) : CharacterData(comment) {}
+Comment::Comment(script::EnvironmentSettings* env_settings,
+                 const base::StringPiece& comment)
+    : CharacterData(base::polymorphic_downcast<DOMSettings*>(env_settings)
+                        ->window()
+                        ->document(),
+                    comment) {}
+
+Comment::Comment(Document* document, const base::StringPiece& comment)
+    : CharacterData(document, comment) {}
 
 std::string Comment::node_name() const {
   static const char* kCommentName = "#comment";
@@ -29,6 +41,10 @@ std::string Comment::node_name() const {
 void Comment::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Comment::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
+
+scoped_refptr<Node> Comment::Duplicate() const {
+  return new Comment(owner_document(), data());
+}
 
 }  // namespace dom
 }  // namespace cobalt

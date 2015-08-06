@@ -48,8 +48,9 @@ const char HTMLMediaElement::kTagName[] = "video";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
-HTMLMediaElement::HTMLMediaElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context),
+HTMLMediaElement::HTMLMediaElement(Document* document,
+                                   HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.0f),
@@ -398,8 +399,8 @@ void HTMLMediaElement::set_muted(bool muted) {
   }
 }
 
-void HTMLMediaElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLMediaElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
 
   std::string src = GetAttribute("src").value_or("");
   if (!src.empty()) {

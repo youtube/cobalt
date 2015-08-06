@@ -21,6 +21,7 @@
 
 #include "base/string_piece.h"
 #include "cobalt/dom/character_data.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -31,7 +32,9 @@ namespace dom {
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-comment
 class Comment : public CharacterData {
  public:
-  explicit Comment(const base::StringPiece& comment);
+  Comment(script::EnvironmentSettings* env_settings,
+          const base::StringPiece& comment);
+  Comment(Document* document, const base::StringPiece& comment);
 
   // Web API: Node
   //
@@ -47,7 +50,7 @@ class Comment : public CharacterData {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE { return new Comment(data()); }
+  scoped_refptr<Node> Duplicate() const OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(Comment);
 

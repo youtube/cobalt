@@ -16,7 +16,9 @@
 
 #include "cobalt/dom/comment.h"
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/stats.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
@@ -33,13 +35,19 @@ class CommentTest : public ::testing::Test {
  protected:
   CommentTest();
   ~CommentTest() OVERRIDE;
+
+  HTMLElementContext html_element_context_;
+  scoped_refptr<Document> document_;
 };
 
-CommentTest::CommentTest() {
+CommentTest::CommentTest()
+    : html_element_context_(NULL, NULL, NULL, NULL) {
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
+  document_ = new Document(&html_element_context_, Document::Options());
 }
 
 CommentTest::~CommentTest() {
+  document_ = NULL;
   EXPECT_TRUE(Stats::GetInstance()->CheckNoLeaks());
 }
 
@@ -48,10 +56,11 @@ CommentTest::~CommentTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(CommentTest, CommentCheckAttach) {
-  scoped_refptr<Element> root = new Element();
+  scoped_refptr<Element> root = new Element(document_);
 
-  scoped_refptr<Node> comment = root->AppendChild(new Comment("comment"));
-  scoped_refptr<Node> text = new Text("text");
+  scoped_refptr<Node> comment =
+      root->AppendChild(new Comment(document_, "comment"));
+  scoped_refptr<Node> text = new Text(document_, "text");
 
   // Checks that we can't attach text nodes to comment nodes.
   EXPECT_EQ(NULL, comment->AppendChild(text));
@@ -59,21 +68,21 @@ TEST_F(CommentTest, CommentCheckAttach) {
 }
 
 TEST_F(CommentTest, NodeValue) {
-  scoped_refptr<Comment> comment = new Comment("comment");
+  scoped_refptr<Comment> comment = new Comment(document_, "comment");
   EXPECT_EQ("comment", comment->node_value().value());
 }
 
 TEST_F(CommentTest, TextContent) {
-  scoped_refptr<Comment> comment = new Comment("comment");
+  scoped_refptr<Comment> comment = new Comment(document_, "comment");
   EXPECT_EQ("comment", comment->text_content().value());
 }
 
 TEST_F(CommentTest, InnerHTML) {
-  scoped_refptr<Element> root = new Element();
+  scoped_refptr<Element> root = new Element(document_);
 
-  root->AppendChild(new Text("t1"));
-  root->AppendChild(new Comment("comment"));
-  root->AppendChild(new Text("t2"));
+  root->AppendChild(new Text(document_, "t1"));
+  root->AppendChild(new Comment(document_, "comment"));
+  root->AppendChild(new Text(document_, "t2"));
 
   EXPECT_EQ("t1<!--comment-->t2", root->inner_html());
 }

@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/node.h"
 
 namespace cobalt {
@@ -28,10 +29,14 @@ namespace dom {
 //   http://www.w3.org/TR/2015/WD-dom-20150618/#documenttype
 class DocumentType : public Node {
  public:
-  explicit DocumentType(const std::string& name) : name_(name) {}
-  DocumentType(const std::string& name, const std::string& public_id,
-               const std::string& system_id)
-      : name_(name), public_id_(public_id), system_id_(system_id) {}
+  DocumentType(Document* document, const std::string& name)
+      : Node(document), name_(name) {}
+  DocumentType(Document* document, const std::string& name,
+               const std::string& public_id, const std::string& system_id)
+      : Node(document),
+        name_(name),
+        public_id_(public_id),
+        system_id_(system_id) {}
 
   // WebAPI: Node
   NodeType node_type() const OVERRIDE { return Node::kDocumentTypeNode; }
@@ -52,7 +57,7 @@ class DocumentType : public Node {
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
   scoped_refptr<Node> Duplicate() const OVERRIDE {
-    return new DocumentType(name_, public_id_, system_id_);
+    return new DocumentType(owner_document(), name_, public_id_, system_id_);
   }
 
   DEFINE_WRAPPABLE_TYPE(DocumentType);

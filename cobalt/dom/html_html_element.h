@@ -32,7 +32,7 @@ class HTMLHtmlElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLHtmlElement(HTMLElementContext* html_element_context);
+  HTMLHtmlElement(Document* document, HTMLElementContext* html_element_context);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -45,8 +45,8 @@ class HTMLHtmlElement : public HTMLElement {
  private:
   ~HTMLHtmlElement() OVERRIDE;
 
-  void AttachToDocument(Document* document) OVERRIDE;
-  void DetachFromDocument() OVERRIDE;
+  void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 };
 
 }  // namespace dom

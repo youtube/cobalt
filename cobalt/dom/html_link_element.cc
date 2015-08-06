@@ -31,15 +31,16 @@ namespace dom {
 // static
 const char* HTMLLinkElement::kTagName = "link";
 
-HTMLLinkElement::HTMLLinkElement(HTMLElementContext* html_element_context)
-    : HTMLElement(html_element_context) {}
+HTMLLinkElement::HTMLLinkElement(Document* document,
+                                 HTMLElementContext* html_element_context)
+    : HTMLElement(document, html_element_context) {}
 
 std::string HTMLLinkElement::tag_name() const {
   return kTagName;
 }
 
-void HTMLLinkElement::AttachToDocument(Document* document) {
-  HTMLElement::AttachToDocument(document);
+void HTMLLinkElement::OnInsertedIntoDocument() {
+  HTMLElement::OnInsertedIntoDocument();
   Obtain();
 }
 

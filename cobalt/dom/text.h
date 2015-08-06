@@ -21,6 +21,8 @@
 
 #include "base/string_piece.h"
 #include "cobalt/dom/character_data.h"
+#include "cobalt/dom/document.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,7 +31,9 @@ namespace dom {
 //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-text
 class Text : public CharacterData {
  public:
-  explicit Text(const base::StringPiece& text);
+  Text(script::EnvironmentSettings* env_settings,
+       const base::StringPiece& comment);
+  Text(Document* document, const base::StringPiece& text);
 
   // Web API: Node
   //
@@ -45,7 +49,9 @@ class Text : public CharacterData {
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE { return new Text(data()); }
+  scoped_refptr<Node> Duplicate() const OVERRIDE {
+    return new Text(owner_document(), data());
+  }
 
   DEFINE_WRAPPABLE_TYPE(Text);
 
