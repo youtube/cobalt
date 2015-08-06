@@ -17,6 +17,8 @@
 #include "cobalt/cssom/css_style_sheet.h"
 
 #include "cobalt/cssom/adjacent_selector.h"
+#include "cobalt/cssom/after_pseudo_element.h"
+#include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
@@ -44,6 +46,16 @@ class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
  public:
   RuleIndexer(CSSStyleRule* css_style_rule, CSSStyleSheet* css_style_sheet)
       : css_style_rule_(css_style_rule), css_style_sheet_(css_style_sheet) {}
+
+  void VisitAfterPseudoElement(
+      AfterPseudoElement* /* after_pseudo_element */) OVERRIDE {
+    // Do nothing.
+  }
+
+  void VisitBeforePseudoElement(
+      BeforePseudoElement* /* before_pseudo_element */) OVERRIDE {
+    // Do nothing.
+  }
 
   void VisitClassSelector(ClassSelector* class_selector) OVERRIDE {
     StringToCSSRuleSetMap& rules_map =

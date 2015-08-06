@@ -160,6 +160,14 @@ void CSSStyleDeclaration::set_color(const std::string& color) {
   SetPropertyValue(kColorPropertyName, color);
 }
 
+std::string CSSStyleDeclaration::content() const {
+  return data_->content() ? data_->content()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_content(const std::string& content) {
+  SetPropertyValue(kContentPropertyName, content);
+}
+
 std::string CSSStyleDeclaration::display() const {
   return data_->display() ? data_->display()->ToString() : "";
 }

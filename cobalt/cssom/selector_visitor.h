@@ -21,6 +21,8 @@ namespace cobalt {
 namespace cssom {
 
 class AdjacentSelector;
+class AfterPseudoElement;
+class BeforePseudoElement;
 class ClassSelector;
 class ComplexSelector;
 class CompoundSelector;
@@ -34,6 +36,10 @@ class TypeSelector;
 class SelectorVisitor {
  public:
   // Simple selectors.
+  virtual void VisitAfterPseudoElement(
+      AfterPseudoElement* after_pseudo_element) = 0;
+  virtual void VisitBeforePseudoElement(
+      BeforePseudoElement* before_pseudo_element) = 0;
   virtual void VisitClassSelector(ClassSelector* class_selector) = 0;
   virtual void VisitEmptyPseudoClass(EmptyPseudoClass* empty_pseudo_class) = 0;
   virtual void VisitIdSelector(IdSelector* id_selector) = 0;

@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -33,6 +34,8 @@ class NumberValue : public PropertyValue {
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   float value() const { return value_; }
+
+  std::string ToString() OVERRIDE { return base::StringPrintf("%f", value_); }
 
 
   bool operator==(const NumberValue& other) const {

@@ -36,6 +36,9 @@
 10-8-1-vertical-align-potential-baseline-vs-bottom-confusion
 10-8-baseline-of-inline-block-should-be-baseline-of-last-line-box
 10-8-line-height-should-specify-minimum-height-of-line-boxes
+12-1-after-pseudoelement
+12-1-after-pseudoelement-simple
+12-1-before-pseudoelement
 16-2-text-align-can-be-left-center-right
 16-2-text-align-should-not-apply-when-child-boxes-overflow
 9-2-1-1-anonymous-block-boxes-should-be-ignored-when-resolving-percentages
