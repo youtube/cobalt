@@ -38,10 +38,14 @@ bool ContainsAAC51(const std::vector<std::string>& codecs) {
 }
 
 bool HasAAC51HardwareSupport() {
+#if defined(__LB_XB1__) || defined(__LB_XB360__)
+  return false;
+#else  // defined(__LB_XB1__) || defined(__LB_XB360__)
   ShellAudioStreamer* streamer = ShellAudioStreamer::Instance();
   DCHECK(streamer);
 
   return streamer->GetConfig().max_hardware_channels() >= 6;
+#endif  // defined(__LB_XB1__) || defined(__LB_XB360__)
 }
 
 // Parse mime and codecs from content type. It will return "video/mp4" and
