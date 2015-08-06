@@ -20,6 +20,7 @@
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/string_value.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/node.h"
 #include "third_party/icu/public/common/unicode/brkiter.h"
 
@@ -27,7 +28,6 @@ namespace cobalt {
 
 namespace dom {
 class HTMLMediaElement;
-class HTMLElement;
 }  // namespace dom
 
 namespace layout {
@@ -66,6 +66,10 @@ class BoxGenerator : public dom::NodeVisitor {
  private:
   void VisitMediaElement(dom::HTMLMediaElement* media_element);
   void VisitNonReplacedElement(dom::HTMLElement* html_element);
+
+  void AppendChildBoxToLine(Box* child_box_ptr);
+  void AppendPseudoElementToLine(dom::HTMLElement* html_element,
+                                 dom::PseudoElementType pseudo_element_type);
 
   const scoped_refptr<const cssom::CSSStyleDeclarationData>
       parent_computed_style_;
