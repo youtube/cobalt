@@ -63,31 +63,32 @@ struct SupportedTypeInfo {
 
 #if defined(__LB_SHELL__)
 #if defined(__LB_PS4__)
+
 static const CodecInfo kVP9CodecInfo = { "vp9", DemuxerStream::VIDEO };
-#endif  // defined(__LB_PS4__)
-#else  // defined(__LB_SHELL__)
-static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
-static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
-#endif  // defined(__LB_SHELL__)
 
 static const CodecInfo* kVideoWebMCodecs[] = {
-#if defined(__LB_SHELL__)
-#if defined(__LB_PS4__)
   &kVP9CodecInfo,
-#endif  // defined(__LB_PS4__)
-#else  // defined(__LB_SHELL__)
-  &kVP8CodecInfo,
-  &kVorbisCodecInfo,
-#endif  // defined(__LB_SHELL__)
   NULL
 };
 
-#if !defined(__LB_SHELL__)
+#endif  // defined(__LB_PS4__)
+#else  // defined(__LB_SHELL__)
+
+static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
+static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
+
+static const CodecInfo* kVideoWebMCodecs[] = {
+  &kVP8CodecInfo,
+  &kVorbisCodecInfo,
+  NULL
+};
+
 static const CodecInfo* kAudioWebMCodecs[] = {
   &kVorbisCodecInfo,
   NULL
 };
-#endif  // !defined(__LB_SHELL__)
+
+#endif  // defined(__LB_SHELL__)
 
 static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
