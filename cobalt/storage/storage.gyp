@@ -60,10 +60,19 @@
       ],
     },
     {
+      'target_name': 'storage_test_utils',
+      'type': 'static_library',
+      'sources': [
+          'savegame_fake.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+    {
       'target_name': 'storage_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'savegame_fake.cc',
         'savegame_test.cc',
         'storage_manager_test.cc',
         'virtual_file_system_test.cc',
@@ -74,6 +83,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'storage',
+        'storage_test_utils',
       ],
     },
     {
