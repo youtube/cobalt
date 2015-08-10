@@ -26,6 +26,7 @@
 #include "base/time.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame.h"
+#include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
 #include "net/cookies/canonical_cookie.h"
 #include "googleurl/src/gurl.h"
@@ -132,6 +133,7 @@ class PersistentCookieStoreTest : public ::testing::Test {
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
+    options.savegame_options.factory = &storage::SavegameFake::Create;
 
     storage_manager_.reset(new storage::StorageManager(options));
     cookie_store_ = new PersistentCookieStore(storage_manager_.get());
