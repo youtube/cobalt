@@ -17,9 +17,12 @@
 #ifndef STORAGE_SAVEGAME_FAKE_H_
 #define STORAGE_SAVEGAME_FAKE_H_
 
+#if !defined(UNIT_TEST)
+#error Only for use in unit tests
+#endif
+
 #include "cobalt/storage/savegame.h"
 
-#include "base/path_service.h"
 namespace cobalt {
 namespace storage {
 
