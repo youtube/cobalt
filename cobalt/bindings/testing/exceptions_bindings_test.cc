@@ -27,6 +27,9 @@ using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::WithArg;
 
+#define EXPECT_SUBSTRING(needle, haystack) \
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, (needle), (haystack))
+
 namespace cobalt {
 namespace bindings {
 namespace testing {
@@ -72,7 +75,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromConstructor) {
 
   std::string result;
   EXPECT_FALSE(EvaluateScript("var foo = new ExceptionsInterface();", &result));
-  EXPECT_STREQ("Error: generic error", result.c_str());
+  EXPECT_SUBSTRING("Error: generic error", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromOperation) {
@@ -83,7 +86,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromOperation) {
 
   std::string result;
   EXPECT_FALSE(EvaluateScript("test.functionThrowsException();", &result));
-  EXPECT_STREQ("TypeError: this is a type error", result.c_str());
+  EXPECT_SUBSTRING("TypeError: this is a type error", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromGetter) {
@@ -96,7 +99,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromGetter) {
   std::string result;
   EXPECT_FALSE(
       EvaluateScript("var foo = test.attributeThrowsException;", &result));
-  EXPECT_STREQ("RangeError: this is a range error", result.c_str());
+  EXPECT_SUBSTRING("RangeError: this is a range error", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
@@ -109,7 +112,7 @@ TEST_F(ExceptionsBindingsTest, ThrowExceptionFromSetter) {
   std::string result;
   EXPECT_FALSE(
       EvaluateScript("test.attributeThrowsException = true;", &result));
-  EXPECT_STREQ("ReferenceError: this is a reference error", result.c_str());
+  EXPECT_SUBSTRING("ReferenceError: this is a reference error", result.c_str());
 }
 
 TEST_F(ExceptionsBindingsTest, ThrowExceptionObject) {
