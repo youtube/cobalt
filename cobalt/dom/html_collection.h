@@ -55,6 +55,9 @@ class HTMLCollection : public script::Wrappable {
   virtual scoped_refptr<Element> Item(unsigned int item) const = 0;
   virtual scoped_refptr<Element> NamedItem(const std::string& name) const = 0;
 
+  // Custom, not in any spec.
+  virtual bool CanQueryNamedProperty(const std::string& name) const = 0;
+
   DEFINE_WRAPPABLE_TYPE(HTMLCollection);
 
  protected:

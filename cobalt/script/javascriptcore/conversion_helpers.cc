@@ -43,14 +43,19 @@ void JSValueToString(JSC::ExecState* exec_state, JSC::JSValue value,
   // TODO(***REMOVED***): Optimize this.
   JSC::JSString* js_string = value.toString(exec_state);
   const WTF::String& wtf_string = js_string->value(exec_state);
-  WTF::CString utf8_string = wtf_string.utf8();
-  *out_string = std::string(utf8_string.data(), utf8_string.length());
+  *out_string = FromWTFString(wtf_string);
 }
 
 WTF::String ToWTFString(const std::string& utf8_string) {
   DCHECK(IsStringUTF8(utf8_string));
   return WTF::String::fromUTF8(utf8_string.c_str());
 }
+
+std::string FromWTFString(const WTF::String& wtf_string) {
+  WTF::CString utf8_string = wtf_string.utf8();
+  return std::string(utf8_string.data(), utf8_string.length());
+}
+
 
 }  // namespace javascriptcore
 }  // namespace script
