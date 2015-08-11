@@ -45,6 +45,9 @@ namespace javascriptcore {
 // Convert std::string in utf8 encoding to WTFString.
 WTF::String ToWTFString(const std::string& utf8_string);
 
+// Convert WTFString to std::string in utf8.
+std::string FromWTFString(const WTF::String& wtf_string);
+
 // Convert std::string in utf8 encoding to a JSValue representing the string.
 JSC::JSValue StringToJSValue(JSC::JSGlobalData* global_data,
                              const std::string& utf8_string);

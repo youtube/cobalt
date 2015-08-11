@@ -29,6 +29,12 @@ class DerivedGetterSetterInterface : public GetterSetterInterface {
   MOCK_METHOD0(length, uint32_t());
   MOCK_METHOD1(DerivedIndexedGetter, uint32_t(uint32_t));
   MOCK_METHOD2(DerivedIndexedSetter, void(uint32_t, uint32_t));
+  MOCK_METHOD1(AnonymousNamedGetter, std::string(const std::string&));
+  MOCK_METHOD2(AnonymousNamedSetter,
+               void(const std::string&, const std::string&));
+  MOCK_METHOD0(property_on_derived_class, bool());
+  MOCK_METHOD1(set_property_on_derived_class, void(bool));
+  MOCK_METHOD0(OperationOnDerivedClass, void());
 
   DEFINE_WRAPPABLE_TYPE(DerivedGetterSetterInterface);
 };
