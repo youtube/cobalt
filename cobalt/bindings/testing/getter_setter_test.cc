@@ -87,6 +87,51 @@ TEST_F(GetterSetterBindingsTest, IndexedSetterOutOfRange) {
   EXPECT_TRUE(EvaluateScript("test.indexedSetter(4, 100);", NULL));
 }
 
+TEST_F(GetterSetterBindingsTest, NamedGetter) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(test_mock(), NamedGetter(std::string("foo")))
+      .WillOnce(Return(std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"];", &result));
+  EXPECT_STREQ("bar", result.c_str());
+
+  EXPECT_CALL(test_mock(), NamedGetter(std::string("bar")))
+      .WillOnce(Return(std::string("foo")));
+  EXPECT_TRUE(EvaluateScript("test.namedGetter(\"bar\");", &result));
+  EXPECT_STREQ("foo", result.c_str());
+}
+
+TEST_F(GetterSetterBindingsTest, NamedGetterUnsupportedName) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"];", &result));
+  EXPECT_STREQ("undefined", result.c_str());
+}
+
+TEST_F(GetterSetterBindingsTest, NamedGetterDoesNotShadowBuiltIns) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("test[\"toString\"]();", &result));
+  EXPECT_STREQ("[object GetterSetterInterface]", result.c_str());
+}
+
+TEST_F(GetterSetterBindingsTest, NamedSetter) {
+  InSequence dummy;
+
+  EXPECT_CALL(test_mock(), NamedSetter(std::string("foo"), std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"] = \"bar\";", NULL));
+
+  EXPECT_CALL(test_mock(), NamedSetter(std::string("foo"), std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test.namedSetter(\"foo\", \"bar\");", NULL));
+}
+
 TEST_F(AnonymousGetterSetterBindingsTest, IndexedGetter) {
   InSequence dummy;
 
@@ -113,6 +158,36 @@ TEST_F(AnonymousGetterSetterBindingsTest, IndexedSetter) {
   EXPECT_TRUE(EvaluateScript("test[10] = 100;", NULL));
 }
 
+TEST_F(AnonymousGetterSetterBindingsTest, NamedGetter) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(test_mock(), AnonymousNamedGetter(std::string("foo")))
+      .WillOnce(Return(std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"];", &result));
+  EXPECT_STREQ("bar", result.c_str());
+}
+
+TEST_F(AnonymousGetterSetterBindingsTest, NamedGetterUnsupportedName) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), CanQueryNamedProperty(std::string("foo")))
+      .WillOnce(Return(false));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"];", &result));
+  EXPECT_STREQ("undefined", result.c_str());
+}
+
+TEST_F(AnonymousGetterSetterBindingsTest, NamedSetter) {
+  InSequence dummy;
+
+  EXPECT_CALL(test_mock(),
+              AnonymousNamedSetter(std::string("foo"), std::string("bar")));
+  EXPECT_TRUE(EvaluateScript("test[\"foo\"] = \"bar\";", NULL));
+}
+
 TEST_F(DerivedGetterSetterBindingsTest, OverridesGetterAndSetter) {
   InSequence dummy;
 
@@ -127,6 +202,39 @@ TEST_F(DerivedGetterSetterBindingsTest, OverridesGetterAndSetter) {
   EXPECT_CALL(test_mock(), DerivedIndexedSetter(4, 100));
   EXPECT_CALL(test_mock(), IndexedSetter(_, _)).Times(0);
   EXPECT_TRUE(EvaluateScript("test[4] = 100;", NULL));
+}
+
+TEST_F(DerivedGetterSetterBindingsTest, NamedGetterDoesNotShadowProperties) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), property_on_derived_class()).WillOnce(Return(true));
+  EXPECT_TRUE(EvaluateScript("test[\"propertyOnDerivedClass\"];", &result));
+  EXPECT_STREQ("true", result.c_str());
+
+  EXPECT_CALL(test_mock(), OperationOnDerivedClass());
+  EXPECT_TRUE(EvaluateScript("test[\"operationOnDerivedClass\"]();", &result));
+
+  EXPECT_CALL(test_mock(), property_on_base_class()).WillOnce(Return(true));
+  EXPECT_TRUE(EvaluateScript("test[\"propertyOnBaseClass\"];", &result));
+  EXPECT_STREQ("true", result.c_str());
+
+  EXPECT_CALL(test_mock(), OperationOnBaseClass());
+  EXPECT_TRUE(EvaluateScript("test[\"operationOnBaseClass\"]();", &result));
+}
+
+TEST_F(DerivedGetterSetterBindingsTest, NamedSetterDoesNotShadowProperties) {
+  InSequence dummy;
+
+  std::string result;
+  EXPECT_CALL(test_mock(), set_property_on_derived_class(true));
+  EXPECT_TRUE(
+      EvaluateScript("test[\"propertyOnDerivedClass\"] = true;", &result));
+  EXPECT_STREQ("true", result.c_str());
+
+  EXPECT_CALL(test_mock(), set_property_on_base_class(true));
+  EXPECT_TRUE(EvaluateScript("test[\"propertyOnBaseClass\"] = true;", &result));
+  EXPECT_STREQ("true", result.c_str());
 }
 
 }  // namespace testing
