@@ -26,11 +26,13 @@
       'sources': [
         'comment_test.cc',
         'document_test.cc',
+        'document_type_test.cc',
         'dom_implementation_test.cc',
         'element_test.cc',
         'event_queue_test.cc',
         'event_target_test.cc',
         'event_test.cc',
+        'html_element_test.cc',
         'location_test.cc',
         'node_dispatch_event_test.cc',
         'node_test.cc',

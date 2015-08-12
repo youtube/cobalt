@@ -41,11 +41,22 @@ namespace cobalt {
 namespace dom {
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
-  HTMLElement* new_html_element =
+  DCHECK(html_element_context_);
+  DCHECK(html_element_context_->html_element_factory());
+  scoped_refptr<HTMLElement> new_html_element =
       html_element_context_->html_element_factory()->CreateHTMLElement(
           owner_document(), tag_name());
   new_html_element->attribute_map_ = attribute_map_;
   return new_html_element;
+}
+
+void HTMLElement::OnCSSMutation() {
+  // Invalidate the computed style of this node.
+  computed_style_valid_ = false;
+
+  if (owner_document()) {
+    owner_document()->OnElementInlineStyleMutation();
+  }
 }
 
 scoped_refptr<HTMLBodyElement> HTMLElement::AsHTMLBodyElement() { return NULL; }
@@ -81,58 +92,7 @@ HTMLElement::HTMLElement(Document* document,
   style_->set_mutation_observer(this);
 }
 
-void HTMLElement::SetOpeningTagLocation(
-    const base::SourceLocation& /*opening_tag_location*/) {}
-
 HTMLElement::~HTMLElement() {}
-
-void HTMLElement::OnCSSMutation() {
-  // Invalidate the computed style of this node.
-  computed_style_valid_ = false;
-
-  if (owner_document()) {
-    owner_document()->OnElementInlineStyleMutation();
-  }
-}
-
-void HTMLElement::UpdateMatchingRules(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
-  // Update matching rules for this element.
-  //
-  matching_rules_.reset(new cssom::RulesWithCascadePriority());
-  // Match with user agent style sheet.
-  if (user_agent_style_sheet) {
-    GetMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
-                                   matching_rules_.get(),
-                                   cssom::kNormalUserAgent);
-  }
-  // Match with all author style sheets.
-  for (unsigned int style_sheet_index = 0;
-       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
-    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-        author_style_sheets->Item(style_sheet_index);
-    GetMatchingRulesFromStyleSheet(style_sheet, this, matching_rules_.get(),
-                                   cssom::kNormalAuthor);
-  }
-
-  computed_style_valid_ = false;
-}
-
-void HTMLElement::UpdateMatchingRulesRecursively(
-    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
-  UpdateMatchingRules(user_agent_style_sheet, author_style_sheets);
-  // Update matching rules for this element's descendants.
-  //
-  for (Element* element = first_element_child(); element;
-       element = element->next_element_sibling()) {
-    HTMLElement* html_element = element->AsHTMLElement();
-    DCHECK(html_element);
-    html_element->UpdateMatchingRulesRecursively(user_agent_style_sheet,
-                                                 author_style_sheets);
-  }
-}
 
 void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
@@ -205,6 +165,45 @@ void HTMLElement::UpdateComputedStyleRecursively(
     DCHECK(html_element);
     html_element->UpdateComputedStyleRecursively(
         computed_style(), style_change_event_time, is_valid);
+  }
+}
+
+void HTMLElement::UpdateMatchingRules(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  // Update matching rules for this element.
+  //
+  matching_rules_.reset(new cssom::RulesWithCascadePriority());
+  // Match with user agent style sheet.
+  if (user_agent_style_sheet) {
+    GetMatchingRulesFromStyleSheet(user_agent_style_sheet, this,
+                                   matching_rules_.get(),
+                                   cssom::kNormalUserAgent);
+  }
+  // Match with all author style sheets.
+  for (unsigned int style_sheet_index = 0;
+       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        author_style_sheets->Item(style_sheet_index);
+    GetMatchingRulesFromStyleSheet(style_sheet, this, matching_rules_.get(),
+                                   cssom::kNormalAuthor);
+  }
+
+  computed_style_valid_ = false;
+}
+
+void HTMLElement::UpdateMatchingRulesRecursively(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  UpdateMatchingRules(user_agent_style_sheet, author_style_sheets);
+  // Update matching rules for this element's descendants.
+  //
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    DCHECK(html_element);
+    html_element->UpdateMatchingRulesRecursively(user_agent_style_sheet,
+                                                 author_style_sheets);
   }
 }
 

@@ -75,6 +75,16 @@ TEST_F(DocumentTest, Create) {
   EXPECT_EQ(url, document->url_as_gurl());
 }
 
+TEST_F(DocumentTest, Duplicate) {
+  GURL url("http://a valid url");
+  scoped_refptr<Document> document =
+      new Document(&html_element_context_, Document::Options(url));
+  scoped_refptr<Document> new_document = document->Duplicate()->AsDocument();
+  ASSERT_TRUE(new_document);
+  EXPECT_FALSE(new_document->IsXMLDocument());
+  EXPECT_EQ(url.spec(), new_document->url());
+}
+
 TEST_F(DocumentTest, IsNotXMLDocument) {
   scoped_refptr<Document> document =
       new Document(&html_element_context_, Document::Options());
