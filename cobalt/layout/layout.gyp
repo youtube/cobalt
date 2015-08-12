@@ -68,12 +68,6 @@
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         'embed_resources_as_header_files',
       ],
-      'conditions': [
-        ['actual_target_arch=="win"', {
-          # Disable warning C4702: unreachable code in xtree.
-          'msvs_disabled_warnings': [ 4702 ],
-        }],
-      ],
     },
 
     {
@@ -127,12 +121,6 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'layout',
-      ],
-      'conditions': [
-        ['actual_target_arch=="win"', {
-          # Disable warning C4702: unreachable code in xtree.
-          'msvs_disabled_warnings': [ 4702 ],
-        }],
       ],
     },
 
