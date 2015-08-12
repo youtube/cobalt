@@ -90,7 +90,8 @@
     'msvs_settings': {
       'VCCLCompilerTool': {
         'ForcedIncludeFiles': ['posix_emulation.h'],
-
+        # Override with our own version of problematic system headers.
+        'AdditionalIncludeDirectories': ['<(DEPTH)/lbshell/src/platform/xb1/msvc'],
         # Check for buffer overruns.
         'BufferSecurityCheck': 'true',
         'Conformance': [
