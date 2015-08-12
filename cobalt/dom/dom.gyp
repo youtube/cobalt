@@ -155,12 +155,6 @@
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
-      'conditions': [
-        ['actual_target_arch=="win"', {
-          # Disable warning C4702: unreachable code in xtree.
-          'msvs_disabled_warnings': [ 4702 ],
-        }],
-      ],
     },
 
     {
