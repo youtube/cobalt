@@ -23,6 +23,8 @@
         'input_device_manager_<(actual_target_arch).h',
         'input_device_manager_fuzzer.cc',
         'input_device_manager_fuzzer.h',
+        'key_repeat_filter.cc',
+        'key_repeat_filter.h',
         'keyboard_code.h',
       ],
       'dependencies': [
