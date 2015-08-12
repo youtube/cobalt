@@ -39,6 +39,9 @@ const char kInputFuzzer[] = "input_fuzzer";
 // number of seconds have passed.
 const char kShutdownAfter[] = "shutdown_after";
 
+// Switches different debug console modes: on | off | hide | console_only
+const char kDebugConsoleMode[] = "debug_console";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

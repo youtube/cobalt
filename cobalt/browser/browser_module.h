@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include "cobalt/browser/debug_console.h"
+#include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
@@ -48,9 +50,16 @@ class BrowserModule {
   std::string GetUserAgent() { return web_module_.GetUserAgent(); }
 
  private:
-  // Glue function to deal with the production of a render tree, and will
-  // manage handing it off to the renderer.
+  // Glue function to deal with the production of the main render tree,
+  // and will manage handing it off to the renderer.
   void OnRenderTreeProduced(
+      const scoped_refptr<render_tree::Node>& render_tree,
+      const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+          node_animations_map);
+
+  // Glue function to deal with the production of the debug console render tree,
+  // and will manage handing it off to the renderer.
+  void OnDebugConsoleRenderTreeProduced(
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
           node_animations_map);
@@ -71,6 +80,12 @@ class BrowserModule {
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
+
+  // Manages a second web module to implement the debug console.
+  DebugConsole debug_console_;
+
+  // Manages the two render trees, combines and renders them.
+  RenderTreeCombiner render_tree_combiner_;
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
