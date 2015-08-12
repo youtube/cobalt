@@ -55,6 +55,13 @@ CommentTest::~CommentTest() {
 // Test cases
 //////////////////////////////////////////////////////////////////////////
 
+TEST_F(CommentTest, Duplicate) {
+  scoped_refptr<Comment> comment = new Comment(document_, "comment");
+  scoped_refptr<Comment> new_comment = comment->Duplicate()->AsComment();
+  ASSERT_TRUE(new_comment);
+  EXPECT_EQ("comment", new_comment->data());
+}
+
 TEST_F(CommentTest, CommentCheckAttach) {
   scoped_refptr<Element> root = new Element(document_);
 
