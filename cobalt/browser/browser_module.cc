@@ -32,6 +32,10 @@ namespace {
 const int kInitialWidth = 1920;
 const int kInitialHeight = 1080;
 
+// Files for the debug console web page are bundled with the executable.
+const char* kInitialDebugConsoleUrl =
+    "file:///cobalt/browser/debug_console/debug_console.html";
+
 }  // namespace
 
 BrowserModule::BrowserModule(const Options& options)
@@ -47,7 +51,16 @@ BrowserModule::BrowserModule(const Options& options)
           &network_module_, math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
-          options.web_module_options)) {
+          options.web_module_options)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
+          base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
+                     base::Unretained(this)),
+          base::Callback<void(const std::string&)>(), media_module_.get(),
+          &network_module_, math::Size(kInitialWidth, kInitialHeight),
+          renderer_module_.pipeline()->GetResourceProvider(),
+          renderer_module_.pipeline()->refresh_rate(),
+          WebModule::Options(GURL(kInitialDebugConsoleUrl)))),
+          render_tree_combiner_(renderer_module_.pipeline()) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
   input::KeyboardEventCallback keyboard_event_callback =
@@ -63,6 +76,11 @@ BrowserModule::BrowserModule(const Options& options)
     input_device_manager_ =
         input::InputDeviceManager::Create(keyboard_event_callback);
   }
+
+  // Set the initial debug console mode according to the command-line args
+  DebugConsole::DebugConsoleMode debug_console_mode =
+      DebugConsole::GetDebugConsoleModeFromCommandLine();
+  render_tree_combiner_.SetDebugConsoleMode(debug_console_mode);
 }
 
 BrowserModule::~BrowserModule() {}
@@ -72,7 +90,17 @@ void BrowserModule::OnRenderTreeProduced(
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
         node_animations_map) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
-  renderer_module_.pipeline()->Submit(render_tree, node_animations_map);
+  render_tree_combiner_.UpdateMainRenderTree(render_tree, node_animations_map);
+}
+
+void BrowserModule::OnDebugConsoleRenderTreeProduced(
+    const scoped_refptr<render_tree::Node>& render_tree,
+    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
+        node_animations_map) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnDebugConsoleRenderTreeProduced()");
+  render_tree_combiner_.UpdateDebugConsoleRenderTree(render_tree,
+                                                     node_animations_map);
 }
 
 void BrowserModule::OnKeyEventProduced(

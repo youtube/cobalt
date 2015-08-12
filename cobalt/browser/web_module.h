@@ -62,6 +62,9 @@ class WebModule {
   // setup reasonable default options.
   struct Options {
     Options() : layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+    explicit Options(GURL initial_url)
+        : url(initial_url),
+          layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
 
     GURL url;
     layout::LayoutManager::LayoutTrigger layout_trigger;

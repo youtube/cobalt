@@ -27,6 +27,7 @@
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr_copy_test_data',
         'browser',
+        'browser_copy_debug_console',
       ],
       'conditions': [
         ['cobalt_copy_test_data == 1', {
@@ -55,6 +56,10 @@
         'application.h',
         'browser_module.cc',
         'browser_module.h',
+        'debug_console.cc',
+        'debug_console.h',
+        'render_tree_combiner.cc',
+        'render_tree_combiner.h',
         'switches.cc',
         'switches.h',
         'web_module.cc',
@@ -90,6 +95,23 @@
               '<(DEPTH)/cobalt/browser/testdata/',
             ],
             'output_dir': 'cobalt/browser/testdata/',
+          },
+          'includes': [ '../build/copy_data.gypi' ],
+        },
+      ],
+    },
+
+    {
+      'target_name': 'browser_copy_debug_console',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'browser_copy_debug_console',
+          'variables': {
+            'input_files': [
+              '<(DEPTH)/cobalt/browser/debug_console/',
+            ],
+            'output_dir': 'cobalt/browser/debug_console/',
           },
           'includes': [ '../build/copy_data.gypi' ],
         },
