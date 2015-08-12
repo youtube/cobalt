@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<style>
+body {
+    background-color: rgba(0, 0, 0, 0.005)
+}
+
+#hud {
+  position: absolute;
+  left: 0px;
+  top: 20px;
+  width: 100%;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  padding: 20px;
+  outline: #FFFFFF solid 2px;
+  margin: 20px;
+}
+
+#console {
+  position: absolute;
+  left: 0%;
+  top: 10%;
+  width: 50%;
+  height: 80%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+}
+
+#in {
+  position: absolute;
+  left: 0%;
+  top: 90%;
+  width: 50%;
+  height: 10%;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #FFFFFF;
+}
+
+#pirate {
+  position: absolute;
+  left: 400px;
+  top: 400px;
+  width: 235px;
+  height: 235px;
+  background-color: #000000;
+  background-image: url(./pirate.jpg);
+  background-size: 100% 100%
+}
+</style>
+
+<script>
+var x = 400;
+var y = 400;
+var vx = 5;
+var vy = 3;
+var curr = 0;
+var inputText = "";
+
+function printToOurConsole(message) {
+  const bufferSize = 500;
+  var elem = document.getElementById("console");
+  var text = elem.innerHTML;
+  text += "<p>" + message;
+  if (text.length > bufferSize) {
+    text = text.substring(text.length - bufferSize, text.length);
+  }
+  elem.innerHTML = text;
+}
+
+function printToHud(message) {
+  var elem = document.getElementById("hud");
+  elem.innerHTML = "<p>" + message;
+}
+
+function printTime(time) {
+  var dt = time - curr;
+  if (dt > 0) {
+    printToHud("layout refresh rate = " + 1000.0/dt);
+  }
+  curr = time;
+}
+
+function movePirateFlag() {
+  var elem = document.getElementById("pirate");
+  if (x < 1 || x > window.innerWidth - 235) {
+    console.log("BOING!");
+    vx *= -1;
+  }
+  if (y < 1 || y > window.innerHeight - 235) {
+    console.log("BOING!");
+    vy *= -1;
+  }
+  x += vx;
+  y += vy;
+  elem.style.left = x+"px";
+  elem.style.top = y+"px";
+}
+
+function animate(time) {
+  printTime(time);
+  movePirateFlag();
+  window.requestAnimationFrame(animate);
+}
+
+var onKeyDown = function(event) {
+  console.log("Got key press!");
+  event.preventDefault();
+  event.stopPropagation();
+  var i = document.querySelector('#in');
+    var k = event.keyCode;
+  if (k == 8) {
+      inputText = inputText.substring(0, inputText.length - 1);
+    } else if (k >= 0x20 && k < 0x7e) {
+      inputText += String.fromCharCode(k);
+    }
+  i.textContent = inputText;
+}
+
+function start() {
+  var elem = document.getElementById("in");
+  //document.addEventListener('keydown', onKeyDown, true);
+  //elem.focus();
+  curr = window.performance.now();
+  window.requestAnimationFrame(animate);
+}
+
+// Re-route console.log to our own console
+(function() {
+    var oldLog = console.log;
+    console.log = function(message) {
+        printToOurConsole(message);
+    };
+})();
+
+//window.addEventListener('load', start());
+start();
+</script>
+
+<body onload="start()">
+  <div id="hud"></div>
+  <div id="console"></div>
+  <div id="in"></div>
+  <div id="pirate"></div>
+</body>
+
+</html>
