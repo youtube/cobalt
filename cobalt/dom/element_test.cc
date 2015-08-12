@@ -92,6 +92,17 @@ TEST_F(ElementTest, CreateElement) {
   EXPECT_EQ("other_class", element->class_name());
 }
 
+TEST_F(ElementTest, Duplicate) {
+  scoped_refptr<Element> element = new Element(document_);
+  element->SetAttribute("a", "1");
+  element->SetAttribute("b", "2");
+  scoped_refptr<Element> new_element = element->Duplicate()->AsElement();
+  ASSERT_TRUE(new_element);
+  EXPECT_EQ(2, new_element->attributes()->length());
+  EXPECT_EQ("1", new_element->GetAttribute("a").value());
+  EXPECT_EQ("2", new_element->GetAttribute("b").value());
+}
+
 TEST_F(ElementTest, AsElement) {
   scoped_refptr<Element> element = new Element(document_);
   scoped_refptr<Text> text = new Text(document_, "text");

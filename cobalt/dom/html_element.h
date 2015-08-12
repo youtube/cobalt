@@ -47,13 +47,9 @@ class HTMLStyleElement;
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
-  // Web API: ElementCSSInlineStyle
-  // Extended in CSSOM specification.
+  // Web API: ElementCSSInlineStyle (implements)
   //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
-
-  // From cssom::CSSStyleDeclaration::MutationObserver.
-  void OnCSSMutation() OVERRIDE;
 
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const OVERRIDE;
@@ -62,6 +58,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }
 
   // Custom, not in any spec.
+  //
+  // From cssom::CSSStyleDeclaration::MutationObserver.
+  void OnCSSMutation() OVERRIDE;
+
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
   virtual scoped_refptr<HTMLBodyElement> AsHTMLBodyElement();
@@ -76,7 +76,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Points to ">" of opening tag.
   virtual void SetOpeningTagLocation(
-      const base::SourceLocation& opening_tag_location);
+      const base::SourceLocation& opening_tag_location) {}
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
@@ -90,14 +90,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return matching_rules_.get();
   }
 
-  // Updates the cached set of CSS rules that match with this HTML element.
-  void UpdateMatchingRules(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
-  // Calls UpdateMatchingRules() on itself and all descendants.
-  void UpdateMatchingRulesRecursively(
-      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
-      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+  cssom::TransitionSet* transitions() { return &transitions_; }
 
   // Updates the cached computed style of one HTML element.
   //   http://www.w3.org/TR/css-cascade-3/#value-stages
@@ -111,7 +104,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
           parent_computed_style,
       const base::Time& style_change_event_time, bool ancestors_were_valid);
 
-  cssom::TransitionSet* transitions() { return &transitions_; }
+  // Updates the cached set of CSS rules that match with this HTML element.
+  void UpdateMatchingRules(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+  // Calls UpdateMatchingRules() on itself and all descendants.
+  void UpdateMatchingRulesRecursively(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+      const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
@@ -126,7 +126,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
-
   cssom::TransitionSet transitions_;
 
   // Keeps track of whether the HTML element's current computed style is out
