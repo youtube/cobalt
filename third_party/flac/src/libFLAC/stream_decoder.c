@@ -54,6 +54,9 @@
 #define fseeko _fseeki64
 #define ftello _ftelli64
 #endif
+#elif defined(__LB_SHELL__)
+#define fseeko fseek
+#define ftello ftell
 #endif
 #include "FLAC/assert.h"
 #include "share/alloc.h"
