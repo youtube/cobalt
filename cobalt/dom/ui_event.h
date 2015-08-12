@@ -40,6 +40,8 @@ class UIEvent : public Event {
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
 
+  Type type() { return type_enum_; }
+
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
