@@ -53,6 +53,13 @@ TextTest::~TextTest() {
 // Test cases
 //////////////////////////////////////////////////////////////////////////
 
+TEST_F(TextTest, Duplicate) {
+  scoped_refptr<Text> text = new Text(document_, "text");
+  scoped_refptr<Text> new_text = text->Duplicate()->AsText();
+  ASSERT_TRUE(new_text);
+  EXPECT_EQ("text", new_text->data());
+}
+
 TEST_F(TextTest, CheckAttach) {
   scoped_refptr<Element> root = new Element(document_);
 
