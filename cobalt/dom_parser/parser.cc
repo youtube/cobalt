@@ -66,7 +66,6 @@ void Parser::ParseXMLDocumentFragment(
     const scoped_refptr<dom::Node>& reference_node,
     const base::SourceLocation& input_location) {
   UNREFERENCED_PARAMETER(input);
-  UNREFERENCED_PARAMETER(html_element_context);
   UNREFERENCED_PARAMETER(xml_document);
   UNREFERENCED_PARAMETER(parent_node);
   UNREFERENCED_PARAMETER(reference_node);

@@ -73,6 +73,8 @@ std::string StringPrintVAndTrim(const char* message, va_list arguments) {
 
 class HTMLDecoder::LibxmlWrapper {
  public:
+  // The error_callback is for unrecoverable errors, i.e. those with severity
+  // equals fatal.
   LibxmlWrapper(dom::HTMLElementContext* html_element_context,
                 const scoped_refptr<dom::Document>& document,
                 const scoped_refptr<dom::Node>& parent_node,
@@ -297,8 +299,10 @@ void HTMLDecoder::LibxmlWrapper::OnComment(const std::string& comment) {
 
 void HTMLDecoder::LibxmlWrapper::OnParsingIssue(HTMLParserSeverity severity,
                                                 const std::string& message) {
-  UNREFERENCED_PARAMETER(severity);
-  error_callback_.Run(message);
+  if (severity == kHTMLParserFatal) {
+    error_callback_.Run(message);
+  }
+  // TODO(***REMOVED***): Report recoverable errors and warnings.
 }
 
 void HTMLDecoder::LibxmlWrapper::DecodeChunk(const char* data, size_t size) {
