@@ -35,7 +35,7 @@
 
 #include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 #include <winsock.h> /* for ntohl() */
 #elif defined FLAC__SYS_DARWIN
 #include <machine/endian.h> /* for ntohl() */
@@ -149,7 +149,7 @@ struct FLAC__BitReader {
 	FLAC__CPUInfo cpu_info;
 };
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 /* OPT: an MSVC built-in would be better */
 static _inline FLAC__uint32 local_swap32_(FLAC__uint32 x)
 {
