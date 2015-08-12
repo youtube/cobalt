@@ -25,6 +25,7 @@ extern const char kInitialURL[];
 extern const char kTimedTrace[];
 extern const char kInputFuzzer[];
 extern const char kShutdownAfter[];
+extern const char kDebugConsoleMode[];
 
 }  // namespace switches
 }  // namespace browser
