@@ -268,9 +268,6 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags1) {
       base::Bind(&MockErrorCallback::Run,
                  base::Unretained(&mock_error_callback_)));
 
-  EXPECT_CALL(mock_error_callback_,
-              Run("Opening and ending tag mismatch: b and i"));
-  EXPECT_CALL(mock_error_callback_, Run("Unexpected end tag : i"));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
@@ -299,7 +296,6 @@ TEST_F(HTMLDecoderTest, CanParseMisnestedTags2) {
       base::Bind(&MockErrorCallback::Run,
                  base::Unretained(&mock_error_callback_)));
 
-  EXPECT_CALL(mock_error_callback_, Run("Unexpected end tag : b"));
   html_decoder_->DecodeChunk(input.c_str(), input.length());
   html_decoder_->Finish();
 
