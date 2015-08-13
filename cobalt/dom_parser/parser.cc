@@ -15,9 +15,11 @@
  */
 
 #include "cobalt/dom_parser/parser.h"
-#include "cobalt/dom_parser/html_decoder.h"
 
 #include "base/logging.h"
+#include "cobalt/dom/document.h"
+#include "cobalt/dom/xml_document.h"
+#include "cobalt/dom_parser/html_decoder.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -27,10 +29,8 @@ scoped_refptr<dom::Document> Parser::ParseDocument(
     const base::SourceLocation& input_location) {
   scoped_refptr<dom::Document> document =
       new dom::Document(html_element_context, dom::Document::Options());
-  HTMLDecoder html_decoder(
-      html_element_context, document, document, NULL,
-      HTMLDecoder::kDocumentFull, input_location, base::Closure(),
-      base::Bind(&Parser::ErrorCallback, base::Unretained(this)));
+  HTMLDecoder html_decoder(document, document, NULL, HTMLDecoder::kDocumentFull,
+                           input_location, base::Closure(), error_callback_);
   html_decoder.DecodeChunk(input.c_str(), input.length());
   html_decoder.Finish();
   return document;
@@ -51,10 +51,9 @@ void Parser::ParseDocumentFragment(
     const scoped_refptr<dom::Node>& parent_node,
     const scoped_refptr<dom::Node>& reference_node,
     const base::SourceLocation& input_location) {
-  HTMLDecoder html_decoder(
-      document->html_element_context(), document, parent_node, reference_node,
-      HTMLDecoder::kDocumentFragment, input_location, base::Closure(),
-      base::Bind(&Parser::ErrorCallback, base::Unretained(this)));
+  HTMLDecoder html_decoder(document, parent_node, reference_node,
+                           HTMLDecoder::kDocumentFragment, input_location,
+                           base::Closure(), error_callback_);
   html_decoder.DecodeChunk(input.c_str(), input.length());
   html_decoder.Finish();
 }
@@ -73,11 +72,21 @@ void Parser::ParseXMLDocumentFragment(
   NOTIMPLEMENTED();
 }
 
-void Parser::BuildDocument(const GURL& url,
-                           scoped_refptr<dom::Document> document) {
-  DCHECK(!document_builder_);
-  document_builder_.reset(
-      new DocumentBuilder(url, document, base::Closure(), error_callback_));
+scoped_ptr<loader::Decoder> Parser::ParseDocumentAsync(
+    const scoped_refptr<dom::Document>& document,
+    const base::SourceLocation& input_location) {
+  return scoped_ptr<loader::Decoder>(
+      new HTMLDecoder(document, document, NULL, HTMLDecoder::kDocumentFull,
+                      input_location, base::Closure(), error_callback_));
+}
+
+scoped_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(
+    const scoped_refptr<dom::XMLDocument>& xml_document,
+    const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(xml_document);
+  UNREFERENCED_PARAMETER(input_location);
+  NOTIMPLEMENTED();
+  return scoped_ptr<loader::Decoder>();
 }
 
 void Parser::ErrorCallback(const std::string& error) {

@@ -157,11 +157,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
   void IncreaseLoadingCounter();
-  void DecreaseLoadingCounterAndMaybeDispatchOnLoad();
-
-  void set_should_dispatch_on_load(bool value) {
-    should_dispatch_on_load_ = value;
-  }
+  void DecreaseLoadingCounterAndMaybeDispatchLoadEvent(bool load_succeeded);
 
   GURL& url_as_gurl() { return url_; }
 
@@ -226,8 +222,8 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
   // The number of ongoing loadings.
   int loading_counter_;
-  // Whether OnLoad event should be dispatched.
-  bool should_dispatch_on_load_;
+  // Whether the load event should be dispatched when loading counter hits zero.
+  bool should_dispatch_load_event_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
 
