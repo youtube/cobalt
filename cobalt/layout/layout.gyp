@@ -48,6 +48,8 @@
         'layout_manager.h',
         'line_box.cc',
         'line_box.h',
+        'paragraph.cc',
+        'paragraph.h',
         'replaced_box.cc',
         'replaced_box.h',
         'text_box.cc',
