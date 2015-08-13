@@ -111,6 +111,10 @@ class LineBox {
  private:
   void CollapseTrailingWhiteSpace() const;
   float GetHeightAboveMiddleAlignmentPoint(Box* box);
+
+  void ReverseChildBoxesByBidiLevels();
+  void ReverseChildBoxesMeetingBidiLevelThreshold(int level);
+
   void SetLineBoxHeightFromChildBoxes();
   void SetChildBoxTopPositions();
   void SetChildBoxLeftPositions();
@@ -122,6 +126,7 @@ class LineBox {
   const LayoutParams layout_params_;
 
   bool line_exists_;
+  bool line_has_bidi_reversed_children_;
 
   // Non-owned list of child boxes.
   //

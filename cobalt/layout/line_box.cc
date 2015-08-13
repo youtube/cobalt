@@ -36,6 +36,7 @@ LineBox::LineBox(float used_top, float x_height,
       text_align_(text_align),
       layout_params_(layout_params),
       line_exists_(false),
+      line_has_bidi_reversed_children_(false),
       used_height_(0),
       height_above_baseline_(0) {}
 
@@ -150,6 +151,7 @@ void LineBox::EndQueries() {
   //               http://www.w3.org/TR/CSS21/visudet.html#line-height
   NOTIMPLEMENTED();
 
+  ReverseChildBoxesByBidiLevels();
   SetLineBoxHeightFromChildBoxes();
   SetChildBoxTopPositions();
   SetChildBoxLeftPositions();
@@ -192,6 +194,82 @@ void LineBox::CollapseTrailingWhiteSpace() const {
 // Returns the height of half the given box above the 'middle' of the line box.
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* box) {
   return (box->used_height() + x_height_) / 2;
+}
+
+void LineBox::ReverseChildBoxesByBidiLevels() {
+  // From the highest level found in the text to the lowest odd level on each
+  // line, including intermediate levels not actually present in the text,
+  // reverse any contiguous sequence of characters that are at that level or
+  // higher.
+  //  http://unicode.org/reports/tr9/#L2
+  const int kInvalidLevel = -1;
+  int max_level = 0;
+  int min_level = std::numeric_limits<int>::max();
+
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+
+    int child_level = child_box->GetBidiLevel().value_or(kInvalidLevel);
+    if (child_level != kInvalidLevel) {
+      if (child_level > max_level) {
+        max_level = child_level;
+      }
+      if (child_level < min_level) {
+        min_level = child_level;
+      }
+    }
+  }
+
+  // Reversals only occur down to the lowest odd level.
+  if (min_level % 2 == 0) {
+    min_level += 1;
+  }
+
+  for (int i = max_level; i >= min_level; --i) {
+    ReverseChildBoxesMeetingBidiLevelThreshold(i);
+  }
+}
+
+void LineBox::ReverseChildBoxesMeetingBidiLevelThreshold(int level) {
+  // Walk all of the boxes in the line, looking for runs of boxes that have a
+  // bidi level greater than or equal to the passed in level. Every run of two
+  // or more boxes is reversed.
+  int run_count = 0;
+  ChildBoxes::iterator run_start;
+  int child_level = 0;
+
+  for (ChildBoxes::iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end();) {
+    ChildBoxes::iterator current_iterator = child_box_iterator++;
+    Box* child_box = *current_iterator;
+
+    child_level = child_box->GetBidiLevel().value_or(child_level);
+
+    // The child's level is greater than or equal to the required level, so it
+    // qualifies for reversal.
+    if (child_level >= level) {
+      if (run_count == 0) {
+        run_start = current_iterator;
+      }
+      ++run_count;
+      // The child's level didn't qualify it for reversal. If there was an
+      // active run, it has ended, so reverse it.
+    } else {
+      if (run_count > 1) {
+        std::reverse(run_start, current_iterator);
+        line_has_bidi_reversed_children_ = true;
+      }
+      run_count = 0;
+    }
+  }
+
+  // A qualifying run was found that ran through the end of the children.
+  // Reverse it.
+  if (run_count > 1) {
+    std::reverse(run_start, child_boxes_.end());
+    line_has_bidi_reversed_children_ = true;
+  }
 }
 
 // Loop over the child boxes and set the height_above_baseline_ and used_height_
@@ -299,6 +377,18 @@ void LineBox::SetChildBoxTopPositions() {
 }
 
 void LineBox::SetChildBoxLeftPositions() {
+  // If any children were reversed as a result of bidi analysis, then the used
+  // left positions need to be re-generated.
+  if (line_has_bidi_reversed_children_) {
+    float used_left = 0;
+    for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+         child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+      Box* child_box = *child_box_iterator;
+      child_box->set_used_left(used_left);
+      used_left = child_box->used_right();
+    }
+  }
+
   // Set used left of the child boxes according to the value of text-align.
   //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
   //
