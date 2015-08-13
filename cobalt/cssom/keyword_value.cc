@@ -39,8 +39,10 @@ struct KeywordValue::NonTrivialStaticFields {
         left_value(new KeywordValue(KeywordValue::kLeft)),
         middle_value(new KeywordValue(KeywordValue::kMiddle)),
         none_value(new KeywordValue(KeywordValue::kNone)),
+        no_repeat_value(new KeywordValue(KeywordValue::kNoRepeat)),
         normal_value(new KeywordValue(KeywordValue::kNormal)),
         relative_value(new KeywordValue(KeywordValue::kRelative)),
+        repeat_value(new KeywordValue(KeywordValue::kRepeat)),
         right_value(new KeywordValue(KeywordValue::kRight)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
         top_value(new KeywordValue(KeywordValue::kTop)),
@@ -61,8 +63,10 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> left_value;
   const scoped_refptr<KeywordValue> middle_value;
   const scoped_refptr<KeywordValue> none_value;
+  const scoped_refptr<KeywordValue> no_repeat_value;
   const scoped_refptr<KeywordValue> normal_value;
   const scoped_refptr<KeywordValue> relative_value;
+  const scoped_refptr<KeywordValue> repeat_value;
   const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> top_value;
@@ -140,12 +144,20 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetNone() {
   return non_trivial_static_fields.Get().none_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetNoRepeat() {
+  return non_trivial_static_fields.Get().no_repeat_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
   return non_trivial_static_fields.Get().normal_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
   return non_trivial_static_fields.Get().relative_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetRepeat() {
+  return non_trivial_static_fields.Get().repeat_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetRight() {

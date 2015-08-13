@@ -180,7 +180,9 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
     case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
@@ -237,8 +239,10 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
     case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
@@ -315,8 +319,10 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
     case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
@@ -389,8 +395,10 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
     case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
@@ -487,8 +495,10 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
@@ -694,8 +704,10 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
+    case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:

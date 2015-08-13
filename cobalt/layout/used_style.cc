@@ -154,8 +154,10 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
@@ -348,8 +350,10 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
@@ -581,8 +585,10 @@ class UsedSizeMetricProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kMiddle:
       case cssom::KeywordValue::kNone:
+      case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
       case cssom::KeywordValue::kRelative:
+      case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:

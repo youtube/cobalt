@@ -67,6 +67,7 @@
 %token kBackgroundColorToken                  // background-color
 %token kBackgroundImageToken                  // background-image
 %token kBackgroundPositionToken               // background-position
+%token kBackgroundRepeatToken                 // background-repeat
 %token kBackgroundSizeToken                   // background-size
 %token kBackgroundToken                       // background
 %token kBorderRadiusToken                     // border-radius
@@ -132,8 +133,12 @@
 // %token kLeftToken                    // left - also property name token
 %token kMiddleToken                     // middle
 %token kNoneToken                       // none
+%token kNoRepeatToken                   // no-repeat
 %token kNormalToken                     // normal
 %token kObliqueToken                    // oblique
+%token kRepeatToken                     // repeat
+%token kRepeatXToken                    // repeat-x
+%token kRepeatYToken                    // repeat-y
 %token kRelativeToken                   // relative
 // %token kRightToken                   // right - also property name token
 %token kStartToken                      // start
@@ -324,6 +329,8 @@
                        background_image_property_value
                        background_position_property_list_element
                        background_position_property_value
+                       background_repeat_element
+                       background_repeat_property_value
                        background_size_property_list_element
                        background_size_property_value
                        border_radius_property_value
@@ -530,6 +537,13 @@ identifier_token:
   | kBackgroundImageToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundImagePropertyName);
   }
+  | kBackgroundPositionToken {
+    $$ =
+        TrivialStringPiece::FromCString(cssom::kBackgroundPositionPropertyName);
+  }
+  | kBackgroundRepeatToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundRepeatPropertyName);
+  }
   | kBackgroundSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBackgroundSizePropertyName);
   }
@@ -707,11 +721,23 @@ identifier_token:
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
   }
+  | kNoRepeatToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kNoRepeatKeywordName);
+  }
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
   }
   | kObliqueToken {
     $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
+  }
+  | kRepeatToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRepeatKeywordName);
+  }
+  | kRepeatXToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRepeatXKeywordName);
+  }
+  | kRepeatYToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kRepeatYKeywordName);
   }
   | kRelativeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRelativeKeywordName);
@@ -1429,6 +1455,61 @@ background_position_property_value:
     scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
     $$ = property_value
          ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
+  ;
+
+// Specifies how background images are tiled after they have been sized and
+// positioned.
+//   http://www.w3.org/TR/css3-background/#the-background-repeat
+background_repeat_element:
+    kNoRepeatToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNoRepeat().get());
+  }
+  | kRepeatToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetRepeat().get());
+  }
+  ;
+
+background_repeat_property_value:
+    background_repeat_element {
+    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+        new cssom::PropertyListValue::Builder());
+    builder->reserve(2);
+    builder->push_back(MakeScopedRefPtrAndRelease($1));
+    builder->push_back($1);
+    $$ = builder
+         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
+         : NULL;
+  }
+  | background_repeat_element background_repeat_element {
+    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+        new cssom::PropertyListValue::Builder());
+    builder->reserve(2);
+    builder->push_back(MakeScopedRefPtrAndRelease($1));
+    builder->push_back(MakeScopedRefPtrAndRelease($2));
+    $$ = builder
+         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
+         : NULL;
+  }
+  | kRepeatXToken maybe_whitespace {
+    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+        new cssom::PropertyListValue::Builder());
+    builder->reserve(2);
+    builder->push_back(cssom::KeywordValue::GetRepeat().get());
+    builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
+    $$ = builder
+         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
+         : NULL;
+  }
+  | kRepeatYToken maybe_whitespace {
+    scoped_ptr<cssom::PropertyListValue::Builder> builder(
+        new cssom::PropertyListValue::Builder());
+    builder->reserve(2);
+    builder->push_back(cssom::KeywordValue::GetNoRepeat().get());
+    builder->push_back(cssom::KeywordValue::GetRepeat().get());
+    $$ = builder
+         ? AddRef(new cssom::PropertyListValue(builder.Pass()))
          : NULL;
   }
   ;
@@ -2348,6 +2429,12 @@ maybe_declaration:
   | kBackgroundPositionToken maybe_whitespace colon
     background_position_property_value maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPositionPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBackgroundRepeatToken maybe_whitespace colon
+    background_repeat_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundRepeatPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

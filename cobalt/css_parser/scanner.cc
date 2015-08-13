@@ -1286,6 +1286,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kTransformToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kBackgroundRepeatPropertyName)) {
+        *property_name_token = kBackgroundRepeatToken;
+        return true;
+      }
+
       return false;
 
     case 18:
@@ -1424,6 +1430,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kNormalToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRepeatKeywordName)) {
+        *property_value_token = kRepeatToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStaticKeywordName)) {
         *property_value_token = kStaticToken;
         return true;
@@ -1476,6 +1486,21 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kRelativeKeywordName)) {
         *property_value_token = kRelativeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRepeatXKeywordName)) {
+        *property_value_token = kRepeatXToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRepeatYKeywordName)) {
+        *property_value_token = kRepeatYToken;
+        return true;
+      }
+      return false;
+
+    case 9:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kNoRepeatKeywordName)) {
+        *property_value_token = kNoRepeatToken;
         return true;
       }
       return false;

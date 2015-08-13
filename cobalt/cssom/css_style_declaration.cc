@@ -117,6 +117,16 @@ void CSSStyleDeclaration::set_background_position(
   SetPropertyValue(kBackgroundPositionPropertyName, background_position);
 }
 
+std::string CSSStyleDeclaration::background_repeat() const {
+  return data_->background_repeat() ? data_->background_repeat()->ToString()
+                                    : "";
+}
+
+void CSSStyleDeclaration::set_background_repeat(
+    const std::string& background_repeat) {
+  SetPropertyValue(kBackgroundRepeatPropertyName, background_repeat);
+}
+
 std::string CSSStyleDeclaration::background_size() const {
   return data_->background_size() ? data_->background_size()->ToString() : "";
 }
