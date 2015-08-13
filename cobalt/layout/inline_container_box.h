@@ -51,6 +51,9 @@ class InlineContainerBox : public ContainerBox {
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 
+  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  base::optional<int> GetBidiLevel() const OVERRIDE;
+
   bool IsCollapsed() const OVERRIDE;
   bool HasLeadingWhiteSpace() const OVERRIDE;
   bool HasTrailingWhiteSpace() const OVERRIDE;
@@ -74,6 +77,9 @@ class InlineContainerBox : public ContainerBox {
  private:
   ChildBoxes::const_iterator FindFirstNonCollapsedChildBox() const;
   ChildBoxes::const_iterator FindLastNonCollapsedChildBox() const;
+
+  scoped_ptr<Box> SplitAtIterator(
+      ChildBoxes::const_iterator child_split_iterator);
 
   bool justifies_line_existence_;
   float height_above_baseline_;

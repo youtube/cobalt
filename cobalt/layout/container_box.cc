@@ -204,7 +204,7 @@ void ContainerBox::AddStackingContextChildrenToRenderTree(
       child_box->AddToRenderTree(composition_node_builder,
                                  node_animations_map_builder);
     } else {
-      // Since the child box was layed out relative to its containing block,
+      // Since the child box was laid out relative to its containing block,
       // but we are rendering it from the stacking context box, we must
       // transform it by the relative transform between the containing block
       // and stacking context.
@@ -215,6 +215,14 @@ void ContainerBox::AddStackingContextChildrenToRenderTree(
           new render_tree::CompositionNode(sub_composition_node_builder.Pass()),
           math::TranslateMatrix(position_offset.x(), position_offset.y()));
     }
+  }
+}
+
+void ContainerBox::SplitBidiLevelRuns() {
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
+       child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
+    child_box->SplitBidiLevelRuns();
   }
 }
 
@@ -250,7 +258,7 @@ void ContainerBox::AddContentToRenderTree(
   AddStackingContextChildrenToRenderTree(negative_z_index_child_,
                                          composition_node_builder,
                                          node_animations_map_builder);
-  // Render layed out child boxes.
+  // Render laid out child boxes.
   // TODO(***REMOVED***): Take a stacking context into account:
   //               http://www.w3.org/TR/CSS21/visuren.html#z-index
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
