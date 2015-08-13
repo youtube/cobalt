@@ -76,7 +76,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Points to ">" of opening tag.
   virtual void SetOpeningTagLocation(
-      const base::SourceLocation& opening_tag_location) {}
+      const base::SourceLocation& /*opening_tag_location*/) {}
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
