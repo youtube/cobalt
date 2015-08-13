@@ -23,12 +23,15 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
+#include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/window_timers.h"
+#include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_runner.h"
@@ -56,6 +59,12 @@ class Window : public EventTarget {
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
   typedef WindowTimers::TimerCallback TimerCallback;
+  typedef base::Callback<scoped_ptr<loader::Decoder>(
+      HTMLElementContext*, const scoped_refptr<Document>&,
+      const base::SourceLocation&, const base::Closure&,
+      const base::Callback<void(const std::string&)>&)>
+      HTMLDecoderCreatorCallback;
+
   Window(int width, int height, cssom::CSSParser* css_parser,
          Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
          LocalStorageDatabase* local_storage_database,
@@ -115,7 +124,7 @@ class Window : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
-  class RelayOnLoadEvent;
+  class RelayLoadEvent;
 
   ~Window() OVERRIDE;
 
@@ -124,9 +133,10 @@ class Window : public EventTarget {
 
   scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Document> document_;
+  scoped_ptr<loader::Loader> document_loader_;
   scoped_refptr<Navigator> navigator_;
   scoped_refptr<Performance> performance_;
-  scoped_ptr<RelayOnLoadEvent> relay_on_load_event_;
+  scoped_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
   scoped_ptr<WindowTimers> window_timers_;
   scoped_ptr<AnimationFrameRequestCallbackList>

@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/loader/decoder.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -41,6 +42,8 @@ class XMLDocument;
 // This class is not a part of any specification.
 class Parser {
  public:
+  // Synchronous parsing interfaces.
+  //
   // Parses an HTML document and returns the created Document.
   virtual scoped_refptr<Document> ParseDocument(
       const std::string& input, HTMLElementContext* html_element_context,
@@ -67,12 +70,19 @@ class Parser {
       const scoped_refptr<Node>& reference_node,
       const base::SourceLocation& input_location) = 0;
 
-  // This function, when called, starts an asynchronous process that loads a
-  // document from the given url.
-  // TODO(***REMOVED***, b/19730963): Remove the following interface when
-  // DocumentBuilder is removed.
-  virtual void BuildDocument(const GURL& url,
-                             scoped_refptr<Document> document) = 0;
+  // Asynchronous parsing interfaces.
+  //
+  // Parses an HTML document asynchronously, returns the decoder that can be
+  // used in the parsing.
+  virtual scoped_ptr<loader::Decoder> ParseDocumentAsync(
+      const scoped_refptr<Document>& document,
+      const base::SourceLocation& input_location) = 0;
+
+  // Parses an XML document asynchronously, returns the decoder that can be
+  // used in the parsing.
+  virtual scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
+      const scoped_refptr<XMLDocument>& xml_document,
+      const base::SourceLocation& input_location) = 0;
 
  protected:
   virtual ~Parser() {}

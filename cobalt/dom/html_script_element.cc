@@ -151,14 +151,14 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
   html_element_context()->script_runner()->Execute(content);
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchOnLoad();
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
   StopLoading();
 }
 
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
   LOG(ERROR) << error;
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchOnLoad();
+  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
   StopLoading();
 }
 
