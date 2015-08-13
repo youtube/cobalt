@@ -130,6 +130,60 @@ TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
   style->set_background_image(background_image);
 }
 
+TEST(CSSStyleDeclarationTest, BackgroundPositionSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string background_position = "50% 50%";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kBackgroundPositionPropertyName, background_position, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_background_position(background_position);
+}
+
+TEST(CSSStyleDeclarationTest, BackgroundRepeatSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string background_repeat = "no-repeat";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kBackgroundRepeatPropertyName, background_repeat, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_background_repeat(background_repeat);
+}
+
+TEST(CSSStyleDeclarationTest, BackgroundSizeSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string background_size = "cover";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kBackgroundSizePropertyName, background_size, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_background_size(background_size);
+}
+
 TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
