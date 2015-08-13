@@ -52,6 +52,8 @@ class ContainerBox : public Box {
   virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
 
   // From |Box|.
+  virtual void SplitBidiLevelRuns() OVERRIDE;
+
   void AddContentToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*

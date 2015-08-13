@@ -106,6 +106,16 @@ scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
   return scoped_ptr<Box>();
 }
 
+void ReplacedBox::SplitBidiLevelRuns() {}
+
+scoped_ptr<Box> ReplacedBox::TrySplitAtSecondBidiLevelRun() {
+  return scoped_ptr<Box>();
+}
+
+base::optional<int> ReplacedBox::GetBidiLevel() const {
+  return paragraph_->GetBidiLevel(text_position_);
+}
+
 float ReplacedBox::GetHeightAboveBaseline() const { return used_height(); }
 
 void ReplacedBox::AddContentToRenderTree(

@@ -50,6 +50,10 @@ class ReplacedBox : public Box {
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 
+  void SplitBidiLevelRuns() OVERRIDE;
+  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  base::optional<int> GetBidiLevel() const OVERRIDE;
+
   bool IsCollapsed() const OVERRIDE { return false; }
   bool HasLeadingWhiteSpace() const OVERRIDE { return false; }
   bool HasTrailingWhiteSpace() const OVERRIDE { return false; }
