@@ -21,6 +21,7 @@
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -50,7 +51,7 @@ Document::Document(HTMLElementContext* html_element_context,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           style_sheets_(new cssom::StyleSheetList(this))),
       loading_counter_(0),
-      should_dispatch_on_load_(true),
+      should_dispatch_load_event_(true),
       rule_matches_dirty_(true),
       computed_style_dirty_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
@@ -194,21 +195,31 @@ void Document::RemoveObserver(DocumentObserver* observer) {
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
-void Document::DecreaseLoadingCounterAndMaybeDispatchOnLoad() {
-  DCHECK_GT(loading_counter_, 0);
-  if (--loading_counter_ == 0 && should_dispatch_on_load_) {
-    should_dispatch_on_load_ = false;
-    // TODO(***REMOVED***): We should also fire event on onload attribute when set.
-    base::MessageLoopProxy::current()->PostTask(
-        FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
-                              base::AsWeakPtr<Document>(this),
-                              make_scoped_refptr(new Event("load"))));
+void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
+    bool load_succeeded) {
+  if (!load_succeeded) {
+    // If the document or any dependent script failed loading, load event
+    // shouldn't be dispatched.
+    should_dispatch_load_event_ = false;
+  } else {
+    DCHECK_GT(loading_counter_, 0);
+    loading_counter_--;
+    if (loading_counter_ == 0 && should_dispatch_load_event_) {
+      DCHECK(MessageLoop::current());
+      should_dispatch_load_event_ = false;
+      // TODO(***REMOVED***): We should also fire event on onload attribute when
+      // set.
+      base::MessageLoopProxy::current()->PostTask(
+          FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
+                                base::AsWeakPtr<Document>(this),
+                                make_scoped_refptr(new Event("load"))));
 
-    // After all JavaScript OnLoad event handlers have executed, signal to any
-    // Document observers know that an OnLoad event has occurred.
-    base::MessageLoopProxy::current()->PostTask(
-        FROM_HERE, base::Bind(&Document::SignalOnLoadToObservers,
-                              base::AsWeakPtr<Document>(this)));
+      // After all JavaScript OnLoad event handlers have executed, signal to any
+      // Document observers know that a load event has occurred.
+      base::MessageLoopProxy::current()->PostTask(
+          FROM_HERE, base::Bind(&Document::SignalOnLoadToObservers,
+                                base::AsWeakPtr<Document>(this)));
+    }
   }
 }
 

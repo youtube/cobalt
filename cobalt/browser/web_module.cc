@@ -16,6 +16,7 @@
 
 #include "cobalt/browser/web_module.h"
 
+#include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
