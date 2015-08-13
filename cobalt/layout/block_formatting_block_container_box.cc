@@ -196,5 +196,9 @@ Box::Level InlineLevelBlockContainerBox::GetLevel() const {
   return kInlineLevel;
 }
 
+base::optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
+  return paragraph_->GetBidiLevel(text_position_);
+}
+
 }  // namespace layout
 }  // namespace cobalt

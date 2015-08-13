@@ -142,6 +142,16 @@ class Box {
   virtual scoped_ptr<Box> TrySplitAt(float available_width,
                                      bool allow_overflow) = 0;
 
+  // Initial splitting of boxes between bidi level runs prior to layout, so that
+  // they will not need to occur during layout.
+  virtual void SplitBidiLevelRuns() = 0;
+
+  // Attempt to split the box at the second level run within it.
+  virtual scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() = 0;
+
+  // Retrieve the bidi level for the box, if it has one.
+  virtual base::optional<int> GetBidiLevel() const = 0;
+
   // A box is collapsed if it has no text or white space, nor have its children.
   // A collapsed box may still have a non-zero width. Atomic inline-level boxes
   // are never collapsed, even if empty.

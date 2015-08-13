@@ -39,6 +39,8 @@ class AnonymousBlockBox : public BlockContainerBox {
   Level GetLevel() const OVERRIDE;
   AnonymousBlockBox* AsAnonymousBlockBox() OVERRIDE;
 
+  void SplitBidiLevelRuns() OVERRIDE;
+
   // From |ContainerBox|.
 
   // This method should never be called, instead all children have to be added
