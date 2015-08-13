@@ -61,8 +61,10 @@ RenderTreeWithAnimations Layout(
   // Generate boxes.
   {
     TRACE_EVENT0("cobalt::layout", "BoxGeneration");
+    scoped_refptr<Paragraph> paragraph;
     BoxGenerator root_box_generator(initial_containing_block->computed_style(),
-                                    &used_style_provider, line_break_iterator);
+                                    &used_style_provider, line_break_iterator,
+                                    &paragraph);
     document->html()->Accept(&root_box_generator);
     BoxGenerator::Boxes root_boxes = root_box_generator.PassBoxes();
     for (BoxGenerator::Boxes::iterator root_box_iterator = root_boxes.begin();

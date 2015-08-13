@@ -18,6 +18,7 @@
 #define LAYOUT_BLOCK_FORMATTING_BLOCK_CONTAINER_BOX_H_
 
 #include "cobalt/layout/block_container_box.h"
+#include "cobalt/layout/paragraph.h"
 
 namespace cobalt {
 namespace layout {
@@ -98,11 +99,16 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   InlineLevelBlockContainerBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
-      const UsedStyleProvider* used_style_provider);
+      const UsedStyleProvider* used_style_provider,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position);
   ~InlineLevelBlockContainerBox() OVERRIDE;
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
+
+ private:
+  const scoped_refptr<Paragraph> paragraph_;
+  int32 text_position_;
 };
 
 }  // namespace layout

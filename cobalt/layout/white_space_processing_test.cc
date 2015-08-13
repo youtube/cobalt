@@ -69,53 +69,5 @@ TEST(CollapseWhiteSpaceTest, TwoWordsSurroundedAndSeparatedByDoubleSpaces) {
   EXPECT_EQ(" Hello, world! ", text);
 }
 
-TEST(TrimWhiteSpaceTest, Empty) {
-  std::string text = "";
-  bool has_leading_white_space;
-  bool has_trailing_white_space;
-
-  TrimWhiteSpace(&text, &has_leading_white_space, &has_trailing_white_space);
-
-  EXPECT_EQ("", text);
-  EXPECT_FALSE(has_leading_white_space);
-  EXPECT_FALSE(has_trailing_white_space);
-}
-
-TEST(TrimWhiteSpaceTest, Space) {
-  std::string text = " ";
-  bool has_leading_white_space;
-  bool has_trailing_white_space;
-
-  TrimWhiteSpace(&text, &has_leading_white_space, &has_trailing_white_space);
-
-  EXPECT_EQ("", text);
-  EXPECT_TRUE(has_leading_white_space);
-  EXPECT_TRUE(has_trailing_white_space);
-}
-
-TEST(TrimWhiteSpaceTest, Word) {
-  std::string text = "hello";
-  bool has_leading_white_space;
-  bool has_trailing_white_space;
-
-  TrimWhiteSpace(&text, &has_leading_white_space, &has_trailing_white_space);
-
-  EXPECT_EQ("hello", text);
-  EXPECT_FALSE(has_leading_white_space);
-  EXPECT_FALSE(has_trailing_white_space);
-}
-
-TEST(TrimWhiteSpaceTest, WordSurroundedBySpaces) {
-  std::string text = " hello ";
-  bool has_leading_white_space;
-  bool has_trailing_white_space;
-
-  TrimWhiteSpace(&text, &has_leading_white_space, &has_trailing_white_space);
-
-  EXPECT_EQ("hello", text);
-  EXPECT_TRUE(has_leading_white_space);
-  EXPECT_TRUE(has_trailing_white_space);
-}
-
 }  // namespace layout
 }  // namespace cobalt
