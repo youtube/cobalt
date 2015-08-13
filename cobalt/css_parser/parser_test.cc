@@ -946,6 +946,91 @@ TEST_F(ParserTest, ParsesBackgroundPositionLengthAndPercentage) {
   EXPECT_FLOAT_EQ(0.7f, percentage_value_right->value());
 }
 
+TEST_F(ParserTest, ParsesBackgroundRepeatNoRepeat) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-repeat: no-repeat;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_repeat_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
+  ASSERT_TRUE(background_repeat_list);
+  EXPECT_EQ(2, background_repeat_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[0]);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatRepeat) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-repeat: repeat;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_repeat_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
+  ASSERT_TRUE(background_repeat_list);
+  EXPECT_EQ(2, background_repeat_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetRepeat(),
+            background_repeat_list->value()[0]);
+
+  EXPECT_EQ(cssom::KeywordValue::GetRepeat(),
+            background_repeat_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatNoRepeatSpecifiedTwice) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-repeat: no-repeat no-repeat;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_repeat_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
+  ASSERT_TRUE(background_repeat_list);
+  EXPECT_EQ(2, background_repeat_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[0]);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatRepeatX) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-repeat: repeat-x;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_repeat_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
+  ASSERT_TRUE(background_repeat_list);
+  EXPECT_EQ(2, background_repeat_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetRepeat(),
+            background_repeat_list->value()[0]);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[1]);
+}
+
+TEST_F(ParserTest, ParsesBackgroundRepeatRepeatY) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("background-repeat: repeat-y;",
+                                   source_location_);
+
+  scoped_refptr<cssom::PropertyListValue> background_repeat_list =
+      dynamic_cast<cssom::PropertyListValue*>(style->background_repeat().get());
+  ASSERT_TRUE(background_repeat_list);
+  EXPECT_EQ(2, background_repeat_list->value().size());
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoRepeat(),
+            background_repeat_list->value()[0]);
+
+  EXPECT_EQ(cssom::KeywordValue::GetRepeat(),
+            background_repeat_list->value()[1]);
+}
+
 TEST_F(ParserTest, ParsesBackgroundSizeContain) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("background-size: contain;",

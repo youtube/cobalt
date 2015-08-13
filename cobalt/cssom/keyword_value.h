@@ -110,6 +110,11 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-transforms/#transform-property
     kNone,
 
+    // "no-repeat" is a value of "background-repeat" property which means that
+    // image is not repeated in a specific direction.
+    //   http://www.w3.org/TR/css3-background/#background-repeat
+    kNoRepeat,
+
     // "normal" is a value of "line-height" property which tells user agents
     // to set the used value to a "reasonable" value based on the font
     // of the element.
@@ -121,6 +126,11 @@ class KeywordValue : public PropertyValue {
     // with respect to the box's in-flow position.
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
     kRelative,
+
+    // "repeat" is a value of "background-repeat" property which means that
+    // image is repeated in a specific direction.
+    //   http://www.w3.org/TR/css3-background/#background-repeat
+    kRepeat,
 
     // "right" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally to the right.
@@ -162,8 +172,10 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetLeft();
   static const scoped_refptr<KeywordValue>& GetMiddle();
   static const scoped_refptr<KeywordValue>& GetNone();
+  static const scoped_refptr<KeywordValue>& GetNoRepeat();
   static const scoped_refptr<KeywordValue>& GetNormal();
   static const scoped_refptr<KeywordValue>& GetRelative();
+  static const scoped_refptr<KeywordValue>& GetRepeat();
   static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();

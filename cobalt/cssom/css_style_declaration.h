@@ -69,6 +69,9 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string background_position() const;
   void set_background_position(const std::string& background_position);
 
+  std::string background_repeat() const;
+  void set_background_repeat(const std::string& background_repeat);
+
   std::string background_size() const;
   void set_background_size(const std::string& background_size);
 
