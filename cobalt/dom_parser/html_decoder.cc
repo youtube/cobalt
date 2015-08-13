@@ -24,6 +24,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/text.h"
 
@@ -75,15 +76,13 @@ class HTMLDecoder::LibxmlWrapper {
  public:
   // The error_callback is for unrecoverable errors, i.e. those with severity
   // equals fatal.
-  LibxmlWrapper(dom::HTMLElementContext* html_element_context,
-                const scoped_refptr<dom::Document>& document,
+  LibxmlWrapper(const scoped_refptr<dom::Document>& document,
                 const scoped_refptr<dom::Node>& parent_node,
                 const scoped_refptr<dom::Node>& reference_node,
                 DOMType dom_type,
                 const base::SourceLocation& first_chunk_location,
                 const base::Callback<void(const std::string&)>& error_callback)
-      : html_element_context_(html_element_context),
-        document_(document),
+      : document_(document),
         parent_node_(parent_node),
         reference_node_(reference_node),
         dom_type_(dom_type),
@@ -116,7 +115,6 @@ class HTMLDecoder::LibxmlWrapper {
   base::SourceLocation GetSourceLocation();
 
  private:
-  dom::HTMLElementContext* const html_element_context_;
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;
   const scoped_refptr<dom::Node> reference_node_;
@@ -257,8 +255,9 @@ void HTMLDecoder::LibxmlWrapper::OnStartElement(
   if (dom_type_ == kDocumentFragment && (name == "html" || name == "body"))
     return;
   scoped_refptr<dom::HTMLElement> element =
-      html_element_context_->html_element_factory()->CreateHTMLElement(
-          document_, name);
+      document_->html_element_context()
+          ->html_element_factory()
+          ->CreateHTMLElement(document_, name);
   element->SetOpeningTagLocation(GetSourceLocation());
   for (size_t i = 0; i < attributes.size(); ++i) {
     element->SetAttribute(attributes[i].name.as_string(),
@@ -301,6 +300,10 @@ void HTMLDecoder::LibxmlWrapper::OnParsingIssue(HTMLParserSeverity severity,
                                                 const std::string& message) {
   if (severity == kHTMLParserFatal) {
     error_callback_.Run(message);
+
+    if (dom_type_ == kDocumentFull) {
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+    }
   }
   // TODO(***REMOVED***): Report recoverable errors and warnings.
 }
@@ -310,6 +313,10 @@ void HTMLDecoder::LibxmlWrapper::DecodeChunk(const char* data, size_t size) {
     return;
   }
   if (!parser_context_) {
+    if (dom_type_ == kDocumentFull) {
+      document_->IncreaseLoadingCounter();
+    }
+
     // The parser will try to auto-detect the encoding using the provided
     // data chunk.
     parser_context_ = htmlCreatePushParserCtxt(
@@ -331,6 +338,10 @@ void HTMLDecoder::LibxmlWrapper::Finish() {
   if (parser_context_) {
     htmlParseChunk(parser_context_, NULL, 0,
                    1 /*terminate*/);  // Triggers EndDocument
+
+    if (dom_type_ == kDocumentFull) {
+      document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+    }
   }
 }
 
@@ -349,19 +360,16 @@ base::SourceLocation HTMLDecoder::LibxmlWrapper::GetSourceLocation() {
 //////////////////////////////////////////////////////////////////
 
 HTMLDecoder::HTMLDecoder(
-    dom::HTMLElementContext* html_element_context,
     const scoped_refptr<dom::Document>& document,
     const scoped_refptr<dom::Node>& parent_node,
     const scoped_refptr<dom::Node>& reference_node, DOMType dom_type,
     const base::SourceLocation& input_location,
     const base::Closure& done_callback,
     const base::Callback<void(const std::string&)>& error_callback)
-    : libxml_wrapper_(new LibxmlWrapper(html_element_context, document,
-                                        parent_node, reference_node, dom_type,
-                                        input_location, error_callback)),
-      done_callback_(done_callback) {
-  DCHECK(html_element_context);
-}
+    : libxml_wrapper_(new LibxmlWrapper(document, parent_node, reference_node,
+                                        dom_type, input_location,
+                                        error_callback)),
+      done_callback_(done_callback) {}
 
 HTMLDecoder::~HTMLDecoder() {}
 

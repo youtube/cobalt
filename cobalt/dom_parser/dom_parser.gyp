@@ -21,8 +21,6 @@
       'target_name': 'dom_parser',
       'type': 'static_library',
       'sources': [
-        'document_builder.cc',
-        'document_builder.h',
         'html_decoder.cc',
         'html_decoder.h',
         'parser.cc',
@@ -40,7 +38,6 @@
       'target_name': 'dom_parser_test',
       'type': '<(gtest_target_type)',
       'sources': [
-        'document_builder_test.cc',
         'html_decoder_test.cc',
       ],
       'dependencies': [
