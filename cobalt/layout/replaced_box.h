@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/layout/paragraph.h"
 #include "cobalt/render_tree/image.h"
 
 namespace cobalt {
@@ -40,7 +41,8 @@ class ReplacedBox : public Box {
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
       const ReplaceImageCB& replace_image_cb,
-      const UsedStyleProvider* used_style_provider);
+      const UsedStyleProvider* used_style_provider,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -76,6 +78,9 @@ class ReplacedBox : public Box {
 
  private:
   ReplaceImageCB replace_image_cb_;
+
+  const scoped_refptr<Paragraph> paragraph_;
+  int32 text_position_;
 };
 
 }  // namespace layout

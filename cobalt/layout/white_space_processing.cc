@@ -83,24 +83,5 @@ void CollapseWhiteSpace(std::string* text) {
   text->erase(output_iterator, text->end());
 }
 
-void TrimWhiteSpace(std::string* text, bool* has_leading_white_space,
-                    bool* has_trailing_white_space) {
-  if (text->empty()) {
-    *has_leading_white_space = false;
-    *has_trailing_white_space = false;
-    return;
-  }
-
-  *has_leading_white_space = cssom::IsWhiteSpace(*text->begin());
-  *has_trailing_white_space = cssom::IsWhiteSpace(*text->rbegin());
-
-  if (*has_leading_white_space) {
-    text->erase(text->begin());
-  }
-  if (!text->empty() && *has_trailing_white_space) {
-    text->erase(text->end() - 1);
-  }
-}
-
 }  // namespace layout
 }  // namespace cobalt
