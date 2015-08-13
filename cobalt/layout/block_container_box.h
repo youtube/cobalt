@@ -50,6 +50,9 @@ class BlockContainerBox : public ContainerBox {
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 
+  scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
+  base::optional<int> GetBidiLevel() const OVERRIDE;
+
   bool IsCollapsed() const OVERRIDE;
   bool HasLeadingWhiteSpace() const OVERRIDE;
   bool HasTrailingWhiteSpace() const OVERRIDE;

@@ -128,20 +128,58 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
     return scoped_ptr<Box>();
   }
 
-  // Move the children after the split into a new box.
-  scoped_ptr<InlineContainerBox> box_after_split(new InlineContainerBox(
-      computed_style(), transitions(), used_style_provider()));
+  return SplitAtIterator(child_box_iterator);
+}
 
-  box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
-                                    child_box_iterator, child_boxes().end());
+scoped_ptr<Box> InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
+  const int kInvalidLevel = -1;
+  int last_level = kInvalidLevel;
 
-  // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
-  //               have no visual effect where the split occurs.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  ChildBoxes::const_iterator child_box_iterator;
+  for (child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end(); ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
 
-  InvalidateUsedHeight();
+    int current_level = child_box->GetBidiLevel().value_or(last_level);
 
-  return box_after_split.PassAs<Box>();
+    // If the last level isn't equal to the current level, then check on whether
+    // or not the last level is kInvalidLevel. If it is, then no initial value
+    // has been set yet. Otherwise, the intersection of two bidi levels has been
+    // found where a split should occur.
+    if (last_level != current_level) {
+      if (last_level == kInvalidLevel) {
+        last_level = current_level;
+      } else {
+        break;
+      }
+    }
+
+    // Try to split the child box's internals.
+    scoped_ptr<Box> child_box_after_split =
+        child_box->TrySplitAtSecondBidiLevelRun();
+    if (child_box_after_split) {
+      ++child_box_iterator;
+      child_box_iterator =
+          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+      break;
+    }
+  }
+
+  // If the iterator reached the end, then no split was found.
+  if (child_box_iterator == child_boxes().end()) {
+    return scoped_ptr<Box>();
+  }
+
+  return SplitAtIterator(child_box_iterator);
+}
+
+base::optional<int> InlineContainerBox::GetBidiLevel() const {
+  if (!child_boxes().empty()) {
+    ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+    return (*child_box_iterator)->GetBidiLevel();
+  }
+
+  return base::nullopt;
 }
 
 // TODO(***REMOVED***): All white space processing methods have an O(N) worst-case
@@ -256,6 +294,24 @@ InlineContainerBox::FindLastNonCollapsedChildBox() const {
     } while (child_box_iterator != child_boxes().begin());
   }
   return child_boxes().end();
+}
+
+scoped_ptr<Box> InlineContainerBox::SplitAtIterator(
+    ChildBoxes::const_iterator child_split_iterator) {
+  // Move the children after the split into a new box.
+  scoped_ptr<InlineContainerBox> box_after_split(new InlineContainerBox(
+      computed_style(), transitions(), used_style_provider()));
+
+  box_after_split->MoveChildrenFrom(box_after_split->child_boxes().end(), this,
+                                    child_split_iterator, child_boxes().end());
+
+  // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
+  //               have no visual effect where the split occurs.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+
+  InvalidateUsedHeight();
+
+  return box_after_split.PassAs<Box>();
 }
 
 }  // namespace layout

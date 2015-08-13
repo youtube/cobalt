@@ -34,6 +34,23 @@ Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 
 AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() { return this; }
 
+void AnonymousBlockBox::SplitBidiLevelRuns() {
+  ContainerBox::SplitBidiLevelRuns();
+
+  for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
+       child_box_iterator != child_boxes().end();) {
+    Box* child_box = *child_box_iterator;
+    ++child_box_iterator;
+
+    scoped_ptr<Box> child_box_after_split =
+        child_box->TrySplitAtSecondBidiLevelRun();
+    if (child_box_after_split) {
+      child_box_iterator =
+          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+    }
+  }
+}
+
 bool AnonymousBlockBox::TryAddChild(scoped_ptr<Box>* /*child_box*/) {
   NOTREACHED();
   return false;
@@ -82,6 +99,7 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(child_layout_params, font_metrics.x_height,
                                   computed_style()->text_align()));
+
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
