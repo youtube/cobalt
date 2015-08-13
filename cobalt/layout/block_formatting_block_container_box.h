@@ -105,6 +105,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
+  base::optional<int> GetBidiLevel() const OVERRIDE;
 
  private:
   const scoped_refptr<Paragraph> paragraph_;

@@ -90,6 +90,14 @@ scoped_ptr<Box> BlockContainerBox::TrySplitAt(float /*available_width*/,
   return scoped_ptr<Box>();
 }
 
+scoped_ptr<Box> BlockContainerBox::TrySplitAtSecondBidiLevelRun() {
+  return scoped_ptr<Box>();
+}
+
+base::optional<int> BlockContainerBox::GetBidiLevel() const {
+  return base::optional<int>();
+}
+
 bool BlockContainerBox::IsCollapsed() const {
   DCHECK_EQ(kInlineLevel, GetLevel());
   return false;

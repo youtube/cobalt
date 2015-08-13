@@ -78,6 +78,15 @@ RenderTreeWithAnimations Layout(
     }
   }
 
+  // Split bidi level runs.
+  // The bidi levels were calculated for the paragraphs during box generation.
+  // Now the text boxes are split between level runs, so that they will be
+  // reversible during layout without requiring additional run-induced splits.
+  {
+    TRACE_EVENT0("cobalt::layout", "SplitBidiLevelRuns");
+    initial_containing_block->SplitBidiLevelRuns();
+  }
+
   // Update node cross-references.
   // "Cross-references" here refers to box node references to other boxes in the
   // box tree.  For example, stacking contexts and container boxes are setup
