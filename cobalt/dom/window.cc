@@ -32,10 +32,10 @@
 namespace cobalt {
 namespace dom {
 
-// This class fires the window's OnLoad event when the document is loaded.
-class Window::RelayOnLoadEvent : public DocumentObserver {
+// This class fires the window's load event when the document is loaded.
+class Window::RelayLoadEvent : public DocumentObserver {
  public:
-  explicit RelayOnLoadEvent(Window* window) : window_(window) {}
+  explicit RelayLoadEvent(Window* window) : window_(window) {}
 
   // From DocumentObserver.
   void OnLoad() OVERRIDE {
@@ -49,7 +49,7 @@ class Window::RelayOnLoadEvent : public DocumentObserver {
  private:
   Window* window_;
 
-  DISALLOW_COPY_AND_ASSIGN(RelayOnLoadEvent);
+  DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
@@ -66,10 +66,16 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                                  web_media_player_factory, script_runner)),
       document_(
           new Document(html_element_context_.get(), Document::Options(url))),
+      document_loader_(new loader::Loader(
+          base::Bind(&loader::FetcherFactory::CreateFetcher,
+                     base::Unretained(fetcher_factory), url),
+          dom_parser->ParseDocumentAsync(
+              document_, base::SourceLocation(url.spec(), 1, 1)),
+          error_callback)),
       navigator_(new Navigator(user_agent)),
       performance_(new Performance()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          relay_on_load_event_(new RelayOnLoadEvent(this))),
+          relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console()),
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(
@@ -78,9 +84,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))) {
-  UNREFERENCED_PARAMETER(error_callback);
   document_->AddObserver(relay_on_load_event_.get());
-  dom_parser->BuildDocument(url, document_);
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }

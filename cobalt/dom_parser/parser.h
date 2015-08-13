@@ -19,19 +19,18 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/callback.h"
-#include "base/memory/ref_counted.h"
-#include "cobalt/dom/document.h"
 #include "cobalt/dom/parser.h"
-#include "cobalt/dom/xml_document.h"
-#include "cobalt/dom_parser/document_builder.h"
 
 namespace cobalt {
 namespace dom_parser {
 
 class Parser : public dom::Parser {
  public:
-  Parser() {}
+  Parser()
+      : error_callback_(
+            base::Bind(&Parser::ErrorCallback, base::Unretained(this))) {}
   explicit Parser(
       const base::Callback<void(const std::string&)>& error_callback)
       : error_callback_(error_callback) {}
@@ -60,18 +59,18 @@ class Parser : public dom::Parser {
       const scoped_refptr<dom::Node>& reference_node,
       const base::SourceLocation& input_location) OVERRIDE;
 
-  // This function starts an asynchronous process that loads a document from the
-  // given url. Note it requires a message loop to function, i.e. the loading
-  // will happen during the message loop. If the parser is destroyed before
-  // the document building finishes, the process is cancelled.
-  void BuildDocument(const GURL& url,
-                     scoped_refptr<dom::Document> document) OVERRIDE;
+  scoped_ptr<loader::Decoder> ParseDocumentAsync(
+      const scoped_refptr<dom::Document>& document,
+      const base::SourceLocation& input_location) OVERRIDE;
+
+  scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
+      const scoped_refptr<dom::XMLDocument>& xml_document,
+      const base::SourceLocation& input_location) OVERRIDE;
 
  private:
   void ErrorCallback(const std::string& error);
 
   const base::Callback<void(const std::string&)> error_callback_;
-  scoped_ptr<DocumentBuilder> document_builder_;
 
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };

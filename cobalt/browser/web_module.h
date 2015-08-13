@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/dom_settings.h"
