@@ -62,10 +62,12 @@ BoxGenerator::BoxGenerator(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
     const UsedStyleProvider* used_style_provider,
-    icu::BreakIterator* line_break_iterator)
+    icu::BreakIterator* line_break_iterator,
+    scoped_refptr<Paragraph>* paragraph)
     : parent_computed_style_(parent_computed_style),
       used_style_provider_(used_style_provider),
-      line_break_iterator_(line_break_iterator) {}
+      line_break_iterator_(line_break_iterator),
+      paragraph_(paragraph) {}
 
 BoxGenerator::~BoxGenerator() {}
 
@@ -73,25 +75,59 @@ namespace {
 
 class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
  public:
+  enum CloseParagraph {
+    kDoNotCloseParagraph,
+    kCloseParagraph,
+  };
+
   ContainerBoxGenerator(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
-      const UsedStyleProvider* used_style_provider)
+      const UsedStyleProvider* used_style_provider,
+      icu::BreakIterator* line_break_iterator,
+      scoped_refptr<Paragraph>* paragraph)
       : computed_style_(computed_style),
         transitions_(transitions),
-        used_style_provider_(used_style_provider) {}
+        used_style_provider_(used_style_provider),
+        line_break_iterator_(line_break_iterator),
+        paragraph_(paragraph),
+        paragraph_scoped_(false) {}
+  ~ContainerBoxGenerator();
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
   scoped_ptr<ContainerBox> PassContainerBox() { return container_box_.Pass(); }
 
  private:
+  void CreateScopedParagraph(CloseParagraph close_prior_paragraph);
+
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
   const cssom::TransitionSet* transitions_;
   const UsedStyleProvider* const used_style_provider_;
+  icu::BreakIterator* const line_break_iterator_;
+
+  scoped_refptr<Paragraph>* paragraph_;
+  scoped_refptr<Paragraph> prior_paragraph_;
+  bool paragraph_scoped_;
 
   scoped_ptr<ContainerBox> container_box_;
 };
+
+ContainerBoxGenerator::~ContainerBoxGenerator() {
+  if (paragraph_scoped_) {
+    (*paragraph_)->Close();
+
+    // If the prior paragraph was closed, then replace it with a new paragraph
+    // that has the same direction as the previous one. Otherwise, restore the
+    // prior one.
+    if (prior_paragraph_ && prior_paragraph_->IsClosed()) {
+      *paragraph_ = new Paragraph(line_break_iterator_,
+                                  prior_paragraph_->GetBaseDirection());
+    } else {
+      *paragraph_ = prior_paragraph_;
+    }
+  }
+}
 
 void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   // See http://www.w3.org/TR/CSS21/visuren.html#display-prop.
@@ -100,6 +136,12 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBlock:
       container_box_ = make_scoped_ptr(new BlockLevelBlockContainerBox(
           computed_style_, transitions_, used_style_provider_));
+
+      // The block ends the current paragraph and begins a new one that ends
+      // with the block, so close the current paragraph, and create a new
+      // paragraph that will close when the container box generator is
+      // destroyed.
+      CreateScopedParagraph(kCloseParagraph);
       break;
     // Generate one or more inline boxes. Note that more inline boxes may be
     // generated when the original inline box is split due to participation
@@ -111,10 +153,25 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself
     // is formatted as an atomic inline-level box.
-    case cssom::KeywordValue::kInlineBlock:
+    //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+    case cssom::KeywordValue::kInlineBlock: {
+      // An inline block is treated as an atomic inline element, which means
+      // that for bidi analysis it is treated as a neutral type. Append a space
+      // to represent it in the paragraph.
+      //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+      //   http://www.w3.org/TR/CSS21/visuren.html#direction
+      int32 text_position = (*paragraph_)->AppendText(" ");
+
       container_box_ = make_scoped_ptr(new InlineLevelBlockContainerBox(
-          computed_style_, transitions_, used_style_provider_));
-      break;
+          computed_style_, transitions_, used_style_provider_, *paragraph_,
+          text_position));
+
+      // The inline block creates a new paragraph, which the old paragraph
+      // flows around. Create a new paragraph, which will close with the end
+      // of the inline block. However, do not close the old paragraph, because
+      // it will continue once the scope of the inline block ends.
+      CreateScopedParagraph(kDoNotCloseParagraph);
+    } break;
     // The element generates no boxes and has no effect on layout.
     case cssom::KeywordValue::kNone:
       // Leave |container_box_| NULL.
@@ -144,6 +201,23 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
   }
 }
 
+void ContainerBoxGenerator::CreateScopedParagraph(
+    CloseParagraph close_prior_paragraph) {
+  DCHECK(!paragraph_scoped_);
+
+  paragraph_scoped_ = true;
+  prior_paragraph_ = *paragraph_;
+
+  if (prior_paragraph_ && close_prior_paragraph == kCloseParagraph) {
+    prior_paragraph_->Close();
+  }
+
+  // TODO(jgray): Use the container box's style to determine the correct base
+  // direction for the paragraph.
+  *paragraph_ =
+      new Paragraph(line_break_iterator_, Paragraph::kLeftToRightBaseDirection);
+}
+
 }  // namespace
 
 void BoxGenerator::Visit(dom::Element* element) {
@@ -163,10 +237,18 @@ void BoxGenerator::Visit(dom::Element* element) {
 void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
   // For video elements, create a ReplacedBox and return that as the set of
   // boxes generated for this HTML element.
+
+  // A replaced box is treated as an atomic inline element, which means that
+  // for bidi analysis it is treated as a neutral type. Append a space to
+  // represent it in the paragraph.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+  //   http://www.w3.org/TR/CSS21/visuren.html#direction
+  int32 text_position = (*paragraph_)->AppendText(" ");
+
   scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
       media_element->computed_style(), media_element->transitions(),
       base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
-      used_style_provider_));
+      used_style_provider_, *paragraph_, text_position));
   boxes_.push_back(replaced_box.release());
 }
 
@@ -207,7 +289,7 @@ void BoxGenerator::AppendPseudoElementToLine(
   if (pseudo_element) {
     ContainerBoxGenerator pseudo_element_box_generator(
         pseudo_element->computed_style(), pseudo_element->transitions(),
-        used_style_provider_);
+        used_style_provider_, line_break_iterator_, paragraph_);
     pseudo_element->computed_style()->display()->Accept(
         &pseudo_element_box_generator);
     scoped_ptr<ContainerBox> pseudo_element_box =
@@ -227,7 +309,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 
       BoxGenerator child_box_generator(pseudo_element->computed_style(),
                                        used_style_provider_,
-                                       line_break_iterator_);
+                                       line_break_iterator_, paragraph_);
       child_node->Accept(&child_box_generator);
       Boxes child_boxes = child_box_generator.PassBoxes();
       for (Boxes::iterator child_box_iterator = child_boxes.begin();
@@ -248,7 +330,7 @@ void BoxGenerator::AppendPseudoElementToLine(
 void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   ContainerBoxGenerator container_box_generator(
       html_element->computed_style(), html_element->transitions(),
-      used_style_provider_);
+      used_style_provider_, line_break_iterator_, paragraph_);
   html_element->computed_style()->display()->Accept(&container_box_generator);
   scoped_ptr<ContainerBox> container_box_before_split =
       container_box_generator.PassContainerBox();
@@ -269,8 +351,8 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   for (scoped_refptr<dom::Node> child_node = html_element->first_child();
        child_node; child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(html_element->computed_style(),
-                                     used_style_provider_,
-                                     line_break_iterator_);
+                                     used_style_provider_, line_break_iterator_,
+                                     paragraph_);
     child_node->Accept(&child_box_generator);
 
     Boxes child_boxes = child_box_generator.PassBoxes();
@@ -293,15 +375,19 @@ void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
 void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 
-// Split the text node into non-breakable segments at soft wrap opportunities
-// (http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity) according to
-// the Unicode line breaking algorithm (http://www.unicode.org/reports/tr14/).
-// Each non-breakable segment (a word or a part of the word) becomes a text box.
-// An actual line breaking happens during the layout, at the edge of text boxes.
+// Append the text from the text node to the text paragraph and create the
+// node's initial text box. The text box has indices that map to the paragraph,
+// which allows it to retrieve its underlying text. Initially, a single text box
+// is created that encompasses the entire node.
+
+// Prior to layout, the paragraph applies the Unicode bidirectional algorithm
+// to its text (http://www.unicode.org/reports/tr9/) and causes the text boxes
+// referencing it to split at level runs.
 //
-// TODO(***REMOVED***): Measure the performance of the algorithm on Chinese
-//               and Japanese where almost every character presents a soft wrap
-//               opportunity.
+// During layout, the text boxes are potentially split further, as the paragraph
+// determines line breaking locations for its text at soft wrap opportunities
+// (http://www.w3.org/TR/css-text-3/#soft-wrap-opportunity) according to the
+// Unicode line breaking algorithm (http://www.unicode.org/reports/tr14/).
 void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
       GetComputedStyleOfAnonymousBox(parent_computed_style_);
@@ -314,42 +400,22 @@ void BoxGenerator::Visit(dom::Text* text) {
   CollapseWhiteSpace(&collapsed_text);
 
   // TODO(***REMOVED***): Implement "white-space: nowrap".
-  //               http://www.w3.org/TR/css3-text/#white-space
-  icu::UnicodeString collapsed_text_as_unicode_string =
-      icu::UnicodeString::fromUTF8(collapsed_text);
-  line_break_iterator_->setText(collapsed_text_as_unicode_string);
 
-  for (int32 segment_end = line_break_iterator_->first(), segment_start = 0;
-       segment_end != icu::BreakIterator::DONE;
-       segment_end = line_break_iterator_->next()) {
-    if (segment_end == 0) {
-      continue;
-    }
+  // TODO(***REMOVED***): Transform the letter case:
+  //               http://www.w3.org/TR/css-text-3/#text-transform-property
 
-    icu::UnicodeString non_breakable_segment =
-        collapsed_text_as_unicode_string.tempSubStringBetween(segment_start,
-                                                              segment_end);
-    segment_start = segment_end;
+  // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
+  //               instead of none at all.
 
-    // TODO(***REMOVED***): Transform the letter case:
-    //               http://www.w3.org/TR/css-text-3/#text-transform-property
+  // TODO(jgray):  Include bidi markup in appended text.
 
-    // TODO(***REMOVED***): Implement "white-space: pre".
-    //               http://www.w3.org/TR/css3-text/#white-space
-    std::string trimmed_non_breakable_segment;
-    bool has_leading_white_space;
-    bool has_trailing_white_space;
-    non_breakable_segment.toUTF8String(trimmed_non_breakable_segment);
-    TrimWhiteSpace(&trimmed_non_breakable_segment, &has_leading_white_space,
-                   &has_trailing_white_space);
+  int32 text_start_position = (*paragraph_)->AppendText(collapsed_text);
+  int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
-    // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
-    //               instead of none at all.
-    boxes_.push_back(
-        new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
-                    trimmed_non_breakable_segment, has_leading_white_space,
-                    has_trailing_white_space, used_style_provider_));
-  }
+  boxes_.push_back(
+      new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
+                  used_style_provider_, *paragraph_, text_start_position,
+                  text_end_position, TextBox::kInvalidTextWidth));
 }
 
 BoxGenerator::Boxes BoxGenerator::PassBoxes() { return boxes_.Pass(); }

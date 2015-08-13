@@ -27,12 +27,6 @@ namespace layout {
 //   http://www.w3.org/TR/css3-text/#white-space-phase-1
 void CollapseWhiteSpace(std::string* text);
 
-// Trims the white space in a preparation for the phase II of the white space
-// processing which happens during a layout.
-//   http://www.w3.org/TR/css3-text/#white-space-phase-2
-void TrimWhiteSpace(std::string* text, bool* has_leading_white_space,
-                    bool* has_trailing_white_space);
-
 }  // namespace layout
 }  // namespace cobalt
 

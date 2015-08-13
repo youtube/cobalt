@@ -183,9 +183,12 @@ Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
-    const UsedStyleProvider* used_style_provider)
+    const UsedStyleProvider* used_style_provider,
+    const scoped_refptr<Paragraph>& paragraph, int32 paragraph_position)
     : BlockFormattingBlockContainerBox(computed_style, transitions,
-                                       used_style_provider) {}
+                                       used_style_provider),
+      paragraph_(paragraph),
+      text_position_(paragraph_position) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 

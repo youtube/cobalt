@@ -55,9 +55,12 @@ ReplacedBox::ReplacedBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
     const ReplaceImageCB& replace_image_cb,
-    const UsedStyleProvider* used_style_provider)
+    const UsedStyleProvider* used_style_provider,
+    const scoped_refptr<Paragraph>& paragraph, int32 paragraph_position)
     : Box(computed_style, transitions, used_style_provider),
-      replace_image_cb_(replace_image_cb) {
+      replace_image_cb_(replace_image_cb),
+      paragraph_(paragraph),
+      text_position_(paragraph_position) {
   DCHECK(!replace_image_cb_.is_null());
 }
 
