@@ -38,8 +38,10 @@ TEST(KeywordValueTest, InstancesAndValuesAreConsistent) {
   EXPECT_EQ(KeywordValue::kLeft, KeywordValue::GetLeft()->value());
   EXPECT_EQ(KeywordValue::kMiddle, KeywordValue::GetMiddle()->value());
   EXPECT_EQ(KeywordValue::kNone, KeywordValue::GetNone()->value());
+  EXPECT_EQ(KeywordValue::kNoRepeat, KeywordValue::GetNoRepeat()->value());
   EXPECT_EQ(KeywordValue::kNormal, KeywordValue::GetNormal()->value());
   EXPECT_EQ(KeywordValue::kRelative, KeywordValue::GetRelative()->value());
+  EXPECT_EQ(KeywordValue::kRepeat, KeywordValue::GetRepeat()->value());
   EXPECT_EQ(KeywordValue::kRight, KeywordValue::GetRight()->value());
   EXPECT_EQ(KeywordValue::kStatic, KeywordValue::GetStatic()->value());
   EXPECT_EQ(KeywordValue::kTop, KeywordValue::GetTop()->value());

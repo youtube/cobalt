@@ -62,6 +62,9 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
         declared_style->background_position()) {
       style->set_background_position(declared_style->background_position());
     }
+    if (!style->background_repeat() && declared_style->background_repeat()) {
+      style->set_background_repeat(declared_style->background_repeat());
+    }
     if (!style->background_size() && declared_style->background_size()) {
       style->set_background_size(declared_style->background_size());
     }
