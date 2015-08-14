@@ -292,14 +292,13 @@ namespace {
 
 // This function will return a string equal to the input string except ended
 // at a newline or a null character.
-base::StringPiece GetLineString(const char* line_start) {
+std::string GetLineString(const char* line_start) {
   const char* line_end = line_start;
   while (*line_end != '\n' && *line_end != '\0') {
     ++line_end;
   }
 
-  return base::StringPiece(line_start,
-                           static_cast<size_t>(line_end - line_start));
+  return std::string(line_start, static_cast<size_t>(line_end - line_start));
 }
 
 }  // namespace
@@ -315,20 +314,50 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
                                &column_number);
 
   std::stringstream message_stream;
+
+  // 1st line: location and message.
   message_stream << input_location_.file_path << ":" << line_number << ":"
                  << column_number << ": " << message_type << ": " << message;
 
   if (message_verbosity_ == Parser::kVerbose) {
-    message_stream << std::endl;
+    // 2nd line: the content of the line, with a maximum of kLineMax characters
+    // around the location.
+    //
+    const int kLineMax = 80;
+    const std::string line = GetLineString(source_location.line_start);
+    const int line_length = static_cast<int>(line.length());
+    // The range of index of the substr is [substr_start, substr_end).
+    // Shift the range left and right, and trim to the correct length, to make
+    // it fit in [0, line.length()).
+    int substr_start = column_number - kLineMax / 2;
+    int substr_end = column_number + kLineMax / 2;
+    if (substr_end > line_length) {
+      int delta = substr_end - line_length;
+      substr_start -= delta;
+      substr_end -= delta;
+    }
+    if (substr_start < 0) {
+      int delta = -substr_start;
+      substr_start += delta;
+      substr_end += delta;
+    }
+    if (substr_end > line_length) {
+      substr_end = line_length;
+    }
+    // Preamble and postamble are printed before and after the sub string.
+    const std::string preamble = substr_start == 0 ? "" : "...";
+    const std::string postamble = substr_end == line_length ? "" : "...";
 
-    // Output the contents of the line containing the source_location.
-    const char line_preamble[] = "  Line: \"";
-    const size_t preamble_size = sizeof(line_preamble);
-    message_stream << line_preamble << GetLineString(source_location.line_start)
-                                           .as_string() << "\"" << std::endl;
-    // Add a '^' arrow to indicate where in the line the error occurred.
-    message_stream << std::string(preamble_size + column_number - 2, ' ');
-    message_stream << "^" << std::endl;
+    message_stream << std::endl << preamble
+                   << line.substr(substr_start, substr_end - substr_start)
+                   << postamble;
+
+    // 3rd line: a '^' arrow to indicate the exact column in the line.
+    //
+    message_stream << std::endl
+                   << std::string(
+                          preamble.length() + column_number - substr_start - 1,
+                          ' ') << '^';
   }
 
   return message_stream.str();
