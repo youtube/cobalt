@@ -23,6 +23,8 @@
         'compiler.h',
         'init_cobalt.cc',
         'init_cobalt.h',
+        'log_message_handler.cc',
+        'log_message_handler.h',
         'polymorphic_downcast.h',
         'polymorphic_equatable.h',
         'source_location.h',
