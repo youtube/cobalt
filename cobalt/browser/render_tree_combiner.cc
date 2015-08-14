@@ -22,8 +22,8 @@ namespace cobalt {
 namespace browser {
 
 RenderTreeCombiner::RenderTreeCombiner(renderer::Pipeline* renderer_pipeline)
-    : renderer_pipeline_(renderer_pipeline),
-      debug_console_mode_(DebugConsole::kDebugConsoleOff) {}
+    : debug_console_mode_(DebugConsole::kDebugConsoleOff),
+      renderer_pipeline_(renderer_pipeline) {}
 
 RenderTreeCombiner::~RenderTreeCombiner() {}
 
