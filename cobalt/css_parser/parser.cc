@@ -349,7 +349,9 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
     const std::string postamble = substr_end == line_length ? "" : "...";
 
     message_stream << std::endl << preamble
-                   << line.substr(substr_start, substr_end - substr_start)
+                   << line.substr(
+                          static_cast<size_t>(substr_start),
+                          static_cast<size_t>(substr_end - substr_start))
                    << postamble;
 
     // 3rd line: a '^' arrow to indicate the exact column in the line.
