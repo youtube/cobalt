@@ -20,7 +20,7 @@ namespace base {
 
 LogMessageHandler* LogMessageHandler::GetInstance() {
   return Singleton<LogMessageHandler,
-                   StaticMemorySingletonTraits<LogMessageHandler>>::get();
+                   StaticMemorySingletonTraits<LogMessageHandler> >::get();
 }
 
 LogMessageHandler::LogMessageHandler() {
