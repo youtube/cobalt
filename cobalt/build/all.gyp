@@ -30,6 +30,7 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
+        '<(DEPTH)/base/base.gyp:base_unittests',
         '<(DEPTH)/cobalt/bindings/testing/testing.gyp:*',
         '<(DEPTH)/cobalt/browser/browser.gyp:*',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:*',
