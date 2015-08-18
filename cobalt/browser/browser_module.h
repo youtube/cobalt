@@ -93,6 +93,9 @@ class BrowserModule {
   // into the renderer module.
   WebModule web_module_;
 
+  // The browser module runs on this message loop.
+  MessageLoop* const browser_module_message_loop_;
+
   // Wraps input device and produces input events that can be passed into
   // the web module.
   scoped_ptr<input::InputDeviceManager> input_device_manager_;
