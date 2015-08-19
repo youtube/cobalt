@@ -35,6 +35,8 @@
         'comment.h',
         'console.cc',
         'console.h',
+        'crypto.cc',
+        'crypto.h',
         'document.cc',
         'document.h',
         'document_type.cc',
