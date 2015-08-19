@@ -26,6 +26,7 @@
 #include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
+#include "cobalt/dom/crypto.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/window_timers.h"
@@ -90,6 +91,10 @@ class Window : public EventTarget {
   int inner_width() const { return width_; }
   int inner_height() const { return height_; }
 
+  // Web API: GlobalCrypto (implements)
+  //   http://www.w3.org/TR/WebCryptoAPI/#crypto-interface
+  scoped_refptr<Crypto> crypto() const;
+
   // Web API: GlobalEventHandlers (implements)
   //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
   scoped_refptr<EventListener> onload();
@@ -144,6 +149,8 @@ class Window : public EventTarget {
   scoped_ptr<WindowTimers> window_timers_;
   scoped_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
+
+  scoped_refptr<Crypto> crypto_;
 
   scoped_refptr<Storage> local_storage_;
   scoped_refptr<Storage> session_storage_;

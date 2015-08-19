@@ -39,6 +39,9 @@ class DOMException : public script::ScriptException {
     kInvalidStateErr = 11,
     kSyntaxErr = 12,
     kInvalidAccessErr = 15,
+    // Note that TypeMismatchErr is replaced by TypeError but we keep using it
+    // to be in sync with Chrome.
+    kTypeMismatchErr = 17,
     kQuotaExceededErr = 22,
   };
 
