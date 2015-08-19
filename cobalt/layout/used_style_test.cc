@@ -41,8 +41,12 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithPercentageList) {
   UsedBackgroundPositionProvider used_background_position_provider(frame_size,
                                                                    image_size);
   property_value->Accept(&used_background_position_provider);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.3f);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.6f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 30.0f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 120.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_x_relative_to_frame(), 0.3f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_y_relative_to_frame(), 0.6f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
@@ -60,8 +64,12 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthList) {
   UsedBackgroundPositionProvider used_background_position_provider(frame_size,
                                                                    image_size);
   property_value->Accept(&used_background_position_provider);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.6f);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.4f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 60.0f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 80.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_x_relative_to_frame(), 0.6f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_y_relative_to_frame(), 0.4f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
@@ -78,8 +86,12 @@ TEST(UsedStyleTest, UsedBackgroundPositionProviderWithLengthAndPercentageList) {
   UsedBackgroundPositionProvider used_background_position_provider(frame_size,
                                                                    image_size);
   property_value->Accept(&used_background_position_provider);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 0.6f);
-  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 0.6f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_x(), 60.0f);
+  EXPECT_FLOAT_EQ(used_background_position_provider.translate_y(), 120.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_x_relative_to_frame(), 0.6f);
+  EXPECT_FLOAT_EQ(
+      used_background_position_provider.translate_y_relative_to_frame(), 0.6f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithWidthScale) {
@@ -88,8 +100,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithWidthScale) {
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   cssom::KeywordValue::GetContain()->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 1.0f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 0.5f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  1.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.5f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithHeightScale) {
@@ -98,8 +114,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderContainWithHeightScale) {
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   cssom::KeywordValue::GetContain()->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 0.5f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 1.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.5f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 1.0f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithWidthScale) {
@@ -108,8 +128,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithWidthScale) {
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   cssom::KeywordValue::GetCover()->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 1.0f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 2.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 200.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 200.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  1.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 2.0f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithHeightScale) {
@@ -118,8 +142,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderCoverWithHeightScale) {
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   cssom::KeywordValue::GetCover()->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 2.0f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 1.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 200.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 200.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  2.0f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 1.0f);
 }
 
 TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
@@ -135,8 +163,12 @@ TEST(UsedStyleTest, UsedBackgroundSizeProviderWithDoubleAutoPropertyList) {
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   property_value->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 0.5f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 0.25f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 50.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 50.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.5f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.25f);
 }
 
 TEST(UsedStyleTest,
@@ -153,8 +185,12 @@ TEST(UsedStyleTest,
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   property_value->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 0.5f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 0.8f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 120.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.5f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.8f);
 }
 
 TEST(UsedStyleTest,
@@ -171,8 +207,12 @@ TEST(UsedStyleTest,
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   property_value->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 0.6f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 0.8f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 120.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 120.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.6f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.8f);
 }
 
 TEST(UsedStyleTest,
@@ -189,8 +229,27 @@ TEST(UsedStyleTest,
   UsedBackgroundSizeProvider used_background_size_provider(frame_size,
                                                            image_size);
   property_value->Accept(&used_background_size_provider);
-  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale(), 0.5f);
-  EXPECT_FLOAT_EQ(used_background_size_provider.height_scale(), 1.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 100.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.5f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 1.0f);
 }
+
+TEST(UsedStyleTest, UsedBackgroundRepeatProviderNoRepeatAndRepeat) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(cssom::KeywordValue::GetNoRepeat());
+  property_value_builder->push_back(cssom::KeywordValue::GetRepeat());
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  UsedBackgroundRepeatProvider used_background_repeat_provider;
+  property_value->Accept(&used_background_repeat_provider);
+  EXPECT_FALSE(used_background_repeat_provider.repeat_x());
+  EXPECT_TRUE(used_background_repeat_provider.repeat_y());
+}
+
 }  // namespace layout
 }  // namespace cobalt
