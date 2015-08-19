@@ -392,6 +392,8 @@ void BoxGenerator::Visit(dom::Text* text) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
       GetComputedStyleOfAnonymousBox(parent_computed_style_);
 
+  DCHECK(text);
+  DCHECK(computed_style);
   // Phase I: Collapsing and Transformation
   //   http://www.w3.org/TR/css3-text/#white-space-phase-1
   // TODO(***REMOVED***): Implement "white-space: pre".
@@ -409,6 +411,7 @@ void BoxGenerator::Visit(dom::Text* text) {
 
   // TODO(***REMOVED***):  Include bidi markup in appended text.
 
+  DCHECK(*paragraph_);
   int32 text_start_position = (*paragraph_)->AppendText(collapsed_text);
   int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 

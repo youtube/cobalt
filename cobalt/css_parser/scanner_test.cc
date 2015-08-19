@@ -158,16 +158,18 @@ TEST_F(ScannerTest, ScansFunctionLikeMediaAnd) {
   ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
 
-  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("tv", token_value_.string);
+  ASSERT_EQ(kTVMediaTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kMediaAndToken, yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ('(', yylex(&token_value_, &token_location_, &scanner));
 
-  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("monochrome", token_value_.string);
+  ASSERT_EQ(kNonNegativeIntegerMediaFeatureTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(static_cast<int>(cssom::kMonochromeMediaFeature),
+            token_value_.integer);
 
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
@@ -806,30 +808,67 @@ TEST_F(ScannerTest, ScansNthLastOfTypeFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansMediaAnd) {
-  Scanner scanner("@media and", &string_pool_);
+TEST_F(ScannerTest, ScansMediaScreenAnd) {
+  Scanner scanner("@media screen and", &string_pool_);
 
   ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kScreenMediaTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kMediaAndToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansMediaNot) {
-  Scanner scanner("@media not", &string_pool_);
+TEST_F(ScannerTest, ScansMediaNotDeviceAspectRatio) {
+  Scanner scanner("@media not (device-aspect-ratio: 2560/1440)", &string_pool_);
 
   ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kMediaNotToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ('(', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kRatioMediaFeatureTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(static_cast<int>(cssom::kDeviceAspectRatioMediaFeature),
+            token_value_.integer);
+  ASSERT_EQ(':', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kIntegerToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_FLOAT_EQ(2560, token_value_.integer);
+  ASSERT_EQ('/', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kIntegerToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_FLOAT_EQ(1440, token_value_.integer);
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansMediaOnly) {
-  Scanner scanner("@media only", &string_pool_);
+TEST_F(ScannerTest, ScansMediaOrientationBogus) {
+  Scanner scanner("@media (orientation: bogus)", &string_pool_);
+
+  ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ('(', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kOrientationMediaFeatureTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(static_cast<int>(cssom::kOrientationMediaFeature),
+            token_value_.integer);
+  ASSERT_EQ(':', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansMediaOnlyTv) {
+  Scanner scanner("@media only tv", &string_pool_);
 
   ASSERT_EQ(kMediaToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kMediaOnlyToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kTVMediaTypeToken,
+            yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 

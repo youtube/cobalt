@@ -44,6 +44,10 @@ class StubCSSParser : public cssom::CSSParser {
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
       cssom::CSSStyleDeclarationData* style_declaration) OVERRIDE;
+
+  scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
+      const std::string& media_query,
+      const base::SourceLocation& input_location) OVERRIDE;
 };
 
 }  // namespace testing
