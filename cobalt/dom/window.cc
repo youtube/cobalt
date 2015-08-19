@@ -80,6 +80,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList()),
+      crypto_(new Crypto()),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -102,6 +103,8 @@ const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 const scoped_refptr<Performance>& Window::performance() const {
   return performance_;
 }
+
+scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
 scoped_refptr<EventListener> Window::onload() {
   return GetAttributeEventListener("load");
