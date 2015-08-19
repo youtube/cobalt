@@ -20,7 +20,8 @@
 
 namespace media {
 
-ShellVideoFrameProvider::ShellVideoFrameProvider() {
+ShellVideoFrameProvider::ShellVideoFrameProvider()
+    : has_consumed_frames_(false) {
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   dropped_frames_ = 0;
   max_delay_in_microseconds_ = 0;
@@ -77,6 +78,7 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
     frames_.erase(frames_.begin());
+    has_consumed_frames_ = true;
   }
   if (!frames_.empty()) {
     current_frame_ = frames_[0];
@@ -108,6 +110,13 @@ size_t ShellVideoFrameProvider::GetNumOfFramesCached() const {
 base::TimeDelta ShellVideoFrameProvider::GetMediaTime_Locked() const {
   frames_lock_.AssertAcquired();
   return media_time_cb_.is_null() ? base::TimeDelta() : media_time_cb_.Run();
+}
+
+bool ShellVideoFrameProvider::QueryAndResetHasConsumedFrames() {
+  base::AutoLock auto_lock(frames_lock_);
+  bool previous_value = has_consumed_frames_;
+  has_consumed_frames_ = false;
+  return previous_value;
 }
 
 }  // namespace media
