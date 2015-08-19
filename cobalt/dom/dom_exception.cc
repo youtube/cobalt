@@ -37,6 +37,8 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "SyntaxErr";
     case DOMException::kInvalidAccessErr:
       return "InvalidAccessErr";
+    case DOMException::kTypeMismatchErr:
+      return "TypeMismatchErr";
     case DOMException::kQuotaExceededErr:
       return "QuotaExceededErr";
   }
