@@ -352,7 +352,8 @@ void Box::AddBackgroundImageToRenderTree(
          image_iterator != property_list->value().rend(); ++image_iterator) {
       UsedBackgroundNodeProvider background_node_provider(
           used_style_provider_, used_size(), computed_style_->background_size(),
-          computed_style_->background_position());
+          computed_style_->background_position(),
+          computed_style_->background_repeat());
       (*image_iterator)->Accept(&background_node_provider);
       scoped_refptr<render_tree::Node> background_node =
           background_node_provider.background_node();

@@ -79,7 +79,8 @@ class UsedBackgroundNodeProvider
       const UsedStyleProvider* used_style_provider,
       const math::SizeF& frame_size,
       const scoped_refptr<cssom::PropertyValue>& background_size,
-      const scoped_refptr<cssom::PropertyValue>& background_position);
+      const scoped_refptr<cssom::PropertyValue>& background_position,
+      const scoped_refptr<cssom::PropertyValue>& background_repeat);
 
   void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
 
@@ -92,6 +93,7 @@ class UsedBackgroundNodeProvider
   const math::SizeF frame_size_;
   const scoped_refptr<cssom::PropertyValue> background_size_;
   const scoped_refptr<cssom::PropertyValue> background_position_;
+  const scoped_refptr<cssom::PropertyValue> background_repeat_;
 
   scoped_refptr<render_tree::Node> background_node_;
 
@@ -110,6 +112,15 @@ class UsedBackgroundPositionProvider
   float translate_x() { return translate_x_; }
   float translate_y() { return translate_y_; }
 
+  float translate_x_relative_to_frame() {
+    return frame_size_.width() == 0.0f ? 0.0f
+                                       : translate_x_ / frame_size_.width();
+  }
+  float translate_y_relative_to_frame() {
+    return frame_size_.height() == 0.0f ? 0.0f
+                                        : translate_y_ / frame_size_.height();
+  }
+
  private:
   const math::SizeF frame_size_;
   const math::SizeF image_actual_size_;
@@ -118,6 +129,24 @@ class UsedBackgroundPositionProvider
   float translate_y_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundPositionProvider);
+};
+
+class UsedBackgroundRepeatProvider
+    : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  UsedBackgroundRepeatProvider();
+
+  void VisitPropertyList(
+      cssom::PropertyListValue* property_list_value) OVERRIDE;
+
+  bool repeat_x() { return repeat_x_; }
+  bool repeat_y() { return repeat_y_; }
+
+ private:
+  bool repeat_x_;
+  bool repeat_y_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedBackgroundRepeatProvider);
 };
 
 class UsedBackgroundSizeProvider
@@ -130,11 +159,15 @@ class UsedBackgroundSizeProvider
       cssom::PropertyListValue* property_list_value) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
-  float width_scale() const { return width_scale_; }
-  float height_scale() const { return height_scale_; }
+  float width_scale_relative_to_frame() const {
+    return frame_size_.width() == 0.0f ? 0.0f : width_ / frame_size_.width();
+  }
+  float height_scale_relative_to_frame() const {
+    return frame_size_.height() == 0.0f ? 0.0f : height_ / frame_size_.height();
+  }
 
-  float width() const { return width_scale_ * frame_size_.width(); }
-  float height() const { return height_scale_ * frame_size_.height(); }
+  float width() const { return width_; }
+  float height() const { return height_; }
 
  private:
   void ConvertWidthAndHeightScale(float width_scale, float height_scale);
@@ -142,8 +175,8 @@ class UsedBackgroundSizeProvider
   const math::SizeF frame_size_;
   const math::Size image_size_;
 
-  float width_scale_;
-  float height_scale_;
+  float width_;
+  float height_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundSizeProvider);
 };

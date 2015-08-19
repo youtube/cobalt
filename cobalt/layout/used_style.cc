@@ -31,12 +31,26 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/math/transform_2d.h"
+#include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
 
 namespace cobalt {
 namespace layout {
 
 namespace {
+
+struct BackgroundImageTransformData {
+  BackgroundImageTransformData(math::SizeF image_node_size,
+                               math::Matrix3F image_node_transform_matrix,
+                               math::Matrix3F composition_node_transform_matrix)
+      : image_node_size(image_node_size),
+        image_node_transform_matrix(image_node_transform_matrix),
+        composition_node_transform_matrix(composition_node_transform_matrix) {}
+
+  math::SizeF image_node_size;
+  math::Matrix3F image_node_transform_matrix;
+  math::Matrix3F composition_node_transform_matrix;
+};
 
 render_tree::FontStyle ConvertFontWeightToRenderTreeFontStyle(
     cssom::FontStyleValue::Value style, cssom::FontWeightValue::Value weight) {
@@ -62,6 +76,59 @@ render_tree::FontStyle ConvertFontWeightToRenderTreeFontStyle(
   return render_tree::kNormal;
 }
 
+BackgroundImageTransformData GetImageTransformationData(
+    UsedBackgroundSizeProvider* used_background_size_provider,
+    UsedBackgroundPositionProvider* used_background_position_provider,
+    UsedBackgroundRepeatProvider* used_background_repeat_provider,
+    const math::SizeF& frame_size, const math::SizeF& single_image_size) {
+  // The initial value of following variables are for no-repeat horizontal and
+  // vertical.
+  math::SizeF image_node_size = single_image_size;
+  float image_node_translate_matrix_x = 0.0f;
+  float image_node_translate_matrix_y = 0.0f;
+  float image_node_scale_matrix_x =
+      used_background_size_provider->width() / single_image_size.width();
+  float image_node_scale_matrix_y =
+      used_background_size_provider->height() / single_image_size.height();
+  float composition_node_translate_matrix_x =
+      used_background_position_provider->translate_x();
+  float composition_node_translate_matrix_y =
+      used_background_position_provider->translate_y();
+
+  if (used_background_repeat_provider->repeat_x()) {
+    // When the background repeat horizontally, image node does the transform
+    // in horizontal direction and the composition node does the transform in
+    // vertical direction.
+    image_node_size.set_width(frame_size.width());
+    image_node_translate_matrix_x =
+        used_background_position_provider->translate_x_relative_to_frame();
+    image_node_scale_matrix_x =
+        used_background_size_provider->width_scale_relative_to_frame();
+    composition_node_translate_matrix_x = 0.0f;
+  }
+
+  if (used_background_repeat_provider->repeat_y()) {
+    // When the background repeat vertically, image node does the transform
+    // in vertical direction and the composition node does the transform in
+    // horizontal direction.
+    image_node_size.set_height(frame_size.height());
+    image_node_translate_matrix_y =
+        used_background_position_provider->translate_y_relative_to_frame();
+    image_node_scale_matrix_y =
+        used_background_size_provider->height_scale_relative_to_frame();
+    composition_node_translate_matrix_y = 0.0f;
+  }
+
+  BackgroundImageTransformData background_image_transform_data(
+      image_node_size, math::TranslateMatrix(image_node_translate_matrix_x,
+                                             image_node_translate_matrix_y) *
+                           math::ScaleMatrix(image_node_scale_matrix_x,
+                                             image_node_scale_matrix_y),
+      math::TranslateMatrix(composition_node_translate_matrix_x,
+                            composition_node_translate_matrix_y));
+  return background_image_transform_data;
+}
+
 class UsedBackgroundTranslateProvider
     : public cssom::NotReachedPropertyValueVisitor {
  public:
@@ -84,7 +151,7 @@ class UsedBackgroundTranslateProvider
 
 void UsedBackgroundTranslateProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  translate_ = frame_length_ == 0 ? 0 : length->value() / frame_length_;
+  translate_ = length->value();
 }
 
 // A percentage for the horizontal offset is relative to (width of background
@@ -95,9 +162,7 @@ void UsedBackgroundTranslateProvider::VisitLength(cssom::LengthValue* length) {
 //   http://www.w3.org/TR/css3-background/#the-background-position
 void UsedBackgroundTranslateProvider::VisitPercentage(
     cssom::PercentageValue* percentage) {
-  translate_ = frame_length_ == 0 ? 0 : percentage->value() *
-                                            (frame_length_ - image_length_) /
-                                            frame_length_;
+  translate_ = percentage->value() * (frame_length_ - image_length_);
 }
 
 //   http://www.w3.org/TR/css3-background/#the-background-size
@@ -213,11 +278,13 @@ render_tree::ColorRGBA GetUsedColor(
 UsedBackgroundNodeProvider::UsedBackgroundNodeProvider(
     const UsedStyleProvider* used_style_provider, const math::SizeF& frame_size,
     const scoped_refptr<cssom::PropertyValue>& background_size,
-    const scoped_refptr<cssom::PropertyValue>& background_position)
+    const scoped_refptr<cssom::PropertyValue>& background_position,
+    const scoped_refptr<cssom::PropertyValue>& background_repeat)
     : used_style_provider_(used_style_provider),
       frame_size_(frame_size),
       background_size_(background_size),
-      background_position_(background_position) {}
+      background_position_(background_position),
+      background_repeat_(background_repeat) {}
 
 void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     cssom::AbsoluteURLValue* url_value) {
@@ -231,18 +298,31 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
         frame_size_, used_background_image->GetSize());
     background_size_->Accept(&used_background_size_provider);
 
+    math::SizeF single_image_size =
+        math::SizeF(used_background_size_provider.width(),
+                    used_background_size_provider.height());
     UsedBackgroundPositionProvider used_background_position_provider(
-        frame_size_, math::SizeF(used_background_size_provider.width(),
-                                 used_background_size_provider.height()));
+        frame_size_, single_image_size);
     background_position_->Accept(&used_background_position_provider);
 
-    math::Matrix3F local_transform_matrix =
-        math::TranslateMatrix(used_background_position_provider.translate_x(),
-                              used_background_position_provider.translate_y()) *
-        math::ScaleMatrix(used_background_size_provider.width_scale(),
-                          used_background_size_provider.height_scale());
-    background_node_ = new render_tree::ImageNode(
-        used_background_image, frame_size_, local_transform_matrix);
+    UsedBackgroundRepeatProvider used_background_repeat_provider;
+    background_repeat_->Accept(&used_background_repeat_provider);
+
+    BackgroundImageTransformData background_image_transform_data =
+        GetImageTransformationData(
+            &used_background_size_provider, &used_background_position_provider,
+            &used_background_repeat_provider, frame_size_, single_image_size);
+
+    scoped_refptr<render_tree::ImageNode> image_node(new render_tree::ImageNode(
+        used_background_image, background_image_transform_data.image_node_size,
+        background_image_transform_data.image_node_transform_matrix));
+
+    render_tree::CompositionNode::Builder image_composition_node_builder;
+    image_composition_node_builder.AddChild(
+        image_node,
+        background_image_transform_data.composition_node_transform_matrix);
+    background_node_ =
+        new render_tree::CompositionNode(image_composition_node_builder.Pass());
   }
 }
 
@@ -266,12 +346,30 @@ void UsedBackgroundPositionProvider::VisitPropertyList(
   translate_y_ = height_translate_provider.translate();
 }
 
+UsedBackgroundRepeatProvider::UsedBackgroundRepeatProvider()
+    : repeat_x_(false), repeat_y_(false) {}
+
+void UsedBackgroundRepeatProvider::VisitPropertyList(
+    cssom::PropertyListValue* background_repeat_list) {
+  DCHECK_EQ(background_repeat_list->value().size(), 2);
+
+  repeat_x_ =
+      background_repeat_list->value()[0] == cssom::KeywordValue::GetRepeat()
+          ? true
+          : false;
+
+  repeat_y_ =
+      background_repeat_list->value()[1] == cssom::KeywordValue::GetRepeat()
+          ? true
+          : false;
+}
+
 UsedBackgroundSizeProvider::UsedBackgroundSizeProvider(
     const math::SizeF& frame_size, const math::Size& image_size)
     : frame_size_(frame_size),
       image_size_(image_size),
-      width_scale_(1.0f),
-      height_scale_(1.0f) {}
+      width_(1.0f),
+      height_(1.0f) {}
 
 // The first value gives the width of the corresponding image, and the second
 // value gives its height.
@@ -367,12 +465,12 @@ void UsedBackgroundSizeProvider::ConvertWidthAndHeightScale(
     float width_scale, float height_scale) {
   if (frame_size_.width() <= 0 || frame_size_.height() <= 0) {
     DLOG(WARNING) << "Frame size is not positive.";
-    width_scale_ = height_scale_ = 1.0f;
+    width_ = height_ = 0.0f;
     return;
   }
 
-  width_scale_ = width_scale * image_size_.width() / frame_size_.width();
-  height_scale_ = height_scale * image_size_.height() / frame_size_.height();
+  width_ = width_scale * image_size_.width();
+  height_ = height_scale * image_size_.height();
 }
 
 UsedLineHeightProvider::UsedLineHeightProvider(
