@@ -45,6 +45,7 @@
         'node_test.cc',
         'performance_test.cc',
         'rule_matching_test.cc',
+        'serializer_test.cc',
         'storage_area_test.cc',
         'text_test.cc',
         'time_ranges_test.cc',
