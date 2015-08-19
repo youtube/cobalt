@@ -16,13 +16,9 @@
 
 #include <string>
 
-#include "cobalt/dom/attr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
-#include "cobalt/dom/element.h"
-#include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
