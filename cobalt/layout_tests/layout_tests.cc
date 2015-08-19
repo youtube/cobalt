@@ -319,6 +319,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     BidiLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("bidi")));
+// Custom CSS Conditional 3 (http://www.w3.org/TR/css3-conditional/) test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSConditional3LayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-conditional")));
 
 // JavaScript HTML5 WebAPIs (http://www.w3.org/TR/html5/webappapis.html) test
 // cases.

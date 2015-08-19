@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/media_list.h"
 
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/property_value.h"
-#include "cobalt/cssom/selector.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,6 +29,8 @@ namespace cobalt {
 namespace cssom {
 
 using ::testing::_;
+
+class PropertyValue;
 
 class MockCSSParser : public CSSParser {
  public:
@@ -56,41 +56,28 @@ class MockCSSParser : public CSSParser {
                                          const base::SourceLocation&));
 };
 
-class CSSStyleSheetTest : public ::testing::Test {
- protected:
-  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {}
-  ~CSSStyleSheetTest() OVERRIDE {}
 
-  const scoped_refptr<CSSStyleSheet> css_style_sheet_;
-  MockCSSParser css_parser_;
-};
+TEST(MediaListTest, ItemAccess) {
+  MockCSSParser css_parser;
+  scoped_refptr<MediaList> media_list = new MediaList(&css_parser);
+  ASSERT_EQ(0, media_list->length());
+  ASSERT_TRUE(media_list->Item(0) == NULL);
 
-TEST_F(CSSStyleSheetTest, InsertRule) {
-  const std::string css_text = "div { font-size: 100px; color: #0047ab; }";
-  EXPECT_CALL(css_parser_, ParseStyleRule(css_text, _))
-      .WillOnce(testing::Return(scoped_refptr<CSSStyleRule>()));
-  css_style_sheet_->InsertRule(css_text, 0);
+  scoped_refptr<MediaQuery> query = new MediaQuery();
+  media_list->Append(query);
+  ASSERT_EQ(1, media_list->length());
+  ASSERT_EQ(query, media_list->Item(0));
+  ASSERT_TRUE(media_list->Item(1) == NULL);
 }
 
-TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
-  scoped_refptr<CSSRuleList> rule_list_1 = css_style_sheet_->css_rules();
-  scoped_refptr<CSSRuleList> rule_list_2 = css_style_sheet_->css_rules();
-  ASSERT_EQ(rule_list_1, rule_list_2);
-}
+TEST(MediaListTest, AppendMedium) {
+  MockCSSParser css_parser;
+  scoped_refptr<MediaList> media_list = new MediaList(&css_parser);
 
-TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
-  scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
-  ASSERT_EQ(0, rule_list->length());
-  ASSERT_EQ(NULL, rule_list->Item(0).get());
-
-  scoped_refptr<CSSStyleRule> rule =
-      new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
-  rule_list->AppendCSSStyleRule(rule);
-  css_style_sheet_->set_css_rules(rule_list);
-  ASSERT_EQ(1, rule_list->length());
-  ASSERT_EQ(rule, rule_list->Item(0));
-  ASSERT_EQ(NULL, rule_list->Item(1).get());
-  ASSERT_EQ(rule_list, css_style_sheet_->css_rules());
+  const std::string media_query = "screen";
+  EXPECT_CALL(css_parser, ParseMediaQuery(media_query, _))
+      .WillOnce(testing::Return(scoped_refptr<MediaQuery>()));
+  media_list->AppendMedium(media_query);
 }
 
 }  // namespace cssom

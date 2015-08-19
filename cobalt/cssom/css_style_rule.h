@@ -61,8 +61,7 @@ class CSSStyleRule : public CSSRule {
   StyleSheet* parent_style_sheet_;
 };
 
-typedef std::vector<scoped_refptr<CSSStyleRule> > Rules;
-typedef base::hash_set<scoped_refptr<CSSStyleRule> > RuleSet;
+typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
 typedef std::pair<scoped_refptr<CSSStyleRule>, CascadePriority>
     RuleWithCascadePriority;
 typedef std::vector<RuleWithCascadePriority> RulesWithCascadePriority;
