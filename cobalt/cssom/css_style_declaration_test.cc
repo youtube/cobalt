@@ -17,11 +17,14 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/property_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -48,6 +51,9 @@ class MockCSSParser : public CSSParser {
   MOCK_METHOD4(ParsePropertyIntoStyle,
                void(const std::string&, const std::string&,
                     const base::SourceLocation&, CSSStyleDeclarationData*));
+  MOCK_METHOD2(ParseMediaQuery,
+               scoped_refptr<MediaQuery>(const std::string&,
+                                         const base::SourceLocation&));
 };
 
 class MockMutationObserver : public MutationObserver {

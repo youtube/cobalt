@@ -18,26 +18,58 @@
 
 #include <limits>
 
+#include "base/logging.h"
+#include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
 
-CSSRuleList::CSSRuleList(
-    const scoped_refptr<const CSSStyleSheet>& css_style_sheet)
-    : css_style_sheet_(css_style_sheet) {}
+CSSRuleList::CSSRuleList() {}
 
 scoped_refptr<CSSStyleRule> CSSRuleList::Item(unsigned int index) const {
-  return index < css_style_sheet_->css_rules_.size()
-             ? css_style_sheet_->css_rules_[index]
-             : NULL;
+  // TODO(***REMOVED***): Make it possible to return CSSMediaRule objects (at their
+  // repective rule index), so that they can be enumerated using this function.
+  return index < css_rules_.size() ? css_rules_[index] : NULL;
 }
 
 unsigned int CSSRuleList::length() const {
-  CHECK_LE(css_style_sheet_->css_rules_.size(),
-           std::numeric_limits<unsigned int>::max());
-  return static_cast<unsigned int>(css_style_sheet_->css_rules_.size());
+  CHECK_LE(css_rules_.size(), std::numeric_limits<unsigned int>::max());
+  return static_cast<unsigned int>(css_rules_.size());
+}
+
+unsigned int CSSRuleList::InsertRule(
+    const scoped_refptr<CSSStyleRule>& css_rule, unsigned int index) {
+  if (index > css_rules_.size()) {
+    // TODO(***REMOVED***): Throw JS IndexSizeError.
+    LOG(ERROR) << "IndexSizeError";
+    return 0;
+  }
+
+  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
+  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
+  // implement insertion if necessary.
+  if (index != css_rules_.size()) {
+    LOG(WARNING) << "InsertRule will always append the rule to the end of the "
+                    "rule list.";
+  }
+
+  AppendCSSStyleRule(css_rule);
+  return index;
+}
+
+void CSSRuleList::AttachToStyleSheet(StyleSheet* style_sheet) {
+  for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
+       ++it) {
+    (*it)->AttachToStyleSheet(style_sheet);
+  }
+}
+
+// Appends a CSSMediaRule to the current style sheet.
+void CSSRuleList::AppendCSSMediaRule(
+    const scoped_refptr<CSSMediaRule>& css_media_rule) {
+  NOTIMPLEMENTED();
 }
 
 CSSRuleList::~CSSRuleList() {}

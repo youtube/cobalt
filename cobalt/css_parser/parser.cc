@@ -53,12 +53,15 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
+#include "cobalt/cssom/ratio_value.h"
+#include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
@@ -109,6 +112,7 @@ class ParserImpl {
   void ParsePropertyIntoStyle(
       const std::string& property_name,
       cssom::CSSStyleDeclarationData* style_declaration);
+  scoped_refptr<cssom::MediaQuery> ParseMediaQuery();
 
   Scanner& scanner() { return scanner_; }
 
@@ -120,6 +124,9 @@ class ParserImpl {
   void LogWarning(const YYLTYPE& source_location, const std::string& message);
   void LogError(const YYLTYPE& source_location, const std::string& message);
 
+  void set_media_query(const scoped_refptr<cssom::MediaQuery>& media_query) {
+    media_query_ = media_query;
+  }
   void set_style_sheet(const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
     style_sheet_ = style_sheet;
   }
@@ -161,6 +168,7 @@ class ParserImpl {
 
   // Parsing results, named after entry points.
   // Only one of them may be non-NULL.
+  scoped_refptr<cssom::MediaQuery> media_query_;
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   scoped_refptr<cssom::CSSStyleRule> style_rule_;
   scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list_;
@@ -262,6 +270,12 @@ void ParserImpl::ParsePropertyIntoStyle(
   into_declaration_list_ = style_declaration;
   Parse();
 }
+
+scoped_refptr<cssom::MediaQuery> ParserImpl::ParseMediaQuery() {
+  scanner_.PrependToken(kMediaQueryEntryPointToken);
+  return Parse() ? media_query_ : make_scoped_refptr(new cssom::MediaQuery());
+}
+
 
 void ParserImpl::LogWarning(const YYLTYPE& source_location,
                             const std::string& message) {
@@ -454,6 +468,13 @@ void Parser::ParsePropertyIntoStyle(
                          on_warning_callback_, on_error_callback_,
                          message_verbosity_);
   return parser_impl.ParsePropertyIntoStyle(property_name, style_declaration);
+}
+
+scoped_refptr<cssom::MediaQuery> Parser::ParseMediaQuery(
+    const std::string& input, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
+                         on_error_callback_, message_verbosity_);
+  return parser_impl.ParseMediaQuery();
 }
 
 }  // namespace css_parser

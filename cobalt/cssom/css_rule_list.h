@@ -17,15 +17,22 @@
 #ifndef CSSOM_CSS_RULE_LIST_H_
 #define CSSOM_CSS_RULE_LIST_H_
 
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
+class CSSMediaRule;
 class CSSStyleRule;
+class StyleSheet;
 class CSSStyleSheet;
+
+typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
 
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
@@ -33,8 +40,7 @@ class CSSStyleSheet;
 class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
                     public script::Wrappable {
  public:
-  explicit CSSRuleList(
-      const scoped_refptr<const CSSStyleSheet>& css_style_sheet);
+  CSSRuleList();
 
   // Web API: CSSRuleList
   //
@@ -46,12 +52,30 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   // Returns the number of CSSRule objects represented by the collection.
   unsigned int length() const;
 
+  // Returns a read-only, live object representing the CSS rules.
+  CSSRules const* css_rules() const { return &css_rules_; }
+
+  // Inserts a new rule to the list.
+  unsigned int InsertRule(const scoped_refptr<CSSStyleRule>& css_rule,
+                          unsigned int index);
+
+  // From StyleSheet.
+  void AttachToStyleSheet(StyleSheet* style_sheet);
+
+  // Appends a CSSStyleRule to the rule list.
+  void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule) {
+    css_rules_.push_back(css_style_rule);
+  }
+
+  // Appends a CSSMediaRule to the rule list.
+  void AppendCSSMediaRule(const scoped_refptr<CSSMediaRule>& css_media_rule);
+
   DEFINE_WRAPPABLE_TYPE(CSSRuleList);
 
  private:
   ~CSSRuleList();
 
-  scoped_refptr<const CSSStyleSheet> css_style_sheet_;
+  CSSRules css_rules_;
 
   DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
 };

@@ -49,6 +49,10 @@ class Parser : public cssom::CSSParser {
       const base::SourceLocation& property_location,
       cssom::CSSStyleDeclarationData* style_declaration) OVERRIDE;
 
+  scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
+      const std::string& media_query,
+      const base::SourceLocation& input_location) OVERRIDE;
+
  private:
   typedef base::Callback<void(const std::string& message)> OnMessageCallback;
 

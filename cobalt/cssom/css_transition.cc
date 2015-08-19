@@ -26,6 +26,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
 #include "cobalt/cssom/matrix_function.h"
+#include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -86,12 +87,16 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitInteger(IntegerValue* integer_value) OVERRIDE;
   void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
+  void VisitLinearGradient(
+      LinearGradientValue* start_linear_gradient_value) OVERRIDE;
+  void VisitMediaFeatureKeywordValue(
+      MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitRatio(RatioValue* start_ratio_value) OVERRIDE;
+  void VisitResolution(ResolutionValue* start_resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
-  void VisitLinearGradient(
-      LinearGradientValue* start_linear_gradient_value) OVERRIDE;
   void VisitString(StringValue* start_string_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* start_transform_list_value) OVERRIDE;
@@ -423,6 +428,12 @@ void AnimatorVisitor::VisitLinearGradient(
   animated_value_ = end_value_;
 }
 
+void AnimatorVisitor::VisitMediaFeatureKeywordValue(
+    MediaFeatureKeywordValue* /*media_feature_keyword_value*/) {
+  NOTREACHED();
+  animated_value_ = end_value_;
+}
+
 void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
   DCHECK(start_number_value->GetTypeId() == end_value_->GetTypeId());
   const NumberValue& end_number_value =
@@ -441,6 +452,17 @@ void AnimatorVisitor::VisitPercentage(
 void AnimatorVisitor::VisitPropertyList(
     PropertyListValue* /*property_list_value*/) {
   NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitRatio(RatioValue* /*start_ratio_value*/) {
+  NOTREACHED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitResolution(
+    ResolutionValue* /*start_resolution_value*/) {
+  NOTREACHED();
   animated_value_ = end_value_;
 }
 

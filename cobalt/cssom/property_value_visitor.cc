@@ -25,9 +25,12 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/ratio_value.h"
+#include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -76,6 +79,11 @@ void DefaultingPropertyValueVisitor::VisitLinearGradient(
   VisitDefault(linear_gradient_value);
 }
 
+void DefaultingPropertyValueVisitor::VisitMediaFeatureKeywordValue(
+    MediaFeatureKeywordValue* media_feature_keyword_value) {
+  VisitDefault(media_feature_keyword_value);
+}
+
 void DefaultingPropertyValueVisitor::VisitNumber(NumberValue* number_value) {
   VisitDefault(number_value);
 }
@@ -88,6 +96,15 @@ void DefaultingPropertyValueVisitor::VisitPercentage(
 void DefaultingPropertyValueVisitor::VisitPropertyList(
     PropertyListValue* property_list_value) {
   VisitDefault(property_list_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitRatio(RatioValue* ratio_value) {
+  VisitDefault(ratio_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitResolution(
+    ResolutionValue* resolution_value) {
+  VisitDefault(resolution_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitRGBAColor(
