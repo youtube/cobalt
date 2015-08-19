@@ -28,6 +28,7 @@ namespace cssom {
 class CSSStyleDeclarationData;
 class CSSStyleRule;
 class CSSStyleSheet;
+class MediaQuery;
 class PropertyValue;
 
 // An abstraction of CSS parser. The parser turns a string in UTF-8 encoding
@@ -76,6 +77,12 @@ class CSSParser {
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
       CSSStyleDeclarationData* style_declaration) = 0;
+
+  // Parses the media query.
+  // Always returns non-NULL style rule, even if an error occurred.
+  virtual scoped_refptr<MediaQuery> ParseMediaQuery(
+      const std::string& media_query,
+      const base::SourceLocation& input_location) = 0;
 
  protected:
   virtual ~CSSParser() {}

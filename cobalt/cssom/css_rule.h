@@ -35,6 +35,9 @@ class CSSRule : public script::Wrappable {
   int index() { return index_; }
   void set_index(int index) { index_ = index; }
 
+  // TODO(***REMOVED***): Add the type attribute to make it possible to distinguish
+  // between, for example, CSSStyleRule and CSSMediaRule objects.
+
   DEFINE_WRAPPABLE_TYPE(CSSRule);
 
  protected:
@@ -43,6 +46,8 @@ class CSSRule : public script::Wrappable {
 
   virtual void AttachToStyleSheet(StyleSheet* style_sheet) = 0;
   virtual StyleSheet* ParentStyleSheet() = 0;
+  // TOOD(***REMOVED***): Add ParentRule, see
+  //   http://www.w3.org/TR/cssom/#dom-cssrule-parentrule for details.
 
  private:
   int index_;
