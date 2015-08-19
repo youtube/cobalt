@@ -24,9 +24,9 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/html_serializer.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 
 namespace cobalt {
@@ -88,12 +88,10 @@ scoped_refptr<DOMTokenList> Element::class_list() {
 // Algorithm for inner_html:
 //   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::inner_html() const {
-  std::stringstream html_stream;
-
-  HTMLSerializer serializer(&html_stream);
+  std::ostringstream oss;
+  Serializer serializer(&oss);
   serializer.SerializeDescendantsOnly(this);
-
-  return html_stream.str();
+  return oss.str();
 }
 
 // Algorithm for set_inner_html:
@@ -122,12 +120,10 @@ void Element::set_inner_html(const std::string& inner_html) {
 // Algorithm for outer_html:
 //   http://www.w3.org/TR/DOM-Parsing/#widl-Element-innerHTML
 std::string Element::outer_html() const {
-  std::stringstream html_stream;
-
-  HTMLSerializer serializer(&html_stream);
+  std::ostringstream oss;
+  Serializer serializer(&oss);
   serializer.Serialize(this);
-
-  return html_stream.str();
+  return oss.str();
 }
 
 // Algorithm for set_outer_html:
