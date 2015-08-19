@@ -61,6 +61,10 @@ class ShellVideoFrameProvider {
   void Stop();
   size_t GetNumOfFramesCached() const;
 
+  // Return true if VideoFrames have been released from the internal frames_
+  // queue since the last time this was called.
+  bool QueryAndResetHasConsumedFrames();
+
  private:
   base::TimeDelta GetMediaTime_Locked() const;
 
@@ -68,6 +72,7 @@ class ShellVideoFrameProvider {
   MediaTimeCB media_time_cb_;
   std::vector<scoped_refptr<VideoFrame> > frames_;
   scoped_refptr<VideoFrame> current_frame_;
+  bool has_consumed_frames_;
 
 #if !defined(__LB_SHELL__FOR_RELEASE__)
   int dropped_frames_;

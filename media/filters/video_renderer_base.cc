@@ -324,6 +324,16 @@ void VideoRendererBase::ThreadMain() {
       continue;
     }
 
+#if defined(__LB_SHELL__)
+    if (frame_provider_ && frame_provider_->QueryAndResetHasConsumedFrames()) {
+      // The consumer of the frame_provider_ has consumed frames. Post another
+      // AttemptRead task to ensure that new frames are being read in to keep
+      // the frame_provider_'s queue full.
+      message_loop_->PostTask(FROM_HERE, base::Bind(
+          &VideoRendererBase::AttemptRead, this));
+    }
+#endif
+
     // Remain idle until we have the next frame ready for rendering.
     if (ready_frames_.empty()) {
       frame_available_.TimedWait(kIdleTimeDelta);
