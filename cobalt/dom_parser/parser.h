@@ -29,8 +29,8 @@ namespace dom_parser {
 class Parser : public dom::Parser {
  public:
   Parser()
-      : error_callback_(
-            base::Bind(&Parser::ErrorCallback, base::Unretained(this))) {}
+      : ALLOW_THIS_IN_INITIALIZER_LIST(error_callback_(
+            base::Bind(&Parser::ErrorCallback, base::Unretained(this)))) {}
   explicit Parser(
       const base::Callback<void(const std::string&)>& error_callback)
       : error_callback_(error_callback) {}
