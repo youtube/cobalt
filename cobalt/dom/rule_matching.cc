@@ -52,7 +52,7 @@ namespace {
 
 // Copies all rules in |map| with given |key| to |rule_set|.
 void CopyMatchingRules(const cssom::StringToCSSRuleSetMap& map,
-                       const std::string& key, cssom::RuleSet* rule_set) {
+                       const std::string& key, cssom::CSSRuleSet* rule_set) {
   if (key.empty()) {
     return;
   }
@@ -343,7 +343,7 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
 void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin) {
-  cssom::RuleSet candidate_rules;
+  cssom::CSSRuleSet candidate_rules;
 
   // TODO(***REMOVED***): Take !important into consideration
   // If the rule has '!important', the origin value used for the
@@ -373,7 +373,8 @@ void GetMatchingRulesFromStyleSheet(
   scoped_ptr<PseudoElement> pseudo_elements[kMaxPseudoElementType];
 
   // Go through all the candidate rules.
-  for (cssom::RuleSet::const_iterator rule_iterator = candidate_rules.begin();
+  for (cssom::CSSRuleSet::const_iterator rule_iterator =
+           candidate_rules.begin();
        rule_iterator != candidate_rules.end(); ++rule_iterator) {
     scoped_refptr<cssom::CSSStyleRule> rule = *rule_iterator;
     // Match the element against all selectors in the selector list of the

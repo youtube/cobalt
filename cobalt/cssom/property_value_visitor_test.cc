@@ -24,9 +24,12 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
+#include "cobalt/cssom/ratio_value.h"
+#include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/time_list_value.h"
@@ -56,9 +59,13 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(LinearGradientValue* linear_gradient_value));
   MOCK_METHOD1(VisitList, void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
+  MOCK_METHOD1(VisitMediaFeatureKeywordValue,
+               void(MediaFeatureKeywordValue* media_feature_keyword_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
   MOCK_METHOD1(VisitPercentage, void(PercentageValue* percentage_value));
   MOCK_METHOD1(VisitPropertyList, void(PropertyListValue* property_list_value));
+  MOCK_METHOD1(VisitRatio, void(RatioValue* ratio_value));
+  MOCK_METHOD1(VisitResolution, void(ResolutionValue* resolution_value));
   MOCK_METHOD1(VisitRGBAColor, void(RGBAColorValue* color_value));
   MOCK_METHOD1(VisitString, void(StringValue* string_value));
   MOCK_METHOD1(VisitTimeList, void(TimeListValue* time_list_value));
@@ -122,6 +129,15 @@ TEST(PropertyValueVisitorTest, VisitsLengthValue) {
   length_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsMediaFeatureKeywordValue) {
+  scoped_refptr<MediaFeatureKeywordValue> landscape_value =
+      MediaFeatureKeywordValue::GetLandscape();
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor,
+              VisitMediaFeatureKeywordValue(landscape_value.get()));
+  landscape_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsNumberValue) {
   scoped_refptr<NumberValue> number_value = new NumberValue(299792458.0f);
   MockPropertyValueVisitor mock_visitor;
@@ -142,6 +158,21 @@ TEST(PropertyValueVisitorTest, VisitsPropertyList) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitPropertyList(property_list_value.get()));
   property_list_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsRatioValue) {
+  scoped_refptr<RatioValue> ratio_value = new RatioValue(1280, 720);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitRatio(ratio_value.get()));
+  ratio_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsResolutionValue) {
+  scoped_refptr<ResolutionValue> resolution_value =
+      new ResolutionValue(300, kDPIUnit);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitResolution(resolution_value.get()));
+  resolution_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsRGBAColorValue) {

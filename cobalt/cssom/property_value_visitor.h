@@ -30,10 +30,13 @@ class IntegerValue;
 class KeywordValue;
 class LengthValue;
 class LinearGradientValue;
+class MediaFeatureKeywordValue;
 class NumberValue;
 class PercentageValue;
 class PropertyListValue;
 class PropertyValue;
+class RatioValue;
+class ResolutionValue;
 class RGBAColorValue;
 class StringValue;
 class TimeListValue;
@@ -56,9 +59,13 @@ class PropertyValueVisitor {
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitLinearGradient(
       LinearGradientValue* linear_gradient_value) = 0;
+  virtual void VisitMediaFeatureKeywordValue(
+      MediaFeatureKeywordValue* media_feature_keyword_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitPercentage(PercentageValue* percentage_value) = 0;
   virtual void VisitPropertyList(PropertyListValue* property_list_value) = 0;
+  virtual void VisitRatio(RatioValue* ratio_value) = 0;
+  virtual void VisitResolution(ResolutionValue* resolution_value) = 0;
   virtual void VisitRGBAColor(RGBAColorValue* color_value) = 0;
   virtual void VisitString(StringValue* string_value) = 0;
   virtual void VisitTimeList(TimeListValue* time_list_value) = 0;
@@ -86,9 +93,13 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitInteger(IntegerValue* integer_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
+  void VisitMediaFeatureKeywordValue(
+      MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitRatio(RatioValue* ratio_value) OVERRIDE;
+  void VisitResolution(ResolutionValue* resolution_value) OVERRIDE;
   void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
   void VisitString(StringValue* string_value) OVERRIDE;
   void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;

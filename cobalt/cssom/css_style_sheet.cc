@@ -26,10 +26,10 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
+#include "cobalt/cssom/selector.h"
 #include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/type_selector.h"
 
@@ -108,19 +108,41 @@ class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
 //////////////////////////////////////////////////////////////////////////
 
 CSSStyleSheet::CSSStyleSheet()
-    : parent_style_sheet_list_(NULL), css_parser_(NULL) {}
+    : parent_style_sheet_list_(NULL),
+      css_parser_(NULL),
+      next_css_rule_priority_index_(0) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
-    : parent_style_sheet_list_(NULL), css_parser_(css_parser) {}
+    : parent_style_sheet_list_(NULL),
+      css_parser_(css_parser),
+      next_css_rule_priority_index_(0) {}
+
+void CSSStyleSheet::set_css_rules(
+    const scoped_refptr<CSSRuleList>& css_rule_list) {
+  css_rule_list_ = css_rule_list;
+  if (parent_style_sheet_list_ && css_rule_list_) {
+    css_rule_list_->AttachToStyleSheet(this);
+  }
+  // Assign the priority index to each rule in the rule list, and index the
+  // rules by selectors.
+  CSSRules const* css_rules = css_rule_list_->css_rules();
+  for (CSSRules::const_iterator rule_it = css_rules->begin();
+       rule_it != css_rules->end(); ++rule_it) {
+    const scoped_refptr<CSSStyleRule>& css_style_rule = *rule_it;
+    css_style_rule->set_index(next_css_rule_priority_index_++);
+    for (Selectors::const_iterator it = css_style_rule->selectors().begin();
+         it != css_style_rule->selectors().end(); ++it) {
+      RuleIndexer rule_indexer(css_style_rule, this);
+      (*it)->Accept(&rule_indexer);
+    }
+  }
+}
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
-  if (css_rule_list_) {
-    return css_rule_list_.get();
+  if (!css_rule_list_) {
+    css_rule_list_ = new CSSRuleList();
   }
-
-  scoped_refptr<CSSRuleList> css_rule_list = new CSSRuleList(this);
-  css_rule_list_ = css_rule_list->AsWeakPtr();
-  return css_rule_list;
+  return css_rule_list_;
 }
 
 unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
@@ -132,43 +154,13 @@ unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
     return 0;
   }
 
-  if (index > css_rules_.size()) {
-    // TODO(***REMOVED***): Throw JS IndexSizeError.
-    LOG(ERROR) << "IndexSizeError";
-    return 0;
-  }
-
-  // TODO(***REMOVED***): Currently we only support appending rule to the end of the
-  // rule list, which is the use case in performance spike and ***REMOVED***. Properly
-  // implement insertion if necessary.
-  if (index != css_rules_.size()) {
-    LOG(WARNING) << "InsertRule will always append the rule to the end of the "
-                    "rule list.";
-  }
-
-  AppendCSSStyleRule(css_rule);
-  return index;
+  return css_rule_list_->InsertRule(css_rule, index);
 }
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   parent_style_sheet_list_ = style_sheet_list;
-  for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
-       ++it) {
-    (*it)->AttachToStyleSheet(this);
-  }
-}
-
-void CSSStyleSheet::AppendCSSStyleRule(
-    const scoped_refptr<CSSStyleRule>& css_style_rule) {
-  css_style_rule->set_index(static_cast<int>(css_rules_.size()));
-  css_rules_.push_back(css_style_rule);
-  if (parent_style_sheet_list_) {
-    css_style_rule->AttachToStyleSheet(this);
-  }
-  for (Selectors::const_iterator it = css_style_rule->selectors().begin();
-       it != css_style_rule->selectors().end(); ++it) {
-    RuleIndexer rule_indexer(css_style_rule, this);
-    (*it)->Accept(&rule_indexer);
+  if (css_rule_list_) {
+    css_rule_list_->AttachToStyleSheet(this);
   }
 }
 

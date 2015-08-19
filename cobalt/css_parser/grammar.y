@@ -53,6 +53,7 @@
 
 // Entry point tokens, injected by the parser in order to choose the path
 // within a grammar, never appear in the source code.
+%token kMediaQueryEntryPointToken
 %token kStyleSheetEntryPointToken
 %token kStyleRuleEntryPointToken
 %token kDeclarationListEntryPointToken
@@ -67,7 +68,7 @@
 %token kImportantToken                  // !important
 
 // Property name tokens.
-// WARNING: every time a new name token is introduced, it should be added
+// WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAllToken                              // all
 %token kBackgroundColorToken                  // background-color
@@ -115,7 +116,7 @@
 %token kZIndexToken                           // z-index
 
 // Property value tokens.
-// WARNING: every time a new name token is introduced, it should be added
+// WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAbsoluteToken                   // absolute
 %token kAutoToken                       // auto
@@ -157,12 +158,12 @@
 %token kVisibleToken                    // visible
 
 // Pseudo-class name tokens.
-// WARNING: every time a new name token is introduced, it should be added
+// WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kEmptyToken                      // empty
 
 // Pseudo-element name tokens.
-// WARNING: every time a new name token is introduced, it should be added
+// WARNING: Every time a new name token is introduced, it should be added
 //          to |identifier_token| rule below.
 %token kAfterToken                      // after
 %token kBeforeToken                     // before
@@ -174,10 +175,40 @@
 %token kEndsWithToken                   // $=
 %token kContainsToken                   // *=
 
-// "Media query" mode tokens.
-%token kMediaAndToken                   // and (in "media query" mode)
-%token kMediaNotToken                   // not (in "media query" mode)
-%token kMediaOnlyToken                  // only (in "media query" mode)
+// "Media query" mode: Operator tokens.
+%token kMediaAndToken                   // and
+%token kMediaNotToken                   // not
+%token kMediaOnlyToken                  // only
+%token kMediaMinimumToken               // min-
+%token kMediaMaximumToken               // max-
+
+// "Media query" mode: Media type tokens.
+// WARNING: Every time a new media type token is introduced, it should be added
+//          to |media_type_true| rule below.
+%token kAllMediaTypeToken              // all
+%token kTVMediaTypeToken               // tv
+%token kScreenMediaTypeToken           // screen
+
+// "Media query" mode: Media feature type tokens. These tokens represent the
+// value types of media features. The integer values of these tokens represent
+// enum MediaFeatureName.
+// WARNING: Every time a new media feature type token is introduced, it should
+//          be added to |media_type_false| rule below.
+
+%token <integer> kLengthMediaFeatureTypeToken             // ...px, ...em, etc.
+%token <integer> kOrientationMediaFeatureTypeToken        // portrait, landscape
+%token <integer> kRatioMediaFeatureTypeToken              // ... / ...
+%token <integer> kNonNegativeIntegerMediaFeatureTypeToken // 0, 1, 2, 3, ...
+%token <integer> kResolutionMediaFeatureTypeToken         // ...dpi, ...dpcm
+%token <integer> kScanMediaFeatureTypeToken               // progressive,
+                                                          // interlace
+%token <integer> kZeroOrOneMediaFeatureTypeToken          // 0, 1
+
+// "Media query" mode: Media feature value tokens.
+%token kInterlaceMediaFeatureKeywordValueToken   // interlace
+%token kLandscapeMediaFeatureKeywordValueToken   // landscape
+%token kPortraitMediaFeatureKeywordValueToken    // portrait
+%token kProgressiveMediaFeatureKeywordValueToken // progressive
 
 // "Supports" mode tokens.
 %token kSupportsAndToken                // and (in "supports" mode)
@@ -296,7 +327,7 @@
 %union { bool important; }
 %type <important> maybe_important
 
-%type <integer> integer
+%type <integer> integer non_negative_integer positive_integer zero_or_one
 
 %union { cssom::RGBAColorValue* color; }
 %type <color> color
@@ -317,6 +348,14 @@
 %union { cssom::LengthValue* length; }
 %type <length> length
 %destructor { $$->Release(); } <length>
+
+%union { cssom::RatioValue* ratio; }
+%type <ratio> ratio
+%destructor { $$->Release(); } <ratio>
+
+%union { cssom::ResolutionValue* resolution; }
+%type <resolution> resolution
+%destructor { $$->Release(); } <resolution>
 
 // base::TimeDelta's internal value.  One can construct a base::TimeDelta from
 // this value using the function base::TimeDelta::FromInternalValue().  We use
@@ -365,9 +404,11 @@
                        margin_width
                        offset_property_value
                        opacity_property_value
+                       orientation_media_feature_keyword_value
                        overflow_property_value
                        padding_side_property_value
                        padding_width
+                       scan_media_feature_keyword_value
                        position_property_value
                        text_align_property_value
                        transform_property_value
@@ -392,8 +433,12 @@
 %type <real> alpha number angle
 
 %union { cssom::CSSStyleSheet* style_sheet; }
-%type <style_sheet> rule_list style_sheet
+%type <style_sheet> style_sheet
 %destructor { $$->Release(); } <style_sheet>
+
+%union { cssom::CSSRuleList* rule_list; }
+%type <rule_list> rule_list rule_list_block
+%destructor { $$->Release(); } <rule_list>
 
 %union { cssom::Selector* selector; }
 %type <selector> class_selector_token id_selector_token pseudo_class_token
@@ -433,6 +478,35 @@
 %union { cssom::CSSStyleDeclaration* style_declaration; }
 %type <style_declaration> declaration_block
 %destructor { $$->Release(); } <style_declaration>
+
+%union { cssom::CSSMediaRule* media_rule; }
+%type <media_rule> at_media_rule
+%destructor { $$->Release(); } <media_rule>
+
+%union { cssom::MediaList* media_list; }
+%type <media_list> media_list
+%destructor { $$->Release(); } <media_list>
+
+%union { cssom::MediaQuery* media_query; }
+%type <media_query> media_query
+%destructor { $$->Release(); } <media_query>
+
+%union { cssom::MediaType media_type; }
+%type <media_type> media_type media_type_specified
+
+%union { cssom::MediaFeatureList* media_feature_list; }
+%type <media_feature_list> media_feature_list
+%destructor { delete $$; } <media_feature_list>
+
+%union { cssom::MediaFeature* media_feature; }
+%type <media_feature> media_feature media_feature_block
+                      media_feature_with_value media_feature_without_value
+                      media_feature_allowing_operator_with_value
+
+%destructor { $$->Release(); } <media_feature>
+
+%union { cssom::MediaFeatureOperator media_feature_operator; }
+%type <media_feature_operator> media_feature_operator
 
 %union { cssom::CSSStyleRule* style_rule; }
 %type <style_rule> at_rule qualified_rule rule style_rule
@@ -519,12 +593,263 @@ errors:
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
 at_rule:
-    kFontFaceToken declaration_block {
+    kFontFaceToken maybe_whitespace declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($2);
+        MakeScopedRefPtrAndRelease($3);
     // TODO(***REMOVED***): Implement.
     parser_impl->LogWarning(@1, "@font-face is not implemented yet");
     $$ = NULL;
+  }
+  ;
+
+at_media_rule:
+  // @media expr {}
+    kMediaToken maybe_whitespace media_list rule_list_block {
+    $$ = AddRef(new cssom::CSSMediaRule(MakeScopedRefPtrAndRelease($3),
+                                        MakeScopedRefPtrAndRelease($4)));
+  }
+  ;
+
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+// Media Rule, Media Query, Media Type
+//   http://www.w3.org/TR/cssom/#media-queries
+//   http://www.w3.org/TR/css3-mediaqueries/
+// ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
+
+// Follow the syntax defined here:
+//   http://www.w3.org/TR/css3-mediaqueries/#syntax
+
+// Orientation value, landscale or portrait
+//   http://www.w3.org/TR/css3-mediaqueries/#orientation
+orientation_media_feature_keyword_value:
+    kLandscapeMediaFeatureKeywordValueToken maybe_whitespace {
+    $$ = AddRef(cssom::MediaFeatureKeywordValue::GetLandscape().get());
+  }
+  | kPortraitMediaFeatureKeywordValueToken maybe_whitespace {
+    $$ = AddRef(cssom::MediaFeatureKeywordValue::GetPortrait().get());
+  }
+  ;
+
+// Scan value, interlace or progressive
+//   http://www.w3.org/TR/css3-mediaqueries/#scan
+scan_media_feature_keyword_value:
+    kInterlaceMediaFeatureKeywordValueToken maybe_whitespace {
+    $$ = AddRef(cssom::MediaFeatureKeywordValue::GetInterlace().get());
+  }
+  | kProgressiveMediaFeatureKeywordValueToken maybe_whitespace {
+    $$ = AddRef(cssom::MediaFeatureKeywordValue::GetProgressive().get());
+  }
+  ;
+
+// 'min-' or 'max-' prefix for media feature name.
+media_feature_operator:
+    kMediaMinimumToken { $$ = cssom::kMinimum; }
+  | kMediaMaximumToken { $$ = cssom::kMaximum; }
+  ;
+
+// Media feature: 'feature' only.
+// (feature) will evaluate to true if (feature:x) will evaluate to true for a
+// value x other than zero or zero followed by a unit identifier.
+//   http://www.w3.org/TR/css3-mediaqueries/#media1
+media_feature_without_value:
+    kLengthMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kOrientationMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kRatioMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kNonNegativeIntegerMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kResolutionMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kScanMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  | kZeroOrOneMediaFeatureTypeToken maybe_whitespace {
+    $$ = AddRef(new cssom::MediaFeature($1));
+  }
+  ;
+
+// Media feature: 'feature:value' for features that don't allow prefixes.
+media_feature_with_value:
+    kOrientationMediaFeatureTypeToken maybe_whitespace colon
+    orientation_media_feature_keyword_value {
+    $$ = AddRef(new cssom::MediaFeature($1, $4));
+  }
+  | kScanMediaFeatureTypeToken maybe_whitespace colon
+    scan_media_feature_keyword_value {
+    $$ = AddRef(new cssom::MediaFeature($1, $4));
+  }
+  | kZeroOrOneMediaFeatureTypeToken maybe_whitespace colon zero_or_one {
+    $$ = AddRef(new cssom::MediaFeature($1,
+                                        AddRef(new cssom::NumberValue($4))));
+  }
+  ;
+
+// Media feature: 'feature:value' for features that allow min/max prefixes.
+media_feature_allowing_operator_with_value:
+    kLengthMediaFeatureTypeToken maybe_whitespace colon length {
+    $$ = AddRef(new cssom::MediaFeature($1, $4));
+  }
+  | kNonNegativeIntegerMediaFeatureTypeToken maybe_whitespace colon
+    non_negative_integer {
+    $$ = AddRef(new cssom::MediaFeature($1,
+                                        AddRef(new cssom::NumberValue($4))));
+  }
+  | kRatioMediaFeatureTypeToken maybe_whitespace colon ratio {
+    $$ = AddRef(new cssom::MediaFeature($1, $4));
+  }
+  | kResolutionMediaFeatureTypeToken maybe_whitespace colon resolution {
+    $$ = AddRef(new cssom::MediaFeature($1, $4));
+  }
+  ;
+
+// Media feature: 'feature' or 'feature:value' or 'min-feature:value' or
+// 'max-feature:value'
+//   http://www.w3.org/TR/css3-mediaqueries/#media1
+media_feature:
+    media_feature_without_value { $$ = $1; }
+  | media_feature_with_value { $$ = $1; }
+  | media_feature_allowing_operator_with_value { $$ = $1; }
+  | media_feature_operator media_feature_allowing_operator_with_value {
+    $$ = $2;
+    $$->set_operator($1);
+  }
+  ;
+
+// Media feature: '(name:value)'
+media_feature_block:
+    '(' maybe_whitespace media_feature ')' maybe_whitespace {
+    $$ = $3;
+  }
+  ;
+
+// Media feature list: '(name:value) [ and (name:value) ]'
+media_feature_list:
+  // (name:value)
+    media_feature_block {
+    $$ = new cssom::MediaFeatureList();
+    $$->push_back($1);
+  }
+  // ... and (name:value)
+  | media_feature_list kMediaAndToken maybe_whitespace media_feature_block {
+    $$ = $1;
+    $$->push_back($4);
+  }
+  ;
+
+// All tokens representing unknown media types.
+media_type_false:
+    kIdentifierToken
+  // "Media query" mode operator names.
+  | kMediaAndToken
+  | kMediaMinimumToken
+  | kMediaMaximumToken
+  // "Media query" mode media feature tokens
+  | kLengthMediaFeatureTypeToken
+  | kOrientationMediaFeatureTypeToken
+  | kRatioMediaFeatureTypeToken
+  | kNonNegativeIntegerMediaFeatureTypeToken
+  | kResolutionMediaFeatureTypeToken
+  | kScanMediaFeatureTypeToken
+  | kZeroOrOneMediaFeatureTypeToken
+  ;
+
+// All tokens representing media types that are true on this platform.
+media_type_true:
+    kAllMediaTypeToken
+  | kTVMediaTypeToken
+  | kScreenMediaTypeToken
+  ;
+
+// Returns the collapsed media type ("all" or "not all")
+media_type_specified:
+    media_type_false {
+    $$ = cssom::kNotAll;
+  }
+  | media_type_true {
+    $$ = cssom::kAll;
+  }
+  ;
+// The names chosen for CSS media types reflect target devices for which the
+// relevant properties make sense
+//   http://www.w3.org/TR/CSS21/media.html#media-types
+//   http://www.w3.org/TR/css3-mediaqueries/#media0
+media_type:
+  // @media [type]...
+    media_type_specified {
+    $$ = $1;
+  }
+  // @media not [type]...
+  | kMediaNotToken kWhitespaceToken media_type_specified {
+    if ($3 == cssom::kAll) {
+      $$ = cssom::kNotAll;
+    } else {
+      DCHECK($3 == cssom::kNotAll);
+      $$ = cssom::kAll;
+    }
+  }
+  // @media only [type]...
+  | kMediaOnlyToken kWhitespaceToken media_type_specified {
+    $$ = $3;
+  }
+  // @media only not ... (special case)
+  | kMediaOnlyToken kWhitespaceToken kMediaNotToken {
+    $$ = cssom::kNotAll;
+  }
+  // @media not only ... (special case)
+  | kMediaNotToken kWhitespaceToken kMediaOnlyToken {
+    $$ = cssom::kAll;
+  }
+  ;
+
+// A media query consists of a media type and zero or more expressions that
+// check for the conditions of particular media features.
+//   http://www.w3.org/TR/cssom/#media-queries
+//   http://www.w3.org/TR/css3-mediaqueries/#media0
+media_query:
+  // @media  {}
+    /* empty */ {
+    $$ = AddRef(new cssom::MediaQuery(cssom::kAll));
+  }
+  // @media (name:value)... {}
+  | media_feature_list {
+    $$ = AddRef(new cssom::MediaQuery(cssom::kAll, $1));
+  }
+  // @media mediatype {}
+  | media_type maybe_whitespace {
+    $$ = AddRef(new cssom::MediaQuery($1));
+  }
+  // @media mediatype and (name:value)... {}
+  | media_type maybe_whitespace kMediaAndToken maybe_whitespace
+    media_feature_list {
+    $$ = AddRef(new cssom::MediaQuery($1, $5));
+  }
+  // When an unknown media feature, an unknown media feature value, a malformed
+  // media query, or unexpected tokens is found, the media query must be
+  // represented as 'not all'.
+  //   http://www.w3.org/TR/css3-mediaqueries/#error-handling
+  | errors {
+    $$ = AddRef(new cssom::MediaQuery(cssom::kNotAll));
+  }
+  ;
+
+// Several media queries can be combined in a media query list.
+//   http://www.w3.org/TR/cssom/#medialist
+//   http://www.w3.org/TR/css3-mediaqueries/#media0
+media_list:
+    media_query {
+    $$ = AddRef(new cssom::MediaList(parser_impl->css_parser()));
+    $$->Append($1);
+  }
+  | media_list comma media_query {
+    $$ = $1;
+    $$->Append($3);
   }
   ;
 
@@ -1017,12 +1342,50 @@ maybe_sign_token:
   | '-' { $$ = -1; }
   ;
 
+// This is for integers that can only have the values 0 or 1, including '-0'.
+// As used in the 'grid' css media feature:
+//   http://www.w3.org/TR/css3-mediaqueries/#grid
+zero_or_one:
+    integer {
+    if (($1 < 0) || ($1 > 1)) {
+      parser_impl->LogError(@1, "integer value must be 0 or 1");
+      YYERROR;
+    } else {
+      $$ = $1;
+    }
+  }
+  ;
+
 // An integer is one or more decimal digits "0" through "9". The first digit
 // of an integer may be immediately preceded by "-" or "+" to indicate the sign.
 //   http://www.w3.org/TR/css3-values/#integers
 integer:
     maybe_sign_token kIntegerToken maybe_whitespace {
     $$ = $1 * $2;
+  }
+  ;
+
+// Wrap the |integer| in order to validate if the integer is not negative
+non_negative_integer:
+    integer {
+    if ($1 < 0) {
+      parser_impl->LogError(@1, "integer value must not be negative");
+      YYERROR;
+    } else {
+      $$ = $1;
+    }
+  }
+  ;
+
+// Wrap the |integer| in order to validate if the integer is positive
+positive_integer:
+    integer {
+    if ($1 < 1) {
+      parser_impl->LogError(@1, "integer value must be positive");
+      YYERROR;
+    } else {
+      $$ = $1;
+    }
   }
   ;
 
@@ -1089,6 +1452,35 @@ length:
   //   http://www.w3.org/TR/css3-values/#absolute-lengths
   | maybe_sign_token kPixelsToken maybe_whitespace {
     $$ = AddRef(new cssom::LengthValue($1 * $2, cssom::kPixelsUnit));
+  }
+  ;
+
+// Ratio units.
+//   http://www.w3.org/TR/css3-mediaqueries/#values
+ratio:
+    positive_integer '/' maybe_whitespace positive_integer {
+    $$ = AddRef(new cssom::RatioValue($1, $4));
+  }
+  ;
+
+// Resolution units.
+//   http://www.w3.org/TR/css3-mediaqueries/#resolution0
+resolution:
+    maybe_sign_token kDotsPerInchToken maybe_whitespace {
+    float value = $1 * $2;
+    if (value <= 0) {
+      parser_impl->LogError(@1, "resolution value must be positive");
+      YYERROR;
+    }
+    $$ = AddRef(new cssom::ResolutionValue(value, cssom::kDPIUnit));
+  }
+  | maybe_sign_token kDotsPerCentimeterToken maybe_whitespace {
+    float value = $1 * $2;
+    if (value <= 0) {
+      parser_impl->LogError(@1, "resolution value must be positive");
+      YYERROR;
+    }
+    $$ = AddRef(new cssom::ResolutionValue(value, cssom::kDPCMUnit));
   }
   ;
 
@@ -2841,6 +3233,14 @@ declaration_block:
   }
   ;
 
+rule_list_block:
+    '{' maybe_whitespace rule_list '}' maybe_whitespace {
+    $$ = $3;
+  }
+  | semicolon {
+    $$ = AddRef(new cssom::CSSRuleList());
+  }
+  ;
 
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 // Rules.
@@ -2888,7 +3288,7 @@ rule:
 
 rule_list:
     /* empty */ {
-    $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
+    $$ = AddRef(new cssom::CSSRuleList());
   }
   | rule_list rule {
     $$ = $1;
@@ -2896,6 +3296,16 @@ rule_list:
         MakeScopedRefPtrAndRelease($2);
     if (style_rule) {
       $$->AppendCSSStyleRule(style_rule);
+    }
+  }
+  // Conditional group rules can be nested.
+  //   http://www.w3.org/TR/css3-conditional/#contents-of
+  | rule_list at_media_rule {
+    $$ = $1;
+    scoped_refptr<cssom::CSSMediaRule> media_rule =
+        MakeScopedRefPtrAndRelease($2);
+    if (media_rule) {
+      $$->AppendCSSMediaRule(media_rule);
     }
   }
   ;
@@ -2907,7 +3317,10 @@ rule_list:
 
 // To parse a stylesheet, consume a list of rules.
 //   http://www.w3.org/TR/css3-syntax/#parse-a-stylesheet
-style_sheet: rule_list ;
+style_sheet: rule_list {
+    $$ = AddRef(new cssom::CSSStyleSheet(parser_impl->css_parser()));
+    $$->set_css_rules($1);
+}
 
 // Parser entry points.
 //   http://dev.w3.org/csswg/css-syntax/#parser-entry-points
@@ -2917,6 +3330,12 @@ entry_point:
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         MakeScopedRefPtrAndRelease($3);
     parser_impl->set_style_sheet(style_sheet);
+  }
+  // Parses the media query.
+  | kMediaQueryEntryPointToken maybe_whitespace media_query {
+    scoped_refptr<cssom::MediaQuery> media_query =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_media_query(media_query);
   }
   // Parses the style rule.
   | kStyleRuleEntryPointToken maybe_whitespace style_rule {

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/hash_tables.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/style_sheet.h"
 
@@ -32,7 +33,6 @@ class CSSRuleList;
 class CSSStyleRule;
 class StyleSheetList;
 
-typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
 typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
 typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
 
@@ -48,6 +48,9 @@ class CSSStyleSheet : public StyleSheet {
   // Web API: CSSStyleSheet
   //
 
+  // Set the css rules for the style sheet.
+  void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
+
   // Returns a read-only, live object representing the CSS rules.
   scoped_refptr<CSSRuleList> css_rules();
 
@@ -60,9 +63,6 @@ class CSSStyleSheet : public StyleSheet {
 
   // From StyleSheet.
   void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
-
-  // Appends a CSSStyleRule to the current style sheet.
-  void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule);
 
   void SetLocationUrl(const GURL& url) OVERRIDE;
   GURL& LocationUrl() OVERRIDE;
@@ -88,21 +88,27 @@ class CSSStyleSheet : public StyleSheet {
 
   ~CSSStyleSheet() OVERRIDE;
 
-  CSSRules css_rules_;
   StringToCSSRuleSetMap class_selector_rules_map_;
   StringToCSSRuleSetMap id_selector_rules_map_;
   StringToCSSRuleSetMap type_selector_rules_map_;
   CSSRuleSet empty_pseudo_class_rules_;
 
-  base::WeakPtr<CSSRuleList> css_rule_list_;
+  scoped_refptr<CSSRuleList> css_rule_list_;
 
   StyleSheetList* parent_style_sheet_list_;
-  CSSParser* css_parser_;
+  CSSParser* const css_parser_;
   GURL location_url_;
+
+  // The priority index to be used for the next appended CSS Rule.
+  // This is used for the Appearance parameter of the CascadePriority.
+  //   http://www.w3.org/TR/css-cascade-3/#cascade-order
+  int next_css_rule_priority_index_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.
   friend class CSSRuleList;
+
+  DISALLOW_COPY_AND_ASSIGN(CSSStyleSheet);
 };
 
 }  // namespace cssom

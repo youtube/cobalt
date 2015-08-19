@@ -24,6 +24,9 @@
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/cssom/character_classification.h"
 #include "cobalt/cssom/keyword_names.h"
+#include "cobalt/cssom/media_type_names.h"
+#include "cobalt/cssom/media_feature_names.h"
+#include "cobalt/cssom/media_feature_keyword_value_names.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
@@ -432,30 +435,48 @@ Token Scanner::ScanFromCaselessU(TokenValue* token_value) {
 Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
   const char* first_character_iterator(input_iterator_);
 
+  if (parsing_mode_ == kMediaQueryMode) {
+    Token media_feature_name_prefix;
+    if (DetectMediaFeatureNamePrefix(&media_feature_name_prefix)) {
+      return media_feature_name_prefix;
+    }
+  }
+
   bool has_escape;
   ScanIdentifier(&token_value->string, &has_escape);
 
   if (LIKELY(!has_escape)) {
-    Token property_name_token;
-    if (DetectPropertyNameToken(token_value->string, &property_name_token)) {
-      return property_name_token;
-    }
+    if (parsing_mode_ == kMediaQueryMode) {
+      Token media_query_token;
+      cssom::MediaFeatureName media_feature_name;
+      if (DetectMediaQueryToken(token_value->string, &media_query_token,
+                                &media_feature_name)) {
+        token_value->integer = static_cast<int>(media_feature_name);
+        return media_query_token;
+      }
+    } else {
+      Token property_name_token;
+      if (DetectPropertyNameToken(token_value->string, &property_name_token)) {
+        return property_name_token;
+      }
 
-    Token property_value_token;
-    if (DetectPropertyValueToken(token_value->string, &property_value_token)) {
-      return property_value_token;
-    }
+      Token property_value_token;
+      if (DetectPropertyValueToken(token_value->string,
+                                   &property_value_token)) {
+        return property_value_token;
+      }
 
-    Token pseudo_class_name_token;
-    if (DetectPseudoClassNameToken(token_value->string,
-                                   &pseudo_class_name_token)) {
-      return pseudo_class_name_token;
-    }
+      Token pseudo_class_name_token;
+      if (DetectPseudoClassNameToken(token_value->string,
+                                     &pseudo_class_name_token)) {
+        return pseudo_class_name_token;
+      }
 
-    Token pseudo_element_name_token;
-    if (DetectPseudoElementNameToken(token_value->string,
-                                     &pseudo_element_name_token)) {
-      return pseudo_element_name_token;
+      Token pseudo_element_name_token;
+      if (DetectPseudoElementNameToken(token_value->string,
+                                       &pseudo_element_name_token)) {
+        return pseudo_element_name_token;
+      }
     }
   }
 
@@ -487,7 +508,10 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
         // ... and(max-width: 480px) ... looks like a function, but in fact
         // it is not, so run more detection code in the MediaQueryMode.
         Token media_query_token;
-        if (DetectMediaQueryToken(token_value->string, &media_query_token)) {
+        cssom::MediaFeatureName media_feature_name;
+        if (DetectMediaQueryToken(token_value->string, &media_query_token,
+                                  &media_feature_name)) {
+          token_value->integer = static_cast<int>(media_feature_name);
           return media_query_token;
         }
       }
@@ -500,7 +524,10 @@ Token Scanner::ScanFromIdentifierStart(TokenValue* token_value) {
   if (UNLIKELY(parsing_mode_ != kNormalMode) && !has_escape) {
     if (parsing_mode_ == kMediaQueryMode) {
       Token media_query_token;
-      if (DetectMediaQueryToken(token_value->string, &media_query_token)) {
+      cssom::MediaFeatureName media_feature_name;
+      if (DetectMediaQueryToken(token_value->string, &media_query_token,
+                                &media_feature_name)) {
+        token_value->integer = static_cast<int>(media_feature_name);
         return media_query_token;
       }
     } else if (parsing_mode_ == kSupportsMode) {
@@ -875,6 +902,26 @@ Token Scanner::ScanFromPlus(TokenValue* token_value) {
   }
 
   return '+';
+}
+
+bool Scanner::DetectMediaFeatureNamePrefix(Token* token) {
+  if (ToAsciiLowerUnchecked(input_iterator_[0]) == 'm') {
+    if (ToAsciiLowerUnchecked(input_iterator_[1]) == 'i' &&
+        ToAsciiLowerUnchecked(input_iterator_[2]) == 'n' &&
+        ToAsciiLowerUnchecked(input_iterator_[3]) == '-') {
+      input_iterator_ += 4;
+      *token = kMediaMinimumToken;
+      return true;
+    }
+    if (ToAsciiLowerUnchecked(input_iterator_[1]) == 'a' &&
+        ToAsciiLowerUnchecked(input_iterator_[2]) == 'x' &&
+        ToAsciiLowerUnchecked(input_iterator_[3]) == '-') {
+      input_iterator_ += 4;
+      *token = kMediaMaximumToken;
+      return true;
+    }
+  }
+  return false;
 }
 
 Token Scanner::ScanFromLess() {
@@ -1741,32 +1788,195 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
   return false;
 }
 
-bool Scanner::DetectMediaQueryToken(const TrivialStringPiece& name,
-                                    Token* media_query_token) const {
+bool Scanner::DetectMediaQueryToken(
+    const TrivialStringPiece& name, Token* media_query_token,
+    cssom::MediaFeatureName* media_feature_name) const {
   DCHECK_EQ(parsing_mode_, kMediaQueryMode);
 
-  if (name.size() == 3) {
-    if (IsAsciiAlphaCaselessEqual(name.begin[0], 'a') &&
-        IsAsciiAlphaCaselessEqual(name.begin[1], 'n') &&
-        IsAsciiAlphaCaselessEqual(name.begin[2], 'd')) {
-      *media_query_token = kMediaAndToken;
-      return true;
-    }
+  switch (name.size()) {
+    case 2:
+      if (IsAsciiAlphaCaselessEqual(name.begin[0],
+                                    cssom::kTVMediaTypeName[0]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[1],
+                                    cssom::kTVMediaTypeName[1])) {
+        *media_query_token = kTVMediaTypeToken;
+        return true;
+      }
+      return false;
 
-    if (IsAsciiAlphaCaselessEqual(name.begin[0], 'n') &&
-        IsAsciiAlphaCaselessEqual(name.begin[1], 'o') &&
-        IsAsciiAlphaCaselessEqual(name.begin[2], 't')) {
-      *media_query_token = kMediaNotToken;
-      return true;
-    }
-  } else if (name.size() == 4) {
-    if (IsAsciiAlphaCaselessEqual(name.begin[0], 'o') &&
-        IsAsciiAlphaCaselessEqual(name.begin[1], 'n') &&
-        IsAsciiAlphaCaselessEqual(name.begin[2], 'l') &&
-        IsAsciiAlphaCaselessEqual(name.begin[3], 'y')) {
-      *media_query_token = kMediaOnlyToken;
-      return true;
-    }
+    case 3:
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'a')) {
+        if (IsAsciiAlphaCaselessEqual(name.begin[1], 'l') &&
+            IsAsciiAlphaCaselessEqual(name.begin[2], 'l')) {
+          *media_query_token = kAllMediaTypeToken;
+          return true;
+        }
+
+        if (IsAsciiAlphaCaselessEqual(name.begin[1], 'n') &&
+            IsAsciiAlphaCaselessEqual(name.begin[2], 'd')) {
+          *media_query_token = kMediaAndToken;
+          return true;
+        }
+        return false;
+      }
+
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'n') &&
+          IsAsciiAlphaCaselessEqual(name.begin[1], 'o') &&
+          IsAsciiAlphaCaselessEqual(name.begin[2], 't')) {
+        *media_query_token = kMediaNotToken;
+        return true;
+      }
+      return false;
+
+    case 4:
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'o') &&
+          IsAsciiAlphaCaselessEqual(name.begin[1], 'n') &&
+          IsAsciiAlphaCaselessEqual(name.begin[2], 'l') &&
+          IsAsciiAlphaCaselessEqual(name.begin[3], 'y')) {
+        *media_query_token = kMediaOnlyToken;
+        return true;
+      }
+
+      if (IsAsciiAlphaCaselessEqual(name.begin[0],
+                                    cssom::kGridMediaFeatureName[0]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[1],
+                                    cssom::kGridMediaFeatureName[1]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[2],
+                                    cssom::kGridMediaFeatureName[2]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[3],
+                                    cssom::kGridMediaFeatureName[3])) {
+        *media_feature_name = cssom::kGridMediaFeature;
+        *media_query_token = kZeroOrOneMediaFeatureTypeToken;
+        return true;
+      }
+
+      if (IsAsciiAlphaCaselessEqual(name.begin[0],
+                                    cssom::kScanMediaFeatureName[0]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[1],
+                                    cssom::kScanMediaFeatureName[1]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[2],
+                                    cssom::kScanMediaFeatureName[2]) &&
+          IsAsciiAlphaCaselessEqual(name.begin[3],
+                                    cssom::kScanMediaFeatureName[3])) {
+        *media_feature_name = cssom::kScanMediaFeature;
+        *media_query_token = kScanMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 5:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kColorMediaFeatureName)) {
+        *media_feature_name = cssom::kColorMediaFeature;
+        *media_query_token = kNonNegativeIntegerMediaFeatureTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kWidthMediaFeatureName)) {
+        *media_feature_name = cssom::kWidthMediaFeature;
+        *media_query_token = kLengthMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 6:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kScreenMediaTypeName)) {
+        *media_query_token = kScreenMediaTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kHeightMediaFeatureName)) {
+        *media_feature_name = cssom::kHeightMediaFeature;
+        *media_query_token = kLengthMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 8:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kPortraitMediaFeatureKeywordValueName)) {
+        *media_query_token = kPortraitMediaFeatureKeywordValueToken;
+        return true;
+      }
+      return false;
+
+    case 9:
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kInterlaceMediaFeatureKeywordValueName)) {
+        *media_query_token = kInterlaceMediaFeatureKeywordValueToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kLandscapeMediaFeatureKeywordValueName)) {
+        *media_query_token = kLandscapeMediaFeatureKeywordValueToken;
+        return true;
+      }
+      return false;
+
+    case 10:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kMonochromeMediaFeatureName)) {
+        *media_feature_name = cssom::kMonochromeMediaFeature;
+        *media_query_token = kNonNegativeIntegerMediaFeatureTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kResolutionMediaFeatureName)) {
+        *media_feature_name = cssom::kResolutionMediaFeature;
+        *media_query_token = kResolutionMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 11:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kColorIndexMediaFeatureName)) {
+        *media_feature_name = cssom::kColorIndexMediaFeature;
+        *media_query_token = kNonNegativeIntegerMediaFeatureTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kOrientationMediaFeatureName)) {
+        *media_feature_name = cssom::kOrientationMediaFeature;
+        *media_query_token = kOrientationMediaFeatureTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::kProgressiveMediaFeatureKeywordValueName)) {
+        *media_query_token = kProgressiveMediaFeatureKeywordValueToken;
+        return true;
+      }
+      return false;
+
+    case 12:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kAspectRatioMediaFeatureName)) {
+        *media_feature_name = cssom::kAspectRatioMediaFeature;
+        *media_query_token = kRatioMediaFeatureTypeToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kDeviceWidthMediaFeatureName)) {
+        *media_feature_name = cssom::kDeviceWidthMediaFeature;
+        *media_query_token = kLengthMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 13:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kDeviceHeightMediaFeatureName)) {
+        *media_feature_name = cssom::kDeviceHeightMediaFeature;
+        *media_query_token = kLengthMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
+
+    case 19:
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kDeviceAspectRatioMediaFeatureName)) {
+        *media_feature_name = cssom::kDeviceAspectRatioMediaFeature;
+        *media_query_token = kRatioMediaFeatureTypeToken;
+        return true;
+      }
+      return false;
   }
   return false;
 }

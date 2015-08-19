@@ -22,6 +22,7 @@
 
 #include "base/basictypes.h"
 #include "cobalt/css_parser/grammar.h"
+#include "cobalt/cssom/media_feature_names.h"
 #include "third_party/icu/public/common/unicode/umachine.h"
 
 namespace cobalt {
@@ -156,7 +157,8 @@ class Scanner {
   bool DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       const TrivialStringPiece& name, Token* known_function_token);
   bool DetectMediaQueryToken(const TrivialStringPiece& name,
-                             Token* media_query_token) const;
+                             Token* media_query_token,
+                             cssom::MediaFeatureName* media_feature_name) const;
   bool TryScanUri(TrivialStringPiece* uri);
   bool FindUri(const char** uri_start, const char** uri_end, char* quote) const;
   template <bool copy>
@@ -173,6 +175,8 @@ class Scanner {
                                     Token* known_function_token) const;
   bool DetectAtTokenAndMaybeChangeParsingMode(const TrivialStringPiece& name,
                                               bool has_escape, Token* at_token);
+
+  bool DetectMediaFeatureNamePrefix(Token* token);
 
   const char* input_iterator_;
   StringPool* const string_pool_;

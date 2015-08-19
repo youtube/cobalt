@@ -20,6 +20,7 @@
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -66,6 +67,15 @@ void StubCSSParser::ParsePropertyIntoStyle(
   UNREFERENCED_PARAMETER(property_location);
   UNREFERENCED_PARAMETER(style_declaration);
 }
+
+scoped_refptr<cssom::MediaQuery> StubCSSParser::ParseMediaQuery(
+    const std::string& media_query,
+    const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(media_query);
+  UNREFERENCED_PARAMETER(input_location);
+  return new cssom::MediaQuery();
+}
+
 
 }  // namespace testing
 }  // namespace dom
