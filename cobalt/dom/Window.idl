@@ -21,6 +21,10 @@
   [PutForwards=href, Unforgeable] readonly attribute Location location;
   readonly attribute Navigator navigator;
   readonly attribute Console console;
+
+  // Custom interfaces to access debugging functionality (e.g. log messages).
+  // TODO(***REMOVED***) - provide link to design doc.
+  readonly attribute DebugHub debugHub;
 };
 Window implements GlobalCrypto;
 Window implements GlobalEventHandlers;

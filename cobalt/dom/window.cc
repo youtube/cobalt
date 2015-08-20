@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
@@ -122,8 +123,17 @@ int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
 void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
+
 scoped_refptr<Storage> Window::session_storage() const {
   return session_storage_;
+}
+
+const scoped_refptr<debug::DebugHub>& Window::debug_hub() const {
+  return debug_hub_;
+}
+
+void Window::set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub) {
+  debug_hub_ = debug_hub;
 }
 
 const scoped_refptr<Console>& Window::console() const { return console_; }
