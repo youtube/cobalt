@@ -108,6 +108,7 @@ WebModule::WebModule(
                       layout_refresh_rate) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
+  window_->set_debug_hub(options.debug_hub);
 }
 
 WebModule::~WebModule() {}
