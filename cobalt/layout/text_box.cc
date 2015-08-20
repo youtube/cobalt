@@ -179,7 +179,12 @@ void TextBox::DumpProperties(std::ostream* stream) const {
 
   *stream << std::boolalpha
           << "has_leading_white_space=" << HasLeadingWhiteSpace() << " "
-          << "has_trailing_white_space=" << HasTrailingWhiteSpace() << " ";
+          << "has_trailing_white_space=" << HasTrailingWhiteSpace() << " "
+          << std::noboolalpha
+          << "text_start=" << paragraph_start_position_ << " "
+          << "text_end=" << paragraph_end_position_ << " "
+          << "bidi_level="
+          << paragraph_->GetBidiLevel(paragraph_start_position_) << " ";
 }
 
 void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {

@@ -184,11 +184,11 @@ InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
     const UsedStyleProvider* used_style_provider,
-    const scoped_refptr<Paragraph>& paragraph, int32 paragraph_position)
+    const scoped_refptr<Paragraph>& paragraph, int32 text_position)
     : BlockFormattingBlockContainerBox(computed_style, transitions,
                                        used_style_provider),
       paragraph_(paragraph),
-      text_position_(paragraph_position) {}
+      text_position_(text_position) {}
 
 InlineLevelBlockContainerBox::~InlineLevelBlockContainerBox() {}
 
@@ -199,6 +199,14 @@ Box::Level InlineLevelBlockContainerBox::GetLevel() const {
 base::optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
+
+void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
+  BlockContainerBox::DumpProperties(stream);
+
+  *stream << "text_position=" << text_position_ << " "
+          << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
+}
+
 
 }  // namespace layout
 }  // namespace cobalt
