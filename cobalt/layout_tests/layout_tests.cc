@@ -314,6 +314,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSTransformsLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")));
+// Custom bidi text (http://www.unicode.org/reports/tr9/)
+// (http://www.w3.org/TR/CSS21/visuren.html#direction) test cases.
+INSTANTIATE_TEST_CASE_P(
+    BidiLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("bidi")));
 
 // JavaScript HTML5 WebAPIs (http://www.w3.org/TR/html5/webappapis.html) test
 // cases.
