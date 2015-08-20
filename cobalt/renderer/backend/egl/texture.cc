@@ -18,6 +18,7 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <malloc.h>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -38,6 +39,8 @@ GLenum SurfaceInfoFormatToGL(SurfaceInfo::Format format) {
   switch (format) {
     case SurfaceInfo::kFormatRGBA8: return GL_RGBA;
     case SurfaceInfo::kFormatBGRA8: return GL_BGRA_EXT;
+    case SurfaceInfo::kFormatA8:
+      return GL_ALPHA;
     default: DLOG(FATAL) << "Unsupported incoming pixel data format.";
   }
   return GL_INVALID_ENUM;
@@ -48,29 +51,64 @@ TextureDataEGL::TextureDataEGL(const SurfaceInfo& surface_info)
     : surface_info_(surface_info),
       memory_(new uint8_t[GetPitchInBytes() * surface_info.size.height()]) {}
 
-TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
-                       scoped_ptr<TextureDataEGL> texture_source_data,
-                       bool bgra_supported)
-    : graphics_context_(graphics_context) {
-  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
+RawTextureMemoryEGL::RawTextureMemoryEGL(size_t size_in_bytes, size_t alignment)
+    : size_in_bytes_(size_in_bytes) {
+  memory_ = scoped_ptr_malloc<uint8_t>(
+      static_cast<uint8_t*>(memalign(alignment, size_in_bytes)));
+}
 
-  surface_info_ = texture_source_data->GetSurfaceInfo();
+namespace {
 
-  GL_CALL(glGenTextures(1, &gl_handle_));
-  GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle_));
+GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
+                                   const uint8_t* data,
+                                   const SurfaceInfo& surface_info,
+                                   int pitch_in_bytes, bool bgra_supported) {
+  GLuint gl_handle;
+
+  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context);
+
+  GL_CALL(glGenTextures(1, &gl_handle));
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, gl_handle));
   SetupInitialTextureParameters();
 
-  GLenum gl_format = SurfaceInfoFormatToGL(surface_info_.format);
+  GLenum gl_format = SurfaceInfoFormatToGL(surface_info.format);
   if (gl_format == GL_BGRA_EXT) {
     DCHECK(bgra_supported);
   }
 
+  DCHECK_EQ(surface_info.size.width() *
+                SurfaceInfo::BytesPerPixel(surface_info.format),
+            pitch_in_bytes);
+
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info_.size.width(),
-                       surface_info_.size.height(), 0, gl_format,
-                       GL_UNSIGNED_BYTE, texture_source_data->GetMemory()));
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, gl_format, surface_info.size.width(),
+                       surface_info.size.height(), 0, gl_format,
+                       GL_UNSIGNED_BYTE, data));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+  return gl_handle;
+}
+
+}  // namespace
+
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
+                       scoped_ptr<TextureDataEGL> texture_source_data,
+                       bool bgra_supported)
+    : graphics_context_(graphics_context),
+      surface_info_(texture_source_data->GetSurfaceInfo()) {
+  gl_handle_ = UploadPixelDataToNewTexture(
+      graphics_context, texture_source_data->GetMemory(),
+      texture_source_data->GetSurfaceInfo(),
+      texture_source_data->GetPitchInBytes(), bgra_supported);
+}
+
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
+                       const uint8_t* data, const SurfaceInfo& surface_info,
+                       int pitch_in_bytes, bool bgra_supported)
+    : graphics_context_(graphics_context), surface_info_(surface_info) {
+  gl_handle_ = UploadPixelDataToNewTexture(graphics_context, data, surface_info,
+                                           pitch_in_bytes, bgra_supported);
 }
 
 TextureEGL::TextureEGL(
@@ -109,11 +147,7 @@ TextureEGL::~TextureEGL() {
                                 source_render_target_->GetSurface(),
                                 EGL_BACK_BUFFER));
   }
-#if !defined(NDEBUG)
-  GLint bound_texture;
-  glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound_texture);
-  DCHECK_NE(bound_texture, gl_handle_);
-#endif
+
   GL_CALL(glDeleteTextures(1, &gl_handle_));
 }
 

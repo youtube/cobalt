@@ -18,6 +18,7 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -39,8 +40,7 @@ bool HasExtension(const char* extension) {
 }  // namespace
 
 GraphicsContextEGL::GraphicsContextEGL(EGLDisplay display, EGLConfig config)
-    : display_(display),
-      config_(config) {
+    : display_(display), config_(config), is_current_(false) {
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 2,
       EGL_NONE,
@@ -63,13 +63,11 @@ GraphicsContextEGL::GraphicsContextEGL(EGLDisplay display, EGLConfig config)
       eglCreatePbufferSurface(display, config, null_surface_attrib_list);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 
-  MakeCurrent();
+  ScopedMakeCurrent scoped_current_context(this);
 
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
   SetupBlitToRenderTargetObjects();
-
-  ReleaseCurrentContext();
 }
 
 void GraphicsContextEGL::SetupBlitToRenderTargetObjects() {
@@ -155,6 +153,9 @@ void GraphicsContextEGL::MakeCurrentWithSurface(EGLSurface surface) {
       "Use ReleaseCurrentContext().";
 
   EGL_CALL(eglMakeCurrent(display_, surface, surface, context_));
+
+  is_current_ = true;
+  current_surface_ = surface;
 }
 
 void GraphicsContextEGL::MakeCurrent() {
@@ -164,6 +165,8 @@ void GraphicsContextEGL::MakeCurrent() {
 void GraphicsContextEGL::ReleaseCurrentContext() {
   EGL_CALL(eglMakeCurrent(
       display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+
+  is_current_ = false;
 }
 
 scoped_ptr<TextureData> GraphicsContextEGL::AllocateTextureData(
@@ -176,27 +179,26 @@ scoped_ptr<Texture> GraphicsContextEGL::CreateTexture(
   scoped_ptr<TextureDataEGL> texture_data_egl(
       base::polymorphic_downcast<TextureDataEGL*>(texture_data.release()));
 
-  scoped_ptr<Texture> texture(
+  return scoped_ptr<Texture>(
       new TextureEGL(this, texture_data_egl.Pass(), bgra_format_supported_));
-
-  return texture.Pass();
 }
 
 scoped_ptr<RawTextureMemory> GraphicsContextEGL::AllocateRawTextureMemory(
     size_t size_in_bytes, size_t alignment) {
-  // TODO(***REMOVED***): Needs an implementation.  We probably want to use PBuffers
-  //               for this, but it's not obvious right to me how to do that
-  //               in such a way that can be done from any thread (and thus
-  //               doesn't require a context to be current).
-  NOTREACHED();
-  return scoped_ptr<RawTextureMemory>();
+  return scoped_ptr<RawTextureMemory>(
+      new RawTextureMemoryEGL(size_in_bytes, alignment));
 }
 
 scoped_ptr<Texture> GraphicsContextEGL::CreateTextureFromRawMemory(
     const scoped_refptr<ConstRawTextureMemory>& raw_texture_memory,
     intptr_t offset, const SurfaceInfo& surface_info, int pitch_in_bytes) {
-  NOTREACHED();
-  return scoped_ptr<Texture>();
+  const RawTextureMemoryEGL* texture_memory_egl(
+      base::polymorphic_downcast<const RawTextureMemoryEGL*>(
+          &(raw_texture_memory->raw_texture_memory())));
+
+  return scoped_ptr<Texture>(
+      new TextureEGL(this, texture_memory_egl->GetMemory() + offset,
+                     surface_info, pitch_in_bytes, bgra_format_supported_));
 }
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
@@ -233,9 +235,11 @@ void VerticallyFlipPixels(uint8_t* pixels, int pitch_in_bytes, int height) {
 
 scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
     const Texture& texture) {
+  TRACE_EVENT0("cobalt::renderer",
+               "GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA()");
   const TextureEGL* texture_egl =
       base::polymorphic_downcast<const TextureEGL*>(&texture);
-  MakeCurrent();
+  ScopedMakeCurrent scoped_current_context(this);
 
   GLuint texture_framebuffer;
   GL_CALL(glGenFramebuffers(1, &texture_framebuffer));
@@ -259,7 +263,6 @@ scoped_array<uint8_t> GraphicsContextEGL::GetCopyOfTexturePixelDataAsRGBA(
   GL_CALL(glDeleteFramebuffers(1, &texture_framebuffer));
 
   GL_CALL(glFinish());
-  ReleaseCurrentContext();
 
   // Vertically flip the resulting pixel data before returning so that the 0th
   // pixel is at the top-left.  While this is not a fast procedure, this
@@ -330,6 +333,7 @@ void GraphicsContextEGL::Frame::BlitToRenderTarget(const Texture& texture) {
 
 scoped_ptr<GraphicsContext::Frame> GraphicsContextEGL::StartFrame(
     const scoped_refptr<RenderTarget>& render_target) {
+  TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::StartFrame()");
   render_target_ = make_scoped_refptr(
       base::polymorphic_downcast<RenderTargetEGL*>(render_target.get()));
 
@@ -338,6 +342,8 @@ scoped_ptr<GraphicsContext::Frame> GraphicsContextEGL::StartFrame(
 }
 
 void GraphicsContextEGL::OnFrameEnd() {
+  TRACE_EVENT0("cobalt::renderer", "GraphicsContextEGL::OnFrameEnd()");
+
   GL_CALL(glFlush());
   EGL_CALL(eglSwapBuffers(display_, render_target_->GetSurface()));
 

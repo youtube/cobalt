@@ -38,6 +38,10 @@ class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
   // Return metadata about the render target such as dimensions and format.
   virtual const SurfaceInfo& GetSurfaceInfo() = 0;
 
+  // Returns a platform-specific handle to the render target that can be
+  // passed into platform-specific code.
+  virtual intptr_t GetPlatformHandle() = 0;
+
  protected:
   // Concrete child classes should declare their destructors as private.
   friend class base::RefCountedThreadSafe<RenderTarget>;
