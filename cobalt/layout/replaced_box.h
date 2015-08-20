@@ -79,6 +79,7 @@ class ReplacedBox : public Box {
   bool IsTransformable() const OVERRIDE { return false; }
 
   void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpProperties(std::ostream* stream) const OVERRIDE;
 
  private:
   ReplaceImageCB replace_image_cb_;

@@ -56,11 +56,11 @@ ReplacedBox::ReplacedBox(
     const cssom::TransitionSet* transitions,
     const ReplaceImageCB& replace_image_cb,
     const UsedStyleProvider* used_style_provider,
-    const scoped_refptr<Paragraph>& paragraph, int32 paragraph_position)
+    const scoped_refptr<Paragraph>& paragraph, int32 text_position)
     : Box(computed_style, transitions, used_style_provider),
       replace_image_cb_(replace_image_cb),
       paragraph_(paragraph),
-      text_position_(paragraph_position) {
+      text_position_(text_position) {
   DCHECK(!replace_image_cb_.is_null());
 }
 
@@ -131,6 +131,13 @@ void ReplacedBox::RenderAndAnimateContent(
 
 void ReplacedBox::DumpClassName(std::ostream* stream) const {
   *stream << "ReplacedBox ";
+}
+
+void ReplacedBox::DumpProperties(std::ostream* stream) const {
+  Box::DumpProperties(stream);
+
+  *stream << "text_position=" << text_position_ << " "
+          << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
 
 }  // namespace layout
