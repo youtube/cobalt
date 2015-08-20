@@ -25,6 +25,7 @@
 #include "base/timer.h"
 #include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/event_target.h"
@@ -129,6 +130,10 @@ class Window : public EventTarget {
   // request callback list.
   void RunAnimationFrameCallbacks();
 
+  // Handles debug communication with the main and debug console windows.
+  const scoped_refptr<debug::DebugHub>& debug_hub() const;
+  void set_debug_hub(const scoped_refptr<debug::DebugHub>& debug_hub);
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -154,6 +159,8 @@ class Window : public EventTarget {
 
   scoped_refptr<Storage> local_storage_;
   scoped_refptr<Storage> session_storage_;
+
+  scoped_refptr<debug::DebugHub> debug_hub_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
