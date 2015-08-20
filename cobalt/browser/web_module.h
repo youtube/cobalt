@@ -22,6 +22,7 @@
 #include "base/callback.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/window.h"
@@ -66,9 +67,15 @@ class WebModule {
     explicit Options(GURL initial_url)
         : url(initial_url),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+    Options(GURL initial_url,
+            const scoped_refptr<debug::DebugHub>& initial_debug_hub)
+        : url(initial_url),
+          layout_trigger(layout::LayoutManager::kOnDocumentMutation),
+          debug_hub(initial_debug_hub) {}
 
     GURL url;
     layout::LayoutManager::LayoutTrigger layout_trigger;
+    scoped_refptr<debug::DebugHub> debug_hub;
   };
 
   typedef layout::LayoutManager::OnRenderTreeProducedCallback

@@ -20,7 +20,7 @@ body {
   margin: 20px;
 }
 
-#console {
+#messageLog {
   position: absolute;
   left: 0%;
   top: 10%;
@@ -60,15 +60,11 @@ var vy = 3;
 var curr = 0;
 var inputText = "";
 
-function printToOurConsole(message) {
-  const bufferSize = 500;
-  var elem = document.getElementById("console");
-  var text = elem.innerHTML;
-  text += "<p>" + message;
-  if (text.length > bufferSize) {
-    text = text.substring(text.length - bufferSize, text.length);
+function printToMessageLog(message) {
+  var messageLog = document.getElementById("messageLog");
+  if (messageLog) {
+    messageLog.textContent = message;
   }
-  elem.innerHTML = text;
 }
 
 function printToHud(message) {
@@ -111,38 +107,38 @@ var onKeyDown = function(event) {
   event.preventDefault();
   event.stopPropagation();
   var i = document.querySelector('#in');
-    var k = event.keyCode;
+  var k = event.keyCode;
   if (k == 8) {
-      inputText = inputText.substring(0, inputText.length - 1);
-    } else if (k >= 0x20 && k < 0x7e) {
-      inputText += String.fromCharCode(k);
-    }
+    inputText = inputText.substring(0, inputText.length - 1);
+  } else if (k >= 0x20 && k < 0x7e) {
+    inputText += String.fromCharCode(k);
+  }
   i.textContent = inputText;
 }
 
+function onLogMessage(severity, file, line, messageStart, str) {
+  printToMessageLog(str);
+}
+
+function addLogMessageCallback() {
+  var debugHub = window.debugHub;
+  if (debugHub) {
+    debugHub.addLogMessageCallback(onLogMessage);
+  }
+}
+
 function start() {
-  var elem = document.getElementById("in");
-  //document.addEventListener('keydown', onKeyDown, true);
-  //elem.focus();
+  addLogMessageCallback();
   curr = window.performance.now();
   window.requestAnimationFrame(animate);
 }
 
-// Re-route console.log to our own console
-(function() {
-    var oldLog = console.log;
-    console.log = function(message) {
-        printToOurConsole(message);
-    };
-})();
-
-//window.addEventListener('load', start());
-start();
+window.addEventListener('load', start);
 </script>
 
-<body onload="start()">
+<body>
   <div id="hud"></div>
-  <div id="console"></div>
+  <div id="messageLog"></div>
   <div id="in"></div>
   <div id="pirate"></div>
 </body>

@@ -44,6 +44,7 @@ BrowserModule::BrowserModule(const Options& options)
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
+      debug_hub_(new debug::DebugHub()),
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                      base::Unretained(this)),
@@ -52,7 +53,7 @@ BrowserModule::BrowserModule(const Options& options)
           math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
-          WebModule::Options(GURL(kInitialDebugConsoleUrl)))),
+          WebModule::Options(GURL(kInitialDebugConsoleUrl), debug_hub_))),
       render_tree_combiner_(renderer_module_.pipeline()),
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           base::Bind(&BrowserModule::OnRenderTreeProduced,
