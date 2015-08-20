@@ -60,39 +60,50 @@ class GraphicsContextEGL : public GraphicsContext {
   scoped_ptr<GraphicsContext::Frame> StartFrame(
       const scoped_refptr<backend::RenderTarget>& render_target) OVERRIDE;
 
- private:
+  // Helper class to allow one to create a RAII object that will acquire the
+  // current context upon construction and release it upon destruction.
+  class ScopedMakeCurrent {
+   public:
+    explicit ScopedMakeCurrent(GraphicsContextEGL* graphics_context)
+        : graphics_context_(graphics_context),
+          was_current_(graphics_context_->is_current_),
+          previous_current_surface_(graphics_context_->current_surface_) {
+      graphics_context_->MakeCurrent();
+    }
+    ScopedMakeCurrent(GraphicsContextEGL* graphics_context, EGLSurface surface)
+        : graphics_context_(graphics_context),
+          was_current_(graphics_context_->is_current_),
+          previous_current_surface_(graphics_context_->current_surface_) {
+      graphics_context_->MakeCurrentWithSurface(surface);
+    }
+    ~ScopedMakeCurrent() {
+      if (was_current_) {
+        graphics_context_->MakeCurrentWithSurface(previous_current_surface_);
+      } else {
+        graphics_context_->ReleaseCurrentContext();
+      }
+    }
+
+   private:
+    GraphicsContextEGL* graphics_context_;
+    bool was_current_;
+    EGLSurface previous_current_surface_;
+  };
+
   // Helper methods to make this context current and associate it with
   // a surface.  In EGL, a context is either not current or it is current and
   // associated with a surface.  For all functionality (e.g. texture creation)
   // that is provided but does not require a surface binding, null_surface_ is
   // specified as a surface.
   void MakeCurrentWithSurface(EGLSurface surface);
+
   // Alternatively, this call can be made to make the context current along
   // with a null surface.  You would be interested in this method if you don't
   // plan to be making any draw calls, such as if you're setting up a texture.
-  void MakeCurrent();
-  void ReleaseCurrentContext();
+  void MakeCurrent() OVERRIDE;
+  void ReleaseCurrentContext() OVERRIDE;
 
-  // Helper class to allow one to create a RAII object that will acquire the
-  // current context upon construction and release it upon destruction.
-  class ScopedMakeCurrent {
-   public:
-    explicit ScopedMakeCurrent(GraphicsContextEGL* graphics_context) :
-        graphics_context_(graphics_context) {
-      graphics_context_->MakeCurrent();
-    }
-    ScopedMakeCurrent(GraphicsContextEGL* graphics_context, EGLSurface surface)
-        : graphics_context_(graphics_context) {
-      graphics_context_->MakeCurrentWithSurface(surface);
-    }
-    ~ScopedMakeCurrent() {
-      graphics_context_->ReleaseCurrentContext();
-    }
-
-   private:
-    GraphicsContextEGL* graphics_context_;
-  };
-
+ private:
   // Sets up all structures (like Shaders and vertex buffers) required to
   // support the Frame::BlitToRenderTarget() functionality.
   void SetupBlitToRenderTargetObjects();
@@ -117,6 +128,11 @@ class GraphicsContextEGL : public GraphicsContext {
   // The EGL/OpenGL ES context hosted by this GraphicsContextEGL object.
   EGLContext context_;
   EGLConfig config_;
+
+  // Keep track of whether this context has been set to current or not, and
+  // if so what surface was associated with it.
+  bool is_current_;
+  EGLSurface current_surface_;
 
   // A dummy surface that is made current when we wish to execute OpenGL ES
   // commands that don't actually involve a surface in any way (e.g. texture

@@ -39,6 +39,8 @@ class RenderTargetStub : public RenderTarget {
 
   const scoped_refptr<PixelDataStub>& pixel_data() const { return pixel_data_; }
 
+  intptr_t GetPlatformHandle() OVERRIDE { return 0; }
+
  private:
   ~RenderTargetStub() {}
 

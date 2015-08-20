@@ -31,6 +31,11 @@ class RenderTargetEGL : public RenderTarget {
   // associates a render target with a rendering context.
   virtual EGLSurface GetSurface() const = 0;
 
+  // Since all RenderTargets defined at this level are EGL objects, they
+  // will always be set via eglMakeCurrent() and so they can always be
+  // referenced by OpenGL by binding framebuffer 0.
+  intptr_t GetPlatformHandle() OVERRIDE { return 0; }
+
  protected:
   virtual ~RenderTargetEGL() {}
 };
