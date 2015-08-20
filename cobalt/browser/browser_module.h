@@ -22,6 +22,7 @@
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/debug/debug_hub.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
@@ -83,6 +84,9 @@ class BrowserModule {
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
+
+  // Manages debug communication with the web modules.
+  scoped_refptr<debug::DebugHub> debug_hub_;
 
   // Manages a second web module to implement the debug console.
   DebugConsole debug_console_;

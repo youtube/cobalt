@@ -164,6 +164,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/cobalt/debug/debug.gyp:debug',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
