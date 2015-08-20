@@ -83,10 +83,11 @@ void TextBox::SplitBidiLevelRuns() {}
 
 scoped_ptr<Box> TextBox::TrySplitAtSecondBidiLevelRun() {
   int32 split_position;
-  if (paragraph_->GetNextRunPosition(text_start_position_, &split_position) &&
-      split_position < text_end_position_) {
+  if (paragraph_->GetNextRunPosition(paragraph_start_position_,
+                                     &split_position) &&
+      split_position < paragraph_end_position_) {
     float pre_split_width = paragraph_->CalculateSubStringWidth(
-        used_font_, text_start_position_, split_position);
+        used_font_, paragraph_start_position_, split_position);
     return SplitAtPosition(split_position, pre_split_width);
   } else {
     return scoped_ptr<Box>();
@@ -94,7 +95,7 @@ scoped_ptr<Box> TextBox::TrySplitAtSecondBidiLevelRun() {
 }
 
 base::optional<int> TextBox::GetBidiLevel() const {
-  return paragraph_->GetBidiLevel(text_start_position_);
+  return paragraph_->GetBidiLevel(paragraph_start_position_);
 }
 
 bool TextBox::IsCollapsed() const {
