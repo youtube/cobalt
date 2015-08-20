@@ -16,6 +16,7 @@
 
 #include "cobalt/renderer/renderer_module.h"
 
+#include "cobalt/renderer/rasterizer_skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer_skia/software_rasterizer.h"
 
 namespace cobalt {
@@ -25,7 +26,7 @@ namespace {
 scoped_ptr<Rasterizer> CreateRasterizer(
     backend::GraphicsContext* graphics_context) {
   return scoped_ptr<Rasterizer>(
-      new rasterizer_skia::SkiaSoftwareRasterizer(graphics_context));
+      new rasterizer_skia::SkiaHardwareRasterizer(graphics_context));
 }
 }  // namespace
 

@@ -111,6 +111,12 @@ class GraphicsContext {
   virtual scoped_array<uint8_t> GetCopyOfTexturePixelDataAsRGBA(
       const Texture& texture) = 0;
 
+  // These methods are added since some APIs, like OpenGL, have a concept of
+  // a thread-local current context, and it can be set/unset by calling these
+  // methods.  This may be a no-op on platforms that don't have this concept.
+  virtual void MakeCurrent() {}
+  virtual void ReleaseCurrentContext() {}
+
   // The interface for creating and submitting frames to be rendered is
   // to call GraphicsContext::StartFrame() which instantiates a
   // GraphicsContext::Frame object which binds the context to a render target.

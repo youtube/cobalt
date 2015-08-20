@@ -49,11 +49,35 @@ class TextureDataEGL : public TextureData {
   scoped_array<uint8_t> memory_;
 };
 
+class RawTextureMemoryEGL : public RawTextureMemory {
+ public:
+  RawTextureMemoryEGL(size_t size_in_bytes, size_t alignment);
+
+  // Returns the allocated size of the texture memory.
+  virtual size_t GetSizeInBytes() const { return size_in_bytes_; }
+
+  // Returns a CPU-accessible pointer to the allocated memory.
+  virtual uint8_t* GetMemory() { return memory_.get(); }
+
+  const uint8_t* GetMemory() const { return memory_.get(); }
+
+ private:
+  size_t size_in_bytes_;
+
+  // TODO(***REMOVED***): Store memory using a EGL PBuffer object which provides the
+  //               implementation control over the memory.
+  scoped_ptr_malloc<uint8_t> memory_;
+};
+
 class TextureEGL : public Texture {
  public:
   // Create a texture from source pixel data possibly filled in by the CPU.
   TextureEGL(GraphicsContextEGL* graphics_context,
              scoped_ptr<TextureDataEGL> texture_source_data,
+             bool bgra_supported);
+  // Create a texture from a pre-existing offscreen PBuffer render target.
+  TextureEGL(GraphicsContextEGL* graphics_context, const uint8_t* data,
+             const SurfaceInfo& surface_info, int pitch_in_bytes,
              bool bgra_supported);
   // Create a texture from a pre-existing offscreen PBuffer render target.
   explicit TextureEGL(
@@ -62,6 +86,12 @@ class TextureEGL : public Texture {
   ~TextureEGL();
 
   const SurfaceInfo& GetSurfaceInfo() const OVERRIDE;
+
+  Origin GetOrigin() const OVERRIDE { return kTopLeft; }
+
+  intptr_t GetPlatformHandle() OVERRIDE {
+    return static_cast<intptr_t>(gl_handle());
+  }
 
   // Returns an index to the texture that can be passed to OpenGL functions.
   GLuint gl_handle() const { return gl_handle_; }

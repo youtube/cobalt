@@ -62,6 +62,10 @@ class TextureStub : public Texture {
     return pixel_data_;
   }
 
+  Origin GetOrigin() const OVERRIDE { return kBottomLeft; }
+
+  intptr_t GetPlatformHandle() OVERRIDE { return 0; }
+
  private:
   scoped_refptr<PixelDataStub> pixel_data_;
 };
