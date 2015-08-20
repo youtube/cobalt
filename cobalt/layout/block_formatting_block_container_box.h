@@ -107,6 +107,10 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   Level GetLevel() const OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
+ protected:
+  // From |Box|.
+  void DumpProperties(std::ostream* stream) const OVERRIDE;
+
  private:
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
