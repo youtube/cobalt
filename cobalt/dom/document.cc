@@ -21,7 +21,6 @@
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -171,28 +170,60 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& value) {
 
 scoped_refptr<HTMLHeadElement> Document::head() const { return head_.get(); }
 
+scoped_refptr<Element> Document::active_element() const {
+  if (!active_element_) {
+    return body();
+  } else {
+    return active_element_.get();
+  }
+}
+
 scoped_refptr<Element> Document::QuerySelector(const std::string& selectors) {
   return QuerySelectorInternal(selectors, html_element_context_->css_parser());
-}
-
-scoped_refptr<EventListener> Document::onload() {
-  return GetAttributeEventListener("load");
-}
-
-void Document::set_onload(const scoped_refptr<EventListener>& listener) {
-  SetAttributeEventListener("load", listener);
 }
 
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Document::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
-void Document::AddObserver(DocumentObserver* observer) {
-  observers_.AddObserver(observer);
+scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
+
+void Document::SetBody(HTMLBodyElement* body) {
+  if (body) {
+    DCHECK(!body_);
+    body_ = base::AsWeakPtr(body);
+  } else {
+    DCHECK(body_);
+    body_.reset();
+  }
 }
 
-void Document::RemoveObserver(DocumentObserver* observer) {
-  observers_.RemoveObserver(observer);
+void Document::SetHead(HTMLHeadElement* head) {
+  if (head) {
+    DCHECK(!head_);
+    head_ = base::AsWeakPtr(head);
+  } else {
+    DCHECK(head_);
+    head_.reset();
+  }
+}
+
+void Document::SetHtml(HTMLHtmlElement* html) {
+  if (html) {
+    DCHECK(!html_);
+    html_ = base::AsWeakPtr(html);
+  } else {
+    DCHECK(html_);
+    html_.reset();
+  }
+}
+
+void Document::SetActiveElement(Element* active_element) {
+  if (active_element) {
+    active_element_ = base::AsWeakPtr(active_element);
+  } else {
+    active_element_.reset();
+  }
 }
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
@@ -211,18 +242,26 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
       should_dispatch_load_event_ = false;
       // TODO(***REMOVED***): We should also fire event on onload attribute when
       // set.
-      base::MessageLoopProxy::current()->PostTask(
+      MessageLoop::current()->PostTask(
           FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
                                 base::AsWeakPtr<Document>(this),
                                 make_scoped_refptr(new Event("load"))));
 
       // After all JavaScript OnLoad event handlers have executed, signal to any
       // Document observers know that a load event has occurred.
-      base::MessageLoopProxy::current()->PostTask(
+      MessageLoop::current()->PostTask(
           FROM_HERE, base::Bind(&Document::SignalOnLoadToObservers,
                                 base::AsWeakPtr<Document>(this)));
     }
   }
+}
+
+void Document::AddObserver(DocumentObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void Document::RemoveObserver(DocumentObserver* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 void Document::SignalOnLoadToObservers() {
@@ -235,18 +274,18 @@ void Document::RecordMutation() {
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnMutation());
 }
 
-void Document::OnDOMMutation() {
-  // Something in the document's DOM has been modified, but we don't know what,
-  // so set the flag indicating that rule matching needs to be done.
+void Document::OnCSSMutation() {
+  // Something in the document's CSS rules has been modified, but we don't know
+  // what, so set the flag indicating that rule matching needs to be done.
   rule_matches_dirty_ = true;
   computed_style_dirty_ = true;
 
   RecordMutation();
 }
 
-void Document::OnCSSMutation() {
-  // Something in the document's CSS rules has been modified, but we don't know
-  // what, so set the flag indicating that rule matching needs to be done.
+void Document::OnDOMMutation() {
+  // Something in the document's DOM has been modified, but we don't know what,
+  // so set the flag indicating that rule matching needs to be done.
   rule_matches_dirty_ = true;
   computed_style_dirty_ = true;
 
@@ -257,40 +296,6 @@ void Document::OnElementInlineStyleMutation() {
   computed_style_dirty_ = true;
 
   RecordMutation();
-}
-
-Document::~Document() {}
-
-scoped_refptr<HTMLHtmlElement> Document::html() const { return html_.get(); }
-
-void Document::SetBodyInternal(HTMLBodyElement* value) {
-  if (value) {
-    DCHECK(!body_);
-    body_ = base::AsWeakPtr(value);
-  } else {
-    DCHECK(body_);
-    body_.reset();
-  }
-}
-
-void Document::SetHeadInternal(HTMLHeadElement* value) {
-  if (value) {
-    DCHECK(!head_);
-    head_ = base::AsWeakPtr(value);
-  } else {
-    DCHECK(head_);
-    head_.reset();
-  }
-}
-
-void Document::SetHtmlInternal(HTMLHtmlElement* value) {
-  if (value) {
-    DCHECK(!html_);
-    html_ = base::AsWeakPtr(value);
-  } else {
-    DCHECK(html_);
-    html_.reset();
-  }
 }
 
 void Document::UpdateMatchingRules(
@@ -327,6 +332,8 @@ void Document::UpdateComputedStyles(
     computed_style_dirty_ = false;
   }
 }
+
+Document::~Document() {}
 
 }  // namespace dom
 }  // namespace cobalt
