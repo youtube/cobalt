@@ -49,12 +49,12 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager)
       base::WorkerPool::GetTaskRunner(true)));
 
   // TODO(***REMOVED***): Respect any command line fixed proxy arguments.
-  // TODO(***REMOVED***): Bring over ProxyConfigServiceShell
+  // TODO(***REMOVED***): Bring over ProxyConfigServiceShell.
   scoped_ptr<net::ProxyConfigService> proxy_config_service;
   net::ProxyConfig empty_config;
   proxy_config_service.reset(new net::ProxyConfigServiceFixed(empty_config));
-  storage_.set_proxy_service(net::ProxyService::CreateUsingSystemProxyResolver(
-      proxy_config_service.release(), 0, NULL));
+  storage_.set_proxy_service(net::ProxyService::CreateWithoutProxyResolver(
+      proxy_config_service.release(), NULL));
 
   net::HostResolver::Options options;
   options.max_concurrent_resolves = net::HostResolver::kDefaultParallelism;
