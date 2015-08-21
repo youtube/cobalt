@@ -212,7 +212,7 @@ void ContainerBoxGenerator::CreateScopedParagraph(
     prior_paragraph_->Close();
   }
 
-  // TODO(jgray): Use the container box's style to determine the correct base
+  // TODO(***REMOVED***): Use the container box's style to determine the correct base
   // direction for the paragraph.
   *paragraph_ =
       new Paragraph(line_break_iterator_, Paragraph::kLeftToRightBaseDirection);
@@ -407,7 +407,7 @@ void BoxGenerator::Visit(dom::Text* text) {
   // TODO(***REMOVED***): Determine which transitions to propagate to the text box,
   //               instead of none at all.
 
-  // TODO(jgray):  Include bidi markup in appended text.
+  // TODO(***REMOVED***):  Include bidi markup in appended text.
 
   int32 text_start_position = (*paragraph_)->AppendText(collapsed_text);
   int32 text_end_position = (*paragraph_)->GetTextEndPosition();
