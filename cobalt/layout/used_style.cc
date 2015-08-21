@@ -177,8 +177,9 @@ class UsedBackgroundSizeScaleProvider
     DCHECK_GT(image_length, 0);
   }
 
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitLength(cssom::LengthValue* length) OVERRIDE;
+  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
 
   float scale() const { return scale_; }
   bool auto_keyword() const { return auto_keyword_; }
@@ -192,11 +193,6 @@ class UsedBackgroundSizeScaleProvider
 
   DISALLOW_COPY_AND_ASSIGN(UsedBackgroundSizeScaleProvider);
 };
-
-void UsedBackgroundSizeScaleProvider::VisitPercentage(
-    cssom::PercentageValue* percentage) {
-  scale_ = frame_length_ * percentage->value() / image_length_;
-}
 
 void UsedBackgroundSizeScaleProvider::VisitKeyword(
     cssom::KeywordValue* keyword) {
@@ -230,6 +226,16 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     default:
       NOTREACHED();
   }
+}
+
+void UsedBackgroundSizeScaleProvider::VisitLength(cssom::LengthValue* length) {
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+  scale_ = length->value() / image_length_;
+}
+
+void UsedBackgroundSizeScaleProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  scale_ = frame_length_ * percentage->value() / image_length_;
 }
 
 }  // namespace
