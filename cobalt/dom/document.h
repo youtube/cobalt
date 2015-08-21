@@ -110,6 +110,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<HTMLHeadElement> head() const;
 
+  scoped_refptr<Element> active_element() const;
+
   // Web API: CSS Object Model (partial interface)
   //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
   const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
@@ -121,11 +123,6 @@ class Document : public Node, public cssom::MutationObserver {
   //   http://www.w3.org/TR/selectors-api2/#interface-definitions
   //
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
-
-  // Web API: GlobalEventHandlers (implements)
-  //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
-  scoped_refptr<EventListener> onload();
-  void set_onload(const scoped_refptr<EventListener>& event_listener);
 
   // Custom, not in any spec: Node.
   //
@@ -144,20 +141,29 @@ class Document : public Node, public cssom::MutationObserver {
   //
   virtual bool IsXMLDocument() const { return false; }
 
-  void AddObserver(DocumentObserver* observer);
-  void RemoveObserver(DocumentObserver* observer);
+  HTMLElementContext* html_element_context() const {
+    return html_element_context_;
+  }
 
-  HTMLElementContext* html_element_context() { return html_element_context_; }
+  const GURL& url_as_gurl() const { return url_; }
 
   scoped_refptr<HTMLHtmlElement> html() const;
+
+  // These functions are for setting weak references to certain elements in the
+  // document.
+  void SetBody(HTMLBodyElement* body);
+  void SetHead(HTMLHeadElement* head);
+  void SetHtml(HTMLHtmlElement* html);
+  void SetActiveElement(Element* active_element);
 
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
   void IncreaseLoadingCounter();
   void DecreaseLoadingCounterAndMaybeDispatchLoadEvent(bool load_succeeded);
 
-  GURL& url_as_gurl() { return url_; }
-
+  // Utilities related to DocumentObserver.
+  void AddObserver(DocumentObserver* observer);
+  void RemoveObserver(DocumentObserver* observer);
   void SignalOnLoadToObservers();
 
   // Must be called by all descendants of the document on their modification.
@@ -167,6 +173,12 @@ class Document : public Node, public cssom::MutationObserver {
 
   // From cssom::MutationObserver.
   void OnCSSMutation() OVERRIDE;
+
+  // Called when the DOM is mutated in some way.
+  void OnDOMMutation();
+
+  // Called when the inline style of an element is modified.
+  void OnElementInlineStyleMutation();
 
   // Scans the user agent style sheet and all style sheets in the document's
   // style sheet list and updates the cached matching rules of the document's
@@ -183,36 +195,18 @@ class Document : public Node, public cssom::MutationObserver {
       const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
-  // Called when the inline style of an element is modified.
-  void OnElementInlineStyleMutation();
-
-  // Called when the DOM is mutated in some way.
-  void OnDOMMutation();
-
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
   ~Document() OVERRIDE;
 
  private:
-  // These functions are called when body, head, html elements are attached to/
-  // detached from the document. This causes these elements to be friend classes
-  // of Document.
-  void SetBodyInternal(HTMLBodyElement* value);
-  void SetHeadInternal(HTMLHeadElement* value);
-  void SetHtmlInternal(HTMLHtmlElement* value);
-
   // Reference to HTML element context.
   HTMLElementContext* html_element_context_;
   // Associated DOM implementation obejct.
   scoped_refptr<DOMImplementation> implementation_;
   // Associated location obejct.
   scoped_refptr<Location> location_;
-  // Weak references to the elements that according to the spec should only
-  // appear once in the document.
-  base::WeakPtr<HTMLBodyElement> body_;
-  base::WeakPtr<HTMLHeadElement> head_;
-  base::WeakPtr<HTMLHtmlElement> html_;
   // URL of the document.
   GURL url_;
   // List of CSS style sheets.
@@ -221,18 +215,18 @@ class Document : public Node, public cssom::MutationObserver {
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.
   bool should_dispatch_load_event_;
-  // List of document observers.
-  ObserverList<DocumentObserver> observers_;
-
   // Indicates if rule matching/computed style is dirty and needs to be
   // recomputed before the next layout.
   bool rule_matches_dirty_;
   bool computed_style_dirty_;
 
-  friend class HTMLBodyElement;
-  friend class HTMLHeadElement;
-  friend class HTMLHtmlElement;
-  friend class XMLDocument;
+  // Weak references to the certain elements in the document.
+  base::WeakPtr<HTMLBodyElement> body_;
+  base::WeakPtr<HTMLHeadElement> head_;
+  base::WeakPtr<HTMLHtmlElement> html_;
+  base::WeakPtr<Element> active_element_;
+  // List of document observers.
+  ObserverList<DocumentObserver> observers_;
 };
 
 }  // namespace dom

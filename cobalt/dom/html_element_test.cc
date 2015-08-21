@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include "base/message_loop.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/html_div_element.h"
@@ -34,10 +35,43 @@ class HTMLElementTest : public ::testing::Test {
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
+  MessageLoop message_loop_;
 };
 
+TEST_F(HTMLElementTest, TabIndex) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_EQ(0, html_element->tab_index());
+
+  html_element->set_tab_index(-1);
+  EXPECT_EQ(-1, html_element->tab_index());
+}
+
+TEST_F(HTMLElementTest, FocusBlur) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_FALSE(document_->active_element());
+
+  html_element->set_tab_index(-1);
+  html_element->Focus();
+  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
+
+  html_element->Blur();
+  EXPECT_FALSE(document_->active_element());
+}
+
+TEST_F(HTMLElementTest, IsFocusable) {
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
+  EXPECT_FALSE(html_element->IsFocusable());
+
+  html_element->set_tab_index(-1);
+  EXPECT_TRUE(html_element->IsFocusable());
+}
+
 TEST_F(HTMLElementTest, Duplicate) {
-  scoped_refptr<HTMLElement> html_element = new HTMLDivElement(document_);
+  scoped_refptr<HTMLElement> html_element =
+      document_->CreateElement("div")->AsHTMLElement();
   html_element->SetAttribute("a", "1");
   html_element->SetAttribute("b", "2");
   scoped_refptr<HTMLElement> new_html_element =
