@@ -599,6 +599,124 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
   computed_background_image_ = new PropertyListValue(builder.Pass());
 }
 
+class ComputedBackgroundSizeSingleValueProvider
+    : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBackgroundSizeSingleValueProvider(
+      const LengthValue* computed_font_size);
+
+  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_background_size() const {
+    return computed_background_size_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_background_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedBackgroundSizeSingleValueProvider);
+};
+
+ComputedBackgroundSizeSingleValueProvider::
+    ComputedBackgroundSizeSingleValueProvider(
+        const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedBackgroundSizeSingleValueProvider::VisitLength(
+    LengthValue* length) {
+  computed_background_size_ =
+      ProvideAbsoluteLength(length, computed_font_size_);
+}
+
+void ComputedBackgroundSizeSingleValueProvider::VisitPercentage(
+    PercentageValue* percentage) {
+  computed_background_size_ = percentage;
+}
+
+void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
+    KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kAuto:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+      computed_background_size_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kCenter:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kNone:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNormal:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kRight:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedBackgroundSizeProvider(
+      const LengthValue* computed_font_size);
+
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_background_size() const {
+    return computed_background_size_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_background_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedBackgroundSizeProvider);
+};
+
+ComputedBackgroundSizeProvider::ComputedBackgroundSizeProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedBackgroundSizeProvider::VisitKeyword(KeywordValue* keyword) {
+  computed_background_size_ = keyword;
+}
+
+void ComputedBackgroundSizeProvider::VisitPropertyList(
+    PropertyListValue* property_list_value) {
+  ComputedBackgroundSizeSingleValueProvider left_value_provider(
+      computed_font_size_);
+  property_list_value->value()[0]->Accept(&left_value_provider);
+
+  ComputedBackgroundSizeSingleValueProvider right_value_provider(
+      computed_font_size_);
+  property_list_value->value()[1]->Accept(&right_value_provider);
+
+  scoped_ptr<PropertyListValue::Builder> builder(
+      new PropertyListValue::Builder());
+  builder->reserve(2);
+  builder->push_back(left_value_provider.computed_background_size());
+  builder->push_back(right_value_provider.computed_background_size());
+  computed_background_size_ = new PropertyListValue(builder.Pass());
+}
+
 // Computed value: for length of translation transforms.
 //   http://www.w3.org/TR/css3-transforms/#propdef-transform
 class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
@@ -892,6 +1010,12 @@ void PromoteToComputedStyle(
     specified_style->set_background_image(
         background_image_provider.computed_background_image());
   }
+
+  ComputedBackgroundSizeProvider background_size_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->background_size()->Accept(&background_size_provider);
+  specified_style->set_background_size(
+      background_size_provider.computed_background_size());
 
   ComputedTransformProvider transform_provider(
       font_size_provider.computed_font_size().get());
