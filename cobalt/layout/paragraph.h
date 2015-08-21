@@ -117,7 +117,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   bool is_closed_;
 
   // All of the bidi level runs contained within the paragraph.
-  // TODO(jgray): Add in splitting of runs around scripts using the chromium
+  // TODO(***REMOVED***): Add in splitting of runs around scripts using the chromium
   // logic found in RenderTextHarfBuzz::ItemizeTextToRuns
   BidiLevelRuns level_runs_;
 
