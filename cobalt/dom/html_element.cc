@@ -16,6 +16,9 @@
 
 #include "cobalt/dom/html_element.h"
 
+#include <sstream>
+
+#include "base/message_loop.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_parser.h"
@@ -43,6 +46,60 @@
 
 namespace cobalt {
 namespace dom {
+
+int HTMLElement::tab_index() const {
+  std::istringstream iss(GetAttribute("tabindex").value_or("0"));
+  int value;
+  iss >> value;
+  // If the tabindex attribute cannot be converted to an int, return 0.
+  return iss.fail() ? 0 : value;
+}
+
+void HTMLElement::set_tab_index(int tab_index) {
+  std::ostringstream oss;
+  oss << tab_index;
+  SetAttribute("tabindex", oss.str());
+}
+
+void HTMLElement::Focus() {
+  if (!IsFocusable()) {
+    return;
+  }
+
+  Element* old_active_element = owner_document()->active_element();
+  if (old_active_element == this->AsElement()) {
+    return;
+  }
+
+  owner_document()->SetActiveElement(this);
+
+  DCHECK(MessageLoop::current());
+
+  if (old_active_element) {
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
+                              base::Unretained(old_active_element),
+                              make_scoped_refptr(new Event("blur"))));
+  }
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
+                            base::Unretained(this),
+                            make_scoped_refptr(new Event("focus"))));
+}
+
+void HTMLElement::Blur() {
+  if (owner_document()->active_element() == this->AsElement()) {
+    owner_document()->SetActiveElement(NULL);
+
+    DCHECK(MessageLoop::current());
+
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
+                              base::Unretained(this),
+                              make_scoped_refptr(new Event("blur"))));
+  }
+}
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
   DCHECK(owner_document()->html_element_context()->html_element_factory());

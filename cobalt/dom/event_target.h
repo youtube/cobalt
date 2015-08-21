@@ -17,6 +17,7 @@
 #ifndef DOM_EVENT_TARGET_H_
 #define DOM_EVENT_TARGET_H_
 
+#include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -50,6 +51,33 @@ class EventTarget : public script::Wrappable,
 
   // Custom, not in any spec.
   //
+
+  // Web API: GlobalEventHandlers (implements)
+  // Many objects can have event handlers specified. These act as non-capture
+  // event listeners for the object on which they are specified.
+  //   http://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
+  //
+  scoped_refptr<EventListener> onblur() {
+    return GetAttributeEventListener("blur");
+  }
+  void set_onblur(const scoped_refptr<EventListener>& event_listener) {
+    SetAttributeEventListener("blur", event_listener);
+  }
+
+  scoped_refptr<EventListener> onfocus() {
+    return GetAttributeEventListener("focus");
+  }
+  void set_onfocus(const scoped_refptr<EventListener>& event_listener) {
+    SetAttributeEventListener("focus", event_listener);
+  }
+
+  scoped_refptr<EventListener> onload() {
+    return GetAttributeEventListener("load");
+  }
+  void set_onload(const scoped_refptr<EventListener>& event_listener) {
+    SetAttributeEventListener("load", event_listener);
+  }
+
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
   void SetAttributeEventListener(const std::string& type,

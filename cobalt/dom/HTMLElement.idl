@@ -14,4 +14,11 @@
  * limitations under the License.
  */
 
-interface HTMLElement : Element {};
+// http://www.w3.org/TR/html5/dom.html#htmlelement
+
+interface HTMLElement : Element {
+  attribute long tabIndex;
+  void focus();
+  void blur();
+};
+HTMLElement implements GlobalEventHandlers;

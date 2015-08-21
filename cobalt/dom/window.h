@@ -96,11 +96,6 @@ class Window : public EventTarget {
   //   http://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
 
-  // Web API: GlobalEventHandlers (implements)
-  //   http://www.w3.org/TR/html5/webappapis.html#event-handlers
-  scoped_refptr<EventListener> onload();
-  void set_onload(const scoped_refptr<EventListener>& event_listener);
-
   // Web API: WindowTimers (implements)
   //   http://www.w3.org/TR/html5/webappapis.html#timers
   //
