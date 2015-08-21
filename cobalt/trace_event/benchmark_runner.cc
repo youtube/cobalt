@@ -17,6 +17,8 @@
 #include <map>
 
 #include "base/at_exit.h"
+#include "base/json/json_writer.h"
+#include "base/values.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/trace_event/benchmark.h"
 
@@ -36,20 +38,20 @@ PRINTF_FORMAT(1, 2) void Output(const char* fmt, ...) {
   std::fflush(stdout);
 }
 
-void YamlPrint(const BenchmarkResultsMap& benchmarks) {
-  Output("---\n");
+void JsonPrint(const BenchmarkResultsMap& benchmarks) {
+  Output("---Results Start Here---\n");
+  scoped_ptr<base::DictionaryValue> compilation(new base::DictionaryValue);
   for (BenchmarkResultsMap::const_iterator benchmark = benchmarks.begin();
        benchmark != benchmarks.end(); ++benchmark) {
     const std::string& name = benchmark->first;
     const std::vector<Benchmark::Result>& results = benchmark->second;
-    Output("\"%s\":\n", name.c_str());
+    scoped_ptr<base::DictionaryValue> benchmark_value(
+        new base::DictionaryValue);
     for (std::vector<Benchmark::Result>::const_iterator result =
              results.begin();
          result != results.end(); ++result) {
-      Output("  \"%s\":\n", result->name.c_str());
-      if (result->samples.empty()) {
-        Output("    {}  # No samples found.\n");
-      } else {
+      scoped_ptr<base::DictionaryValue> result_value(new base::DictionaryValue);
+      if (!result->samples.empty()) {
         int count = result->samples.size();
         double average = 0;
         double minimum = result->samples[0];
@@ -62,15 +64,20 @@ void YamlPrint(const BenchmarkResultsMap& benchmarks) {
           maximum = std::max(maximum, *sample);
         }
         average /= result->samples.size();
-
-        Output("    \"Number of samples\": %d\n", count);
-        Output("    Average: %f\n", average);
-        Output("    Minimum: %f\n", minimum);
-        Output("    Maximum: %f\n", maximum);
+        result_value->SetIntegerWithoutPathExpansion("Samples", count);
+        result_value->SetDoubleWithoutPathExpansion("Average", average);
+        result_value->SetDoubleWithoutPathExpansion("Minimum", minimum);
+        result_value->SetDoubleWithoutPathExpansion("Maximum", maximum);
       }
+      benchmark_value->SetWithoutPathExpansion(result->name,
+                                               result_value.release());
     }
+    compilation->SetWithoutPathExpansion(name, benchmark_value.release());
   }
-  Output("...\n");
+  std::string print_string;
+  base::JSONWriter::WriteWithOptions(
+      compilation.get(), base::JSONWriter::OPTIONS_PRETTY_PRINT, &print_string);
+  Output("%s", print_string.c_str());
 }
 }  // namespace
 
@@ -80,6 +87,6 @@ int main(int argc, char** argv) {
   BenchmarkResultsMap benchmarks =
       cobalt::trace_event::BenchmarkRegistrar::GetInstance()
           ->ExecuteBenchmarks();
-  YamlPrint(benchmarks);
+  JsonPrint(benchmarks);
   return 0;
 }
