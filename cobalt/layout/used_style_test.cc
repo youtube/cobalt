@@ -237,6 +237,51 @@ TEST(UsedStyleTest,
       used_background_size_provider.height_scale_relative_to_frame(), 1.0f);
 }
 
+TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthValuePropertyList) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(
+      new cssom::LengthValue(30, cssom::kPixelsUnit));
+  property_value_builder->push_back(
+      new cssom::LengthValue(60, cssom::kPixelsUnit));
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  const math::SizeF frame_size(200, 100);
+  const math::Size image_size(50, 50);
+  UsedBackgroundSizeProvider used_background_size_provider(frame_size,
+                                                           image_size);
+  property_value->Accept(&used_background_size_provider);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 30.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 60.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.15f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.6f);
+}
+
+TEST(UsedStyleTest, UsedBackgroundSizeProviderWithLengthAndAutoPropertyList) {
+  scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
+      new cssom::PropertyListValue::Builder());
+  property_value_builder->push_back(
+      new cssom::LengthValue(30, cssom::kPixelsUnit));
+  property_value_builder->push_back(cssom::KeywordValue::GetAuto());
+  scoped_refptr<cssom::PropertyListValue> property_value(
+      new cssom::PropertyListValue(property_value_builder.Pass()));
+
+  const math::SizeF frame_size(200, 100);
+  const math::Size image_size(50, 60);
+  UsedBackgroundSizeProvider used_background_size_provider(frame_size,
+                                                           image_size);
+  property_value->Accept(&used_background_size_provider);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width(), 30.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.height(), 36.0f);
+  EXPECT_FLOAT_EQ(used_background_size_provider.width_scale_relative_to_frame(),
+                  0.15f);
+  EXPECT_FLOAT_EQ(
+      used_background_size_provider.height_scale_relative_to_frame(), 0.36f);
+}
+
 TEST(UsedStyleTest, UsedBackgroundRepeatProviderNoRepeatAndRepeat) {
   scoped_ptr<cssom::PropertyListValue::Builder> property_value_builder(
       new cssom::PropertyListValue::Builder());
