@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/html5/webappapis.html#event-handlers
+// http://www.w3.org/TR/html5/webappapis.html#globaleventhandlers
 
 [NoInterfaceObject]
 interface GlobalEventHandlers {
+  attribute EventHandler onblur;
+  attribute EventHandler onfocus;
   attribute EventHandler onload;
 };
 

@@ -63,6 +63,14 @@ enum PseudoElementType {
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
+  // Web API: HTMLElement
+  //
+  int tab_index() const;
+  void set_tab_index(int tab_index);
+
+  void Focus();
+  void Blur();
+
   // Web API: ElementCSSInlineStyle (implements)
   //   http://www.w3.org/TR/2013/WD-cssom-20131205/#elementcssinlinestyle
   const scoped_refptr<cssom::CSSStyleDeclaration>& style() { return style_; }
@@ -108,6 +116,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   cssom::TransitionSet* transitions() { return &transitions_; }
+
+  // Determines whether this element is focusable.
+  virtual bool IsFocusable() { return HasAttribute("tabindex"); }
 
   // Updates the cached computed style of one HTML element.
   //   http://www.w3.org/TR/css-cascade-3/#value-stages

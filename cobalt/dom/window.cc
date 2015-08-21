@@ -16,8 +16,6 @@
 
 #include "cobalt/dom/window.h"
 
-#include <limits>
-
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "cobalt/debug/debug_hub.h"
@@ -40,7 +38,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
   // From DocumentObserver.
   void OnLoad() OVERRIDE {
-    base::MessageLoopProxy::current()->PostTask(
+    MessageLoop::current()->PostTask(
         FROM_HERE, base::Bind(base::IgnoreResult(&Window::DispatchEvent),
                               base::AsWeakPtr<Window>(window_),
                               make_scoped_refptr(new Event("load"))));
@@ -106,14 +104,6 @@ const scoped_refptr<Performance>& Window::performance() const {
 }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
-
-scoped_refptr<EventListener> Window::onload() {
-  return GetAttributeEventListener("load");
-}
-
-void Window::set_onload(const scoped_refptr<EventListener>& listener) {
-  SetAttributeEventListener("load", listener);
-}
 
 int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
                        int timeout) {
