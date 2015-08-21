@@ -177,7 +177,7 @@ bool Paragraph::IsClosed() const { return is_closed_; }
 void Paragraph::GenerateBidiLevelRuns() {
   DCHECK(is_closed_);
 
-  // TODO(jgray): Change |text_| to being a string16 so that the extra copy of
+  // TODO(***REMOVED***): Change |text_| to being a string16 so that the extra copy of
   // the data isn't required.
   string16 bidi_string(text_.getBuffer(), static_cast<size_t>(text_.length()));
 
