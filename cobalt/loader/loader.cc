@@ -28,7 +28,10 @@ namespace loader {
 class Loader::DecoderToFetcherAdapter : public Fetcher::Handler {
  public:
   DecoderToFetcherAdapter(Decoder* decoder, ErrorCallback error_callback)
-      : decoder_(decoder), error_callback_(error_callback) {}
+      : decoder_(decoder), error_callback_(error_callback) {
+    DCHECK(decoder);
+    DCHECK(!error_callback_.is_null());
+  }
   void OnReceived(const char* data, size_t size) {
     decoder_->DecodeChunk(data, size);
   }

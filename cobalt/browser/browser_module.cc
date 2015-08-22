@@ -47,8 +47,9 @@ BrowserModule::BrowserModule(const Options& options)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                      base::Unretained(this)),
-          base::Callback<void(const std::string&)>(), media_module_.get(),
-          &network_module_, math::Size(kInitialWidth, kInitialHeight),
+          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+          media_module_.get(), &network_module_,
+          math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           WebModule::Options(GURL(kInitialDebugConsoleUrl)))),
@@ -56,8 +57,9 @@ BrowserModule::BrowserModule(const Options& options)
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           base::Bind(&BrowserModule::OnRenderTreeProduced,
                      base::Unretained(this)),
-          base::Callback<void(const std::string&)>(), media_module_.get(),
-          &network_module_, math::Size(kInitialWidth, kInitialHeight),
+          base::Bind(&BrowserModule::OnError, base::Unretained(this)),
+          media_module_.get(), &network_module_,
+          math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           options.web_module_options)),
