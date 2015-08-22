@@ -69,6 +69,9 @@ class BrowserModule {
   // interpretation.
   void OnKeyEventProduced(const scoped_refptr<dom::KeyboardEvent>& event);
 
+  // Error callback for any error that stops the program.
+  void OnError(const std::string& error) { LOG(ERROR) << error; }
+
   storage::StorageManager storage_manager_;
 
   // Sets up everything to do with graphics, from backend objects like the

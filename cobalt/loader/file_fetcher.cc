@@ -67,21 +67,21 @@ void FileFetcher::CloseFile() {
 
 const char* FileFetcher::PlatformFileErrorToString(
     base::PlatformFileError error) {
-  static const char* kPlatformFileOk = "PLATFORM_FILE_OK";
+  static const char* kPlatformFileOk = "Platform file OK";
   static const char* kPlatformFileErrorNotFound =
-      "PLATFORM_FILE_ERROR_NOT_FOUND";
-  static const char* kPlatformFileErrorInUse =
-      "PLATFORM_FILE_ERROR_IN_USE";
+      "Platform file error: Not found";
+  static const char* kPlatformFileErrorInUse = "Platform file error: In use";
   static const char* kPlatformFileErrorAccessDenied =
-      "PLATFORM_FILE_ERROR_ACCESS_DENIED";
+      "Platform file error: Access denied";
   static const char* kPlatformFileErrorSecurity =
-      "PLATFORM_FILE_ERROR_SECURITY";
+      "Platform file error: Security";
   static const char* kPlatformFileErrorInvalidUrl =
-      "PLATFORM_FILE_ERROR_INVALID_URL";
-  static const char* kPlatformFileErrorAbort =
-      "PLATFORM_FILE_ERROR_ABORT";
+      "Platform file error: Invalid URL";
+  static const char* kPlatformFileErrorAbort = "Platform file error: Abort";
+  static const char* kPlatformFileErrorNotAFile =
+      "Platform file error: Not a file";
   static const char* kPlatformFileErrorNotDefined =
-      "Platform file error not defined";
+      "Platform file error: Undefined error";
 
   switch (error) {
     case base::PLATFORM_FILE_OK:
@@ -98,6 +98,8 @@ const char* FileFetcher::PlatformFileErrorToString(
       return kPlatformFileErrorInvalidUrl;
     case base::PLATFORM_FILE_ERROR_ABORT:
       return kPlatformFileErrorAbort;
+    case base::PLATFORM_FILE_ERROR_NOT_A_FILE:
+      return kPlatformFileErrorNotAFile;
     case base::PLATFORM_FILE_ERROR_FAILED:
     case base::PLATFORM_FILE_ERROR_EXISTS:
     case base::PLATFORM_FILE_ERROR_TOO_MANY_OPENED:
@@ -105,7 +107,6 @@ const char* FileFetcher::PlatformFileErrorToString(
     case base::PLATFORM_FILE_ERROR_NO_SPACE:
     case base::PLATFORM_FILE_ERROR_NOT_A_DIRECTORY:
     case base::PLATFORM_FILE_ERROR_INVALID_OPERATION:
-    case base::PLATFORM_FILE_ERROR_NOT_A_FILE:
     case base::PLATFORM_FILE_ERROR_NOT_EMPTY:
     case base::PLATFORM_FILE_ERROR_MAX:
     default:
