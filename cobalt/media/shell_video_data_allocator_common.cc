@@ -54,6 +54,8 @@ ShellVideoDataAllocatorCommon::AllocateFrameBuffer(size_t size,
                                                    size_t alignment) {
   UNREFERENCED_PARAMETER(size);
   UNREFERENCED_PARAMETER(alignment);
+  DCHECK_LE(size, kMaxYUVFrameSizeInBytes);
+  DCHECK_EQ(kVideoFrameAlignment % alignment, 0);
   scoped_ptr<RawImageMemory> raw_image_memory =
       resource_provider_->AllocateRawImageMemory(kMaxYUVFrameSizeInBytes,
                                                  kVideoFrameAlignment);
@@ -68,10 +70,14 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   scoped_refptr<FrameBufferCommon> frame_buffer_common =
       base::polymorphic_downcast<FrameBufferCommon*>(frame_buffer.get());
 
-  gfx::Size coded_size(param.decoded_width(), param.decoded_height());
+  // TODO(***REMOVED***): Ensure it work with visible_rect with non-zero left and
+  // top.  Note that simply add offset to the image buffer may cause alignment
+  // issues.
+  gfx::Size decoded_size(param.decoded_width(), param.decoded_height());
+  gfx::Size visible_size(param.visible_rect().size());
+
   intptr_t offset = 0;
-  gfx::Size plane_size(coded_size);
-  int pitch_in_bytes = plane_size.width();
+  int pitch_in_bytes = decoded_size.width();
 
   DCHECK_EQ(pitch_in_bytes % 2, 0) << pitch_in_bytes << " has to be even.";
 
@@ -79,20 +85,20 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   MultiPlaneImageDataDescriptor descriptor(
       kMultiPlaneImageFormatYUV3PlaneBT709);
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(plane_size, kPixelFormatY8,
+      offset, ImageDataDescriptor(visible_size, kPixelFormatY8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += plane_size.width() * plane_size.height();
-  plane_size.SetSize(plane_size.width() / 2, plane_size.height() / 2);
+  offset += decoded_size.width() * decoded_size.height();
+  visible_size.SetSize(visible_size.width() / 2, visible_size.height() / 2);
   pitch_in_bytes /= 2;
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(plane_size, kPixelFormatU8,
+      offset, ImageDataDescriptor(visible_size, kPixelFormatU8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += plane_size.width() * plane_size.height();
+  offset += decoded_size.width() / 2 * decoded_size.height() / 2;
   descriptor.AddPlane(
-      offset, ImageDataDescriptor(plane_size, kPixelFormatV8,
+      offset, ImageDataDescriptor(visible_size, kPixelFormatV8,
                                   kAlphaFormatUnpremultiplied, pitch_in_bytes));
-  offset += plane_size.width() * plane_size.height();
-  CHECK_EQ(offset, coded_size.width() * coded_size.height() * 3 / 2);
+  offset += decoded_size.width() / 2 * decoded_size.height() / 2;
+  CHECK_EQ(offset, param.decoded_width() * param.decoded_height() * 3 / 2);
 
   scoped_refptr<cobalt::render_tree::Image> image =
       resource_provider_->CreateMultiPlaneImageFromRawMemory(
@@ -101,10 +107,9 @@ scoped_refptr<VideoFrame> ShellVideoDataAllocatorCommon::CreateYV12Frame(
   // The reference of the image is held by the closure that binds ReleaseImage,
   // so it won't be freed before the ReleaseImage is called.
   scoped_refptr<VideoFrame> video_frame = VideoFrame::WrapNativeTexture(
-      reinterpret_cast<uintptr_t>(image.get()), 0, coded_size,
-      param.visible_rect(), param.visible_rect().size(), timestamp,
-      VideoFrame::ReadPixelsCB(), base::Bind(ReleaseImage, image));
-
+      reinterpret_cast<uintptr_t>(image.get()), 0, visible_size,
+      param.visible_rect(), visible_size, timestamp, VideoFrame::ReadPixelsCB(),
+      base::Bind(ReleaseImage, image));
   return video_frame;
 }
 
