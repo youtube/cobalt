@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,4 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/html_span_element.h"
-
-namespace cobalt {
-namespace dom {
-
-// static
-const char* HTMLSpanElement::kTagName = "span";
-
-std::string HTMLSpanElement::tag_name() const { return kTagName; }
-
-}  // namespace dom
-}  // namespace cobalt
+interface HTMLBRElement : HTMLElement {};

@@ -31,10 +31,9 @@ namespace dom {
 // static
 const char* HTMLScriptElement::kTagName = "script";
 
-HTMLScriptElement::HTMLScriptElement(Document* document,
-                                     HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context), is_already_started_(false) {
-  DCHECK(html_element_context->script_runner());
+HTMLScriptElement::HTMLScriptElement(Document* document)
+    : HTMLElement(document), is_already_started_(false) {
+  DCHECK(document->html_element_context()->script_runner());
 }
 
 std::string HTMLScriptElement::tag_name() const { return kTagName; }
@@ -54,8 +53,6 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
     html_element_context()->script_runner()->Execute(text_content().value());
   }
 }
-
-HTMLScriptElement::~HTMLScriptElement() {}
 
 // Algorithm for Prepare:
 //   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script

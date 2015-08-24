@@ -52,8 +52,7 @@ class HTMLMediaElement : public HTMLElement,
 
   static const char kTagName[];
 
-  HTMLMediaElement(Document* document,
-                   HTMLElementContext* html_element_context);
+  explicit HTMLMediaElement(Document* document);
   ~HTMLMediaElement() OVERRIDE;
 
   // Web API: Element

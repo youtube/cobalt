@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/html_paragraph_element.h"
 
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
 
-HTMLElementContext::HTMLElementContext(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
-    Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
-    script::ScriptRunner* script_runner)
-    : fetcher_factory_(fetcher_factory),
-      css_parser_(css_parser),
-      dom_parser_(dom_parser),
-      web_media_player_factory_(web_media_player_factory),
-      script_runner_(script_runner),
-      html_element_factory_(new HTMLElementFactory()) {}
+// static
+const char* HTMLParagraphElement::kTagName = "p";
 
-HTMLElementContext::~HTMLElementContext() {}
+std::string HTMLParagraphElement::tag_name() const { return kTagName; }
 
 }  // namespace dom
 }  // namespace cobalt

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_HTML_ELEMENT_H_
-#define DOM_HTML_HTML_ELEMENT_H_
+#ifndef DOM_HTML_PARAGRAPH_ELEMENT_H_
+#define DOM_HTML_PARAGRAPH_ELEMENT_H_
 
 #include <string>
 
@@ -26,30 +26,29 @@ namespace dom {
 
 class Document;
 
-// The html element represents the root of an HTML document.
-//   http://www.w3.org/TR/html5/semantics.html#the-html-element
-class HTMLHtmlElement : public HTMLElement {
+// The p element represents a paragraph.
+//   http://www.w3.org/TR/html5/grouping-content.html#the-p-element
+class HTMLParagraphElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLHtmlElement(Document* document) : HTMLElement(document) {}
+  explicit HTMLParagraphElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement() OVERRIDE {
+    return this;
+  }
 
-  DEFINE_WRAPPABLE_TYPE(HTMLHtmlElement);
+  DEFINE_WRAPPABLE_TYPE(HTMLParagraphElement);
 
  private:
-  ~HTMLHtmlElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  ~HTMLParagraphElement() OVERRIDE {}
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_HTML_ELEMENT_H_
+#endif  // DOM_HTML_PARAGRAPH_ELEMENT_H_
