@@ -37,8 +37,7 @@ class HTMLElementTest : public ::testing::Test {
 };
 
 TEST_F(HTMLElementTest, Duplicate) {
-  scoped_refptr<HTMLElement> html_element =
-      new HTMLDivElement(document_, &html_element_context_);
+  scoped_refptr<HTMLElement> html_element = new HTMLDivElement(document_);
   html_element->SetAttribute("a", "1");
   html_element->SetAttribute("b", "2");
   scoped_refptr<HTMLElement> new_html_element =

@@ -32,7 +32,7 @@ class HTMLSpanElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLSpanElement(Document* document, HTMLElementContext* html_element_context);
+  explicit HTMLSpanElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -43,7 +43,7 @@ class HTMLSpanElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLSpanElement);
 
  private:
-  ~HTMLSpanElement() OVERRIDE;
+  ~HTMLSpanElement() OVERRIDE {}
 };
 
 }  // namespace dom

@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/html_element_context.h"
-
-#include "cobalt/dom/html_element_factory.h"
+#include "cobalt/dom/html_heading_element.h"
 
 namespace cobalt {
 namespace dom {
 
-HTMLElementContext::HTMLElementContext(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
-    Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
-    script::ScriptRunner* script_runner)
-    : fetcher_factory_(fetcher_factory),
-      css_parser_(css_parser),
-      dom_parser_(dom_parser),
-      web_media_player_factory_(web_media_player_factory),
-      script_runner_(script_runner),
-      html_element_factory_(new HTMLElementFactory()) {}
+// static
+const int HTMLHeadingElement::kTagNameCount = 6;
 
-HTMLElementContext::~HTMLElementContext() {}
+// static
+const char* HTMLHeadingElement::kTagNames[] = {"h1", "h2", "h3",
+                                               "h4", "h5", "h6"};
 
 }  // namespace dom
 }  // namespace cobalt

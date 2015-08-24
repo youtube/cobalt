@@ -29,13 +29,15 @@
 namespace cobalt {
 namespace dom {
 
+class Document;
+
 // The link element allows authors to link their document to other resources.
 //   http://www.w3.org/TR/html5/document-metadata.html#the-link-element
 class HTMLLinkElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLLinkElement(Document* document, HTMLElementContext* html_element_context);
+  explicit HTMLLinkElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   //
@@ -62,7 +64,7 @@ class HTMLLinkElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 
  private:
-  ~HTMLLinkElement() OVERRIDE;
+  ~HTMLLinkElement() OVERRIDE {}
 
   void ResolveAndSetAbsoluteURL();
 

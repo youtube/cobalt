@@ -153,7 +153,7 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   //       c1
   //   a3
   //     d1
-  HTMLElementFactory html_element_factory(NULL);
+  HTMLElementFactory html_element_factory;
   html_element_factory.CreateHTMLElement(document, "a1");
 
   scoped_refptr<Node> a1 =

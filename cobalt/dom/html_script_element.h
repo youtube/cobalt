@@ -34,8 +34,7 @@ class HTMLScriptElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLScriptElement(Document* document,
-                    HTMLElementContext* html_element_context);
+  explicit HTMLScriptElement(Document* document);
 
   // Web API: Element
   //
@@ -64,7 +63,7 @@ class HTMLScriptElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
 
  private:
-  ~HTMLScriptElement() OVERRIDE;
+  ~HTMLScriptElement() OVERRIDE {}
 
   // From the spec: HTMLScriptElement.
   void Prepare();

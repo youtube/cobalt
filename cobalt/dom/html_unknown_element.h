@@ -19,7 +19,6 @@
 
 #include <string>
 
-#include "base/string_piece.h"
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -30,17 +29,20 @@ namespace dom {
 //   http://www.w3.org/TR/html5/dom.html#htmlunknownelement
 class HTMLUnknownElement : public HTMLElement {
  public:
-  HTMLUnknownElement(Document* document,
-                     HTMLElementContext* html_element_context,
-                     const base::StringPiece& tag_name);
+  HTMLUnknownElement(Document* document, const std::string& tag_name)
+      : HTMLElement(document, tag_name) {}
 
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
+  // Custom, not in any spec.
+  //
+  // From HTMLElement.
+  scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement() OVERRIDE {
+    return this;
+  }
 
   DEFINE_WRAPPABLE_TYPE(HTMLUnknownElement);
 
  private:
-  ~HTMLUnknownElement() OVERRIDE;
+  ~HTMLUnknownElement() OVERRIDE {}
 
   std::string tag_name_;
 };

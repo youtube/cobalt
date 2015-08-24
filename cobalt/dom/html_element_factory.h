@@ -17,37 +17,32 @@
 #ifndef DOM_HTML_ELEMENT_FACTORY_H_
 #define DOM_HTML_ELEMENT_FACTORY_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/string_piece.h"
-#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {
 
+class Document;
 class HTMLElement;
-class HTMLElementContext;
 
 // This factory is responsible for creating HTML elements according to tag name.
 class HTMLElementFactory {
  public:
-  explicit HTMLElementFactory(HTMLElementContext* html_element_context);
+  HTMLElementFactory();
   ~HTMLElementFactory();
 
-  scoped_refptr<HTMLElement> CreateHTMLElement(
-      Document* document, const base::StringPiece& tag_name);
+  scoped_refptr<HTMLElement> CreateHTMLElement(Document* document,
+                                               const std::string& tag_name);
 
  private:
   typedef base::Callback<scoped_refptr<HTMLElement>(Document* document)>
       CreateHTMLElementTCallback;
-  typedef base::hash_map<base::StringPiece, CreateHTMLElementTCallback>
+  typedef base::hash_map<std::string, CreateHTMLElementTCallback>
       TagNameToCreateHTMLElementTCallbackMap;
-
-  template <typename T>
-  scoped_refptr<HTMLElement> CreateHTMLElementT(Document* document);
-
-  HTMLElementContext* html_element_context_;
 
   TagNameToCreateHTMLElementTCallbackMap
       tag_name_to_create_html_element_t_callback_map_;

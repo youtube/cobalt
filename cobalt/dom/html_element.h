@@ -17,6 +17,8 @@
 #ifndef DOM_HTML_ELEMENT_H_
 #define DOM_HTML_ELEMENT_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
@@ -31,16 +33,21 @@
 namespace cobalt {
 namespace dom {
 
+class HTMLAnchorElement;
 class HTMLBodyElement;
+class HTMLBRElement;
 class HTMLDivElement;
 class HTMLElementContext;
 class HTMLHeadElement;
+class HTMLHeadingElement;
 class HTMLHtmlElement;
 class HTMLLinkElement;
 class HTMLMediaElement;
+class HTMLParagraphElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
 class HTMLStyleElement;
+class HTMLUnknownElement;
 
 // The enum PseudoElementType is used to track the type of pseudo element
 enum PseudoElementType {
@@ -73,15 +80,20 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
+  virtual scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement();
   virtual scoped_refptr<HTMLBodyElement> AsHTMLBodyElement();
+  virtual scoped_refptr<HTMLBRElement> AsHTMLBRElement();
   virtual scoped_refptr<HTMLDivElement> AsHTMLDivElement();
   virtual scoped_refptr<HTMLHeadElement> AsHTMLHeadElement();
+  virtual scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement();
   virtual scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement();
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
   virtual scoped_refptr<HTMLMediaElement> AsHTMLMediaElement();
+  virtual scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
   virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
+  virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of
@@ -133,7 +145,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  HTMLElement(Document* document, HTMLElementContext* html_element_context);
+  explicit HTMLElement(Document* document);
+  HTMLElement(Document* document, const std::string& tag_name);
   ~HTMLElement() OVERRIDE;
 
  private:

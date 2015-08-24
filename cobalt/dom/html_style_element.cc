@@ -29,11 +29,6 @@ namespace dom {
 // static
 const char* HTMLStyleElement::kTagName = "style";
 
-HTMLStyleElement::HTMLStyleElement(Document* document,
-                                   HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context),
-      content_location_("[object HTMLStyleElement]", 1, 1) {}
-
 std::string HTMLStyleElement::tag_name() const { return kTagName; }
 
 void HTMLStyleElement::SetOpeningTagLocation(
@@ -50,8 +45,6 @@ void HTMLStyleElement::OnInsertedIntoDocument() {
   style_sheet->SetLocationUrl(GURL(content_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);
 }
-
-HTMLStyleElement::~HTMLStyleElement() {}
 
 }  // namespace dom
 }  // namespace cobalt
