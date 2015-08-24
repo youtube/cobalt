@@ -313,7 +313,7 @@ TEST_F(ElementTest, InnerHTML) {
   //     element_b2
   //     text
   //
-  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
+  scoped_refptr<Element> root = new Element(document_);
   scoped_refptr<Element> element_a =
       root->AppendChild(new Element(document_, "element_a"))->AsElement();
   element_a->SetAttribute("key", "value");
@@ -421,11 +421,9 @@ TEST_F(ElementTest, OuterHTML) {
   //     element_b2
   //     text
   //
-  scoped_refptr<Element> root =
-      new Element(document_, "root", &html_element_context_);
+  scoped_refptr<Element> root = new Element(document_, "root");
   scoped_refptr<Element> element_a =
-      root->AppendChild(new Element(document_, "element_a",
-                                    &html_element_context_))->AsElement();
+      root->AppendChild(new Element(document_, "element_a"))->AsElement();
   element_a->SetAttribute("key", "value");
 
   element_a->AppendChild(new Text(document_, "\n  "));
@@ -469,7 +467,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     comment_11
   //     text_12
   //
-  root->AppendChild(new Element(document_, &html_element_context_));
+  root->AppendChild(new Element(document_));
   const char* kAnotherHTML =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
@@ -523,7 +521,7 @@ TEST_F(ElementTest, OuterHTML) {
 }
 
 TEST_F(ElementTest, QuerySelector) {
-  scoped_refptr<Element> root = new Element(document_, &html_element_context_);
+  scoped_refptr<Element> root = new Element(document_);
   root->AppendChild(
       html_element_context_.html_element_factory()->CreateHTMLElement(document_,
                                                                       "div"));

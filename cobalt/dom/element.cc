@@ -37,15 +37,6 @@ Element::Element(Document* document) : Node(document) {}
 Element::Element(Document* document, const std::string& tag_name)
     : Node(document), tag_name_(tag_name) {}
 
-Element::Element(Document* document, HTMLElementContext* html_element_context)
-    : Node(document), html_element_context_(html_element_context) {}
-
-Element::Element(Document* document, const std::string& tag_name,
-                 HTMLElementContext* html_element_context)
-    : Node(document),
-      tag_name_(tag_name),
-      html_element_context_(html_element_context) {}
-
 base::optional<std::string> Element::text_content() const {
   std::string content;
 
@@ -123,7 +114,7 @@ void Element::set_inner_html(const std::string& inner_html) {
   // Use the DOM parser to parse the HTML input and generate children nodes.
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
-  html_element_context_->dom_parser()->ParseDocumentFragment(
+  html_element_context()->dom_parser()->ParseDocumentFragment(
       inner_html, owner_document(), this, NULL,
       base::SourceLocation("[object Element]", 1, 1));
 }
@@ -172,13 +163,13 @@ void Element::set_outer_html(const std::string& outer_html) {
   // Use the DOM parser to parse the HTML input and generate children nodes.
   // TODO(***REMOVED***): Replace "Element" in the source location with the name
   //               of actual class, like "HTMLDivElement".
-  html_element_context_->dom_parser()->ParseDocumentFragment(
+  html_element_context()->dom_parser()->ParseDocumentFragment(
       outer_html, owner_document(), parent, reference,
       base::SourceLocation("[object Element]", 1, 1));
 }
 
 scoped_refptr<Element> Element::QuerySelector(const std::string& selectors) {
-  return QuerySelectorInternal(selectors, html_element_context_->css_parser());
+  return QuerySelectorInternal(selectors, html_element_context()->css_parser());
 }
 
 // Algorithm for GetAttribute:
@@ -307,7 +298,7 @@ void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
 
 scoped_refptr<Node> Element::Duplicate() const {
-  Element* new_element = new Element(owner_document(), html_element_context_);
+  Element* new_element = new Element(owner_document());
   new_element->attribute_map_ = attribute_map_;
   return new_element;
 }
@@ -326,6 +317,10 @@ bool Element::IsEmpty() {
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() {}
+
+HTMLElementContext* Element::html_element_context() {
+  return owner_document()->html_element_context();
+}
 
 void Element::HTMLParseError(const std::string& error) {
   // TODO(***REMOVED***): Report line / column number.

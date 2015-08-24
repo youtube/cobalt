@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_HTML_ELEMENT_H_
-#define DOM_HTML_HTML_ELEMENT_H_
+#ifndef DOM_HTML_ANCHOR_ELEMENT_H_
+#define DOM_HTML_ANCHOR_ELEMENT_H_
 
 #include <string>
 
@@ -26,30 +26,30 @@ namespace dom {
 
 class Document;
 
-// The html element represents the root of an HTML document.
-//   http://www.w3.org/TR/html5/semantics.html#the-html-element
-class HTMLHtmlElement : public HTMLElement {
+// The HTML Anchor Element (<a>) defines a hyperlink to a location on the same
+// page or any other page on the Web.
+//   http://www.w3.org/TR/html5/text-level-semantics.html#htmlanchorelement
+class HTMLAnchorElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  explicit HTMLHtmlElement(Document* document) : HTMLElement(document) {}
+  explicit HTMLAnchorElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() OVERRIDE {
+    return this;
+  }
 
-  DEFINE_WRAPPABLE_TYPE(HTMLHtmlElement);
+  DEFINE_WRAPPABLE_TYPE(HTMLAnchorElement);
 
  private:
-  ~HTMLHtmlElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  ~HTMLAnchorElement() OVERRIDE {}
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_HTML_ELEMENT_H_
+#endif  // DOM_HTML_ANCHOR_ELEMENT_H_

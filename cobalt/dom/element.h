@@ -43,9 +43,6 @@ class Element : public Node {
 
   explicit Element(Document* document);
   Element(Document* document, const std::string& tag_name);
-  Element(Document* document, HTMLElementContext* html_element_context);
-  Element(Document* document, const std::string& tag_name,
-          HTMLElementContext* html_element_context);
 
   // Web API: Node
   //
@@ -139,7 +136,7 @@ class Element : public Node {
   bool GetBooleanAttribute(const std::string& name) const;
   void SetBooleanAttribute(const std::string& name, bool value);
 
-  HTMLElementContext* html_element_context() { return html_element_context_; }
+  HTMLElementContext* html_element_context();
 
  private:
   // Callback for error when parsing inner / outer HTML.
@@ -147,8 +144,6 @@ class Element : public Node {
 
   // Tag name of the element.
   std::string tag_name_;
-  // Reference to HTML element context.
-  HTMLElementContext* html_element_context_;
   // A map that holds the actual element attributes.
   AttributeMap attribute_map_;
   // A weak pointer to a NamedNodeMap that proxies the actual attributes.

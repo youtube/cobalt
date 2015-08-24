@@ -22,13 +22,7 @@ namespace dom {
 // static
 const char* HTMLDivElement::kTagName = "div";
 
-HTMLDivElement::HTMLDivElement(Document* document,
-                               HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context) {}
-
 std::string HTMLDivElement::tag_name() const { return kTagName; }
-
-HTMLDivElement::~HTMLDivElement() {}
 
 }  // namespace dom
 }  // namespace cobalt
