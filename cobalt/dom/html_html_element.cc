@@ -24,13 +24,7 @@ namespace dom {
 // static
 const char* HTMLHtmlElement::kTagName = "html";
 
-HTMLHtmlElement::HTMLHtmlElement(Document* document,
-                                 HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context) {}
-
 std::string HTMLHtmlElement::tag_name() const { return kTagName; }
-
-HTMLHtmlElement::~HTMLHtmlElement() {}
 
 void HTMLHtmlElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();

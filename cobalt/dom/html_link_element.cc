@@ -31,10 +31,6 @@ namespace dom {
 // static
 const char* HTMLLinkElement::kTagName = "link";
 
-HTMLLinkElement::HTMLLinkElement(Document* document,
-                                 HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context) {}
-
 std::string HTMLLinkElement::tag_name() const { return kTagName; }
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
@@ -45,8 +41,6 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
   }
 }
-
-HTMLLinkElement::~HTMLLinkElement() {}
 
 void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   // Resolve the URL given by the href attribute, relative to the element.

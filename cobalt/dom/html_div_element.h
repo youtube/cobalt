@@ -24,6 +24,8 @@
 namespace cobalt {
 namespace dom {
 
+class Document;
+
 // The div element has no special meaning at all. It represents its children. It
 // can be used with the class, lang, and title attributes to mark up semantics
 // common to a group of consecutive elements.
@@ -32,7 +34,7 @@ class HTMLDivElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLDivElement(Document* document, HTMLElementContext* html_element_context);
+  explicit HTMLDivElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -43,7 +45,7 @@ class HTMLDivElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLDivElement);
 
  private:
-  ~HTMLDivElement() OVERRIDE;
+  ~HTMLDivElement() OVERRIDE {}
 };
 
 }  // namespace dom

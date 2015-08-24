@@ -34,6 +34,7 @@
         'event_queue_test.cc',
         'event_target_test.cc',
         'event_test.cc',
+        'html_element_factory_test.cc',
         'html_element_test.cc',
         'local_storage_database_test.cc',
         'location_test.cc',

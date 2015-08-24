@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
 
 namespace cobalt {
@@ -33,8 +34,9 @@ class HTMLStyleElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLStyleElement(Document* document,
-                   HTMLElementContext* html_element_context);
+  explicit HTMLStyleElement(Document* document)
+      : HTMLElement(document),
+        content_location_("[object HTMLStyleElement]", 1, 1) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -57,7 +59,7 @@ class HTMLStyleElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLStyleElement);
 
  private:
-  ~HTMLStyleElement() OVERRIDE;
+  ~HTMLStyleElement() OVERRIDE {}
 
   base::SourceLocation content_location_;
 };
