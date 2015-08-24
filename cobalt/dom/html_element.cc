@@ -23,14 +23,18 @@
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/html_anchor_element.h"
 #include "cobalt/dom/html_body_element.h"
+#include "cobalt/dom/htmlbr_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
 #include "cobalt/dom/html_head_element.h"
+#include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
@@ -41,11 +45,12 @@ namespace cobalt {
 namespace dom {
 
 scoped_refptr<Node> HTMLElement::Duplicate() const {
-  DCHECK(html_element_context_);
-  DCHECK(html_element_context_->html_element_factory());
+  DCHECK(owner_document()->html_element_context()->html_element_factory());
   scoped_refptr<HTMLElement> new_html_element =
-      html_element_context_->html_element_factory()->CreateHTMLElement(
-          owner_document(), tag_name());
+      owner_document()
+          ->html_element_context()
+          ->html_element_factory()
+          ->CreateHTMLElement(owner_document(), tag_name());
   new_html_element->attribute_map_ = attribute_map_;
   return new_html_element;
 }
@@ -54,22 +59,34 @@ void HTMLElement::OnCSSMutation() {
   // Invalidate the computed style of this node.
   computed_style_valid_ = false;
 
-  if (owner_document()) {
-    owner_document()->OnElementInlineStyleMutation();
-  }
+  owner_document()->OnElementInlineStyleMutation();
+}
+
+scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
+  return NULL;
 }
 
 scoped_refptr<HTMLBodyElement> HTMLElement::AsHTMLBodyElement() { return NULL; }
 
+scoped_refptr<HTMLBRElement> HTMLElement::AsHTMLBRElement() { return NULL; }
+
 scoped_refptr<HTMLDivElement> HTMLElement::AsHTMLDivElement() { return NULL; }
 
 scoped_refptr<HTMLHeadElement> HTMLElement::AsHTMLHeadElement() { return NULL; }
+
+scoped_refptr<HTMLHeadingElement> HTMLElement::AsHTMLHeadingElement() {
+  return NULL;
+}
 
 scoped_refptr<HTMLHtmlElement> HTMLElement::AsHTMLHtmlElement() { return NULL; }
 
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 
 scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLParagraphElement> HTMLElement::AsHTMLParagraphElement() {
   return NULL;
 }
 
@@ -80,6 +97,10 @@ scoped_refptr<HTMLScriptElement> HTMLElement::AsHTMLScriptElement() {
 scoped_refptr<HTMLSpanElement> HTMLElement::AsHTMLSpanElement() { return NULL; }
 
 scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLUnknownElement> HTMLElement::AsHTMLUnknownElement() {
   return NULL;
 }
 
@@ -244,11 +265,18 @@ void HTMLElement::UpdateMatchingRulesRecursively(
   }
 }
 
-HTMLElement::HTMLElement(Document* document,
-                         HTMLElementContext* html_element_context)
-    : Element(document, html_element_context),
+HTMLElement::HTMLElement(Document* document)
+    : Element(document),
       style_(new cssom::CSSStyleDeclaration(
-          html_element_context ? html_element_context->css_parser() : NULL)),
+          document->html_element_context()->css_parser())),
+      computed_style_valid_(false) {
+  style_->set_mutation_observer(this);
+}
+
+HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
+    : Element(document, tag_name),
+      style_(new cssom::CSSStyleDeclaration(
+          document->html_element_context()->css_parser())),
       computed_style_valid_(false) {
   style_->set_mutation_observer(this);
 }

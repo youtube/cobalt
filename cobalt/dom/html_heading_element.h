@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef DOM_HTML_HTML_ELEMENT_H_
-#define DOM_HTML_HTML_ELEMENT_H_
+#ifndef DOM_HTML_HEADING_ELEMENT_H_
+#define DOM_HTML_HEADING_ELEMENT_H_
 
 #include <string>
 
@@ -26,30 +26,28 @@ namespace dom {
 
 class Document;
 
-// The html element represents the root of an HTML document.
-//   http://www.w3.org/TR/html5/semantics.html#the-html-element
-class HTMLHtmlElement : public HTMLElement {
+// These elements represent headings for their sections.
+//   http://www.w3.org/TR/html5/sections.html#the-h1,-h2,-h3,-h4,-h5,-and-h6-elements
+class HTMLHeadingElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const int kTagNameCount;
+  static const char* kTagNames[];
 
-  explicit HTMLHtmlElement(Document* document) : HTMLElement(document) {}
-
-  // Web API: Element
-  std::string tag_name() const OVERRIDE;
+  HTMLHeadingElement(Document* document, const std::string& tag_name)
+      : HTMLElement(document, tag_name) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement() OVERRIDE {
+    return this;
+  }
 
-  DEFINE_WRAPPABLE_TYPE(HTMLHtmlElement);
+  DEFINE_WRAPPABLE_TYPE(HTMLHeadingElement);
 
  private:
-  ~HTMLHtmlElement() OVERRIDE {}
-
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  ~HTMLHeadingElement() OVERRIDE {}
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // DOM_HTML_HTML_ELEMENT_H_
+#endif  // DOM_HTML_HEADING_ELEMENT_H_

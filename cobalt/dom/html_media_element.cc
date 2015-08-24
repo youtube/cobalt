@@ -48,9 +48,8 @@ const char HTMLMediaElement::kTagName[] = "video";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
-HTMLMediaElement::HTMLMediaElement(Document* document,
-                                   HTMLElementContext* html_element_context)
-    : HTMLElement(document, html_element_context),
+HTMLMediaElement::HTMLMediaElement(Document* document)
+    : HTMLElement(document),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.0f),

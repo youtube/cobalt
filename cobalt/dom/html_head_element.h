@@ -32,7 +32,7 @@ class HTMLHeadElement : public HTMLElement {
  public:
   static const char* kTagName;
 
-  HTMLHeadElement(Document* document, HTMLElementContext* html_element_context);
+  explicit HTMLHeadElement(Document* document) : HTMLElement(document) {}
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -43,7 +43,7 @@ class HTMLHeadElement : public HTMLElement {
   DEFINE_WRAPPABLE_TYPE(HTMLHeadElement);
 
  private:
-  ~HTMLHeadElement() OVERRIDE;
+  ~HTMLHeadElement() OVERRIDE {}
 
   void OnInsertedIntoDocument() OVERRIDE;
   void OnRemovedFromDocument() OVERRIDE;

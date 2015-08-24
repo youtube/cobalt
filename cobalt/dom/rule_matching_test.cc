@@ -37,12 +37,12 @@ class RuleMatchingTest : public ::testing::Test {
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
                               NULL),
         document_(new Document(&html_element_context_, Document::Options())),
-        root_(new Element(document_, &html_element_context_)) {}
+        root_(new Element(document_)) {}
 
   ~RuleMatchingTest() OVERRIDE {}
 
   void MatchRules(Element *element) {
-    HTMLElement *html_element = element->AsHTMLElement();
+    HTMLElement* html_element = element->AsHTMLElement();
 
     html_element->ClearMatchingRules();
 
@@ -51,7 +51,7 @@ class RuleMatchingTest : public ::testing::Test {
     matching_rules_ = html_element->matching_rules();
     for (int i = 0; i < kMaxPseudoElementType; ++i) {
       PseudoElementType pseudo_element_type = static_cast<PseudoElementType>(i);
-      PseudoElement *pseudo_element =
+      PseudoElement* pseudo_element =
           html_element->pseudo_element(pseudo_element_type);
       if (pseudo_element) {
         pseudo_element_matching_rules_[pseudo_element_type] =
