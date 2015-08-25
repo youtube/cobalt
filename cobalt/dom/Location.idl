@@ -14,5 +14,10 @@
  * limitations under the License.
  */
 
-[Unforgeable] interface Location {};
+// http://www.w3.org/TR/html5/browsers.html#the-location-interface
+
+[Unforgeable] interface Location {
+  void assign(DOMString url);
+  void reload();
+};
 Location implements URLUtils;
