@@ -16,7 +16,8 @@ import subprocess
 # Interfaces related to css are under the cssom directory.
 # All of Cobalt's interfaces are under the dom directory.
 # Interfaces related to testing the bindings generation are under testing.
-KNOWN_COMPONENTS = frozenset(['cssom', 'dom', 'testing', 'xhr',])
+# Interfaces to our custom debugging functionality (e.g. console) is in debug.
+KNOWN_COMPONENTS = frozenset(['cssom', 'debug', 'dom', 'testing', 'xhr',])
 
 
 def idl_filename_to_interface_name(idl_filename):
