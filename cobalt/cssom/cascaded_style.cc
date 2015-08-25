@@ -99,11 +99,35 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     if (!style->line_height() && declared_style->line_height()) {
       style->set_line_height(declared_style->line_height());
     }
+    if (!style->margin_bottom() && declared_style->margin_bottom()) {
+      style->set_margin_bottom(declared_style->margin_bottom());
+    }
+    if (!style->margin_left() && declared_style->margin_left()) {
+      style->set_margin_left(declared_style->margin_left());
+    }
+    if (!style->margin_right() && declared_style->margin_right()) {
+      style->set_margin_right(declared_style->margin_right());
+    }
+    if (!style->margin_top() && declared_style->margin_top()) {
+      style->set_margin_top(declared_style->margin_top());
+    }
     if (!style->opacity() && declared_style->opacity()) {
       style->set_opacity(declared_style->opacity());
     }
     if (!style->overflow() && declared_style->overflow()) {
       style->set_overflow(declared_style->overflow());
+    }
+    if (!style->padding_bottom() && declared_style->padding_bottom()) {
+      style->set_padding_bottom(declared_style->padding_bottom());
+    }
+    if (!style->padding_left() && declared_style->padding_left()) {
+      style->set_padding_left(declared_style->padding_left());
+    }
+    if (!style->padding_right() && declared_style->padding_right()) {
+      style->set_padding_right(declared_style->padding_right());
+    }
+    if (!style->padding_top() && declared_style->padding_top()) {
+      style->set_padding_top(declared_style->padding_top());
     }
     if (!style->position() && declared_style->position()) {
       style->set_position(declared_style->position());
