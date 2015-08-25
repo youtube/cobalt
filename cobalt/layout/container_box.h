@@ -52,7 +52,7 @@ class ContainerBox : public Box {
   virtual scoped_ptr<ContainerBox> TrySplitAtEnd() = 0;
 
   // From |Box|.
-  virtual void SplitBidiLevelRuns() OVERRIDE;
+  void SplitBidiLevelRuns() OVERRIDE;
 
   void AddContentToRenderTree(
       render_tree::CompositionNode::Builder* composition_node_builder,
@@ -62,9 +62,8 @@ class ContainerBox : public Box {
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
   // Returns true if the given style allows a container box to act as a
-  // containing
-  // block for absolutely positioned elements.  For example it will be true if
-  // this box's style is itself 'absolute'.
+  // containing block for absolutely positioned elements.  For example it will
+  // be true if this box's style is itself 'absolute'.
   bool IsContainingBlockForAbsoluteElements() const;
 
   // Returns true if this container box serves as a stacking context for
