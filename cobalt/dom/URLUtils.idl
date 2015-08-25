@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
+// http://www.w3.org/TR/2014/WD-url-1-20141209/#dom-urlutils
+
 [NoInterfaceObject,
  Exposed=(Window,Worker)]
 interface URLUtils {
   stringifier attribute USVString href;
+  attribute USVString protocol;
+  attribute USVString host;
+  attribute USVString hostname;
+  attribute USVString port;
   attribute USVString search;
+  attribute USVString hash;
 };
