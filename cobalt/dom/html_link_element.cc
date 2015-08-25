@@ -39,7 +39,11 @@ std::string HTMLLinkElement::tag_name() const { return kTagName; }
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  Obtain();
+  if (rel() == "stylesheet") {
+    Obtain();
+  } else {
+    LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
+  }
 }
 
 HTMLLinkElement::~HTMLLinkElement() {}
@@ -85,11 +89,15 @@ void HTMLLinkElement::Obtain() {
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      html_element_context()->css_parser()->ParseStyleSheet(
-          content, base::SourceLocation(href(), 1, 1));
-  style_sheet->SetLocationUrl(absolute_url_);
-  owner_document()->style_sheets()->Append(style_sheet);
+  if (rel() == "stylesheet") {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        html_element_context()->css_parser()->ParseStyleSheet(
+            content, base::SourceLocation(href(), 1, 1));
+    style_sheet->SetLocationUrl(absolute_url_);
+    owner_document()->style_sheets()->Append(style_sheet);
+  } else {
+    NOTREACHED();
+  }
   StopLoading();
 }
 
