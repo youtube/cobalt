@@ -77,7 +77,7 @@
         'dom_parser_test',
       ],
       'variables': {
-        'executable_name': 'dom_parse_test',
+        'executable_name': 'dom_parser_test',
       },
       'includes': [ '../build/deploy.gypi' ],
     },
