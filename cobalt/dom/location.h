@@ -28,30 +28,52 @@ namespace dom {
 
 // Each Document object in a browsing context's session history is associated
 // with a unique instance of a Location object.
+// Currently we only allow the change of the URL's hash, through the href setter
+// or hash setter.
 //   http://www.w3.org/TR/html5/browsers.html#the-location-interface
 class Location : public script::Wrappable {
  public:
   explicit Location(const GURL& url);
 
   // Web API: Location
+  //
+  void Assign(const std::string& url);
+
+  void Reload();
+
+  // Web API: URLUtils (implements)
+  //
   std::string href() const;
-  void set_href(const std::string& href) {
-    UNREFERENCED_PARAMETER(href);
-    NOTIMPLEMENTED();
-  }
+  void set_href(const std::string& href);
+
+  std::string protocol() const;
+  void set_protocol(const std::string& protocol);
+
+  std::string host() const;
+  void set_host(const std::string& host);
+
+  std::string hostname() const;
+  void set_hostname(const std::string& hostname);
+
+  std::string port() const;
+  void set_port(const std::string& port);
+
+  std::string hash() const;
+  void set_hash(const std::string& hash);
 
   std::string search() const;
-  void set_search(const std::string& search) {
-    UNREFERENCED_PARAMETER(search);
-    NOTIMPLEMENTED();
-  }
+  void set_search(const std::string& search);
 
   DEFINE_WRAPPABLE_TYPE(Location);
 
  private:
   ~Location() OVERRIDE {}
 
+  void AssignInternal(const GURL& url);
+
   GURL url_;
+  url_parse::Component empty_component_;
+  GURL::Replacements remove_ref_;
 
   DISALLOW_COPY_AND_ASSIGN(Location);
 };
