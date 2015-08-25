@@ -26,9 +26,15 @@
 // Specify how the location of an action should be calculated in terms
 // of its children.
 #define YYLLOC_DEFAULT(Current, Rhs, N)          \
-  Current.first_line   = Rhs[1].first_line;      \
-  Current.first_column = Rhs[1].first_column;    \
-  Current.line_start   = Rhs[1].line_start;
+  if (N) {                                       \
+    Current.first_line   = Rhs[1].first_line;    \
+    Current.first_column = Rhs[1].first_column;  \
+    Current.line_start   = Rhs[1].line_start;    \
+  } else {                                       \
+    Current.first_line   = Rhs[0].first_line;    \
+    Current.first_column = Rhs[0].first_column;  \
+    Current.line_start   = Rhs[0].line_start;    \
+  }
 
 // yylex()'s third parameter.
 #define YYLEX_PARAM &(parser_impl->scanner())
@@ -1714,6 +1720,7 @@ height_property_value:
     }
   }
   | positive_percentage { $$ = $1; }
+  | auto
   | common_values
   ;
 
@@ -2281,7 +2288,7 @@ single_transition:
 
 single_non_empty_transition:
     single_transition single_transition_element {
-    // Propogate the list from our parent single_transition.
+    // Propagate the list from our parent single_transition.
     // single_transition_element will have already taken care of adding itself
     // to the list via $0.
     $$ = $1;
@@ -2389,6 +2396,7 @@ width_property_value:
     }
   }
   | positive_percentage { $$ = $1; }
+  | auto
   | common_values
   ;
 
@@ -2401,9 +2409,7 @@ z_index_property_value:
   integer {
     $$ = AddRef(new cssom::IntegerValue($1));
   }
-  | kAutoToken maybe_whitespace {
-    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
-  }
+  | auto
   | common_values
   ;
 
