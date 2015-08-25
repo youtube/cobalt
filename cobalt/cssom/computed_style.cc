@@ -192,6 +192,79 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
   }
 }
 
+// Computed value: the percentage as specified or the absolute length.
+//   http://www.w3.org/TR/CSS21/box.html#margin-properties
+//   http://www.w3.org/TR/CSS21/box.html#padding-properties
+class ComputedMarginOrPaddingEdgeProvider
+    : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedMarginOrPaddingEdgeProvider(
+      const LengthValue* computed_font_size);
+
+  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+
+  const scoped_refptr<PropertyValue>& computed_margin_or_padding_edge() const {
+    return computed_margin_or_padding_edge_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<PropertyValue> computed_margin_or_padding_edge_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedMarginOrPaddingEdgeProvider);
+};
+
+ComputedMarginOrPaddingEdgeProvider::ComputedMarginOrPaddingEdgeProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case KeywordValue::kAuto:
+      computed_margin_or_padding_edge_ = keyword;
+      break;
+
+    case KeywordValue::kAbsolute:
+    case KeywordValue::kBaseline:
+    case KeywordValue::kBlock:
+    case KeywordValue::kCenter:
+    case KeywordValue::kContain:
+    case KeywordValue::kCover:
+    case KeywordValue::kHidden:
+    case KeywordValue::kInherit:
+    case KeywordValue::kInitial:
+    case KeywordValue::kInline:
+    case KeywordValue::kInlineBlock:
+    case KeywordValue::kLeft:
+    case KeywordValue::kMiddle:
+    case KeywordValue::kNoRepeat:
+    case KeywordValue::kNone:
+    case KeywordValue::kNormal:
+    case KeywordValue::kRelative:
+    case KeywordValue::kRepeat:
+    case KeywordValue::kRight:
+    case KeywordValue::kStatic:
+    case KeywordValue::kTop:
+    case KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void ComputedMarginOrPaddingEdgeProvider::VisitLength(
+    LengthValue* specified_length) {
+  computed_margin_or_padding_edge_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
+}
+
+void ComputedMarginOrPaddingEdgeProvider::VisitPercentage(
+    PercentageValue* percentage) {
+  computed_margin_or_padding_edge_ = percentage;
+}
+
 class ComputedPositionOffsetProvider : public NotReachedPropertyValueVisitor {
  public:
   explicit ComputedPositionOffsetProvider(
@@ -726,6 +799,17 @@ void PromoteToComputedStyle(
   DCHECK(specified_style);
   DCHECK(parent_computed_style);
 
+  // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
+  // "inline" and "inline-block" values of "display" become "block" if
+  // "position" is "absolute".
+  //
+  // TODO(***REMOVED***): Support "position: fixed".
+  if (specified_style->position() == KeywordValue::GetAbsolute() &&
+      (specified_style->display() == KeywordValue::GetInline() ||
+       specified_style->display() == KeywordValue::GetInlineBlock())) {
+    specified_style->set_display(KeywordValue::GetBlock());
+  }
+
   ComputedFontWeightProvider font_weight_provider;
   specified_style->font_weight()->Accept(&font_weight_provider);
   specified_style->set_font_weight(font_weight_provider.computed_font_weight());
@@ -747,6 +831,54 @@ void PromoteToComputedStyle(
       font_size_provider.computed_font_size().get());
   specified_style->line_height()->Accept(&line_height_provider);
   specified_style->set_line_height(line_height_provider.computed_line_height());
+
+  ComputedMarginOrPaddingEdgeProvider margin_bottom_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->margin_bottom()->Accept(&margin_bottom_provider);
+  specified_style->set_margin_bottom(
+      margin_bottom_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider margin_left_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->margin_left()->Accept(&margin_left_provider);
+  specified_style->set_margin_left(
+      margin_left_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider margin_right_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->margin_right()->Accept(&margin_right_provider);
+  specified_style->set_margin_right(
+      margin_right_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider margin_top_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->margin_top()->Accept(&margin_top_provider);
+  specified_style->set_margin_top(
+      margin_top_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider padding_bottom_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->padding_bottom()->Accept(&padding_bottom_provider);
+  specified_style->set_padding_bottom(
+      padding_bottom_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider padding_left_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->padding_left()->Accept(&padding_left_provider);
+  specified_style->set_padding_left(
+      padding_left_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider padding_right_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->padding_right()->Accept(&padding_right_provider);
+  specified_style->set_padding_right(
+      padding_right_provider.computed_margin_or_padding_edge());
+
+  ComputedMarginOrPaddingEdgeProvider padding_top_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->padding_top()->Accept(&padding_top_provider);
+  specified_style->set_padding_top(
+      padding_top_provider.computed_margin_or_padding_edge());
 
   ComputedWidthProvider width_provider(
       font_size_provider.computed_font_size().get());
