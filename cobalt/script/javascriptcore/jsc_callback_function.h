@@ -77,7 +77,22 @@ class JSCCallbackFunction<R(void)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -116,7 +131,22 @@ class JSCCallbackFunction<R(A1)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -157,7 +187,22 @@ class JSCCallbackFunction<R(A1, A2)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -200,7 +245,22 @@ class JSCCallbackFunction<R(A1, A2, A3)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -245,7 +305,22 @@ class JSCCallbackFunction<R(A1, A2, A3, A4)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -293,7 +368,22 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -343,7 +433,22 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
@@ -395,7 +500,22 @@ class JSCCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     JSC::CallType call_type =
         JSC::JSFunction::getCallData(js_function, call_data);
     JSC::ExecState* exec_state = global_object->globalExec();
-    JSC::call(exec_state, js_function, call_type, call_data, this_value, args);
+    JSC::JSGlobalData& global_data = global_object->globalData();
+    JSC::JSValue retval =
+        JSC::call(exec_state, js_function, call_type, call_data, this_value,
+            args);
+    if (exec_state->hadException()) {
+      JSC::JSValue exception = exec_state->exception();
+      DCHECK(exception.isObject());
+      JSC::JSObject* exception_object = exception.toObject(exec_state);
+      DCHECK(exception_object->isErrorInstance());
+      JSC::JSValue error_message = exception_object->getDirect(
+          global_data, JSC::Identifier(&global_data, "message"));
+      WTF::String exception_string = error_message.toWTFString(exec_state);
+      DLOG(WARNING) << "Exception in callback:" +
+                           std::string(exception_string.utf8().data());
+      exec_state->clearException();
+    }
   }
 
   JSCObjectOwner* callable() { return callable_.get(); }
