@@ -27,11 +27,6 @@ namespace dom {
 
 class ArrayBufferView : public script::Wrappable {
  public:
-  explicit ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer);
-
-  ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset,
-                  uint32 byte_length);
-
   // Web API: ArrayBufferView
   const scoped_refptr<ArrayBuffer>& buffer() { return buffer_; }
   uint32 byte_offset() const { return byte_offset_; }
@@ -43,6 +38,9 @@ class ArrayBufferView : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(ArrayBufferView);
 
  protected:
+  explicit ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer);
+  ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset,
+                  uint32 byte_length);
   ~ArrayBufferView();
 
  private:
