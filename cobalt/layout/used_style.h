@@ -43,9 +43,6 @@ namespace layout {
 // This file contains facilities to convert CSSOM values to render tree values
 // for properties not affected by the layout, such as "color" or "font-size",
 // as for them the used values are the same as the computed values.
-//
-// Used values for the properties affected by the layout are converted from
-// computed values in the Layout() methods of the Box subclasses.
 
 class ContainingBlock;
 
@@ -201,6 +198,51 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 scoped_refptr<cssom::TransformFunctionListValue> GetUsedTransformListValue(
     cssom::TransformFunctionListValue* transform_list,
     const math::SizeF& bounding_box);
+
+// Functions to calculate used values of box model properties.
+base::optional<float> GetUsedLeftIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedTopIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedRightIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedBottomIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedWidthIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size,
+    bool* width_depends_on_containing_block);
+base::optional<float> GetUsedHeightIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedMarginLeftIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedMarginTopIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedMarginRightIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+base::optional<float> GetUsedMarginBottomIfNotAuto(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+float GetUsedPaddingLeft(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+float GetUsedPaddingTop(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+float GetUsedPaddingRight(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
+float GetUsedPaddingBottom(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+    const math::SizeF& containing_block_size);
 
 // This class should be used when one needs to determine any of the margin,
 // padding, position (e.g. 'left'/'top') or content size properties.  Since much
