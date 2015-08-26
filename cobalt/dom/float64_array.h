@@ -14,27 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/array_buffer_view.h"
+#ifndef DOM_FLOAT64_ARRAY_H_
+#define DOM_FLOAT64_ARRAY_H_
+
+#include "cobalt/dom/typed_array.h"
 
 namespace cobalt {
 namespace dom {
 
-ArrayBufferView::ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer)
-    : buffer_(buffer), byte_offset_(0), byte_length_(buffer->byte_length()) {}
-
-ArrayBufferView::ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer,
-                                 uint32 byte_offset, uint32 byte_length)
-    : buffer_(buffer), byte_offset_(byte_offset), byte_length_(byte_length) {}
-
-void* ArrayBufferView::base_address() const {
-  if (buffer_->bytes().size() > 0) {
-    return reinterpret_cast<void*>(&buffer_->bytes()[0] + byte_offset_);
-  } else {
-    return NULL;
-  }
-}
-
-ArrayBufferView::~ArrayBufferView() {}
+DEFINE_TYPED_ARRAY(Float64Array, double);
 
 }  // namespace dom
 }  // namespace cobalt
+
+#endif  // DOM_FLOAT64_ARRAY_H_
