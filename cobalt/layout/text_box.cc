@@ -54,9 +54,9 @@ TextBox::TextBox(
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
 void TextBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
-  set_used_width(text_width_ + GetLeadingWhiteSpaceWidth() +
-                 GetTrailingWhiteSpaceWidth());
-  set_used_height(used_line_height_);
+  set_width(text_width_ + GetLeadingWhiteSpaceWidth() +
+            GetTrailingWhiteSpaceWidth());
+  set_height(used_line_height_);
 }
 
 scoped_ptr<Box> TextBox::TrySplitAt(float available_width,
@@ -143,11 +143,14 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
 
 float TextBox::GetHeightAboveBaseline() const { return height_above_baseline_; }
 
-void TextBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder,
+void TextBox::RenderAndAnimateContent(
+    render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
+
+  DCHECK_EQ(0, border_left_width() + padding_left());
+  DCHECK_EQ(0, border_top_width() + padding_top());
 
   // Only add the text node to the render tree if it actually has content.
   if (HasText()) {
@@ -157,7 +160,7 @@ void TextBox::AddContentToRenderTree(
     if (used_color.a() > 0.0f) {
       // The render tree API considers text coordinates to be a position of
       // a baseline, offset the text node accordingly.
-      composition_node_builder->AddChild(
+      border_node_builder->AddChild(
           new render_tree::TextNode(GetText(), used_font_, used_color),
           math::TranslateMatrix(GetLeadingWhiteSpaceWidth(),
                                 height_above_baseline_));

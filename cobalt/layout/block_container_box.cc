@@ -71,12 +71,12 @@ void BlockContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
       formatting_context = UpdateUsedRectOfChildren(child_layout_params);
     }
   }
-  set_used_width(child_layout_params.containing_block_size.width());
+  set_width(child_layout_params.containing_block_size.width());
 
   // Calculate the exact height of the block container box.
-  set_used_height(height_depends_on_child_boxes
-                      ? formatting_context->used_height()
-                      : child_layout_params.containing_block_size.height());
+  set_height(height_depends_on_child_boxes
+                 ? formatting_context->used_height()
+                 : child_layout_params.containing_block_size.height());
   maybe_height_above_baseline_ =
       formatting_context->maybe_height_above_baseline();
 
@@ -137,7 +137,7 @@ float BlockContainerBox::GetHeightAboveBaseline() const {
   // with the parent's baseline.
   //   http://www.w3.org/TR/CSS21/visudet.html#line-height
   // TODO(***REMOVED***): Fix when margins are implemented.
-  return maybe_height_above_baseline_.value_or(used_height());
+  return maybe_height_above_baseline_.value_or(height());
 }
 
 scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {

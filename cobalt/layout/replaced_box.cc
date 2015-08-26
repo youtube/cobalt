@@ -97,8 +97,8 @@ void ReplacedBox::UpdateUsedSize(const LayoutParams& layout_params) {
   }
 
   // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  set_used_width(*horizontal_metrics.size);
-  set_used_height(*vertical_metrics.size);
+  set_width(*horizontal_metrics.size);
+  set_height(*vertical_metrics.size);
 }
 
 scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
@@ -116,14 +116,14 @@ base::optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
-float ReplacedBox::GetHeightAboveBaseline() const { return used_height(); }
+float ReplacedBox::GetHeightAboveBaseline() const { return height(); }
 
-void ReplacedBox::AddContentToRenderTree(
+void ReplacedBox::RenderAndAnimateContent(
     render_tree::CompositionNode::Builder* composition_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
   scoped_refptr<ImageNode> image_node =
-      new render_tree::ImageNode(NULL, used_size());
+      new render_tree::ImageNode(NULL, content_box_size());
   node_animations_map_builder->Add(image_node,
                                    base::Bind(AnimateCB, replace_image_cb_));
   composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());

@@ -56,34 +56,279 @@ Box::Box(
       stacking_context_(NULL) {
   DCHECK(transitions_);
   DCHECK(used_style_provider_);
+
+  // TODO(***REMOVED***): Reliance on NaN in non-debug code will be eliminated
+  //               in upcoming CLs.
+  margin_box_offset_from_containing_block_.SetPoint(
+      std::numeric_limits<float>::quiet_NaN(),
+      std::numeric_limits<float>::quiet_NaN());
+  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
+                        std::numeric_limits<float>::quiet_NaN());
+
+#ifdef _DEBUG
+  margin_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN());
+  border_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN(),
+                           std::numeric_limits<float>::quiet_NaN());
+  padding_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
+                            std::numeric_limits<float>::quiet_NaN(),
+                            std::numeric_limits<float>::quiet_NaN(),
+                            std::numeric_limits<float>::quiet_NaN());
+#endif  // _DEBUG
 }
 
 Box::~Box() {}
 
 void Box::UpdateUsedSizeIfInvalid(const LayoutParams& layout_params) {
-  if (!maybe_used_width_ || !maybe_used_height_) {
+  if (width() != width() || height() != height()) {  // Check for NaN.
+    UpdateMargins();
+    UpdateBorders();
+    UpdatePaddings(layout_params);
     UpdateUsedSize(layout_params);
-
-    DCHECK(static_cast<bool>(maybe_used_width_));
-    DCHECK(static_cast<bool>(maybe_used_height_));
   }
 }
 
 void Box::InvalidateUsedRect() {
-  maybe_used_left_ = base::nullopt;
-  maybe_used_top_ = base::nullopt;
-  maybe_used_width_ = base::nullopt;
-  maybe_used_height_ = base::nullopt;
+  margin_box_offset_from_containing_block_.SetPoint(
+      std::numeric_limits<float>::quiet_NaN(),
+      std::numeric_limits<float>::quiet_NaN());
+  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
+                        std::numeric_limits<float>::quiet_NaN());
+}
+
+float Box::GetMarginBoxWidth() const {
+  return margin_left() + GetBorderBoxWidth() + margin_right();
+}
+
+float Box::GetMarginBoxHeight() const {
+  return margin_top() + GetBorderBoxHeight() + margin_bottom();
+}
+
+float Box::GetRightMarginEdgeOffsetFromContainingBlock() const {
+  return left() + GetMarginBoxWidth();
+}
+
+float Box::GetBottomMarginEdgeOffsetFromContainingBlock() const {
+  return top() + GetMarginBoxHeight();
+}
+
+float Box::GetBorderBoxWidth() const {
+  return border_left_width() + GetPaddingBoxWidth() + border_right_width();
+}
+
+float Box::GetBorderBoxHeight() const {
+  return border_top_width() + GetPaddingBoxHeight() + border_bottom_width();
+}
+
+math::SizeF Box::GetBorderBoxSize() const {
+  return math::SizeF(GetBorderBoxWidth(), GetBorderBoxHeight());
+}
+
+float Box::GetPaddingBoxWidth() const {
+  return padding_left() + width() + padding_right();
+}
+
+float Box::GetPaddingBoxHeight() const {
+  return padding_top() + height() + padding_bottom();
+}
+
+math::SizeF Box::GetPaddingBoxSize() const {
+  return math::SizeF(GetPaddingBoxWidth(), GetPaddingBoxHeight());
+}
+
+math::Vector2dF Box::GetContentBoxOffsetFromMarginBox() const {
+  return math::Vector2dF(margin_left() + border_left_width() + padding_left(),
+                         margin_top() + border_top_width() + padding_top());
+}
+
+void Box::RenderAndAnimate(
+    CompositionNode::Builder* parent_content_node_builder,
+    NodeAnimationsMap::Builder* node_animations_map_builder) const {
+  float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
+      computed_style_->opacity().get())->value();
+  bool opacity_animated = transitions_->GetTransitionForProperty(
+                              cssom::kOpacityPropertyName) != NULL;
+  if (opacity <= 0.0f && !opacity_animated) {
+    // If the box has 0 opacity, and opacity is not animated, then we do not
+    // need to proceed any farther, the box is invisible.
+    return;
+  }
+
+  render_tree::CompositionNode::Builder border_node_builder;
+
+  // The painting order is:
+  // - background color.
+  // - background image.
+  // - border.
+  //   http://www.w3.org/TR/CSS21/zindex.html
+  //
+  // TODO(***REMOVED***): Fully implement the stacking algorithm:
+  //               http://www.w3.org/TR/CSS21/visuren.html#z-index and
+  //               http://www.w3.org/TR/CSS21/zindex.html.
+  RenderAndAnimateBackgroundColor(&border_node_builder,
+                                  node_animations_map_builder);
+  RenderAndAnimateBackgroundImage(&border_node_builder,
+                                  node_animations_map_builder);
+  RenderAndAnimateBorder(&border_node_builder, node_animations_map_builder);
+
+  RenderAndAnimateContent(&border_node_builder, node_animations_map_builder);
+
+  scoped_refptr<render_tree::Node> border_node =
+      new CompositionNode(border_node_builder.Pass());
+  border_node = RenderAndAnimateOpacity(
+      border_node, node_animations_map_builder, opacity, opacity_animated);
+  math::Matrix3F border_node_transform =
+      math::TranslateMatrix(left() + margin_left(), top() + margin_top());
+  border_node = RenderAndAnimateTransform(
+      border_node, node_animations_map_builder, &border_node_transform);
+
+  parent_content_node_builder->AddChild(border_node, border_node_transform);
+}
+
+AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
+
+void Box::DumpWithIndent(std::ostream* stream, int indent) const {
+  DumpIndent(stream, indent);
+  DumpClassName(stream);
+  DumpProperties(stream);
+  *stream << "\n";
+
+  static const int INDENT_SIZE = 2;
+  DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
+}
+
+void Box::InvalidateUsedWidth() {
+  set_width(std::numeric_limits<float>::quiet_NaN());
+}
+
+void Box::InvalidateUsedHeight() {
+  set_height(std::numeric_limits<float>::quiet_NaN());
 }
 
 namespace {
-
-// Returns a matrix representing the transform on the object, relative to its
-// containing block, induced by its layout.  This will be a translation matrix
-// that essentially just offsets to the object's layed out (x,y) position.
-math::Matrix3F GetOffsetTransform(const math::PointF& offset) {
-  return math::TranslateMatrix(offset.x(), offset.y());
+void SetupRectNodeFromStyle(
+    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
+    RectNode::Builder* rect_node_builder) {
+  rect_node_builder->background_brush =
+      scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
+          GetUsedColor(style->background_color())));
 }
+}  // namespace
+
+
+bool Box::IsPositioned() const {
+  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
+         computed_style()->transform() != cssom::KeywordValue::GetNone();
+}
+
+void Box::DumpIndent(std::ostream* stream, int indent) const {
+  while (indent--) {
+    *stream << " ";
+  }
+}
+
+void Box::DumpProperties(std::ostream* stream) const {
+  *stream << "left=" << left() << " "
+          << "top=" << top() << " "
+          << "width=" << width() << " "
+          << "height=" << height() << " ";
+
+  *stream << "margin=" << margin_insets_.ToString() << " ";
+  *stream << "border_width=" << border_insets_.ToString() << " ";
+  *stream << "padding=" << padding_insets_.ToString() << " ";
+
+  *stream << "baseline=" << GetHeightAboveBaseline() << " ";
+}
+
+void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
+                                 int /*indent*/) const {}
+
+int Box::GetZIndex() const {
+  if (computed_style()->z_index() == cssom::KeywordValue::GetAuto()) {
+    return 0;
+  } else {
+    return base::polymorphic_downcast<cssom::IntegerValue*>(
+               computed_style()->z_index().get())->value();
+  }
+}
+
+void Box::UpdateCrossReferences() {
+  // TODO(***REMOVED***): While passing NULL into the following parameters works fine
+  //               for the initial containing block, if we wish to support
+  //               partial layouts, we will need to search up our ancestor
+  //               chain for the correct values to pass in here as context.
+  UpdateCrossReferencesWithContext(NULL, NULL);
+}
+
+void Box::UpdateCrossReferencesWithContext(
+    ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
+  if (IsPositioned()) {
+    // Stacking context and containing blocks only matter for positioned
+    // boxes.
+    ContainerBox* containing_block;
+    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+      containing_block = absolute_containing_block;
+    } else {
+      containing_block = parent_;
+    }
+
+    // Notify our containing block that we are a positioned child of theirs.
+    if (containing_block && stacking_context) {
+      SetupAsPositionedChild(containing_block, stacking_context);
+    }
+  }
+}
+
+// TODO(***REMOVED***): This method will be removed in upcoming CLs.
+void Box::UpdateMargins() {
+  NOTIMPLEMENTED() << "Margins are not implemented yet.";
+
+  margin_insets_ = math::InsetsF();
+}
+
+void Box::UpdateBorders() {
+  // TODO(***REMOVED***): Calculate used values of border widths.
+  NOTIMPLEMENTED() << "Borders are not implemented yet.";
+
+  border_insets_ = math::InsetsF();
+}
+
+void Box::UpdatePaddings(const LayoutParams& layout_params) {
+  padding_insets_.SetInsets(
+      GetUsedPaddingLeft(computed_style_, layout_params.containing_block_size),
+      GetUsedPaddingTop(computed_style_, layout_params.containing_block_size),
+      GetUsedPaddingRight(computed_style_, layout_params.containing_block_size),
+      GetUsedPaddingBottom(computed_style_,
+                           layout_params.containing_block_size));
+}
+
+void Box::SetupAsPositionedChild(ContainerBox* containing_block,
+                                 ContainerBox* stacking_context) {
+  DCHECK(IsPositioned());
+
+  DCHECK(!containing_block_);
+  DCHECK(!stacking_context_);
+
+  // Setup the link between this child box and its containing block.
+  containing_block_ = containing_block;
+
+  // Now setup this child box within its containing block/stacking context's
+  // list of children.
+  containing_block->AddContainingBlockChild(this);
+
+  if (GetZIndex() != 0) {
+    stacking_context_ = stacking_context;
+  } else {
+    stacking_context_ = containing_block;
+  }
+  stacking_context_->AddStackingContextChild(this);
+}
+
+namespace {
 
 // Returns a matrix representing the transform on the object induced by its
 // CSS transform style property.  If the object does not have a transform
@@ -136,7 +381,7 @@ void SetupFilterNodeFromStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
     FilterNode::Builder* filter_node_builder) {
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
-      style->opacity().get())->value();
+                      style->opacity().get())->value();
 
   if (opacity < 1.0f) {
     filter_node_builder->opacity_filter.emplace(opacity);
@@ -149,187 +394,36 @@ void SetupFilterNodeFromStyle(
 
 }  // namespace
 
-void Box::AddToRenderTree(
-    CompositionNode::Builder* parent_composition_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
-      computed_style_->opacity().get())->value();
-
-  if (opacity <= 0.0f &&
-      !transitions_->GetTransitionForProperty(cssom::kOpacityPropertyName)) {
-    // If the box has 0 opacity, and opacity is not animated, then we do not
-    // need to proceed any farther, the box is invisible.
-    return;
-  }
-
-  render_tree::CompositionNode::Builder composition_node_builder;
-
-  // TODO(***REMOVED***): Fully implement the stacking algorithm quoted below.
-
-  // The background and borders of the element forming the stacking context
-  // are rendered first.
-  //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddBackgroundToRenderTree(&composition_node_builder,
-                            node_animations_map_builder);
-  // TODO(***REMOVED***): Implement borders.
-  AddContentToRenderTree(&composition_node_builder,
-                         node_animations_map_builder);
-
-  if (composition_node_builder.composed_children().empty()) {
-    // If there is no content to add for this box, do not proceed to the
-    // subsequent steps of determining the correct transform and filters.
-    return;
-  }
-
-  scoped_refptr<render_tree::Node> content_node =
-      new CompositionNode(composition_node_builder.Pass());
-
-  bool overflow_hidden =
-      computed_style_->overflow().get() == cssom::KeywordValue::GetHidden();
-
-  // Apply filters.
-  if (overflow_hidden || opacity < 1.0f ||
-      transitions_->GetTransitionForProperty(cssom::kOpacityPropertyName)) {
-    FilterNode::Builder filter_node_builder(content_node);
-
-    if (overflow_hidden) {
-      filter_node_builder.viewport_filter =
-          ViewportFilter(math::RectF(used_width(), used_height()));
-    }
-
-    if (opacity < 1.0f) {
-      filter_node_builder.opacity_filter = OpacityFilter(opacity);
-    }
-
-    scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);
-
-    if (!transitions_->empty()) {
-      // Possibly setup an animation for transitioning opacity.
-      AddTransitionAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
-                                          *computed_style_, filter_node,
-                                          *transitions_,
-                                          node_animations_map_builder);
-    }
-    content_node = filter_node;
-  }
-
-  if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
-    // If the CSS transform is animated, we cannot flatten it into the layout
-    // transform, thus we create a new composition node to separate it and
-    // animate that node only.
-    render_tree::CompositionNode::Builder css_transform_node_builder;
-    css_transform_node_builder.AddChild(
-        content_node, math::Matrix3F::Identity());
-    scoped_refptr<CompositionNode> css_transform_node =
-        new CompositionNode(css_transform_node_builder.Pass());
-
-    // Specifically animate only the composition node with the CSS transform.
-    AddTransitionAnimations<CompositionNode>(
-        base::Bind(&SetupCompositionNodeFromCSSSStyleTransform, used_size()),
-        *computed_style(), css_transform_node, *transitions_,
-        node_animations_map_builder);
-
-    // Now add that transform node to the parent composition node, along with
-    // the application of the layout transform.
-    parent_composition_node_builder->AddChild(
-        css_transform_node, GetOffsetTransform(used_position()));
-  } else {
-    // Add all child render nodes to the parent composition node, with the
-    // layout transform and CSS transform combined into one matrix.
-    parent_composition_node_builder->AddChild(
-        content_node,
-        GetOffsetTransform(used_position()) *
-            GetCSSTransform(computed_style_->transform(), used_size()));
-  }
+void Box::RenderAndAnimateBorder(
+    CompositionNode::Builder* /*border_node_builder*/,
+    NodeAnimationsMap::Builder* /*node_animations_map_builder*/) const {
+  // TODO(***REMOVED***): Render the border.
+  NOTIMPLEMENTED() << "Borders are not implemented yet.";
 }
 
-AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
-
-void Box::DumpWithIndent(std::ostream* stream, int indent) const {
-  DumpIndent(stream, indent);
-  DumpClassName(stream);
-  DumpProperties(stream);
-  *stream << "\n";
-
-  static const int INDENT_SIZE = 2;
-  DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
-}
-
-void Box::InvalidateUsedWidth() { maybe_used_width_ = base::nullopt; }
-
-void Box::InvalidateUsedHeight() { maybe_used_height_ = base::nullopt; }
-
-namespace {
-void SetupRectNodeFromStyle(
-    const scoped_refptr<const cssom::CSSStyleDeclarationData>& style,
-    RectNode::Builder* rect_node_builder) {
-  rect_node_builder->background_brush =
-      scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
-          GetUsedColor(style->background_color())));
-}
-}  // namespace
-
-void Box::AddBackgroundToRenderTree(
-    CompositionNode::Builder* composition_node_builder,
-    NodeAnimationsMap::Builder* node_animations_map_builder) const {
-  AddBackgroundColorToRenderTree(composition_node_builder,
-                                 node_animations_map_builder);
-  AddBackgroundImageToRenderTree(composition_node_builder,
-                                 node_animations_map_builder);
-}
-
-bool Box::IsPositioned() const {
-  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
-         computed_style()->transform() != cssom::KeywordValue::GetNone();
-}
-
-void Box::DumpIndent(std::ostream* stream, int indent) const {
-  while (indent--) {
-    *stream << " ";
-  }
-}
-
-void Box::DumpProperties(std::ostream* stream) const {
-  *stream << "level=";
-  switch (GetLevel()) {
-    case kBlockLevel:
-      *stream << "block ";
-      break;
-    case kInlineLevel:
-      *stream << "inline ";
-      break;
-  }
-
-  *stream << "left=" << maybe_used_left_ << " "
-          << "top=" << maybe_used_top_ << " "
-          << "width=" << maybe_used_width_ << " "
-          << "height=" << maybe_used_height_ << " "
-          << "height_above_baseline=" << GetHeightAboveBaseline() << " ";
-}
-
-void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
-                                 int /*indent*/) const {}
-
-void Box::AddBackgroundColorToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder,
+void Box::RenderAndAnimateBackgroundColor(
+    render_tree::CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   // Only create the RectNode if the background color is not the initial value
   // (which we know is transparent) and not transparent.  If it's animated,
   // add it no matter what since its value may change over time to be
   // non-transparent.
-  bool color_is_fully_transparent =
+  bool background_color_transparent =
       GetUsedColor(computed_style_->background_color()).a() == 0.0f;
-  bool color_is_animated = transitions_->GetTransitionForProperty(
-      cssom::kBackgroundColorPropertyName) != NULL;
-  if (!color_is_fully_transparent || color_is_animated) {
-    RectNode::Builder rect_node_builder(used_size(),
+  bool background_color_animated =
+      transitions_->GetTransitionForProperty(
+          cssom::kBackgroundColorPropertyName) != NULL;
+  if (!background_color_transparent || background_color_animated) {
+    RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
     SetupRectNodeFromStyle(computed_style_, &rect_node_builder);
 
     scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
-    composition_node_builder->AddChild(rect_node, math::Matrix3F::Identity());
+    border_node_builder->AddChild(
+        rect_node,
+        math::TranslateMatrix(border_left_width(), border_top_width()));
 
-    if (!transitions_->empty()) {
+    if (background_color_animated) {
       AddTransitionAnimations<RectNode>(
           base::Bind(&SetupRectNodeFromStyle), *computed_style_, rect_node,
           *transitions_, node_animations_map_builder);
@@ -337,8 +431,8 @@ void Box::AddBackgroundColorToRenderTree(
   }
 }
 
-void Box::AddBackgroundImageToRenderTree(
-    CompositionNode::Builder* composition_node_builder,
+void Box::RenderAndAnimateBackgroundImage(
+    CompositionNode::Builder* border_node_builder,
     NodeAnimationsMap::Builder* node_animations_map_builder) const {
   UNREFERENCED_PARAMETER(node_animations_map_builder);
 
@@ -351,7 +445,8 @@ void Box::AddBackgroundImageToRenderTree(
              image_iterator = property_list->value().rbegin();
          image_iterator != property_list->value().rend(); ++image_iterator) {
       UsedBackgroundNodeProvider background_node_provider(
-          used_style_provider_, used_size(), computed_style_->background_size(),
+          used_style_provider_, GetPaddingBoxSize(),
+          computed_style_->background_size(),
           computed_style_->background_position(),
           computed_style_->background_repeat());
       (*image_iterator)->Accept(&background_node_provider);
@@ -359,69 +454,83 @@ void Box::AddBackgroundImageToRenderTree(
           background_node_provider.background_node();
 
       if (background_node) {
-        composition_node_builder->AddChild(background_node,
-                                           math::Matrix3F::Identity());
+        border_node_builder->AddChild(
+            background_node,
+            math::TranslateMatrix(border_left_width(), border_top_width()));
       }
     }
   }
 }
 
-int Box::GetZIndex() const {
-  if (computed_style()->z_index() == cssom::KeywordValue::GetAuto()) {
-    return 0;
-  } else {
-    return base::polymorphic_downcast<cssom::IntegerValue*>(
-               computed_style()->z_index().get())->value();
-  }
-}
+scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
+    const scoped_refptr<render_tree::Node>& border_node,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder,
+    float opacity, bool opacity_animated) const {
+  bool overflow_hidden =
+      computed_style_->overflow().get() == cssom::KeywordValue::GetHidden();
+  if (overflow_hidden || opacity < 1.0f || opacity_animated) {
+    FilterNode::Builder filter_node_builder(border_node);
 
-void Box::UpdateCrossReferences() {
-  // TODO(***REMOVED***): While passing NULL into the following parameters works fine
-  //               for the initial containing block, if we wish to support
-  //               partial layouts, we will need to search up our ancestor
-  //               chain for the correct values to pass in here as context.
-  UpdateCrossReferencesWithContext(NULL, NULL);
-}
-
-void Box::UpdateCrossReferencesWithContext(
-    ContainerBox* absolute_containing_block, ContainerBox* stacking_context) {
-  if (IsPositioned()) {
-    // Stacking context and containing blocks only matter for positioned
-    // boxes.
-    ContainerBox* containing_block;
-    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
-      containing_block = absolute_containing_block;
-    } else {
-      containing_block = parent_;
+    if (overflow_hidden) {
+      // TODO(***REMOVED***): The "overflow" property specifies whether a box is
+      //               clipped to its padding edge.
+      //                 http://www.w3.org/TR/CSS21/visufx.html#overflow
+      //               Currently it's clipped to a border edge.
+      filter_node_builder.viewport_filter =
+          ViewportFilter(math::RectF(GetBorderBoxSize()));
     }
 
-    // Notify our containing block that we are a positioned child of theirs.
-    if (containing_block && stacking_context) {
-      SetupAsPositionedChild(containing_block, stacking_context);
+    if (opacity < 1.0f) {
+      filter_node_builder.opacity_filter = OpacityFilter(opacity);
     }
+
+    scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);
+
+    if (opacity_animated) {
+      // Possibly setup an animation for transitioning opacity.
+      AddTransitionAnimations<FilterNode>(
+          base::Bind(&SetupFilterNodeFromStyle), *computed_style_, filter_node,
+          *transitions_, node_animations_map_builder);
+    }
+    return filter_node;
   }
+
+  return border_node;
 }
 
-void Box::SetupAsPositionedChild(ContainerBox* containing_block,
-                                 ContainerBox* stacking_context) {
-  DCHECK(IsPositioned());
+scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
+    const scoped_refptr<render_tree::Node>& border_node,
+    render_tree::animations::NodeAnimationsMap::Builder*
+        node_animations_map_builder,
+    math::Matrix3F* border_node_transform) const {
+  if (transitions_->GetTransitionForProperty(cssom::kTransformPropertyName)) {
+    // If the CSS transform is animated, we cannot flatten it into the layout
+    // transform, thus we create a new composition node to separate it and
+    // animate that node only.
+    render_tree::CompositionNode::Builder css_transform_node_builder;
+    css_transform_node_builder.AddChild(border_node,
+                                        math::Matrix3F::Identity());
+    scoped_refptr<CompositionNode> css_transform_node =
+        new CompositionNode(css_transform_node_builder.Pass());
 
-  DCHECK(!containing_block_);
-  DCHECK(!stacking_context_);
+    // Specifically animate only the composition node with the CSS transform.
+    AddTransitionAnimations<CompositionNode>(
+        base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
+                   GetBorderBoxSize()),
+        *computed_style(), css_transform_node, *transitions_,
+        node_animations_map_builder);
 
-  // Setup the link between this child box and its containing block.
-  containing_block_ = containing_block;
-
-  // Now setup this child box within its containing block/stacking context's
-  // list of children.
-  containing_block->AddContainingBlockChild(this);
-
-  if (GetZIndex() != 0) {
-    stacking_context_ = stacking_context;
-  } else {
-    stacking_context_ = containing_block;
+    return css_transform_node;
   }
-  stacking_context_->AddStackingContextChild(this);
+
+  if (computed_style_->transform() != cssom::KeywordValue::GetNone()) {
+    // Combine layout transform and CSS transform.
+    *border_node_transform =
+        *border_node_transform *
+        GetCSSTransform(computed_style_->transform(), GetBorderBoxSize());
+  }
+  return border_node;
 }
 
 }  // namespace layout
