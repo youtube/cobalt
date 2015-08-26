@@ -78,7 +78,6 @@ class Attr : public script::Wrappable,
   // Pointer to the NamedNodeMap that contains this Attr.
   scoped_refptr<const NamedNodeMap> container_;
 
-  friend class base::RefCounted<Attr>;
   friend class NamedNodeMap;
   DISALLOW_COPY_AND_ASSIGN(Attr);
 };

@@ -65,7 +65,6 @@ class HTMLCollection : public script::Wrappable {
   virtual ~HTMLCollection();
 
  private:
-  friend class base::RefCounted<HTMLCollection>;
   DISALLOW_COPY_AND_ASSIGN(HTMLCollection);
 };
 
