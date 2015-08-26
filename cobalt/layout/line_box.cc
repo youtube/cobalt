@@ -51,8 +51,8 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
     // TODO(***REMOVED***): Reimplement this crude approximation of static position
     //               in order to take horizontal and vertical alignments
     //               into consideration.
-    child_box->set_used_left(GetShrinkToFitWidth());
-    child_box->set_used_top(0);
+    child_box->set_left(GetShrinkToFitWidth());
+    child_box->set_top(0);
     return true;
   }
 
@@ -74,7 +74,7 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
   //  http://www.w3.org/TR/CSS21/visuren.html#anonymous
   bool allow_overflow = !last_non_collapsed_child_box_index_;
 
-  if (child_box->used_width() <= available_width) {
+  if (child_box->width() <= available_width) {
     QueryUsedRectAndMaybeOverflow(child_box);
     return true;
   }
@@ -86,7 +86,7 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
   if (*child_box_after_split) {
     QueryUsedRectAndMaybeOverflow(child_box);
     if (!allow_overflow) {
-      DCHECK_LE(child_box->used_width(), available_width);
+      DCHECK_LE(child_box->width(), available_width);
     }
     return true;
   }
@@ -102,8 +102,8 @@ void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
     // TODO(***REMOVED***): Reimplement this crude approximation of static position
     //               in order to take horizontal and vertical alignments
     //               into consideration.
-    child_box->set_used_left(GetShrinkToFitWidth());
-    child_box->set_used_top(0);
+    child_box->set_left(GetShrinkToFitWidth());
+    child_box->set_top(0);
     return;
   }
 
@@ -131,7 +131,7 @@ void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   // TODO(***REMOVED***): Implement the above.
-  child_box->set_used_left(GetShrinkToFitWidth());
+  child_box->set_left(GetShrinkToFitWidth());
 
   if (!child_box->IsCollapsed()) {
     last_non_collapsed_child_box_index_ = child_boxes_.size();
@@ -158,7 +158,10 @@ void LineBox::EndQueries() {
 }
 
 float LineBox::GetShrinkToFitWidth() const {
-  return child_boxes_.empty() ? 0 : child_boxes_.back()->used_right();
+  return child_boxes_.empty()
+             ? 0
+             : child_boxes_.back()
+                   ->GetRightMarginEdgeOffsetFromContainingBlock();
 }
 
 void LineBox::CollapseTrailingWhiteSpace() const {
@@ -175,25 +178,24 @@ void LineBox::CollapseTrailingWhiteSpace() const {
   }
 
   // Collapse the trailing white space.
-  float child_box_pre_collapse_width = child_box->used_width();
+  float child_box_pre_collapse_width = child_box->width();
   child_box->CollapseTrailingWhiteSpace();
   child_box->UpdateUsedSizeIfInvalid(layout_params_);
   float collapsed_white_space_width =
-      child_box_pre_collapse_width - child_box->used_width();
+      child_box_pre_collapse_width - child_box->width();
   DCHECK_GT(collapsed_white_space_width, 0);
 
   // Adjust the positions of subsequent child boxes.
   for (++child_box_iterator; child_box_iterator != child_boxes_.end();
        ++child_box_iterator) {
     child_box = *child_box_iterator;
-    child_box->set_used_left(child_box->used_left() -
-                             collapsed_white_space_width);
+    child_box->set_left(child_box->left() - collapsed_white_space_width);
   }
 }
 
 // Returns the height of half the given box above the 'middle' of the line box.
 float LineBox::GetHeightAboveMiddleAlignmentPoint(Box* box) {
-  return (box->used_height() + x_height_) / 2;
+  return (box->height() + x_height_) / 2;
 }
 
 void LineBox::ReverseChildBoxesByBidiLevels() {
@@ -311,8 +313,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
       // may affect the height below the baseline if this is the tallest child
       // box. We measure the tallest top-aligned box to implement that after
       // this loop.
-      max_top_used_height =
-          std::max(max_top_used_height, child_box->used_height());
+      max_top_used_height = std::max(max_top_used_height, child_box->height());
     } else if (vertical_align == cssom::KeywordValue::GetBaseline()) {
       // Align the baseline of the box with the baseline of the parent box.
       child_height_above_line_box_baseline =
@@ -327,7 +328,7 @@ void LineBox::SetLineBoxHeightFromChildBoxes() {
                                         child_height_above_line_box_baseline);
 
       float child_height_below_baseline =
-          child_box->used_height() - child_height_above_line_box_baseline;
+          child_box->height() - child_height_above_line_box_baseline;
       height_below_baseline =
           std::max(height_below_baseline, child_height_below_baseline);
     }
@@ -372,7 +373,7 @@ void LineBox::SetChildBoxTopPositions() {
       child_top = 0;
       NOTREACHED() << "Unsupported vertical_align property value";
     }
-    child_box->set_used_top(used_top_ + child_top);
+    child_box->set_top(used_top_ + child_top);
   }
 }
 
@@ -384,8 +385,8 @@ void LineBox::SetChildBoxLeftPositions() {
     for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
-      child_box->set_used_left(used_left);
-      used_left = child_box->used_right();
+      child_box->set_left(used_left);
+      used_left = child_box->GetRightMarginEdgeOffsetFromContainingBlock();
     }
   }
 
@@ -419,7 +420,7 @@ void LineBox::SetChildBoxLeftPositions() {
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    child_box->set_used_left(child_box->used_left() + additional_left);
+    child_box->set_left(child_box->left() + additional_left);
   }
 }
 

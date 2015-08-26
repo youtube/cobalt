@@ -81,8 +81,8 @@ void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
   //               or borders.
   justifies_line_existence_ = line_box.line_exists();
 
-  set_used_width(line_box.GetShrinkToFitWidth());
-  set_used_height(line_box.used_height());
+  set_width(line_box.GetShrinkToFitWidth());
+  set_height(line_box.height());
   height_above_baseline_ = line_box.height_above_baseline();
 }
 
@@ -100,7 +100,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
 
     // Split the first child that overflows the available width.
     // Leave its part before the split in this box.
-    if (available_width < child_box->used_width()) {
+    if (available_width < child_box->width()) {
       scoped_ptr<Box> child_box_after_split =
           child_box->TrySplitAt(available_width, allow_overflow);
       if (child_box_after_split) {
@@ -117,7 +117,7 @@ scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
       break;
     }
 
-    available_width -= child_box->used_width();
+    available_width -= child_box->width();
 
     // Only continue allowing overflow if the box that was added is collapsed.
     allow_overflow &= child_box->IsCollapsed();

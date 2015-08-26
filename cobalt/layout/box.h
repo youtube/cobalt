@@ -22,6 +22,7 @@
 #include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
@@ -99,26 +100,51 @@ class Box {
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of
   // the parent box.
-  void set_used_left(float used_left) { maybe_used_left_ = used_left; }
-  float used_left() const { return *maybe_used_left_; }
-  void set_used_top(float used_top) { maybe_used_top_ = used_top; }
-  float used_top() const { return *maybe_used_top_; }
-
-  // Used values of "width" and "height" are publicly readable so that
-  // the parent box can calculate the position of subsequent siblings.
-  float used_width() const { return *maybe_used_width_; }
-  float used_height() const { return *maybe_used_height_; }
-
-  // Read-only synthetic properties that are fully defined by used values
-  // of "left", "top", "width", and "height".
-  math::PointF used_position() const {
-    return math::PointF(used_left(), used_top());
+  //
+  // TODO(***REMOVED***): Clean up the semantics of "left" and "top". Currently, they
+  //               refer to an origin of either a parent's content edge
+  //               (for in-flow boxes), or a nearest positioned ancestor's
+  //               padding edge (for out-of-flow boxes).
+  void set_left(float left) {
+    margin_box_offset_from_containing_block_.set_x(left);
   }
-  math::SizeF used_size() const {
-    return math::SizeF(used_width(), used_height());
+  float left() const { return margin_box_offset_from_containing_block_.x(); }
+  void set_top(float top) {
+    margin_box_offset_from_containing_block_.set_y(top);
   }
-  float used_right() const { return used_left() + used_width(); }
-  float used_bottom() const { return used_top() + used_height(); }
+  float top() const { return margin_box_offset_from_containing_block_.y(); }
+  const math::PointF& margin_box_offset_from_containing_block() const {
+    return margin_box_offset_from_containing_block_;
+  }
+
+  // Each box has a content area and optional surrounding padding, border,
+  // and margin areas.
+  //   http://www.w3.org/TR/CSS21/box.html#box-dimensions
+  //
+  // Methods below provide read-only access to dimensions and edges of margin,
+  // border, padding, and content boxes.
+
+  // Margin box.
+  float GetMarginBoxWidth() const;
+  float GetMarginBoxHeight() const;
+  float GetRightMarginEdgeOffsetFromContainingBlock() const;
+  float GetBottomMarginEdgeOffsetFromContainingBlock() const;
+
+  // Border box.
+  float GetBorderBoxWidth() const;
+  float GetBorderBoxHeight() const;
+  math::SizeF GetBorderBoxSize() const;
+
+  // Padding box.
+  float GetPaddingBoxWidth() const;
+  float GetPaddingBoxHeight() const;
+  math::SizeF GetPaddingBoxSize() const;
+
+  // Content box.
+  float width() const { return content_size_.width(); }
+  float height() const { return content_size_.height(); }
+  const math::SizeF& content_box_size() const { return content_size_; }
+  math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
 
   // Updates used values of "width" and "height" if they are invalid, otherwise
   // does nothing. As a side effect, lays out all box descendants recursively.
@@ -191,8 +217,8 @@ class Box {
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
   // on the subclasses to provide the actual content.
-  void AddToRenderTree(
-      render_tree::CompositionNode::Builder* parent_composition_node_builder,
+  void RenderAndAnimate(
+      render_tree::CompositionNode::Builder* parent_content_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
 
@@ -227,19 +253,57 @@ class Box {
   // Used values of "width" and "height" properties are writable only by the
   // box itself.
   virtual void UpdateUsedSize(const LayoutParams& layout_params) = 0;
-  void set_used_width(float used_width) { maybe_used_width_ = used_width; }
-  void set_used_height(float used_height) { maybe_used_height_ = used_height; }
   void InvalidateUsedWidth();
   void InvalidateUsedHeight();
+  // Margin box accessors.
+  //
+  // Used values of "margin" properties are set by overriders
+  // of |UpdateContentSizeAndMargins| method.
+  float margin_left() const { return margin_insets_.left(); }
+  void set_margin_left(float margin_left) {
+    margin_insets_.set_left(margin_left);
+  }
+  float margin_top() const { return margin_insets_.top(); }
+  void set_margin_top(float margin_top) { margin_insets_.set_top(margin_top); }
+  float margin_right() const { return margin_insets_.right(); }
+  void set_margin_right(float margin_right) {
+    margin_insets_.set_right(margin_right);
+  }
+  float margin_bottom() const { return margin_insets_.bottom(); }
+  void set_margin_bottom(float margin_bottom) {
+    margin_insets_.set_bottom(margin_bottom);
+  }
 
-  // Renders the background of the box.
-  void AddBackgroundToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
-      render_tree::animations::NodeAnimationsMap::Builder*
-          node_animations_map_builder) const;
+  // Border box read-only accessors.
+  float border_left_width() const { return border_insets_.left(); }
+  float border_top_width() const { return border_insets_.top(); }
+  float border_right_width() const { return border_insets_.right(); }
+  float border_bottom_width() const { return border_insets_.bottom(); }
+
+  // Padding box read-only accessors.
+  float padding_left() const { return padding_insets_.left(); }
+  float padding_top() const { return padding_insets_.top(); }
+  float padding_right() const { return padding_insets_.right(); }
+  float padding_bottom() const { return padding_insets_.bottom(); }
+
+  // Content box setters.
+  //
+  // Used values of "width" and "height" properties are set by overriders
+  // of |UpdateContentSizeAndMargins| method.
+  void set_width(float width) { content_size_.set_width(width); }
+  void set_height(float height) { content_size_.set_height(height); }
+
+  // Used to determine whether this box justifies the existence of a line,
+  // as per:
+  //
+  // Line boxes that contain no inline elements with non-zero margins, padding,
+  // or borders must be treated as not existing.
+  //   http://www.w3.org/TR/CSS21/visuren.html#phantom-line-box
+  bool HasNonZeroMarginOrBorderOrPadding() const;
+
   // Renders the content of the box.
-  virtual void AddContentToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
+  virtual void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const = 0;
 
@@ -267,6 +331,13 @@ class Box {
       ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
 
  private:
+  // Temporary stub to to update used values of "margin" properties.
+  void UpdateMargins();
+  // Updates used values of "border" properties.
+  void UpdateBorders();
+  // Updates used values of "padding" properties.
+  void UpdatePaddings(const LayoutParams& layout_params);
+
   // Sets up this box as a positioned box (thus, Box::IsPositioned() must return
   // true) with the associated containing block and stacking context.
   // Note that the box's parent node remains unchanged throughout this, and will
@@ -274,30 +345,42 @@ class Box {
   void SetupAsPositionedChild(ContainerBox* containing_block,
                               ContainerBox* stacking_context);
 
-  // Renders the background color of the box.
-  void AddBackgroundColorToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
+  // Helper methods used by |RenderAndAnimate|.
+  void RenderAndAnimateBorder(
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
-
-  // Renders the background image of the box.
-  void AddBackgroundImageToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
+  void RenderAndAnimateBackgroundColor(
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
+  void RenderAndAnimateBackgroundImage(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder) const;
+  // If opacity is animated or other than 1, wraps a border node into a filter
+  // node. Otherwise returns the original border node.
+  scoped_refptr<render_tree::Node> RenderAndAnimateOpacity(
+      const scoped_refptr<render_tree::Node>& border_node,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder,
+      float opacity, bool opacity_animated) const;
+  // If transform is not "none", wraps a border node into a composition node if
+  // transform is animated or modifies |border_node_transform| otherwise.
+  // If transform is "none", returns the original border node and leaves
+  // |border_node_transform| intact.
+  scoped_refptr<render_tree::Node> RenderAndAnimateTransform(
+      const scoped_refptr<render_tree::Node>& border_node,
+      render_tree::animations::NodeAnimationsMap::Builder*
+          node_animations_map_builder,
+      math::Matrix3F* border_node_transform) const;
 
   const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
-
   const UsedStyleProvider* const used_style_provider_;
 
   // The transitions_ member references the cssom::TransitionSet object owned
   // by the HTML Element from which this box is derived.
   const cssom::TransitionSet* transitions_;
-
-  base::optional<float> maybe_used_left_;
-  base::optional<float> maybe_used_top_;
-  base::optional<float> maybe_used_width_;
-  base::optional<float> maybe_used_height_;
 
   // The parent of this box is the box that owns this child and is the direct
   // parent.  If DOM element A is a parent of DOM element B, and box A is
@@ -312,6 +395,20 @@ class Box {
   // A pointer to this box's stacking context.  The containing block is always
   // an ancestor of this element, though not necessarily the direct parent.
   ContainerBox* stacking_context_;
+
+  // Used values of "left" and "top" properties.
+  math::PointF margin_box_offset_from_containing_block_;
+  // Used values of "margin-left", "margin-top", "margin-right",
+  // and "margin-bottom".
+  math::InsetsF margin_insets_;
+  // Used values of "border-left-width", "border-top-width",
+  // "border-right-width", and "border-bottom-width".
+  math::InsetsF border_insets_;
+  // Used values of "padding-left", "padding-top", "padding-right",
+  // and "padding-bottom".
+  math::InsetsF padding_insets_;
+  // Used values of "width" and "height" properties.
+  math::SizeF content_size_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;

@@ -144,7 +144,8 @@ math::PointF GetUsedPositionRelativeToAncestor(Box* box,
     // a position may be misleading.
     DCHECK_EQ(cssom::KeywordValue::GetNone(),
               current_box->computed_style()->transform());
-    relative_position += current_box->used_position().OffsetFromOrigin();
+    relative_position += current_box->margin_box_offset_from_containing_block()
+                             .OffsetFromOrigin();
     current_box = current_box->parent();
   }
 
@@ -164,30 +165,30 @@ void ContainerBox::UpdateUsedSizeOfPositionedChildren(
     child_box->UpdateUsedSizeIfInvalid(child_layout_params);
     math::PointF static_position =
         GetUsedPositionRelativeToAncestor(child_box->parent(), this) +
-        child_box->used_position().OffsetFromOrigin();
+        child_box->margin_box_offset_from_containing_block().OffsetFromOrigin();
 
     UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
-        used_width(), *child_box->computed_style());
-    horizontal_metrics.size = child_box->used_width();
-    horizontal_metrics.ResolveConstraints(used_width());
-    child_box->set_used_left(horizontal_metrics.start_offset
-                                 ? *horizontal_metrics.start_offset
-                                 : static_position.x());
+        width(), *child_box->computed_style());
+    horizontal_metrics.size = child_box->width();
+    horizontal_metrics.ResolveConstraints(width());
+    child_box->set_left(horizontal_metrics.start_offset
+                            ? *horizontal_metrics.start_offset
+                            : static_position.x());
 
 
-    UsedBoxMetrics vertical_metrics = UsedBoxMetrics::ComputeVertical(
-        used_height(), *child_box->computed_style());
-    vertical_metrics.size = child_box->used_height();
-    vertical_metrics.ResolveConstraints(used_height());
-    child_box->set_used_top(vertical_metrics.start_offset
-                                ? *vertical_metrics.start_offset
-                                : static_position.y());
+    UsedBoxMetrics vertical_metrics =
+        UsedBoxMetrics::ComputeVertical(height(), *child_box->computed_style());
+    vertical_metrics.size = child_box->height();
+    vertical_metrics.ResolveConstraints(height());
+    child_box->set_top(vertical_metrics.start_offset
+                           ? *vertical_metrics.start_offset
+                           : static_position.y());
   }
 }
 
-void ContainerBox::AddStackingContextChildrenToRenderTree(
+void ContainerBox::RenderAndAnimateStackingContextChildren(
     const ZIndexSortedList& z_index_child_list,
-    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::CompositionNode::Builder* content_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
   // Render all children of the passed in list in sorted order.
@@ -201,18 +202,18 @@ void ContainerBox::AddStackingContextChildrenToRenderTree(
       // If there is no offset between the child box's containing block
       // and this box (the stacking context), we do not need a CompositionNode
       // for positioning.
-      child_box->AddToRenderTree(composition_node_builder,
-                                 node_animations_map_builder);
+      child_box->RenderAndAnimate(content_node_builder,
+                                  node_animations_map_builder);
     } else {
       // Since the child box was laid out relative to its containing block,
       // but we are rendering it from the stacking context box, we must
       // transform it by the relative transform between the containing block
       // and stacking context.
-      render_tree::CompositionNode::Builder sub_composition_node_builder;
-      child_box->AddToRenderTree(&sub_composition_node_builder,
-                                 node_animations_map_builder);
-      composition_node_builder->AddChild(
-          new render_tree::CompositionNode(sub_composition_node_builder.Pass()),
+      render_tree::CompositionNode::Builder position_offset_node_builder;
+      child_box->RenderAndAnimate(&position_offset_node_builder,
+                                  node_animations_map_builder);
+      content_node_builder->AddChild(
+          new render_tree::CompositionNode(position_offset_node_builder.Pass()),
           math::TranslateMatrix(position_offset.x(), position_offset.y()));
     }
   }
@@ -248,33 +249,46 @@ void ContainerBox::UpdateCrossReferencesWithContext(
   }
 }
 
-void ContainerBox::AddContentToRenderTree(
-    render_tree::CompositionNode::Builder* composition_node_builder,
+void ContainerBox::RenderAndAnimateContent(
+    render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
+  float content_box_left = border_left_width() + padding_left();
+  float content_box_top = border_top_width() + padding_top();
+  render_tree::CompositionNode::Builder offset_content_node_builder;
+  render_tree::CompositionNode::Builder* content_node_builder =
+      content_box_left == 0 && content_box_top == 0
+          ? border_node_builder
+          : &offset_content_node_builder;
+
   // Render all positioned children in our stacking context that have negative
   // z-index values.
   //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddStackingContextChildrenToRenderTree(negative_z_index_child_,
-                                         composition_node_builder,
-                                         node_animations_map_builder);
+  RenderAndAnimateStackingContextChildren(negative_z_index_child_,
+                                          content_node_builder,
+                                          node_animations_map_builder);
   // Render laid out child boxes.
-  // TODO(***REMOVED***): Take a stacking context into account:
-  //               http://www.w3.org/TR/CSS21/visuren.html#z-index
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
     if (!child_box->IsPositioned()) {
-      child_box->AddToRenderTree(composition_node_builder,
-                                 node_animations_map_builder);
+      child_box->RenderAndAnimate(content_node_builder,
+                                  node_animations_map_builder);
     }
   }
 
   // Render all positioned children with non-negative z-index values.
   //   http://www.w3.org/TR/CSS21/visuren.html#z-index
-  AddStackingContextChildrenToRenderTree(non_negative_z_index_child_,
-                                         composition_node_builder,
-                                         node_animations_map_builder);
+  RenderAndAnimateStackingContextChildren(non_negative_z_index_child_,
+                                          content_node_builder,
+                                          node_animations_map_builder);
+
+  if (!offset_content_node_builder.composed_children().empty()) {
+    scoped_refptr<render_tree::CompositionNode> content_node =
+        new render_tree::CompositionNode(offset_content_node_builder.Pass());
+    border_node_builder->AddChild(
+        content_node, math::TranslateMatrix(content_box_left, content_box_top));
+  }
 }
 
 void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
