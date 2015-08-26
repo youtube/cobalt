@@ -26,6 +26,7 @@
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_string_map.h"
 #include "cobalt/dom/html_anchor_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/htmlbr_element.h"
@@ -46,6 +47,13 @@
 
 namespace cobalt {
 namespace dom {
+
+scoped_refptr<DOMStringMap> HTMLElement::dataset() {
+  if (!dataset_) {
+    dataset_ = new DOMStringMap(this);
+  }
+  return dataset_;
+}
 
 int HTMLElement::tab_index() const {
   std::istringstream iss(GetAttribute("tabindex").value_or("0"));

@@ -49,6 +49,8 @@
         'dom_parser.h',
         'dom_settings.cc',
         'dom_settings.h',
+        'dom_string_map.cc',
+        'dom_string_map.h',
         'dom_token_list.cc',
         'dom_token_list.h',
         'element.cc',

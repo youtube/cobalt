@@ -33,6 +33,7 @@
 namespace cobalt {
 namespace dom {
 
+class DOMStringMap;
 class HTMLAnchorElement;
 class HTMLBodyElement;
 class HTMLBRElement;
@@ -65,6 +66,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  public:
   // Web API: HTMLElement
   //
+  scoped_refptr<DOMStringMap> dataset();
+
   int tab_index() const;
   void set_tab_index(int tab_index);
 
@@ -166,6 +169,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
   cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
+  scoped_refptr<DOMStringMap> dataset_;
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
