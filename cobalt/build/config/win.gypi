@@ -248,6 +248,13 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'AdditionalDependencies': [
+              'ws2_32.lib',
+            ],
+          },
+        },
         # TODO(***REMOVED***): For now, msvs_configuration_platform and
         # msvs_target_platform serve similar purposes. Investigate, if ever,
         # when porting to x86.
@@ -261,9 +268,6 @@
               },
               'VCLinkerTool': {
                 'GenerateDebugInformation': 'true',
-                'AdditionalDependencies': [
-                  'ws2_32.lib',
-                ],
               },
             },
           }],
