@@ -63,7 +63,7 @@ class LineBox {
           const scoped_refptr<cssom::PropertyValue>& text_align,
           const LayoutParams& layout_params);
 
-  float used_top() const { return used_top_; }
+  float top() const { return used_top_; }
 
   // Attempts to calculate the used values of "left", "top", "width", and
   // "height" for the given child box if the box or a part of it fits on
@@ -101,7 +101,7 @@ class LineBox {
 
   // Used to calculate the "auto" height of the box that establishes this
   // formatting context.
-  float used_height() const { return used_height_; }
+  float height() const { return used_height_; }
 
   // Returns the vertical offset of the baseline. May return non-zero values
   // even for empty line boxes, because of the strut.

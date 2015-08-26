@@ -99,8 +99,8 @@ RenderTreeWithAnimations Layout(
   // Layout.
   {
     TRACE_EVENT0("cobalt::layout", "UpdateUsedSizes");
-    initial_containing_block->set_used_left(0);
-    initial_containing_block->set_used_top(0);
+    initial_containing_block->set_left(0);
+    initial_containing_block->set_top(0);
     initial_containing_block->UpdateUsedSizeIfInvalid(LayoutParams());
   }
 
@@ -109,9 +109,9 @@ RenderTreeWithAnimations Layout(
       node_animations_map_builder;
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
-    TRACE_EVENT0("cobalt::layout", "AddToRenderTree");
-    initial_containing_block->AddToRenderTree(&render_tree_root_builder,
-                                              &node_animations_map_builder);
+    TRACE_EVENT0("cobalt::layout", "RenderAndAnimate");
+    initial_containing_block->RenderAndAnimate(&render_tree_root_builder,
+                                               &node_animations_map_builder);
   }
 
   return RenderTreeWithAnimations(
