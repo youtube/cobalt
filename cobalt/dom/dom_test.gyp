@@ -35,6 +35,8 @@
         'event_queue_test.cc',
         'event_target_test.cc',
         'event_test.cc',
+        'float32_array_test.cc',
+        'float64_array_test.cc',
         'html_element_factory_test.cc',
         'html_element_test.cc',
         'local_storage_database_test.cc',
@@ -46,7 +48,7 @@
         'storage_area_test.cc',
         'text_test.cc',
         'time_ranges_test.cc',
-        'uint8_array_test.cc',
+        'typed_array_test.cc',
         'xml_document_test.cc',
       ],
       'dependencies': [

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef DOM_UINT8_ARRAY_H_
-#define DOM_UINT8_ARRAY_H_
+// https://www.khronos.org/registry/typedarray/specs/latest/#7
+// Only the subset required by Cobalt is implemented.
+[
+    Constructor(unsigned long length),
+    Constructor(Float64Array array),
+    Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+    RaisesException=Constructor
+]
+interface Float64Array : ArrayBufferView {
+    const unsigned long BYTES_PER_ELEMENT = 8;
 
-#include "cobalt/dom/typed_array.h"
+    readonly attribute unsigned long length;
 
-namespace cobalt {
-namespace dom {
-
-DEFINE_TYPED_ARRAY(Uint8Array, uint8);
-
-}  // namespace dom
-}  // namespace cobalt
-
-#endif  // DOM_UINT8_ARRAY_H_
+    getter double get(unsigned long index);
+    setter void set(unsigned long index, double value);
+};

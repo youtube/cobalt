@@ -18,7 +18,8 @@
 [
     Constructor(unsigned long length),
     Constructor(Uint8Array array),
-    Constructor(ArrayBuffer array_buffer, optional unsigned long offset, optional unsigned long length)
+    Constructor(ArrayBuffer buffer, optional unsigned long byteOffset, optional unsigned long length),
+    RaisesException=Constructor
 ]
 interface Uint8Array : ArrayBufferView {
     const unsigned long BYTES_PER_ELEMENT = 1;
@@ -33,7 +34,7 @@ interface Uint8Array : ArrayBufferView {
     //void set(sequence<long> array, optional unsigned long offset);
 
     // Copy items into this array from source, starting at this[offset].
-    void set(Uint8Array source, optional unsigned long offset);
+    [RaisesException] void set(Uint8Array source, optional unsigned long offset);
 
     // Return a new Uint8Array that is a view on top of this one.
     // Contains this[start]..this[end]. end defaults to length if unspecified.
