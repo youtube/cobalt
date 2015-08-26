@@ -82,7 +82,6 @@ class NamedNodeMap : public script::Wrappable,
   typedef base::hash_map<std::string, base::WeakPtr<Attr> > ProxyAttributeMap;
   mutable ProxyAttributeMap proxy_attributes_;
 
-  friend class base::RefCounted<NamedNodeMap>;
   DISALLOW_COPY_AND_ASSIGN(NamedNodeMap);
 };
 
