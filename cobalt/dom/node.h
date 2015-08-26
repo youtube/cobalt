@@ -254,7 +254,6 @@ class Node : public EventTarget {
   // Node generation counter.
   uint32_t node_generation_;
 
-  friend class base::RefCounted<Node>;
   friend class Document;
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
