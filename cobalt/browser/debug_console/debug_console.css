@@ -1,0 +1,54 @@
+body {
+    background-color: rgba(0, 0, 0, 0.005)
+}
+
+#hud {
+  position: absolute;
+  left: 0px;
+  top: 20px;
+  width: 100%;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  padding: 20px;
+  outline: #FFFFFF solid 2px;
+  margin: 20px;
+}
+
+#messageLog {
+  position: absolute;
+  left: 0%;
+  top: 10%;
+  width: 90%;
+  height: 80%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+  overflow: hidden;
+}
+
+#messageBox {
+  position: absolute;
+  bottom: 0;
+}
+
+#in {
+  position: absolute;
+  left: 0%;
+  top: 90%;
+  width: 50%;
+  height: 10%;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #FFFFFF;
+}
+
+#pirate {
+  position: absolute;
+  left: 400px;
+  top: 400px;
+  width: 235px;
+  height: 235px;
+  background-color: #000000;
+  background-image: url(./pirate.jpg);
+  background-size: 100% 100%
+}
