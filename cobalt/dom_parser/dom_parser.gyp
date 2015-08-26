@@ -56,18 +56,6 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'dom_parser',
       ],
-      'actions': [
-        {
-          'action_name': 'dom_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/dom_parser/testdata/',
-            ],
-            'output_dir': 'cobalt/dom_parser/testdata/',
-          },
-          'includes': [ '../build/copy_data.gypi' ],
-        },
-      ],
     },
 
     {
