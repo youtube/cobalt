@@ -108,10 +108,10 @@ void InlineFormattingContext::DestroyLineBox() {
       // Set height as the bottom edge of the last line box
       // http://www.w3.org/TR/CSS21/visudet.html#normal-block
       // TODO(***REMOVED***): Handle margins and line spacing correctly.
-      bounding_box_of_used_children_.set_height(line_box_->used_top() +
-                                                line_box_->used_height());
+      bounding_box_of_used_children_.set_height(line_box_->top() +
+                                                line_box_->height());
 
-      set_height_above_baseline(line_box_->used_top() +
+      set_height_above_baseline(line_box_->top() +
                                 line_box_->height_above_baseline());
 
       // A width of the block container box when all possible line breaks are

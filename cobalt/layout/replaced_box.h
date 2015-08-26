@@ -72,7 +72,7 @@ class ReplacedBox : public Box {
   // From |Box|.
   void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
 
-  void AddContentToRenderTree(
+  void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* composition_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const OVERRIDE;

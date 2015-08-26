@@ -54,8 +54,8 @@ class ContainerBox : public Box {
   // From |Box|.
   void SplitBidiLevelRuns() OVERRIDE;
 
-  void AddContentToRenderTree(
-      render_tree::CompositionNode::Builder* composition_node_builder,
+  void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const OVERRIDE;
 
@@ -117,9 +117,9 @@ class ContainerBox : public Box {
   // render tree.  The specific list of children to be rendered must be passed
   // in also, though it will likely only ever be either negative_z_index_child_
   // or non_negative_z_index_child_.
-  void AddStackingContextChildrenToRenderTree(
+  void RenderAndAnimateStackingContextChildren(
       const ZIndexSortedList& z_index_child_list,
-      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const;
 
