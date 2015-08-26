@@ -49,8 +49,6 @@ class NodeList : public script::Wrappable {
   ~NodeList() OVERRIDE;
 
  private:
-  friend class base::RefCounted<NodeList>;
-
   // Base node that was used to generate the collection.
   const scoped_refptr<const Node> base_;
   // Generation of the base node that was used to create the cache.

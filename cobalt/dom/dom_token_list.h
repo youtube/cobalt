@@ -68,7 +68,6 @@ class DOMTokenList : public script::Wrappable,
   // Cached tokens.
   mutable std::vector<std::string> tokens_;
 
-  friend class base::RefCounted<DOMTokenList>;
   DISALLOW_COPY_AND_ASSIGN(DOMTokenList);
 };
 
