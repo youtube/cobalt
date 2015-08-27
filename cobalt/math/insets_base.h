@@ -13,58 +13,54 @@ namespace math {
 template <typename Class, typename Type>
 class InsetsBase {
  public:
-  Type top() const { return top_; }
   Type left() const { return left_; }
-  Type bottom() const { return bottom_; }
+  void set_left(Type left) { left_ = left; }
+
+  Type top() const { return top_; }
+  void set_top(Type top) { top_ = top; }
+
   Type right() const { return right_; }
+  void set_right(Type right) { right_ = right; }
 
-  // Returns the total width taken up by the insets, which is the sum of the
-  // left and right insets.
-  Type width() const { return left_ + right_; }
+  Type bottom() const { return bottom_; }
+  void set_bottom(Type bottom) { bottom_ = bottom; }
 
-  // Returns the total height taken up by the insets, which is the sum of the
-  // top and bottom insets.
-  Type height() const { return top_ + bottom_; }
-
-  // Returns true if the insets are empty.
-  bool empty() const { return width() == 0 && height() == 0; }
-
-  void SetInsets(Type top, Type left, Type bottom, Type right) {
-    top_ = top;
+  void SetInsets(Type left, Type top, Type right, Type bottom) {
     left_ = left;
-    bottom_ = bottom;
+    top_ = top;
     right_ = right;
+    bottom_ = bottom;
   }
 
   bool operator==(const Class& insets) const {
-    return top_ == insets.top_ && left_ == insets.left_ &&
-           bottom_ == insets.bottom_ && right_ == insets.right_;
+    return left_ == insets.left_ && top_ == insets.top_ &&
+           right_ == insets.right_ && bottom_ == insets.bottom_;
   }
 
   bool operator!=(const Class& insets) const { return !(*this == insets); }
 
   void operator+=(const Class& insets) {
-    top_ += insets.top_;
     left_ += insets.left_;
-    bottom_ += insets.bottom_;
+    top_ += insets.top_;
     right_ += insets.right_;
+    bottom_ += insets.bottom_;
   }
 
-  Class operator-() const { return Class(-top_, -left_, -bottom_, -right_); }
+  Class operator-() const { return Class(-left_, -top_, -right_, -bottom_); }
 
  protected:
-  InsetsBase(Type top, Type left, Type bottom, Type right)
-      : top_(top), left_(left), bottom_(bottom), right_(right) {}
+  InsetsBase(Type left, Type top, Type right, Type bottom)
+      : left_(left), top_(top), right_(right), bottom_(bottom) {}
 
   // Destructor is intentionally made non virtual and protected.
   // Do not make this public.
   ~InsetsBase() {}
 
  private:
-  Type top_;
   Type left_;
-  Type bottom_;
+  Type top_;
   Type right_;
+  Type bottom_;
 };
 
 }  // namespace math
