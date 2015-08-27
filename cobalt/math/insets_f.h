@@ -16,7 +16,7 @@ namespace math {
 class InsetsF : public InsetsBase<InsetsF, float> {
  public:
   InsetsF();
-  InsetsF(float top, float left, float bottom, float right);
+  InsetsF(float left, float top, float right, float bottom);
   ~InsetsF();
 
   // Returns a string representation of the insets.

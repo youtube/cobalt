@@ -11,43 +11,37 @@ namespace math {
 
 TEST(InsetsTest, InsetsDefault) {
   Insets insets;
-  EXPECT_EQ(0, insets.top());
   EXPECT_EQ(0, insets.left());
-  EXPECT_EQ(0, insets.bottom());
+  EXPECT_EQ(0, insets.top());
   EXPECT_EQ(0, insets.right());
-  EXPECT_EQ(0, insets.width());
-  EXPECT_EQ(0, insets.height());
-  EXPECT_TRUE(insets.empty());
+  EXPECT_EQ(0, insets.bottom());
 }
 
 TEST(InsetsTest, Insets) {
   Insets insets(1, 2, 3, 4);
-  EXPECT_EQ(1, insets.top());
-  EXPECT_EQ(2, insets.left());
-  EXPECT_EQ(3, insets.bottom());
-  EXPECT_EQ(4, insets.right());
-  EXPECT_EQ(6, insets.width());   // Left + right.
-  EXPECT_EQ(4, insets.height());  // Top + bottom.
-  EXPECT_FALSE(insets.empty());
+  EXPECT_EQ(1, insets.left());
+  EXPECT_EQ(2, insets.top());
+  EXPECT_EQ(3, insets.right());
+  EXPECT_EQ(4, insets.bottom());
 }
 
 TEST(InsetsTest, SetInsets) {
   Insets insets;
   insets.SetInsets(1, 2, 3, 4);
-  EXPECT_EQ(1, insets.top());
-  EXPECT_EQ(2, insets.left());
-  EXPECT_EQ(3, insets.bottom());
-  EXPECT_EQ(4, insets.right());
+  EXPECT_EQ(1, insets.left());
+  EXPECT_EQ(2, insets.top());
+  EXPECT_EQ(3, insets.right());
+  EXPECT_EQ(4, insets.bottom());
 }
 
 TEST(InsetsTest, Add) {
   Insets insets;
   insets.SetInsets(1, 2, 3, 4);
   insets += Insets(5, 6, 7, 8);
-  EXPECT_EQ(6, insets.top());
-  EXPECT_EQ(8, insets.left());
-  EXPECT_EQ(10, insets.bottom());
-  EXPECT_EQ(12, insets.right());
+  EXPECT_EQ(6, insets.left());
+  EXPECT_EQ(8, insets.top());
+  EXPECT_EQ(10, insets.right());
+  EXPECT_EQ(12, insets.bottom());
 }
 
 TEST(InsetsTest, Equality) {
