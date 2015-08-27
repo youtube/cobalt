@@ -17,20 +17,20 @@ namespace math {
 class Insets : public InsetsBase<Insets, int> {
  public:
   Insets();
-  Insets(int top, int left, int bottom, int right);
+  Insets(int left, int top, int right, int bottom);
 
   ~Insets();
 
   Insets Scale(float scale) const { return Scale(scale, scale); }
 
   Insets Scale(float x_scale, float y_scale) const {
-    return Insets(static_cast<int>(top() * y_scale),
-                  static_cast<int>(left() * x_scale),
-                  static_cast<int>(bottom() * y_scale),
-                  static_cast<int>(right() * x_scale));
+    return Insets(static_cast<int>(left() * x_scale),
+                  static_cast<int>(top() * y_scale),
+                  static_cast<int>(right() * x_scale),
+                  static_cast<int>(bottom() * y_scale));
   }
 
-  operator InsetsF() const { return InsetsF(top(), left(), bottom(), right()); }
+  operator InsetsF() const { return InsetsF(left(), top(), right(), bottom()); }
 
   // Returns a string representation of the insets.
   std::string ToString() const;

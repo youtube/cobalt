@@ -13,14 +13,14 @@ template class InsetsBase<InsetsF, float>;
 
 InsetsF::InsetsF() : InsetsBase<InsetsF, float>(0, 0, 0, 0) {}
 
-InsetsF::InsetsF(float top, float left, float bottom, float right)
-    : InsetsBase<InsetsF, float>(top, left, bottom, right) {}
+InsetsF::InsetsF(float left, float top, float right, float bottom)
+    : InsetsBase<InsetsF, float>(left, top, right, bottom) {}
 
 InsetsF::~InsetsF() {}
 
 std::string InsetsF::ToString() const {
   // Print members in the same order of the constructor parameters.
-  return base::StringPrintf("%f,%f,%f,%f", top(), left(), bottom(), right());
+  return base::StringPrintf("%f,%f,%f,%f", left(), top(), right(), bottom());
 }
 
 }  // namespace math
