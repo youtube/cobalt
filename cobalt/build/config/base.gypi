@@ -151,6 +151,7 @@
           '__LB_SHELL__FORCE_LOGGING__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
+          'ENABLE_DEBUG_CONSOLE',
         ],
       }, # end of debug_base
       'devel_base': {
@@ -164,6 +165,7 @@
           '__LB_SHELL__FORCE_LOGGING__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
           'SK_DEVELOPER',
+          'ENABLE_DEBUG_CONSOLE',
         ],
       }, # end of devel_base
       'qa_base': {
@@ -176,6 +178,7 @@
           'COBALT_BUILD_TYPE_QA',
           '__LB_SHELL__FOR_QA__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
+          'ENABLE_DEBUG_CONSOLE',
         ],
       }, # end of devel_base
       'gold_base': {
