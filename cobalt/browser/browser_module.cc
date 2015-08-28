@@ -33,8 +33,10 @@ const int kInitialWidth = 1920;
 const int kInitialHeight = 1080;
 
 // Files for the debug console web page are bundled with the executable.
+#if defined(ENABLE_DEBUG_CONSOLE)
 const char* kInitialDebugConsoleUrl =
     "file:///cobalt/browser/debug_console/debug_console.html";
+#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace
 
@@ -45,6 +47,7 @@ BrowserModule::BrowserModule(const Options& options)
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
       debug_hub_(new debug::DebugHub()),
+#if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                      base::Unretained(this)),
@@ -55,6 +58,7 @@ BrowserModule::BrowserModule(const Options& options)
           renderer_module_.pipeline()->refresh_rate(),
           WebModule::Options(GURL(kInitialDebugConsoleUrl), debug_hub_))),
       render_tree_combiner_(renderer_module_.pipeline()),
+#endif  // ENABLE_DEBUG_CONSOLE
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
           base::Bind(&BrowserModule::OnRenderTreeProduced,
                      base::Unretained(this)),
@@ -82,9 +86,11 @@ BrowserModule::BrowserModule(const Options& options)
   }
 
   // Set the initial debug console mode according to the command-line args
+#if defined(ENABLE_DEBUG_CONSOLE)
   DebugConsole::DebugConsoleMode debug_console_mode =
       DebugConsole::GetDebugConsoleModeFromCommandLine();
   render_tree_combiner_.SetDebugConsoleMode(debug_console_mode);
+#endif  // ENABLE_DEBUG_CONSOLE
 }
 
 BrowserModule::~BrowserModule() {}
@@ -94,9 +100,14 @@ void BrowserModule::OnRenderTreeProduced(
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
         node_animations_map) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
+#if defined(ENABLE_DEBUG_CONSOLE)
   render_tree_combiner_.UpdateMainRenderTree(render_tree, node_animations_map);
+#else
+  renderer_module_.pipeline()->Submit(render_tree, node_animations_map);
+#endif  // ENABLE_DEBUG_CONSOLE
 }
 
+#if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
@@ -106,6 +117,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   render_tree_combiner_.UpdateDebugConsoleRenderTree(render_tree,
                                                      node_animations_map);
 }
+#endif  // ENABLE_DEBUG_CONSOLE
 
 void BrowserModule::OnKeyEventProduced(
     const scoped_refptr<dom::KeyboardEvent>& event) {
