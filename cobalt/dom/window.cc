@@ -18,7 +18,6 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
