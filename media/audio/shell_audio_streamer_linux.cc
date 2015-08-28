@@ -71,7 +71,8 @@ bool ShellAudioStreamerLinux::AddStream(ShellAudioStream* stream) {
 
   if (pulse_audio_context_ == NULL) {
     pulse_audio_context_ = new ShellPulseAudioContext;
-    DCHECK(pulse_audio_context_->Initialize());
+    bool result = pulse_audio_context_->Initialize();
+    DCHECK(result);
   }
 
   // other basic checks, it is assumed that the decoder or renderer algorithm

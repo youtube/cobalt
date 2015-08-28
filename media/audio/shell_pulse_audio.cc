@@ -209,7 +209,8 @@ ShellPulseAudioStream* ShellPulseAudioContext::CreateStream(
   base::AutoLock lock(lock_);
 
   ShellPulseAudioStream* stream = new ShellPulseAudioStream;
-  DCHECK(stream->Initialize(this, host, rate, channel));
+  bool result = stream->Initialize(this, host, rate, channel);
+  DCHECK(result);
   streams_.insert(stream);
   return stream;
 }
