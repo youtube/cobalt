@@ -56,7 +56,7 @@ bool LineBox::TryQueryUsedRectAndMaybeSplit(
     return true;
   }
 
-  child_box->UpdateUsedSizeIfInvalid(layout_params_);
+  child_box->UpdateSize(layout_params_);
 
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
@@ -107,7 +107,7 @@ void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
     return;
   }
 
-  child_box->UpdateUsedSizeIfInvalid(layout_params_);
+  child_box->UpdateSize(layout_params_);
 
   bool should_collapse_leading_white_space =
       last_non_collapsed_child_box_index_
@@ -125,7 +125,7 @@ void LineBox::QueryUsedRectAndMaybeOverflow(Box* child_box) {
 
   if (should_collapse_leading_white_space) {
     child_box->CollapseLeadingWhiteSpace();
-    child_box->UpdateUsedSizeIfInvalid(layout_params_);
+    child_box->UpdateSize(layout_params_);
   }
 
   // Horizontal margins, borders, and padding are respected between boxes.
@@ -180,7 +180,7 @@ void LineBox::CollapseTrailingWhiteSpace() const {
   // Collapse the trailing white space.
   float child_box_pre_collapse_width = child_box->width();
   child_box->CollapseTrailingWhiteSpace();
-  child_box->UpdateUsedSizeIfInvalid(layout_params_);
+  child_box->UpdateSize(layout_params_);
   float collapsed_white_space_width =
       child_box_pre_collapse_width - child_box->width();
   DCHECK_GT(collapsed_white_space_width, 0);

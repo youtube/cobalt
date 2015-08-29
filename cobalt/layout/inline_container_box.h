@@ -47,7 +47,7 @@ class InlineContainerBox : public ContainerBox {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
 
-  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 

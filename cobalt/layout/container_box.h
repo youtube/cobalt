@@ -81,7 +81,8 @@ class ContainerBox : public Box {
   };
   typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
 
-  void UpdateUsedSizeOfPositionedChildren(const LayoutParams& layout_params);
+  void UpdateRectOfPositionedChildBoxes(
+      const LayoutParams& child_layout_params);
 
   // child_box will be added to the end of the list of direct children.
   void PushBackDirectChild(scoped_ptr<Box> child_box);

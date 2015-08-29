@@ -57,7 +57,8 @@ bool AnonymousBlockBox::TryAddChild(scoped_ptr<Box>* /*child_box*/) {
 }
 
 void AnonymousBlockBox::AddInlineLevelChild(scoped_ptr<Box> child_box) {
-  DCHECK_EQ(kInlineLevel, child_box->GetLevel());
+  DCHECK(child_box->GetLevel() == kInlineLevel ||
+         child_box->IsAbsolutelyPositioned());
   PushBackDirectChild(child_box.Pass());
 }
 
@@ -65,36 +66,10 @@ void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
   *stream << "AnonymousBlockBox ";
 }
 
-float AnonymousBlockBox::GetUsedWidthBasedOnContainingBlock(
-    float containing_block_width, bool* width_depends_on_containing_block,
-    bool* width_depends_on_child_boxes) const {
-  *width_depends_on_containing_block = true;
-  *width_depends_on_child_boxes = false;
-
-  // Anonymous block boxes are ignored when resolving percentage values
-  // that would refer to it: the closest non-anonymous ancestor box is used
-  // instead.
-  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-  return containing_block_width;
-}
-
-float AnonymousBlockBox::GetUsedHeightBasedOnContainingBlock(
-    float containing_block_height, bool* height_depends_on_child_boxes) const {
-  *height_depends_on_child_boxes = true;
-
-  // Anonymous block boxes are ignored when resolving percentage values
-  // that would refer to it: the closest non-anonymous ancestor box is used
-  // instead.
-  //   http://www.w3.org/TR/CSS21/visuren.html#anonymous-block-level
-  return containing_block_height;
-}
-
-scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
+scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  // TODO(***REMOVED***): Handle absolutely positioned boxes:
-  //               http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
       new InlineFormattingContext(child_layout_params, font_metrics.x_height,
@@ -111,9 +86,9 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateUsedRectOfChildren(
       // Re-insert the rest of the child box and attempt to lay it out in
       // the next iteration of the loop.
       // TODO(***REMOVED***): If every child box is split, this becomes an O(N^2)
-      //               operation where N is the number of child boxes. Consider
-      //               using a new vector instead and swap its contents after
-      //               the layout is done.
+      //               operation where N is the number of child boxes.
+      //               Consider using a new vector instead and swap its
+      //               contents after the layout is done.
       child_box_iterator =
           InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
     }
