@@ -1,7 +1,6 @@
 11-1-1-overflow-hidden-and-opacity
 11-1-1-overflow-hidden-and-position-absolute-div-with-position-absolute-children
 11-1-1-overflow-hidden-applied-to-elements-with-display-set-to-block
-11-1-1-overflow-hidden-applied-to-elements-with-display-set-to-inline-block
 11-1-1-overflow-hidden-applied-to-elements-with-display-set-to-inline
 11-1-1-overflow-hidden-div-with-position-absolute-children
 11-1-1-overflow-hidden-transform

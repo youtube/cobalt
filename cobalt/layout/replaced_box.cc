@@ -66,7 +66,8 @@ ReplacedBox::ReplacedBox(
 
 Box::Level ReplacedBox::GetLevel() const { return kInlineLevel; }
 
-void ReplacedBox::UpdateUsedSize(const LayoutParams& layout_params) {
+void ReplacedBox::UpdateContentSizeAndMargins(
+    const LayoutParams& layout_params) {
   // TODO(***REMOVED***): See if we can determine and use the intrinsic element size.
   float intrinsic_width = kDefaultIntrinsicWidth;
   float intrinsic_height = kDefaultIntrinsicHeight;

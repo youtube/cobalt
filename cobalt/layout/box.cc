@@ -57,15 +57,10 @@ Box::Box(
   DCHECK(transitions_);
   DCHECK(used_style_provider_);
 
-  // TODO(***REMOVED***): Reliance on NaN in non-debug code will be eliminated
-  //               in upcoming CLs.
+#ifdef _DEBUG
   margin_box_offset_from_containing_block_.SetPoint(
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::quiet_NaN());
-  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
-                        std::numeric_limits<float>::quiet_NaN());
-
-#ifdef _DEBUG
   margin_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
                            std::numeric_limits<float>::quiet_NaN(),
                            std::numeric_limits<float>::quiet_NaN(),
@@ -78,26 +73,31 @@ Box::Box(
                             std::numeric_limits<float>::quiet_NaN(),
                             std::numeric_limits<float>::quiet_NaN(),
                             std::numeric_limits<float>::quiet_NaN());
+  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
+                        std::numeric_limits<float>::quiet_NaN());
 #endif  // _DEBUG
 }
 
 Box::~Box() {}
 
-void Box::UpdateUsedSizeIfInvalid(const LayoutParams& layout_params) {
-  if (width() != width() || height() != height()) {  // Check for NaN.
-    UpdateMargins();
-    UpdateBorders();
-    UpdatePaddings(layout_params);
-    UpdateUsedSize(layout_params);
-  }
+bool Box::IsPositioned() const {
+  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
+         computed_style()->transform() != cssom::KeywordValue::GetNone();
 }
 
-void Box::InvalidateUsedRect() {
-  margin_box_offset_from_containing_block_.SetPoint(
-      std::numeric_limits<float>::quiet_NaN(),
-      std::numeric_limits<float>::quiet_NaN());
-  content_size_.SetSize(std::numeric_limits<float>::quiet_NaN(),
-                        std::numeric_limits<float>::quiet_NaN());
+bool Box::IsAbsolutelyPositioned() const {
+  // TODO(***REMOVED***): A position of "fixed" is also out-of-flow and should not
+  //               affect the block formatting context's state.
+  return computed_style()->position() == cssom::KeywordValue::GetAbsolute();
+}
+
+void Box::UpdateSize(const LayoutParams& layout_params) {
+  UpdateBorders();
+  UpdatePaddings(layout_params);
+
+  // TODO(***REMOVED***): Following line will be removed in subsequent CLs.
+  margin_insets_ = math::InsetsF();
+  UpdateContentSizeAndMargins(layout_params);
 }
 
 float Box::GetMarginBoxWidth() const {
@@ -201,13 +201,6 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
 }
 
-void Box::InvalidateUsedWidth() {
-  set_width(std::numeric_limits<float>::quiet_NaN());
-}
-
-void Box::InvalidateUsedHeight() {
-  set_height(std::numeric_limits<float>::quiet_NaN());
-}
 
 namespace {
 void SetupRectNodeFromStyle(
@@ -220,9 +213,8 @@ void SetupRectNodeFromStyle(
 }  // namespace
 
 
-bool Box::IsPositioned() const {
-  return computed_style()->position() != cssom::KeywordValue::GetStatic() ||
-         computed_style()->transform() != cssom::KeywordValue::GetNone();
+bool Box::HasNonZeroMarginOrBorderOrPadding() const {
+  return width() != GetMarginBoxWidth() || height() != GetMarginBoxHeight();
 }
 
 void Box::DumpIndent(std::ostream* stream, int indent) const {
@@ -270,7 +262,7 @@ void Box::UpdateCrossReferencesWithContext(
     // Stacking context and containing blocks only matter for positioned
     // boxes.
     ContainerBox* containing_block;
-    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+    if (IsAbsolutelyPositioned()) {
       containing_block = absolute_containing_block;
     } else {
       containing_block = parent_;
@@ -281,13 +273,6 @@ void Box::UpdateCrossReferencesWithContext(
       SetupAsPositionedChild(containing_block, stacking_context);
     }
   }
-}
-
-// TODO(***REMOVED***): This method will be removed in upcoming CLs.
-void Box::UpdateMargins() {
-  NOTIMPLEMENTED() << "Margins are not implemented yet.";
-
-  margin_insets_ = math::InsetsF();
 }
 
 void Box::UpdateBorders() {
@@ -310,7 +295,7 @@ void Box::SetupAsPositionedChild(ContainerBox* containing_block,
                                  ContainerBox* stacking_context) {
   DCHECK(IsPositioned());
 
-  DCHECK(!containing_block_);
+  DCHECK_EQ(parent_, containing_block_);
   DCHECK(!stacking_context_);
 
   // Setup the link between this child box and its containing block.
