@@ -70,7 +70,7 @@ class ReplacedBox : public Box {
   typedef render_tree::CompositionNode::Builder NodeBuilder;
 
   // From |Box|.
-  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* composition_node_builder,

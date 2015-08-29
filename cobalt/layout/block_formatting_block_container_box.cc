@@ -39,9 +39,14 @@ bool BlockFormattingBlockContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
 void BlockFormattingBlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
   switch (child_box->GetLevel()) {
     case kBlockLevel:
-      // A block formatting context required, simply add a child.
-      PushBackDirectChild(child_box.Pass());
-      break;
+      if (!child_box->IsAbsolutelyPositioned() ||
+          GetLastChildAsAnonymousBlockBox() == NULL) {
+        // A block formatting context required, simply add a child.
+        PushBackDirectChild(child_box.Pass());
+        break;
+      }
+      // Fall through if child is out-of-flow and follows an inline-level
+      // sibling.
 
     case kInlineLevel:
       // An inline formatting context required,
@@ -56,88 +61,8 @@ void BlockFormattingBlockContainerBox::DumpClassName(
   *stream << "BlockFormattingBlockContainerBox ";
 }
 
-namespace {
-
-//   http://www.w3.org/TR/CSS21/visudet.html#blockwidth
-float GetUsedWidthAssumingBlockLevelInFlowBox(float containing_block_width) {
-  // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  return containing_block_width;
-}
-
-// The available width is the width of the containing block minus the used
-// values of "margin-left", "border-left-width", "padding-left",
-// "padding-right", "border-right-width", "margin-right".
-//   http://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
-float GetAvailableWidthAssumingShrinkToFit(float containing_block_width) {
-  // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  return containing_block_width;
-}
-
-}  // namespace
-
-float BlockFormattingBlockContainerBox::GetUsedWidthBasedOnContainingBlock(
-    float containing_block_width, bool* width_depends_on_containing_block,
-    bool* width_depends_on_child_boxes) const {
-  *width_depends_on_child_boxes = false;
-
-  UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
-      containing_block_width, *computed_style());
-  *width_depends_on_containing_block =
-      horizontal_metrics.size_depends_on_containing_block;
-
-  if (horizontal_metrics.size) {
-    return *horizontal_metrics.size;
-  } else {
-    // Width is set to 'auto', so return an appropriate value for proceeding
-    // with
-    // layout of the children.
-    *width_depends_on_containing_block = true;
-
-    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
-      *width_depends_on_child_boxes = true;
-      return GetAvailableWidthAssumingShrinkToFit(containing_block_width);
-    } else {
-      switch (GetLevel()) {
-        case Box::kBlockLevel:
-          return GetUsedWidthAssumingBlockLevelInFlowBox(
-              containing_block_width);
-          break;
-        case Box::kInlineLevel:
-          // The width is shrink-to-fit but we don't know the sizes of children
-          // yet, so we need to lay out child boxes within the available width
-          // and adjust the used width later on.
-          *width_depends_on_child_boxes = true;
-          return GetAvailableWidthAssumingShrinkToFit(containing_block_width);
-          break;
-        default:
-          NOTREACHED();
-          break;
-      }
-    }
-  }
-
-  NOTREACHED();
-  return 0;
-}
-
-float BlockFormattingBlockContainerBox::GetUsedHeightBasedOnContainingBlock(
-    float containing_block_height, bool* height_depends_on_child_boxes) const {
-  UsedBoxMetrics vertical_metrics = UsedBoxMetrics::ComputeVertical(
-      containing_block_height, *computed_style());
-
-  if (vertical_metrics.size) {
-    // If the height is absolutely specified, we can return that immediately.
-    *height_depends_on_child_boxes = false;
-    return *vertical_metrics.size;
-  } else {
-    // Height is set to 'auto' and depends on layout results.
-    *height_depends_on_child_boxes = true;
-    return 0;
-  }
-}
-
 scoped_ptr<FormattingContext>
-BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
+BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
@@ -152,21 +77,24 @@ BlockFormattingBlockContainerBox::UpdateUsedRectOfChildren(
 }
 
 AnonymousBlockBox*
+BlockFormattingBlockContainerBox::GetLastChildAsAnonymousBlockBox() {
+  return child_boxes().empty() ? NULL
+                               : child_boxes().back()->AsAnonymousBlockBox();
+}
+
+AnonymousBlockBox*
 BlockFormattingBlockContainerBox::GetOrAddAnonymousBlockBox() {
-  AnonymousBlockBox* last_anonymous_block_box =
-      child_boxes().empty() ? NULL
-                            : child_boxes().back()->AsAnonymousBlockBox();
-  if (last_anonymous_block_box == NULL) {
-    // TODO(***REMOVED***): Determine which transitions to propogate to the
+  AnonymousBlockBox* anonymous_block_box = GetLastChildAsAnonymousBlockBox();
+  if (anonymous_block_box == NULL) {
+    // TODO(***REMOVED***): Determine which transitions to propagate to the
     //               anonymous block box, instead of none at all.
-    scoped_ptr<AnonymousBlockBox> last_anonymous_block_box_ptr(
-        new AnonymousBlockBox(GetComputedStyleOfAnonymousBox(computed_style()),
-                              cssom::TransitionSet::EmptyTransitionSet(),
-                              used_style_provider()));
-    last_anonymous_block_box = last_anonymous_block_box_ptr.get();
-    PushBackDirectChild(last_anonymous_block_box_ptr.PassAs<Box>());
+    scoped_ptr<AnonymousBlockBox> new_anonymous_block_box(new AnonymousBlockBox(
+        GetComputedStyleOfAnonymousBox(computed_style()),
+        cssom::TransitionSet::EmptyTransitionSet(), used_style_provider()));
+    anonymous_block_box = new_anonymous_block_box.get();
+    PushBackDirectChild(new_anonymous_block_box.PassAs<Box>());
   }
-  return last_anonymous_block_box;
+  return anonymous_block_box;
 }
 
 BlockLevelBlockContainerBox::BlockLevelBlockContainerBox(

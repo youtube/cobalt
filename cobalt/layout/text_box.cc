@@ -53,7 +53,8 @@ TextBox::TextBox(
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
-void TextBox::UpdateUsedSize(const LayoutParams& /*layout_params*/) {
+void TextBox::UpdateContentSizeAndMargins(
+    const LayoutParams& /*layout_params*/) {
   set_width(text_width_ + GetLeadingWhiteSpaceWidth() +
             GetTrailingWhiteSpaceWidth());
   set_height(used_line_height_);
@@ -114,8 +115,6 @@ bool TextBox::HasTrailingWhiteSpace() const {
 
 void TextBox::CollapseLeadingWhiteSpace() {
   if (HasLeadingWhiteSpace()) {
-    InvalidateUsedWidth();
-
     is_leading_white_space_collapsed_ = true;
     if (HasTrailingWhiteSpace() && !HasText()) {
       is_trailing_white_space_collapsed_ = true;
@@ -125,8 +124,6 @@ void TextBox::CollapseLeadingWhiteSpace() {
 
 void TextBox::CollapseTrailingWhiteSpace() {
   if (HasTrailingWhiteSpace()) {
-    InvalidateUsedWidth();
-
     is_trailing_white_space_collapsed_ = true;
     if (HasLeadingWhiteSpace() && !HasText()) {
       is_leading_white_space_collapsed_ = true;
@@ -266,7 +263,6 @@ scoped_ptr<Box> TextBox::SplitAtPosition(int32 split_start_position,
   // Calculate the width of the split section of text.
   float split_text_width = text_width_ - pre_split_width;
 
-  InvalidateUsedWidth();
   text_width_ = pre_split_width;
 
   // Update the paragraph end position white space now that this text box has
