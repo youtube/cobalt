@@ -93,6 +93,7 @@
           'command_line.cc',
           'command_line.h',
           'compiler_specific.h',
+          'containers/linked_hash_map.h',
           'containers/linked_list.h',
           'containers/mru_cache.h',
           'containers/small_map.h',
