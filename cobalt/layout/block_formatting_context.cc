@@ -45,7 +45,7 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
   //               affect the block formatting context's state.
   if (child_box->computed_style()->position() !=
           cssom::KeywordValue::GetAbsolute()) {
-    child_box->UpdateUsedSizeIfInvalid(layout_params_);
+    child_box->UpdateSize(layout_params_);
 
     bounding_box_of_used_children_.set_height(used_height() +
                                               child_box->height());

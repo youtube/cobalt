@@ -63,7 +63,8 @@ scoped_ptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
   return box_after_split.Pass();
 }
 
-void InlineContainerBox::UpdateUsedSize(const LayoutParams& layout_params) {
+void InlineContainerBox::UpdateContentSizeAndMargins(
+    const LayoutParams& layout_params) {
   // Lay out child boxes as a one line without width constraints and white space
   // trimming.
   render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
@@ -226,7 +227,6 @@ void InlineContainerBox::CollapseLeadingWhiteSpace() {
   }
 
   child_box->CollapseLeadingWhiteSpace();
-  InvalidateUsedWidth();
 }
 
 void InlineContainerBox::CollapseTrailingWhiteSpace() {
@@ -246,7 +246,6 @@ void InlineContainerBox::CollapseTrailingWhiteSpace() {
   }
 
   child_box->CollapseTrailingWhiteSpace();
-  InvalidateUsedWidth();
 }
 
 bool InlineContainerBox::JustifiesLineExistence() const {
@@ -308,8 +307,6 @@ scoped_ptr<Box> InlineContainerBox::SplitAtIterator(
   // TODO(***REMOVED***): When an inline box is split, margins, borders, and padding
   //               have no visual effect where the split occurs.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-
-  InvalidateUsedHeight();
 
   return box_after_split.PassAs<Box>();
 }

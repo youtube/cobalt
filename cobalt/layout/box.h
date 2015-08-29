@@ -36,17 +36,29 @@ class ContainerBox;
 class UsedStyleProvider;
 
 struct LayoutParams {
-  LayoutParams() : shrink_if_width_depends_on_containing_block(false) {}
+  LayoutParams() : shrink_to_fit_width_forced(false) {}
+
+  // Normally the used values of "width", "margin-left", and "margin-right" are
+  // calculated by choosing the 1 out of 10 algorithms based on the computed
+  // values of "display", "position", "overflow", and the fact whether the box
+  // is replaced or not, as per:
+  // http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins
+  //
+  // If this flag is set, block container boxes will follow the algorithm
+  // for inline-level, non-replaced block container boxes, which involves
+  // the calculation of shrink-to-fit width, as per:
+  // http://www.w3.org/TR/CSS21/visudet.html#inlineblock-width
+  //
+  // This override is used during the first pass of layout to calculate
+  // the content size of "inline-block" elements. It's an equivalent of
+  // "trying all possible line breaks", as described by:
+  // http://www.w3.org/TR/CSS21/visudet.html#shrink-to-fit-float
+  bool shrink_to_fit_width_forced;
 
   // Many box positions and sizes are calculated with respect to the edges of
   // a rectangular box called a containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#containing-block
   math::SizeF containing_block_size;
-
-  // Boxes whose width depends on a containing block will shrink instead
-  // of expanding during the first pass of the layout initiated by inline-level
-  // block container boxes.
-  bool shrink_if_width_depends_on_containing_block;
 };
 
 // A base class for all boxes.
@@ -97,6 +109,27 @@ class Box {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
+  // Returns true if the box is positioned (e.g. position is non-static or
+  // transform is not None).  Intuitively, this is true if the element does
+  // not follow standard layout flow rules for determining its position.
+  //
+  // TODO(***REMOVED***): Fix the semantics of the method to correspond to
+  //               the "positioned box" definition given by
+  //               http://www.w3.org/TR/CSS21/visuren.html#positioned-element.
+  bool IsPositioned() const;
+
+  // Absolutely positioned box implies that the element's "position" property
+  // has the value "absolute" or "fixed".
+  //   http://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
+  //
+  // TODO(***REMOVED***): Implemented "position: fixed".
+  bool IsAbsolutelyPositioned() const;
+
+  // Updates the size of margin, border, padding, and content boxes. Lays out
+  // in-flow descendants, estimates static positions (but not sizes) of
+  // out-of-flow descendants. Does not update the position of the box.
+  void UpdateSize(const LayoutParams& layout_params);
+
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of
   // the parent box.
@@ -145,17 +178,6 @@ class Box {
   float height() const { return content_size_.height(); }
   const math::SizeF& content_box_size() const { return content_size_; }
   math::Vector2dF GetContentBoxOffsetFromMarginBox() const;
-
-  // Updates used values of "width" and "height" if they are invalid, otherwise
-  // does nothing. As a side effect, lays out all box descendants recursively.
-  void UpdateUsedSizeIfInvalid(const LayoutParams& layout_params);
-  // Invalidates used values of "left", "top", "width", and "height".
-  void InvalidateUsedRect();
-
-  // Returns true if the box is positioned (e.g. position is non-static or
-  // transform is not None).  Intuitively, this is true if the element does
-  // not follow standard layout flow rules for determining its position.
-  bool IsPositioned() const;
 
   // Attempts to split the box, so that the part before the split would fit
   // the available width. However, if |allow_overflow| is true, then the split
@@ -250,11 +272,16 @@ class Box {
   void UpdateCrossReferences();
 
  protected:
-  // Used values of "width" and "height" properties are writable only by the
-  // box itself.
-  virtual void UpdateUsedSize(const LayoutParams& layout_params) = 0;
-  void InvalidateUsedWidth();
-  void InvalidateUsedHeight();
+  const UsedStyleProvider* used_style_provider() const {
+    return used_style_provider_;
+  }
+
+  // Updates used values of "width", "height", and "margin" properties based on
+  // http://www.w3.org/TR/CSS21/visudet.html#Computing_widths_and_margins and
+  // http://www.w3.org/TR/CSS21/visudet.html#Computing_heights_and_margins.
+  virtual void UpdateContentSizeAndMargins(
+      const LayoutParams& layout_params) = 0;
+
   // Margin box accessors.
   //
   // Used values of "margin" properties are set by overriders
@@ -319,10 +346,6 @@ class Box {
   // Overriders must call the base method.
   virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
 
-  const UsedStyleProvider* used_style_provider() const {
-    return used_style_provider_;
-  }
-
   // Updates the box's cross references to other boxes in the box tree (e.g. its
   // containing block and stacking context).  "Context" implies that the caller
   // has already computed what the stacking context is and containing block
@@ -331,8 +354,6 @@ class Box {
       ContainerBox* absolute_containing_block, ContainerBox* stacking_context);
 
  private:
-  // Temporary stub to to update used values of "margin" properties.
-  void UpdateMargins();
   // Updates used values of "border" properties.
   void UpdateBorders();
   // Updates used values of "padding" properties.

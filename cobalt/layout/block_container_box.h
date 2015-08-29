@@ -46,7 +46,7 @@ class BlockContainerBox : public ContainerBox {
   ~BlockContainerBox() OVERRIDE;
 
   // From |Box|.
-  void UpdateUsedSize(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 
@@ -74,36 +74,44 @@ class BlockContainerBox : public ContainerBox {
 
   // Rest of the protected methods.
 
-  // For block-level boxes, precisely calculates the used width and determines
-  // whether the value depends on a containing block (it does not if the
-  // computed value is an absolute length).
-  //
-  // For inline-block boxes, approximates the used width by treating "auto"
-  // in the same way as for block boxes, and determines whether the exact value
-  // depends on children (and thus the second pass of the layout is needed).
-  //
-  // Called before the first pass of the layout, when children sizes are
-  // not known yet.
-  virtual float GetUsedWidthBasedOnContainingBlock(
-      float containing_block_width, bool* width_depends_on_containing_block,
-      bool* width_depends_on_child_boxes) const = 0;
-  // Calculates the used height if it does not depend on children.
-  // Otherwise returns zero and sets |height_depends_on_child_boxes|.
-  //
-  // Called before the first pass of the layout, when children sizes are
-  // not known yet.
-  virtual float GetUsedHeightBasedOnContainingBlock(
-      float containing_block_height,
-      bool* height_depends_on_child_boxes) const = 0;
-
   // Lays out children recursively.
-  virtual scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
+  virtual scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
       const LayoutParams& child_layout_params) = 0;
 
  private:
-  LayoutParams GetChildLayoutOptions(const LayoutParams& layout_params,
-                                     bool* width_depends_on_child_boxes,
-                                     bool* height_depends_on_child_boxes) const;
+  void UpdateWidthAssumingAbsolutelyPositionedBox(
+      float containing_block_width, const base::optional<float>& maybe_left,
+      const base::optional<float>& maybe_right,
+      const base::optional<float>& maybe_width,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right,
+      const base::optional<float>& maybe_height);
+  void UpdateHeightAssumingAbsolutelyPositionedBox(
+      float containing_block_height, const base::optional<float>& maybe_top,
+      const base::optional<float>& maybe_bottom,
+      const base::optional<float>& maybe_height,
+      const base::optional<float>& maybe_margin_top,
+      const base::optional<float>& maybe_margin_bottom,
+      const FormattingContext& formatting_context);
+
+  void UpdateWidthAssumingBlockLevelInFlowBox(
+      float containing_block_width, const base::optional<float>& maybe_width,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right);
+  void UpdateWidthAssumingInlineLevelInFlowBox(
+      float containing_block_width, const base::optional<float>& maybe_width,
+      const base::optional<float>& maybe_margin_left,
+      const base::optional<float>& maybe_margin_right,
+      const base::optional<float>& maybe_height);
+
+  void UpdateHeightAssumingInFlowBox(
+      const base::optional<float>& maybe_height,
+      const base::optional<float>& maybe_margin_top,
+      const base::optional<float>& maybe_margin_bottom,
+      const FormattingContext& formatting_context);
+
+  float GetShrinkToFitWidth(float containing_block_width,
+                            const base::optional<float>& maybe_height);
 
   // A vertical offset of the baseline of the last child box that has one,
   // relatively to the origin of the block container box. Disengaged, if none
