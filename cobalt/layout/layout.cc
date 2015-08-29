@@ -102,7 +102,7 @@ RenderTreeWithAnimations Layout(
     TRACE_EVENT0("cobalt::layout", "UpdateUsedSizes");
     initial_containing_block->set_left(0);
     initial_containing_block->set_top(0);
-    initial_containing_block->UpdateUsedSizeIfInvalid(LayoutParams());
+    initial_containing_block->UpdateSize(LayoutParams());
   }
 
   // Add to render tree.

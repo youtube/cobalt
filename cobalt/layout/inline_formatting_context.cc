@@ -36,7 +36,8 @@ InlineFormattingContext::~InlineFormattingContext() {}
 
 scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
     Box* child_box) {
-  DCHECK_EQ(Box::kInlineLevel, child_box->GetLevel());
+  DCHECK(child_box->GetLevel() == Box::kInlineLevel ||
+         child_box->IsAbsolutelyPositioned());
 
   scoped_ptr<Box> child_box_after_split;
   if (line_box_ &&

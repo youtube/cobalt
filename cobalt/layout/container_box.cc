@@ -75,11 +75,14 @@ void ContainerBox::MoveChildrenFrom(
   // Setup any link relationships given our new parent.
   for (ChildBoxes::const_iterator iter = source_start; iter != source_end;
        ++iter) {
-    DCHECK_NE(this, (*iter)->parent())
+    Box* child_box = *iter;
+    DCHECK_NE(this, child_box->parent())
         << "Move children within the same container node is not supported by "
            "this method.";
-    (*iter)->parent_ = NULL;
-    OnChildAdded(*iter);
+
+    child_box->parent_ = NULL;
+    child_box->containing_block_ = NULL;
+    OnChildAdded(child_box);
   }
 
   // Erase the children from their previous container's list of children.
@@ -89,7 +92,10 @@ void ContainerBox::MoveChildrenFrom(
 
 void ContainerBox::OnChildAdded(Box* child_box) {
   DCHECK(!child_box->parent());
+  DCHECK(!child_box->containing_block());
+
   child_box->parent_ = this;
+  child_box->containing_block_ = this;
 }
 
 // Returns true if the given style allows a container box to act as a containing
@@ -133,58 +139,74 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
 }
 
 namespace {
-math::PointF GetUsedPositionRelativeToAncestor(Box* box,
-                                               const ContainerBox* ancestor) {
-  math::PointF relative_position;
-  Box* current_box = box;
-  while (current_box != ancestor) {
-    DCHECK(current_box) << "Unable to find ancestor while traversing parents.";
+
+math::Vector2dF GetOffsetFromContainingBlock(Box* child_box) {
+  math::Vector2dF relative_position;
+  for (Box* ancestor_box = child_box->parent(),
+            *containing_block = child_box->containing_block();
+       ancestor_box != containing_block;
+       ancestor_box = ancestor_box->parent()) {
+    DCHECK(ancestor_box)
+        << "Unable to find containing block while traversing parents.";
     // We should not determine a used position through a transform, as
     // rectangles may not remain rectangles past it, and thus obtaining
     // a position may be misleading.
     DCHECK_EQ(cssom::KeywordValue::GetNone(),
-              current_box->computed_style()->transform());
-    relative_position += current_box->margin_box_offset_from_containing_block()
-                             .OffsetFromOrigin();
-    current_box = current_box->parent();
-  }
+              ancestor_box->computed_style()->transform());
 
+    relative_position += ancestor_box->GetContentBoxOffsetFromMarginBox();
+    relative_position += ancestor_box->margin_box_offset_from_containing_block()
+                             .OffsetFromOrigin();
+  }
   return relative_position;
 }
+
 }  // namespace
 
-void ContainerBox::UpdateUsedSizeOfPositionedChildren(
-    const LayoutParams& layout_params) {
-  LayoutParams child_layout_params = layout_params;
+void ContainerBox::UpdateRectOfPositionedChildBoxes(
+    const LayoutParams& child_layout_params) {
+  for (ChildBoxes::const_iterator child_box_iterator =
+           positioned_child_boxes_.begin();
+       child_box_iterator != positioned_child_boxes_.end();
+       ++child_box_iterator) {
+    Box* child_box = *child_box_iterator;
 
-  // Compute sizes for positioned children with invalidated sizes.
-  for (ChildBoxes::const_iterator iter = positioned_child_boxes_.begin();
-       iter != positioned_child_boxes_.end(); ++iter) {
-    Box* child_box = *iter;
+    DCHECK_EQ(this, child_box->containing_block());
+    math::Vector2dF static_position_offset =
+        GetOffsetFromContainingBlock(child_box);
+    child_box->set_left(child_box->left() + static_position_offset.x());
+    child_box->set_top(child_box->top() + static_position_offset.y());
 
-    child_box->UpdateUsedSizeIfInvalid(child_layout_params);
-    math::PointF static_position =
-        GetUsedPositionRelativeToAncestor(child_box->parent(), this) +
-        child_box->margin_box_offset_from_containing_block().OffsetFromOrigin();
-
-    UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
-        width(), *child_box->computed_style());
-    horizontal_metrics.size = child_box->width();
-    horizontal_metrics.ResolveConstraints(width());
-    child_box->set_left(horizontal_metrics.start_offset
-                            ? *horizontal_metrics.start_offset
-                            : static_position.x());
-
-
-    UsedBoxMetrics vertical_metrics =
-        UsedBoxMetrics::ComputeVertical(height(), *child_box->computed_style());
-    vertical_metrics.size = child_box->height();
-    vertical_metrics.ResolveConstraints(height());
-    child_box->set_top(vertical_metrics.start_offset
-                           ? *vertical_metrics.start_offset
-                           : static_position.y());
+    child_box->UpdateSize(child_layout_params);
   }
 }
+
+namespace {
+
+math::Vector2dF GetOffsetFromStackingContext(Box* child_box) {
+  math::Vector2dF relative_position;
+  for (Box* containing_block = child_box->containing_block(),
+            *stacking_context = child_box->stacking_context();
+       containing_block != stacking_context;
+       containing_block = containing_block->containing_block()) {
+    DCHECK(containing_block) << "Unable to find stacking context while "
+                                "traversing containing blocks.";
+    // We should not determine a used position through a transform, as
+    // rectangles may not remain rectangles past it, and thus obtaining
+    // a position may be misleading.
+    DCHECK_EQ(cssom::KeywordValue::GetNone(),
+              containing_block->computed_style()->transform());
+
+    relative_position += containing_block->GetContentBoxOffsetFromMarginBox();
+    relative_position +=
+        containing_block->margin_box_offset_from_containing_block()
+            .OffsetFromOrigin();
+  }
+  return relative_position;
+}
+
+}  // namespace
+
 
 void ContainerBox::RenderAndAnimateStackingContextChildren(
     const ZIndexSortedList& z_index_child_list,
@@ -195,8 +217,9 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
   for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
        iter != z_index_child_list.end(); ++iter) {
     Box* child_box = *iter;
-    math::PointF position_offset =
-        GetUsedPositionRelativeToAncestor(child_box->containing_block(), this);
+
+    DCHECK_EQ(this, child_box->stacking_context());
+    math::Vector2dF position_offset = GetOffsetFromStackingContext(child_box);
 
     if (position_offset.x() == 0.0f && position_offset.y() == 0.0f) {
       // If there is no offset between the child box's containing block

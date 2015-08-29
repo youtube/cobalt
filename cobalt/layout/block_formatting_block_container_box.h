@@ -47,16 +47,11 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
   void DumpClassName(std::ostream* stream) const OVERRIDE;
 
   // From |BlockContainerBox|.
-  float GetUsedWidthBasedOnContainingBlock(
-      float containing_block_width, bool* width_depends_on_containing_block,
-      bool* width_depends_on_child_boxes) const OVERRIDE;
-  float GetUsedHeightBasedOnContainingBlock(
-      float containing_block_height,
-      bool* height_depends_on_child_boxes) const OVERRIDE;
-  scoped_ptr<FormattingContext> UpdateUsedRectOfChildren(
+  scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
       const LayoutParams& child_layout_params) OVERRIDE;
 
  private:
+  AnonymousBlockBox* GetLastChildAsAnonymousBlockBox();
   AnonymousBlockBox* GetOrAddAnonymousBlockBox();
 };
 
