@@ -24,12 +24,13 @@ namespace dom {
 HTMLElementContext::HTMLElementContext(
     loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::WebMediaPlayerFactory* web_media_player_factory,
-    script::ScriptRunner* script_runner)
+    script::ScriptRunner* script_runner, loader::ImageCache* image_cache)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
+      image_cache_(image_cache),
       html_element_factory_(new HTMLElementFactory()) {}
 
 HTMLElementContext::~HTMLElementContext() {}

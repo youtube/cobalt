@@ -29,6 +29,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/pseudo_element.h"
+#include "cobalt/loader/image_cache.h"
 
 namespace cobalt {
 namespace dom {
@@ -64,6 +65,8 @@ enum PseudoElementType {
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
+  typedef std::vector<scoped_refptr<loader::CachedImage> > CachedImageVector;
+
   // Web API: HTMLElement
   //
   scoped_refptr<DOMStringMap> dataset();
@@ -170,6 +173,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   scoped_refptr<DOMStringMap> dataset_;
+
+  // |cached_background_images_| is a list of CachedImage references for all
+  // images referenced by the computed value for the background_image CSS
+  // property. We maintain it here to indicate to the resource caching system
+  // that the images are currently in-use, and should not be purged.
+  CachedImageVector cached_background_images_;
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.

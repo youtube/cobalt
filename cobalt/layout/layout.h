@@ -54,7 +54,7 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
-    icu::BreakIterator* line_break_iterator, loader::ImageCache* image_cache);
+    icu::BreakIterator* line_break_iterator);
 
 }  // namespace layout
 }  // namespace cobalt

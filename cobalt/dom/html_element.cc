@@ -19,10 +19,13 @@
 #include <sstream>
 
 #include "base/message_loop.h"
+#include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
@@ -220,6 +223,33 @@ PromoteMatchingRulesToComputedStyle(
   // Cache the results of the computed style calculation.
 }
 
+void UpdateCachedBackgroundImages(
+    const scoped_refptr<cssom::PropertyValue>& background_image,
+    loader::ImageCache* image_cache,
+    HTMLElement::CachedImageVector* cached_background_images) {
+  if (background_image != cssom::KeywordValue::GetNone()) {
+    cssom::PropertyListValue* property_list_value =
+        base::polymorphic_downcast<cssom::PropertyListValue*>(
+            background_image.get());
+
+    HTMLElement::CachedImageVector cached_images;
+    cached_images.reserve(property_list_value->value().size());
+
+    for (size_t i = 0; i < property_list_value->value().size(); ++i) {
+      // TODO(***REMOVED***): Using visitors when linear gradient is supported.
+      cssom::AbsoluteURLValue* absolute_url =
+          base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
+              property_list_value->value()[i].get());
+      if (absolute_url->value().is_valid()) {
+        cached_images.push_back(
+            image_cache->CreateCachedImage(absolute_url->value()));
+      }
+    }
+
+    *cached_background_images = cached_images;
+  }
+}
+
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -242,12 +272,19 @@ void HTMLElement::UpdateComputedStyle(
       parent_computed_style, style_change_event_time, transitions(),
       computed_style());
 
+  // Update cached background images after resolving the urls in
+  // background_image CSS property of the computed style, so we have all the
+  // information to get the cached background images.
+  UpdateCachedBackgroundImages(computed_style_->background_image(),
+                               html_element_context()->image_cache(),
+                               &cached_background_images_);
+
   // Promote the matching rules for all known pseudo elements.
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
       scoped_refptr<cssom::CSSStyleDeclarationData>
-          pseudo_elemnent_computed_style = PromoteMatchingRulesToComputedStyle(
+          pseudo_element_computed_style = PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
               &property_name_to_base_url_map, style_->data(), computed_style_,
               style_change_event_time,
@@ -255,7 +292,7 @@ void HTMLElement::UpdateComputedStyle(
               pseudo_elements_[pseudo_element_type]->computed_style());
 
       pseudo_elements_[pseudo_element_type]->set_computed_style(
-          pseudo_elemnent_computed_style);
+          pseudo_element_computed_style);
     }
   }
   computed_style_valid_ = true;
