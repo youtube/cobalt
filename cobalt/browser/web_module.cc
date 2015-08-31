@@ -94,18 +94,19 @@ WebModule::WebModule(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
       local_storage_database_(network_module->storage_manager()),
+      image_cache_(
+          new loader::ImageCache(resource_provider, fetcher_factory_.get())),
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-          &local_storage_database_, media_module, script_runner_.get(),
-          options.url, GetUserAgent(), error_callback)),
+          image_cache_.get(), &local_storage_database_, media_module,
+          script_runner_.get(), options.url, GetUserAgent(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),
       layout_manager_(window_.get(), resource_provider,
                       render_tree_produced_callback, css_parser_.get(),
-                      fetcher_factory_.get(), options.layout_trigger,
-                      layout_refresh_rate) {
+                      options.layout_trigger, layout_refresh_rate) {
   global_object_proxy_->CreateGlobalObject(window_,
                                            environment_settings_.get());
   window_->set_debug_hub(options.debug_hub);
