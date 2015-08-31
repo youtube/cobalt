@@ -22,6 +22,7 @@
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
+#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
@@ -37,7 +38,7 @@ RenderTreeWithAnimations Layout(
     const scoped_refptr<dom::Window>& window,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     render_tree::ResourceProvider* resource_provider,
-    icu::BreakIterator* line_break_iterator, loader::ImageCache* image_cache) {
+    icu::BreakIterator* line_break_iterator) {
   TRACE_EVENT0("cobalt::layout", "Layout()");
 
   scoped_refptr<dom::Document> document = window->document();
@@ -46,11 +47,11 @@ RenderTreeWithAnimations Layout(
   scoped_refptr<cssom::CSSStyleDeclarationData> initial_containing_block_style =
       CreateInitialContainingBlockComputedStyle(window);
 
-  document->UpdateComputedStyles(
-      initial_containing_block_style,
-      user_agent_style_sheet);
+  document->UpdateComputedStyles(initial_containing_block_style,
+                                 user_agent_style_sheet);
 
-  UsedStyleProvider used_style_provider(resource_provider, image_cache);
+  UsedStyleProvider used_style_provider(
+      resource_provider, document->html_element_context()->image_cache());
 
   // Create initial containing block.
   scoped_ptr<BlockLevelBlockContainerBox> initial_containing_block =

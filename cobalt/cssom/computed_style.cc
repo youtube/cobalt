@@ -591,8 +591,10 @@ void ComputedBackgroundImageProvider::VisitPropertyList(
   ComputedBackgroundImageSingleLayerProvider single_layer_provider(base_url_);
   for (size_t i = 0; i < property_list_value->value().size(); ++i) {
     property_list_value->value()[i]->Accept(&single_layer_provider);
-    if (single_layer_provider.computed_background_image()) {
-      builder->push_back(single_layer_provider.computed_background_image());
+    scoped_refptr<PropertyValue> computed_background_image =
+        single_layer_provider.computed_background_image();
+    if (computed_background_image) {
+      builder->push_back(computed_background_image);
     }
   }
 
