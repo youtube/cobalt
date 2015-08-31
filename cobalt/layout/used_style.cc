@@ -271,7 +271,7 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
     const GURL& url) const {
-  return image_cache_->TryGetImage(url);
+  return image_cache_->CreateCachedImage(url)->TryGetImage();
 }
 
 render_tree::ColorRGBA GetUsedColor(

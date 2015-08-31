@@ -35,7 +35,7 @@ class RuleMatchingTest : public ::testing::Test {
       : css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
-                              NULL),
+                              NULL, NULL),
         document_(new Document(&html_element_context_, Document::Options())),
         root_(new Element(document_)) {}
 

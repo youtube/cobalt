@@ -49,9 +49,8 @@ class LayoutManager {
   LayoutManager(const scoped_refptr<dom::Window>& window,
                 render_tree::ResourceProvider* resource_provider,
                 const OnRenderTreeProducedCallback& on_render_tree_produced,
-                cssom::CSSParser* css_parser,
-                loader::FetcherFactory* fetcher_factory,
-                LayoutTrigger layout_trigger, float layout_refresh_rate);
+                cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
+                float layout_refresh_rate);
   ~LayoutManager();
 
  private:
