@@ -36,8 +36,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   Impl(const scoped_refptr<dom::Window>& window,
        render_tree::ResourceProvider* resource_provider,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
-       cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
-       LayoutTrigger layout_trigger, float layout_refresh_rate);
+       cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
+       float layout_refresh_rate);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -45,7 +45,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void OnMutation() OVERRIDE;
 
  private:
-  void NotifyImageLoaded();
   void DoLayoutAndProduceRenderTree();
 
   const scoped_refptr<dom::Window> window_;
@@ -53,7 +52,6 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   render_tree::ResourceProvider* const resource_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet_;
-  const scoped_ptr<loader::ImageCache> image_cache_;
   const LayoutTrigger layout_trigger_;
 
   // This flag indicates whether or not we should do a re-layout.  The flag
@@ -102,17 +100,13 @@ LayoutManager::Impl::Impl(
     const scoped_refptr<dom::Window>& window,
     render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
-    LayoutTrigger layout_trigger, float layout_refresh_rate)
+    cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
+    float layout_refresh_rate)
     : window_(window),
       document_(window->document()),
       resource_provider_(resource_provider),
       on_render_tree_produced_callback_(on_render_tree_produced),
       user_agent_style_sheet_(ParseUserAgentStyleSheet(css_parser)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(image_cache_(new loader::ImageCache(
-          resource_provider_, fetcher_factory,
-          base::Bind(&LayoutManager::Impl::NotifyImageLoaded,
-                     base::Unretained(this))))),
       layout_trigger_(layout_trigger),
       layout_dirty_(false),
       layout_timer_(true, true) {
@@ -152,12 +146,6 @@ void LayoutManager::Impl::OnMutation() {
   }
 }
 
-void LayoutManager::Impl::NotifyImageLoaded() {
-  if (layout_trigger_ == kOnDocumentMutation) {
-    layout_dirty_ = true;
-  }
-}
-
 void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
   TRACE_EVENT0("cobalt::layout",
                "LayoutManager::Impl::DoLayoutAndProduceRenderTree()");
@@ -189,7 +177,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
     RenderTreeWithAnimations render_tree_with_animations =
         layout::Layout(window_, user_agent_style_sheet_, resource_provider_,
-                       line_break_iterator_.get(), image_cache_.get());
+                       line_break_iterator_.get());
     on_render_tree_produced_callback_.Run(
         render_tree_with_animations.render_tree,
         render_tree_with_animations.animations);
@@ -204,11 +192,10 @@ LayoutManager::LayoutManager(
     const scoped_refptr<dom::Window>& window,
     render_tree::ResourceProvider* resource_provider,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    cssom::CSSParser* css_parser, loader::FetcherFactory* fetcher_factory,
-    LayoutTrigger layout_trigger, float layout_refresh_rate)
+    cssom::CSSParser* css_parser, LayoutTrigger layout_trigger,
+    float layout_refresh_rate)
     : impl_(new Impl(window, resource_provider, on_render_tree_produced,
-                     css_parser, fetcher_factory, layout_trigger,
-                     layout_refresh_rate)) {}
+                     css_parser, layout_trigger, layout_refresh_rate)) {}
 
 LayoutManager::~LayoutManager() {}
 

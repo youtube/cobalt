@@ -50,7 +50,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
         dom_parser_(new dom_parser::Parser()),
         html_element_context_(&fetcher_factory_, &stub_css_parser_, dom_parser_,
                               NULL /* web_media_player_factory */,
-                              &stub_script_runner_),
+                              &stub_script_runner_, NULL /* image_cache */),
         document_(new Document(&html_element_context_, Document::Options())) {}
   ~HTMLElementFactoryTest() OVERRIDE {}
 

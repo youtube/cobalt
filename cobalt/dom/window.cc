@@ -52,6 +52,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 
 Window::Window(int width, int height, cssom::CSSParser* css_parser,
                Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
+               loader::ImageCache* image_cache,
                LocalStorageDatabase* local_storage_database,
                media::WebMediaPlayerFactory* web_media_player_factory,
                script::ScriptRunner* script_runner, const GURL& url,
@@ -59,9 +60,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                const base::Callback<void(const std::string&)>& error_callback)
     : width_(width),
       height_(height),
-      html_element_context_(
-          new HTMLElementContext(fetcher_factory, css_parser, dom_parser,
-                                 web_media_player_factory, script_runner)),
+      html_element_context_(new HTMLElementContext(
+          fetcher_factory, css_parser, dom_parser, web_media_player_factory,
+          script_runner, image_cache)),
       document_(
           new Document(html_element_context_.get(), Document::Options(url))),
       document_loader_(new loader::Loader(

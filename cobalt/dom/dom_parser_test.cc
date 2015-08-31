@@ -48,9 +48,10 @@ class DOMParserTest : public ::testing::Test {
 DOMParserTest::DOMParserTest()
     : fetcher_factory_(NULL /* network_module */),
       dom_parser_parser_(new dom_parser::Parser()),
-      html_element_context_(
-          &fetcher_factory_, &stub_css_parser_, dom_parser_parser_,
-          NULL /* web_media_player_factory */, &stub_script_runner_),
+      html_element_context_(&fetcher_factory_, &stub_css_parser_,
+                            dom_parser_parser_,
+                            NULL /* web_media_player_factory */,
+                            &stub_script_runner_, NULL /* image_cache */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {
