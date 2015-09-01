@@ -56,4 +56,6 @@ interface CSSStyleDeclaration {
 
   DOMString getPropertyValue(DOMString property);
   void setPropertyValue(DOMString property, DOMString value);
+
+  readonly attribute CSSRule? parentRule;
 };

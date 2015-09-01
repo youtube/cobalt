@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-interface CSSRuleList {
+// An object that implements the MediaList interface has an associated
+// collection of media queries.
+//   http://www.w3.org/TR/cssom/#medialist
+[ArrayClass]
+interface MediaList {
+  attribute DOMString mediaText;
   readonly attribute unsigned long length;
-  getter CSSRule? item(unsigned long index);
+  getter DOMString? item(unsigned long index);
 };

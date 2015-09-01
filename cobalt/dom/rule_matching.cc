@@ -350,6 +350,9 @@ void GetMatchingRulesFromStyleSheet(
   // cssom::CascadePriority should not be kNormal(.*) but kImportant${1}
 
   DCHECK(element->matching_rules());
+
+  style_sheet->MaybeUpdateRuleIndexes();
+
   // Add candidate rules according to class name.
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   for (unsigned int index = 0; index < class_list->length(); ++index) {

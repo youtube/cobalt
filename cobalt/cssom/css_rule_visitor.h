@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,29 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/style_sheet_list.h"
-
-#include "cobalt/cssom/css_style_sheet.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#ifndef CSSOM_CSS_RULE_VISITOR_H_
+#define CSSOM_CSS_RULE_VISITOR_H_
 
 namespace cobalt {
 namespace cssom {
 
-TEST(StyleSheetListTest, ItemAccess) {
-  scoped_refptr<StyleSheetList> style_sheet_list = new StyleSheetList(NULL);
-  ASSERT_EQ(0, style_sheet_list->length());
-  ASSERT_FALSE(style_sheet_list->Item(0).get());
+class CSSStyleRule;
+class CSSMediaRule;
 
-  scoped_refptr<CSSStyleSheet> style_sheet = new CSSStyleSheet();
-  style_sheet_list->Append(style_sheet);
-  ASSERT_EQ(1, style_sheet_list->length());
-  ASSERT_EQ(style_sheet, style_sheet_list->Item(0));
-  ASSERT_FALSE(style_sheet_list->Item(1).get());
-}
+// Type-safe branching on a class hierarchy of CSS selectors,
+// implemented after a classical GoF pattern (see
+// http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
+class CSSRuleVisitor {
+ public:
+  // Simple selectors.
+  virtual void VisitCSSStyleRule(CSSStyleRule* css_style_rule) = 0;
+  virtual void VisitCSSMediaRule(CSSMediaRule* css_media_rule) = 0;
+
+ protected:
+  ~CSSRuleVisitor() {}
+};
 
 }  // namespace cssom
 }  // namespace cobalt
+
+#endif  // CSSOM_CSS_RULE_VISITOR_H_

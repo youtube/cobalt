@@ -113,7 +113,7 @@ void SimpleAnalyzeEvent(const char* event_name, const char* parent_name,
             event->end_event()->timestamp() - event->begin_event().timestamp());
 
   if (parent_name) {
-    ASSERT_TRUE(event->parent() != NULL);
+    ASSERT_TRUE(event->parent());
     EXPECT_STREQ(parent_name, event->parent()->begin_event().name());
 
     // Test that we are one of our parents' children.

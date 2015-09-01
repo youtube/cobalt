@@ -24,6 +24,7 @@
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -58,9 +59,14 @@ class MockCSSParser : public CSSParser {
 
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
-  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {}
+  CSSStyleSheetTest()
+      : style_sheet_list_(new StyleSheetList(NULL)),
+        css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
+    css_style_sheet_->AttachToStyleSheetList(style_sheet_list_);
+  }
   ~CSSStyleSheetTest() OVERRIDE {}
 
+  const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
   MockCSSParser css_parser_;
 };
@@ -81,7 +87,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
 TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
   ASSERT_EQ(0, rule_list->length());
-  ASSERT_EQ(NULL, rule_list->Item(0).get());
+  ASSERT_FALSE(rule_list->Item(0).get());
 
   scoped_refptr<CSSStyleRule> rule =
       new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
@@ -89,7 +95,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   css_style_sheet_->set_css_rules(rule_list);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
-  ASSERT_EQ(NULL, rule_list->Item(1).get());
+  ASSERT_FALSE(rule_list->Item(1).get());
   ASSERT_EQ(rule_list, css_style_sheet_->css_rules());
 }
 

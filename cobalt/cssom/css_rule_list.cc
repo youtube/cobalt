@@ -20,17 +20,17 @@
 
 #include "base/logging.h"
 #include "cobalt/cssom/css_media_rule.h"
+#include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
 
-CSSRuleList::CSSRuleList() {}
+CSSRuleList::CSSRuleList() : parent_style_sheet_(NULL) {}
 
-scoped_refptr<CSSStyleRule> CSSRuleList::Item(unsigned int index) const {
-  // TODO(***REMOVED***): Make it possible to return CSSMediaRule objects (at their
-  // repective rule index), so that they can be enumerated using this function.
+scoped_refptr<CSSRule> CSSRuleList::Item(unsigned int index) const {
   return index < css_rules_.size() ? css_rules_[index] : NULL;
 }
 
@@ -39,8 +39,17 @@ unsigned int CSSRuleList::length() const {
   return static_cast<unsigned int>(css_rules_.size());
 }
 
-unsigned int CSSRuleList::InsertRule(
-    const scoped_refptr<CSSStyleRule>& css_rule, unsigned int index) {
+unsigned int CSSRuleList::InsertRule(const std::string& rule,
+                                     unsigned int index) {
+  DCHECK(parent_style_sheet_);
+  scoped_refptr<CSSStyleRule> css_rule =
+      parent_style_sheet_->css_parser()->ParseStyleRule(
+          rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
+
+  if (!css_rule) {
+    return 0;
+  }
+
   if (index > css_rules_.size()) {
     // TODO(***REMOVED***): Throw JS IndexSizeError.
     LOG(ERROR) << "IndexSizeError";
@@ -56,20 +65,35 @@ unsigned int CSSRuleList::InsertRule(
   }
 
   AppendCSSStyleRule(css_rule);
+  parent_style_sheet_->set_rule_indexes_dirty();
   return index;
 }
 
-void CSSRuleList::AttachToStyleSheet(StyleSheet* style_sheet) {
+void CSSRuleList::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
+  DCHECK(style_sheet);
+  parent_style_sheet_ = style_sheet;
   for (CSSRules::iterator it = css_rules_.begin(); it != css_rules_.end();
        ++it) {
-    (*it)->AttachToStyleSheet(style_sheet);
+    DCHECK(*it);
+    (*it)->AttachToCSSStyleSheet(style_sheet);
   }
 }
 
-// Appends a CSSMediaRule to the current style sheet.
+void CSSRuleList::AppendCSSStyleRule(
+    const scoped_refptr<CSSStyleRule>& css_style_rule) {
+  css_rules_.push_back(css_style_rule);
+}
+
 void CSSRuleList::AppendCSSMediaRule(
-    const scoped_refptr<CSSMediaRule>& /* css_media_rule */) {
-  NOTIMPLEMENTED();
+    const scoped_refptr<CSSMediaRule>& css_media_rule) {
+  css_rules_.push_back(css_media_rule);
+}
+
+void CSSRuleList::Accept(CSSRuleVisitor* visitor) {
+  for (CSSRules::const_iterator it = css_rules_.begin(); it != css_rules_.end();
+       ++it) {
+    (*it)->Accept(visitor);
+  }
 }
 
 CSSRuleList::~CSSRuleList() {}
