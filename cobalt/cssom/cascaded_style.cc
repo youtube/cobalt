@@ -16,9 +16,11 @@
 
 #include "cobalt/cssom/cascaded_style.h"
 
+#include <algorithm>
+
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/property_names.h"
-#include "cobalt/cssom/style_sheet.h"
+#include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
@@ -54,7 +56,7 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
 
       DCHECK(property_name_to_base_url_map);
       (*property_name_to_base_url_map)[kBackgroundImagePropertyName] =
-          rule_iterator->first->ParentStyleSheet()->LocationUrl();
+          rule_iterator->first->parent_style_sheet()->LocationUrl();
     }
     if (!style->background_position() &&
         declared_style->background_position()) {

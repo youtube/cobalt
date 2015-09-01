@@ -17,6 +17,7 @@
 #ifndef CSSOM_CSS_STYLE_RULE_H_
 #define CSSOM_CSS_STYLE_RULE_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -36,18 +37,26 @@ class StyleSheet;
 //   http://dev.w3.org/csswg/cssom/#the-cssstylerule-interface
 class CSSStyleRule : public CSSRule {
  public:
+  CSSStyleRule();
   CSSStyleRule(Selectors selectors,
                const scoped_refptr<CSSStyleDeclaration>& style);
 
   // Web API: CSSStyleRule
   const scoped_refptr<CSSStyleDeclaration>& style() const;
 
+  // Web API: CSSRule
+  //
+
+  Type type() const OVERRIDE { return kStyleRule; }
+  std::string css_text() const OVERRIDE;
+  void set_css_text(const std::string& css_text) OVERRIDE;
+
   // Custom, not in any spec.
   //
 
   // From CSSRule.
-  void AttachToStyleSheet(StyleSheet* style_sheet) OVERRIDE;
-  StyleSheet* ParentStyleSheet() OVERRIDE { return parent_style_sheet_; }
+  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
   const Selectors& selectors() const { return selectors_; }
 
@@ -58,7 +67,6 @@ class CSSStyleRule : public CSSRule {
 
   Selectors selectors_;
   scoped_refptr<CSSStyleDeclaration> style_;
-  StyleSheet* parent_style_sheet_;
 };
 
 typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;

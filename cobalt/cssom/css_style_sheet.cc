@@ -23,9 +23,14 @@
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
+#include "cobalt/cssom/css_condition_rule.h"
+#include "cobalt/cssom/css_grouping_rule.h"
+#include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_list.h"
+#include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
@@ -35,16 +40,46 @@
 
 namespace cobalt {
 namespace cssom {
+namespace {
 
 //////////////////////////////////////////////////////////////////////////
-// CSSStyleSheet::RuleIndexer
+// MediaRuleUpdater
+//////////////////////////////////////////////////////////////////////////
+
+class MediaRuleUpdater : public cssom::CSSRuleVisitor {
+ public:
+  MediaRuleUpdater() : any_condition_value_changed_(false) {}
+
+  void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
+    UNREFERENCED_PARAMETER(css_style_rule);
+    // Do nothing.
+  }
+
+  void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
+    bool condition_value_changed = css_media_rule->EvaluateConditionValue();
+    any_condition_value_changed_ |= condition_value_changed;
+  }
+
+  bool AnyConditionValueChanged() { return any_condition_value_changed_; }
+
+ private:
+  bool any_condition_value_changed_;
+
+  DISALLOW_COPY_AND_ASSIGN(MediaRuleUpdater);
+};
+
+}  // namespace
+
+//////////////////////////////////////////////////////////////////////////
+// CSSStyleSheet::CSSStyleRuleIndexer
 //////////////////////////////////////////////////////////////////////////
 
 // This class is used to index the css style rules according to the simple
 // selectors in the last compound selector.
-class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
+class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
  public:
-  RuleIndexer(CSSStyleRule* css_style_rule, CSSStyleSheet* css_style_sheet)
+  CSSStyleRuleIndexer(CSSStyleRule* css_style_rule,
+                      CSSStyleSheet* css_style_sheet)
       : css_style_rule_(css_style_rule), css_style_sheet_(css_style_sheet) {}
 
   void VisitAfterPseudoElement(
@@ -100,7 +135,44 @@ class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
   CSSStyleRule* css_style_rule_;
   CSSStyleSheet* css_style_sheet_;
 
-  DISALLOW_COPY_AND_ASSIGN(RuleIndexer);
+  DISALLOW_COPY_AND_ASSIGN(CSSStyleRuleIndexer);
+};
+
+//////////////////////////////////////////////////////////////////////////
+// CSSStyleSheet::CSSRuleIndexer
+//////////////////////////////////////////////////////////////////////////
+
+class CSSStyleSheet::CSSRuleIndexer : public cssom::CSSRuleVisitor {
+ public:
+  explicit CSSRuleIndexer(CSSStyleSheet* css_style_sheet)
+      : next_css_rule_priority_index_(0), css_style_sheet_(css_style_sheet) {}
+
+  void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
+    css_style_rule->set_index(next_css_rule_priority_index_++);
+    for (Selectors::const_iterator it = css_style_rule->selectors().begin();
+         it != css_style_rule->selectors().end(); ++it) {
+      CSSStyleSheet::CSSStyleRuleIndexer rule_indexer(css_style_rule,
+                                                      css_style_sheet_);
+      (*it)->Accept(&rule_indexer);
+    }
+  }
+
+  void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
+    css_media_rule->set_index(next_css_rule_priority_index_++);
+    if (css_media_rule->GetCachedConditionValue()) {
+      css_media_rule->css_rules()->Accept(this);
+    }
+  }
+
+ private:
+  // The priority index to be used for the next appended CSS Rule.
+  // This is used for the Appearance parameter of the CascadePriority.
+  //   http://www.w3.org/TR/css-cascade-3/#cascade-order
+  int next_css_rule_priority_index_;
+
+  CSSStyleSheet* css_style_sheet_;
+
+  DISALLOW_COPY_AND_ASSIGN(CSSRuleIndexer);
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -110,57 +182,38 @@ class CSSStyleSheet::RuleIndexer : public SelectorVisitor {
 CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL),
       css_parser_(NULL),
-      next_css_rule_priority_index_(0) {}
+      rule_indexes_dirty_(false) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
     : parent_style_sheet_list_(NULL),
       css_parser_(css_parser),
-      next_css_rule_priority_index_(0) {}
+      rule_indexes_dirty_(false) {}
 
 void CSSStyleSheet::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
   css_rule_list_ = css_rule_list;
   if (parent_style_sheet_list_ && css_rule_list_) {
-    css_rule_list_->AttachToStyleSheet(this);
+    css_rule_list_->AttachToCSSStyleSheet(this);
   }
-  // Assign the priority index to each rule in the rule list, and index the
-  // rules by selectors.
-  CSSRules const* css_rules = css_rule_list_->css_rules();
-  for (CSSRules::const_iterator rule_it = css_rules->begin();
-       rule_it != css_rules->end(); ++rule_it) {
-    const scoped_refptr<CSSStyleRule>& css_style_rule = *rule_it;
-    css_style_rule->set_index(next_css_rule_priority_index_++);
-    for (Selectors::const_iterator it = css_style_rule->selectors().begin();
-         it != css_style_rule->selectors().end(); ++it) {
-      RuleIndexer rule_indexer(css_style_rule, this);
-      (*it)->Accept(&rule_indexer);
-    }
-  }
+  rule_indexes_dirty_ = true;
 }
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (!css_rule_list_) {
-    css_rule_list_ = new CSSRuleList();
+    set_css_rules(new CSSRuleList());
   }
   return css_rule_list_;
 }
 
 unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
                                        unsigned int index) {
-  scoped_refptr<CSSStyleRule> css_rule = css_parser_->ParseStyleRule(
-      rule, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
-
-  if (!css_rule) {
-    return 0;
-  }
-
-  return css_rule_list_->InsertRule(css_rule, index);
+  return css_rules()->InsertRule(rule, index);
 }
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   parent_style_sheet_list_ = style_sheet_list;
   if (css_rule_list_) {
-    css_rule_list_->AttachToStyleSheet(this);
+    css_rule_list_->AttachToCSSStyleSheet(this);
   }
 }
 
@@ -170,6 +223,22 @@ GURL& CSSStyleSheet::LocationUrl() { return location_url_; }
 
 StyleSheetList* CSSStyleSheet::ParentStyleSheetList() {
   return parent_style_sheet_list_;
+}
+
+void CSSStyleSheet::MaybeUpdateRuleIndexes() {
+  if (rule_indexes_dirty_) {
+    CSSRuleIndexer rule_indexer(this);
+    css_rule_list_->Accept(&rule_indexer);
+    rule_indexes_dirty_ = false;
+  }
+}
+
+void CSSStyleSheet::OnMediaFeatureChanged() {
+  MediaRuleUpdater media_rule_updater;
+  css_rule_list_->Accept(&media_rule_updater);
+  if (media_rule_updater.AnyConditionValueChanged()) {
+    rule_indexes_dirty_ = true;
+  }
 }
 
 CSSStyleSheet::~CSSStyleSheet() {}

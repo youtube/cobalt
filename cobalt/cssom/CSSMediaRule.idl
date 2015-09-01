@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-interface CSSRuleList {
-  readonly attribute unsigned long length;
-  getter CSSRule? item(unsigned long index);
+// The CSSMediaRule interface represents a ‘@media’ rule.
+//   http://www.w3.org/TR/css3-conditional/#cssmediarule
+interface CSSMediaRule : CSSConditionRule {
+  [SameObject] readonly attribute MediaList media;
+
 };

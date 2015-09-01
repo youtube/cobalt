@@ -181,10 +181,14 @@ TEST_F(ParserTest, ParsesClassSelector) {
       parser_.ParseStyleSheet(".my-class {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -204,10 +208,14 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
       parser_.ParseStyleSheet(":after {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -227,10 +235,14 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
       parser_.ParseStyleSheet("::after {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -250,10 +262,14 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
       parser_.ParseStyleSheet(":before {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -273,10 +289,14 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
       parser_.ParseStyleSheet("::before {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -296,10 +316,14 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
       parser_.ParseStyleSheet(":empty {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -319,10 +343,14 @@ TEST_F(ParserTest, ParsesIdSelector) {
       parser_.ParseStyleSheet("#my-id {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -342,10 +370,14 @@ TEST_F(ParserTest, ParsesTypeSelector) {
       parser_.ParseStyleSheet("div {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -365,10 +397,14 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
       parser_.ParseStyleSheet("div.my-class {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   cssom::AdjacentSelector* adjacent_selector =
       complex_selector->last_selector();
@@ -392,10 +428,14 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
       parser_.ParseStyleSheet("div div {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::DescendantCombinator* descendant_combinator =
@@ -409,10 +449,14 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
       parser_.ParseStyleSheet("div ~ div {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   ASSERT_EQ(1, complex_selector->combinators().size());
   cssom::FollowingSiblingCombinator* following_sibling_combinator =
@@ -426,10 +470,14 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
       parser_.ParseStyleSheet("div > div {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =
@@ -447,10 +495,14 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
       parser_.ParseStyleSheet("div + div {}", source_location_);
 
   ASSERT_EQ(1, style_sheet->css_rules()->length());
-  ASSERT_EQ(1, style_sheet->css_rules()->Item(0)->selectors().size());
+  ASSERT_EQ(cssom::CSSRule::kStyleRule,
+            style_sheet->css_rules()->Item(0)->type());
+  cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
+      style_sheet->css_rules()->Item(0).get());
+  ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
-      dynamic_cast<cssom::ComplexSelector*>(const_cast<cssom::Selector*>(
-          style_sheet->css_rules()->Item(0)->selectors()[0]));
+      dynamic_cast<cssom::ComplexSelector*>(
+          const_cast<cssom::Selector*>(style_rule->selectors()[0]));
   ASSERT_TRUE(complex_selector);
   ASSERT_EQ(0, complex_selector->combinators().size());
   cssom::AdjacentSelector* adjacent_selector =

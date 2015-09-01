@@ -68,6 +68,23 @@ class CSSStyleSheet : public StyleSheet {
   GURL& LocationUrl() OVERRIDE;
   StyleSheetList* ParentStyleSheetList() OVERRIDE;
 
+  // If the rule indexes are dirty, as indicated by the rule_indexes_dirty flag,
+  // assign the priority index to each rule in the rule list, and index the
+  // rules by selectors.
+  void MaybeUpdateRuleIndexes();
+
+  // This should be called when there is a change in the set of active CSS rules
+  // for the style sheet. This can happen when a rule is added to or removed
+  // from the css_rule_list or when the css_rule_list is replaced. This can also
+  // happen when rules become active or inactive due to a change in the value of
+  // GetCachedConditionValue() of a CSSConditionRule derived rule.
+  void set_rule_indexes_dirty() { rule_indexes_dirty_ = true; }
+
+  // Should be called when a media feature may have changed, triggering a
+  // possible recalculation of the media rule expressions, and rules indexes.
+  // TODO(***REMOVED***): Call this when a media feature changes.
+  void OnMediaFeatureChanged();
+
   const StringToCSSRuleSetMap& class_selector_rules_map() const {
     return class_selector_rules_map_;
   }
@@ -81,10 +98,13 @@ class CSSStyleSheet : public StyleSheet {
     return empty_pseudo_class_rules_;
   }
 
+  CSSParser* css_parser() const { return css_parser_; }
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
-  class RuleIndexer;
+  class CSSStyleRuleIndexer;
+  class CSSRuleIndexer;
 
   ~CSSStyleSheet() OVERRIDE;
 
@@ -99,10 +119,7 @@ class CSSStyleSheet : public StyleSheet {
   CSSParser* const css_parser_;
   GURL location_url_;
 
-  // The priority index to be used for the next appended CSS Rule.
-  // This is used for the Appearance parameter of the CascadePriority.
-  //   http://www.w3.org/TR/css-cascade-3/#cascade-order
-  int next_css_rule_priority_index_;
+  bool rule_indexes_dirty_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

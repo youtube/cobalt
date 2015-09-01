@@ -25,7 +25,7 @@ class RefCountedDummy : public base::RefCounted<RefCountedDummy> {};
 
 TEST(RefCountedUtilTest, AddRefToNull) {
   RefCountedDummy* dummy_ptr = NULL;
-  ASSERT_EQ(NULL, AddRef(dummy_ptr));
+  ASSERT_FALSE(AddRef(dummy_ptr));
 }
 
 TEST(RefCountedUtilTest, AddRefToNonNull) {
@@ -39,7 +39,7 @@ TEST(RefCountedUtilTest, MakesScopedRefPtrFromNull) {
 
   scoped_refptr<RefCountedDummy> dummy_refptr =
       MakeScopedRefPtrAndRelease(dummy_ptr);
-  ASSERT_EQ(NULL, dummy_refptr.get());
+  ASSERT_FALSE(dummy_refptr.get());
 }
 
 TEST(RefCountedUtilTest, MakesScopedRefPtrFromNonNull) {

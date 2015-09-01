@@ -27,14 +27,33 @@ namespace cssom {
 
 MediaList::MediaList(CSSParser* css_parser) : css_parser_(css_parser) {}
 
-scoped_refptr<MediaQuery> MediaList::Item(unsigned int index) const {
-  return index < media_queries_.size() ? media_queries_[index] : NULL;
+std::string MediaList::media_text() const {
+  std::string media;
+  size_t mediaitem = 0;
+  while (true) {
+    media += media_queries_[mediaitem]->media_query();
+    if (++mediaitem < media_queries_.size())
+      media += ", ";
+    else
+      break;
+  }
+  return media;
+}
+
+void MediaList::set_media_text(const std::string& /* css_text */) {
+  // TODO(***REMOVED***): setting of MediaList from a string.
+  NOTIMPLEMENTED() << "MediaList media_text setting not implemented yet.";
 }
 
 // Returns the number of MediaQuery objects represented by the collection.
 unsigned int MediaList::length() const {
   CHECK_LE(media_queries_.size(), std::numeric_limits<unsigned int>::max());
   return static_cast<unsigned int>(media_queries_.size());
+}
+
+std::string MediaList::Item(unsigned int index) const {
+  return index < media_queries_.size() ? media_queries_[index]->media_query()
+                                       : "";
 }
 
 // Inserts a new media query string into the current style sheet. This Web API
