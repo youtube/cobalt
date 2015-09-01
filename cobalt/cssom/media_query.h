@@ -17,6 +17,7 @@
 #ifndef CSSOM_MEDIA_QUERY_H_
 #define CSSOM_MEDIA_QUERY_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -44,14 +45,21 @@ typedef std::vector<scoped_refptr<MediaFeature> > MediaFeatureList;
 //   http://www.w3.org/TR/css3-mediaqueries
 class MediaQuery : public script::Wrappable {
  public:
-  MediaQuery() {}
-  explicit MediaQuery(MediaType /* media_type */) {}
-  MediaQuery(MediaType /*media_type */,
-             MediaFeatureList* /* media_feature_list */) {}
+  MediaQuery();
+  explicit MediaQuery(MediaType media_type);
+  MediaQuery(MediaType media_type,
+             scoped_ptr<MediaFeatureList> media_feature_list);
+
+  // Custom, not in any spec.
+  //
+  std::string media_query();
 
   DEFINE_WRAPPABLE_TYPE(MediaQuery);
 
  private:
+  MediaType media_type_;
+  scoped_ptr<MediaFeatureList> media_feature_list_;
+
   DISALLOW_COPY_AND_ASSIGN(MediaQuery);
 };
 
