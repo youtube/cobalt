@@ -61,13 +61,15 @@ TEST(MediaListTest, ItemAccess) {
   MockCSSParser css_parser;
   scoped_refptr<MediaList> media_list = new MediaList(&css_parser);
   ASSERT_EQ(0, media_list->length());
-  ASSERT_TRUE(media_list->Item(0) == NULL);
+  ASSERT_TRUE(media_list->Item(0).empty());
 
-  scoped_refptr<MediaQuery> query = new MediaQuery();
+  scoped_refptr<MediaQuery> query = new MediaQuery(kAll);
   media_list->Append(query);
   ASSERT_EQ(1, media_list->length());
-  ASSERT_EQ(query, media_list->Item(0));
-  ASSERT_TRUE(media_list->Item(1) == NULL);
+  // The returned string is empty, because MediaQuery serialization is not
+  // implemented yet.
+  ASSERT_TRUE(media_list->Item(0).empty());
+  ASSERT_TRUE(media_list->Item(1).empty());
 }
 
 TEST(MediaListTest, AppendMedium) {

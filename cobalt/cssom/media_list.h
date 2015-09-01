@@ -40,13 +40,14 @@ class MediaList : public script::Wrappable {
 
   // Web API: MediaList
   //
-
-  // Returns the index-th MediaQuery object in the collection.
-  // Returns null if there is no index-th object in the collection.
-  scoped_refptr<MediaQuery> Item(unsigned int index) const;
+  std::string media_text() const;
+  void set_media_text(const std::string& css_text);
 
   // Returns the number of MediaQuery objects represented by the collection.
   unsigned int length() const;
+  // Returns the index-th MediaQuery object in the collection.
+  // Returns null if there is no index-th object in the collection.
+  std::string Item(unsigned int index) const;
 
   // Inserts a new media query string into the current style sheet. This Web API
   // takes a string as input and parses it into a MediaQuery.

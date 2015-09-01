@@ -819,7 +819,8 @@ media_query:
   }
   // @media (name:value)... {}
   | media_feature_list {
-    $$ = AddRef(new cssom::MediaQuery(cssom::kAll, $1));
+    scoped_ptr<cssom::MediaFeatureList> media_feature_list($1);
+    $$ = AddRef(new cssom::MediaQuery(cssom::kAll, media_feature_list.Pass()));
   }
   // @media mediatype {}
   | media_type maybe_whitespace {
@@ -828,7 +829,8 @@ media_query:
   // @media mediatype and (name:value)... {}
   | media_type maybe_whitespace kMediaAndToken maybe_whitespace
     media_feature_list {
-    $$ = AddRef(new cssom::MediaQuery($1, $5));
+    scoped_ptr<cssom::MediaFeatureList> media_feature_list($5);
+    $$ = AddRef(new cssom::MediaQuery($1, media_feature_list.Pass()));
   }
   // When an unknown media feature, an unknown media feature value, a malformed
   // media query, or unexpected tokens is found, the media query must be

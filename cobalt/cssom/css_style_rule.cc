@@ -16,22 +16,49 @@
 
 #include "cobalt/cssom/css_style_rule.h"
 
+#include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
 namespace cssom {
 
+CSSStyleRule::CSSStyleRule() {}
+
 CSSStyleRule::CSSStyleRule(Selectors selectors,
                            const scoped_refptr<CSSStyleDeclaration>& style)
-    : selectors_(selectors.Pass()), style_(style) {}
+    : selectors_(selectors.Pass()), style_(style) {
+  if (style_) {
+    style_->set_parent_rule(this);
+  }
+}
 
 const scoped_refptr<CSSStyleDeclaration>& CSSStyleRule::style() const {
   return style_;
 }
 
-void CSSStyleRule::AttachToStyleSheet(StyleSheet* style_sheet) {
-  parent_style_sheet_ = style_sheet;
-  style_->AttachToStyleSheet(style_sheet);
+std::string CSSStyleRule::css_text() const {
+  return style_ ? style_->css_text() : "";
+}
+
+void CSSStyleRule::set_css_text(const std::string& css_text) {
+  if (!style_) {
+    DCHECK(parent_style_sheet());
+    style_ = new CSSStyleDeclaration(parent_style_sheet()->css_parser());
+  }
+  style_->set_css_text(css_text);
+  style_->set_parent_rule(this);
+}
+
+void CSSStyleRule::Accept(CSSRuleVisitor* visitor) {
+  visitor->VisitCSSStyleRule(this);
+}
+
+void CSSStyleRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
+  set_parent_style_sheet(style_sheet);
+  if (style_) {
+    style_->AttachToCSSStyleSheet(style_sheet);
+  }
 }
 
 CSSStyleRule::~CSSStyleRule() {}

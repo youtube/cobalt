@@ -17,22 +17,22 @@
 #ifndef CSSOM_CSS_RULE_LIST_H_
 #define CSSOM_CSS_RULE_LIST_H_
 
+#include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/css_rule.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
 class CSSMediaRule;
+class CSSParser;
+class CSSRuleVisitor;
 class CSSStyleRule;
-class StyleSheet;
 class CSSStyleSheet;
-
-typedef std::vector<scoped_refptr<CSSStyleRule> > CSSRules;
 
 // The CSSRuleList interface represents an ordered collection of CSS
 // style rules.
@@ -47,28 +47,36 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
 
   // Returns the index-th CSSRule object in the collection.
   // Returns null if there is no index-th object in the collection.
-  scoped_refptr<CSSStyleRule> Item(unsigned int index) const;
+  scoped_refptr<CSSRule> Item(unsigned int index) const;
 
   // Returns the number of CSSRule objects represented by the collection.
   unsigned int length() const;
 
+  // Custom, not in any spec.
+  //
+
+  // The are common methods for the CSSRuleList member in CSSGroupingRule and
+  // CSSStyleSheet.
+
+  CSSStyleSheet* ParentCSSStyleSheet() { return parent_style_sheet_; }
+
   // Returns a read-only, live object representing the CSS rules.
   CSSRules const* css_rules() const { return &css_rules_; }
 
-  // Inserts a new rule to the list.
-  unsigned int InsertRule(const scoped_refptr<CSSStyleRule>& css_rule,
-                          unsigned int index);
+  // Inserts a new rule into the list. This is a Web API in CSSGroupingRule and
+  // CSSStyleSheet. It takes a string as input and parses it into a rule.
+  unsigned int InsertRule(const std::string& rule, unsigned int index);
 
   // From StyleSheet.
-  void AttachToStyleSheet(StyleSheet* style_sheet);
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet);
 
   // Appends a CSSStyleRule to the rule list.
-  void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule) {
-    css_rules_.push_back(css_style_rule);
-  }
+  void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule);
 
   // Appends a CSSMediaRule to the rule list.
   void AppendCSSMediaRule(const scoped_refptr<CSSMediaRule>& css_media_rule);
+
+  void Accept(CSSRuleVisitor* visitor);
 
   DEFINE_WRAPPABLE_TYPE(CSSRuleList);
 
@@ -76,6 +84,7 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   ~CSSRuleList();
 
   CSSRules css_rules_;
+  CSSStyleSheet* parent_style_sheet_;
 
   DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
 };

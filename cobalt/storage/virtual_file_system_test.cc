@@ -31,7 +31,7 @@ class VirtualFileSystemTest : public testing::Test {
 
 TEST_F(VirtualFileSystemTest, WriteAndRead) {
   VirtualFile* file = vfs_.Open("file1.tmp");
-  ASSERT_TRUE(file != NULL);
+  ASSERT_TRUE(file);
   EXPECT_EQ(0, file->Size());
 
   int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -45,7 +45,7 @@ TEST_F(VirtualFileSystemTest, WriteAndRead) {
 
 TEST_F(VirtualFileSystemTest, ReadWriteOffsets) {
   VirtualFile* file = vfs_.Open("file1.tmp");
-  ASSERT_TRUE(file != NULL);
+  ASSERT_TRUE(file);
   EXPECT_EQ(0, file->Size());
 
   char expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -84,7 +84,7 @@ TEST_F(VirtualFileSystemTest, ReadWriteOffsets) {
 TEST_F(VirtualFileSystemTest, Open) {
   // Create a few files and write some data
   VirtualFile* file = vfs_.Open("file1.tmp");
-  ASSERT_TRUE(file != NULL);
+  ASSERT_TRUE(file);
   EXPECT_EQ(0, file->Size());
 
   // Write a few bytes of random data.
@@ -93,12 +93,12 @@ TEST_F(VirtualFileSystemTest, Open) {
 
   // Open a new file
   file = vfs_.Open("file2.tmp");
-  ASSERT_TRUE(file != NULL);
+  ASSERT_TRUE(file);
   EXPECT_EQ(0, file->Size());
 
   // Try to reopen the existing file.
   file = vfs_.Open("file1.tmp");
-  ASSERT_TRUE(file != NULL);
+  ASSERT_TRUE(file);
   EXPECT_EQ(4, file->Size());
 }
 

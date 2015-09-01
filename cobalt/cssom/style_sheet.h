@@ -29,7 +29,8 @@ class StyleSheetList;
 
 // The StyleSheet interface represents an abstract, base style sheet.
 //   http://dev.w3.org/csswg/cssom/#the-stylesheet-interface
-class StyleSheet : public script::Wrappable {
+class StyleSheet : public script::Wrappable,
+                   public base::SupportsWeakPtr<StyleSheet> {
  public:
   virtual ~StyleSheet() {}
 
