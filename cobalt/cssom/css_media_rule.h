@@ -17,23 +17,57 @@
 #ifndef CSSOM_CSS_MEDIA_RULE_H_
 #define CSSOM_CSS_MEDIA_RULE_H_
 
-#include "cobalt/cssom/css_grouping_rule.h"
+#include <string>
+
+#include "cobalt/cssom/css_condition_rule.h"
 
 namespace cobalt {
 namespace cssom {
 
 class MediaList;
 class CSSRuleList;
+class CSSRuleVisitor;
 
 // The CSSMediaRule interface represents an @media at-rule.
 //   http://www.w3.org/TR/cssom/#the-cssmediarule-interface
-class CSSMediaRule : public CSSGroupingRule {
+class CSSMediaRule : public CSSConditionRule {
  public:
+  CSSMediaRule();
   CSSMediaRule(const scoped_refptr<MediaList>& media_list,
                const scoped_refptr<CSSRuleList>& css_rule_list);
 
+  // Web API: CSSMediaRule
+  //
+
+  // Returns a read-only, live object representing the CSS rules.
+  scoped_refptr<MediaList> media();
+
+  // Web API: CSSRule
+  //
+
+  Type type() const OVERRIDE { return kMediaRule; }
+  std::string css_text() const OVERRIDE;
+  void set_css_text(const std::string& css_text) OVERRIDE;
+
+  // Web API: CSSConditionRule
+  //
+
+  std::string condition_text() OVERRIDE;
+  void set_condition_text(const std::string& condition) OVERRIDE;
+
   // Custom, not in any spec.
   //
+
+  // From CSSConditionRule.
+
+  // Returns the cached result of evaluating the condition.
+  bool GetCachedConditionValue() OVERRIDE;
+
+  // Evaluates the condition expression and caches the resulting condition
+  // value. Returns true if the cached condition value has changed.
+  bool EvaluateConditionValue() OVERRIDE;
+
+  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(CSSMediaRule);
 

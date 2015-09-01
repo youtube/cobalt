@@ -87,9 +87,9 @@ TEST_F(RuleMatchingTest, DISABLED_AfterPseudoElementMatchGlobal) {
   MatchRules(root_->first_element_child());
   cssom::RulesWithCascadePriority *after_matching_rule =
       pseudo_element_matching_rules_[kAfterPseudoElementType];
-  ASSERT_TRUE(after_matching_rule != NULL);
+  ASSERT_TRUE(after_matching_rule);
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kBeforePseudoElementType]);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
   ASSERT_EQ(1, after_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*after_matching_rule)[0].first);
@@ -97,8 +97,8 @@ TEST_F(RuleMatchingTest, DISABLED_AfterPseudoElementMatchGlobal) {
   MatchRules(root_->last_element_child());
   after_matching_rule = pseudo_element_matching_rules_[kAfterPseudoElementType];
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kBeforePseudoElementType]);
-  ASSERT_TRUE(after_matching_rule != NULL);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
+  ASSERT_TRUE(after_matching_rule);
   ASSERT_EQ(1, after_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*after_matching_rule)[0].first);
@@ -114,8 +114,8 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorMatch) {
   cssom::RulesWithCascadePriority *after_matching_rule =
       pseudo_element_matching_rules_[kAfterPseudoElementType];
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kBeforePseudoElementType]);
-  ASSERT_TRUE(after_matching_rule != NULL);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
+  ASSERT_TRUE(after_matching_rule);
   ASSERT_EQ(1, after_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*after_matching_rule)[0].first);
@@ -129,8 +129,8 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorNoMatch) {
 
   MatchRules(root_->first_element_child());
   EXPECT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kAfterPseudoElementType]);
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kBeforePseudoElementType]);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kAfterPseudoElementType]);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
 }
 
 // :before should match <div/> and <span/>.
@@ -143,8 +143,8 @@ TEST_F(RuleMatchingTest, DISABLED_BeforePseudoElementMatchGlobal) {
   cssom::RulesWithCascadePriority *before_matching_rule =
       pseudo_element_matching_rules_[kBeforePseudoElementType];
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kAfterPseudoElementType]);
-  ASSERT_TRUE(before_matching_rule != NULL);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kAfterPseudoElementType]);
+  ASSERT_TRUE(before_matching_rule);
   ASSERT_EQ(1, before_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*before_matching_rule)[0].first);
@@ -153,8 +153,8 @@ TEST_F(RuleMatchingTest, DISABLED_BeforePseudoElementMatchGlobal) {
   before_matching_rule =
       pseudo_element_matching_rules_[kBeforePseudoElementType];
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kAfterPseudoElementType]);
-  ASSERT_TRUE(before_matching_rule != NULL);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kAfterPseudoElementType]);
+  ASSERT_TRUE(before_matching_rule);
   ASSERT_EQ(1, before_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*before_matching_rule)[0].first);
@@ -170,8 +170,8 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorMatch) {
   cssom::RulesWithCascadePriority *before_matching_rule =
       pseudo_element_matching_rules_[kBeforePseudoElementType];
   ASSERT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kAfterPseudoElementType]);
-  ASSERT_TRUE(before_matching_rule != NULL);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kAfterPseudoElementType]);
+  ASSERT_TRUE(before_matching_rule);
   ASSERT_EQ(1, before_matching_rule->size());
   EXPECT_EQ(style_sheet_->css_rules()->Item(0),
             (*before_matching_rule)[0].first);
@@ -185,8 +185,8 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorNoMatch) {
 
   MatchRules(root_->first_element_child());
   EXPECT_EQ(0, matching_rules_->size());
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kAfterPseudoElementType]);
-  ASSERT_EQ(NULL, pseudo_element_matching_rules_[kBeforePseudoElementType]);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kAfterPseudoElementType]);
+  ASSERT_FALSE(pseudo_element_matching_rules_[kBeforePseudoElementType]);
 }
 
 // .my-class should match <div class="my-class"/>.

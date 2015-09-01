@@ -19,18 +19,19 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
-#include "cobalt/cssom/css_parser.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
+#include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
 class CSSParser;
+class CSSRule;
+class CSSStyleSheet;
 class MutationObserver;
-class StyleSheet;
 
 // The CSSStyleDeclaration interface represents a CSS declaration block,
 // including its underlying state, where this underlying state depends
@@ -160,12 +161,18 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string css_text() const;
   void set_css_text(const std::string& css_text);
 
+  scoped_refptr<CSSRule> parent_rule() const { return parent_rule_.get(); }
+
   // Custom, not in any spec.
   //
 
+  void set_parent_rule(CSSRule* parent_rule) {
+    parent_rule_ = base::AsWeakPtr(parent_rule);
+  }
+
   scoped_refptr<const CSSStyleDeclarationData> data() { return data_; }
 
-  void AttachToStyleSheet(StyleSheet* style_sheet);
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet);
 
   void set_mutation_observer(MutationObserver* observer) {
     mutation_observer_ = observer;
@@ -180,6 +187,7 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   scoped_refptr<CSSStyleDeclarationData> data_;
 
+  base::WeakPtr<CSSRule> parent_rule_;
   CSSParser* const css_parser_;
   MutationObserver* mutation_observer_;
 };

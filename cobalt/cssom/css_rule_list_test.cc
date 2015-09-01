@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/css_rule_list.h"
 
+#include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,14 +27,36 @@ namespace cssom {
 TEST(CSSRuleListTest, ItemAccess) {
   scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
   ASSERT_EQ(0, rule_list->length());
-  ASSERT_TRUE(rule_list->Item(0) == NULL);
+  ASSERT_FALSE(rule_list->Item(0));
 
   scoped_refptr<CSSStyleRule> rule =
       new CSSStyleRule(Selectors(), new CSSStyleDeclaration(NULL));
   rule_list->AppendCSSStyleRule(rule);
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
-  ASSERT_TRUE(rule_list->Item(1) == NULL);
+  ASSERT_FALSE(rule_list->Item(1));
+}
+
+TEST(CSSRuleListTest, AppendCSSStyleRule) {
+  scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
+  scoped_refptr<CSSStyleRule> rule = new CSSStyleRule();
+  rule_list->AppendCSSStyleRule(rule);
+
+  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(CSSRule::kStyleRule, rule_list->Item(0)->type());
+  ASSERT_EQ(rule, rule_list->Item(0));
+  ASSERT_FALSE(rule_list->Item(1).get());
+}
+
+TEST(CSSRuleListTest, AppendCSSMediaRule) {
+  scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
+  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
+  rule_list->AppendCSSMediaRule(rule);
+
+  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(CSSRule::kMediaRule, rule_list->Item(0)->type());
+  ASSERT_EQ(rule, rule_list->Item(0));
+  ASSERT_FALSE(rule_list->Item(1).get());
 }
 
 }  // namespace cssom

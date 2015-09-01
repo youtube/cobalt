@@ -14,7 +14,19 @@
  * limitations under the License.
  */
 
-interface CSSRuleList {
-  readonly attribute unsigned long length;
-  getter CSSRule? item(unsigned long index);
-};
+#include "cobalt/cssom/css_condition_rule.h"
+
+namespace cobalt {
+namespace cssom {
+
+class CSSRuleList;
+
+CSSConditionRule::CSSConditionRule() {}
+
+CSSConditionRule::CSSConditionRule(
+    const scoped_refptr<CSSRuleList>& css_rule_list)
+    : CSSGroupingRule(css_rule_list) {}
+
+
+}  // namespace cssom
+}  // namespace cobalt

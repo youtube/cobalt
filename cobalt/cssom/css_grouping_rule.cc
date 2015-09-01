@@ -21,38 +21,38 @@
 namespace cobalt {
 namespace cssom {
 
-CSSGroupingRule::CSSGroupingRule() : parent_style_sheet_(NULL) {}
+CSSGroupingRule::CSSGroupingRule() {}
 
 CSSGroupingRule::CSSGroupingRule(
     const scoped_refptr<CSSRuleList>& css_rule_list)
     : css_rule_list_(css_rule_list) {}
 
-CSSGroupingRule::CSSGroupingRule(StyleSheet* parent_style_sheet)
-    : parent_style_sheet_(parent_style_sheet) {}
-
 void CSSGroupingRule::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
-  css_rule_list_ = css_rule_list;
-  if (parent_style_sheet_ && css_rule_list_) {
-    css_rule_list_->AttachToStyleSheet(parent_style_sheet_);
+  DCHECK(css_rule_list);
+  if (parent_style_sheet()) {
+    css_rule_list->AttachToCSSStyleSheet(parent_style_sheet());
   }
+  css_rule_list_ = css_rule_list;
 }
 
 scoped_refptr<CSSRuleList> CSSGroupingRule::css_rules() {
   if (!css_rule_list_) {
-    css_rule_list_ = new CSSRuleList();
+    set_css_rules(new CSSRuleList());
   }
   return css_rule_list_;
 }
 
-void CSSGroupingRule::AttachToStyleSheet(StyleSheet* style_sheet) {
-  parent_style_sheet_ = style_sheet;
-  css_rule_list_->AttachToStyleSheet(style_sheet);
+unsigned int CSSGroupingRule::InsertRule(const std::string& rule,
+                                         unsigned int index) {
+  return css_rules()->InsertRule(rule, index);
 }
 
-unsigned int CSSGroupingRule::InsertRule(
-    const scoped_refptr<CSSStyleRule>& css_rule, unsigned int index) {
-  return css_rule_list_->InsertRule(css_rule, index);
+void CSSGroupingRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
+  set_parent_style_sheet(style_sheet);
+  if (css_rule_list_) {
+    css_rule_list_->AttachToCSSStyleSheet(style_sheet);
+  }
 }
 
 CSSGroupingRule::~CSSGroupingRule() {}
