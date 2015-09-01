@@ -62,7 +62,7 @@ HTMLDecoderTest::HTMLDecoderTest()
       dom_parser_(new Parser()),
       html_element_context_(&fetcher_factory_, &stub_css_parser_, dom_parser_,
                             NULL /* web_media_player_factory */,
-                            &stub_script_runner_),
+                            &stub_script_runner_, NULL),
       document_(
           new dom::Document(&html_element_context_, dom::Document::Options())),
       root_(new dom::Element(document_)),
