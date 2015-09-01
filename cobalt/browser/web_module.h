@@ -106,6 +106,15 @@ class WebModule {
   // DOM (HTML / XML) parser.
   scoped_ptr<dom_parser::Parser> dom_parser_;
 
+  // FetcherFactory that is used to create a fetcher according to URL.
+  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+
+  // ImageCache that is used to manage image cache logic.
+  scoped_ptr<loader::ImageCache> image_cache_;
+
+  // Interface between LocalStorage and the Storage Manager.
+  dom::LocalStorageDatabase local_storage_database_;
+
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -115,15 +124,6 @@ class WebModule {
 
   // Interface for the document to execute JavaScript code.
   scoped_ptr<script::ScriptRunner> script_runner_;
-
-  // FetcherFactory that is used to create a fetcher according to URL.
-  scoped_ptr<loader::FetcherFactory> fetcher_factory_;
-
-  // Interface between LocalStorage and the Storage Manager.
-  dom::LocalStorageDatabase local_storage_database_;
-
-  // ImageCache that is used to manage image cache logic.
-  scoped_ptr<loader::ImageCache> image_cache_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;

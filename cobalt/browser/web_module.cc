@@ -88,14 +88,14 @@ WebModule::WebModule(
     const Options& options)
     : css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser(error_callback)),
+      fetcher_factory_(new loader::FetcherFactory(network_module)),
+      image_cache_(
+          new loader::ImageCache(resource_provider, fetcher_factory_.get())),
+      local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
-      fetcher_factory_(new loader::FetcherFactory(network_module)),
-      local_storage_database_(network_module->storage_manager()),
-      image_cache_(
-          new loader::ImageCache(resource_provider, fetcher_factory_.get())),
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
