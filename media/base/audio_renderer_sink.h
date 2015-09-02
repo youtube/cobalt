@@ -28,9 +28,9 @@ class MEDIA_EXPORT AudioRendererSink
     virtual int Render(AudioBus* dest, int audio_delay_milliseconds) = 0;
 
     // Synchronized audio I/O - see InitializeIO() below.
-    virtual void RenderIO(AudioBus* source,
-                          AudioBus* dest,
-                          int audio_delay_milliseconds) {}
+    virtual void RenderIO(AudioBus* /* source */,
+                          AudioBus* /* dest */,
+                          int /* audio_delay_milliseconds */) {}
 
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
@@ -64,9 +64,9 @@ class MEDIA_EXPORT AudioRendererSink
   // The callback's RenderIO() method will be called instead of Render(),
   // providing the synchronized input data at the same time as when new
   // output data is to be rendered.
-  virtual void InitializeIO(const AudioParameters& params,
-                            int input_channels,
-                            RenderCallback* callback) {}
+  virtual void InitializeIO(const AudioParameters& /* params */,
+                            int /* input_channels */,
+                            RenderCallback* /* callback */) {}
 
   // Starts audio playback.
   virtual void Start() = 0;

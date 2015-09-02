@@ -82,7 +82,10 @@
 #define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
 #define NON_EXPORTED_BASE(code) code
 #if !defined(UNREFERENCED_PARAMETER)
-#define UNREFERENCED_PARAMETER(x)
+#define UNREFERENCED_PARAMETER(x) \
+  do {                            \
+    (void)(x);                    \
+  } while (0)
 #endif
 #endif  // COMPILER_MSVC
 
