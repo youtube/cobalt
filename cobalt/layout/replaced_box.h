@@ -40,13 +40,14 @@ class ReplacedBox : public Box {
   ReplacedBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
-      const ReplaceImageCB& replace_image_cb,
       const UsedStyleProvider* used_style_provider,
-      const scoped_refptr<Paragraph>& paragraph, int32 text_position);
+      const ReplaceImageCB& replace_image_cb,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+      const base::optional<float>& maybe_intrinsic_width,
+      const base::optional<float>& maybe_intrinsic_height,
+      const base::optional<float>& maybe_intrinsic_ratio);
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
-
   scoped_ptr<Box> TrySplitAt(float available_width,
                              bool allow_overflow) OVERRIDE;
 
@@ -54,35 +55,35 @@ class ReplacedBox : public Box {
   scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
-  bool IsCollapsed() const OVERRIDE { return false; }
-  bool HasLeadingWhiteSpace() const OVERRIDE { return false; }
-  bool HasTrailingWhiteSpace() const OVERRIDE { return false; }
-  void CollapseLeadingWhiteSpace() OVERRIDE {}
-  void CollapseTrailingWhiteSpace() OVERRIDE {}
+  bool IsCollapsed() const OVERRIDE;
+  bool HasLeadingWhiteSpace() const OVERRIDE;
+  bool HasTrailingWhiteSpace() const OVERRIDE;
+  void CollapseLeadingWhiteSpace() OVERRIDE;
+  void CollapseTrailingWhiteSpace() OVERRIDE;
 
-  bool JustifiesLineExistence() const OVERRIDE { return true; }
-  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE {
-    return false;
-  }
+  bool JustifiesLineExistence() const OVERRIDE;
+  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetHeightAboveBaseline() const OVERRIDE;
 
  protected:
   typedef render_tree::CompositionNode::Builder NodeBuilder;
 
   // From |Box|.
-  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
-
   void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* composition_node_builder,
+      render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const OVERRIDE;
-  bool IsTransformable() const OVERRIDE { return false; }
 
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  bool IsTransformable() const OVERRIDE { return true; }
   void DumpProperties(std::ostream* stream) const OVERRIDE;
 
+  // TODO(***REMOVED***): Make private.
+  const base::optional<float> maybe_intrinsic_width_;
+  const base::optional<float> maybe_intrinsic_height_;
+  const float intrinsic_ratio_;
+
  private:
-  ReplaceImageCB replace_image_cb_;
+  const ReplaceImageCB replace_image_cb_;
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
