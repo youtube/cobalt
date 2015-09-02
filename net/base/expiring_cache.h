@@ -19,12 +19,11 @@ template <typename KeyType,
           typename ExpirationType>
 class NoopEvictionHandler {
  public:
-  void Handle(const KeyType& key,
-              const ValueType& value,
-              const ExpirationType& expiration,
-              const ExpirationType& now,
-              bool onGet) const {
-  }
+  void Handle(const KeyType& /* key */,
+              const ValueType& /* value */,
+              const ExpirationType& /* expiration */,
+              const ExpirationType& /* now */,
+              bool /* onGet */) const {}
 };
 
 // Cache implementation where all entries have an explicit expiration policy. As
