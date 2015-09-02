@@ -68,7 +68,7 @@ void CSSRuleList::AttachToStyleSheet(StyleSheet* style_sheet) {
 
 // Appends a CSSMediaRule to the current style sheet.
 void CSSRuleList::AppendCSSMediaRule(
-    const scoped_refptr<CSSMediaRule>& css_media_rule) {
+    const scoped_refptr<CSSMediaRule>& /* css_media_rule */) {
   NOTIMPLEMENTED();
 }
 
