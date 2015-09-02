@@ -45,8 +45,9 @@ typedef std::vector<scoped_refptr<MediaFeature> > MediaFeatureList;
 class MediaQuery : public script::Wrappable {
  public:
   MediaQuery() {}
-  explicit MediaQuery(MediaType media_type) {}
-  MediaQuery(MediaType media_type, MediaFeatureList* media_feature_list) {}
+  explicit MediaQuery(MediaType /* media_type */) {}
+  MediaQuery(MediaType /*media_type */,
+             MediaFeatureList* /* media_feature_list */) {}
 
   DEFINE_WRAPPABLE_TYPE(MediaQuery);
 
