@@ -118,6 +118,9 @@ class Event : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Event);
 
  private:
+  void InitEventInternal(const std::string& type, bool bubbles,
+                         bool cancelable);
+
   std::string type_;
 
   scoped_refptr<EventTarget> target_;

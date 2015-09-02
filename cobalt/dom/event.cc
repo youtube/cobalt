@@ -27,19 +27,19 @@ Event::Event(UninitializedFlag uninitialized_flag)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
   UNREFERENCED_PARAMETER(uninitialized_flag);
-  InitEvent("", false, false);
+  InitEventInternal("", false, false);
 }
 
 Event::Event(const std::string& type)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  InitEvent(type, false, false);
+  InitEventInternal(type, false, false);
 }
 
 Event::Event(const std::string& type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  InitEvent(type, bubbles == kBubbles, cancelable == kCancelable);
+  InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
 Event::~Event() {
@@ -55,14 +55,27 @@ const scoped_refptr<EventTarget>& Event::current_target() const {
 }
 
 void Event::InitEvent(const std::string& type, bool bubbles, bool cancelable) {
+  static bool first_time = true;
+  DLOG_IF(WARNING, first_time) << "Event.initEvent() is deprecated.";
+  first_time = false;
+
+  InitEventInternal(type, bubbles, cancelable);
+}
+
+void Event::set_target(const scoped_refptr<EventTarget>& target) {
+  target_ = target;
+}
+
+void Event::set_current_target(const scoped_refptr<EventTarget>& target) {
+  current_target_ = target;
+}
+
+void Event::InitEventInternal(const std::string& type, bool bubbles,
+                              bool cancelable) {
   // Our event is for single use only.
   DCHECK(!IsBeingDispatched());
   DCHECK(!target());
   DCHECK(!current_target());
-
-  static bool first_time = true;
-  DLOG_IF(WARNING, first_time) << "Event.initEvent() is deprecated.";
-  first_time = false;
 
   if (IsBeingDispatched() || target() || current_target()) {
     return;
@@ -75,14 +88,6 @@ void Event::InitEvent(const std::string& type, bool bubbles, bool cancelable) {
   propagation_stopped_ = false;
   immediate_propagation_stopped_ = false;
   default_prevented_ = false;
-}
-
-void Event::set_target(const scoped_refptr<EventTarget>& target) {
-  target_ = target;
-}
-
-void Event::set_current_target(const scoped_refptr<EventTarget>& target) {
-  current_target_ = target;
 }
 
 }  // namespace dom
