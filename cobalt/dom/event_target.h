@@ -25,6 +25,7 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -46,11 +47,14 @@ class EventTarget : public script::Wrappable,
   void RemoveEventListener(const std::string& type,
                            const scoped_refptr<EventListener>& listener,
                            bool use_capture);
-  // TODO(***REMOVED***): Handle DOM exception after it is implemented.
-  virtual bool DispatchEvent(const scoped_refptr<Event>& event);
+  bool DispatchEvent(const scoped_refptr<Event>& event,
+                     script::ExceptionState* exception_state);
 
   // Custom, not in any spec.
   //
+  // This version of DispatchEvent is intended to be called inside C++ code.  It
+  // won't raise any exception.  Any error will be silently ignored.
+  virtual bool DispatchEvent(const scoped_refptr<Event>& event);
 
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture

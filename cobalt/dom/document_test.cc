@@ -16,9 +16,11 @@
 
 #include "cobalt/dom/document.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -28,10 +30,17 @@
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+
+using ::testing::SaveArg;
+using ::testing::StrictMock;
+using ::testing::_;
+using script::testing::MockExceptionState;
 
 //////////////////////////////////////////////////////////////////////////
 // DocumentTest
@@ -126,6 +135,27 @@ TEST_F(DocumentTest, CreateTextNode) {
   EXPECT_EQ("#text", text->node_name());
   EXPECT_EQ("test_text", text->data());
   EXPECT_EQ(document, text->owner_document());
+}
+
+TEST_F(DocumentTest, CreateEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document =
+      new Document(&html_element_context_, Document::Options());
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event = document->CreateEvent("EvEnT", &exception_state);
+
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+
+  EXPECT_CALL(exception_state, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  event = document->CreateEvent("Event Not Supported", &exception_state);
+
+  EXPECT_FALSE(event);
+  ASSERT_TRUE(exception);
+  EXPECT_EQ(DOMException::kNotSupportedErr,
+            base::polymorphic_downcast<DOMException*>(exception.get())->code());
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
@@ -250,5 +280,6 @@ TEST_F(DocumentTest, QuerySelector) {
   EXPECT_EQ(document->first_element_child(), document->QuerySelector("div"));
 }
 
+}  // namespace
 }  // namespace dom
 }  // namespace cobalt

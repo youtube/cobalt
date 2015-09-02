@@ -16,23 +16,28 @@
 
 #include "cobalt/dom/event_target.h"
 
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace cobalt {
+namespace dom {
+namespace {
 
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::InSequence;
+using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Pointee;
 using ::testing::Property;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 using ::testing::_;
-
-namespace cobalt {
-namespace dom {
-
+using script::testing::MockExceptionState;
 using testing::MockEventListener;
-
-namespace {
 
 void ExpectHandleEventCall(const scoped_refptr<MockEventListener>& listener,
                            const scoped_refptr<Event>& event,
@@ -68,9 +73,23 @@ void ExpectNoHandleEventCall(const scoped_refptr<MockEventListener>& listener) {
   EXPECT_CALL(*listener, HandleEvent(_)).Times(0);
 }
 
-}  // namespace
+void DispatchEventOnCurrentTarget(const scoped_refptr<Event>& event) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+
+  EXPECT_TRUE(event->IsBeingDispatched());
+
+  EXPECT_CALL(exception_state, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  event->current_target()->DispatchEvent(event, &exception_state);
+
+  ASSERT_TRUE(exception);
+  EXPECT_EQ(DOMException::kInvalidStateErr,
+            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+}
 
 TEST(EventTargetTest, SingleEventListenerFired) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener =
@@ -78,10 +97,11 @@ TEST(EventTargetTest, SingleEventListenerFired) {
 
   ExpectHandleEventCall(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 TEST(EventTargetTest, SingleEventListenerNotFired) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener =
@@ -89,12 +109,13 @@ TEST(EventTargetTest, SingleEventListenerNotFired) {
 
   ExpectNoHandleEventCall(event_listener);
   event_target->AddEventListener("notfired", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 // Test if multiple event listeners of different event types can be added and
 // fired properly.
 TEST(EventTargetTest, MultipleEventListeners) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener_fired_1 =
@@ -112,12 +133,12 @@ TEST(EventTargetTest, MultipleEventListeners) {
   event_target->AddEventListener("fired", event_listener_fired_1, false);
   event_target->AddEventListener("notfired", event_listener_not_fired, false);
   event_target->AddEventListener("fired", event_listener_fired_2, true);
-
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 // Test if event listener can be added and later removed.
 TEST(EventTargetTest, AddRemoveEventListener) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener =
@@ -125,19 +146,20 @@ TEST(EventTargetTest, AddRemoveEventListener) {
 
   ExpectHandleEventCall(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectNoHandleEventCall(event_listener);
   event_target->RemoveEventListener("fired", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectHandleEventCall(event_listener, event, event_target);
   event_target->AddEventListener("fired", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 // Test if attribute event listener works.
 TEST(EventTargetTest, AttributeListener) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> non_attribute_event_listener =
@@ -152,23 +174,24 @@ TEST(EventTargetTest, AttributeListener) {
   ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
   ExpectHandleEventCall(attribute_event_listener_1, event, event_target);
   event_target->SetAttributeEventListener("fired", attribute_event_listener_1);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
   ExpectNoHandleEventCall(attribute_event_listener_1);
   ExpectHandleEventCall(attribute_event_listener_2, event, event_target);
   event_target->SetAttributeEventListener("fired", attribute_event_listener_2);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   ExpectHandleEventCall(non_attribute_event_listener, event, event_target);
   ExpectNoHandleEventCall(attribute_event_listener_1);
   ExpectNoHandleEventCall(attribute_event_listener_2);
   event_target->SetAttributeEventListener("fired", NULL);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 // Test if one event listener can be used by multiple events.
 TEST(EventTargetTest, EventListenerReuse) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event_1 = new Event("fired_1");
   scoped_refptr<Event> event_2 = new Event("fired_2");
@@ -179,27 +202,28 @@ TEST(EventTargetTest, EventListenerReuse) {
   ExpectHandleEventCall(event_listener, event_2, event_target);
   event_target->AddEventListener("fired_1", event_listener, false);
   event_target->AddEventListener("fired_2", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event_1));
-  EXPECT_TRUE(event_target->DispatchEvent(event_2));
+  EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
+  EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   ExpectHandleEventCall(event_listener, event_1, event_target);
   event_target->RemoveEventListener("fired_2", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event_1));
-  EXPECT_TRUE(event_target->DispatchEvent(event_2));
+  EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
+  EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   ExpectHandleEventCall(event_listener, event_1, event_target);
   // The capture flag is not the same so the event will not be removed.
   event_target->RemoveEventListener("fired_1", event_listener, true);
-  EXPECT_TRUE(event_target->DispatchEvent(event_1));
-  EXPECT_TRUE(event_target->DispatchEvent(event_2));
+  EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
+  EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 
   ExpectNoHandleEventCall(event_listener);
   event_target->RemoveEventListener("fired_1", event_listener, false);
-  EXPECT_TRUE(event_target->DispatchEvent(event_1));
-  EXPECT_TRUE(event_target->DispatchEvent(event_2));
+  EXPECT_TRUE(event_target->DispatchEvent(event_1, &exception_state));
+  EXPECT_TRUE(event_target->DispatchEvent(event_2, &exception_state));
 }
 
 TEST(EventTargetTest, StopPropagation) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener_fired_1 =
@@ -214,11 +238,11 @@ TEST(EventTargetTest, StopPropagation) {
 
   event_target->AddEventListener("fired", event_listener_fired_1, false);
   event_target->AddEventListener("fired", event_listener_fired_2, true);
-
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 TEST(EventTargetTest, StopImmediatePropagation) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<Event> event = new Event("fired");
   scoped_refptr<MockEventListener> event_listener_fired_1 =
@@ -232,11 +256,11 @@ TEST(EventTargetTest, StopImmediatePropagation) {
 
   event_target->AddEventListener("fired", event_listener_fired_1, false);
   event_target->AddEventListener("fired", event_listener_fired_2, true);
-
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 }
 
 TEST(EventTargetTest, PreventDefault) {
+  StrictMock<MockExceptionState> exception_state;
   scoped_refptr<Event> event;
   scoped_refptr<EventTarget> event_target = new EventTarget;
   scoped_refptr<MockEventListener> event_listener_fired =
@@ -246,13 +270,49 @@ TEST(EventTargetTest, PreventDefault) {
   event = new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
   ExpectHandleEventCall(event_listener_fired, event, event_target,
                         &Event::PreventDefault);
-  EXPECT_TRUE(event_target->DispatchEvent(event));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
 
   event = new Event("fired", Event::kNotBubbles, Event::kCancelable);
   ExpectHandleEventCall(event_listener_fired, event, event_target,
                         &Event::PreventDefault);
-  EXPECT_FALSE(event_target->DispatchEvent(event));
+  EXPECT_FALSE(event_target->DispatchEvent(event, &exception_state));
 }
 
+TEST(EventTargetTest, RaiseException) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<EventTarget> event_target = new EventTarget;
+  scoped_refptr<Event> event;
+  scoped_refptr<MockEventListener> event_listener =
+      MockEventListener::CreateAsNonAttribute();
+
+  EXPECT_CALL(exception_state, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  // Dispatch a NULL event.
+  event_target->DispatchEvent(NULL, &exception_state);
+  ASSERT_TRUE(exception);
+  EXPECT_EQ(DOMException::kInvalidStateErr,
+            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+  exception = NULL;
+
+  EXPECT_CALL(exception_state, SetException(_))
+      .WillOnce(SaveArg<0>(&exception));
+  // Dispatch an uninitialized event.
+  event_target->DispatchEvent(new Event(Event::Uninitialized),
+                              &exception_state);
+  ASSERT_TRUE(exception);
+  EXPECT_EQ(DOMException::kInvalidStateErr,
+            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+  exception = NULL;
+
+  event_target->AddEventListener("fired", event_listener, false);
+  event = new Event("fired", Event::kNotBubbles, Event::kNotCancelable);
+  // Dispatch event again when it is being dispatched.
+  EXPECT_CALL(*event_listener, HandleEvent(_))
+      .WillOnce(Invoke(DispatchEventOnCurrentTarget));
+  EXPECT_TRUE(event_target->DispatchEvent(event, &exception_state));
+}
+
+}  // namespace
 }  // namespace dom
 }  // namespace cobalt
