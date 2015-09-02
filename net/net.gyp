@@ -965,7 +965,6 @@
         ['OS=="lb_shell"', {
           'dependencies': [
             '../third_party/openssl/openssl.gyp:openssl',
-            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'include_dirs': [
             '<(lbshell_root)/src/platform/<(actual_target_arch)/chromium',
@@ -1015,6 +1014,15 @@
             ['exclude', 'disk_cache/']
           ],
           'conditions': [
+            ['starboard == 0', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }, {  # else
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],
             ['target_arch=="android"', {
               'sources!': [
                 '<(lbshell_root)/src/tcp_client_socket_shell.cc',
