@@ -133,47 +133,52 @@ class WebMediaPlayer {
   virtual scoped_refptr<VideoFrame> GetCurrentFrame() { return 0; }
   // We no longer need PutCurrentFrame as the the video frame returned from
   // GetCurrentFrame() is now a scoped_refptr.
-  virtual void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) {}
+  virtual void PutCurrentFrame(
+      const scoped_refptr<VideoFrame>& /* video_frame */) {}
 
-  virtual AddIdStatus SourceAddId(const std::string& id,
-                                  const std::string& type,
-                                  const std::vector<std::string>& codecs) {
+  virtual AddIdStatus SourceAddId(
+      const std::string& /* id */,
+      const std::string& /* type */,
+      const std::vector<std::string>& /* codecs */) {
     return kAddIdStatusNotSupported;
   }
-  virtual bool SourceRemoveId(const std::string& id) { return false; }
-  virtual Ranges<base::TimeDelta> SourceBuffered(const std::string& id) {
+  virtual bool SourceRemoveId(const std::string& /* id */) { return false; }
+  virtual Ranges<base::TimeDelta> SourceBuffered(const std::string& /* id */) {
     return Ranges<base::TimeDelta>();
   }
-  virtual bool SourceAppend(const std::string& id,
-                            const unsigned char* data,
-                            unsigned length) {
+  virtual bool SourceAppend(const std::string& /* id */,
+                            const unsigned char* /* data */,
+                            unsigned /* length */) {
     return false;
   }
-  virtual bool SourceAbort(const std::string& id) { return false; }
+  virtual bool SourceAbort(const std::string& /* id */) { return false; }
   virtual double SourceGetDuration() const { return 0.0; }
-  virtual void SourceSetDuration(double duration) {}
-  virtual void SourceEndOfStream(EndOfStreamStatus status) {}
-  virtual bool SourceSetTimestampOffset(const std::string& id, double offset) {
+  virtual void SourceSetDuration(double /* duration */) {}
+  virtual void SourceEndOfStream(EndOfStreamStatus /* status */) {}
+  virtual bool SourceSetTimestampOffset(const std::string& /* id */,
+                                        double /* offset */) {
     return false;
   }
 
   // Returns whether keySystem is supported. If true, the result will be
   // reported by an event.
-  virtual MediaKeyException GenerateKeyRequest(const std::string& key_system,
-                                               const unsigned char* init_data,
-                                               unsigned init_data_length) {
+  virtual MediaKeyException GenerateKeyRequest(
+      const std::string& /* key_system */,
+      const unsigned char* /* init_data */,
+      unsigned /* init_data_length */) {
     return kMediaKeyExceptionKeySystemNotSupported;
   }
-  virtual MediaKeyException AddKey(const std::string& key_system,
-                                   const unsigned char* key,
-                                   unsigned key_length,
-                                   const unsigned char* init_data,
-                                   unsigned init_data_length,
-                                   const std::string& session_id) {
+  virtual MediaKeyException AddKey(const std::string& /* key_system */,
+                                   const unsigned char* /* key */,
+                                   unsigned /* key_length */,
+                                   const unsigned char* /* init_data */,
+                                   unsigned /* init_data_length */,
+                                   const std::string& /* session_id */) {
     return kMediaKeyExceptionKeySystemNotSupported;
   }
-  virtual MediaKeyException CancelKeyRequest(const std::string& key_system,
-                                             const std::string& session_id) {
+  virtual MediaKeyException CancelKeyRequest(
+      const std::string& /* key_system */,
+      const std::string& /* session_id */) {
     return kMediaKeyExceptionKeySystemNotSupported;
   }
 
@@ -212,7 +217,7 @@ class WebMediaPlayerClient {
   virtual void PlaybackStateChanged() = 0;
   virtual void Repaint() = 0;
   // TODO(***REMOVED***) : Revisit the necessity of the following function.
-  virtual void SetOpaque(bool opaque) {}
+  virtual void SetOpaque(bool /* opaque */) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
   virtual void SourceOpened() = 0;
@@ -220,27 +225,27 @@ class WebMediaPlayerClient {
   // TODO(***REMOVED***) : Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
   // provided to make media temporarily work.
-  virtual void KeyAdded(const std::string& key_system,
-                        const std::string& session_id) {
+  virtual void KeyAdded(const std::string& /* key_system */,
+                        const std::string& /* session_id */) {
     NOTIMPLEMENTED();
   }
-  virtual void KeyError(const std::string& key_system,
-                        const std::string& session_id,
+  virtual void KeyError(const std::string& /* key_system */,
+                        const std::string& /* session_id */,
                         MediaKeyErrorCode,
-                        unsigned short system_code) {
+                        unsigned short /* system_code */) {
     NOTIMPLEMENTED();
   }
-  virtual void KeyMessage(const std::string& key_system,
-                          const std::string& session_id,
-                          const unsigned char* message,
-                          unsigned message_length,
-                          const std::string& default_url) {
+  virtual void KeyMessage(const std::string& /* key_system */,
+                          const std::string& /* session_id */,
+                          const unsigned char* /* message */,
+                          unsigned /* message_length */,
+                          const std::string& /* default_url */) {
     NOTIMPLEMENTED();
   }
-  virtual void KeyNeeded(const std::string& key_system,
-                         const std::string& session_id,
-                         const unsigned char* init_data,
-                         unsigned init_data_length) {
+  virtual void KeyNeeded(const std::string& /* key_system */,
+                         const std::string& /* session_id */,
+                         const unsigned char* /* init_data */,
+                         unsigned /* init_data_length */) {
     NOTIMPLEMENTED();
   }
   // TODO(***REMOVED***) : Revisit the necessity of the following functions.
@@ -258,13 +263,13 @@ class WebMediaPlayerDelegate : base::SupportsWeakPtr<WebMediaPlayerDelegate> {
   WebMediaPlayerDelegate() {}
 
   // The specified player started playing media.
-  virtual void DidPlay(WebMediaPlayer* player) {}
+  virtual void DidPlay(WebMediaPlayer* /* player */) {}
 
   // The specified player stopped playing media.
-  virtual void DidPause(WebMediaPlayer* player) {}
+  virtual void DidPause(WebMediaPlayer* /* player */) {}
 
   // The specified player was destroyed. Do not call any methods on it.
-  virtual void PlayerGone(WebMediaPlayer* player) {}
+  virtual void PlayerGone(WebMediaPlayer* /* player */) {}
 
  protected:
   ~WebMediaPlayerDelegate() {}

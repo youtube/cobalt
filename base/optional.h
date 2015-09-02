@@ -298,7 +298,7 @@ inline bool operator==(const optional<T>& lhs, nullopt_t rhs) {
 }
 
 template <typename T>
-inline bool operator<(const optional<T>& lhs, nullopt_t) {
+inline bool operator<(const optional<T>& /* lhs */, nullopt_t) {
   return false;
 }
 

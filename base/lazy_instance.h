@@ -93,8 +93,7 @@ struct LeakyLazyInstanceTraits {
   static Type* New(void* instance) {
     return DefaultLazyInstanceTraits<Type>::New(instance);
   }
-  static void Delete(Type* instance) {
-  }
+  static void Delete(Type* /* instance */) {}
 };
 
 // Our AtomicWord doubles as a spinlock, where a value of
