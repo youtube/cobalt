@@ -835,10 +835,10 @@ TEST_F(ScannerTest, ScansMediaNotDeviceAspectRatio) {
   ASSERT_EQ(':', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kIntegerToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_FLOAT_EQ(2560, token_value_.integer);
+  ASSERT_EQ(2560, token_value_.integer);
   ASSERT_EQ('/', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kIntegerToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_FLOAT_EQ(1440, token_value_.integer);
+  ASSERT_EQ(1440, token_value_.integer);
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
