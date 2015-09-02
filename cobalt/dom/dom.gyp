@@ -90,6 +90,8 @@
         'html_heading_element.h',
         'html_html_element.cc',
         'html_html_element.h',
+        'html_image_element.cc',
+        'html_image_element.h',
         'html_link_element.cc',
         'html_link_element.h',
         'html_media_element.cc',
