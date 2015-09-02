@@ -28,8 +28,8 @@ namespace network {
 namespace {
 // Do-nothing callback, intended to release these resources
 // on the IO thread. Called during NetworkModule destruction.
-void OnDestroy(scoped_ptr<URLRequestContext> url_request_context,
-               scoped_ptr<NetworkDelegate> network_delegate) {}
+void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
+               scoped_ptr<NetworkDelegate> /* network_delegate */) {}
 }  // namespace
 
 NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
