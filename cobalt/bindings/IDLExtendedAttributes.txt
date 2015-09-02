@@ -70,6 +70,7 @@ RaisesException=|Constructor
 # Not yet supported
 ArrayClass
 Constructor
+NamedConstructor=*
 OverrideBuiltins
 PutForwards=*
 TreatNullAs=*

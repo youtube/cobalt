@@ -27,6 +27,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
@@ -79,6 +80,8 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLHeadElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "html");
   EXPECT_TRUE(html_element->AsHTMLHtmlElement());
+  html_element = html_element_factory_.CreateHTMLElement(document_, "img");
+  EXPECT_TRUE(html_element->AsHTMLImageElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "link");
   EXPECT_TRUE(html_element->AsHTMLLinkElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "p");
