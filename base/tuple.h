@@ -532,7 +532,9 @@ inline Tuple8<A&, B&, C&, D&, E&, F&, G&, H&> MakeRefTuple(A& a, B& b, C& c,
 // Non-Static Dispatchers with no out params.
 
 template <class ObjT, class Method>
-inline void DispatchToMethod(ObjT* obj, Method method, const Tuple0& arg) {
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* arg */) {
   (obj->*method)();
 }
 
@@ -595,7 +597,7 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 // Static Dispatchers with no out params.
 
 template <class Function>
-inline void DispatchToFunction(Function function, const Tuple0& arg) {
+inline void DispatchToFunction(Function function, const Tuple0& /* arg */) {
   (*function)();
 }
 
@@ -656,7 +658,8 @@ inline void DispatchToFunction(Function function,
 template <class ObjT, class Method>
 inline void DispatchToMethod(ObjT* obj,
                              Method method,
-                             const Tuple0& arg, Tuple0*) {
+                             const Tuple0& /* arg */,
+                             Tuple0*) {
   (obj->*method)();
 }
 
@@ -706,10 +709,10 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 
 // Dispatchers with 1 out param.
 
-template<class ObjT, class Method,
-         class OutA>
-inline void DispatchToMethod(ObjT* obj, Method method,
-                             const Tuple0& in,
+template <class ObjT, class Method, class OutA>
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* in */,
                              Tuple1<OutA>* out) {
   (obj->*method)(&out->a);
 }
@@ -773,10 +776,10 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 
 // Dispatchers with 2 out params.
 
-template<class ObjT, class Method,
-         class OutA, class OutB>
-inline void DispatchToMethod(ObjT* obj, Method method,
-                             const Tuple0& in,
+template <class ObjT, class Method, class OutA, class OutB>
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* in */,
                              Tuple2<OutA, OutB>* out) {
   (obj->*method)(&out->a, &out->b);
 }
@@ -841,10 +844,10 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 
 // Dispatchers with 3 out params.
 
-template<class ObjT, class Method,
-         class OutA, class OutB, class OutC>
-inline void DispatchToMethod(ObjT* obj, Method method,
-                             const Tuple0& in,
+template <class ObjT, class Method, class OutA, class OutB, class OutC>
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* in */,
                              Tuple3<OutA, OutB, OutC>* out) {
   (obj->*method)(&out->a, &out->b, &out->c);
 }
@@ -909,10 +912,15 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 
 // Dispatchers with 4 out params.
 
-template<class ObjT, class Method,
-         class OutA, class OutB, class OutC, class OutD>
-inline void DispatchToMethod(ObjT* obj, Method method,
-                             const Tuple0& in,
+template <class ObjT,
+          class Method,
+          class OutA,
+          class OutB,
+          class OutC,
+          class OutD>
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* in */,
                              Tuple4<OutA, OutB, OutC, OutD>* out) {
   (obj->*method)(&out->a, &out->b, &out->c, &out->d);
 }
@@ -979,10 +987,16 @@ inline void DispatchToMethod(ObjT* obj, Method method,
 
 // Dispatchers with 5 out params.
 
-template<class ObjT, class Method,
-         class OutA, class OutB, class OutC, class OutD, class OutE>
-inline void DispatchToMethod(ObjT* obj, Method method,
-                             const Tuple0& in,
+template <class ObjT,
+          class Method,
+          class OutA,
+          class OutB,
+          class OutC,
+          class OutD,
+          class OutE>
+inline void DispatchToMethod(ObjT* obj,
+                             Method method,
+                             const Tuple0& /* in */,
                              Tuple5<OutA, OutB, OutC, OutD, OutE>* out) {
   (obj->*method)(&out->a, &out->b, &out->c, &out->d, &out->e);
 }
