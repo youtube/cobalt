@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
@@ -45,36 +46,32 @@ scoped_refptr<HTMLElement> CreateHTMLElementT(Document* document) {
   return new T(document);
 }
 
-scoped_refptr<HTMLElement> CreateHTMLHeadingElement(const std::string& tag_name,
-                                                    Document* document) {
-  return new HTMLHeadingElement(document, tag_name);
+template <typename T>
+scoped_refptr<HTMLElement> CreateHTMLElementWithTagNameT(
+    const std::string& tag_name, Document* document) {
+  return new T(document, tag_name);
 }
 
 }  // namespace
 
 HTMLElementFactory::HTMLElementFactory() {
-#define ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(name)                   \
-  tag_name_to_create_html_element_t_callback_map_[name::kTagName] = \
-      base::Bind(&CreateHTMLElementT<name>)
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLAnchorElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLBodyElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLBRElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLDivElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLHeadElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLHtmlElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLLinkElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLParagraphElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLScriptElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLSpanElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLStyleElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLVideoElement);
-#undef ADD_HTML_ELEMENT_CREATION_MAP_ENTRY
+  // Register HTML elements that have only one tag name in the map.
+  RegisterHTMLElementWithSingleTagName<HTMLAnchorElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLBodyElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLBRElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLDivElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLHeadElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLHtmlElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLImageElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLLinkElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLParagraphElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLScriptElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLSpanElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLStyleElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLVideoElement>();
 
-  for (int i = 0; i < HTMLHeadingElement::kTagNameCount; i++) {
-    std::string tag_name = HTMLHeadingElement::kTagNames[i];
-    tag_name_to_create_html_element_t_callback_map_[tag_name] =
-        base::Bind(&CreateHTMLHeadingElement, tag_name);
-  }
+  // Register HTML elements that have multiple tag names in the map.
+  RegisterHTMLElementWithMultipleTagName<HTMLHeadingElement>();
 }
 
 HTMLElementFactory::~HTMLElementFactory() {}
@@ -88,6 +85,21 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
   } else {
     // TODO(***REMOVED***): Report unknown HTML tag.
     return new HTMLUnknownElement(document, tag_name);
+  }
+}
+
+template <typename T>
+void HTMLElementFactory::RegisterHTMLElementWithSingleTagName() {
+  tag_name_to_create_html_element_t_callback_map_[T::kTagName] =
+      base::Bind(&CreateHTMLElementT<T>);
+}
+
+template <typename T>
+void HTMLElementFactory::RegisterHTMLElementWithMultipleTagName() {
+  for (int i = 0; i < T::kTagNameCount; i++) {
+    std::string tag_name = T::kTagNames[i];
+    tag_name_to_create_html_element_t_callback_map_[tag_name] =
+        base::Bind(&CreateHTMLElementWithTagNameT<T>, tag_name);
   }
 }
 

@@ -39,6 +39,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
@@ -146,6 +147,10 @@ scoped_refptr<HTMLHeadingElement> HTMLElement::AsHTMLHeadingElement() {
 }
 
 scoped_refptr<HTMLHtmlElement> HTMLElement::AsHTMLHtmlElement() { return NULL; }
+
+scoped_refptr<HTMLImageElement> HTMLElement::AsHTMLImageElement() {
+  return NULL;
+}
 
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 

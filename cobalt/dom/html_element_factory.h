@@ -44,6 +44,12 @@ class HTMLElementFactory {
   typedef base::hash_map<std::string, CreateHTMLElementTCallback>
       TagNameToCreateHTMLElementTCallbackMap;
 
+  // Helper function templates for adding entries to the map below.
+  template <typename T>
+  void RegisterHTMLElementWithSingleTagName();
+  template <typename T>
+  void RegisterHTMLElementWithMultipleTagName();
+
   TagNameToCreateHTMLElementTCallbackMap
       tag_name_to_create_html_element_t_callback_map_;
 
