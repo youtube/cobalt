@@ -34,7 +34,7 @@ const int kMaxVideoHeight = 1088;
 const size_t kMaxYUVFrameSizeInBytes = kMaxVideoWidth * kMaxVideoHeight * 3 / 2;
 const int kVideoFrameAlignment = 256;
 
-void ReleaseImage(scoped_refptr<cobalt::render_tree::Image> image) {}
+void ReleaseImage(scoped_refptr<cobalt::render_tree::Image> /* image */) {}
 }
 
 using cobalt::render_tree::ImageDataDescriptor;
