@@ -459,9 +459,6 @@
             '<(lbshell_root)/src/platform/<(target_arch)/chromium',
             '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
           ],
-          'dependencies': [
-            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-          ],
           'sources/': [
             ['exclude', 'android'],
             # media is not excluding windows sources automatically.
@@ -536,6 +533,15 @@
             ['exclude', 'video/capture/fake_video_capture_device'],
           ],
           'conditions': [
+            ['starboard == 0', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }, {  # else
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],
             ['target_arch=="xb1" and actual_target_arch!="win"', {
               'dependencies' : [
                 '../third_party/modp_b64/modp_b64.gyp:modp_b64',

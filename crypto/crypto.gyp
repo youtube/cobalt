@@ -132,11 +132,21 @@
         ['OS=="lb_shell"', {
           'dependencies' : [
             '../third_party/openssl/openssl.gyp:openssl',
-            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
           'sources/': [
             ['exclude', '_nss.cc$'],
             ['exclude', '_win.cc$'],
+          ],
+          'conditions': [
+            ['starboard == 0', {
+              'dependencies': [
+                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+              ],
+            }, {  # else
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],
           ],
         }],
         [ 'use_openssl==1', {
