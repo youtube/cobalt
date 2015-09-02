@@ -38,9 +38,13 @@ class Window::RelayLoadEvent : public DocumentObserver {
   // From DocumentObserver.
   void OnLoad() OVERRIDE {
     MessageLoop::current()->PostTask(
-        FROM_HERE, base::Bind(base::IgnoreResult(&Window::DispatchEvent),
-                              base::AsWeakPtr<Window>(window_),
-                              make_scoped_refptr(new Event("load"))));
+        FROM_HERE,
+        base::Bind(
+            base::IgnoreResult(
+                static_cast<bool (Window::*)(const scoped_refptr<Event>&)>(
+                    &Window::DispatchEvent)),
+            base::AsWeakPtr<Window>(window_),
+            make_scoped_refptr(new Event("load"))));
   }
   void OnMutation() OVERRIDE {}
 
