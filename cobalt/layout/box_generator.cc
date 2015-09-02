@@ -27,8 +27,9 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
+#include "cobalt/layout/block_level_replaced_box.h"
 #include "cobalt/layout/inline_container_box.h"
-#include "cobalt/layout/replaced_box.h"
+#include "cobalt/layout/inline_level_replaced_box.h"
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
@@ -70,6 +71,150 @@ BoxGenerator::BoxGenerator(
       paragraph_(paragraph) {}
 
 BoxGenerator::~BoxGenerator() {}
+
+void BoxGenerator::Visit(dom::Element* element) {
+  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
+  DCHECK(html_element);
+
+  scoped_refptr<dom::HTMLMediaElement> media_element =
+      html_element->AsHTMLMediaElement();
+  if (media_element) {
+    VisitMediaElement(media_element);
+  } else {
+    VisitNonReplacedElement(html_element);
+  }
+}
+
+namespace {
+
+class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  ReplacedBoxGenerator(
+      const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
+      const cssom::TransitionSet* transitions,
+      const UsedStyleProvider* used_style_provider,
+      const ReplacedBox::ReplaceImageCB& replace_image_cb,
+      const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+      const base::optional<float>& maybe_intrinsic_width,
+      const base::optional<float>& maybe_intrinsic_height,
+      const base::optional<float>& maybe_intrinsic_ratio)
+      : computed_style_(computed_style),
+        transitions_(transitions),
+        used_style_provider_(used_style_provider),
+        replace_image_cb_(replace_image_cb),
+        paragraph_(paragraph),
+        text_position_(text_position),
+        maybe_intrinsic_width_(maybe_intrinsic_width),
+        maybe_intrinsic_height_(maybe_intrinsic_height),
+        maybe_intrinsic_ratio_(maybe_intrinsic_ratio) {}
+
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+
+  scoped_ptr<ReplacedBox> PassReplacedBox() { return replaced_box_.Pass(); }
+
+ private:
+  const scoped_refptr<const cssom::CSSStyleDeclarationData> computed_style_;
+  const cssom::TransitionSet* transitions_;
+  const UsedStyleProvider* const used_style_provider_;
+  const ReplacedBox::ReplaceImageCB replace_image_cb_;
+  const scoped_refptr<Paragraph> paragraph_;
+  const int32 text_position_;
+  const base::optional<float> maybe_intrinsic_width_;
+  const base::optional<float> maybe_intrinsic_height_;
+  const base::optional<float> maybe_intrinsic_ratio_;
+
+  scoped_ptr<ReplacedBox> replaced_box_;
+};
+
+void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
+  // See http://www.w3.org/TR/CSS21/visuren.html#display-prop.
+  switch (keyword->value()) {
+    // Generate a block-level replaced box.
+    case cssom::KeywordValue::kBlock:
+      replaced_box_ = make_scoped_ptr(new BlockLevelReplacedBox(
+          computed_style_, transitions_, used_style_provider_,
+          replace_image_cb_, paragraph_, text_position_, maybe_intrinsic_width_,
+          maybe_intrinsic_height_, maybe_intrinsic_ratio_));
+      break;
+    // Generate an inline-level replaced box. There is no need to distinguish
+    // between inline replaced elements and inline-block replaced elements
+    // because their widths, heights, and margins are calculated in the same
+    // way.
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+      replaced_box_ = make_scoped_ptr(new InlineLevelReplacedBox(
+          computed_style_, transitions_, used_style_provider_,
+          replace_image_cb_, paragraph_, text_position_, maybe_intrinsic_width_,
+          maybe_intrinsic_height_, maybe_intrinsic_ratio_));
+      break;
+    // The element generates no boxes and has no effect on layout.
+    case cssom::KeywordValue::kNone:
+      // Leave |replaced_box_| NULL.
+      break;
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kNoRepeat:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRepeat:
+    case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
+}  // namespace
+
+void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
+  // For video elements, create a replaced box.
+
+  // A replaced box is treated as an atomic inline element, which means that
+  // for bidi analysis it is treated as a neutral type. Append a space to
+  // represent it in the paragraph.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
+  //   http://www.w3.org/TR/CSS21/visuren.html#direction
+  int32 text_position = (*paragraph_)->AppendText(" ");
+
+  // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
+  // based on the video frame. This allows to avoid relayout while playing
+  // adaptive videos.
+  ReplacedBoxGenerator replaced_box_generator(
+      media_element->computed_style(), media_element->transitions(),
+      used_style_provider_,
+      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
+      *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt);
+  media_element->computed_style()->display()->Accept(&replaced_box_generator);
+
+  scoped_ptr<ReplacedBox> replaced_box =
+      replaced_box_generator.PassReplacedBox();
+  if (replaced_box == NULL) {
+    // The element with "display: none" generates no boxes and has no effect
+    // on layout. Descendant elements do not generate any boxes either.
+    // This behavior cannot be overridden by setting the "display" property on
+    // the descendants.
+    //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
+    return;
+  }
+
+  boxes_.push_back(replaced_box.release());
+
+  // The content of replaced elements is not considered in the CSS rendering
+  // model.
+  //   http://www.w3.org/TR/CSS21/conform.html#replaced-element
+}
 
 namespace {
 
@@ -219,38 +364,6 @@ void ContainerBoxGenerator::CreateScopedParagraph(
 }
 
 }  // namespace
-
-void BoxGenerator::Visit(dom::Element* element) {
-  // Update and cache computed values of the given HTML element.
-  scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
-  DCHECK(html_element);
-
-  scoped_refptr<dom::HTMLMediaElement> media_element =
-      html_element->AsHTMLMediaElement();
-  if (media_element) {
-    VisitMediaElement(media_element);
-  } else {
-    VisitNonReplacedElement(html_element);
-  }
-}
-
-void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
-  // For video elements, create a ReplacedBox and return that as the set of
-  // boxes generated for this HTML element.
-
-  // A replaced box is treated as an atomic inline element, which means that
-  // for bidi analysis it is treated as a neutral type. Append a space to
-  // represent it in the paragraph.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-boxes
-  //   http://www.w3.org/TR/CSS21/visuren.html#direction
-  int32 text_position = (*paragraph_)->AppendText(" ");
-
-  scoped_ptr<Box> replaced_box = make_scoped_ptr<Box>(new ReplacedBox(
-      media_element->computed_style(), media_element->transitions(),
-      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
-      used_style_provider_, *paragraph_, text_position));
-  boxes_.push_back(replaced_box.release());
-}
 
 void BoxGenerator::AppendChildBoxToLine(Box* child_box_ptr) {
   // When an inline box contains an in-flow block-level box, the inline box
