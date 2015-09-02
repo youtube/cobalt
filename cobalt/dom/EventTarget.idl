@@ -20,6 +20,5 @@ interface EventTarget {
   void removeEventListener(DOMString type, EventListener listener,
                            optional boolean useCapture = false);
 
-  // TODO(***REMOVED***): Support EventException.
-  boolean dispatchEvent(Event event);
+  [RaisesException] boolean dispatchEvent(Event event);
 };
