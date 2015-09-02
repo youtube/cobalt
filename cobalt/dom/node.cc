@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
@@ -36,8 +37,12 @@ namespace dom {
 // http://www.w3.org/TR/dom/#dispatching-events
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
-  // TODO(***REMOVED***): Raise InvalidStateError exception.
+  DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
+
+  if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
+    return false;
+  }
 
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;

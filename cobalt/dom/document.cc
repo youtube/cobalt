@@ -22,6 +22,7 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/attr.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_body_element.h"
@@ -101,7 +102,9 @@ scoped_refptr<Text> Document::CreateTextNode(const std::string& text) {
   return new Text(this, text);
 }
 
-scoped_refptr<Event> Document::CreateEvent(const std::string& interface_name) {
+scoped_refptr<Event> Document::CreateEvent(
+    const std::string& interface_name,
+    script::ExceptionState* exception_state) {
   // http://www.w3.org/TR/2015/WD-dom-20150428/#dom-document-createevent
   // The match of interface name is case-insensitive.
   if (strcasecmp(interface_name.c_str(), "event") == 0 ||
@@ -112,8 +115,8 @@ scoped_refptr<Event> Document::CreateEvent(const std::string& interface_name) {
     return new UIEvent(Event::Uninitialized);
   }
 
-  // TODO(***REMOVED***): throw NotSupportedError exception.
-  NOTREACHED();
+  DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+  // Return value will be ignored.
   return NULL;
 }
 

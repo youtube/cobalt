@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/event_target.h"
 
+#include "cobalt/dom/dom_exception.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -46,10 +48,25 @@ void EventTarget::RemoveEventListener(
 
 // Dispatch event to a single event target outside the DOM tree. The event
 // propagation in the DOM tree is implemented inside Node::DispatchEvent().
+bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event,
+                                script::ExceptionState* exception_state) {
+  if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    // Return value will be ignored.
+    return false;
+  }
+
+  return DispatchEvent(event);
+}
+
 bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
-  // TODO(***REMOVED***): Raise InvalidStateError exception.
+  DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
+
+  if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
+    return false;
+  }
 
   event->set_target(this);
   event->set_event_phase(Event::kAtTarget);
