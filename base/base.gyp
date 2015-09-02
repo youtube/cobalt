@@ -231,10 +231,15 @@
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
             # We only want posix_emulation for target builds.
-            ['_toolset == "target"', {
+            ['_toolset == "target" and starboard == 0', {
               'dependencies': [
                 '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
               ],
+            }],
+            ['_toolset == "target" and starboard != 0', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
             }],
           ],
           'sources': [
@@ -321,9 +326,14 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        ['OS=="lb_shell"', {
+        ['OS=="lb_shell" and starboard == 0', {
           'dependencies': [
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+        }],
+        ['OS=="lb_shell" and starboard != 0', {
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
           ],
         }],
       ],
