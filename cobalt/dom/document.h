@@ -26,6 +26,7 @@
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/loader/image_cache.h"
+#include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -96,7 +97,8 @@ class Document : public Node,
 
   scoped_refptr<Element> CreateElement(const std::string& tag_name);
   scoped_refptr<Text> CreateTextNode(const std::string& text);
-  scoped_refptr<Event> CreateEvent(const std::string& interface_name);
+  scoped_refptr<Event> CreateEvent(const std::string& interface_name,
+                                   script::ExceptionState* exception_state);
 
   // Web API: NonElementParentNode (implements)
   //   http://www.w3.org/TR/2014/WD-dom-20140710/#interface-nonelementparentnode
