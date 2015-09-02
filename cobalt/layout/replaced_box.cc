@@ -18,8 +18,8 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "cobalt/layout/used_style.h"
 #include "cobalt/math/matrix3_f.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/image_node.h"
 
 namespace cobalt {
@@ -29,77 +29,33 @@ using render_tree::ImageNode;
 
 namespace {
 
-// Default intrinsic width as defined in:
-// http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-const float kDefaultIntrinsicWidth = 300.0;
-// Default intrinsic height as defined in:
-// http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-const float kDefaultIntrinsicHeight = 150.0;
-
-void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
-               ImageNode::Builder* image_node, base::Time /*time*/) {
-  DCHECK(!replace_image_cb.is_null());
-  DCHECK(image_node);
-  image_node->source = replace_image_cb.Run();
-  // TODO(***REMOVED***): Detect better when the intrinsic video size is used for the
-  //   node size, and trigger a re-layout from the media element when the size
-  //   changes.
-  if (image_node->source && 0 == image_node->destination_size.height()) {
-    image_node->destination_size = image_node->source->GetSize();
-  }
-}
+// Used when intrinsic ratio cannot be determined,
+// as per http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+const float kFallbackIntrinsicRatio = 2.0f;
 
 }  // namespace
 
 ReplacedBox::ReplacedBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
-    const ReplaceImageCB& replace_image_cb,
     const UsedStyleProvider* used_style_provider,
-    const scoped_refptr<Paragraph>& paragraph, int32 text_position)
+    const ReplaceImageCB& replace_image_cb,
+    const scoped_refptr<Paragraph>& paragraph, int32 text_position,
+    const base::optional<float>& maybe_intrinsic_width,
+    const base::optional<float>& maybe_intrinsic_height,
+    const base::optional<float>& maybe_intrinsic_ratio)
     : Box(computed_style, transitions, used_style_provider),
       replace_image_cb_(replace_image_cb),
       paragraph_(paragraph),
-      text_position_(text_position) {
+      text_position_(text_position),
+      maybe_intrinsic_width_(maybe_intrinsic_width),
+      maybe_intrinsic_height_(maybe_intrinsic_height),
+      // Like Chromium, we assume that an element must always have an intrinsic
+      // ratio, although technically it's a spec violation. For details see
+      // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
+      intrinsic_ratio_(
+          maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)) {
   DCHECK(!replace_image_cb_.is_null());
-}
-
-Box::Level ReplacedBox::GetLevel() const { return kInlineLevel; }
-
-void ReplacedBox::UpdateContentSizeAndMargins(
-    const LayoutParams& layout_params) {
-  // TODO(***REMOVED***): See if we can determine and use the intrinsic element size.
-  float intrinsic_width = kDefaultIntrinsicWidth;
-  float intrinsic_height = kDefaultIntrinsicHeight;
-  float intrinsic_ratio = kDefaultIntrinsicWidth / kDefaultIntrinsicHeight;
-
-  UsedBoxMetrics horizontal_metrics = UsedBoxMetrics::ComputeHorizontal(
-      layout_params.containing_block_size.width(), *computed_style());
-
-  UsedBoxMetrics vertical_metrics = UsedBoxMetrics::ComputeVertical(
-      layout_params.containing_block_size.height(), *computed_style());
-
-  if (!horizontal_metrics.size && !vertical_metrics.size) {
-    // If height and width both have computed values of auto, use the
-    // intrinsic sizes, according to:
-    // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-    horizontal_metrics.size = intrinsic_width;
-    vertical_metrics.size = intrinsic_height;
-  } else if (!horizontal_metrics.size && vertical_metrics.size) {
-    // If width is auto and height is not, then use the intrinsic ratio to
-    // calculate the width, according to:
-    // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
-    horizontal_metrics.size = *vertical_metrics.size * intrinsic_ratio;
-  } else if (horizontal_metrics.size && !vertical_metrics.size) {
-    // If height is auto and width is not, then use the intrinsic ratio to
-    // calculate the height, according to:
-    // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
-    vertical_metrics.size = *horizontal_metrics.size / intrinsic_ratio;
-  }
-
-  // TODO(***REMOVED***): Implement margins, borders, and paddings.
-  set_width(*horizontal_metrics.size);
-  set_height(*vertical_metrics.size);
 }
 
 scoped_ptr<Box> ReplacedBox::TrySplitAt(float /*available_width*/,
@@ -117,21 +73,58 @@ base::optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
-float ReplacedBox::GetHeightAboveBaseline() const { return height(); }
+bool ReplacedBox::IsCollapsed() const { return false; }
+
+bool ReplacedBox::HasLeadingWhiteSpace() const { return false; }
+
+bool ReplacedBox::HasTrailingWhiteSpace() const { return false; }
+
+void ReplacedBox::CollapseLeadingWhiteSpace() {
+  // Do nothing.
+}
+
+void ReplacedBox::CollapseTrailingWhiteSpace() {
+  // Do nothing.
+}
+
+bool ReplacedBox::JustifiesLineExistence() const { return true; }
+
+bool ReplacedBox::AffectsBaselineInBlockFormattingContext() const {
+  return false;
+}
+
+float ReplacedBox::GetHeightAboveBaseline() const {
+  return GetMarginBoxHeight();
+}
+
+namespace {
+
+void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
+               ImageNode::Builder* image_node, base::Time /*time*/) {
+  DCHECK(!replace_image_cb.is_null());
+  DCHECK(image_node);
+  image_node->source = replace_image_cb.Run();
+  // TODO(***REMOVED***): Detect better when the intrinsic video size is used for the
+  //   node size, and trigger a re-layout from the media element when the size
+  //   changes.
+  if (image_node->source && 0 == image_node->destination_size.height()) {
+    image_node->destination_size = image_node->source->GetSize();
+  }
+}
+
+}  // namespace
 
 void ReplacedBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* composition_node_builder,
+    render_tree::CompositionNode::Builder* border_node_builder,
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder) const {
   scoped_refptr<ImageNode> image_node =
       new render_tree::ImageNode(NULL, content_box_size());
   node_animations_map_builder->Add(image_node,
                                    base::Bind(AnimateCB, replace_image_cb_));
-  composition_node_builder->AddChild(image_node, math::Matrix3F::Identity());
-}
-
-void ReplacedBox::DumpClassName(std::ostream* stream) const {
-  *stream << "ReplacedBox ";
+  border_node_builder->AddChild(
+      image_node, math::TranslateMatrix(border_left_width() + padding_left(),
+                                        border_top_width() + padding_top()));
 }
 
 void ReplacedBox::DumpProperties(std::ostream* stream) const {
