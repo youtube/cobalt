@@ -30,9 +30,14 @@
         'transaction.h',
       ],
       'conditions': [
-        ['OS=="lb_shell"', {
+        ['OS=="lb_shell" and starboard == 0', {
           'dependencies': [
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+            ],
+          }],
+        ['OS=="lb_shell" and starboard != 0', {
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
           ],
         }],
       ],
