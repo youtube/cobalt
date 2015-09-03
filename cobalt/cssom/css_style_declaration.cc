@@ -366,10 +366,104 @@ void CSSStyleDeclaration::set_z_index(const std::string& z_index) {
   SetPropertyValue(kZIndexPropertyName, z_index);
 }
 
+namespace {
+
+// Append a property declaration to a string.
+// When the given string is not empty, this also adds the single space separator
+// needed for the serialization of a CSS declaration block.
+//   http://www.w3.org/TR/cssom/#serialize-a-css-declaration
+void AppendPropertyDeclaration(
+    const char* const property_name,
+    const scoped_refptr<PropertyValue>& property_value, std::string* output) {
+  if (property_value) {
+    DCHECK(output);
+    DCHECK(property_name);
+    if (!output->empty()) {
+      output->push_back(' ');
+    }
+    output->append(property_name);
+    output->append(": ");
+    output->append(property_value->ToString());
+    output->push_back(';');
+  }
+}
+
+}  // namespace
+
+// This returns the result of serializing a CSS declaration block.
+// The current implementation does not handle shorthands.
+//   http://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSStyleDeclaration::css_text() const {
-  // TODO(***REMOVED***): Implement CSSOM serialization to string.
-  NOTIMPLEMENTED();
-  return "";
+  std::string css_text;
+  AppendPropertyDeclaration(kBackgroundColorPropertyName,
+                            data_->background_color(), &css_text);
+  AppendPropertyDeclaration(kBackgroundImagePropertyName,
+                            data_->background_image(), &css_text);
+  AppendPropertyDeclaration(kBackgroundPositionPropertyName,
+                            data_->background_position(), &css_text);
+  AppendPropertyDeclaration(kBackgroundRepeatPropertyName,
+                            data_->background_repeat(), &css_text);
+  AppendPropertyDeclaration(kBackgroundSizePropertyName,
+                            data_->background_size(), &css_text);
+  AppendPropertyDeclaration(kBorderRadiusPropertyName, data_->border_radius(),
+                            &css_text);
+  AppendPropertyDeclaration(kBottomPropertyName, data_->bottom(), &css_text);
+  AppendPropertyDeclaration(kColorPropertyName, data_->color(), &css_text);
+  AppendPropertyDeclaration(kContentPropertyName, data_->content(), &css_text);
+  AppendPropertyDeclaration(kDisplayPropertyName, data_->display(), &css_text);
+  AppendPropertyDeclaration(kFontFamilyPropertyName, data_->font_family(),
+                            &css_text);
+  AppendPropertyDeclaration(kFontSizePropertyName, data_->font_size(),
+                            &css_text);
+  AppendPropertyDeclaration(kFontStylePropertyName, data_->font_style(),
+                            &css_text);
+  AppendPropertyDeclaration(kFontWeightPropertyName, data_->font_weight(),
+                            &css_text);
+  AppendPropertyDeclaration(kHeightPropertyName, data_->height(), &css_text);
+  AppendPropertyDeclaration(kLeftPropertyName, data_->left(), &css_text);
+  AppendPropertyDeclaration(kLineHeightPropertyName, data_->line_height(),
+                            &css_text);
+  AppendPropertyDeclaration(kMarginBottomPropertyName, data_->margin_bottom(),
+                            &css_text);
+  AppendPropertyDeclaration(kMarginLeftPropertyName, data_->margin_left(),
+                            &css_text);
+  AppendPropertyDeclaration(kMarginRightPropertyName, data_->margin_right(),
+                            &css_text);
+  AppendPropertyDeclaration(kMarginTopPropertyName, data_->margin_top(),
+                            &css_text);
+  AppendPropertyDeclaration(kOpacityPropertyName, data_->opacity(), &css_text);
+  AppendPropertyDeclaration(kOverflowPropertyName, data_->overflow(),
+                            &css_text);
+  AppendPropertyDeclaration(kPaddingBottomPropertyName, data_->padding_bottom(),
+                            &css_text);
+  AppendPropertyDeclaration(kPaddingLeftPropertyName, data_->padding_left(),
+                            &css_text);
+  AppendPropertyDeclaration(kPaddingRightPropertyName, data_->padding_right(),
+                            &css_text);
+  AppendPropertyDeclaration(kPaddingTopPropertyName, data_->padding_top(),
+                            &css_text);
+  AppendPropertyDeclaration(kPositionPropertyName, data_->position(),
+                            &css_text);
+  AppendPropertyDeclaration(kRightPropertyName, data_->right(), &css_text);
+  AppendPropertyDeclaration(kTextAlignPropertyName, data_->text_align(),
+                            &css_text);
+  AppendPropertyDeclaration(kTopPropertyName, data_->top(), &css_text);
+  AppendPropertyDeclaration(kTransformPropertyName, data_->transform(),
+                            &css_text);
+  AppendPropertyDeclaration(kTransitionDelayPropertyName,
+                            data_->transition_delay(), &css_text);
+  AppendPropertyDeclaration(kTransitionDurationPropertyName,
+                            data_->transition_duration(), &css_text);
+  AppendPropertyDeclaration(kTransitionPropertyName,
+                            data_->transition_property(), &css_text);
+  AppendPropertyDeclaration(kTransitionTimingFunctionPropertyName,
+                            data_->transition_timing_function(), &css_text);
+  AppendPropertyDeclaration(kVerticalAlignPropertyName, data_->vertical_align(),
+                            &css_text);
+  AppendPropertyDeclaration(kWidthPropertyName, data_->width(), &css_text);
+  AppendPropertyDeclaration(kZIndexPropertyName, data_->z_index(), &css_text);
+
+  return css_text;
 }
 
 void CSSStyleDeclaration::set_css_text(const std::string& css_text) {

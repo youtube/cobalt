@@ -45,7 +45,7 @@ class LengthValue : public PropertyValue {
 
   std::string ToString() OVERRIDE {
     return base::StringPrintf(
-        "%f%s", value_,
+        "%.7g%s", value_,
         unit_ == kFontSizesAkaEmUnit ? "em" : unit_ == kPixelsUnit ? "px" : "");
   }
 
