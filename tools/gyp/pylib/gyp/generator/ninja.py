@@ -2009,59 +2009,59 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   master_ninja.newline()
 
   # Output host building rules
-  if flavor in ['android', 'linux', 'ps3', 'ps4', 'wiiu']:
-    cc_command=('bash -c "$cc_host @$out.rsp"')
-    cxx_command=('bash -c "$cxx_host @$out.rsp"')
-    if is_windows:
-      cc_command = 'cmd.exe /c ' + cc_command
-      cxx_command = 'cmd.exe /c ' + cxx_command
+  cc_command = 'bash -c "$cc_host @$out.rsp"'
+  cxx_command = 'bash -c "$cxx_host @$out.rsp"'
+  if is_windows:
+    # NOTE(***REMOVED***): This only supports Cygwin in Windows. If we want to support
+    # building host-targeted build targets on Windows, we should use
+    # gyp-win-tool to support MSVC without Cygwin.
+    cc_command = 'cmd.exe /c ' + cc_command
+    cxx_command = 'cmd.exe /c ' + cxx_command
 
-    master_ninja.rule(
-      'cc_host',
-      description='CC_HOST $out',
-      command=cc_command,
-      rspfile='$out.rsp',
-      rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
-                       '$cflags_c_host $cflags_pch_c -c $in -o $out'),
-      depfile='$out.d')
-    master_ninja.rule(
-      'cxx_host',
-      description='CXX_HOST $out',
-      command=cxx_command,
-      rspfile='$out.rsp',
-      rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
-                       '$cflags_cc_host $cflags_pch_cc -c $in -o $out'),
-      depfile='$out.d')
+  master_ninja.rule(
+    'cc_host',
+    description='CC_HOST $out',
+    command=cc_command,
+    rspfile='$out.rsp',
+    rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
+                     '$cflags_c_host $cflags_pch_c -c $in -o $out'),
+    depfile='$out.d')
+  master_ninja.rule(
+    'cxx_host',
+    description='CXX_HOST $out',
+    command=cxx_command,
+    rspfile='$out.rsp',
+    rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
+                     '$cflags_cc_host $cflags_pch_cc -c $in -o $out'),
+    depfile='$out.d')
 
-    alink_command = 'rm -f $out && ' \
-                    '$ar_host $arFlags_host $out @$out.rsp'
-    alink_thin_command = 'rm -f $out && ' \
-                         '$ar_host $arThinFlags_host $out @$out.rsp'
+  alink_command = 'rm -f $out && $ar_host $arFlags_host $out @$out.rsp'
+  alink_thin_command = 'rm -f $out && $ar_host $arThinFlags_host $out @$out.rsp'
 
-    master_ninja.rule(
-      'alink_host',
-      description='AR_HOST $out',
-      command='bash -c "' + alink_command + '"',
-      rspfile='$out.rsp',
-      rspfile_content='$in_newline')
-    master_ninja.rule(
-      'alink_thin_host',
-      description='AR_HOST $out',
-      command='bash -c "' + alink_thin_command + '"',
-      rspfile='$out.rsp',
-      rspfile_content='$in_newline')
-    beginlinkinlibs = ''
-    endlinkinlibs = ''
-    if is_linux:
-      beginlinkinlibs = '-Wl,--start-group'
-      endlinkinlibs = '-Wl,--end-group'
-    rpath = '-Wl,-rpath=\$$ORIGIN/lib'
-    master_ninja.rule(
-      'link_host',
-      description='LINK_HOST $out',
-      command=('bash -c "$ld_host $ldflags_host -o $out %s '
-               '%s $in $solibs %s $libs"' % (rpath,
-                                             beginlinkinlibs, endlinkinlibs)))
+  master_ninja.rule(
+    'alink_host',
+    description='AR_HOST $out',
+    command='bash -c "' + alink_command + '"',
+    rspfile='$out.rsp',
+    rspfile_content='$in_newline')
+  master_ninja.rule(
+    'alink_thin_host',
+    description='AR_HOST $out',
+    command='bash -c "' + alink_thin_command + '"',
+    rspfile='$out.rsp',
+    rspfile_content='$in_newline')
+  beginlinkinlibs = ''
+  endlinkinlibs = ''
+  if is_linux:
+    beginlinkinlibs = '-Wl,--start-group'
+    endlinkinlibs = '-Wl,--end-group'
+  rpath = '-Wl,-rpath=\$$ORIGIN/lib'
+  master_ninja.rule(
+    'link_host',
+    description='LINK_HOST $out',
+    command=('bash -c "$ld_host $ldflags_host -o $out %s '
+             '%s $in $solibs %s $libs"' % (rpath,
+                                           beginlinkinlibs, endlinkinlibs)))
 
   all_targets = set()
   for build_file in params['build_files']:
