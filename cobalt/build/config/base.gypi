@@ -17,10 +17,12 @@
 {
   'variables': {
     # Cobalt variables.
+
+    # Whether Cobalt is being built.
     'cobalt': 1,
 
-    # Similarly to chromium_code, marks the projects that are created
-    # by Cobalt team and thus are held to the highest standard of code health.
+    # Similarly to chromium_code, marks the projects that are created by the
+    # Cobalt team and thus are held to the highest standards of code health.
     'cobalt_code%': 0,
 
     # Contains the current build configuration.
@@ -44,6 +46,18 @@
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
     'lb_shell_sha1%': '<(cobalt_sha1)',
+
+
+    # Starboard configuration.
+
+    # Whether the current platform is using the Starboard porting library.
+    'starboard%': 0,
+
+    # Which platform Starboard is targeting (lower-case name, e.g. 'linux').
+    # This value is passed on to the STARBOARD_PLATFORM global preprocessor
+    # define.
+    'starboard_platform%': 'none',
+
 
     # Compiler configuration.
 
@@ -70,6 +84,7 @@
     'linker_flags_host%': [],
 
     'platform_libraries%': [],
+
 
     # Customize variables used by Chromium's build/common.gypi.
 
@@ -124,13 +139,21 @@
       '<(DEPTH)/lbshell/src',
       '<(DEPTH)/lbshell/src/platform/<(target_arch)',
       '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
-      # headers that we don't need, but should exist somewhere in the path:
-      '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
     ],
     'conditions': [
       ['posix_emulation_target_type == "shared_library"', {
         'defines': [
           '__LB_BASE_SHARED__=1',
+        ],
+      }],
+      ['starboard == 0', {
+        'include_dirs_target': [
+          # headers that we don't need, but should exist somewhere in the path:
+          '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
+        ],
+      }, { #else
+        'defines': [
+          'STARBOARD_PLATFORM=<(starboard_platform)',
         ],
       }],
       ['target_arch in ["xb1", "xb360"]', {
