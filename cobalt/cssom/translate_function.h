@@ -56,6 +56,32 @@ class TranslateFunction : public TransformFunction {
 
   Axis axis() const { return axis_; }
 
+  std::string ToString() const OVERRIDE {
+    char axis;
+    switch (axis_) {
+      case kXAxis: {
+        axis = 'X';
+        break;
+      }
+      case kYAxis: {
+        axis = 'Y';
+        break;
+      }
+      case kZAxis: {
+        axis = 'Z';
+        break;
+      }
+    }
+    std::string result = "translate";
+    result.push_back(axis);
+    result.push_back('(');
+    if (offset_) {
+      result.append(offset_->ToString());
+    }
+    result.push_back(')');
+    return result;
+  }
+
   bool operator==(const TranslateFunction& other) const {
     return offset_->Equals(*other.offset_) && axis_ == other.axis_;
   }

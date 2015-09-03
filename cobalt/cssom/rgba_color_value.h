@@ -58,8 +58,13 @@ class RGBAColorValue : public PropertyValue {
   uint8_t b() const { return static_cast<uint8_t>((value_ >> 8) & 0xFF); }
   uint8_t a() const { return static_cast<uint8_t>((value_ >> 0) & 0xFF); }
 
-  std::string ToString() OVERRIDE {
-    return base::StringPrintf("rgba(%u,%u,%u,%f)", r(), g(), b(), a() / 255.0);
+  std::string ToString() const OVERRIDE {
+    if (a() >= 255.0) {
+      return base::StringPrintf("rgb(%u,%u,%u)", r(), g(), b());
+    } else {
+      return base::StringPrintf("rgba(%u,%u,%u,%.7g)", r(), g(), b(),
+                                a() / 255.0);
+    }
   }
 
   bool operator==(const RGBAColorValue& other) const {

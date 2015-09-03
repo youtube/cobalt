@@ -35,7 +35,9 @@ class IntegerValue : public PropertyValue {
 
   int value() const { return value_; }
 
-  std::string ToString() OVERRIDE { return base::StringPrintf("%d", value_); }
+  std::string ToString() const OVERRIDE {
+    return base::StringPrintf("%d", value_);
+  }
 
 
   bool operator==(const IntegerValue& other) const {

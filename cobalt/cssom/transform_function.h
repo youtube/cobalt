@@ -33,6 +33,8 @@ class TransformFunction : public base::PolymorphicEquatable {
  public:
   virtual void Accept(TransformFunctionVisitor* visitor) const = 0;
 
+  virtual std::string ToString() const = 0;
+
   virtual ~TransformFunction() {}
 };
 
