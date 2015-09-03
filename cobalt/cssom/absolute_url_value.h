@@ -34,6 +34,10 @@ class AbsoluteURLValue : public PropertyValue {
 
   const GURL& value() const { return absolute_url_; }
 
+  std::string ToString() const OVERRIDE {
+    return "url(" + absolute_url_.spec() + ")";
+  }
+
   bool operator==(const AbsoluteURLValue& other) const {
     return absolute_url_ == other.absolute_url_;
   }

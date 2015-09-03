@@ -33,6 +33,15 @@ class PropertyListValue : public ScopedRefListValue<PropertyValue> {
     visitor->VisitPropertyList(this);
   }
 
+  std::string ToString() const OVERRIDE {
+    std::string result;
+    for (size_t i = 0; i < value().size(); ++i) {
+      if (!result.empty()) result.append(", ");
+      result.append(value()[i]->ToString());
+    }
+    return result;
+  }
+
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(PropertyListValue);
 
  private:

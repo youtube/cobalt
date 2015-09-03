@@ -38,7 +38,7 @@ class StringValue : public PropertyValue {
 
   const std::string& value() const { return value_; }
 
-  std::string ToString() OVERRIDE { return value_; }
+  std::string ToString() const OVERRIDE { return value_; }
 
   bool operator==(const StringValue& other) const {
     return value_ == other.value_;

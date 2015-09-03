@@ -32,12 +32,7 @@ class PropertyValue : public base::RefCountedThreadSafe<PropertyValue>,
  public:
   virtual void Accept(PropertyValueVisitor* visitor) = 0;
 
-  // TODO(***REMOVED***): |ToString| should be pure virtual function and supported for
-  // each value type. Tracked in b/20425977.
-  virtual std::string ToString() {
-    NOTIMPLEMENTED() << "Should be supported for each value type.";
-    return "";
-  }
+  virtual std::string ToString() const = 0;
 
  protected:
   virtual ~PropertyValue() {}
