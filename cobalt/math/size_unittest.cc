@@ -14,7 +14,7 @@ namespace math {
 
 namespace {
 
-int TestSizeF(const SizeF& s) { return s.width(); }
+int TestSizeF(const SizeF& s) { return static_cast<int>(s.width()); }
 
 }  // namespace
 

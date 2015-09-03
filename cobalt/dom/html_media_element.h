@@ -224,8 +224,7 @@ class HTMLMediaElement : public HTMLElement,
   void KeyAdded(const std::string& key_system,
                 const std::string& session_id) OVERRIDE;
   void KeyError(const std::string& key_system, const std::string& session_id,
-                MediaKeyErrorCode error_code,
-                unsigned short system_code) OVERRIDE;
+                MediaKeyErrorCode error_code, uint16 system_code) OVERRIDE;
   void KeyMessage(const std::string& key_system, const std::string& session_id,
                   const unsigned char* message, unsigned int message_length,
                   const std::string& default_url) OVERRIDE;
