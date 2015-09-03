@@ -17,12 +17,15 @@
 #include "cobalt/cssom/css_style_declaration.h"
 
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/mutation_observer.h"
+#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -488,6 +491,22 @@ TEST(CSSStyleDeclarationTest, CSSTextSetter) {
       .WillOnce(testing::Return(scoped_refptr<CSSStyleDeclarationData>()));
   style->set_css_text(css_text);
 }
+
+TEST(CSSStyleDeclarationTest, CssTextGetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<PercentageValue> background_size = new PercentageValue(0.50f);
+  scoped_refptr<LengthValue> bottom = new LengthValue(16, kPixelsUnit);
+
+  scoped_refptr<CSSStyleDeclarationData> style_data =
+      new CSSStyleDeclarationData();
+  style_data->set_background_size(background_size);
+  style_data->set_bottom(bottom);
+
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(style_data, &css_parser);
+  EXPECT_EQ(style->css_text(), "background-size: 50%; bottom: 16px;");
+}
+
 
 }  // namespace cssom
 }  // namespace cobalt

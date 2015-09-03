@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | This tests that when setting cssText, it changes the layout when needed.
+-->
+<head>
+  <style>
+  body {
+    margin: 0px;
+  }
+  div { display:block; background: #ddd; }
+  </style>
+</head>
+<body>
+  <script>
+  window.onload = function () {
+    document.getElementById('box').style.cssText = "height: 20px;";
+  };
+  </script>
+<div id="box"></div>
+</body>
+</html>

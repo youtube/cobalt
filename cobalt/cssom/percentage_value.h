@@ -40,7 +40,7 @@ class PercentageValue : public PropertyValue {
   float value() const { return value_; }
 
   std::string ToString() OVERRIDE {
-    return base::StringPrintf("%f%%", value_ * 100);
+    return base::StringPrintf("%.7g%%", value_ * 100);
   }
 
   bool operator==(const PercentageValue& other) const {
