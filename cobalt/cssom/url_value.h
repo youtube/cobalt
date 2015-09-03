@@ -34,6 +34,8 @@ class URLValue : public PropertyValue {
 
   const std::string& value() const { return url_; }
 
+  std::string ToString() const OVERRIDE { return "url(" + url_ + ")"; }
+
   GURL Resolve(const GURL& base_url) const;
 
   bool is_absolute() const { return is_absolute_; }

@@ -35,7 +35,9 @@ class NumberValue : public PropertyValue {
 
   float value() const { return value_; }
 
-  std::string ToString() OVERRIDE { return base::StringPrintf("%f", value_); }
+  std::string ToString() const OVERRIDE {
+    return base::StringPrintf("%.7g", value_);
+  }
 
 
   bool operator==(const NumberValue& other) const {

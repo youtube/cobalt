@@ -17,6 +17,9 @@
 #ifndef CSSOM_TIME_LIST_VALUE_H_
 #define CSSOM_TIME_LIST_VALUE_H_
 
+#include <inttypes.h>
+
+#include "base/stringprintf.h"
 #include "base/time.h"
 #include "cobalt/cssom/list_value.h"
 
@@ -33,6 +36,21 @@ class TimeListValue : public ListValue<base::TimeDelta> {
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE {
     visitor->VisitTimeList(this);
+  }
+
+  std::string ToString() const OVERRIDE {
+    std::string result;
+    for (size_t i = 0; i < value().size(); ++i) {
+      if (!result.empty()) result.append(", ");
+      int64 in_ms = value()[i].InMilliseconds();
+      int64 truncated_to_seconds = in_ms / base::Time::kMillisecondsPerSecond;
+      if (in_ms == base::Time::kMillisecondsPerSecond * truncated_to_seconds) {
+        result.append(base::StringPrintf("%" PRIu64 "s", truncated_to_seconds));
+      } else {
+        result.append(base::StringPrintf("%" PRIu64 "ms", in_ms));
+      }
+    }
+    return result;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimeListValue);

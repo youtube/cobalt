@@ -18,6 +18,7 @@
 #define CSSOM_ROTATE_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/transform_function.h"
 
@@ -36,6 +37,10 @@ class RotateFunction : public TransformFunction {
 
   float clockwise_angle_in_radians() const {
     return clockwise_angle_in_radians_;
+  }
+
+  std::string ToString() const OVERRIDE {
+    return base::StringPrintf("rotate(%.7grad)", clockwise_angle_in_radians_);
   }
 
   bool operator==(const RotateFunction& other) const {

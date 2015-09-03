@@ -44,9 +44,9 @@ class ResolutionValue : public PropertyValue {
   float value() const { return value_; }
   ResolutionUnit unit() const { return unit_; }
 
-  std::string ToString() OVERRIDE {
+  std::string ToString() const OVERRIDE {
     return base::StringPrintf(
-        "%f%s", value_,
+        "%.7g%s", value_,
         unit_ == kDPIUnit ? "dpi" : unit_ == kDPCMUnit ? "dpcm" : "");
   }
 
