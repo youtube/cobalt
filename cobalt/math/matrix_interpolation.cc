@@ -51,11 +51,11 @@ DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix) {
   }
 
   // Renormalize matrix to remove scale.
-  if (decomposition.scale[0]) {
+  if ((0.0f != decomposition.scale[0])) {
     col0x *= 1 / decomposition.scale[0];
     col0y *= 1 / decomposition.scale[0];
   }
-  if (decomposition.scale[1]) {
+  if ((0.0f !=  decomposition.scale[1])) {
     col1x *= 1 / decomposition.scale[1];
     col1y *= 1 / decomposition.scale[1];
   }
@@ -63,7 +63,7 @@ DecomposedMatrix DecomposeMatrix(const math::Matrix3F& matrix) {
   // Compute rotation and renormalize matrix.
   decomposition.angle = atan2(col0y, col0x);
 
-  if (decomposition.angle) {
+  if ((0.0f != decomposition.angle)) {
     // Rotate(-angle) = [ cos(angle),  sin(angle) ]
     //                  [ -sin(angle), cos(angle) ]
     //                = [ col0x,  col0y ]
