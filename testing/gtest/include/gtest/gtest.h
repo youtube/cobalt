@@ -1401,6 +1401,7 @@ AssertionResult CmpHelperEQ(const char* expected_expression,
 #elif defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #endif
 
   if (expected == actual) {
