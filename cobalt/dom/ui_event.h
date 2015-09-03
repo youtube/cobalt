@@ -20,6 +20,7 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -31,6 +32,7 @@ namespace dom {
 class UIEvent : public Event {
  public:
   // Custom, not in any spec.
+  //
   enum Type {
     kKeyDown,
     kKeyPress,
@@ -42,6 +44,18 @@ class UIEvent : public Event {
 
   Type type() { return type_enum_; }
 
+  // Web API: UIEvent
+  //
+  void InitUIEvent(const std::string& type, bool bubbles, bool cancelable,
+                   const scoped_refptr<Window>& view, int32 detail);
+
+  const scoped_refptr<Window>& view() const { return view_; }
+  // The following properties are defined inside UIEvent but are not valid for
+  // all UIEvent subtypes.  Subtypes should override the getters when necessary.
+  virtual int32 page_x() const { return 0; }
+  virtual int32 page_y() const { return 0; }
+  virtual uint32 which() const { return 0; }
+
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
@@ -51,6 +65,8 @@ class UIEvent : public Event {
   // TODO(***REMOVED***): remove type_enum_ when we have something to deal with string
   // comparison.
   Type type_enum_;
+
+  scoped_refptr<Window> view_;
 };
 
 }  // namespace dom
