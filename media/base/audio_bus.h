@@ -5,8 +5,10 @@
 #ifndef MEDIA_BASE_AUDIO_BUS_H_
 #define MEDIA_BASE_AUDIO_BUS_H_
 
+#include <limits>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
@@ -117,7 +119,12 @@ class MEDIA_EXPORT AudioBus {
   const float* channel(int channel) const { return channel_data_[channel]; }
   void SetChannelData(int channel, float* data);
 
-  int channels() const { return channel_data_.size(); }
+  int channels() const {
+    DCHECK_LE(channel_data_.size(),
+              static_cast<size_t>(std::numeric_limits<int>::max()));
+    return static_cast<int>(channel_data_.size());
+  }
+
   int frames() const { return frames_; }
   void set_frames(int frames);
 
