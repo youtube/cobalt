@@ -14,4 +14,19 @@
  * limitations under the License.
  */
 
-interface UIEvent : Event {};
+// http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
+interface UIEvent : Event {
+  void initUIEvent(DOMString type, boolean bubbles, boolean cancelable,
+                   Window? view, long detail);
+  readonly attribute Window? view;
+
+  // Note that the following properties are not part of any specification but
+  // are commonly implemented and required by Cobalt.
+  // The horizontal coordinate of the event relative to the whole document.
+  readonly attribute long pageX;
+  // The vertical coordinate of the event relative to the whole document.
+  readonly attribute long pageY;
+  // The numeric keyCode of the key pressed, or the character code (charCode)
+  // for an alphanumeric key pressed.
+  readonly attribute unsigned long which;
+};

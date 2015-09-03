@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/ui_event.h"
 
+#include "base/compiler_specific.h"
 #include "cobalt/dom/event_names.h"
 
 namespace cobalt {
@@ -45,6 +46,14 @@ UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
     : Event(uninitialized_flag) {}
 
 UIEvent::UIEvent(Type type) : Event(GetEventTypeName(type)), type_enum_(type) {}
+
+void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
+                          bool cancelable, const scoped_refptr<Window>& view,
+                          int32 detail) {
+  UNREFERENCED_PARAMETER(detail);
+  InitEvent(type, bubbles, cancelable);
+  view_ = view;
+}
 
 }  // namespace dom
 }  // namespace cobalt
