@@ -26,20 +26,16 @@ namespace layout {
 
 // Although the CSS 2.1 specification assumes that the text is simply a part of
 // an inline box, it is impractical to implement it that way. Instead, we define
-// a text box as an anonymous non-atomic inline-level box. During the layout
-// a text inside the text box is lazily divided into segments between break
-// points (soft wrap opportunities), and those segments act as inline-level
-// replaced boxes.
+// a text box as an anonymous replaced inline-level box that is breakable
+// at soft wrap opportunities.
 class TextBox : public Box {
  public:
-  static const float kInvalidTextWidth;
-
   TextBox(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
       const cssom::TransitionSet* transitions,
       const UsedStyleProvider* used_style_provider,
-      const scoped_refptr<Paragraph>& paragraph, int32 paragraph_start,
-      int32 paragraph_end, float text_width);
+      const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
+      int32 text_end_position);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -75,21 +71,15 @@ class TextBox : public Box {
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
 
  private:
-  void UpdateFontData();
-  void UpdateTextData();
-  void UpdateParagraphStartPositionWhiteSpace();
-  void UpdateParagraphEndPositionWhiteSpace();
-  void UpdateTextWidthIfInvalid();
-
-  std::string GetText() const;
+  void UpdateTextHasLeadingWhiteSpace();
+  void UpdateTextHasTrailingWhiteSpace();
 
   // Split the text box into two.
   // |split_start_position| indicates the position within the paragraph where
   // the split occurs and the second box begins
   // |pre_split_width| indicates the width of the text that is remaining part
   // of the first box
-  scoped_ptr<Box> SplitAtPosition(int32 split_start_position,
-                                  float pre_split_width);
+  scoped_ptr<Box> SplitAtPosition(int32 split_start_position);
 
   // Width of a space character in the used font, if the box has leading white
   // space.
@@ -98,11 +88,10 @@ class TextBox : public Box {
   // space.
   float GetTrailingWhiteSpaceWidth() const;
 
-  bool HasText() const;
-  int32 GetTextStartPosition() const;
-  int32 GetTextEndPosition() const;
-
-  bool IsTextWidthInvalid() const;
+  int32 GetNonCollapsibleTextStartPosition() const;
+  int32 GetNonCollapsibleTextEndPosition() const;
+  bool HasNonCollapsibleText() const;
+  std::string GetNonCollapsibleText() const;
 
   // The paragraph that this text box is part of. It contains access to the
   // underlying text, and handles the logic for determining bidi levels and
@@ -111,28 +100,24 @@ class TextBox : public Box {
   const scoped_refptr<Paragraph> paragraph_;
   // The position within the paragraph where the text contained in this box
   // begins.
-  int32 paragraph_start_position_;
+  int32 text_start_position_;
   // The position within the paragraph where the text contained in this box
   // ends.
-  int32 paragraph_end_position_;
-  // The total width of the text in the box, based on the font.
-  float text_width_;
-
-  // Whitespace tracking
-  bool is_paragraph_start_position_white_space_;
-  bool is_paragraph_end_position_white_space_;
-  bool is_trailing_white_space_collapsed_;
-  bool is_leading_white_space_collapsed_;
+  int32 text_end_position_;
 
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
-  // A vertical offset of the baseline relatively to the origin of the text box.
-  float height_above_baseline_;
-  // The height of the inline box encloses all glyphs and their half-leading on
-  // each side
-  float used_line_height_;
+
+  // Whitespace tracking.
+  bool text_has_leading_white_space_;
+  bool text_has_trailing_white_space_;
+  bool should_collapse_leading_white_space_;
+  bool should_collapse_trailing_white_space_;
+
   // A width of the space character in the used font, measured during layout.
   float space_width_;
+  // A vertical offset of the baseline relatively to the origin of the text box.
+  float baseline_offset_from_top_;
 };
 
 }  // namespace layout

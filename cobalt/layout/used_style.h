@@ -187,10 +187,24 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
 
   float used_line_height() const { return used_line_height_; }
 
+  // Half the leading is added above ascent (A) and the other half below
+  // descent (D), giving the glyph and its leading (L) a total height above
+  // the baseline of A' = A + L/2 and a total depth of D' = D + L/2.
+  //   http://www.w3.org/TR/CSS21/visudet.html#leading
+  float baseline_offset_from_top() const {
+    return font_metrics_.ascent + half_leading_;
+  }
+  float baseline_offset_from_bottom() const {
+    return font_metrics_.descent + half_leading_;
+  }
+
  private:
+  void UpdateHalfLeading();
+
   const render_tree::FontMetrics font_metrics_;
 
   float used_line_height_;
+  float half_leading_;
 
   DISALLOW_COPY_AND_ASSIGN(UsedLineHeightProvider);
 };
