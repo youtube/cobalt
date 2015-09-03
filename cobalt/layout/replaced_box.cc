@@ -45,16 +45,16 @@ ReplacedBox::ReplacedBox(
     const base::optional<float>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio)
     : Box(computed_style, transitions, used_style_provider),
-      replace_image_cb_(replace_image_cb),
-      paragraph_(paragraph),
-      text_position_(text_position),
       maybe_intrinsic_width_(maybe_intrinsic_width),
       maybe_intrinsic_height_(maybe_intrinsic_height),
       // Like Chromium, we assume that an element must always have an intrinsic
       // ratio, although technically it's a spec violation. For details see
       // http://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width.
       intrinsic_ratio_(
-          maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)) {
+          maybe_intrinsic_ratio.value_or(kFallbackIntrinsicRatio)),
+      replace_image_cb_(replace_image_cb),
+      paragraph_(paragraph),
+      text_position_(text_position) {
   DCHECK(!replace_image_cb_.is_null());
 }
 
