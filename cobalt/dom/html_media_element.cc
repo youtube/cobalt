@@ -1167,7 +1167,7 @@ void HTMLMediaElement::TimeChanged() {
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
-  if (!isnan(dur) && dur && now >= dur && playback_rate_ > 0) {
+  if (!isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0) {
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
@@ -1264,7 +1264,7 @@ void HTMLMediaElement::KeyAdded(const std::string& key_system,
 void HTMLMediaElement::KeyError(const std::string& key_system,
                                 const std::string& session_id,
                                 MediaKeyErrorCode error_code,
-                                unsigned short system_code) {
+                                uint16 system_code) {
   MediaKeyError::Code code;
   switch (error_code) {
     case kUnknownError:
