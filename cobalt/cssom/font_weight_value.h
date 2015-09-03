@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -57,6 +58,24 @@ class FontWeightValue : public PropertyValue {
 
   Value value() const { return value_; }
 
+  std::string ToString() const OVERRIDE {
+    switch (value_) {
+      case kNormalAka400:
+        return kNormalKeywordName;
+      case kBoldAka700:
+        return kBoldKeywordName;
+      case kThinAka100:
+      case kExtraLightAka200:
+      case kLightAka300:
+      case kMediumAka500:
+      case kSemiBoldAka600:
+      case kExtraBoldAka800:
+      case kBlackAka900:
+        // These values are not implemented by the scanner/parser.
+        NOTIMPLEMENTED();
+        return "";
+    }
+  }
   bool operator==(const FontWeightValue& other) const {
     return value_ == other.value_;
   }

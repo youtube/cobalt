@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -45,6 +46,17 @@ class FontStyleValue : public PropertyValue {
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
   Value value() const { return value_; }
+
+  std::string ToString() const OVERRIDE {
+    switch (value_) {
+      case kItalic:
+        return kItalicKeywordName;
+      case kNormal:
+        return kNormalKeywordName;
+      case kOblique:
+        return kObliqueKeywordName;
+    }
+  }
 
   bool operator==(const FontStyleValue& other) const {
     return value_ == other.value_;

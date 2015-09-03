@@ -43,7 +43,7 @@ class LengthValue : public PropertyValue {
   float value() const { return value_; }
   LengthUnit unit() const { return unit_; }
 
-  std::string ToString() OVERRIDE {
+  std::string ToString() const OVERRIDE {
     return base::StringPrintf(
         "%.7g%s", value_,
         unit_ == kFontSizesAkaEmUnit ? "em" : unit_ == kPixelsUnit ? "px" : "");

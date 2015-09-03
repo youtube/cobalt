@@ -39,7 +39,7 @@ class RatioValue : public PropertyValue {
   int numerator() const { return numerator_; }
   int denominator() const { return denominator_; }
 
-  std::string ToString() OVERRIDE {
+  std::string ToString() const OVERRIDE {
     return base::StringPrintf("%d/%d", numerator_, denominator_);
   }
 
