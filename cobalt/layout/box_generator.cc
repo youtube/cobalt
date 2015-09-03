@@ -528,10 +528,10 @@ void BoxGenerator::Visit(dom::Text* text) {
   int32 text_start_position = (*paragraph_)->AppendText(collapsed_text);
   int32 text_end_position = (*paragraph_)->GetTextEndPosition();
 
-  boxes_.push_back(
-      new TextBox(computed_style, cssom::TransitionSet::EmptyTransitionSet(),
-                  used_style_provider_, *paragraph_, text_start_position,
-                  text_end_position, TextBox::kInvalidTextWidth));
+  boxes_.push_back(new TextBox(computed_style,
+                               cssom::TransitionSet::EmptyTransitionSet(),
+                               used_style_provider_, *paragraph_,
+                               text_start_position, text_end_position));
 }
 
 BoxGenerator::Boxes BoxGenerator::PassBoxes() { return boxes_.Pass(); }

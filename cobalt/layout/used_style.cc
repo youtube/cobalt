@@ -487,11 +487,21 @@ void UsedLineHeightProvider::VisitKeyword(cssom::KeywordValue* keyword) {
   DCHECK_EQ(cssom::KeywordValue::kNormal, keyword->value());
   used_line_height_ =
       font_metrics_.ascent + font_metrics_.descent + font_metrics_.leading;
+  UpdateHalfLeading();
 }
 
 void UsedLineHeightProvider::VisitLength(cssom::LengthValue* length) {
   DCHECK_EQ(cssom::kPixelsUnit, length->unit());
   used_line_height_ = length->value();
+  UpdateHalfLeading();
+}
+
+void UsedLineHeightProvider::UpdateHalfLeading() {
+  // Determine the leading L, where L = "line-height" - AD,
+  // AD = A (ascent) + D (descent).
+  //   http://www.w3.org/TR/CSS21/visudet.html#leading
+  half_leading_ =
+      (used_line_height_ - (font_metrics_.ascent + font_metrics_.descent)) / 2;
 }
 
 namespace {
