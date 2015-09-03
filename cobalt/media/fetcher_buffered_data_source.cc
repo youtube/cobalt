@@ -52,7 +52,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   base::AutoLock auto_lock(lock_);
   DCHECK(pending_read_cb_.is_null());
   if (state_ == kError) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(read_cb, -1));
+    read_cb.Run(-1);
     return;
   }
 
@@ -67,7 +67,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   if (position + size <= buffer_size) {
     memcpy(data, &buffer_[static_cast<size_t>(position)],
            static_cast<size_t>(size));
-    message_loop_->PostTask(FROM_HERE, base::Bind(read_cb, size));
+    read_cb.Run(size);
     return;
   }
 
