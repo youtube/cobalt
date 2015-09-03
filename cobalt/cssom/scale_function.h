@@ -18,6 +18,7 @@
 #define CSSOM_SCALE_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/transform_function.h"
 
@@ -35,6 +36,10 @@ class ScaleFunction : public TransformFunction {
 
   float x_factor() const { return x_factor_; }
   float y_factor() const { return y_factor_; }
+
+  std::string ToString() const OVERRIDE {
+    return base::StringPrintf("scale(%.7g, %.7g)", x_factor_, y_factor_);
+  }
 
   bool operator==(const ScaleFunction& other) const {
     return x_factor_ == other.x_factor_ && y_factor_ == other.y_factor_;

@@ -18,7 +18,9 @@
 #define CSSOM_TIMING_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/keyword_names.h"
 #include "cobalt/math/cubic_bezier.h"
 
 namespace cobalt {
@@ -48,6 +50,8 @@ class TimingFunction : public base::RefCountedThreadSafe<TimingFunction>,
   static const scoped_refptr<TimingFunction>& GetStepEnd();
   static const scoped_refptr<TimingFunction>& GetStepStart();
 
+  virtual std::string ToString() = 0;
+
  protected:
   virtual ~TimingFunction() {}
 
@@ -67,6 +71,12 @@ class CubicBezierTimingFunction : public TimingFunction {
       : cubic_bezier_(p1_x, p1_y, p2_x, p2_y) {}
 
   float Evaluate(float x) const OVERRIDE;
+
+  std::string ToString() OVERRIDE {
+    return base::StringPrintf("cubic-bezier(%.7g,%.7g,%.7g,%.7g)",
+                              cubic_bezier_.x1(), cubic_bezier_.y1(),
+                              cubic_bezier_.x2(), cubic_bezier_.y2());
+  }
 
   bool operator==(const CubicBezierTimingFunction& other) const {
     return cubic_bezier_ == other.cubic_bezier_;
@@ -100,6 +110,22 @@ class SteppingTimingFunction : public TimingFunction {
   }
 
   float Evaluate(float x) const OVERRIDE;
+
+  std::string ToString() OVERRIDE {
+    std::string result = base::StringPrintf("steps(%d, ", number_of_steps_);
+    switch (value_change_location_) {
+      case kStart: {
+        result.append(kStartKeywordName);
+        break;
+      }
+      case kEnd: {
+        result.append(kEndKeywordName);
+        break;
+      }
+    }
+    result.push_back(')');
+    return result;
+  }
 
   bool operator==(const SteppingTimingFunction& other) const {
     return number_of_steps_ == other.number_of_steps_ &&

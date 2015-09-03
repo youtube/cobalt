@@ -2995,5 +2995,25 @@ TEST_F(ParserTest, ParsesNegativeZIndex) {
   EXPECT_EQ(-2, z_index->value());
 }
 
+// Test that style declarations in a list are parsed in specified order.
+//   http://www.w3.org/TR/cssom/#dom-cssstyledeclaration-csstext
+TEST_F(ParserTest, ParsesDeclarationsInSpecifiedOrder) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList(
+          "height:20px; width:150em; height:20%; width:160px;",
+          source_location_);
+
+  scoped_refptr<cssom::PercentageValue> height =
+      dynamic_cast<cssom::PercentageValue*>(style->height().get());
+  ASSERT_TRUE(height);
+  EXPECT_EQ(0.2f, height->value());
+
+  scoped_refptr<cssom::LengthValue> width =
+      dynamic_cast<cssom::LengthValue*>(style->width().get());
+  ASSERT_TRUE(width);
+  EXPECT_EQ(160, width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, width->unit());
+}
+
 }  // namespace css_parser
 }  // namespace cobalt

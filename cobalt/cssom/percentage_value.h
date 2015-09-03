@@ -39,7 +39,7 @@ class PercentageValue : public PropertyValue {
   // Returns a normalized factor, where 1 means 100%.
   float value() const { return value_; }
 
-  std::string ToString() OVERRIDE {
+  std::string ToString() const OVERRIDE {
     return base::StringPrintf("%.7g%%", value_ * 100);
   }
 

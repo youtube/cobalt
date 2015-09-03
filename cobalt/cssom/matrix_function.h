@@ -18,6 +18,7 @@
 #define CSSOM_MATRIX_FUNCTION_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/math/matrix3_f.h"
@@ -38,6 +39,12 @@ class MatrixFunction : public TransformFunction {
   void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
 
   const math::Matrix3F& value() const { return value_; }
+
+  std::string ToString() const OVERRIDE {
+    return base::StringPrintf("matrix(%.7g, %.7g, %.7g, %.7g, %.7g, %.7g)",
+                              value_(0, 0), value_(1, 0), value_(0, 1),
+                              value_(1, 1), value_(0, 2), value_(1, 2));
+  }
 
   bool operator==(const MatrixFunction& other) const {
     return value_ == other.value_;
