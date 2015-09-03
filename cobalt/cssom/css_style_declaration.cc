@@ -366,11 +366,9 @@ void CSSStyleDeclaration::set_z_index(const std::string& z_index) {
   SetPropertyValue(kZIndexPropertyName, z_index);
 }
 
-// TODO(***REMOVED***): The getter of css_text returns the result of serializing the
-// declarations, which is not required for Performance Spike. This should be
-// handled propertly afterwards.
 std::string CSSStyleDeclaration::css_text() const {
-  NOTREACHED();
+  // TODO(***REMOVED***): Implement CSSOM serialization to string.
+  NOTIMPLEMENTED();
   return "";
 }
 
