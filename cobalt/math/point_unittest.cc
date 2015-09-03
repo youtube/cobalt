@@ -15,7 +15,7 @@ namespace math {
 
 namespace {
 
-int TestPointF(const PointF& p) { return p.x(); }
+int TestPointF(const PointF& p) { return static_cast<int>(p.x()); }
 
 }  // namespace
 
