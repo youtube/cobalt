@@ -185,6 +185,7 @@
         'keyword_value_test.cc',
         'media_list_test.cc',
         'property_value_is_equal_test.cc',
+        'property_value_to_string_test.cc',
         'property_value_visitor_test.cc',
         'selector_test.cc',
         'selector_visitor_test.cc',
