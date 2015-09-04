@@ -112,8 +112,8 @@ void InlineFormattingContext::DestroyLineBox() {
       bounding_box_of_used_children_.set_height(line_box_->top() +
                                                 line_box_->height());
 
-      set_height_above_baseline(line_box_->top() +
-                                line_box_->height_above_baseline());
+      set_baseline_offset_from_top_content_edge(
+          line_box_->top() + line_box_->baseline_offset_from_top());
 
       // A width of the block container box when all possible line breaks are
       // made.

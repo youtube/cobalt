@@ -56,7 +56,7 @@ class TextBox : public Box {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetHeightAboveBaseline() const OVERRIDE;
+  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
  protected:
   // From |Box|.
@@ -66,9 +66,11 @@ class TextBox : public Box {
           node_animations_map_builder) const OVERRIDE;
   bool IsTransformable() const OVERRIDE;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpClassName(std::ostream* stream) const OVERRIDE;
   void DumpProperties(std::ostream* stream) const OVERRIDE;
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
   void UpdateTextHasLeadingWhiteSpace();

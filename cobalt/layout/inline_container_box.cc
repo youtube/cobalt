@@ -28,7 +28,7 @@ InlineContainerBox::InlineContainerBox(
     const UsedStyleProvider* used_style_provider)
     : ContainerBox(computed_style, transitions, used_style_provider),
       justifies_line_existence_(false),
-      height_above_baseline_(0),
+      baseline_offset_from_margin_box_top_(0),
       used_font_(used_style_provider->GetUsedFont(
           computed_style->font_family(), computed_style->font_size(),
           computed_style->font_style(), computed_style->font_weight())) {}
@@ -84,7 +84,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
 
   set_width(line_box.GetShrinkToFitWidth());
   set_height(line_box.height());
-  height_above_baseline_ = line_box.height_above_baseline();
+  baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
 }
 
 scoped_ptr<Box> InlineContainerBox::TrySplitAt(float available_width,
@@ -258,15 +258,30 @@ bool InlineContainerBox::AffectsBaselineInBlockFormattingContext() const {
   return true;
 }
 
-float InlineContainerBox::GetHeightAboveBaseline() const {
-  return height_above_baseline_;
+float InlineContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
+  return baseline_offset_from_margin_box_top_;
 }
 
 bool InlineContainerBox::IsTransformable() const { return false; }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void InlineContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineContainerBox ";
 }
+
+void InlineContainerBox::DumpProperties(std::ostream* stream) const {
+  ContainerBox::DumpProperties(stream);
+
+  *stream << std::boolalpha
+          << "has_leading_white_space=" << HasLeadingWhiteSpace() << " "
+          << "has_trailing_white_space=" << HasTrailingWhiteSpace() << " "
+          << "is_collapsed=" << IsCollapsed() << " "
+          << "justifies_line_existence=" << JustifiesLineExistence() << " "
+          << std::noboolalpha;
+}
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 InlineContainerBox::ChildBoxes::const_iterator
 InlineContainerBox::FindFirstNonCollapsedChildBox() const {

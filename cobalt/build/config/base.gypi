@@ -170,6 +170,7 @@
         'ldflags': [ '<@(linker_flags_debug)' ],
         'defines': [
           '_DEBUG',
+          'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
           '__LB_SHELL__FORCE_LOGGING__',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
