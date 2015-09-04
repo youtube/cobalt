@@ -41,10 +41,9 @@
 namespace cobalt {
 namespace dom {
 
-using ::media::VideoFrame;
 using ::media::WebMediaPlayer;
 
-const char HTMLMediaElement::kTagName[] = "video";
+const char HTMLMediaElement::kTagName[] = "media";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
 
@@ -403,11 +402,6 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   if (!src.empty()) {
     set_src(src);
   }
-}
-
-::media::ShellVideoFrameProvider* HTMLMediaElement::GetVideoFrameProvider() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  return player_ ? player_->GetVideoFrameProvider() : NULL;
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {

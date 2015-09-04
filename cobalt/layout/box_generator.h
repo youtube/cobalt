@@ -27,7 +27,7 @@
 namespace cobalt {
 
 namespace dom {
-class HTMLMediaElement;
+class HTMLVideoElement;
 }  // namespace dom
 
 namespace layout {
@@ -66,7 +66,7 @@ class BoxGenerator : public dom::NodeVisitor {
   Boxes PassBoxes();
 
  private:
-  void VisitMediaElement(dom::HTMLMediaElement* media_element);
+  void VisitVideoElement(dom::HTMLVideoElement* video_element);
   void VisitNonReplacedElement(dom::HTMLElement* html_element);
 
   void AppendChildBoxToLine(Box* child_box_ptr);

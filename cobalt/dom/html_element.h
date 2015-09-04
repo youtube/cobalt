@@ -44,12 +44,12 @@ class HTMLHeadElement;
 class HTMLHeadingElement;
 class HTMLHtmlElement;
 class HTMLLinkElement;
-class HTMLMediaElement;
 class HTMLParagraphElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
 class HTMLStyleElement;
 class HTMLUnknownElement;
+class HTMLVideoElement;
 
 // The enum PseudoElementType is used to track the type of pseudo element
 enum PseudoElementType {
@@ -102,12 +102,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement();
   virtual scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement();
   virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
-  virtual scoped_refptr<HTMLMediaElement> AsHTMLMediaElement();
   virtual scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
   virtual scoped_refptr<HTMLStyleElement> AsHTMLStyleElement();
   virtual scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement();
+  virtual scoped_refptr<HTMLVideoElement> AsHTMLVideoElement();
 
   // Used by layout engine to cache the computed values.
   // See http://www.w3.org/TR/css-cascade-3/#computed for the definition of

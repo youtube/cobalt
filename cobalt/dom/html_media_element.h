@@ -31,7 +31,6 @@
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
 #include "googleurl/src/gurl.h"
-#include "media/base/shell_video_frame_provider.h"
 #include "media/player/web_media_player.h"
 
 namespace cobalt {
@@ -41,7 +40,7 @@ namespace dom {
 // exception support.
 typedef int ExceptionCode;
 
-// The HTMLMediaElement is used to play videos.
+// The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   http://www.w3.org/TR/html5/embedded-content-0.html#media-element
 // It also implements methods defined in Encrypted Media Extensions.
 //   https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html
@@ -135,15 +134,12 @@ class HTMLMediaElement : public HTMLElement,
   //
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
-  // From HTMLElement
-  scoped_refptr<HTMLMediaElement> AsHTMLMediaElement() OVERRIDE { return this; }
-
-  // TODO(***REMOVED***): ShellVideoFrameProvider is guaranteed to be long live and
-  // thread safe. However, it is actually a singleton internally. We should find
-  // a better way to support concurrent video playbacks.
-  ::media::ShellVideoFrameProvider* GetVideoFrameProvider();
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
+
+ protected:
+  WebMediaPlayer* player() { return player_.get(); }
+  const WebMediaPlayer* player() const { return player_.get(); }
 
  private:
   static const char kMediaSourceUrlProtocol[];
@@ -286,10 +282,6 @@ class HTMLMediaElement : public HTMLElement,
   bool sent_end_event_;
 
   scoped_refptr<MediaError> error_;
-
-  // Thread checker ensures that HTMLMediaElement::GetVideoFrameProvider() is
-  // only called from the thread that the HTMLMediaElement is created in.
-  base::ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
 };

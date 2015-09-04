@@ -40,12 +40,12 @@
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
-#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/html_unknown_element.h"
+#include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/rule_matching.h"
 
 namespace cobalt {
@@ -150,10 +150,6 @@ scoped_refptr<HTMLHtmlElement> HTMLElement::AsHTMLHtmlElement() { return NULL; }
 
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
 
-scoped_refptr<HTMLMediaElement> HTMLElement::AsHTMLMediaElement() {
-  return NULL;
-}
-
 scoped_refptr<HTMLParagraphElement> HTMLElement::AsHTMLParagraphElement() {
   return NULL;
 }
@@ -169,6 +165,10 @@ scoped_refptr<HTMLStyleElement> HTMLElement::AsHTMLStyleElement() {
 }
 
 scoped_refptr<HTMLUnknownElement> HTMLElement::AsHTMLUnknownElement() {
+  return NULL;
+}
+
+scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
 }
 
