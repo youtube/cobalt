@@ -20,10 +20,12 @@
 #include <limits>
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/guid.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_element_context.h"
@@ -46,6 +48,26 @@ using ::media::WebMediaPlayer;
 const char HTMLMediaElement::kTagName[] = "media";
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
 const double HTMLMediaElement::kMaxTimeupdateEventFrequency = 0.25;
+
+namespace {
+
+void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
+                            script::ExceptionState* exception_state) {
+  DCHECK_NE(exception, WebMediaPlayer::kMediaKeyExceptionNoError);
+  switch (exception) {
+    case WebMediaPlayer::kMediaKeyExceptionInvalidPlayerState:
+      DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+      break;
+    case WebMediaPlayer::kMediaKeyExceptionKeySystemNotSupported:
+      DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
+}  // namespace
 
 HTMLMediaElement::HTMLMediaElement(Document* document)
     : HTMLElement(document),
@@ -127,17 +149,18 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
 
 void HTMLMediaElement::GenerateKeyRequest(
     const std::string& key_system,
-    const base::optional<scoped_refptr<Uint8Array> >& init_data) {
+    const base::optional<scoped_refptr<Uint8Array> >& init_data,
+    script::ExceptionState* exception_state) {
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-generatekeyrequest
   // 1. If the first argument is null, throw a SYNTAX_ERR.
   if (key_system.empty()) {
-    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   // 2. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
   if (network_state_ == kNetworkEmpty || !player_) {
-    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
@@ -151,29 +174,32 @@ void HTMLMediaElement::GenerateKeyRequest(
     exception = player_->GenerateKeyRequest(key_system, NULL, 0);
   }
 
-  // TODO(***REMOVED***): Throw exception according to 'exception'.
+  if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    RaiseMediaKeyException(exception, exception_state);
+  }
 }
 
 void HTMLMediaElement::AddKey(
     const std::string& key_system, const scoped_refptr<Uint8Array>& key,
     const base::optional<scoped_refptr<Uint8Array> >& init_data,
-    const base::optional<std::string>& session_id) {
+    const base::optional<std::string>& session_id,
+    script::ExceptionState* exception_state) {
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first or second argument is null, throw a SYNTAX_ERR.
   if (key_system.empty() || !key) {
-    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   // 2. If the second argument is an empty array, throw a TYPE_MISMATCH_ERR.
   if (!key->length()) {
-    // TODO(***REMOVED***): Throw TYPE_MISMATCH_ERR.
+    DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
     return;
   }
 
   // 3. If networkState is NETWORK_EMPTY, throw an INVALID_STATE_ERR.
   if (network_state_ == kNetworkEmpty || !player_) {
-    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
@@ -189,28 +215,33 @@ void HTMLMediaElement::AddKey(
                                 session_id.value_or(""));
   }
 
-  // TODO(***REMOVED***): Throw exception according to 'exception'.
+  if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    RaiseMediaKeyException(exception, exception_state);
+  }
 }
 
 void HTMLMediaElement::CancelKeyRequest(
     const std::string& key_system,
-    const base::optional<std::string>& session_id) {
+    const base::optional<std::string>& session_id,
+    script::ExceptionState* exception_state) {
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first argument is null, throw a SYNTAX_ERR.
   if (key_system.empty()) {
-    // TODO(***REMOVED***): Throw SYNTAX_ERR.
+    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   if (!player_) {
-    // TODO(***REMOVED***): Throw INVALID_STATE_ERR.
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
 
   // The rest is handled by WebMediaPlayer::CancelKeyRequest().
-  player_->CancelKeyRequest(key_system, session_id.value_or(""));
-  // TODO(***REMOVED***): Throw exception according to CancelKeyRequest's return
-  // value.
+  WebMediaPlayer::MediaKeyException exception =
+      player_->CancelKeyRequest(key_system, session_id.value_or(""));
+  if (exception != WebMediaPlayer::kMediaKeyExceptionNoError) {
+    RaiseMediaKeyException(exception, exception_state);
+  }
 }
 
 WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
@@ -219,7 +250,10 @@ WebMediaPlayer::ReadyState HTMLMediaElement::ready_state() const {
 
 bool HTMLMediaElement::seeking() const { return seeking_; }
 
-float HTMLMediaElement::current_time() const {
+float HTMLMediaElement::current_time(
+    script::ExceptionState* exception_state) const {
+  UNREFERENCED_PARAMETER(exception_state);
+
   if (!player_) {
     return 0;
   }
@@ -231,9 +265,18 @@ float HTMLMediaElement::current_time() const {
   return player_->CurrentTime();
 }
 
-void HTMLMediaElement::set_current_time(float time /*, ExceptionCode* ec*/) {
-  ExceptionCode ec;
-  Seek(time, &ec);
+void HTMLMediaElement::set_current_time(
+    float time, script::ExceptionState* exception_state) {
+  // 4.8.9.9 Seeking
+
+  // 1 - If the media element's readyState is
+  // WebMediaPlayer::kReadyStateHaveNothing, then raise an INVALID_STATE_ERR
+  // exception.
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing || !player_) {
+    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    return;
+  }
+  Seek(time);
 }
 
 float HTMLMediaElement::duration() const {
@@ -272,7 +315,7 @@ void HTMLMediaElement::set_playback_rate(float rate) {
 
 const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
   if (playing_) {
-    float time = current_time();
+    float time = current_time(NULL);
     if (time > last_seek_time_) {
       AddPlayedRange(last_seek_time_, time);
     }
@@ -322,8 +365,7 @@ void HTMLMediaElement::Play() {
   }
 
   if (EndedPlayback()) {
-    ExceptionCode unused;
-    Seek(0, &unused);
+    Seek(0);
   }
 
   if (paused_) {
@@ -365,11 +407,16 @@ void HTMLMediaElement::set_controls(bool controls) {
   ConfigureMediaControls();
 }
 
-float HTMLMediaElement::volume() const { return volume_; }
+float HTMLMediaElement::volume(script::ExceptionState* exception_state) const {
+  UNREFERENCED_PARAMETER(exception_state);
 
-void HTMLMediaElement::set_volume(float vol /*, ExceptionCode* ec*/) {
+  return volume_;
+}
+
+void HTMLMediaElement::set_volume(float vol,
+                                  script::ExceptionState* exception_state) {
   if (vol < 0.0f || vol > 1.0f) {
-    // *ec = kIndexSizeErr;
+    DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
@@ -720,7 +767,7 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodicEvent) {
 
   // Some media engines make multiple "time changed" callbacks at the same time,
   // but we only want one event at a given time so filter here
-  float movie_time = current_time();
+  float movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
     ScheduleEvent(EventNames::GetInstance()->timeupdate());
     last_time_update_event_wall_time_ = now;
@@ -874,21 +921,17 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
   network_state_ = kNetworkIdle;
 }
 
-void HTMLMediaElement::Seek(float time, ExceptionCode* ec) {
-  UNREFERENCED_PARAMETER(ec);
-  // 4.8.9.9 Seeking
+void HTMLMediaElement::Seek(float time) {
+  // 4.8.9.9 Seeking - continued from set_current_time().
 
-  // 1 - If the media element's readyState is
-  // WebMediaPlayer::kReadyStateHaveNothing, then raise an INVALID_STATE_ERR
-  // exception.
+  // Check state again as Seek() can be called by HTMLMediaElement internally.
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing || !player_) {
-    // *ec = kInvalidStateErr;
     return;
   }
 
   // Get the current time before setting seeking_, last_seek_time_ is returned
   // once it is set.
-  float now = current_time();
+  float now = current_time(NULL);
 
   // 2 - If the element's seeking IDL attribute is true, then another instance
   // of this algorithm is already running. Abort that other instance of the
@@ -1016,7 +1059,7 @@ void HTMLMediaElement::UpdatePlayState() {
 
     playback_progress_timer_.Stop();
     playing_ = false;
-    float time = current_time();
+    float time = current_time(NULL);
     if (time > last_seek_time_) {
       AddPlayedRange(last_seek_time_, time);
     }
@@ -1053,7 +1096,7 @@ bool HTMLMediaElement::EndedPlayback() const {
   // direction of playback is forwards, Either the media element does not have a
   // loop attribute specified, or the media element has a current media
   // controller.
-  float now = current_time();
+  float now = current_time(NULL);
   if (playback_rate_ > 0) {
     return dur > 0 && now >= dur && !loop();
   }
@@ -1070,7 +1113,7 @@ bool HTMLMediaElement::EndedPlayback() const {
 bool HTMLMediaElement::StoppedDueToErrors() const {
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata && error_) {
     scoped_refptr<TimeRanges> seekable_ranges = seekable();
-    if (!seekable_ranges->Contains(current_time())) {
+    if (!seekable_ranges->Contains(current_time(NULL))) {
       return true;
     }
   }
@@ -1155,7 +1198,7 @@ void HTMLMediaElement::TimeChanged() {
   // already posted one at the current movie time.
   ScheduleTimeupdateEvent(false);
 
-  float now = current_time();
+  float now = current_time(NULL);
   float dur = duration();
 
   // When the current playback position reaches the end of the media resource
@@ -1168,9 +1211,7 @@ void HTMLMediaElement::TimeChanged() {
       sent_end_event_ = false;
       // then seek to the earliest possible position of the media resource and
       // abort these steps.
-      ExceptionCode unused;
-
-      Seek(0, &unused);
+      Seek(0);
     } else {
       // If the media element does not have a current media controller, and the
       // media element has still ended playback, and the direction of playback
@@ -1200,11 +1241,10 @@ void HTMLMediaElement::DurationChanged() {
 
   ScheduleEvent(EventNames::GetInstance()->durationchange());
 
-  float now = current_time();
+  float now = current_time(NULL);
   float dur = duration();
   if (now > dur) {
-    ExceptionCode unused;
-    Seek(dur, &unused);
+    Seek(dur);
   }
 
   EndProcessingMediaPlayerCallback();
@@ -1238,7 +1278,7 @@ void HTMLMediaElement::Repaint() { NOTIMPLEMENTED(); }
 
 void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
-float HTMLMediaElement::Volume() const { return volume(); }
+float HTMLMediaElement::Volume() const { return volume(NULL); }
 
 void HTMLMediaElement::SourceOpened() {
   BeginProcessingMediaPlayerCallback();
