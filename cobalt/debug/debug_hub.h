@@ -23,6 +23,7 @@
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
+#include "cobalt/debug/system_stats_tracker.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/wrappable.h"
 
@@ -66,6 +67,13 @@ class DebugHub : public script::Wrappable {
   // AddLogMessageCallback.
   void RemoveLogMessageCallback(int id);
 
+  // Gets the collection of available CVal names as an alphabetically ordered,
+  // space-separated list.
+  std::string GetConsoleValueNames() const;
+
+  // Gets the value of a named CVal as a pretty string.
+  std::string GetConsoleValue(const std::string& name) const;
+
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 
  private:
@@ -79,6 +87,9 @@ class DebugHub : public script::Wrappable {
   LogMessageCallbacks log_message_callbacks_;
   base::Lock lock_;
   base::LogMessageHandler::CallbackId log_message_handler_callback_id_;
+
+  // Maintains a collection of CVals continuously updated with system stats.
+  SystemStatsTracker system_stats_tracker;
 };
 
 }  // namespace debug
