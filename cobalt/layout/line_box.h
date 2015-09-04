@@ -106,7 +106,7 @@ class LineBox {
   // Returns the vertical offset of the baseline. May return non-zero values
   // even for empty line boxes, because of the strut.
   //   http://www.w3.org/TR/CSS21/visudet.html#strut
-  float height_above_baseline() const { return height_above_baseline_; }
+  float baseline_offset_from_top() const { return baseline_offset_from_top_; }
 
  private:
   void CollapseTrailingWhiteSpace() const;
@@ -138,7 +138,7 @@ class LineBox {
   base::optional<size_t> last_non_collapsed_child_box_index_;
 
   float used_height_;
-  float height_above_baseline_;
+  float baseline_offset_from_top_;
 
   DISALLOW_COPY_AND_ASSIGN(LineBox);
 };

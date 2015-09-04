@@ -93,7 +93,7 @@ bool ReplacedBox::AffectsBaselineInBlockFormattingContext() const {
   return false;
 }
 
-float ReplacedBox::GetHeightAboveBaseline() const {
+float ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
   return GetMarginBoxHeight();
 }
 
@@ -127,12 +127,16 @@ void ReplacedBox::RenderAndAnimateContent(
                                         border_top_width() + padding_top()));
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void ReplacedBox::DumpProperties(std::ostream* stream) const {
   Box::DumpProperties(stream);
 
   *stream << "text_position=" << text_position_ << " "
           << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt

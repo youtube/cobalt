@@ -38,16 +38,19 @@ class FormattingContext {
   // In an inline formatting context this is the baseline of the last line box.
   // Disengaged, if there are no line boxes that affect the layout (for example,
   // empty line boxes are discounted).
-  base::optional<float> maybe_height_above_baseline() const {
-    return maybe_height_above_baseline_;
+  const base::optional<float>& maybe_baseline_offset_from_top_content_edge()
+      const {
+    return maybe_baseline_offset_from_top_content_edge_;
   }
 
   float used_height() const { return bounding_box_of_used_children_.height(); }
   float used_width() const { return bounding_box_of_used_children_.width(); }
 
  protected:
-  void set_height_above_baseline(float height_above_baseline) {
-    maybe_height_above_baseline_ = height_above_baseline;
+  void set_baseline_offset_from_top_content_edge(
+      float baseline_offset_from_top_content_edge) {
+    maybe_baseline_offset_from_top_content_edge_ =
+        baseline_offset_from_top_content_edge;
   }
 
   // Used to calculate the "auto" height of the box that establishes this
@@ -65,7 +68,7 @@ class FormattingContext {
   math::SizeF bounding_box_of_used_children_;
 
  private:
-  base::optional<float> maybe_height_above_baseline_;
+  base::optional<float> maybe_baseline_offset_from_top_content_edge_;
 
   DISALLOW_COPY_AND_ASSIGN(FormattingContext);
 };

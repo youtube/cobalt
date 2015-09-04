@@ -22,6 +22,7 @@
 #include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/dom/node.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
@@ -146,9 +147,6 @@ class Box {
     margin_box_offset_from_containing_block_.set_y(top);
   }
   float top() const { return margin_box_offset_from_containing_block_.y(); }
-  const math::PointF& margin_box_offset_from_containing_block() const {
-    return margin_box_offset_from_containing_block_;
-  }
 
   // Each box has a content area and optional surrounding padding, border,
   // and margin areas.
@@ -160,6 +158,9 @@ class Box {
   // Margin box.
   float GetMarginBoxWidth() const;
   float GetMarginBoxHeight() const;
+  const math::Vector2dF& margin_box_offset_from_containing_block() const {
+    return margin_box_offset_from_containing_block_;
+  }
   float GetRightMarginEdgeOffsetFromContainingBlock() const;
   float GetBottomMarginEdgeOffsetFromContainingBlock() const;
 
@@ -230,11 +231,10 @@ class Box {
   // Boxes that don't establish a baseline (such as empty blocks or lines)
   // should not affect the baseline calculation in the block formatting context.
   virtual bool AffectsBaselineInBlockFormattingContext() const = 0;
-  // Returns the vertical offset of the baseline relatively to the origin
-  // of the box. If the box does not have a baseline, returns the bottom margin
-  // edge.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
-  virtual float GetHeightAboveBaseline() const = 0;
+  // Returns the vertical offset of the baseline relatively to the top margin
+  // edge. If the box does not have a baseline, returns the bottom margin edge,
+  // as per http://www.w3.org/TR/CSS21/visudet.html#line-height.
+  virtual float GetBaselineOffsetFromTopMarginEdge() const = 0;
 
   // Converts a layout subtree into a render subtree.
   // This method defines the overall strategy of the conversion and relies
@@ -247,8 +247,12 @@ class Box {
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+  // Used by box generator to set a DOM node that produced this box.
+  void SetGeneratingNode(dom::Node* generating_node);
   // Used by derived classes to dump their children.
   void DumpWithIndent(std::ostream* stream, int indent) const;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   ContainerBox* parent() { return parent_; }
   const ContainerBox* parent() const { return parent_; }
@@ -339,12 +343,14 @@ class Box {
   //   http://www.w3.org/TR/css3-transforms/#transformable-element
   virtual bool IsTransformable() const = 0;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpIndent(std::ostream* stream, int indent) const;
   virtual void DumpClassName(std::ostream* stream) const = 0;
   // Overriders must call the base method.
   virtual void DumpProperties(std::ostream* stream) const;
   // Overriders must call the base method.
   virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   // Updates the box's cross references to other boxes in the box tree (e.g. its
   // containing block and stacking context).  "Context" implies that the caller
@@ -403,6 +409,10 @@ class Box {
   // by the HTML Element from which this box is derived.
   const cssom::TransitionSet* transitions_;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+  std::string generating_html_;
+#endif  // COBALT_BOX_DUMP_ENABLED
+
   // The parent of this box is the box that owns this child and is the direct
   // parent.  If DOM element A is a parent of DOM element B, and box A is
   // derived from DOM element A and box B is derived from DOM element B, then
@@ -418,7 +428,7 @@ class Box {
   ContainerBox* stacking_context_;
 
   // Used values of "left" and "top" properties.
-  math::PointF margin_box_offset_from_containing_block_;
+  math::Vector2dF margin_box_offset_from_containing_block_;
   // Used values of "margin-left", "margin-top", "margin-right",
   // and "margin-bottom".
   math::InsetsF margin_insets_;
@@ -437,12 +447,16 @@ class Box {
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 // Dumps a box tree recursively to a stream.
 // Used for layout debugging, not intended for production.
 inline std::ostream& operator<<(std::ostream& stream, const Box& box) {
   box.DumpWithIndent(&stream, 0);
   return stream;
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt
