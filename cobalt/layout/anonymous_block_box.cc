@@ -62,9 +62,13 @@ void AnonymousBlockBox::AddInlineLevelChild(scoped_ptr<Box> child_box) {
   PushBackDirectChild(child_box.Pass());
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void AnonymousBlockBox::DumpClassName(std::ostream* stream) const {
   *stream << "AnonymousBlockBox ";
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {

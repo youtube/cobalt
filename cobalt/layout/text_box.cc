@@ -153,7 +153,7 @@ bool TextBox::AffectsBaselineInBlockFormattingContext() const {
   return true;
 }
 
-float TextBox::GetHeightAboveBaseline() const {
+float TextBox::GetBaselineOffsetFromTopMarginEdge() const {
   return baseline_offset_from_top_;
 }
 
@@ -185,6 +185,8 @@ void TextBox::RenderAndAnimateContent(
 
 bool TextBox::IsTransformable() const { return false; }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void TextBox::DumpClassName(std::ostream* stream) const {
   *stream << "TextBox ";
 }
@@ -211,6 +213,8 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
 
   *stream << "\"" << GetNonCollapsibleText() << "\"\n";
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 void TextBox::UpdateTextHasLeadingWhiteSpace() {
   text_has_leading_white_space_ =

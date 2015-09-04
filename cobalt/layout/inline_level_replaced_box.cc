@@ -126,9 +126,13 @@ void InlineLevelReplacedBox::UpdateContentSizeAndMargins(
   }
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineLevelReplacedBox ";
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt

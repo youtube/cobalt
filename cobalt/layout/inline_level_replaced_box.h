@@ -41,7 +41,9 @@ class InlineLevelReplacedBox : public ReplacedBox {
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpClassName(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 };
 
 }  // namespace layout
