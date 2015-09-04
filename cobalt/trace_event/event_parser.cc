@@ -96,30 +96,41 @@ void EventParser::ScopedEvent::OnEnd(
 }
 
 void EventParser::ScopedEvent::OnEndFlow(const base::TimeTicks& timestamp) {
-  DCHECK(AreEndFlowConditionsMet());
+  scoped_refptr<ScopedEvent> flow_end_event(this);
 
-  // This ScopedEvent has ended and so have all of its descendants.  Update
-  // the end flow timestamp and fire a flow end event to our clients so that
-  // they may analyze this completed flow.
-  end_flow_time_ = timestamp;
-  event_parser_->scoped_event_flow_end_callback_.Run(make_scoped_refptr(this));
+  while (flow_end_event) {
+    DCHECK(flow_end_event->AreEndFlowConditionsMet());
 
-  // If we have a parent, we should properly decrement its active child count
-  // since we are no longer active.  If we are the parent's last active child,
-  // we may need to trigger the parent's OnEndFlow() processing as well.
-  if (parent_) {
-    DCHECK_GT(parent_->flow_active_children_, 0);
-    --parent_->flow_active_children_;
-    if (parent_->AreEndFlowConditionsMet()) {
-      parent_->OnEndFlow(timestamp);
+    // This ScopedEvent has ended and so have all of its descendants.  Update
+    // the end flow timestamp and fire a flow end event to our clients so that
+    // they may analyze this completed flow.
+    flow_end_event->end_flow_time_ = timestamp;
+    flow_end_event->event_parser_->scoped_event_flow_end_callback_.Run(
+        flow_end_event);
+
+    // If we have a parent, we should properly decrement its active child count
+    // since we are no longer active.  If we are the parent's last active child,
+    // we may need to setup the parent as the next |flow_end_event| so that
+    // its flow end can also be processed.  This is *not* done recursively on
+    // purpose because these flows can end up quite long and we wish to avoid
+    // stack overflows.
+    scoped_refptr<ScopedEvent> next_flow_end_event;
+    if (flow_end_event->parent_) {
+      DCHECK_GT(flow_end_event->parent_->flow_active_children_, 0);
+      --flow_end_event->parent_->flow_active_children_;
+      if (flow_end_event->parent_->AreEndFlowConditionsMet()) {
+        next_flow_end_event = flow_end_event->parent_;
+      }
     }
-  }
 
-  // Mark the parent_ as NULL to clear our reference to it.  This is more
-  // a technicality to remove the cyclical dependency between child and parent
-  // node once the child has ended its flow.
-  parent_ = NULL;
-  state_ = kFlowEndedState;
+    // Mark the parent_ as NULL to clear our reference to it.  This is more
+    // a technicality to remove the cyclical dependency between child and parent
+    // node once the child has ended its flow.
+    flow_end_event->parent_ = NULL;
+    flow_end_event->state_ = kFlowEndedState;
+
+    flow_end_event = next_flow_end_event;
+  }
 }
 
 void EventParser::ScopedEvent::OnNotLastTouched() {
