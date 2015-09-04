@@ -30,15 +30,12 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/uint8_array.h"
+#include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 #include "media/player/web_media_player.h"
 
 namespace cobalt {
 namespace dom {
-
-// TODO(***REMOVED***): Remove the following typedef after we have proper dom
-// exception support.
-typedef int ExceptionCode;
 
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   http://www.w3.org/TR/html5/embedded-content-0.html#media-element
@@ -83,13 +80,16 @@ class HTMLMediaElement : public HTMLElement,
                           const std::string& key_system) const;
   void GenerateKeyRequest(
       const std::string& key_system,
-      const base::optional<scoped_refptr<Uint8Array> >& init_data);
+      const base::optional<scoped_refptr<Uint8Array> >& init_data,
+      script::ExceptionState* exception_state);
   void AddKey(const std::string& key_system,
               const scoped_refptr<Uint8Array>& key,
               const base::optional<scoped_refptr<Uint8Array> >& init_data,
-              const base::optional<std::string>& session_id);
+              const base::optional<std::string>& session_id,
+              script::ExceptionState* exception_state);
   void CancelKeyRequest(const std::string& key_system,
-                        const base::optional<std::string>& session_id);
+                        const base::optional<std::string>& session_id,
+                        script::ExceptionState* exception_state);
 
   // Ready state
   enum ReadyState {
@@ -104,8 +104,8 @@ class HTMLMediaElement : public HTMLElement,
   bool seeking() const;
 
   // Playback state
-  float current_time() const;
-  void set_current_time(float time /*, ExceptionCode**/);
+  float current_time(script::ExceptionState* exception_state) const;
+  void set_current_time(float time, script::ExceptionState* exception_state);
   float duration() const;
   bool paused() const;
   float default_playback_rate() const;
@@ -125,8 +125,8 @@ class HTMLMediaElement : public HTMLElement,
   // Controls
   bool controls() const;
   void set_controls(bool controls);
-  float volume() const;
-  void set_volume(float volume /*, ExceptionCode**/);
+  float volume(script::ExceptionState* exception_state) const;
+  void set_volume(float volume, script::ExceptionState* exception_state);
   bool muted() const;
   void set_muted(bool muted);
 
@@ -185,7 +185,7 @@ class HTMLMediaElement : public HTMLElement,
   void ChangeNetworkStateFromLoadingToIdle();
 
   // Playback
-  void Seek(float time, ExceptionCode* ec);
+  void Seek(float time);
   void FinishSeek();
 
   void AddPlayedRange(float start, float end);

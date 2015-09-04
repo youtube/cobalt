@@ -42,8 +42,7 @@ interface HTMLMediaElement : HTMLElement {
   readonly attribute boolean seeking;
 
   // playback state
-  // TODO(***REMOVED***): Make the setter of currentTime support DOMException.
-  attribute double currentTime;
+  [RaisesException] attribute double currentTime;
   readonly attribute double duration;
   readonly attribute boolean paused;
   attribute double defaultPlaybackRate;
@@ -58,13 +57,14 @@ interface HTMLMediaElement : HTMLElement {
 
   // controls
   attribute boolean controls;
-  // TODO(***REMOVED***): Make the setter of volume support DOMException.
-  attribute double volume;
+  [RaisesException] attribute double volume;
   attribute boolean muted;
 
   // Encrypted Media Extensions methods
-  void generateKeyRequest(DOMString keySystem, Uint8Array? initData);
-  void addKey(DOMString keySystem, Uint8Array key, Uint8Array? initData,
-              DOMString? sessionId);
-  void cancelKeyRequest(DOMString keySystem, DOMString? sessionId);
+  [RaisesException] void generateKeyRequest(DOMString keySystem,
+                                            Uint8Array? initData);
+  [RaisesException] void addKey(DOMString keySystem, Uint8Array key,
+                                Uint8Array? initData, DOMString? sessionId);
+  [RaisesException] void cancelKeyRequest(DOMString keySystem,
+                                          DOMString? sessionId);
 };
