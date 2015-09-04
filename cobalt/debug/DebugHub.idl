@@ -15,14 +15,17 @@
  */
 
 interface DebugHub {
-  long addLogMessageCallback(LogMessageCallback cb);
-  void removeLogMessageCallback(long id);
-
   const long LOG_INFO = 0;
   const long LOG_WARNING = 1;
   const long LOG_ERROR = 2;
   const long LOG_ERROR_REPORT = 3;
   const long LOG_FATAL = 4;
+
+  long addLogMessageCallback(LogMessageCallback cb);
+  void removeLogMessageCallback(long id);
+
+  DOMString getConsoleValueNames();
+  DOMString getConsoleValue(DOMString name);
 };
 
 callback LogMessageCallback = void(long severity, DOMString file, long line,
