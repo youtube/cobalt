@@ -197,9 +197,12 @@ TEST(Vector3dTest, CrossProduct) {
                {Vector3dF(1, 0, -1), Vector3dF(0, 1, 0), Vector3dF(1, 1, 1)},
                {Vector3dF(0, -1, 1), Vector3dF(1, 0, 0), Vector3dF(1, 1, 1)}};
 
+  const float kErrorEpsilon = 0.00001f;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     Vector3dF actual = CrossProduct(tests[i].input1, tests[i].input2);
-    EXPECT_EQ(tests[i].expected.ToString(), actual.ToString());
+    EXPECT_NEAR(tests[i].expected.x(), actual.x(), kErrorEpsilon);
+    EXPECT_NEAR(tests[i].expected.y(), actual.y(), kErrorEpsilon);
+    EXPECT_NEAR(tests[i].expected.z(), actual.z(), kErrorEpsilon);
   }
 }
 
