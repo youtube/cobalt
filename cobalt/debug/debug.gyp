@@ -25,6 +25,8 @@
         'debug_hub.h',
         'console_values.cc',
         'console_values.h',
+        'system_stats_tracker.cc',
+        'system_stats_tracker.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
