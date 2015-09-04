@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cobalt/debug/console_values.h"
 #include "cobalt/debug/debug_hub.h"
 
 namespace cobalt {
@@ -67,6 +68,44 @@ int DebugHub::AddLogMessageCallback(
 void DebugHub::RemoveLogMessageCallback(int callback_id) {
   base::AutoLock auto_lock(lock_);
   log_message_callbacks_.erase(callback_id);
+}
+
+// TODO(***REMOVED***) - This function should be modified to return an array of
+// strings instead of a single space-separated string, once the bindings
+// support return of a string array.
+std::string DebugHub::GetConsoleValueNames() const {
+  std::string ret = "";
+  ConsoleValueManager* cvm = ConsoleValueManager::GetInstance();
+  DCHECK(cvm);
+
+  if (cvm) {
+    std::set<std::string> names = cvm->GetOrderedCValNames();
+    for (std::set<std::string>::const_iterator it = names.begin();
+         it != names.end(); ++it) {
+      ret += (*it);
+      std::set<std::string>::const_iterator next = it;
+      ++next;
+      if (next != names.end()) {
+        ret += " ";
+      }
+    }
+  }
+  return ret;
+}
+
+std::string DebugHub::GetConsoleValue(const std::string& name) const {
+  std::string ret = "<undefined>";
+  ConsoleValueManager* cvm = ConsoleValueManager::GetInstance();
+  DCHECK(cvm);
+
+  if (cvm) {
+    ConsoleValueManager::ValueQueryResults result =
+        cvm->GetValueAsPrettyString(name);
+    if (result.valid) {
+      ret = result.value;
+    }
+  }
+  return ret;
 }
 
 }  // namespace debug
