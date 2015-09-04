@@ -16,6 +16,8 @@
 
 #include "cobalt/dom/html_video_element.h"
 
+#include "base/logging.h"
+
 namespace cobalt {
 namespace dom {
 
@@ -27,11 +29,19 @@ HTMLVideoElement::HTMLVideoElement(Document* document)
 std::string HTMLVideoElement::tag_name() const { return kTagName; }
 
 uint32 HTMLVideoElement::video_width() const {
-  return player() ? player()->NaturalSize().width() : 0;
+  if (!player()) {
+    return 0u;
+  }
+  DCHECK_GE(player()->NaturalSize().width(), 0);
+  return static_cast<uint32>(player()->NaturalSize().width());
 }
 
 uint32 HTMLVideoElement::video_height() const {
-  return player() ? player()->NaturalSize().height() : 0;
+  if (!player()) {
+    return 0u;
+  }
+  DCHECK_GE(player()->NaturalSize().height(), 0);
+  return static_cast<uint32>(player()->NaturalSize().height());
 }
 
 ::media::ShellVideoFrameProvider* HTMLVideoElement::GetVideoFrameProvider() {
