@@ -61,7 +61,7 @@ class BlockContainerBox : public ContainerBox {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetHeightAboveBaseline() const OVERRIDE;
+  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
   // From |ContainerBox|.
   scoped_ptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
@@ -70,7 +70,9 @@ class BlockContainerBox : public ContainerBox {
   // From |Box|.
   bool IsTransformable() const OVERRIDE;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpProperties(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   // Rest of the protected methods.
 
@@ -116,7 +118,7 @@ class BlockContainerBox : public ContainerBox {
   // A vertical offset of the baseline of the last child box that has one,
   // relatively to the origin of the block container box. Disengaged, if none
   // of the child boxes have a baseline.
-  base::optional<float> maybe_height_above_baseline_;
+  base::optional<float> maybe_baseline_offset_from_top_margin_edge_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockContainerBox);
 };

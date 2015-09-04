@@ -73,6 +73,10 @@ void Serializer::SerializeSelfOnly(const scoped_refptr<const Node>& node) {
   entering_node_ = true;
   node->Accept(this);
 
+  if (node->first_child()) {
+    *out_stream_ << "...";
+  }
+
   entering_node_ = false;
   node->Accept(this);
 }

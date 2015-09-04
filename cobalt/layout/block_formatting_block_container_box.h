@@ -43,9 +43,6 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
   void AddChild(scoped_ptr<Box> child_box);
 
  protected:
-  // From |Box|.
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
-
   // From |BlockContainerBox|.
   scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
       const LayoutParams& child_layout_params) OVERRIDE;
@@ -76,6 +73,12 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
+
+ protected:
+  // From |Box|.
+#ifdef COBALT_BOX_DUMP_ENABLED
+  void DumpClassName(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 };
 
 // Non-replaced inline-block elements generate block container boxes that
@@ -104,7 +107,10 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
  protected:
   // From |Box|.
+#ifdef COBALT_BOX_DUMP_ENABLED
+  void DumpClassName(std::ostream* stream) const OVERRIDE;
   void DumpProperties(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
   const scoped_refptr<Paragraph> paragraph_;

@@ -63,7 +63,7 @@ class ReplacedBox : public Box {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetHeightAboveBaseline() const OVERRIDE;
+  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
  protected:
   typedef render_tree::CompositionNode::Builder NodeBuilder;
@@ -75,7 +75,10 @@ class ReplacedBox : public Box {
           node_animations_map_builder) const OVERRIDE;
 
   bool IsTransformable() const OVERRIDE { return true; }
+
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpProperties(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   // TODO(***REMOVED***): Make private.
   const base::optional<float> maybe_intrinsic_width_;

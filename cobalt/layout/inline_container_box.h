@@ -62,7 +62,7 @@ class InlineContainerBox : public ContainerBox {
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  float GetHeightAboveBaseline() const OVERRIDE;
+  float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
   // From |ContainerBox|.
   bool TryAddChild(scoped_ptr<Box>* child_box) OVERRIDE;
@@ -72,7 +72,10 @@ class InlineContainerBox : public ContainerBox {
   // From |Box|.
   bool IsTransformable() const OVERRIDE;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpProperties(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
   ChildBoxes::const_iterator FindFirstNonCollapsedChildBox() const;
@@ -82,7 +85,7 @@ class InlineContainerBox : public ContainerBox {
       ChildBoxes::const_iterator child_split_iterator);
 
   bool justifies_line_existence_;
-  float height_above_baseline_;
+  float baseline_offset_from_margin_box_top_;
   // A font used for text width and line height calculations.
   const scoped_refptr<render_tree::Font> used_font_;
 

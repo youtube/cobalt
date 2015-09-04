@@ -56,11 +56,6 @@ void BlockFormattingBlockContainerBox::AddChild(scoped_ptr<Box> child_box) {
   }
 }
 
-void BlockFormattingBlockContainerBox::DumpClassName(
-    std::ostream* stream) const {
-  *stream << "BlockFormattingBlockContainerBox ";
-}
-
 scoped_ptr<FormattingContext>
 BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
@@ -108,6 +103,14 @@ BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
 
 Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
+void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
+  *stream << "BlockLevelBlockContainerBox ";
+}
+
+#endif  // COBALT_BOX_DUMP_ENABLED
+
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const cssom::TransitionSet* transitions,
@@ -128,6 +131,12 @@ base::optional<int> InlineLevelBlockContainerBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
+void InlineLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
+  *stream << "InlineLevelBlockContainerBox ";
+}
+
 void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
   BlockContainerBox::DumpProperties(stream);
 
@@ -135,6 +144,7 @@ void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
           << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
 
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt

@@ -209,6 +209,10 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
     return;
   }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+  replaced_box->SetGeneratingNode(video_element);
+#endif  // COBALT_BOX_DUMP_ENABLED
+
   boxes_.push_back(replaced_box.release());
 
   // The content of replaced elements is not considered in the CSS rendering
@@ -455,6 +459,10 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     return;
   }
+
+#ifdef COBALT_BOX_DUMP_ENABLED
+  container_box_before_split->SetGeneratingNode(html_element);
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   boxes_.push_back(container_box_before_split.release());
 

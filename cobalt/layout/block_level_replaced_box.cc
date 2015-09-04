@@ -41,9 +41,13 @@ void BlockLevelReplacedBox::UpdateContentSizeAndMargins(
   NOTIMPLEMENTED();
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void BlockLevelReplacedBox::DumpClassName(std::ostream* stream) const {
   *stream << "BlockLevelReplacedBox ";
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt
