@@ -24,7 +24,11 @@ namespace dom {
 void EventTarget::AddEventListener(const std::string& type,
                                    const scoped_refptr<EventListener>& listener,
                                    bool use_capture) {
-  DCHECK(listener);
+  // Do nothing if listener is null.
+  if (!listener) {
+    return;
+  }
+
   DCHECK(!listener->IsAttribute());
 
   AddEventListenerInternal(type, listener, use_capture);
