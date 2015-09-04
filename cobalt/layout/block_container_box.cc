@@ -131,10 +131,10 @@ void BlockContainerBox::UpdateContentSizeAndMargins(
   child_layout_params.containing_block_size.set_height(height());
   UpdateRectOfPositionedChildBoxes(child_layout_params);
 
-  if (formatting_context->maybe_height_above_baseline()) {
-    maybe_height_above_baseline_ =
+  if (formatting_context->maybe_baseline_offset_from_top_content_edge()) {
+    maybe_baseline_offset_from_top_margin_edge_ =
         margin_top() + border_top_width() + padding_top() +
-        *formatting_context->maybe_height_above_baseline();
+        *formatting_context->maybe_baseline_offset_from_top_content_edge();
   }
 }
 
@@ -182,15 +182,12 @@ bool BlockContainerBox::JustifiesLineExistence() const {
 }
 
 bool BlockContainerBox::AffectsBaselineInBlockFormattingContext() const {
-  return static_cast<bool>(maybe_height_above_baseline_);
+  return static_cast<bool>(maybe_baseline_offset_from_top_margin_edge_);
 }
 
-float BlockContainerBox::GetHeightAboveBaseline() const {
-  // If the box does not have a baseline, align the bottom margin edge
-  // with the parent's baseline.
-  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
-  // TODO(***REMOVED***): Fix when margins are implemented.
-  return maybe_height_above_baseline_.value_or(height());
+float BlockContainerBox::GetBaselineOffsetFromTopMarginEdge() const {
+  return maybe_baseline_offset_from_top_margin_edge_.value_or(
+      GetMarginBoxHeight());
 }
 
 scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
@@ -198,6 +195,8 @@ scoped_ptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
 }
 
 bool BlockContainerBox::IsTransformable() const { return true; }
+
+#ifdef COBALT_BOX_DUMP_ENABLED
 
 void BlockContainerBox::DumpProperties(std::ostream* stream) const {
   ContainerBox::DumpProperties(stream);
@@ -207,6 +206,7 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
           << std::noboolalpha;
 }
 
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 // Based on http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width.
 //

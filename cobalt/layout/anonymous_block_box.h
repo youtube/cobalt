@@ -54,7 +54,9 @@ class AnonymousBlockBox : public BlockContainerBox {
 
  protected:
   // From |Box|.
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpClassName(std::ostream* stream) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   // From |BlockContainerBox|.
   scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(

@@ -65,8 +65,8 @@ void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
     // in the normal flow, unless it has no in-flow line boxes.
     //   http://www.w3.org/TR/CSS21/visudet.html#line-height
     if (child_box->AffectsBaselineInBlockFormattingContext()) {
-      set_height_above_baseline(child_box->top() +
-                                child_box->GetHeightAboveBaseline());
+      set_baseline_offset_from_top_content_edge(
+          child_box->top() + child_box->GetBaselineOffsetFromTopMarginEdge());
     }
   }
 }

@@ -24,6 +24,7 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/transition_render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
@@ -58,7 +59,7 @@ Box::Box(
   DCHECK(used_style_provider_);
 
 #ifdef _DEBUG
-  margin_box_offset_from_containing_block_.SetPoint(
+  margin_box_offset_from_containing_block_.SetVector(
       std::numeric_limits<float>::quiet_NaN(),
       std::numeric_limits<float>::quiet_NaN());
   margin_insets_.SetInsets(std::numeric_limits<float>::quiet_NaN(),
@@ -191,7 +192,21 @@ void Box::RenderAndAnimate(
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
+void Box::SetGeneratingNode(dom::Node* generating_node) {
+  std::stringstream stream;
+  dom::Serializer html_serializer(&stream);
+  html_serializer.SerializeSelfOnly(generating_node);
+  generating_html_ = stream.str();
+}
+
 void Box::DumpWithIndent(std::ostream* stream, int indent) const {
+  if (!generating_html_.empty()) {
+    DumpIndent(stream, indent);
+    *stream << "# " << generating_html_ << "\n";
+  }
+
   DumpIndent(stream, indent);
   DumpClassName(stream);
   DumpProperties(stream);
@@ -201,6 +216,7 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
   DumpChildrenWithIndent(stream, indent + INDENT_SIZE);
 }
 
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 namespace {
 void SetupRectNodeFromStyle(
@@ -216,6 +232,8 @@ void SetupRectNodeFromStyle(
 bool Box::HasNonZeroMarginOrBorderOrPadding() const {
   return width() != GetMarginBoxWidth() || height() != GetMarginBoxHeight();
 }
+
+#ifdef COBALT_BOX_DUMP_ENABLED
 
 void Box::DumpIndent(std::ostream* stream, int indent) const {
   while (indent--) {
@@ -233,11 +251,13 @@ void Box::DumpProperties(std::ostream* stream) const {
   *stream << "border_width=" << border_insets_.ToString() << " ";
   *stream << "padding=" << padding_insets_.ToString() << " ";
 
-  *stream << "baseline=" << GetHeightAboveBaseline() << " ";
+  *stream << "baseline=" << GetBaselineOffsetFromTopMarginEdge() << " ";
 }
 
 void Box::DumpChildrenWithIndent(std::ostream* /*stream*/,
                                  int /*indent*/) const {}
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 int Box::GetZIndex() const {
   if (computed_style()->z_index() == cssom::KeywordValue::GetAuto()) {

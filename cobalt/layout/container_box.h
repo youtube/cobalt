@@ -59,7 +59,9 @@ class ContainerBox : public Box {
       render_tree::animations::NodeAnimationsMap::Builder*
           node_animations_map_builder) const OVERRIDE;
 
+#ifdef COBALT_BOX_DUMP_ENABLED
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
+#endif  // COBALT_BOX_DUMP_ENABLED
 
   // Returns true if the given style allows a container box to act as a
   // containing block for absolutely positioned elements.  For example it will

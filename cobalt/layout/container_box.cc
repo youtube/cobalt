@@ -155,8 +155,8 @@ math::Vector2dF GetOffsetFromContainingBlock(Box* child_box) {
               ancestor_box->computed_style()->transform());
 
     relative_position += ancestor_box->GetContentBoxOffsetFromMarginBox();
-    relative_position += ancestor_box->margin_box_offset_from_containing_block()
-                             .OffsetFromOrigin();
+    relative_position +=
+        ancestor_box->margin_box_offset_from_containing_block();
   }
   return relative_position;
 }
@@ -199,8 +199,7 @@ math::Vector2dF GetOffsetFromStackingContext(Box* child_box) {
 
     relative_position += containing_block->GetContentBoxOffsetFromMarginBox();
     relative_position +=
-        containing_block->margin_box_offset_from_containing_block()
-            .OffsetFromOrigin();
+        containing_block->margin_box_offset_from_containing_block();
   }
   return relative_position;
 }
@@ -314,6 +313,8 @@ void ContainerBox::RenderAndAnimateContent(
   }
 }
 
+#ifdef COBALT_BOX_DUMP_ENABLED
+
 void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
                                           int indent) const {
   Box::DumpChildrenWithIndent(stream, indent);
@@ -324,6 +325,8 @@ void ContainerBox::DumpChildrenWithIndent(std::ostream* stream,
     child_box->DumpWithIndent(stream, indent);
   }
 }
+
+#endif  // COBALT_BOX_DUMP_ENABLED
 
 }  // namespace layout
 }  // namespace cobalt
