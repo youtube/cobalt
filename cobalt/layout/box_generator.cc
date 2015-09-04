@@ -24,7 +24,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/html_media_element.h"
+#include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/block_level_replaced_box.h"
@@ -76,10 +76,10 @@ void BoxGenerator::Visit(dom::Element* element) {
   scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
   DCHECK(html_element);
 
-  scoped_refptr<dom::HTMLMediaElement> media_element =
-      html_element->AsHTMLMediaElement();
-  if (media_element) {
-    VisitMediaElement(media_element);
+  scoped_refptr<dom::HTMLVideoElement> video_element =
+      html_element->AsHTMLVideoElement();
+  if (video_element) {
+    VisitVideoElement(video_element);
   } else {
     VisitNonReplacedElement(html_element);
   }
@@ -178,7 +178,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
 }  // namespace
 
-void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
+void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // For video elements, create a replaced box.
 
   // A replaced box is treated as an atomic inline element, which means that
@@ -192,11 +192,11 @@ void BoxGenerator::VisitMediaElement(dom::HTMLMediaElement* media_element) {
   // based on the video frame. This allows to avoid relayout while playing
   // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
-      media_element->computed_style(), media_element->transitions(),
+      video_element->computed_style(), video_element->transitions(),
       used_style_provider_,
-      base::Bind(GetVideoFrame, media_element->GetVideoFrameProvider()),
+      base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider()),
       *paragraph_, text_position, base::nullopt, base::nullopt, base::nullopt);
-  media_element->computed_style()->display()->Accept(&replaced_box_generator);
+  video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_ptr<ReplacedBox> replaced_box =
       replaced_box_generator.PassReplacedBox();

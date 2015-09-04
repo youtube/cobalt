@@ -26,12 +26,12 @@
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
-#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/html_unknown_element.h"
+#include "cobalt/dom/html_video_element.h"
 
 namespace cobalt {
 namespace dom {
@@ -63,11 +63,11 @@ HTMLElementFactory::HTMLElementFactory() {
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLHeadElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLHtmlElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLLinkElement);
-  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLMediaElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLParagraphElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLScriptElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLSpanElement);
   ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLStyleElement);
+  ADD_HTML_ELEMENT_CREATION_MAP_ENTRY(HTMLVideoElement);
 #undef ADD_HTML_ELEMENT_CREATION_MAP_ENTRY
 
   for (int i = 0; i < HTMLHeadingElement::kTagNameCount; i++) {

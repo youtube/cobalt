@@ -27,12 +27,12 @@
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_link_element.h"
-#include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/html_unknown_element.h"
+#include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/htmlbr_element.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_script_runner.h"
@@ -81,8 +81,6 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLHtmlElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "link");
   EXPECT_TRUE(html_element->AsHTMLLinkElement());
-  html_element = html_element_factory_.CreateHTMLElement(document_, "video");
-  EXPECT_TRUE(html_element->AsHTMLMediaElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "p");
   EXPECT_TRUE(html_element->AsHTMLParagraphElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "script");
@@ -91,6 +89,8 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLSpanElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "style");
   EXPECT_TRUE(html_element->AsHTMLStyleElement());
+  html_element = html_element_factory_.CreateHTMLElement(document_, "video");
+  EXPECT_TRUE(html_element->AsHTMLVideoElement());
 
   html_element = html_element_factory_.CreateHTMLElement(document_, "h1");
   EXPECT_TRUE(html_element->AsHTMLHeadingElement());

@@ -102,6 +102,8 @@
         'html_style_element.cc',
         'html_style_element.h',
         'html_unknown_element.h',
+        'html_video_element.cc',
+        'html_video_element.h',
         'keyboard_event.cc',
         'keyboard_event.h',
         'local_storage_database.cc',
