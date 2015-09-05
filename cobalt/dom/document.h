@@ -25,6 +25,7 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/rule_matching.h"
 #include "cobalt/loader/image_cache.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
@@ -187,6 +188,10 @@ class Document : public Node,
 
   // Called when the inline style of an element is modified.
   void OnElementInlineStyleMutation();
+
+  // Called to update the rule indexes of all style sheets when needed.
+  void UpdateRuleIndexes(
+      const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
   // Scans the user agent style sheet and all style sheets in the document's
   // style sheet list and updates the cached matching rules of the document's

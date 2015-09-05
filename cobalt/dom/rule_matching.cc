@@ -36,6 +36,7 @@
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
 #include "cobalt/cssom/selector_visitor.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/type_selector.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/html_element.h"
@@ -340,6 +341,20 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
   return false;
 }
 
+void UpdateStyleSheetRuleIndexes(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  TRACE_EVENT0("cobalt::dom", "UpdateStyleSheetRuleIndexes()");
+  user_agent_style_sheet->UpdateRuleIndexes();
+  DCHECK(author_style_sheets);
+  for (unsigned int style_sheet_index = 0;
+       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        author_style_sheets->Item(style_sheet_index);
+    style_sheet->UpdateRuleIndexes();
+  }
+}
+
 void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin) {
@@ -350,8 +365,6 @@ void GetMatchingRulesFromStyleSheet(
   // cssom::CascadePriority should not be kNormal(.*) but kImportant${1}
 
   DCHECK(element->matching_rules());
-
-  style_sheet->MaybeUpdateRuleIndexes();
 
   // Add candidate rules according to class name.
   scoped_refptr<DOMTokenList> class_list = element->class_list();
