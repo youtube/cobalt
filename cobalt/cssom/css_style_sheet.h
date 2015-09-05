@@ -81,7 +81,7 @@ class CSSStyleSheet : public StyleSheet {
   void set_rule_indexes_dirty() { rule_indexes_dirty_ = true; }
 
   // Should be called when a media feature may have changed, triggering a
-  // possible recalculation of the media rule expressions, and rules indexes.
+  // possible recalculation of the media rule expressions, and the rule indexes.
   // TODO(***REMOVED***): Call this when a media feature changes.
   void OnMediaFeatureChanged();
 
