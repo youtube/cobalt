@@ -312,6 +312,7 @@ void Document::OnElementInlineStyleMutation() {
 void Document::UpdateMatchingRules(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
+  UpdateStyleSheetRuleIndexes(user_agent_style_sheet, style_sheets());
   if (rule_matches_dirty_) {
     TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
     html()->UpdateMatchingRulesRecursively(user_agent_style_sheet,

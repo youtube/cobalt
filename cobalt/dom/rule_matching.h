@@ -30,8 +30,14 @@ class HTMLElement;
 // Returns whether a rule matches an element.
 bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
 
+// This updates the rule indexes used in GetMatchingRulesFromStyleSheet().
+void UpdateStyleSheetRuleIndexes(
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
+
 // Scans one style sheet for rules that match the given element and appends the
-// matching rules to |matching_rules|;
+// matching rules to |matching_rules|. UpdateStyleSheetRuleIndexes() must be
+// called before this function.
 void GetMatchingRulesFromStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     HTMLElement* element, cssom::Origin origin);
