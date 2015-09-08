@@ -17,11 +17,12 @@
 #include "cobalt/dom/keyboard_event.h"
 
 #include "base/logging.h"
+#include "cobalt/dom/event_names.h"
 
 namespace cobalt {
 namespace dom {
 
-KeyboardEvent::KeyboardEvent(KeyLocationCode location, Type type,
+KeyboardEvent::KeyboardEvent(const std::string& type, KeyLocationCode location,
                              unsigned int modifiers, int key_code,
                              int char_code, bool is_repeat)
     : UIEventWithKeyState(type, modifiers),
@@ -34,7 +35,8 @@ KeyboardEvent::KeyboardEvent(KeyLocationCode location, Type type,
 //   http://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
 // Virtual key code for keyup/keydown, character code for keypress
 int KeyboardEvent::key_code() const {
-  if (type_enum_ == kKeyDown || type_enum_ == kKeyUp) {
+  if (type() == EventNames::GetInstance()->keydown() ||
+      type() == EventNames::GetInstance()->keyup()) {
     return key_code_;
   }
 
@@ -42,7 +44,7 @@ int KeyboardEvent::key_code() const {
 }
 
 int KeyboardEvent::char_code() const {
-  return type_enum_ == kKeyPress ? char_code_ : 0;
+  return type() == EventNames::GetInstance()->keypress() ? char_code_ : 0;
 }
 
 }  // namespace dom
