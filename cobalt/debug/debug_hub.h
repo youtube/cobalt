@@ -23,7 +23,9 @@
 #include "base/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
+#if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/system_stats_tracker.h"
+#endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/wrappable.h"
 
@@ -31,9 +33,8 @@ namespace cobalt {
 namespace debug {
 
 // This class implements an interface to JS for debugging.
-// Currently, there are just two bound methods: {Add,Remove}LogMessageCallback,
-// which allows JS to register a callback to receive log messages.
-// Other methods will be added as necessary.
+// The public methods of this class are expected to be exposed in DebugHub.idl.
+// A stub implementation is used if ENABLE_DEBUG_CONSOLE is not defined.
 class DebugHub : public script::Wrappable {
  public:
   // Type for log message callback on JS side
@@ -77,6 +78,7 @@ class DebugHub : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 
  private:
+#if defined(ENABLE_DEBUG_CONSOLE)
   // Called by LogMessageHandler for each log message.
   void OnLogMessage(int severity, const char* file, int line,
                     size_t message_start, const std::string& str);
@@ -90,6 +92,7 @@ class DebugHub : public script::Wrappable {
 
   // Maintains a collection of CVals continuously updated with system stats.
   SystemStatsTracker system_stats_tracker;
+#endif  // ENABLE_DEBUG_CONSOLE
 };
 
 }  // namespace debug
