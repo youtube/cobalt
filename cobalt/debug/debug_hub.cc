@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-#include "cobalt/debug/console_values.h"
 #include "cobalt/debug/debug_hub.h"
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+#include "cobalt/debug/console_values.h"
+#endif  // ENABLE_DEBUG_CONSOLE
 
 namespace cobalt {
 namespace debug {
+
+#if defined(ENABLE_DEBUG_CONSOLE)
 
 DebugHub::DebugHub() : next_log_message_callback_id_(0) {
   // Get log output while still making it available elsewhere.
@@ -107,6 +112,32 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   }
   return ret;
 }
+
+#else   // ENABLE_DEBUG_CONSOLE
+
+// Stub implementation when debug not enabled (release builds)
+
+DebugHub::DebugHub() {}
+
+DebugHub::~DebugHub() {}
+
+int DebugHub::AddLogMessageCallback(
+    const scoped_refptr<LogMessageCallback>& callback) {
+  UNREFERENCED_PARAMETER(callback);
+  return 0;
+}
+
+void DebugHub::RemoveLogMessageCallback(int callback_id) {
+  UNREFERENCED_PARAMETER(callback_id);
+}
+
+std::string DebugHub::GetConsoleValueNames() const { return ""; }
+
+std::string DebugHub::GetConsoleValue(const std::string& name) const {
+  UNREFERENCED_PARAMETER(name);
+  return "";
+}
+#endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace debug
 }  // namespace cobalt
