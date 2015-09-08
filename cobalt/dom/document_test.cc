@@ -124,6 +124,9 @@ TEST_F(DocumentTest, CreateElement) {
   EXPECT_EQ(NULL, element->parent_node());
   EXPECT_EQ(NULL, element->first_child());
   EXPECT_EQ(NULL, element->last_child());
+
+  element = document->CreateElement("ELEMENT");
+  EXPECT_EQ("element", element->node_name());
 }
 
 TEST_F(DocumentTest, CreateTextNode) {
