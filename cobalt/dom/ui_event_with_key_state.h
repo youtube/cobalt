@@ -40,7 +40,7 @@ class UIEventWithKeyState : public UIEvent {
   bool shift_key() const { return (modifiers_ & kShiftKey) != 0; }
 
  protected:
-  UIEventWithKeyState(Type type, unsigned int modifiers)
+  UIEventWithKeyState(const std::string& type, unsigned int modifiers)
       : UIEvent(type), modifiers_(modifiers) {}
 
   ~UIEventWithKeyState() OVERRIDE {}
