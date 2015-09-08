@@ -344,3 +344,30 @@ TEST_F(EventParserTest, EventIsChildOfFlowEndPostTaskTest) {
   TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask", 1);
   TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
 }
+
+namespace {
+void NopEventHandler(const scoped_refptr<EventParser::ScopedEvent>& event) {
+  UNREFERENCED_PARAMETER(event);
+}
+}  // namespace
+
+TEST_F(EventParserTest, VeryLongFlowChainsDoNotStackOverflow) {
+  // This test ensures that when we construct very long chains of flow events,
+  // the logic for processing the results does not result in a stack overflow
+  // due to recursive calls.  Since GMock's "InSequence" also constructs
+  // a tree model, it would crash in this test due to stack overflow, so it is
+  // not used.
+  const static int kFlowLength = 1000;
+
+  ScopedEventParserTrace event_watcher(base::Bind(&NopEventHandler));
+  for (int i = 0; i < kFlowLength; ++i) {
+    if (i != 0) {
+      TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask", i - 1);
+    }
+    TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
+    TRACE_EVENT_FLOW_BEGIN0("EventParserTest", "MessageLoop::PostTask", i);
+  }
+  TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask",
+                        kFlowLength - 1);
+  TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
+}

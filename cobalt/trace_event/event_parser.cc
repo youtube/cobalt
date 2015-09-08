@@ -98,6 +98,11 @@ void EventParser::ScopedEvent::OnEnd(
 void EventParser::ScopedEvent::OnEndFlow(const base::TimeTicks& timestamp) {
   scoped_refptr<ScopedEvent> flow_end_event(this);
 
+  // We maintain a list of all events ended so that we can prevent the
+  // destructors from recursively calling itself and causing a stack overflow
+  // in long chains of flow events.
+  std::vector<scoped_refptr<ScopedEvent> > flow_events_ended;
+
   while (flow_end_event) {
     DCHECK(flow_end_event->AreEndFlowConditionsMet());
 
@@ -107,6 +112,7 @@ void EventParser::ScopedEvent::OnEndFlow(const base::TimeTicks& timestamp) {
     flow_end_event->end_flow_time_ = timestamp;
     flow_end_event->event_parser_->scoped_event_flow_end_callback_.Run(
         flow_end_event);
+    flow_events_ended.push_back(flow_end_event);
 
     // If we have a parent, we should properly decrement its active child count
     // since we are no longer active.  If we are the parent's last active child,
@@ -130,6 +136,15 @@ void EventParser::ScopedEvent::OnEndFlow(const base::TimeTicks& timestamp) {
     flow_end_event->state_ = kFlowEndedState;
 
     flow_end_event = next_flow_end_event;
+  }
+
+  // Release our references in last-in-first-out order.  This results in the
+  // parents being freed before the children, but it prevents all nodes from
+  // recursively being freed when the root node (the top node on the stack
+  // here) is released, which can prevent a stack overflow if the ancestry
+  // chain is very long.
+  while (!flow_events_ended.empty()) {
+    flow_events_ended.pop_back();
   }
 }
 
