@@ -14,25 +14,36 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
+#ifndef DOM_FOCUS_EVENT_H_
+#define DOM_FOCUS_EVENT_H_
 
-#include "base/compiler_specific.h"
+#include "cobalt/dom/event_target.h"
+#include "cobalt/dom/ui_event.h"
 
 namespace cobalt {
 namespace dom {
 
-UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
-    : Event(uninitialized_flag) {}
+// The FocusEvent interface provides specific contextual information associated
+// with Focus events.
+//   http://www.w3.org/TR/uievents/#interface-FocusEvent
+class FocusEvent : public UIEvent {
+ public:
+  FocusEvent(const std::string& type,
+             const scoped_refptr<EventTarget>& related_target);
 
-UIEvent::UIEvent(const std::string& type) : Event(type) {}
+  // Web API: FocusEvent
+  //
+  const scoped_refptr<EventTarget>& related_target() const {
+    return related_target_;
+  }
 
-void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
-                          bool cancelable, const scoped_refptr<Window>& view,
-                          int32 detail) {
-  UNREFERENCED_PARAMETER(detail);
-  InitEvent(type, bubbles, cancelable);
-  view_ = view;
-}
+  DEFINE_WRAPPABLE_TYPE(FocusEvent);
+
+ protected:
+  scoped_refptr<EventTarget> related_target_;
+};
 
 }  // namespace dom
 }  // namespace cobalt
+
+#endif  // DOM_FOCUS_EVENT_H_

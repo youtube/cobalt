@@ -38,8 +38,9 @@ class KeyboardEvent : public UIEventWithKeyState {
     kDomKeyLocationNumpad = 0x03,
   };
 
-  KeyboardEvent(KeyLocationCode location, Type type, unsigned int modifiers,
-                int key_code, int char_code, bool is_repeat);
+  KeyboardEvent(const std::string& type, KeyLocationCode location,
+                unsigned int modifiers, int key_code, int char_code,
+                bool is_repeat);
 
   KeyLocationCode location() const { return location_; }
   bool repeat() const { return repeat_; }

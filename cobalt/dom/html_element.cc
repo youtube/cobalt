@@ -18,7 +18,6 @@
 
 #include <sstream>
 
-#include "base/message_loop.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -30,6 +29,7 @@
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_string_map.h"
+#include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/htmlbr_element.h"
@@ -84,31 +84,18 @@ void HTMLElement::Focus() {
 
   owner_document()->SetActiveElement(this);
 
-  DCHECK(MessageLoop::current());
-
   if (old_active_element) {
-    MessageLoop::current()->PostTask(
-        FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
-                              base::Unretained(old_active_element),
-                              make_scoped_refptr(new Event("blur"))));
+    old_active_element->DispatchEvent(new FocusEvent("blur", this));
   }
 
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
-                            base::Unretained(this),
-                            make_scoped_refptr(new Event("focus"))));
+  DispatchEvent(new FocusEvent("focus", old_active_element));
 }
 
 void HTMLElement::Blur() {
   if (owner_document()->active_element() == this->AsElement()) {
     owner_document()->SetActiveElement(NULL);
 
-    DCHECK(MessageLoop::current());
-
-    MessageLoop::current()->PostTask(
-        FROM_HERE, base::Bind(base::IgnoreResult(&HTMLElement::DispatchEvent),
-                              base::Unretained(this),
-                              make_scoped_refptr(new Event("blur"))));
+    DispatchEvent(new FocusEvent("blur", NULL));
   }
 }
 

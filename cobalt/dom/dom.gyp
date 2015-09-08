@@ -66,6 +66,8 @@
         'event_target.h',
         'float32_array.h',
         'float64_array.h',
+        'focus_event.cc',
+        'focus_event.h',
         'html_anchor_element.cc',
         'html_anchor_element.h',
         'html_body_element.cc',
