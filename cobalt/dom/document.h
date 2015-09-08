@@ -91,12 +91,12 @@ class Document : public Node,
   scoped_refptr<Element> document_element();
 
   scoped_refptr<HTMLCollection> GetElementsByTagName(
-      const std::string& tag_name) const;
+      const std::string& local_name) const;
   scoped_refptr<HTMLCollection> GetElementsByClassName(
-      const std::string& class_name) const;
+      const std::string& class_names) const;
 
-  scoped_refptr<Element> CreateElement(const std::string& tag_name);
-  scoped_refptr<Text> CreateTextNode(const std::string& text);
+  scoped_refptr<Element> CreateElement(const std::string& local_name);
+  scoped_refptr<Text> CreateTextNode(const std::string& data);
   scoped_refptr<Event> CreateEvent(const std::string& interface_name,
                                    script::ExceptionState* exception_state);
 

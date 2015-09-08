@@ -77,24 +77,26 @@ scoped_refptr<DOMImplementation> Document::implementation() {
   return implementation_;
 }
 
-scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
-    const std::string& class_name) const {
-  return HTMLCollection::CreateWithElementsByClassName(this, class_name);
-}
-
 scoped_refptr<HTMLCollection> Document::GetElementsByTagName(
-    const std::string& tag_name) const {
-  return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
+    const std::string& local_name) const {
+  return HTMLCollection::CreateWithElementsByTagName(this, local_name);
 }
 
-scoped_refptr<Element> Document::CreateElement(const std::string& tag_name) {
+scoped_refptr<HTMLCollection> Document::GetElementsByClassName(
+    const std::string& class_names) const {
+  return HTMLCollection::CreateWithElementsByClassName(this, class_names);
+}
+
+scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
   if (IsXMLDocument()) {
-    return new Element(this, tag_name);
+    return new Element(this, local_name);
   } else {
+    std::string lower_local_name = local_name;
+    StringToLowerASCII(&lower_local_name);
     DCHECK(html_element_context_);
     DCHECK(html_element_context_->html_element_factory());
     return html_element_context_->html_element_factory()->CreateHTMLElement(
-        this, tag_name);
+        this, lower_local_name);
   }
 }
 
