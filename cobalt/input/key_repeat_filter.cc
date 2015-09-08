@@ -16,6 +16,8 @@
 
 #include "cobalt/input/key_repeat_filter.h"
 
+#include "cobalt/dom/event_names.h"
+
 namespace cobalt {
 namespace input {
 
@@ -34,11 +36,11 @@ KeyRepeatFilter::KeyRepeatFilter(const KeyboardEventCallback& callback)
 
 void KeyRepeatFilter::HandleKeyEvent(
     const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
-  if (keyboard_event->type() == dom::KeyboardEvent::kKeyDown) {
+  if (keyboard_event->type() == dom::EventNames::GetInstance()->keydown()) {
     HandleKeyDown(keyboard_event);
   }
 
-  if (keyboard_event->type() == dom::KeyboardEvent::kKeyUp) {
+  if (keyboard_event->type() == dom::EventNames::GetInstance()->keyup()) {
     HandleKeyUp(keyboard_event);
   }
 }

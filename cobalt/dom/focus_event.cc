@@ -14,25 +14,14 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/ui_event.h"
-
-#include "base/compiler_specific.h"
+#include "cobalt/dom/focus_event.h"
 
 namespace cobalt {
 namespace dom {
 
-UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
-    : Event(uninitialized_flag) {}
-
-UIEvent::UIEvent(const std::string& type) : Event(type) {}
-
-void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
-                          bool cancelable, const scoped_refptr<Window>& view,
-                          int32 detail) {
-  UNREFERENCED_PARAMETER(detail);
-  InitEvent(type, bubbles, cancelable);
-  view_ = view;
-}
+FocusEvent::FocusEvent(const std::string& type,
+                       const scoped_refptr<EventTarget>& related_target)
+    : UIEvent(type), related_target_(related_target) {}
 
 }  // namespace dom
 }  // namespace cobalt

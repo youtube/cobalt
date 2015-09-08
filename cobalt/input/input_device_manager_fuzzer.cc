@@ -16,8 +16,10 @@
 
 #include "cobalt/input/input_device_manager_fuzzer.h"
 
+#include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/rand_util.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/input/keyboard_code.h"
 
 namespace cobalt {
@@ -28,24 +30,14 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     : InputDeviceManager(keyboard_event_callback),
       next_event_timer_(true, true) {
   // Initialize the set of key events we are able to produce.
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kUp, 0, false));
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kDown, 0, false));
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kLeft, 0, false));
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kRight, 0, false));
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kReturn, 0, false));
-  sample_events_.push_back(new dom::KeyboardEvent(
-      dom::KeyboardEvent::kDomKeyLocationStandard, dom::KeyboardEvent::kKeyDown,
-      dom::KeyboardEvent::kNoModifier, kEscape, 0, false));
+  const WindowsKeyCode kKeyCodes[] = {kUp,    kDown,   kLeft,
+                                      kRight, kReturn, kEscape};
+  for (int i = 0; i < arraysize(kKeyCodes); ++i) {
+    sample_events_.push_back(new dom::KeyboardEvent(
+        dom::EventNames::GetInstance()->keydown(),
+        dom::KeyboardEvent::kDomKeyLocationStandard,
+        dom::KeyboardEvent::kNoModifier, kKeyCodes[i], 0, false));
+  }
 
   next_event_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(100),
                           base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,

@@ -31,18 +31,8 @@ namespace dom {
 //   http://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
 class UIEvent : public Event {
  public:
-  // Custom, not in any spec.
-  //
-  enum Type {
-    kKeyDown,
-    kKeyPress,
-    kKeyUp,
-  };
-
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
-
-  Type type() { return type_enum_; }
 
   // Web API: UIEvent
   //
@@ -59,12 +49,8 @@ class UIEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
-  explicit UIEvent(Type type);
+  explicit UIEvent(const std::string& type);
   ~UIEvent() OVERRIDE {}
-
-  // TODO(***REMOVED***): remove type_enum_ when we have something to deal with string
-  // comparison.
-  Type type_enum_;
 
   scoped_refptr<Window> view_;
 };
