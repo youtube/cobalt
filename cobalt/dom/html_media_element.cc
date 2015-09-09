@@ -61,6 +61,7 @@ void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
     case WebMediaPlayer::kMediaKeyExceptionKeySystemNotSupported:
       DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
       break;
+    case WebMediaPlayer::kMediaKeyExceptionNoError:
     default:
       NOTREACHED();
       break;

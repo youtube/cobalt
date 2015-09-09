@@ -55,6 +55,9 @@ class FontStyleValue : public PropertyValue {
         return kNormalKeywordName;
       case kOblique:
         return kObliqueKeywordName;
+      default:
+        NOTREACHED();
+        return "";
     }
     NOTREACHED();
     return "";

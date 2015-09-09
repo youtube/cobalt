@@ -59,18 +59,19 @@ class TranslateFunction : public TransformFunction {
   std::string ToString() const OVERRIDE {
     char axis = 'X';
     switch (axis_) {
-      case kXAxis: {
+      case kXAxis:
         axis = 'X';
         break;
-      }
-      case kYAxis: {
+      case kYAxis:
         axis = 'Y';
         break;
-      }
-      case kZAxis: {
+      case kZAxis:
         axis = 'Z';
         break;
-      }
+      default:
+        axis = ' ';
+        NOTREACHED();
+        break;
     }
     std::string result = "translate";
     result.push_back(axis);

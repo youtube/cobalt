@@ -193,8 +193,8 @@ class LinearGradientValue : public PropertyValue {
       return false;
     }
     // The stop lists have to be empty or have the same size.
-    bool stop_list_size = color_stop_list_ ? color_stop_list_->size() : 0;
-    bool other_stop_list_size =
+    size_t stop_list_size = color_stop_list_ ? color_stop_list_->size() : 0;
+    size_t other_stop_list_size =
         other.color_stop_list_ ? other.color_stop_list_->size() : 0;
     if (stop_list_size != other_stop_list_size) {
       return false;
