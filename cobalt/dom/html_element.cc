@@ -32,7 +32,7 @@
 #include "cobalt/dom/focus_event.h"
 #include "cobalt/dom/html_anchor_element.h"
 #include "cobalt/dom/html_body_element.h"
-#include "cobalt/dom/htmlbr_element.h"
+#include "cobalt/dom/html_br_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_element_factory.h"
