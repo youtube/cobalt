@@ -235,6 +235,8 @@ class KeywordValue : public PropertyValue {
       case kVisible:
         return kVisibleKeywordName;
     }
+    NOTREACHED();
+    return "";
   }
 
   bool operator==(const KeywordValue& other) const {
