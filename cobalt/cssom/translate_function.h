@@ -57,7 +57,7 @@ class TranslateFunction : public TransformFunction {
   Axis axis() const { return axis_; }
 
   std::string ToString() const OVERRIDE {
-    char axis;
+    char axis = 'X';
     switch (axis_) {
       case kXAxis: {
         axis = 'X';
