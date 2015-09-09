@@ -234,6 +234,9 @@ class KeywordValue : public PropertyValue {
         return kTopKeywordName;
       case kVisible:
         return kVisibleKeywordName;
+      default:
+        NOTREACHED();
+        return "";
     }
     NOTREACHED();
     return "";

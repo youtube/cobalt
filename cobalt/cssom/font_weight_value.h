@@ -71,6 +71,7 @@ class FontWeightValue : public PropertyValue {
       case kSemiBoldAka600:
       case kExtraBoldAka800:
       case kBlackAka900:
+      default:
         // These values are not implemented by the scanner/parser.
         NOTIMPLEMENTED();
         return "";
