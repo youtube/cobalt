@@ -72,9 +72,8 @@
         'html_anchor_element.h',
         'html_body_element.cc',
         'html_body_element.h',
-        #TODO(***REMOVED***, b/23493504): Change to html_br_element.cc/h when supported. Here and other places.
-        'htmlbr_element.cc',
-        'htmlbr_element.h',
+        'html_br_element.cc',
+        'html_br_element.h',
         'html_collection.cc',
         'html_collection.h',
         'html_div_element.cc',
