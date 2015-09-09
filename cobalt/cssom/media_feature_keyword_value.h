@@ -75,6 +75,8 @@ class MediaFeatureKeywordValue : public PropertyValue {
       case kProgressive:
         return kProgressiveMediaFeatureKeywordValueName;
     }
+    NOTREACHED();
+    return "";
   }
 
   bool operator==(const MediaFeatureKeywordValue& other) const {

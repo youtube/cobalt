@@ -56,6 +56,8 @@ class FontStyleValue : public PropertyValue {
       case kOblique:
         return kObliqueKeywordName;
     }
+    NOTREACHED();
+    return "";
   }
 
   bool operator==(const FontStyleValue& other) const {
