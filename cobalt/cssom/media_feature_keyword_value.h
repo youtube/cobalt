@@ -74,6 +74,9 @@ class MediaFeatureKeywordValue : public PropertyValue {
         return kPortraitMediaFeatureKeywordValueName;
       case kProgressive:
         return kProgressiveMediaFeatureKeywordValueName;
+      default:
+        NOTREACHED();
+        return "";
     }
     NOTREACHED();
     return "";
