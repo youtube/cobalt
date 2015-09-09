@@ -11,17 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# This file is included in the target defaults from
+# cobalt/build/config/base.gypi
 {
-  'targets': [
-    {
-      'target_name': 'starboard',
-      'type': 'static_library',
-      'sources': [
-        'configuration.h',
-      ],
-      'dependencies': [
-        '<(starboard_platform)/starboard_platform.gyp:starboard_platform',
-      ],
-    },
+  'defines': [
+    # The canonical way to detect Starboard is #if defined(STARBOARD).
+    'STARBOARD',
+
+    # There doesn't appear to be any way to do string concatenation with
+    # the / character to specify an include file, so we have to do the
+    # concatenation here in GYP.
+    # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
+    'STARBOARD_CONFIGURATION_INCLUDE="starboard/<(starboard_platform)/configuration.h"',
   ],
 }
