@@ -75,6 +75,8 @@ class FontWeightValue : public PropertyValue {
         NOTIMPLEMENTED();
         return "";
     }
+    NOTREACHED();
+    return "";
   }
   bool operator==(const FontWeightValue& other) const {
     return value_ == other.value_;
