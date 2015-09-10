@@ -51,6 +51,14 @@
 namespace cobalt {
 namespace dom {
 
+HTMLElement::CachedImageReferenceWithCallback::CachedImageReferenceWithCallback(
+    const scoped_refptr<loader::CachedImage>& cached_image,
+    const base::Closure& callback)
+    : cached_image(cached_image),
+      cached_image_loaded_callback_handler(
+          new loader::CachedImage::OnLoadedCallbackHandler(cached_image,
+                                                           callback)) {}
+
 scoped_refptr<DOMStringMap> HTMLElement::dataset() {
   if (!dataset_) {
     dataset_ = new DOMStringMap(this);
@@ -115,6 +123,10 @@ void HTMLElement::OnCSSMutation() {
   computed_style_valid_ = false;
 
   owner_document()->OnElementInlineStyleMutation();
+}
+
+void HTMLElement::OnBackgroundImageLoaded() {
+  owner_document()->RecordMutation();
 }
 
 scoped_refptr<HTMLAnchorElement> HTMLElement::AsHTMLAnchorElement() {
@@ -210,33 +222,6 @@ PromoteMatchingRulesToComputedStyle(
   // Cache the results of the computed style calculation.
 }
 
-void UpdateCachedBackgroundImages(
-    const scoped_refptr<cssom::PropertyValue>& background_image,
-    loader::ImageCache* image_cache,
-    HTMLElement::CachedImageVector* cached_background_images) {
-  if (background_image != cssom::KeywordValue::GetNone()) {
-    cssom::PropertyListValue* property_list_value =
-        base::polymorphic_downcast<cssom::PropertyListValue*>(
-            background_image.get());
-
-    HTMLElement::CachedImageVector cached_images;
-    cached_images.reserve(property_list_value->value().size());
-
-    for (size_t i = 0; i < property_list_value->value().size(); ++i) {
-      // TODO(***REMOVED***): Using visitors when linear gradient is supported.
-      cssom::AbsoluteURLValue* absolute_url =
-          base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
-              property_list_value->value()[i].get());
-      if (absolute_url->value().is_valid()) {
-        cached_images.push_back(
-            image_cache->CreateCachedImage(absolute_url->value()));
-      }
-    }
-
-    *cached_background_images = cached_images;
-  }
-}
-
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
@@ -262,9 +247,7 @@ void HTMLElement::UpdateComputedStyle(
   // Update cached background images after resolving the urls in
   // background_image CSS property of the computed style, so we have all the
   // information to get the cached background images.
-  UpdateCachedBackgroundImages(computed_style_->background_image(),
-                               html_element_context()->image_cache(),
-                               &cached_background_images_);
+  UpdateCachedBackgroundImagesFromComputedStyle();
 
   // Promote the matching rules for all known pseudo elements.
   for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
@@ -371,6 +354,36 @@ HTMLElement::HTMLElement(Document* document, const std::string& tag_name)
 }
 
 HTMLElement::~HTMLElement() {}
+
+void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
+  scoped_refptr<cssom::PropertyValue> background_image =
+      computed_style_->background_image();
+  if (background_image != cssom::KeywordValue::GetNone()) {
+    cssom::PropertyListValue* property_list_value =
+        base::polymorphic_downcast<cssom::PropertyListValue*>(
+            background_image.get());
+
+    CachedImageReferenceVector cached_images;
+    cached_images.reserve(property_list_value->value().size());
+
+    for (size_t i = 0; i < property_list_value->value().size(); ++i) {
+      // TODO(***REMOVED***): Using visitors when linear gradient is supported.
+      cssom::AbsoluteURLValue* absolute_url =
+          base::polymorphic_downcast<cssom::AbsoluteURLValue*>(
+              property_list_value->value()[i].get());
+      if (absolute_url->value().is_valid()) {
+        scoped_refptr<loader::CachedImage> cached_image =
+            html_element_context()->image_cache()->CreateCachedImage(
+                absolute_url->value());
+        cached_images.push_back(new CachedImageReferenceWithCallback(
+            cached_image, base::Bind(&HTMLElement::OnBackgroundImageLoaded,
+                                     base::Unretained(this))));
+      }
+    }
+
+    cached_background_images_ = cached_images.Pass();
+  }
+}
 
 }  // namespace dom
 }  // namespace cobalt
