@@ -31,7 +31,7 @@ class Document;
 //   http://www.w3.org/TR/html5/text-level-semantics.html#htmlanchorelement
 class HTMLAnchorElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLAnchorElement(Document* document) : HTMLElement(document) {}
 

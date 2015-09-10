@@ -29,7 +29,7 @@ namespace cobalt {
 namespace dom {
 
 // static
-const char* HTMLLinkElement::kTagName = "link";
+const char HTMLLinkElement::kTagName[] = "link";
 
 std::string HTMLLinkElement::tag_name() const { return kTagName; }
 

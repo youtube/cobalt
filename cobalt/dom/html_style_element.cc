@@ -27,7 +27,7 @@ namespace cobalt {
 namespace dom {
 
 // static
-const char* HTMLStyleElement::kTagName = "style";
+const char HTMLStyleElement::kTagName[] = "style";
 
 std::string HTMLStyleElement::tag_name() const { return kTagName; }
 

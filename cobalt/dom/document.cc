@@ -61,7 +61,7 @@ Document::Document(HTMLElementContext* html_element_context,
 }
 
 std::string Document::node_name() const {
-  static const char* kDocumentName = "#document";
+  static const char kDocumentName[] = "#document";
   return kDocumentName;
 }
 
