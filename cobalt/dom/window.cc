@@ -116,6 +116,15 @@ int Window::SetTimeout(const scoped_refptr<TimerCallback>& handler,
 
 void Window::ClearTimeout(int handle) { window_timers_->ClearTimeout(handle); }
 
+int Window::SetInterval(const scoped_refptr<TimerCallback>& handler,
+                        int timeout) {
+  return window_timers_->SetInterval(handler, timeout);
+}
+
+void Window::ClearInterval(int handle) {
+  window_timers_->ClearInterval(handle);
+}
+
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
 
 scoped_refptr<Storage> Window::session_storage() const {
