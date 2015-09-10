@@ -78,8 +78,6 @@ class MediaFeatureKeywordValue : public PropertyValue {
         NOTREACHED();
         return "";
     }
-    NOTREACHED();
-    return "";
   }
 
   bool operator==(const MediaFeatureKeywordValue& other) const {

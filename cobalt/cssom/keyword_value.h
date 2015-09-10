@@ -238,8 +238,6 @@ class KeywordValue : public PropertyValue {
         NOTREACHED();
         return "";
     }
-    NOTREACHED();
-    return "";
   }
 
   bool operator==(const KeywordValue& other) const {
