@@ -25,108 +25,121 @@ namespace cobalt {
 namespace layout {
 
 InlineFormattingContext::InlineFormattingContext(
-    const LayoutParams& layout_params, float x_height,
+    const scoped_refptr<cssom::PropertyValue>& line_height,
+    const render_tree::FontMetrics& font_metrics,
+    const LayoutParams& layout_params,
     const scoped_refptr<cssom::PropertyValue>& text_align)
-    : layout_params_(layout_params),
+    : line_height_(line_height),
+      font_metrics_(font_metrics),
+      layout_params_(layout_params),
+      text_align_(text_align),
       line_count_(0),
-      x_height_(x_height),
-      text_align_(text_align) {}
+      preferred_min_width_(0) {
+  CreateLineBox();
+}
 
 InlineFormattingContext::~InlineFormattingContext() {}
 
-scoped_ptr<Box> InlineFormattingContext::QueryUsedRectAndMaybeSplit(
+scoped_ptr<Box> InlineFormattingContext::BeginUpdateRectAndMaybeSplit(
     Box* child_box) {
   DCHECK(child_box->GetLevel() == Box::kInlineLevel ||
          child_box->IsAbsolutelyPositioned());
-
-  scoped_ptr<Box> child_box_after_split;
-  if (line_box_ &&
-      line_box_->TryQueryUsedRectAndMaybeSplit(child_box,
-                                               &child_box_after_split)) {
-    // If a split has occurred, then nothing else will fit on the current line.
-    // Handle line box destruction now, so that an unnecessary split won't be
-    // attempted the next time through.
-    if (child_box_after_split) {
-      DestroyLineBox();
-    }
-    return child_box_after_split.Pass();
-  }
 
   // When an inline box exceeds the width of a line box, it is split into
   // several boxes and these boxes are distributed across several line boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   //
   // We tackle this problem one split (and one line) at the time.
-
-  // Destroy the previous line box (if it exists) and create the new one.
-  //
-  // Line boxes are stacked with no vertical separation and they never
-  // overlap.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  DestroyLineBox();
-  line_box_ = make_scoped_ptr(new LineBox(used_height(), x_height_,
-                                          LineBox::kShouldTrimWhiteSpace,
-                                          text_align_, layout_params_));
-
-  // A sequence of collapsible spaces at the beginning of a line is removed.
-  //   http://www.w3.org/TR/css3-text/#white-space-phase-2
-  child_box->CollapseLeadingWhiteSpace();
-
-  if (!line_box_->TryQueryUsedRectAndMaybeSplit(child_box,
-                                                &child_box_after_split)) {
-    // If an inline box cannot be split (e.g., if the inline box contains
-    // a single character, or language specific word breaking rules disallow
-    // a break within the inline box), then the inline box overflows the line
-    // box.
-    //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-    line_box_->QueryUsedRectAndMaybeOverflow(child_box);
-  } else if (child_box_after_split) {
-    // If a split has occurred, then nothing else will fit on the current line.
-    // Handle line box destruction now, so that an unnecessary split won't be
-    // attempted the next time through.
-    DestroyLineBox();
+  scoped_ptr<Box> child_box_after_split;
+  if (!TryBeginUpdateRectAndMaybeCreateLineBox(child_box,
+                                               &child_box_after_split)) {
+    DCHECK(!child_box_after_split) << "A split should only occur when a child "
+                                      "before the split is accepted by a line "
+                                      "box.";
+    bool child_box_update_began = TryBeginUpdateRectAndMaybeCreateLineBox(
+        child_box, &child_box_after_split);
+    DCHECK(child_box_update_began)
+        << "A line box should never reject the first child.";
   }
-
   return child_box_after_split.Pass();
 }
 
-void InlineFormattingContext::EndQueries() {
+void InlineFormattingContext::BeginEstimateStaticPosition(Box* child_box) {
+  line_box_->BeginEstimateStaticPosition(child_box);
+}
+
+void InlineFormattingContext::EndUpdates() {
   // Treat the end of child boxes almost as an explicit line break,
   // but don't create the new line box.
   DestroyLineBox();
+
+  // The shrink-to-fit width is:
+  // min(max(preferred minimum width, available width), preferred width).
+  //   http://www.w3.org/TR/CSS21/visudet.html#float-width
+  //
+  // Naive solution of the above expression would require two layout passes:
+  // one to calculate the "preferred minimum width" and another one to
+  // calculate the "preferred width". It is possible to save one layout pass
+  // taking into account that:
+  //   - an exact value of "preferred width" does not matter if "available
+  //     width" cannot acommodate it;
+  //   - the inline formatting context has more than one line if and only if
+  //     the "preferred width" is greater than the "available width";
+  //   - "preferred minimum" and "preferred" widths are equal when an inline
+  //     formatting context has only one line.
+  set_shrink_to_fit_width(std::max(
+      preferred_min_width_,
+      line_count_ > 1 ? layout_params_.containing_block_size.width() : 0));
+}
+
+bool InlineFormattingContext::TryBeginUpdateRectAndMaybeCreateLineBox(
+    Box* child_box, scoped_ptr<Box>* child_box_after_split) {
+  bool child_box_update_began = line_box_->TryBeginUpdateRectAndMaybeSplit(
+      child_box, child_box_after_split);
+  DCHECK(child_box_update_began || *child_box_after_split == NULL);
+
+  if (!child_box_update_began) {
+    CreateLineBox();
+  }
+  return child_box_update_began;
+}
+
+void InlineFormattingContext::CreateLineBox() {
+  if (line_box_) {
+    DestroyLineBox();
+  }
+
+  // Line boxes are stacked with no vertical separation and they never
+  // overlap.
+  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  line_box_ =
+      make_scoped_ptr(new LineBox(auto_height(), line_height_, font_metrics_,
+                                  true, true, layout_params_, text_align_));
 }
 
 void InlineFormattingContext::DestroyLineBox() {
-  if (line_box_) {
-    line_box_->EndQueries();
+  line_box_->EndUpdates();
 
-    // The baseline of an "inline-block" is the baseline of its last line box
-    // in the normal flow, unless it has no in-flow line boxes.
-    //   http://www.w3.org/TR/CSS21/visudet.html#line-height
-    if (line_box_->line_exists()) {
-      ++line_count_;
+  // The baseline of an "inline-block" is the baseline of its last line box
+  // in the normal flow, unless it has no in-flow line boxes.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  if (line_box_->line_exists()) {
+    ++line_count_;
 
-      // Set height as the bottom edge of the last line box
-      // http://www.w3.org/TR/CSS21/visudet.html#normal-block
-      // TODO(***REMOVED***): Handle margins and line spacing correctly.
-      bounding_box_of_used_children_.set_height(line_box_->top() +
-                                                line_box_->height());
+    preferred_min_width_ =
+        std::max(preferred_min_width_, line_box_->shrink_to_fit_width());
 
-      set_baseline_offset_from_top_content_edge(
-          line_box_->top() + line_box_->baseline_offset_from_top());
+    // If "height" is "auto", the used value is the distance from box's top
+    // content edge to the bottom edge of the last line box, if the box
+    // establishes an inline formatting context with one or more lines.
+    //   http://www.w3.org/TR/CSS21/visudet.html#normal-block
+    set_auto_height(line_box_->top() + line_box_->height());
 
-      // A width of the block container box when all possible line breaks are
-      // made.
-      float preferred_min_width =
-          std::max(used_width(), line_box_->GetShrinkToFitWidth());
-      float shrink_to_fit_width = std::max(
-          preferred_min_width,
-          line_count_ > 1 ? layout_params_.containing_block_size.width() : 0);
-      bounding_box_of_used_children_.set_width(shrink_to_fit_width);
-    }
-
-    line_box_.reset();
+    set_baseline_offset_from_top_content_edge(
+        line_box_->top() + line_box_->baseline_offset_from_top());
   }
+
+  line_box_.reset();
 }
 
 }  // namespace layout

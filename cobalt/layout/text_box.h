@@ -48,11 +48,13 @@ class TextBox : public Box {
   scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
-  bool IsCollapsed() const OVERRIDE;
+  void SetShouldCollapseLeadingWhiteSpace(
+      bool should_collapse_leading_white_space) OVERRIDE;
+  void SetShouldCollapseTrailingWhiteSpace(
+      bool should_collapse_trailing_white_space) OVERRIDE;
   bool HasLeadingWhiteSpace() const OVERRIDE;
   bool HasTrailingWhiteSpace() const OVERRIDE;
-  void CollapseLeadingWhiteSpace() OVERRIDE;
-  void CollapseTrailingWhiteSpace() OVERRIDE;
+  bool IsCollapsed() const OVERRIDE;
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;

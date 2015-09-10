@@ -151,9 +151,16 @@ base::optional<int> BlockContainerBox::GetBidiLevel() const {
   return base::optional<int>();
 }
 
-bool BlockContainerBox::IsCollapsed() const {
+void BlockContainerBox::SetShouldCollapseLeadingWhiteSpace(
+    bool /*should_collapse_leading_white_space*/) {
   DCHECK_EQ(kInlineLevel, GetLevel());
-  return false;
+  // Do nothing.
+}
+
+void BlockContainerBox::SetShouldCollapseTrailingWhiteSpace(
+    bool /*should_collapse_trailing_white_space*/) {
+  DCHECK_EQ(kInlineLevel, GetLevel());
+  // Do nothing.
 }
 
 bool BlockContainerBox::HasLeadingWhiteSpace() const {
@@ -166,14 +173,9 @@ bool BlockContainerBox::HasTrailingWhiteSpace() const {
   return false;
 }
 
-void BlockContainerBox::CollapseLeadingWhiteSpace() {
+bool BlockContainerBox::IsCollapsed() const {
   DCHECK_EQ(kInlineLevel, GetLevel());
-  // Do nothing.
-}
-
-void BlockContainerBox::CollapseTrailingWhiteSpace() {
-  DCHECK_EQ(kInlineLevel, GetLevel());
-  // Do nothing.
+  return false;
 }
 
 bool BlockContainerBox::JustifiesLineExistence() const {
@@ -359,7 +361,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
     DCHECK_EQ(top(), top());  // Check for NaN.
 
     // ...and apply rule number three (the height is based on the content).
-    set_height(formatting_context.used_height());
+    set_height(formatting_context.auto_height());
     return;
   }
 
@@ -404,7 +406,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
   // 1. "top" and "height" are "auto" and "bottom" is not "auto"...
   if (!maybe_top && !maybe_height && maybe_bottom) {
     // ...then the height is based on the content.
-    set_height(formatting_context.used_height());
+    set_height(formatting_context.auto_height());
     // Then solve for "top".
     set_top(containing_block_height - GetMarginBoxHeight() - *maybe_bottom);
     return;
@@ -423,7 +425,7 @@ void BlockContainerBox::UpdateHeightAssumingAbsolutelyPositionedBox(
   if (!maybe_height && !maybe_bottom && maybe_top) {
     set_top(*maybe_top);
     // ...then the height is based on the content.
-    set_height(formatting_context.used_height());
+    set_height(formatting_context.auto_height());
     return;
   }
 
@@ -578,7 +580,7 @@ float BlockContainerBox::GetShrinkToFitWidth(
   scoped_ptr<FormattingContext> formatting_context =
       UpdateRectOfInFlowChildBoxes(child_layout_params);
 
-  return formatting_context->used_width();
+  return formatting_context->shrink_to_fit_width();
 }
 
 // Based on http://www.w3.org/TR/CSS21/visudet.html#normal-block.
@@ -600,7 +602,7 @@ void BlockContainerBox::UpdateHeightAssumingInFlowBox(
   //     1. the bottom edge of the last line box, if the box establishes
   //        an inline formatting context with one or more lines;
   //     2. the bottom edge of the bottom margin of its last in-flow child.
-  set_height(maybe_height.value_or(formatting_context.used_height()));
+  set_height(maybe_height.value_or(formatting_context.auto_height()));
 }
 
 }  // namespace layout

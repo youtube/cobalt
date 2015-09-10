@@ -121,6 +121,16 @@ base::optional<int> TextBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_start_position_);
 }
 
+void TextBox::SetShouldCollapseLeadingWhiteSpace(
+    bool should_collapse_leading_white_space) {
+  should_collapse_leading_white_space_ = should_collapse_leading_white_space;
+}
+
+void TextBox::SetShouldCollapseTrailingWhiteSpace(
+    bool should_collapse_trailing_white_space) {
+  should_collapse_trailing_white_space_ = should_collapse_trailing_white_space;
+}
+
 bool TextBox::IsCollapsed() const {
   return !HasLeadingWhiteSpace() && !HasTrailingWhiteSpace() &&
          !HasNonCollapsibleText();
@@ -136,14 +146,6 @@ bool TextBox::HasTrailingWhiteSpace() const {
   return text_has_trailing_white_space_ &&
          !should_collapse_trailing_white_space_ &&
          (HasNonCollapsibleText() || !should_collapse_leading_white_space_);
-}
-
-void TextBox::CollapseLeadingWhiteSpace() {
-  should_collapse_leading_white_space_ = true;
-}
-
-void TextBox::CollapseTrailingWhiteSpace() {
-  should_collapse_trailing_white_space_ = true;
 }
 
 bool TextBox::JustifiesLineExistence() const { return HasNonCollapsibleText(); }

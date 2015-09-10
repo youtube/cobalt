@@ -26,8 +26,16 @@ namespace layout {
 // A base class for block and inline formatting contexts.
 class FormattingContext {
  public:
-  FormattingContext() {}
+  FormattingContext() : shrink_to_fit_width_(0), auto_height_(0) {}
   virtual ~FormattingContext() {}
+
+  // Used to calculate the "auto" width of the box that establishes this
+  // formatting context.
+  float shrink_to_fit_width() const { return shrink_to_fit_width_; }
+
+  // Used to calculate the "auto" height of the box that establishes this
+  // formatting context.
+  float auto_height() const { return auto_height_; }
 
   // A vertical offset of the baseline relatively to the origin of the block
   // container box.
@@ -43,31 +51,22 @@ class FormattingContext {
     return maybe_baseline_offset_from_top_content_edge_;
   }
 
-  float used_height() const { return bounding_box_of_used_children_.height(); }
-  float used_width() const { return bounding_box_of_used_children_.width(); }
-
  protected:
+  void set_shrink_to_fit_width(float shrink_to_fit_width) {
+    shrink_to_fit_width_ = shrink_to_fit_width;
+  }
+
+  void set_auto_height(float auto_height) { auto_height_ = auto_height; }
+
   void set_baseline_offset_from_top_content_edge(
       float baseline_offset_from_top_content_edge) {
     maybe_baseline_offset_from_top_content_edge_ =
         baseline_offset_from_top_content_edge;
   }
 
-  // Used to calculate the "auto" height of the box that establishes this
-  // formatting context.
-  //
-  // In a block formatting context, each box's left outer edge touches
-  // the left edge of the containing block.
-  //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
-  // In an inline formatting context, the line box's left outer edge touches
-  // the left edge of the containing block.
-  //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  //
-  // According to the above, we default-construct the position of the first
-  // child at (0, 0).
-  math::SizeF bounding_box_of_used_children_;
-
  private:
+  float shrink_to_fit_width_;
+  float auto_height_;
   base::optional<float> maybe_baseline_offset_from_top_content_edge_;
 
   DISALLOW_COPY_AND_ASSIGN(FormattingContext);
