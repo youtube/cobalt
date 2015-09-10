@@ -36,6 +36,10 @@ class WindowTimers {
 
   void ClearTimeout(int handle);
 
+  int SetInterval(const scoped_refptr<TimerCallback>& handler, int timeout);
+
+  void ClearInterval(int handle);
+
  private:
   class TimerInfo : public base::RefCounted<TimerInfo> {
    public:

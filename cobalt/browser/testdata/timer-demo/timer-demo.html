@@ -3,15 +3,16 @@
 <head>
   <script type="text/javascript">
     i = 0;
-    handle = window.setTimeout(callback, 500);
+    timeout_handle = window.setTimeout(timeoutCallback, 500);
+    inteval_handle = window.setInterval(intervalCallback, 500);
 
-    function callback() {
+    function timeoutCallback() {
+      console.log("Timeout!");
+    }
+
+    function intervalCallback() {
       i = i + 1;
-      console.log(i);
-      handle = window.setTimeout(callback, 200);
-      if (i == 10) {
-        window.clearTimeout(handle);
-      }
+      console.log("Interval #" + i + "!");
     }
   </script>
 </head>
