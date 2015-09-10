@@ -30,7 +30,7 @@ namespace dom {
 //    http://www.w3.org/TR/html5/grouping-content.html#the-span-element
 class HTMLSpanElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLSpanElement(Document* document) : HTMLElement(document) {}
 

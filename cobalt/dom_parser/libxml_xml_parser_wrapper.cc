@@ -79,7 +79,7 @@ void LibxmlXMLParserWrapper::DecodeChunk(const char* data, size_t size) {
                                 static_cast<int>(size), NULL /*filename*/);
 
     if (!xml_parser_context_) {
-      static const char* kErrorUnableCreateParser =
+      static const char kErrorUnableCreateParser[] =
           "Unable to create the libxml2 parser.";
       OnParsingIssue(kFatal, kErrorUnableCreateParser);
     }

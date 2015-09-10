@@ -19,10 +19,10 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kInterlaceMediaFeatureKeywordValueName = "interlace";
-const char* const kLandscapeMediaFeatureKeywordValueName = "landscape";
-const char* const kPortraitMediaFeatureKeywordValueName = "portrait";
-const char* const kProgressiveMediaFeatureKeywordValueName = "progressive";
+const char kInterlaceMediaFeatureKeywordValueName[] = "interlace";
+const char kLandscapeMediaFeatureKeywordValueName[] = "landscape";
+const char kPortraitMediaFeatureKeywordValueName[] = "portrait";
+const char kProgressiveMediaFeatureKeywordValueName[] = "progressive";
 
 }  // namespace cssom
 }  // namespace cobalt
