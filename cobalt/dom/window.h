@@ -109,6 +109,14 @@ class Window : public EventTarget {
 
   void ClearTimeout(int handle);
 
+  int SetInterval(const scoped_refptr<TimerCallback>& handler) {
+    return SetInterval(handler, 0);
+  }
+
+  int SetInterval(const scoped_refptr<TimerCallback>& handler, int timeout);
+
+  void ClearInterval(int handle);
+
   // Web API: Storage (implements)
   scoped_refptr<Storage> local_storage() const;
   scoped_refptr<Storage> session_storage() const;
