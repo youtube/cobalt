@@ -357,7 +357,7 @@ TEST_F(EventParserTest, VeryLongFlowChainsDoNotStackOverflow) {
   // due to recursive calls.  Since GMock's "InSequence" also constructs
   // a tree model, it would crash in this test due to stack overflow, so it is
   // not used.
-  const static int kFlowLength = 1000;
+  static const int kFlowLength = 2000;
 
   ScopedEventParserTrace event_watcher(base::Bind(&NopEventHandler));
   for (int i = 0; i < kFlowLength; ++i) {
@@ -370,4 +370,27 @@ TEST_F(EventParserTest, VeryLongFlowChainsDoNotStackOverflow) {
   TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask",
                         kFlowLength - 1);
   TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
+}
+
+TEST_F(EventParserTest, VeryLongFlowChainsDoNotStackOverflowOnAbort) {
+  // This test is similar to VeryLongFlowChainsDoNotStackOverflow except it
+  // deals with events that are aborted versus events that are ended naturally.
+  static const int kFlowLength = 2000;
+
+  base::optional<ScopedEventParserTrace> event_watcher(
+      base::in_place, base::Bind(&NopEventHandler));
+  for (int i = 0; i < kFlowLength; ++i) {
+    if (i != 0) {
+      TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask", i - 1);
+    }
+    TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
+    TRACE_EVENT_FLOW_BEGIN0("EventParserTest", "MessageLoop::PostTask", i);
+  }
+  TRACE_EVENT_FLOW_END0("EventParserTest", "MessageLoop::PostTask",
+                        kFlowLength - 1);
+  TRACE_EVENT0("EventParserTest", "MessageLoop::RunTask");
+
+  // Destroy the event watcher before the last TRACE_EVENT0() scope closes,
+  // triggering an abort for the unfinished event flows.
+  event_watcher = base::nullopt;
 }
