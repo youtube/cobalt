@@ -39,29 +39,53 @@ EventParser::ScopedEvent::ScopedEvent(
 EventParser::ScopedEvent::~ScopedEvent() {}
 
 void EventParser::ScopedEvent::Abort() {
-  if (state_ == kFlowEndedState) {
-    return;
-  }
+  scoped_refptr<ScopedEvent> abort_event(this);
 
-  // Report the event as complete, even though we aborted it.  The callee here
-  // is responsible for checking if the event values it is interested in are
-  // actually available before accessing them.  It is useful to report aborted
-  // events because events are only reported as ended when their entire flow
-  // has ended, but a benchmark may only be interested in the in-scope-duration,
-  // and thus events that are aborted can still provide information to
-  // benchmarks.
-  event_parser_->scoped_event_flow_end_callback_.Run(make_scoped_refptr(this));
+  // We maintain a list of all events ended so that we can prevent the
+  // destructors from recursively calling itself and causing a stack overflow
+  // in long chains of flow events.
+  std::vector<scoped_refptr<ScopedEvent> > flow_events_aborted;
 
-  if (parent_) {
-    DCHECK_GT(parent_->flow_active_children_, 0);
-    --parent_->flow_active_children_;
-    if (parent_->flow_active_children_ == 0) {
-      parent_->Abort();
+  while (abort_event) {
+    if (abort_event->state_ == kFlowEndedState) {
+      break;
     }
+
+    // Report the event as complete, even though we aborted it.  The callee here
+    // is responsible for checking if the event values it is interested in are
+    // actually available before accessing them.  It is useful to report aborted
+    // events because events are only reported as ended when their entire flow
+    // has ended, but a benchmark may only be interested in the
+    // in-scope-duration, and thus events that are aborted can still provide
+    // information to benchmarks.
+    abort_event->event_parser_->scoped_event_flow_end_callback_.Run(
+        abort_event);
+
+    flow_events_aborted.push_back(abort_event);
+
+    scoped_refptr<ScopedEvent> next_abort_event;
+    if (abort_event->parent_) {
+      DCHECK_GT(abort_event->parent_->flow_active_children_, 0);
+      --abort_event->parent_->flow_active_children_;
+      if (abort_event->parent_->flow_active_children_ == 0) {
+        next_abort_event = abort_event->parent_;
+      }
+    }
+
+    abort_event->parent_ = NULL;
+    abort_event->state_ = kAbortedState;
+
+    abort_event = next_abort_event;
   }
 
-  parent_ = NULL;
-  state_ = kAbortedState;
+  // Release our references in last-in-first-out order.  This results in the
+  // parents being freed before the children, but it prevents all nodes from
+  // recursively being freed when the root node (the top node on the stack
+  // here) is released, which can prevent a stack overflow if the ancestry
+  // chain is very long.
+  while (!flow_events_aborted.empty()) {
+    flow_events_aborted.pop_back();
+  }
 }
 
 const base::debug::TraceEvent& EventParser::ScopedEvent::LastTraceEvent()
