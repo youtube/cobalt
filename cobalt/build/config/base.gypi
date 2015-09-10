@@ -151,9 +151,10 @@
           # headers that we don't need, but should exist somewhere in the path:
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
         ],
-      }, { #else
-        'defines': [
-          'STARBOARD_PLATFORM=<(starboard_platform)',
+      }, {  # else
+        # Keeps common Starboard target changes in the starboard project.
+        'includes': [
+          '../../../starboard/starboard_base_target.gypi',
         ],
       }],
       ['target_arch in ["xb1", "xb360"]', {
