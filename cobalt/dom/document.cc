@@ -249,8 +249,6 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent(
     if (loading_counter_ == 0 && should_dispatch_load_event_) {
       DCHECK(MessageLoop::current());
       should_dispatch_load_event_ = false;
-      // TODO(***REMOVED***): We should also fire event on onload attribute when
-      // set.
       MessageLoop::current()->PostTask(
           FROM_HERE, base::Bind(base::IgnoreResult(&Document::DispatchEvent),
                                 base::AsWeakPtr<Document>(this),
