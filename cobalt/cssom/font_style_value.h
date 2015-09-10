@@ -59,8 +59,6 @@ class FontStyleValue : public PropertyValue {
         NOTREACHED();
         return "";
     }
-    NOTREACHED();
-    return "";
   }
 
   bool operator==(const FontStyleValue& other) const {
