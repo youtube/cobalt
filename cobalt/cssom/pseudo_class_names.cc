@@ -19,7 +19,7 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kEmptyPseudoClassName = "empty";
+const char kEmptyPseudoClassName[] = "empty";
 
 }  // namespace cssom
 }  // namespace cobalt

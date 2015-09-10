@@ -21,7 +21,7 @@ namespace cobalt {
 namespace cssom {
 
 // Names of pseudo-classes.
-extern const char* const kEmptyPseudoClassName;
+extern const char kEmptyPseudoClassName[];
 
 }  // namespace cssom
 }  // namespace cobalt

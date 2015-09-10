@@ -106,13 +106,13 @@ TEST_F(VirtualFileSystemTest, SerializeDeserialize) {
   // Create a few files and write some data
   VirtualFile* file = vfs_.Open("file1.tmp");
   EXPECT_TRUE(file != NULL);
-  const char* data1 = "abc";
+  const char data1[] = "abc";
   int data1_size = 3;
   file->Write(data1, data1_size, 0);
 
   file = vfs_.Open("file2.tmp");
   EXPECT_TRUE(file != NULL);
-  const char* data2 = "defg";
+  const char data2[] = "defg";
   int data2_size = 4;
   file->Write(data2, data2_size, 0);
 

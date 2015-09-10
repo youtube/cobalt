@@ -34,7 +34,7 @@ Text::Text(Document* document, const base::StringPiece& text)
     : CharacterData(document, text) {}
 
 std::string Text::node_name() const {
-  static const char* kTextName = "#text";
+  static const char kTextName[] = "#text";
   return kTextName;
 }
 

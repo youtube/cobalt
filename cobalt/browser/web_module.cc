@@ -28,34 +28,34 @@ namespace browser {
 
 std::string WebModule::GetUserAgent() const {
 #if defined(__LB_LINUX__)
-  const char* kVendor = "NoVendor";
-  const char* kPlatform = "Linux";
+  const char kVendor[] = "NoVendor";
+  const char kPlatform[] = "Linux";
 #elif defined(__LB_PS3__)
-  const char* kVendor = "Sony";
-  const char* kPlatform = "PS3";
+  const char kVendor[] = "Sony";
+  const char kPlatform[] = "PS3";
 #elif defined(COBALT_WIN)
-  const char* kVendor = "Microsoft";
-  const char* kPlatform = "Windows";
+  const char kVendor[] = "Microsoft";
+  const char kPlatform[] = "Windows";
 #else
 #error Undefined platform
 #endif
 
 #if defined(COBALT_BUILD_TYPE_DEBUG)
-  const char* kBuildType = "Debug";
+  const char kBuildType[] = "Debug";
 #elif defined(COBALT_BUILD_TYPE_DEVEL)
-  const char* kBuildType = "Devel";
+  const char kBuildType[] = "Devel";
 #elif defined(COBALT_BUILD_TYPE_QA)
-  const char* kBuildType = "QA";
+  const char kBuildType[] = "QA";
 #elif defined(COBALT_BUILD_TYPE_GOLD)
-  const char* kBuildType = "Gold";
+  const char kBuildType[] = "Gold";
 #else
 #error Unknown build type
 #endif
 
-  const char* kChromiumVersion = "25.0.1364.70";
-  const char* kCobaltVersion = "0.01";
-  const char* kLanguageCode = "en";
-  const char* kCountryCode = "US";
+  const char kChromiumVersion[] = "25.0.1364.70";
+  const char kCobaltVersion[] = "0.01";
+  const char kLanguageCode[] = "en";
+  const char kCountryCode[] = "US";
 
   std::string user_agent;
   std::string product =

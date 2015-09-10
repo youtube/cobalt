@@ -40,15 +40,15 @@ namespace layout_tests {
 namespace switches {
 // If enabled, running the tests will result in the generation of expected
 // test output from the actual output to the output directory.
-const char* kRebaseline = "rebaseline";
+const char kRebaseline[] = "rebaseline";
 
 // If enabled, will output details (in the form of files placed in the output
 // directory) for all tests that fail.
-const char* kOutputFailedTestDetails = "output-failed-test-details";
+const char kOutputFailedTestDetails[] = "output-failed-test-details";
 
 // Like kOutputFailedTestDetails, but outputs details for tests that
 // succeed as well.
-const char* kOutputAllTestDetails = "output-all-test-details";
+const char kOutputAllTestDetails[] = "output-all-test-details";
 }  // namespace switches
 
 namespace {

@@ -30,7 +30,7 @@ class Document;
 //   http://www.w3.org/TR/html5/sections.html#the-body-element
 class HTMLBodyElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLBodyElement(Document* document) : HTMLElement(document) {}
 

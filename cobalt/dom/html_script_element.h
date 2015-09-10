@@ -32,7 +32,7 @@ namespace dom {
 //   http://www.w3.org/TR/html5/scripting-1.html#the-script-element
 class HTMLScriptElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLScriptElement(Document* document);
 

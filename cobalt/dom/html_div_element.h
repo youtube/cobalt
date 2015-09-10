@@ -32,7 +32,7 @@ class Document;
 //   http://www.w3.org/TR/html5/grouping-content.html#the-div-element
 class HTMLDivElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLDivElement(Document* document) : HTMLElement(document) {}
 

@@ -34,7 +34,7 @@ const int kInitialHeight = 1080;
 
 // Files for the debug console web page are bundled with the executable.
 #if defined(ENABLE_DEBUG_CONSOLE)
-const char* kInitialDebugConsoleUrl =
+const char kInitialDebugConsoleUrl[] =
     "file:///cobalt/browser/debug_console/debug_console.html";
 #endif  // ENABLE_DEBUG_CONSOLE
 
