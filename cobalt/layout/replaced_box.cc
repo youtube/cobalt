@@ -73,19 +73,21 @@ base::optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
-bool ReplacedBox::IsCollapsed() const { return false; }
+void ReplacedBox::SetShouldCollapseLeadingWhiteSpace(
+    bool /*should_collapse_leading_white_space*/) {
+  // Do nothing.
+}
+
+void ReplacedBox::SetShouldCollapseTrailingWhiteSpace(
+    bool /*should_collapse_trailing_white_space*/) {
+  // Do nothing.
+}
 
 bool ReplacedBox::HasLeadingWhiteSpace() const { return false; }
 
 bool ReplacedBox::HasTrailingWhiteSpace() const { return false; }
 
-void ReplacedBox::CollapseLeadingWhiteSpace() {
-  // Do nothing.
-}
-
-void ReplacedBox::CollapseTrailingWhiteSpace() {
-  // Do nothing.
-}
+bool ReplacedBox::IsCollapsed() const { return false; }
 
 bool ReplacedBox::JustifiesLineExistence() const { return true; }
 

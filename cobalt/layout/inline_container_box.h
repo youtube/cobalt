@@ -54,11 +54,13 @@ class InlineContainerBox : public ContainerBox {
   scoped_ptr<Box> TrySplitAtSecondBidiLevelRun() OVERRIDE;
   base::optional<int> GetBidiLevel() const OVERRIDE;
 
-  bool IsCollapsed() const OVERRIDE;
+  void SetShouldCollapseLeadingWhiteSpace(
+      bool should_collapse_leading_white_space) OVERRIDE;
+  void SetShouldCollapseTrailingWhiteSpace(
+      bool should_collapse_trailing_white_space) OVERRIDE;
   bool HasLeadingWhiteSpace() const OVERRIDE;
   bool HasTrailingWhiteSpace() const OVERRIDE;
-  void CollapseLeadingWhiteSpace() OVERRIDE;
-  void CollapseTrailingWhiteSpace() OVERRIDE;
+  bool IsCollapsed() const OVERRIDE;
 
   bool JustifiesLineExistence() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
@@ -78,11 +80,14 @@ class InlineContainerBox : public ContainerBox {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
-  ChildBoxes::const_iterator FindFirstNonCollapsedChildBox() const;
-  ChildBoxes::const_iterator FindLastNonCollapsedChildBox() const;
-
   scoped_ptr<Box> SplitAtIterator(
       ChildBoxes::const_iterator child_split_iterator);
+
+  bool should_collapse_leading_white_space_;
+  bool should_collapse_trailing_white_space_;
+  bool has_leading_white_space_;
+  bool has_trailing_white_space_;
+  bool is_collapsed_;
 
   bool justifies_line_existence_;
   float baseline_offset_from_margin_box_top_;

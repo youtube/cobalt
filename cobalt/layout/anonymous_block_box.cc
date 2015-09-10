@@ -74,30 +74,34 @@ scoped_ptr<FormattingContext> AnonymousBlockBox::UpdateRectOfInFlowChildBoxes(
     const LayoutParams& child_layout_params) {
   // Lay out child boxes in the normal flow.
   //   http://www.w3.org/TR/CSS21/visuren.html#normal-flow
-  render_tree::FontMetrics font_metrics = used_font_->GetFontMetrics();
   scoped_ptr<InlineFormattingContext> inline_formatting_context(
-      new InlineFormattingContext(child_layout_params, font_metrics.x_height,
-                                  computed_style()->text_align()));
+      new InlineFormattingContext(
+          computed_style()->line_height(), used_font_->GetFontMetrics(),
+          child_layout_params, computed_style()->text_align()));
 
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end();) {
     Box* child_box = *child_box_iterator;
     ++child_box_iterator;
 
-    scoped_ptr<Box> child_box_after_split =
-        inline_formatting_context->QueryUsedRectAndMaybeSplit(child_box);
-    if (child_box_after_split) {
-      // Re-insert the rest of the child box and attempt to lay it out in
-      // the next iteration of the loop.
-      // TODO(***REMOVED***): If every child box is split, this becomes an O(N^2)
-      //               operation where N is the number of child boxes.
-      //               Consider using a new vector instead and swap its
-      //               contents after the layout is done.
-      child_box_iterator =
-          InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+    if (child_box->IsAbsolutelyPositioned()) {
+      inline_formatting_context->BeginEstimateStaticPosition(child_box);
+    } else {
+      scoped_ptr<Box> child_box_after_split =
+          inline_formatting_context->BeginUpdateRectAndMaybeSplit(child_box);
+      if (child_box_after_split) {
+        // Re-insert the rest of the child box and attempt to lay it out in
+        // the next iteration of the loop.
+        // TODO(***REMOVED***): If every child box is split, this becomes an O(N^2)
+        //               operation where N is the number of child boxes.
+        //               Consider using a new vector instead and swap its
+        //               contents after the layout is done.
+        child_box_iterator =
+            InsertDirectChild(child_box_iterator, child_box_after_split.Pass());
+      }
     }
   }
-  inline_formatting_context->EndQueries();
+  inline_formatting_context->EndUpdates();
   return inline_formatting_context.PassAs<FormattingContext>();
 }
 
