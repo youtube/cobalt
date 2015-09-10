@@ -65,7 +65,20 @@ enum PseudoElementType {
 //   http://www.w3.org/TR/html5/dom.html#htmlelement
 class HTMLElement : public Element, public cssom::MutationObserver {
  public:
-  typedef std::vector<scoped_refptr<loader::CachedImage> > CachedImageVector;
+  struct CachedImageReferenceWithCallback {
+    CachedImageReferenceWithCallback(
+        const scoped_refptr<loader::CachedImage>& cached_image,
+        const base::Closure& callback);
+
+    // A single cached image.
+    scoped_refptr<loader::CachedImage> cached_image;
+    // This handles adding and removing the background image loaded callback.
+    scoped_ptr<loader::CachedImage::OnLoadedCallbackHandler>
+        cached_image_loaded_callback_handler;
+  };
+
+  typedef ScopedVector<CachedImageReferenceWithCallback>
+      CachedImageReferenceVector;
 
   // Web API: HTMLElement
   //
@@ -167,6 +180,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   ~HTMLElement() OVERRIDE;
 
  private:
+  void UpdateCachedBackgroundImagesFromComputedStyle();
+
+  // This will be called when the image data associated with this element's
+  // computed style's background-image property is loaded.
+  void OnBackgroundImageLoaded();
+
   scoped_refptr<cssom::CSSStyleDeclaration> style_;
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style_;
   scoped_ptr<cssom::RulesWithCascadePriority> matching_rules_;
@@ -174,11 +193,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   scoped_refptr<DOMStringMap> dataset_;
 
-  // |cached_background_images_| is a list of CachedImage references for all
-  // images referenced by the computed value for the background_image CSS
-  // property. We maintain it here to indicate to the resource caching system
+  // |cached_background_images_| contains a list of CachedImage references for
+  // all images referenced by the computed value for the background_image CSS
+  // property and a image loaded handle to add and remove image loaded callback.
+  // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
-  CachedImageVector cached_background_images_;
+  CachedImageReferenceVector cached_background_images_;
 
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
