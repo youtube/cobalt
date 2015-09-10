@@ -28,47 +28,59 @@ BlockFormattingContext::BlockFormattingContext(
 
 BlockFormattingContext::~BlockFormattingContext() {}
 
-void BlockFormattingContext::UpdateUsedRect(Box* child_box) {
+void BlockFormattingContext::UpdateRect(Box* child_box) {
+  DCHECK(!child_box->IsAbsolutelyPositioned());
+
+  UpdatePosition(child_box);
+  child_box->UpdateSize(layout_params_);
+
+  // Shrink-to-fit width cannot be less than the width of the widest child.
+  //   http://www.w3.org/TR/CSS21/visudet.html#float-width
+  set_shrink_to_fit_width(
+      std::max(shrink_to_fit_width(),
+               child_box->GetRightMarginEdgeOffsetFromContainingBlock()));
+
+  // If "height" is "auto", the used value is the distance from box's top
+  // content edge to the bottom edge of the bottom margin of its last in-flow
+  // child.
+  //   http://www.w3.org/TR/CSS21/visudet.html#normal-block
+  set_auto_height(child_box->GetBottomMarginEdgeOffsetFromContainingBlock());
+
+  // The baseline of an "inline-block" is the baseline of its last line box
+  // in the normal flow, unless it has no in-flow line boxes.
+  //   http://www.w3.org/TR/CSS21/visudet.html#line-height
+  if (child_box->AffectsBaselineInBlockFormattingContext()) {
+    set_baseline_offset_from_top_content_edge(
+        child_box->top() + child_box->GetBaselineOffsetFromTopMarginEdge());
+  }
+}
+
+void BlockFormattingContext::EstimateStaticPosition(Box* child_box) {
+  DCHECK(child_box->IsAbsolutelyPositioned());
+
+  // The term "static position" (of an element) refers, roughly, to the position
+  // an element would have had in the normal flow.
+  //   http://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width
+  UpdatePosition(child_box);
+}
+
+void BlockFormattingContext::UpdatePosition(Box* child_box) {
   DCHECK_EQ(Box::kBlockLevel, child_box->GetLevel());
 
-  // In a block formatting context, boxes are laid out one after the other,
-  // vertically, beginning at the top of a containing block.
+  // In a block formatting context, each box's left outer edge touches
+  // the left edge of the containing block.
   //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
   child_box->set_left(0);
-  child_box->set_top(used_height());
 
-  // If the position is absolute, then it should not affect the layout of
-  // its siblings and thus we should not update the block formatting context's
-  // state.
-  //   http://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
-  // TODO(***REMOVED***): A position of "fixed" is also out-of-flow and should not
-  //               affect the block formatting context's state.
-  if (child_box->computed_style()->position() !=
-          cssom::KeywordValue::GetAbsolute()) {
-    child_box->UpdateSize(layout_params_);
-
-    bounding_box_of_used_children_.set_height(used_height() +
-                                              child_box->height());
-
-    // The vertical distance between two sibling boxes is determined by
-    // the "margin" properties. Vertical margins between adjacent block-level
-    // boxes collapse.
-    //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
-    // TODO(***REMOVED***): Implement the above.
-
-    // Shrink-to-fit width cannot be less than the width of the widest child.
-    //   http://www.w3.org/TR/CSS21/visudet.html#float-width
-    bounding_box_of_used_children_.set_width(
-        std::max(used_width(), child_box->width()));
-
-    // The baseline of an "inline-block" is the baseline of its last line box
-    // in the normal flow, unless it has no in-flow line boxes.
-    //   http://www.w3.org/TR/CSS21/visudet.html#line-height
-    if (child_box->AffectsBaselineInBlockFormattingContext()) {
-      set_baseline_offset_from_top_content_edge(
-          child_box->top() + child_box->GetBaselineOffsetFromTopMarginEdge());
-    }
-  }
+  // In a block formatting context, boxes are laid out one after the other,
+  // vertically, beginning at the top of a containing block. The vertical
+  // distance between two sibling boxes is determined by the "margin"
+  // properties.
+  //   http://www.w3.org/TR/CSS21/visuren.html#block-formatting
+  //
+  // TODO(***REMOVED***): Vertical margins between adjacent block-level boxes
+  //               in a block formatting context collapse.
+  child_box->set_top(auto_height());
 }
 
 }  // namespace layout

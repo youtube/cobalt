@@ -39,11 +39,17 @@ class BlockFormattingContext : public FormattingContext {
   explicit BlockFormattingContext(const LayoutParams& layout_params);
   ~BlockFormattingContext() OVERRIDE;
 
-  // Calculates the used position and size of the given child box and updates
+  // Calculates the position and size of the given child box and updates
   // the internal state in the preparation for the next child.
-  void UpdateUsedRect(Box* child_box);
+  void UpdateRect(Box* child_box);
+
+  // Estimates the static position of the given child box. In CSS 2.1 the static
+  // position is only defined for absolutely positioned boxes.
+  void EstimateStaticPosition(Box* child_box);
 
  private:
+  void UpdatePosition(Box* child_box);
+
   const LayoutParams layout_params_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockFormattingContext);
