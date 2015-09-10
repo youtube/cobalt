@@ -29,15 +29,28 @@ int WindowTimers::SetTimeout(const scoped_refptr<TimerCallback>& handler,
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
   scoped_ptr<base::Timer> timer(new base::OneShotTimer<TimerInfo>());
+  timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
+               base::Bind(&WindowTimers::RunTimerCallback,
+                          base::Unretained(this), handle));
   timers_[handle] = new TimerInfo(timer.Pass(), handler);
-  static_cast<base::OneShotTimer<TimerInfo>*>(timers_[handle]->timer())
-      ->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
-              base::Bind(&WindowTimers::RunTimerCallback,
-                         base::Unretained(this), handle));
   return handle;
 }
 
 void WindowTimers::ClearTimeout(int handle) { timers_.erase(handle); }
+
+int WindowTimers::SetInterval(const scoped_refptr<TimerCallback>& handler,
+                              int timeout) {
+  int handle = GetFreeTimerHandle();
+  DCHECK(handle);
+  scoped_ptr<base::Timer> timer(new base::RepeatingTimer<TimerInfo>());
+  timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
+               base::Bind(&WindowTimers::RunTimerCallback,
+                          base::Unretained(this), handle));
+  timers_[handle] = new TimerInfo(timer.Pass(), handler);
+  return handle;
+}
+
+void WindowTimers::ClearInterval(int handle) { timers_.erase(handle); }
 
 int WindowTimers::GetFreeTimerHandle() {
   int next_timer_index = current_timer_index_;
@@ -64,8 +77,8 @@ void WindowTimers::RunTimerCallback(int handle) {
   DCHECK(timer != timers_.end());
   DCHECK(timer->second->callback());
   timer->second->callback()->Run();
-  // Double check whether the timer is still there since it might be deleted
-  // in the callback by calling clearTimeout / clearInterval.
+  // After running the callback, double check whether the timer is still there
+  // since it might be deleted inside the callback.
   timer = timers_.find(handle);
   // If the timer is not deleted and is not running, it means it is an oneshot
   // timer and has just fired the shot, and it should be deleted now.
