@@ -30,14 +30,21 @@ MessageBuffer.prototype.addMessage = function(severity, message) {
   this.messageBox.appendChild(elem);
 }
 
+MessageBuffer.prototype.show = function(doShow) {
+  var display = doShow ? 'block' : 'none';
+  var elem = document.getElementById('messageLog');
+  elem.style.display = display;
+}
+
 var inputText = '';
 var messageBuffer = null;
 var allCVals = [];
 var activeCVals = [];
 
-function createMessageBuffer() {
+function createMessageBuffer(visible) {
   var messageBox = document.getElementById('messageBox');
   messageBuffer = new MessageBuffer(messageBox);
+  messageBuffer.show(visible);
 }
 
 // Gets the space-separated list of console value names from Cobalt and splits
@@ -218,7 +225,7 @@ function addLogMessageCallback() {
 }
 
 function start() {
-  createMessageBuffer();
+  createMessageBuffer(false);
   addLogMessageCallback();
   getConsoleValueNames();
   curr = window.performance.now();
