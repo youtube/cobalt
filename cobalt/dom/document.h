@@ -26,7 +26,6 @@
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/rule_matching.h"
-#include "cobalt/loader/image_cache.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
@@ -65,9 +64,7 @@ class DocumentObserver {
 // In the spec, "A document is assumed to be an XML document unless it is
 // flagged as being an HTML document". In Cobalt it is always considered as HTML
 // document.
-class Document : public Node,
-                 public cssom::MutationObserver,
-                 public loader::ImageCacheObserver {
+class Document : public Node, public cssom::MutationObserver {
  public:
   struct Options {
     Options() {}
@@ -179,9 +176,6 @@ class Document : public Node,
 
   // From cssom::MutationObserver.
   void OnCSSMutation() OVERRIDE;
-
-  // From loader::ImageCacheObserver.
-  void OnImageLoaded() OVERRIDE;
 
   // Called when the DOM is mutated in some way.
   void OnDOMMutation();

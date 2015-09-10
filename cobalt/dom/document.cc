@@ -55,10 +55,6 @@ Document::Document(HTMLElementContext* html_element_context,
       rule_matches_dirty_(true),
       computed_style_dirty_(true) {
   DCHECK(url_.is_empty() || url_.is_valid());
-  if (html_element_context_ && html_element_context_->image_cache()) {
-    html_element_context_->image_cache()->AddObserver(this);
-  }
-
   // Call OnInsertedIntoDocument() immediately to ensure that the Document
   // object itself is considered to be "in the document".
   OnInsertedIntoDocument();
@@ -299,8 +295,6 @@ void Document::OnDOMMutation() {
   RecordMutation();
 }
 
-void Document::OnImageLoaded() { RecordMutation(); }
-
 void Document::OnElementInlineStyleMutation() {
   computed_style_dirty_ = true;
 
@@ -343,11 +337,7 @@ void Document::UpdateComputedStyles(
   }
 }
 
-Document::~Document() {
-  if (html_element_context_ && html_element_context_->image_cache()) {
-    html_element_context_->image_cache()->RemoveObserver(this);
-  }
-}
+Document::~Document() {}
 
 }  // namespace dom
 }  // namespace cobalt
