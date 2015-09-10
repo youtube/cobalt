@@ -345,13 +345,13 @@ void UpdateStyleSheetRuleIndexes(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
     const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
   TRACE_EVENT0("cobalt::dom", "UpdateStyleSheetRuleIndexes()");
-  user_agent_style_sheet->UpdateRuleIndexes();
+  user_agent_style_sheet->MaybeUpdateRuleIndexes();
   DCHECK(author_style_sheets);
   for (unsigned int style_sheet_index = 0;
        style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
     scoped_refptr<cssom::CSSStyleSheet> style_sheet =
         author_style_sheets->Item(style_sheet_index);
-    style_sheet->UpdateRuleIndexes();
+    style_sheet->MaybeUpdateRuleIndexes();
   }
 }
 
