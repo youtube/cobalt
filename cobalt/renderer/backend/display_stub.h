@@ -31,7 +31,7 @@ class DisplayStub : public Display {
  public:
   DisplayStub()
       : render_target_(new RenderTargetStub(
-            SurfaceInfo(1920, 1080, SurfaceInfo::kFormatARGB8))) {}
+            SurfaceInfo(math::Size(1920, 1080), SurfaceInfo::kFormatARGB8))) {}
 
   // Return the stub render target.
   scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE {
