@@ -40,7 +40,7 @@ DebugConsole::~DebugConsole() {}
 
 DebugConsole::DebugConsoleMode
 DebugConsole::GetDebugConsoleModeFromCommandLine() {
-  DebugConsoleMode debug_console_mode = kDebugConsoleOff;
+  DebugConsoleMode debug_console_mode = kDebugConsoleOn;
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
