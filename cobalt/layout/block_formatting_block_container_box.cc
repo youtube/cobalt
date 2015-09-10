@@ -66,7 +66,11 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
   for (ChildBoxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    block_formatting_context->UpdateUsedRect(child_box);
+    if (child_box->IsAbsolutelyPositioned()) {
+      block_formatting_context->EstimateStaticPosition(child_box);
+    } else {
+      block_formatting_context->UpdateRect(child_box);
+    }
   }
   return block_formatting_context.PassAs<FormattingContext>();
 }

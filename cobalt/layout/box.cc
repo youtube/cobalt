@@ -95,9 +95,6 @@ bool Box::IsAbsolutelyPositioned() const {
 void Box::UpdateSize(const LayoutParams& layout_params) {
   UpdateBorders();
   UpdatePaddings(layout_params);
-
-  // TODO(***REMOVED***): Following line will be removed in subsequent CLs.
-  margin_insets_ = math::InsetsF();
   UpdateContentSizeAndMargins(layout_params);
 }
 
