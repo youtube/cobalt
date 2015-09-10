@@ -46,7 +46,7 @@ class RuleMatchingTest : public ::testing::Test {
 
     html_element->ClearMatchingRules();
 
-    style_sheet_->UpdateRuleIndexes();
+    style_sheet_->MaybeUpdateRuleIndexes();
     GetMatchingRulesFromStyleSheet(style_sheet_, html_element,
                                    cssom::kNormalAuthor);
     matching_rules_ = html_element->matching_rules();
