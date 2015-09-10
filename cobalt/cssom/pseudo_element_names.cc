@@ -19,8 +19,8 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kAfterPseudoElementName = "after";
-const char* const kBeforePseudoElementName = "before";
+const char kAfterPseudoElementName[] = "after";
+const char kBeforePseudoElementName[] = "before";
 
 }  // namespace cssom
 }  // namespace cobalt

@@ -20,7 +20,7 @@ namespace cobalt {
 namespace dom {
 
 // static
-const char* HTMLSpanElement::kTagName = "span";
+const char HTMLSpanElement::kTagName[] = "span";
 
 std::string HTMLSpanElement::tag_name() const { return kTagName; }
 

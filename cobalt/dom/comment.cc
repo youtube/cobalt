@@ -34,7 +34,7 @@ Comment::Comment(Document* document, const base::StringPiece& comment)
     : CharacterData(document, comment) {}
 
 std::string Comment::node_name() const {
-  static const char* kCommentName = "#comment";
+  static const char kCommentName[] = "#comment";
   return kCommentName;
 }
 

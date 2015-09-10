@@ -30,7 +30,7 @@ class Document;
 //   http://www.w3.org/TR/html5/grouping-content.html#the-p-element
 class HTMLParagraphElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLParagraphElement(Document* document) : HTMLElement(document) {}
 

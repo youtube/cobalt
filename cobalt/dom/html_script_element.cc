@@ -29,7 +29,7 @@ namespace cobalt {
 namespace dom {
 
 // static
-const char* HTMLScriptElement::kTagName = "script";
+const char HTMLScriptElement::kTagName[] = "script";
 
 HTMLScriptElement::HTMLScriptElement(Document* document)
     : HTMLElement(document), is_already_started_(false) {

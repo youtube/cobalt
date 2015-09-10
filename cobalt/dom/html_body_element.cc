@@ -22,7 +22,7 @@ namespace cobalt {
 namespace dom {
 
 // static
-const char* HTMLBodyElement::kTagName = "body";
+const char HTMLBodyElement::kTagName[] = "body";
 
 std::string HTMLBodyElement::tag_name() const { return kTagName; }
 

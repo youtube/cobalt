@@ -332,7 +332,7 @@ TEST_F(ElementTest, InnerHTML) {
 
   element_a->AppendChild(new Text(document_, "\n"));
 
-  const char* kExpectedHTML =
+  const char kExpectedHTML[] =
       "<element_a key=\"value\">\n"
       "  <element_b1 just_key></element_b1>\n"
       "  <element_b2>Text</element_b2>\n"
@@ -359,7 +359,7 @@ TEST_F(ElementTest, InnerHTML) {
   //     comment_11
   //     text_12
   //
-  const char* kAnotherHTML =
+  const char kAnotherHTML[] =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
       "  <div>Text</div>\n"
@@ -440,7 +440,7 @@ TEST_F(ElementTest, OuterHTML) {
 
   element_a->AppendChild(new Text(document_, "\n"));
 
-  const char* kExpectedHTML =
+  const char kExpectedHTML[] =
       "<root><element_a key=\"value\">\n"
       "  <element_b1 just_key></element_b1>\n"
       "  <element_b2>Text</element_b2>\n"
@@ -468,7 +468,7 @@ TEST_F(ElementTest, OuterHTML) {
   //     text_12
   //
   root->AppendChild(new Element(document_));
-  const char* kAnotherHTML =
+  const char kAnotherHTML[] =
       "<div key=\"value\">\n"
       "  <div just_key></div>\n"
       "  <div>Text</div>\n"
@@ -560,7 +560,7 @@ TEST_F(ElementTest, NodeValueAndTextContent) {
   EXPECT_EQ("This is Sparta.", root->text_content().value());
 
   // After setting new text content, check the result.
-  const char* kTextContent = "New text content";
+  const char kTextContent[] = "New text content";
   root->set_text_content(std::string(kTextContent));
   EXPECT_EQ(kTextContent, root->text_content().value());
 

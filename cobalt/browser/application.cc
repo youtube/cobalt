@@ -39,7 +39,7 @@ std::string GetInitialURL() {
     return command_line->GetSwitchValueASCII(switches::kInitialURL);
   }
 
-  static const char* kDefaultInitialURL =
+  static const char kDefaultInitialURL[] =
       "file:///cobalt/browser/testdata/performance-spike/index.html";
   return std::string(kDefaultInitialURL);
 }

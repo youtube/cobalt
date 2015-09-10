@@ -18,8 +18,8 @@
 
 namespace cobalt {
 namespace cssom {
-const char* const kScreenMediaTypeName = "screen";
-const char* const kTVMediaTypeName = "tv";
+const char kScreenMediaTypeName[] = "screen";
+const char kTVMediaTypeName[] = "tv";
 
 }  // namespace cssom
 }  // namespace cobalt

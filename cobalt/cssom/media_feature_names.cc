@@ -19,19 +19,19 @@
 namespace cobalt {
 namespace cssom {
 
-const char* const kAspectRatioMediaFeatureName = "aspect-ratio";
-const char* const kColorIndexMediaFeatureName = "color-index";
-const char* const kColorMediaFeatureName = "color";
-const char* const kDeviceAspectRatioMediaFeatureName = "device-aspect-ratio";
-const char* const kDeviceHeightMediaFeatureName = "device-height";
-const char* const kDeviceWidthMediaFeatureName = "device-width";
-const char* const kGridMediaFeatureName = "grid";
-const char* const kHeightMediaFeatureName = "height";
-const char* const kMonochromeMediaFeatureName = "monochrome";
-const char* const kOrientationMediaFeatureName = "orientation";
-const char* const kResolutionMediaFeatureName = "resolution";
-const char* const kScanMediaFeatureName = "scan";
-const char* const kWidthMediaFeatureName = "width";
+const char kAspectRatioMediaFeatureName[] = "aspect-ratio";
+const char kColorIndexMediaFeatureName[] = "color-index";
+const char kColorMediaFeatureName[] = "color";
+const char kDeviceAspectRatioMediaFeatureName[] = "device-aspect-ratio";
+const char kDeviceHeightMediaFeatureName[] = "device-height";
+const char kDeviceWidthMediaFeatureName[] = "device-width";
+const char kGridMediaFeatureName[] = "grid";
+const char kHeightMediaFeatureName[] = "height";
+const char kMonochromeMediaFeatureName[] = "monochrome";
+const char kOrientationMediaFeatureName[] = "orientation";
+const char kResolutionMediaFeatureName[] = "resolution";
+const char kScanMediaFeatureName[] = "scan";
+const char kWidthMediaFeatureName[] = "width";
 
 }  // namespace cssom
 }  // namespace cobalt

@@ -75,7 +75,7 @@ namespace {
 
 scoped_refptr<cssom::CSSStyleSheet> ParseUserAgentStyleSheet(
     cssom::CSSParser* css_parser) {
-  const char* kUserAgentStyleSheetFileName = "user_agent_style_sheet.css";
+  const char kUserAgentStyleSheetFileName[] = "user_agent_style_sheet.css";
 
   // Parse the user agent style sheet from the html.css file that was compiled
   // into a header and included.  We embed it in the binary via C++ header file

@@ -54,7 +54,7 @@ Loader::Loader(
       decoder_to_fetcher_adaptor_(
           new DecoderToFetcherAdapter(decoder_.get(), error_callback)),
       fetcher_(fetcher_creator.Run(decoder_to_fetcher_adaptor_.get()).Pass()) {
-  static const char* kLoaderNotCreated = "Fetcher or Decoder is not created.";
+  static const char kLoaderNotCreated[] = "Fetcher or Decoder is not created.";
   if (!fetcher_ || !decoder_) {
     error_callback.Run(kLoaderNotCreated);
   }

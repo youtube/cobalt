@@ -67,20 +67,20 @@ void FileFetcher::CloseFile() {
 
 const char* FileFetcher::PlatformFileErrorToString(
     base::PlatformFileError error) {
-  static const char* kPlatformFileOk = "Platform file OK";
-  static const char* kPlatformFileErrorNotFound =
+  static const char kPlatformFileOk[] = "Platform file OK";
+  static const char kPlatformFileErrorNotFound[] =
       "Platform file error: Not found";
-  static const char* kPlatformFileErrorInUse = "Platform file error: In use";
-  static const char* kPlatformFileErrorAccessDenied =
+  static const char kPlatformFileErrorInUse[] = "Platform file error: In use";
+  static const char kPlatformFileErrorAccessDenied[] =
       "Platform file error: Access denied";
-  static const char* kPlatformFileErrorSecurity =
+  static const char kPlatformFileErrorSecurity[] =
       "Platform file error: Security";
-  static const char* kPlatformFileErrorInvalidUrl =
+  static const char kPlatformFileErrorInvalidUrl[] =
       "Platform file error: Invalid URL";
-  static const char* kPlatformFileErrorAbort = "Platform file error: Abort";
-  static const char* kPlatformFileErrorNotAFile =
+  static const char kPlatformFileErrorAbort[] = "Platform file error: Abort";
+  static const char kPlatformFileErrorNotAFile[] =
       "Platform file error: Not a file";
-  static const char* kPlatformFileErrorNotDefined =
+  static const char kPlatformFileErrorNotDefined[] =
       "Platform file error: Undefined error";
 
   switch (error) {
