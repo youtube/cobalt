@@ -68,7 +68,7 @@ TEST_F(SerializerTest, SerializeSelfOnly) {
   std::ostringstream oss;
   Serializer serializer(&oss);
   serializer.SerializeSelfOnly(root_->first_element_child());
-  EXPECT_EQ("<div a></div>", oss.str());
+  EXPECT_EQ("<div a>...</div>", oss.str());
 }
 
 TEST_F(SerializerTest, SerializeDescendantsOnly) {
