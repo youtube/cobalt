@@ -119,12 +119,20 @@ uint16_t HTMLMediaElement::network_state() const {
 }
 
 scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
+  scoped_refptr<TimeRanges> buffered = new TimeRanges;
+
   if (!player_) {
-    return new TimeRanges;
+    return buffered;
   }
-  return new TimeRanges;
-  // TODO(***REMOVED***): Copy buffered over.
-  // return player_->Buffered();
+
+  const ::media::Ranges<base::TimeDelta>& player_buffered = player_->Buffered();
+
+  for (size_t i = 0; i < player_buffered.size(); ++i) {
+    buffered->Add(player_buffered.start(i).InSecondsF(),
+                  player_buffered.end(i).InSecondsF());
+  }
+
+  return buffered;
 }
 
 void HTMLMediaElement::Load() {
