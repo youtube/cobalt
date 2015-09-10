@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "cobalt/layout/box.h"
+#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -48,45 +49,48 @@ namespace layout {
 // been called for every child box.
 class LineBox {
  public:
-  // When used outside of an inline formatting context (for example, to lay out
-  // an inline container box), the line box may be configured to not trim
-  // the leading and trailing white space.
-  enum ShouldTrimWhiteSpace {
-    kShouldNotTrimWhiteSpace = false,
-    kShouldTrimWhiteSpace = true
-  };
+  LineBox(float top, const scoped_refptr<cssom::PropertyValue>& line_height,
+          const render_tree::FontMetrics& font_metrics,
+          bool should_collapse_leading_white_space,
+          bool should_collapse_trailing_white_space,
+          const LayoutParams& layout_params,
+          const scoped_refptr<cssom::PropertyValue>& text_align);
 
-  // x_height is the height of the 'x' glyph in the font for this box.
-  // text_align decides how the child boxes of this box should align.
-  LineBox(float used_top, float x_height,
-          ShouldTrimWhiteSpace should_trim_white_space,
-          const scoped_refptr<cssom::PropertyValue>& text_align,
-          const LayoutParams& layout_params);
+  float top() const { return top_; }
 
-  float top() const { return used_top_; }
-
-  // Attempts to calculate the used values of "left", "top", "width", and
-  // "height" for the given child box if the box or a part of it fits on
-  // the line. Some parts of calculation are asynchronous, so the child's
-  // position is in an undefined state until |EndQueries| is called.
+  // Attempts to calculate the position and size of the given child box
+  // if the box or a part of it fits on the line. Some parts of the calculation
+  // are asynchronous, so the used values will be undefined until |EndUpdates|
+  // is called.
   //
-  // Returns false if the box does not fit on the line, even if split.
+  // Returns false if the box does not fit on the line, even when split.
   //
   // If the child box had to be split in order to fit on the line, the part
   // of the box after the split is stored in |child_box_after_split|. The box
   // that establishes this formatting context must re-insert the returned part
   // right after the original child box.
-  bool TryQueryUsedRectAndMaybeSplit(Box* child_box,
-                                     scoped_ptr<Box>* child_box_after_split);
-  // Asynchronously calculates the used values of "left", "top", "width", and
-  // "height" for the given child box, ignoring the possible overflow.
-  // The child's position is in undefined state until |EndQueries| is called.
-  void QueryUsedRectAndMaybeOverflow(Box* child_box);
-  // Ensures that the calculation of used values of "left" and "top" for all
-  // previously seen child boxes is completed.
-  void EndQueries();
+  bool TryBeginUpdateRectAndMaybeSplit(Box* child_box,
+                                       scoped_ptr<Box>* child_box_after_split);
+  // Asynchronously calculates the position and size of the given child box,
+  // ignoring the possible overflow. The used values will be undefined until
+  // |EndUpdates| is called.
+  void BeginUpdateRectAndMaybeOverflow(Box* child_box);
+  // Asynchronously estimates the static position of the given child box.
+  // In CSS 2.1 the static position is only defined for absolutely positioned
+  // boxes. The used values will be undefined until |EndUpdates| is called.
+  void BeginEstimateStaticPosition(Box* child_box);
+  // Ensures that the calculation of used values for all previously seen child
+  // boxes is completed.
+  void EndUpdates();
 
-  // WARNING: All public methods below may be called only after |EndQueries|.
+  // WARNING: All public methods below may be called only after |EndUpdates|.
+
+  // Whether the line starts with a white space.
+  bool HasLeadingWhiteSpace() const;
+  // Whether the line ends with a white space.
+  bool HasTrailingWhiteSpace() const;
+  // Whether all boxes on the line are collapsed.
+  bool IsCollapsed() const;
 
   // Line boxes that contain no text, no preserved white space, no inline
   // elements with non-zero margins, padding, or borders, and no other in-flow
@@ -97,47 +101,56 @@ class LineBox {
   bool line_exists() const { return line_exists_; }
 
   // Used to calculate the width of an inline container box.
-  float GetShrinkToFitWidth() const;
+  float shrink_to_fit_width() const { return shrink_to_fit_width_; }
 
   // Used to calculate the "auto" height of the box that establishes this
   // formatting context.
-  float height() const { return used_height_; }
+  float height() const { return height_; }
 
-  // Returns the vertical offset of the baseline. May return non-zero values
-  // even for empty line boxes, because of the strut.
+  // Returns the vertical offset of the baseline from the top of the line box.
+  // May return non-zero values even for empty line boxes, because of the strut.
   //   http://www.w3.org/TR/CSS21/visudet.html#strut
   float baseline_offset_from_top() const { return baseline_offset_from_top_; }
 
  private:
-  void CollapseTrailingWhiteSpace() const;
-  float GetHeightAboveMiddleAlignmentPoint(Box* box);
+  float GetAvailableWidth();
+  void UpdateSizePreservingTrailingWhiteSpace(Box* child_box);
+  bool ShouldCollapseLeadingWhiteSpaceInNextChildBox() const;
+  void CollapseTrailingWhiteSpace();
+
+  void BeginUpdatePosition(Box* child_box);
 
   void ReverseChildBoxesByBidiLevels();
   void ReverseChildBoxesMeetingBidiLevelThreshold(int level);
 
+  void UpdateChildBoxLeftPositions();
   void SetLineBoxHeightFromChildBoxes();
-  void SetChildBoxTopPositions();
-  void SetChildBoxLeftPositions();
+  void UpdateChildBoxTopPositions();
+  float GetHeightAboveMiddleAlignmentPoint(Box* child_box);
 
-  const float used_top_;
-  const float x_height_;
-  const ShouldTrimWhiteSpace should_trim_white_space_;
-  const scoped_refptr<cssom::PropertyValue> text_align_;
+  const float top_;
+  const scoped_refptr<cssom::PropertyValue> line_height_;
+  const render_tree::FontMetrics font_metrics_;
   const LayoutParams layout_params_;
+  const bool should_collapse_leading_white_space_;
+  const bool should_collapse_trailing_white_space_;
+  const scoped_refptr<cssom::PropertyValue> text_align_;
 
+  bool at_end_;
   bool line_exists_;
-  bool line_has_bidi_reversed_children_;
 
   // Non-owned list of child boxes.
   //
-  // Used to calculate used values of "top" which can only be determined when
-  // all child boxes are known, due to a vertical alignment.
+  // Horizontal and vertical alignments make it impossible to calculate
+  // positions of children before all children are known.
   typedef std::vector<Box*> ChildBoxes;
   ChildBoxes child_boxes_;
 
+  base::optional<size_t> first_non_collapsed_child_box_index_;
   base::optional<size_t> last_non_collapsed_child_box_index_;
 
-  float used_height_;
+  float shrink_to_fit_width_;
+  float height_;
   float baseline_offset_from_top_;
 
   DISALLOW_COPY_AND_ASSIGN(LineBox);

@@ -23,6 +23,7 @@
 #include "cobalt/layout/formatting_context.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
+#include "cobalt/render_tree/font.h"
 
 namespace cobalt {
 namespace layout {
@@ -48,30 +49,44 @@ class LineBox;
 class InlineFormattingContext : public FormattingContext {
  public:
   InlineFormattingContext(
-      const LayoutParams& layout_params, float x_height,
+      const scoped_refptr<cssom::PropertyValue>& line_height,
+      const render_tree::FontMetrics& font_metrics,
+      const LayoutParams& layout_params,
       const scoped_refptr<cssom::PropertyValue>& text_align);
   ~InlineFormattingContext() OVERRIDE;
 
-  // Asynchronously updates used values of "left" and "top" for the given child
-  // box. The child's position is in undefined state until |EndQueries| is
-  // called.
+  // Asynchronously calculates the position and size of the given child box and
+  // updates the internal state in the preparation for the next child. The used
+  // values will be undefined until |EndUpdates| is called.
   //
   // If the child box had to be split in order to fit on the line,
   // the part of the box after the split is returned. The box that establishes
   // this formatting context must re-insert the returned part right after
   // the original child box and pass this part in the next call to
-  // |QueryUsedPositionAndMaybeSplit|, so that it can be split again if needed.
-  scoped_ptr<Box> QueryUsedRectAndMaybeSplit(Box* child_box);
-  // Ensures that the calculation of used values of "left" and "top" for all
-  // previously seen child boxes is completed.
-  void EndQueries();
+  // |BeginUpdateRectAndMaybeSplit|, so that it can be split again if needed.
+  scoped_ptr<Box> BeginUpdateRectAndMaybeSplit(Box* child_box);
+  // Asynchronously estimates the static position of the given child box.
+  // In CSS 2.1 the static position is only defined for absolutely positioned
+  // boxes. The position is undefined until |EndUpdates| is called.
+  void BeginEstimateStaticPosition(Box* child_box);
+  // Ensures that the calculation of used values for all previously seen child
+  // boxes is completed.
+  void EndUpdates();
 
-  // WARNING: All public methods below may be called only after |EndQueries|.
+  // WARNING: All public getters from |FormattingContext| may be called only
+  //          after |EndUpdates|.
 
  private:
+  bool TryBeginUpdateRectAndMaybeCreateLineBox(
+      Box* child_box, scoped_ptr<Box>* child_box_after_split);
+
+  void CreateLineBox();
   void DestroyLineBox();
 
+  const scoped_refptr<cssom::PropertyValue> line_height_;
+  const render_tree::FontMetrics font_metrics_;
   const LayoutParams layout_params_;
+  const scoped_refptr<cssom::PropertyValue> text_align_;
 
   // The inline formatting context only keeps the last line box, which may be
   // NULL if no child boxes were seen.
@@ -80,11 +95,8 @@ class InlineFormattingContext : public FormattingContext {
   // Number of lines boxes that affect the layout.
   int line_count_;
 
-  // X-height of the font in the parent box.
-  float x_height_;
-
-  // The alignment to be used in child boxes.
-  const scoped_refptr<cssom::PropertyValue> text_align_;
+  // A width of the block container box when all possible line breaks are made.
+  float preferred_min_width_;
 
   DISALLOW_COPY_AND_ASSIGN(InlineFormattingContext);
 };

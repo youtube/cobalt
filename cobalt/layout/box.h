@@ -201,25 +201,33 @@ class Box {
   // Retrieve the bidi level for the box, if it has one.
   virtual base::optional<int> GetBidiLevel() const = 0;
 
+  // Sets whether a leading white space in the box or its first non-collapsed
+  // descendant should be collapsed.
+  virtual void SetShouldCollapseLeadingWhiteSpace(
+      bool should_collapse_leading_white_space) = 0;
+  // Sets whether a trailing white space in the box or its last non-collapsed
+  // descendant should be collapsed.
+  virtual void SetShouldCollapseTrailingWhiteSpace(
+      bool should_collapse_trailing_white_space) = 0;
+  // Whether the box or its first non-collapsed descendant starts with a white
+  // space.
+  //
+  // WARNING: undefined, unless the box's size is up-to-date.
+  virtual bool HasLeadingWhiteSpace() const = 0;
+  // Whether the box or its last non-collapsed descendant ends with a white
+  // space.
+  //
+  // WARNING: undefined, unless the box's size is up-to-date.
+  virtual bool HasTrailingWhiteSpace() const = 0;
   // A box is collapsed if it has no text or white space, nor have its children.
   // A collapsed box may still have a non-zero width. Atomic inline-level boxes
   // are never collapsed, even if empty.
   //
   // This is used to decide whether two white spaces are following each other in
   // an inline formatting context.
+  //
+  // WARNING: undefined, unless the box's size is up-to-date.
   virtual bool IsCollapsed() const = 0;
-  // Whether the box or its first non-collapsed descendant starts with a white
-  // space.
-  virtual bool HasLeadingWhiteSpace() const = 0;
-  // Whether the box or its last non-collapsed descendant ends with a white
-  // space.
-  virtual bool HasTrailingWhiteSpace() const = 0;
-  // Collapses a leading white space in the box or its first non-collapsed
-  // descendant.
-  virtual void CollapseLeadingWhiteSpace() = 0;
-  // Collapses a trailing white space in the box or its last non-collapsed
-  // descendant.
-  virtual void CollapseTrailingWhiteSpace() = 0;
 
   // Line boxes that contain no text, no preserved white space, no inline
   // elements with non-zero margins, padding, or borders, and no other in-flow
