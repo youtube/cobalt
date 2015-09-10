@@ -22,19 +22,19 @@ namespace cssom {
 
 // Lower-case names of CSS media features.
 //   http://www.w3.org/TR/css3-mediaqueries/#media1
-extern const char* const kAspectRatioMediaFeatureName;
-extern const char* const kColorIndexMediaFeatureName;
-extern const char* const kColorMediaFeatureName;
-extern const char* const kDeviceAspectRatioMediaFeatureName;
-extern const char* const kDeviceHeightMediaFeatureName;
-extern const char* const kDeviceWidthMediaFeatureName;
-extern const char* const kGridMediaFeatureName;
-extern const char* const kHeightMediaFeatureName;
-extern const char* const kMonochromeMediaFeatureName;
-extern const char* const kOrientationMediaFeatureName;
-extern const char* const kResolutionMediaFeatureName;
-extern const char* const kScanMediaFeatureName;
-extern const char* const kWidthMediaFeatureName;
+extern const char kAspectRatioMediaFeatureName[];
+extern const char kColorIndexMediaFeatureName[];
+extern const char kColorMediaFeatureName[];
+extern const char kDeviceAspectRatioMediaFeatureName[];
+extern const char kDeviceHeightMediaFeatureName[];
+extern const char kDeviceWidthMediaFeatureName[];
+extern const char kGridMediaFeatureName[];
+extern const char kHeightMediaFeatureName[];
+extern const char kMonochromeMediaFeatureName[];
+extern const char kOrientationMediaFeatureName[];
+extern const char kResolutionMediaFeatureName[];
+extern const char kScanMediaFeatureName[];
+extern const char kWidthMediaFeatureName[];
 
 enum MediaFeatureName {
   kAspectRatioMediaFeature,

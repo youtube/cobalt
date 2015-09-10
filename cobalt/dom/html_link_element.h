@@ -35,7 +35,7 @@ class Document;
 //   http://www.w3.org/TR/html5/document-metadata.html#the-link-element
 class HTMLLinkElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLLinkElement(Document* document) : HTMLElement(document) {}
 

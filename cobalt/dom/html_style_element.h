@@ -32,7 +32,7 @@ class Document;
 //   http://www.w3.org/TR/html5/document-metadata.html#the-style-element
 class HTMLStyleElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLStyleElement(Document* document)
       : HTMLElement(document),

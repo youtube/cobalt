@@ -26,8 +26,8 @@ namespace cobalt {
 namespace dom {
 
 namespace {
-const char* kLocalStorageSuffix = ".localstorage";
-const char* kSessionStorageSuffix = ".sessionstorage";
+const char kLocalStorageSuffix[] = ".localstorage";
+const char kSessionStorageSuffix[] = ".sessionstorage";
 
 std::string OriginToDatabaseIdentifier(const GURL& url) {
   // For compatibility with existing saved data, this tries to behave the same

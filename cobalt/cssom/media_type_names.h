@@ -26,8 +26,8 @@ namespace cssom {
 //  http://www.w3.org/TR/css3-mediaqueries/
 // Listed here are the names of all supported media types, except the 'all'
 // media type.
-extern const char* const kScreenMediaTypeName;
-extern const char* const kTVMediaTypeName;
+extern const char kScreenMediaTypeName[];
+extern const char kTVMediaTypeName[];
 
 }  // namespace cssom
 }  // namespace cobalt

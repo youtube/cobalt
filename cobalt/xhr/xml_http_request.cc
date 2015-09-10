@@ -34,12 +34,12 @@ namespace xhr {
 namespace {
 
 const char* s_response_types[] = {
-  "",  // kDefault
-  "text",  // kText
-  "json",  // kJson
-  "document",  // kDocument
-  "blob",  // kBlob
-  "arraybuffer",  // kArrayBuffer
+    "",             // kDefault
+    "text",         // kText
+    "json",         // kJson
+    "document",     // kDocument
+    "blob",         // kBlob
+    "arraybuffer",  // kArrayBuffer
 };
 
 bool MethodNameToRequestType(const std::string& method,

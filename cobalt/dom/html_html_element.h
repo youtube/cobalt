@@ -30,7 +30,7 @@ class Document;
 //   http://www.w3.org/TR/html5/semantics.html#the-html-element
 class HTMLHtmlElement : public HTMLElement {
  public:
-  static const char* kTagName;
+  static const char kTagName[];
 
   explicit HTMLHtmlElement(Document* document) : HTMLElement(document) {}
 
