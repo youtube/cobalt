@@ -67,10 +67,12 @@ ConstructorCallWith=EnvironmentSettings
 # the parameter list.
 RaisesException=|Constructor
 
+# The Constructor for an interface is different from the interface name.
+NamedConstructor=*
+
 # Not yet supported
 ArrayClass
 Constructor
-NamedConstructor=*
 OverrideBuiltins
 PutForwards=*
 TreatNullAs=*
