@@ -127,7 +127,7 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
 
   const ::media::Ranges<base::TimeDelta>& player_buffered = player_->Buffered();
 
-  for (size_t i = 0; i < player_buffered.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(player_buffered.size()); ++i) {
     buffered->Add(player_buffered.start(i).InSecondsF(),
                   player_buffered.end(i).InSecondsF());
   }
