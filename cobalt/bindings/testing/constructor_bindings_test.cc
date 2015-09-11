@@ -16,6 +16,7 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/constructor_interface.h"
+#include "cobalt/bindings/testing/named_constructor_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -81,6 +82,27 @@ TEST_F(ConstructorBindingsTest, OverloadedConstructor) {
   EXPECT_CALL(ConstructorInterface::constructor_implementation_mock.Get(),
               Constructor(_));
   EXPECT_TRUE(EvaluateScript("var obj = new ConstructorInterface(true)", NULL));
+}
+
+TEST_F(ConstructorBindingsTest, NamedConstructor) {
+  EXPECT_CALL(NamedConstructorInterface::constructor_implementation_mock.Get(),
+              Constructor());
+  EXPECT_TRUE(EvaluateScript("var obj = new SomeNamedConstructor()", NULL));
+}
+
+TEST_F(ConstructorBindingsTest, NamedConstructorHasCorrectName) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("SomeNamedConstructor.name;", &result));
+  EXPECT_STREQ("SomeNamedConstructor", result.c_str());
+}
+
+TEST_F(ConstructorBindingsTest, NamedConstructorHasCorrectPrototype) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(
+      "Object.getPrototypeOf(SomeNamedConstructor) === "
+      "Object.getPrototypeOf(NamedConstructorInterface);",
+      &result));
+  EXPECT_STREQ("true", result.c_str());
 }
 
 }  // namespace testing
