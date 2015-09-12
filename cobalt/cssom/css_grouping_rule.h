@@ -58,7 +58,6 @@ class CSSGroupingRule : public CSSRule {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
-  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(CSSGroupingRule);
 

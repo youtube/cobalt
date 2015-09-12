@@ -17,6 +17,8 @@
 #ifndef CSSOM_RESOLUTION_VALUE_H_
 #define CSSOM_RESOLUTION_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
@@ -45,6 +47,9 @@ class ResolutionValue : public PropertyValue {
 
   float value() const { return value_; }
   ResolutionUnit unit() const { return unit_; }
+
+  // Returns the value in dpi.
+  float dpi_value() const;
 
   std::string ToString() const OVERRIDE;
 
