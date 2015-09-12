@@ -65,7 +65,6 @@ unsigned int CSSRuleList::InsertRule(const std::string& rule,
   }
 
   AppendCSSStyleRule(css_rule);
-  parent_style_sheet_->set_rule_indexes_dirty();
   return index;
 }
 
@@ -81,11 +80,19 @@ void CSSRuleList::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
 
 void CSSRuleList::AppendCSSStyleRule(
     const scoped_refptr<CSSStyleRule>& css_style_rule) {
+  if (parent_style_sheet_) {
+    css_style_rule->AttachToCSSStyleSheet(parent_style_sheet_);
+    parent_style_sheet_->OnCSSMutation();
+  }
   css_rules_.push_back(css_style_rule);
 }
 
 void CSSRuleList::AppendCSSMediaRule(
     const scoped_refptr<CSSMediaRule>& css_media_rule) {
+  if (parent_style_sheet_) {
+    css_media_rule->AttachToCSSStyleSheet(parent_style_sheet_);
+    parent_style_sheet_->OnCSSMutation();
+  }
   css_rules_.push_back(css_media_rule);
 }
 

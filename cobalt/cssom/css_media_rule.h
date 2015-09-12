@@ -64,16 +64,17 @@ class CSSMediaRule : public CSSConditionRule {
   // Custom, not in any spec.
   //
 
-  // From CSSConditionRule.
-
-  // Returns the cached result of evaluating the condition.
-  bool GetCachedConditionValue() OVERRIDE;
-
   // Evaluates the condition expression and caches the resulting condition
   // value. Returns true if the cached condition value has changed.
-  bool EvaluateConditionValue() OVERRIDE;
+  bool EvaluateConditionValueAndReturnIfChanged(
+      const scoped_refptr<PropertyValue>& width,
+      const scoped_refptr<PropertyValue>& height);
 
+  // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE;
+
+  // This method can be used to setup the parent style sheet.
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(CSSMediaRule);
 

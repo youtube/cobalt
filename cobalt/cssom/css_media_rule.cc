@@ -42,6 +42,9 @@ std::string CSSMediaRule::css_text() const {
 
 void CSSMediaRule::set_css_text(const std::string& /* css_text */) {
   // TODO(***REMOVED***): Parse the given text into a new CSSMediaRule.
+  if (parent_style_sheet()) {
+    parent_style_sheet()->OnMediaRuleMutation();
+  }
   NOTIMPLEMENTED() << "CSSMediaRule css_text setting not implemented yet.";
 }
 
@@ -61,16 +64,25 @@ void CSSMediaRule::set_condition_text(const std::string& condition) {
   media_list_->set_media_text(condition);
 }
 
-bool CSSMediaRule::GetCachedConditionValue() {
-  // TODO(***REMOVED***): implement returing the result of the media rule expression.
-  NOTIMPLEMENTED();
-  return false;
+bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
+    const scoped_refptr<PropertyValue>& width,
+    const scoped_refptr<PropertyValue>& height) {
+  bool condition_value = true;
+  if (media_list_) {
+    condition_value = media_list_->EvaluateConditionValue(width, height);
+  }
+  return SetConditionValueAndReturnIfChanged(condition_value);
 }
 
-bool CSSMediaRule::EvaluateConditionValue() {
-  // TODO(***REMOVED***): Implement recalculation of the condition.
-  NOTIMPLEMENTED();
-  return false;
+void CSSMediaRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
+  // If the parent style sheet ever gets changed, we should call
+  // OnMediaRuleMutation() on the old style sheet here.
+  DCHECK(!parent_style_sheet() || parent_style_sheet() == style_sheet);
+
+  set_parent_style_sheet(style_sheet);
+
+  style_sheet->OnMediaRuleMutation();
+  css_rules()->AttachToCSSStyleSheet(style_sheet);
 }
 
 CSSMediaRule::~CSSMediaRule() {}

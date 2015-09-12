@@ -25,6 +25,7 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

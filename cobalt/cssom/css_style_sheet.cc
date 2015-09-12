@@ -46,9 +46,11 @@ namespace {
 // MediaRuleUpdater
 //////////////////////////////////////////////////////////////////////////
 
-class MediaRuleUpdater : public cssom::CSSRuleVisitor {
+class MediaRuleUpdater : public CSSRuleVisitor {
  public:
-  MediaRuleUpdater() : any_condition_value_changed_(false) {}
+  MediaRuleUpdater(const scoped_refptr<PropertyValue>& width,
+                   const scoped_refptr<PropertyValue>& height)
+      : any_condition_value_changed_(false), width_(width), height_(height) {}
 
   void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
     UNREFERENCED_PARAMETER(css_style_rule);
@@ -56,7 +58,9 @@ class MediaRuleUpdater : public cssom::CSSRuleVisitor {
   }
 
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
-    bool condition_value_changed = css_media_rule->EvaluateConditionValue();
+    bool condition_value_changed =
+        css_media_rule->EvaluateConditionValueAndReturnIfChanged(width_,
+                                                                 height_);
     any_condition_value_changed_ |= condition_value_changed;
   }
 
@@ -64,6 +68,8 @@ class MediaRuleUpdater : public cssom::CSSRuleVisitor {
 
  private:
   bool any_condition_value_changed_;
+  const scoped_refptr<PropertyValue>& width_;
+  const scoped_refptr<PropertyValue>& height_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaRuleUpdater);
 };
@@ -142,7 +148,7 @@ class CSSStyleSheet::CSSStyleRuleIndexer : public SelectorVisitor {
 // CSSStyleSheet::CSSRuleIndexer
 //////////////////////////////////////////////////////////////////////////
 
-class CSSStyleSheet::CSSRuleIndexer : public cssom::CSSRuleVisitor {
+class CSSStyleSheet::CSSRuleIndexer : public CSSRuleVisitor {
  public:
   explicit CSSRuleIndexer(CSSStyleSheet* css_style_sheet)
       : next_css_rule_priority_index_(0), css_style_sheet_(css_style_sheet) {}
@@ -182,32 +188,51 @@ class CSSStyleSheet::CSSRuleIndexer : public cssom::CSSRuleVisitor {
 CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL),
       css_parser_(NULL),
-      rule_indexes_dirty_(false) {}
+      rule_indexes_dirty_(false),
+      media_rules_changed_(false) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
     : parent_style_sheet_list_(NULL),
       css_parser_(css_parser),
-      rule_indexes_dirty_(false) {}
+      rule_indexes_dirty_(false),
+      media_rules_changed_(false) {}
 
 void CSSStyleSheet::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
-  css_rule_list_ = css_rule_list;
-  if (parent_style_sheet_list_ && css_rule_list_) {
-    css_rule_list_->AttachToCSSStyleSheet(this);
+  DCHECK(css_rule_list);
+  if (css_rule_list == css_rule_list_) {
+    return;
   }
-  rule_indexes_dirty_ = true;
+  if (parent_style_sheet_list_) {
+    css_rule_list->AttachToCSSStyleSheet(this);
+  }
+  bool rules_possibly_added_or_changed_or_removed =
+      (css_rule_list->length() > 0) ||
+      (css_rule_list_ && css_rule_list_->length() > 0);
+  css_rule_list_ = css_rule_list;
+  if (rules_possibly_added_or_changed_or_removed) {
+    OnCSSMutation();
+  }
 }
 
 scoped_refptr<CSSRuleList> CSSStyleSheet::css_rules() {
   if (!css_rule_list_) {
     set_css_rules(new CSSRuleList());
   }
+  DCHECK(css_rule_list_);
   return css_rule_list_;
 }
 
 unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
                                        unsigned int index) {
   return css_rules()->InsertRule(rule, index);
+}
+
+void CSSStyleSheet::OnCSSMutation() {
+  rule_indexes_dirty_ = true;
+  if (parent_style_sheet_list_) {
+    parent_style_sheet_list_->OnCSSMutation();
+  }
 }
 
 void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
@@ -233,11 +258,36 @@ void CSSStyleSheet::MaybeUpdateRuleIndexes() {
   }
 }
 
-void CSSStyleSheet::OnMediaFeatureChanged() {
-  MediaRuleUpdater media_rule_updater;
-  css_rule_list_->Accept(&media_rule_updater);
-  if (media_rule_updater.AnyConditionValueChanged()) {
-    rule_indexes_dirty_ = true;
+void CSSStyleSheet::EvaluateMediaRules(
+    const scoped_refptr<PropertyValue>& width,
+    const scoped_refptr<PropertyValue>& height) {
+  // If the media rules change, we have to do an update.
+  bool update_media_rules = media_rules_changed_;
+  media_rules_changed_ = false;
+
+  if (!css_rule_list_) {
+    return;
+  }
+
+  // If the media parameters change, we have to do an update.
+  if (!update_media_rules) {
+    if (!width || !previous_media_width_ ||
+        width->Equals(*previous_media_width_) || !height ||
+        !previous_media_height_ || height->Equals(*previous_media_height_)) {
+      update_media_rules = true;
+    }
+  }
+
+  if (update_media_rules) {
+    // Evaluate the media rule conditions, and signal a css mutation if any
+    // condition values have changed.
+    MediaRuleUpdater media_rule_updater(width, height);
+    css_rule_list_->Accept(&media_rule_updater);
+    if (media_rule_updater.AnyConditionValueChanged()) {
+      OnCSSMutation();
+    }
+    previous_media_width_ = width;
+    previous_media_height_ = height;
   }
 }
 

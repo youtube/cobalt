@@ -21,12 +21,19 @@ namespace cssom {
 
 class CSSRuleList;
 
-CSSConditionRule::CSSConditionRule() {}
+CSSConditionRule::CSSConditionRule() : cached_condition_value_(false) {}
 
 CSSConditionRule::CSSConditionRule(
     const scoped_refptr<CSSRuleList>& css_rule_list)
-    : CSSGroupingRule(css_rule_list) {}
+    : CSSGroupingRule(css_rule_list), cached_condition_value_(false) {}
 
+bool CSSConditionRule::SetConditionValueAndReturnIfChanged(
+    bool cached_condition_value) {
+  bool cached_condition_value_changed =
+      cached_condition_value != cached_condition_value_;
+  cached_condition_value_ = cached_condition_value;
+  return cached_condition_value_changed;
+}
 
 }  // namespace cssom
 }  // namespace cobalt

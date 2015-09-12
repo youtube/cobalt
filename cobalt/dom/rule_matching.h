@@ -17,11 +17,20 @@
 #ifndef DOM_RULE_MATCHING_H_
 #define DOM_RULE_MATCHING_H_
 
-#include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/selector.h"
-#include "cobalt/cssom/style_sheet_list.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/cssom/cascade_priority.h"
 
 namespace cobalt {
+
+namespace cssom {
+
+class CSSStyleDeclarationData;
+class CSSStyleRule;
+class CSSStyleSheet;
+class StyleSheetList;
+
+}  // namespace cssom
+
 namespace dom {
 
 class Element;
@@ -29,6 +38,12 @@ class HTMLElement;
 
 // Returns whether a rule matches an element.
 bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element);
+
+// Evaluate the @media rules for the given width and height of the viewport.
+void EvaluateStyleSheetMediaRules(
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets);
 
 // This updates the rule indexes used in GetMatchingRulesFromStyleSheet().
 void UpdateStyleSheetRuleIndexes(
