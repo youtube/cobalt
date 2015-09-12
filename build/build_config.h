@@ -5,11 +5,16 @@
 // This file adds defines about the platform we're currently building on.
 //  Operating System:
 //    OS_WIN / OS_MACOSX / OS_LINUX / OS_POSIX (MACOSX or LINUX)
+//    OS_STARBOARD
 //  Compiler:
 //    COMPILER_MSVC / COMPILER_GCC
 //  Processor:
 //    ARCH_CPU_X86 / ARCH_CPU_X86_64 / ARCH_CPU_X86_FAMILY (X86 or X86_64)
+//    ARCH_CPU_PPC_FAMILY
+//    ARCH_CPU_MIPS / ARCH_CPU_MIPSEL / ARCH_CPU_MIPS_FAMILY
+//    ARCH_CPU_ARM / ARCH_CPU_ARMEL / ARCH_CPU_ARM_FAMILY
 //    ARCH_CPU_32_BITS / ARCH_CPU_64_BITS
+//    ARCH_CPU_BIG_ENDIAN / ARCH_CPU_LITTLE_ENDIAN
 
 #ifndef BUILD_BUILD_CONFIG_H_
 #define BUILD_BUILD_CONFIG_H_
@@ -19,7 +24,9 @@
 #endif
 
 // A set of macros to use for platform detection.
-#if defined(__APPLE__)
+#if defined(STARBOARD)
+#define OS_STARBOARD 1
+#elif defined(__APPLE__)
 #define OS_MACOSX 1
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #define OS_IOS 1
@@ -101,7 +108,43 @@
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
 //   http://www.agner.org/optimize/calling_conventions.pdf
 //   or with gcc, run: "echo | gcc -E -dM -"
-#if defined(_M_X64) || defined(__x86_64__)
+#if defined(OS_STARBOARD)
+#  include "starboard/configuration.h"
+#  if SB_IS(32_BIT)
+#    define ARCH_CPU_32_BITS 1
+#  elif SB_IS(64_BIT)
+#    define ARCH_CPU_64_BITS 1
+#  endif  // SB_IS(32_BIT)
+#  if SB_IS(BIG_ENDIAN)
+#    define ARCH_CPU_BIG_ENDIAN 1
+#  else  // SB_IS(BIG_ENDIAN)
+#    define ARCH_CPU_LITTLE_ENDIAN 1
+#  endif  // SB_IS(BIG_ENDIAN)
+#  if SB_IS(ARCH_X86)
+#    define ARCH_CPU_X86_FAMILY 1
+#    if SB_IS(32_BIT)
+#      define ARCH_CPU_X86 1
+#    elif SB_IS(64_BIT)
+#      define ARCH_CPU_X86_64 1
+#    endif  // SB_IS(32_BIT)
+#  elif SB_IS(ARCH_PPC)
+#    define ARCH_CPU_PPC_FAMILY 1
+#  elif SB_IS(ARCH_MIPS)
+#    define ARCH_CPU_MIPS_FAMILY 1
+#    if SB_IS(BIG_ENDIAN)
+#      define ARCH_CPU_MIPS 1
+#    else  // SB_IS(BIG_ENDIAN)
+#      define ARCH_CPU_MIPSEL 1
+#    endif  // SB_IS(BIG_ENDIAN)
+#  elif SB_IS(ARCH_ARM)
+#    define ARCH_CPU_ARM_FAMILY 1
+#    if SB_IS(BIG_ENDIAN)
+#      define ARCH_CPU_ARM 1
+#    else  // SB_IS(BIG_ENDIAN)
+#      define ARCH_CPU_ARMEL 1
+#    endif  // SB_IS(BIG_ENDIAN)
+#  endif  // SB_IS(ARCH_X86)
+#elif defined(_M_X64) || defined(__x86_64__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
@@ -132,7 +175,13 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || \
+#if defined(OS_STARBOARD)
+#  if SB_IS(WCHAR_T_UTF16)
+#    define WCHAR_T_IS_UTF16 1
+#  elif SB_IS(WCHAR_T_UTF32)
+#    define WCHAR_T_IS_UTF32 1
+#  endif
+#elif defined(OS_WIN) || \
     (defined(__LB_SHELL__) && \
         !(defined(__LB_LINUX__) || defined(__LB_ANDROID__)))
 #define WCHAR_T_IS_UTF16 1
@@ -152,12 +201,19 @@
 #error Please add support for your compiler in build/build_config.h
 #endif
 
-#if defined(__ARMEL__) && !defined(OS_IOS)
+#if defined(OS_STARBOARD)
+#  if SB_IS(WCHAR_T_UNSIGNED)
+#    define WCHAR_T_IS_UNSIGNED 1
+#  elif SB_IS(WCHAR_T_SIGNED)
+#    define WCHAR_T_IS_UNSIGNED 0
+#  endif
+#elif defined(__ARMEL__) && !defined(OS_IOS)
 #define WCHAR_T_IS_UNSIGNED 1
 #elif defined(__MIPSEL__)
 #define WCHAR_T_IS_UNSIGNED 0
 #endif
 
+// TODO(iffy): Worry about these defines if/when we need to support Android.
 #if defined(OS_ANDROID)
 // The compiler thinks std::string::const_iterator and "const char*" are
 // equivalent types.
