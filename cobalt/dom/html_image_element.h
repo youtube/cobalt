@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image_cache.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -35,6 +36,8 @@ class HTMLImageElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLImageElement(Document* document) : HTMLElement(document) {}
+
+  explicit HTMLImageElement(script::EnvironmentSettings* env_settings);
 
   // Web API: Element
   //
