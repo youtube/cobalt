@@ -57,7 +57,7 @@ void CSSStyleRule::Accept(CSSRuleVisitor* visitor) {
 void CSSStyleRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
   set_parent_style_sheet(style_sheet);
   if (style_) {
-    style_->AttachToCSSStyleSheet(style_sheet);
+    style_->set_mutation_observer(style_sheet);
   }
 }
 

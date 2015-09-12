@@ -30,8 +30,17 @@ CSSGroupingRule::CSSGroupingRule(
 void CSSGroupingRule::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
   DCHECK(css_rule_list);
+  if (css_rule_list == css_rule_list_) {
+    return;
+  }
   if (parent_style_sheet()) {
     css_rule_list->AttachToCSSStyleSheet(parent_style_sheet());
+    bool rules_possibly_added_or_changed_or_removed =
+        (css_rule_list->length() > 0) ||
+        (css_rule_list_ && css_rule_list_->length() > 0);
+    if (rules_possibly_added_or_changed_or_removed) {
+      parent_style_sheet()->OnCSSMutation();
+    }
   }
   css_rule_list_ = css_rule_list;
 }
@@ -46,13 +55,6 @@ scoped_refptr<CSSRuleList> CSSGroupingRule::css_rules() {
 unsigned int CSSGroupingRule::InsertRule(const std::string& rule,
                                          unsigned int index) {
   return css_rules()->InsertRule(rule, index);
-}
-
-void CSSGroupingRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
-  set_parent_style_sheet(style_sheet);
-  if (css_rule_list_) {
-    css_rule_list_->AttachToCSSStyleSheet(style_sheet);
-  }
 }
 
 CSSGroupingRule::~CSSGroupingRule() {}

@@ -24,6 +24,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "googleurl/src/gurl.h"
 
@@ -33,6 +34,7 @@ namespace cssom {
 class CSSParser;
 class CSSRuleList;
 class CSSStyleRule;
+class PropertyValue;
 class StyleSheetList;
 
 typedef base::hash_set<scoped_refptr<CSSStyleRule> > CSSRuleSet;
@@ -42,7 +44,7 @@ typedef base::hash_map<std::string, CSSRuleSet> StringToCSSRuleSetMap;
 //   http://dev.w3.org/csswg/cssom/#the-cssstylesheet-interface
 // TODO(***REMOVED***): This interface currently assumes all rules are style rules.
 // Handle other kinds of rules properly.
-class CSSStyleSheet : public StyleSheet {
+class CSSStyleSheet : public StyleSheet, public MutationObserver {
  public:
   CSSStyleSheet();
   explicit CSSStyleSheet(CSSParser* css_parser);
@@ -60,6 +62,9 @@ class CSSStyleSheet : public StyleSheet {
   // string as input and parses it into a rule.
   unsigned int InsertRule(const std::string& rule, unsigned int index);
 
+  // From MutationObserver.
+  void OnCSSMutation() OVERRIDE;
+
   // Custom, not in any spec.
   //
 
@@ -75,17 +80,13 @@ class CSSStyleSheet : public StyleSheet {
   // rules by selectors.
   void MaybeUpdateRuleIndexes();
 
-  // This should be called when there is a change in the set of active CSS rules
-  // for the style sheet. This can happen when a rule is added to or removed
-  // from the css_rule_list or when the css_rule_list is replaced. This can also
-  // happen when rules become active or inactive due to a change in the value of
-  // GetCachedConditionValue() of a CSSConditionRule derived rule.
-  void set_rule_indexes_dirty() { rule_indexes_dirty_ = true; }
+  // This performs a recalculation of the media rule expressions, if needed.
+  void EvaluateMediaRules(const scoped_refptr<PropertyValue>& width,
+                          const scoped_refptr<PropertyValue>& height);
 
-  // Should be called when a media feature may have changed, triggering a
-  // possible recalculation of the media rule expressions, and the rule indexes.
-  // TODO(***REMOVED***): Call this when a media feature changes.
-  void OnMediaFeatureChanged();
+  // Should be called when a media rule is added or modified. It sets a flag
+  // that is reset in EvaluateMediaRules().
+  void OnMediaRuleMutation() { media_rules_changed_ = true; }
 
   const StringToCSSRuleSetMap& class_selector_rules_map() const {
     return class_selector_rules_map_;
@@ -121,7 +122,19 @@ class CSSStyleSheet : public StyleSheet {
   CSSParser* const css_parser_;
   GURL location_url_;
 
+  // When true, this means that a rule has been added or modified, and the rule
+  // indexes need to be updated. This flag is set in OnCSSMutation(), and
+  // cleared in MaybeUpdateRuleIndexes().
   bool rule_indexes_dirty_;
+
+  // When true, this means a media rule has been added or modified, and a
+  // re-evaluation of the media at-rules is needed.
+  bool media_rules_changed_;
+
+  // This stores the most recent media parameters, used to detect when they
+  // change, which will require a re-evaluation of the media rule expressions.
+  scoped_refptr<PropertyValue> previous_media_width_;
+  scoped_refptr<PropertyValue> previous_media_height_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

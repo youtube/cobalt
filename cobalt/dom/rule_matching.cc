@@ -29,12 +29,14 @@
 #include "cobalt/cssom/combinator_visitor.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
 #include "cobalt/cssom/empty_pseudo_class.h"
 #include "cobalt/cssom/following_sibling_combinator.h"
 #include "cobalt/cssom/id_selector.h"
 #include "cobalt/cssom/next_sibling_combinator.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/selector_visitor.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/type_selector.h"
@@ -42,8 +44,10 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/pseudo_element.h"
+#include "cobalt/math/safe_integer_conversions.h"
 
 namespace cobalt {
+
 namespace dom {
 namespace {
 
@@ -339,6 +343,24 @@ bool MatchRuleAndElement(cssom::CSSStyleRule* rule, Element* element) {
     }
   }
   return false;
+}
+
+void EvaluateStyleSheetMediaRules(
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
+    const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet,
+    const scoped_refptr<cssom::StyleSheetList>& author_style_sheets) {
+  scoped_refptr<cssom::PropertyValue> width(root_computed_style->width());
+  scoped_refptr<cssom::PropertyValue> height(root_computed_style->height());
+
+  TRACE_EVENT0("cobalt::dom", "EvaluateStyleSheetMediaRules()");
+  user_agent_style_sheet->EvaluateMediaRules(width, height);
+  DCHECK(author_style_sheets);
+  for (unsigned int style_sheet_index = 0;
+       style_sheet_index < author_style_sheets->length(); ++style_sheet_index) {
+    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+        author_style_sheets->Item(style_sheet_index);
+    style_sheet->EvaluateMediaRules(width, height);
+  }
 }
 
 void UpdateStyleSheetRuleIndexes(

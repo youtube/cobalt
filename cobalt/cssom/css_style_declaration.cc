@@ -23,8 +23,6 @@
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/property_names.h"
-#include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
 namespace cssom {
@@ -529,14 +527,11 @@ void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
 
   if (declaration) {
     data_ = declaration;
-    RecordMutation();
+  } else {
+    data_ = new CSSStyleDeclarationData;
   }
-}
 
-void CSSStyleDeclaration::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
-  DCHECK(style_sheet);
-  DCHECK(style_sheet->ParentStyleSheetList());
-  mutation_observer_ = style_sheet->ParentStyleSheetList();
+  RecordMutation();
 }
 
 // Algorithm for length:

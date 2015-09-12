@@ -21,22 +21,21 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/media_query.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
 class CSSParser;
-class MediaQuery;
 class PropertyValue;
 
-typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
-
-// The MediaList interface represents a list of Media Queries
+// The MediaList interface represents a list of Media Queries.
 //   http://www.w3.org/TR/cssom/#medialist
 
 class MediaList : public script::Wrappable {
  public:
+  MediaList();
   explicit MediaList(CSSParser* css_parser);
 
   // Web API: MediaList
@@ -54,7 +53,13 @@ class MediaList : public script::Wrappable {
   // takes a string as input and parses it into a MediaQuery.
   void AppendMedium(const std::string& medium);
 
+  // Custom, not in any spec.
+  //
+
   void Append(const scoped_refptr<MediaQuery>& media_query);
+
+  bool EvaluateConditionValue(const scoped_refptr<PropertyValue>& width,
+                              const scoped_refptr<PropertyValue>& height);
 
   DEFINE_WRAPPABLE_TYPE(MediaList);
 

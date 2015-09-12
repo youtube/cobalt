@@ -46,11 +46,10 @@ class CSSConditionRule : public CSSGroupingRule {
   //
 
   // Returns the cached result of evaluating the condition.
-  virtual bool GetCachedConditionValue() = 0;
+  bool GetCachedConditionValue() { return cached_condition_value_; }
 
-  // Evaluates the condition expression and caches the resulting condition
-  // value. Returns true if the cached condition value has changed.
-  virtual bool EvaluateConditionValue() = 0;
+  // Sets the cached condition value, returns true if the value has changed.
+  bool SetConditionValueAndReturnIfChanged(bool cached_condition_value);
 
   // From CSSRule.
   void Accept(CSSRuleVisitor* visitor) OVERRIDE {
@@ -61,6 +60,8 @@ class CSSConditionRule : public CSSGroupingRule {
   DEFINE_WRAPPABLE_TYPE(CSSConditionRule);
 
  protected:
+  bool cached_condition_value_;
+
   virtual ~CSSConditionRule() OVERRIDE {}
 
  private:

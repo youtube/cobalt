@@ -196,7 +196,7 @@
 
 // "Media query" mode: Media type tokens.
 // WARNING: Every time a new media type token is introduced, it should be added
-//          to |media_type_true| rule below.
+//          to |media_type_known| rule below.
 %token kAllMediaTypeToken              // all
 %token kTVMediaTypeToken               // tv
 %token kScreenMediaTypeToken           // screen
@@ -205,7 +205,7 @@
 // value types of media features. The integer values of these tokens represent
 // enum MediaFeatureName.
 // WARNING: Every time a new media feature type token is introduced, it should
-//          be added to |media_type_false| rule below.
+//          be added to |media_type_unknown| rule below.
 
 %token <integer> kLengthMediaFeatureTypeToken             // ...px, ...em, etc.
 %token <integer> kOrientationMediaFeatureTypeToken        // portrait, landscape
@@ -509,12 +509,12 @@
 %type <media_query> media_query
 %destructor { $$->Release(); } <media_query>
 
-%union { cssom::MediaType media_type; }
-%type <media_type> media_type media_type_specified
+%union { bool evaluated_media_type; }
+%type <evaluated_media_type> evaluated_media_type media_type_specified
 
-%union { cssom::MediaFeatureList* media_feature_list; }
-%type <media_feature_list> media_feature_list
-%destructor { delete $$; } <media_feature_list>
+%union { cssom::MediaFeatures* media_features; }
+%type <media_features> media_feature_list
+%destructor { delete $$; } <media_features>
 
 %union { cssom::MediaFeature* media_feature; }
 %type <media_feature> media_feature media_feature_block
@@ -751,7 +751,7 @@ media_feature_block:
 media_feature_list:
   // (name:value)
     media_feature_block {
-    $$ = new cssom::MediaFeatureList();
+    $$ = new cssom::MediaFeatures();
     $$->push_back($1);
   }
   // ... and (name:value)
@@ -762,7 +762,7 @@ media_feature_list:
   ;
 
 // All tokens representing unknown media types.
-media_type_false:
+media_type_unknown:
     kIdentifierToken
   // "Media query" mode operator names.
   | kMediaAndToken
@@ -779,38 +779,33 @@ media_type_false:
   ;
 
 // All tokens representing media types that are true on this platform.
-media_type_true:
+media_type_known:
     kAllMediaTypeToken
   | kTVMediaTypeToken
   | kScreenMediaTypeToken
   ;
 
-// Returns the collapsed media type ("all" or "not all")
+// Returns true for known specified media types, otherwise false.
 media_type_specified:
-    media_type_false {
-    $$ = cssom::kNotAll;
+    media_type_unknown {
+    $$ = false;
   }
-  | media_type_true {
-    $$ = cssom::kAll;
+  | media_type_known {
+    $$ = true;
   }
   ;
 // The names chosen for CSS media types reflect target devices for which the
 // relevant properties make sense
 //   http://www.w3.org/TR/CSS21/media.html#media-types
 //   http://www.w3.org/TR/css3-mediaqueries/#media0
-media_type:
+evaluated_media_type:
   // @media [type]...
     media_type_specified {
     $$ = $1;
   }
   // @media not [type]...
   | kMediaNotToken kWhitespaceToken media_type_specified {
-    if ($3 == cssom::kAll) {
-      $$ = cssom::kNotAll;
-    } else {
-      DCHECK($3 == cssom::kNotAll);
-      $$ = cssom::kAll;
-    }
+    $$ = !$3;
   }
   // @media only [type]...
   | kMediaOnlyToken kWhitespaceToken media_type_specified {
@@ -818,11 +813,11 @@ media_type:
   }
   // @media only not ... (special case)
   | kMediaOnlyToken kWhitespaceToken kMediaNotToken {
-    $$ = cssom::kNotAll;
+    $$ = false;
   }
   // @media not only ... (special case)
   | kMediaNotToken kWhitespaceToken kMediaOnlyToken {
-    $$ = cssom::kAll;
+    $$ = true;
   }
   ;
 
@@ -833,29 +828,29 @@ media_type:
 media_query:
   // @media  {}
     /* empty */ {
-    $$ = AddRef(new cssom::MediaQuery(cssom::kAll));
+    $$ = AddRef(new cssom::MediaQuery(true));
   }
   // @media (name:value)... {}
   | media_feature_list {
-    scoped_ptr<cssom::MediaFeatureList> media_feature_list($1);
-    $$ = AddRef(new cssom::MediaQuery(cssom::kAll, media_feature_list.Pass()));
+    scoped_ptr<cssom::MediaFeatures> media_features($1);
+    $$ = AddRef(new cssom::MediaQuery(true, media_features.Pass()));
   }
   // @media mediatype {}
-  | media_type maybe_whitespace {
+  | evaluated_media_type maybe_whitespace {
     $$ = AddRef(new cssom::MediaQuery($1));
   }
   // @media mediatype and (name:value)... {}
-  | media_type maybe_whitespace kMediaAndToken maybe_whitespace
+  | evaluated_media_type maybe_whitespace kMediaAndToken maybe_whitespace
     media_feature_list {
-    scoped_ptr<cssom::MediaFeatureList> media_feature_list($5);
-    $$ = AddRef(new cssom::MediaQuery($1, media_feature_list.Pass()));
+    scoped_ptr<cssom::MediaFeatures> media_features($5);
+    $$ = AddRef(new cssom::MediaQuery($1, media_features.Pass()));
   }
   // When an unknown media feature, an unknown media feature value, a malformed
   // media query, or unexpected tokens is found, the media query must be
   // represented as 'not all'.
   //   http://www.w3.org/TR/css3-mediaqueries/#error-handling
   | errors {
-    $$ = AddRef(new cssom::MediaQuery(cssom::kNotAll));
+    $$ = AddRef(new cssom::MediaQuery(true));
   }
   ;
 
