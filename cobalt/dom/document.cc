@@ -302,11 +302,14 @@ void Document::OnElementInlineStyleMutation() {
 }
 
 void Document::UpdateMatchingRules(
+    const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
-  TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
-  UpdateStyleSheetRuleIndexes(user_agent_style_sheet, style_sheets());
   if (rule_matches_dirty_) {
-    TRACE_EVENT0("cobalt::dom", "UpdateMatchingRules");
+    TRACE_EVENT0("cobalt::dom", "Document::UpdateMatchingRules()");
+
+    EvaluateStyleSheetMediaRules(root_computed_style, user_agent_style_sheet,
+                                 style_sheets());
+    UpdateStyleSheetRuleIndexes(user_agent_style_sheet, style_sheets());
     html()->UpdateMatchingRulesRecursively(user_agent_style_sheet,
                                            style_sheets());
 
@@ -319,7 +322,7 @@ void Document::UpdateComputedStyles(
     const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet) {
   TRACE_EVENT0("cobalt::dom", "Document::UpdateComputedStyles()");
 
-  UpdateMatchingRules(user_agent_style_sheet);
+  UpdateMatchingRules(root_computed_style, user_agent_style_sheet);
 
   if (computed_style_dirty_) {
     // Determine the official time that this style change event took place. This

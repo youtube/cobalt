@@ -21,6 +21,16 @@
 
 namespace cobalt {
 namespace cssom {
+namespace {
+
+// Used for conversion between kDPIUnit and kDPCMUnit.
+static const float kCentimetersPerInch = 2.54f;
+
+}  // namespace
+
+float ResolutionValue::dpi_value() const {
+  return unit_ == kDPIUnit ? value_ : value_ / kCentimetersPerInch;
+}
 
 void ResolutionValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitResolution(this);

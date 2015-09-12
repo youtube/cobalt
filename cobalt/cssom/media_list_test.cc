@@ -59,12 +59,12 @@ class MockCSSParser : public CSSParser {
 
 TEST(MediaListTest, ItemAccess) {
   MockCSSParser css_parser;
-  scoped_refptr<MediaList> media_list = new MediaList(&css_parser);
+  scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
   ASSERT_EQ(0, media_list->length());
   ASSERT_TRUE(media_list->Item(0).empty());
 
-  scoped_refptr<MediaQuery> query = new MediaQuery(kAll);
-  media_list->Append(query);
+  scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
+  media_list->Append(media_query);
   ASSERT_EQ(1, media_list->length());
   // The returned string is empty, because MediaQuery serialization is not
   // implemented yet.
@@ -74,12 +74,81 @@ TEST(MediaListTest, ItemAccess) {
 
 TEST(MediaListTest, AppendMedium) {
   MockCSSParser css_parser;
-  scoped_refptr<MediaList> media_list = new MediaList(&css_parser);
-
+  scoped_refptr<MediaList> media_list(new MediaList(&css_parser));
   const std::string media_query = "screen";
+
   EXPECT_CALL(css_parser, ParseMediaQuery(media_query, _))
       .WillOnce(testing::Return(scoped_refptr<MediaQuery>()));
   media_list->AppendMedium(media_query);
+}
+
+TEST(MediaListTest, EvaluateMediaQueryFalse) {
+  scoped_refptr<MediaQuery> media_query(new MediaQuery(false));
+  scoped_refptr<MediaList> media_list(new MediaList());
+
+  media_list->Append(media_query);
+  EXPECT_FALSE(media_list->EvaluateConditionValue(NULL, NULL));
+}
+
+TEST(MediaListTest, EvaluateMediaQueryTrue) {
+  scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaList> media_list(new MediaList());
+  media_list->Append(media_query);
+  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+}
+
+TEST(MediaListTest, EvaluateMediaQueriesFalseAndFalse) {
+  scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaList> media_list(new MediaList());
+  media_list->Append(media_query_1);
+  media_list->Append(media_query_2);
+  EXPECT_FALSE(media_list->EvaluateConditionValue(NULL, NULL));
+}
+
+TEST(MediaListTest, EvaluateMediaQueriesFalseAndTrue) {
+  scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaList> media_list(new MediaList());
+  media_list->Append(media_query_1);
+  media_list->Append(media_query_2);
+  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+}
+
+TEST(MediaListTest, EvaluateMediaQueriesTrueAndFalse) {
+  scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaList> media_list(new MediaList());
+  media_list->Append(media_query_1);
+  media_list->Append(media_query_2);
+  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
+}
+
+TEST(MediaListTest, EvaluateMediaQueriesTrueAndTrue) {
+  scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(NULL, NULL));
+
+  scoped_refptr<MediaList> media_list(new MediaList());
+  media_list->Append(media_query_1);
+  media_list->Append(media_query_2);
+  EXPECT_TRUE(media_list->EvaluateConditionValue(NULL, NULL));
 }
 
 }  // namespace cssom

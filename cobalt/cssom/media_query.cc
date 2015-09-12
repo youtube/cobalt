@@ -22,19 +22,40 @@
 namespace cobalt {
 namespace cssom {
 
-MediaQuery::MediaQuery() {}
+// If the media query list is empty (i.e. the declaration is the empty string or
+// consists solely of whitespace) it evaluates to true.
+//   http://www.w3.org/TR/css3-mediaqueries/#error-handling
+MediaQuery::MediaQuery() : evaluated_media_type_(true) {}
 
-MediaQuery::MediaQuery(MediaType media_type) : media_type_(media_type) {}
+MediaQuery::MediaQuery(bool evaluated_media_type)
+    : evaluated_media_type_(evaluated_media_type) {}
 
-MediaQuery::MediaQuery(MediaType media_type,
-                       scoped_ptr<MediaFeatureList> media_feature_list)
-    : media_type_(media_type),
-      media_feature_list_(media_feature_list.release()) {}
+MediaQuery::MediaQuery(bool evaluated_media_type,
+                       scoped_ptr<MediaFeatures> media_features)
+    : evaluated_media_type_(evaluated_media_type),
+      media_features_(media_features.release()) {}
 
 std::string MediaQuery::media_query() {
   // TODO(***REMOVED***): Implement serialization of MediaQuery.
   NOTIMPLEMENTED() << "Serialization of MediaQuery not implemented yet.";
   return "";
+}
+
+bool MediaQuery::EvaluateConditionValue(
+    const scoped_refptr<PropertyValue>& width,
+    const scoped_refptr<PropertyValue>& height) {
+  if (!evaluated_media_type_) {
+    return false;
+  }
+  if (media_features_) {
+    for (MediaFeatures::iterator it = media_features_->begin();
+         it != media_features_->end(); ++it) {
+      if (!(*it)->EvaluateConditionValue(width, height)) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 }  // namespace cssom

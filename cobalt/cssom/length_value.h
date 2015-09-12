@@ -17,6 +17,8 @@
 #ifndef CSSOM_LENGTH_VALUE_H_
 #define CSSOM_LENGTH_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
@@ -47,6 +49,19 @@ class LengthValue : public PropertyValue {
 
   bool operator==(const LengthValue& other) const {
     return value_ == other.value_ && unit_ == other.unit_;
+  }
+
+  bool operator>=(const LengthValue& other) const {
+    DCHECK_EQ(unit_, other.unit_) << "Value larger comparison of length values "
+                                     "can only be done for matching unit types";
+    return value_ >= other.value_;
+  }
+
+  bool operator<=(const LengthValue& other) const {
+    DCHECK_EQ(unit_, other.unit_) << "Value smaller comparison of length "
+                                     "values can only be done for matching "
+                                     "unit types";
+    return value_ <= other.value_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LengthValue);

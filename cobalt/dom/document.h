@@ -195,6 +195,7 @@ class Document : public Node, public cssom::MutationObserver {
   // Those selectors that are supported are implemented after Selectors Level 4.
   //   http://www.w3.org/TR/selectors4/
   void UpdateMatchingRules(
+      const scoped_refptr<cssom::CSSStyleDeclarationData>& root_computed_style,
       const scoped_refptr<cssom::CSSStyleSheet>& user_agent_style_sheet);
 
   // Updates the computed styles of all of this document's HTML elements.

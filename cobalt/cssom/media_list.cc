@@ -25,6 +25,8 @@
 namespace cobalt {
 namespace cssom {
 
+MediaList::MediaList() : css_parser_(NULL) {}
+
 MediaList::MediaList(CSSParser* css_parser) : css_parser_(css_parser) {}
 
 std::string MediaList::media_text() const {
@@ -59,6 +61,7 @@ std::string MediaList::Item(unsigned int index) const {
 // Inserts a new media query string into the current style sheet. This Web API
 // takes a string as input and parses it into a MediaQuery.
 void MediaList::AppendMedium(const std::string& medium) {
+  DCHECK(css_parser_);
   scoped_refptr<MediaQuery> media_query = css_parser_->ParseMediaQuery(
       medium, base::SourceLocation("[object CSSStyleSheet]", 1, 1));
 
@@ -73,6 +76,18 @@ void MediaList::AppendMedium(const std::string& medium) {
 
 void MediaList::Append(const scoped_refptr<MediaQuery>& media_query) {
   media_queries_.push_back(media_query);
+}
+
+bool MediaList::EvaluateConditionValue(
+    const scoped_refptr<PropertyValue>& width,
+    const scoped_refptr<PropertyValue>& height) {
+  for (MediaQueries::iterator it = media_queries_.begin();
+       it != media_queries_.end(); ++it) {
+    if ((*it)->EvaluateConditionValue(width, height)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace cssom

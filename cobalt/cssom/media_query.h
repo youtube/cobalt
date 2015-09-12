@@ -22,23 +22,11 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/media_feature.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
-
-class MediaFeature;
-
-// The media type reduces to 'All' when a known media type is given, and can be
-// negated with a 'not' prefix.
-enum MediaType {
-  kNotAll,
-  kAll,
-};
-
-// The media feature list is an 'and' separated list of media features.
-typedef std::vector<scoped_refptr<MediaFeature> > MediaFeatureList;
 
 // The media query represents the expression of the @media conditional rule
 // for example: 'screen and (max-width: 640px) and (aspect-ratio: 4/3)'
@@ -46,22 +34,27 @@ typedef std::vector<scoped_refptr<MediaFeature> > MediaFeatureList;
 class MediaQuery : public script::Wrappable {
  public:
   MediaQuery();
-  explicit MediaQuery(MediaType media_type);
-  MediaQuery(MediaType media_type,
-             scoped_ptr<MediaFeatureList> media_feature_list);
+  explicit MediaQuery(bool evaluated_media_type);
+  MediaQuery(bool evaluated_media_type,
+             scoped_ptr<MediaFeatures> media_features);
 
   // Custom, not in any spec.
   //
   std::string media_query();
 
+  bool EvaluateConditionValue(const scoped_refptr<PropertyValue>& width,
+                              const scoped_refptr<PropertyValue>& height);
+
   DEFINE_WRAPPABLE_TYPE(MediaQuery);
 
  private:
-  MediaType media_type_;
-  scoped_ptr<MediaFeatureList> media_feature_list_;
+  bool evaluated_media_type_;
+  scoped_ptr<MediaFeatures> media_features_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaQuery);
 };
+
+typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
 
 }  // namespace cssom
 }  // namespace cobalt
