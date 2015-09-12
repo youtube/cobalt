@@ -16,9 +16,12 @@
 
 // http://www.w3.org/TR/html5/embedded-content-0.html#the-img-element
 
-// TODO(***REMOVED***): Currently enabling the following line triggers an error during
-// IDL parsing. Enable when NamedConstructor is supported.
-// [NamedConstructor=Image(optional unsigned long width, optional unsigned long height)]
+// TODO(***REMOVED***): Add the optional width and height parameters to the
+// constructor, as shown in the spec.
+[
+  NamedConstructor=Image(),
+  ConstructorCallWith=EnvironmentSettings
+]
 interface HTMLImageElement : HTMLElement {
   attribute DOMString src;
 };
