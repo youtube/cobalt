@@ -143,6 +143,8 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "base/atomicops_internals_x86_msvc.h"
 #elif defined(OS_MACOSX)
 #include "base/atomicops_internals_mac.h"
+#elif defined(OS_STARBOARD)
+#include "base/atomicops_internals_starboard.h"
 #elif defined(__LB_SHELL__)
 #define SHELL_BEGIN_ATOMICOPS_NAMESPACES namespace base { namespace subtle {
 #define SHELL_END_ATOMICOPS_NAMESPACES } }
