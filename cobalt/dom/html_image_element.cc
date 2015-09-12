@@ -19,7 +19,9 @@
 #include <string>
 
 #include "base/message_loop.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
 #include "googleurl/src/gurl.h"
 
@@ -28,6 +30,11 @@ namespace dom {
 
 // static
 const char HTMLImageElement::kTagName[] = "img";
+
+HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
+    : HTMLElement(base::polymorphic_downcast<DOMSettings*>(env_settings)
+                      ->window()
+                      ->document()) {}
 
 std::string HTMLImageElement::tag_name() const { return kTagName; }
 
