@@ -17,6 +17,7 @@
       'target_name': 'starboard',
       'type': 'static_library',
       'sources': [
+        'atomic.h',
         'configuration.h',
       ],
       'dependencies': [

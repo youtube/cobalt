@@ -1,18 +1,16 @@
-/*
- * Copyright 2015 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2015 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef STARBOARD_TYPES_H_
 #define STARBOARD_TYPES_H_
@@ -29,6 +27,10 @@
 #  include <inttypes.h>
 #endif // SB_HAS(STDINT_H)
 
+#if SB_HAS(STDDEF_H)
+#  include <stddef.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,16 +43,16 @@ extern "C" {
       !defined(SB_UINTPTR)
 #    error "No stdint.h or inttypes.h, so you must define SB_U?INT(8|16|32|64|PTR)."
 #  endif  // !defined(SB_U?INT(8|16|32|64|PTR))
-typedef SB_INT8   int8_t;
-typedef SB_UINT8  uint8_t;
+typedef SB_INT8 int8_t;
+typedef SB_UINT8 uint8_t;
 
-typedef SB_INT16  int16_t;
+typedef SB_INT16 int16_t;
 typedef SB_UINT16 uint16_t;
 
-typedef SB_INT32  int32_t;
+typedef SB_INT32 int32_t;
 typedef SB_UINT32 uint32_t;
 
-typedef SB_INT64  int64_t;
+typedef SB_INT64 int64_t;
 typedef SB_UINT64 uint64_t;
 
 typedef SB_INTPTR intptr_t;
@@ -67,6 +69,11 @@ typedef SB_UINTPTR uintptr_t;
 #  define false 0
 #  define true 1
 #endif  // !SB_HAS(STDBOOL_H) && !defined(__cplusplus)
+
+// Simulate stddef.h for platforms that don't provide it.
+#if !SB_HAS(STDDEF_H)
+#  define NULL ((void *)0)
+#endif
 
 #if defined(_MSC_VER)
 #  define SB_LONGLONG(x) x##I64
