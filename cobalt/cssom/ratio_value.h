@@ -17,6 +17,8 @@
 #ifndef CSSOM_RATIO_VALUE_H_
 #define CSSOM_RATIO_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -30,13 +32,16 @@ namespace cssom {
 class PropertyValueVisitor;
 
 // Represents a ratio value.
+//   http://www.w3.org/TR/css3-mediaqueries/#values
 // Applies to aspect-ratio and device-aspect-ratio media feature.
-// See http://www.w3.org/TR/css3-mediaqueries/#values and
-// http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio for details.
+//   http://www.w3.org/TR/css3-mediaqueries/#aspect-ratio
 class RatioValue : public PropertyValue {
  public:
   RatioValue(int numerator, int denominator)
-      : numerator_(numerator), denominator_(denominator) {}
+      : numerator_(numerator), denominator_(denominator) {
+    DCHECK_GE(numerator, 1);
+    DCHECK_GE(denominator, 1);
+  }
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
@@ -48,7 +53,18 @@ class RatioValue : public PropertyValue {
   }
 
   bool operator==(const RatioValue& other) const {
-    return numerator_ == other.numerator_ && denominator_ == other.denominator_;
+    return static_cast<int64>(numerator_) * other.denominator_ ==
+           static_cast<int64>(denominator_) * other.numerator_;
+  }
+
+  bool operator>=(const RatioValue& other) const {
+    return static_cast<int64>(numerator_) * other.denominator_ >=
+           static_cast<int64>(denominator_) * other.numerator_;
+  }
+
+  bool operator<=(const RatioValue& other) const {
+    return static_cast<int64>(numerator_) * other.denominator_ <=
+           static_cast<int64>(denominator_) * other.numerator_;
   }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RatioValue);

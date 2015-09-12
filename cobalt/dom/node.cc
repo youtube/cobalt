@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/document.h"

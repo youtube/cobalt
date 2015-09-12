@@ -17,6 +17,8 @@
 #ifndef CSSOM_INTEGER_VALUE_H_
 #define CSSOM_INTEGER_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/stringprintf.h"
@@ -44,6 +46,20 @@ class IntegerValue : public PropertyValue {
   bool operator==(const IntegerValue& other) const {
     return value_ == other.value_;
   }
+
+  bool operator==(const int& other) const { return value_ == other; }
+
+  bool operator>=(const IntegerValue& other) const {
+    return value_ >= other.value_;
+  }
+
+  bool operator>=(const int& other) const { return value_ >= other; }
+
+  bool operator<=(const IntegerValue& other) const {
+    return value_ <= other.value_;
+  }
+
+  bool operator<=(const int& other) const { return value_ <= other; }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(IntegerValue);
 

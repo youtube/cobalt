@@ -77,7 +77,6 @@ TEST(CSSStyleDeclarationTest, BackgroundSetter) {
                   kBackgroundPropertyName, background, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background(background);
 }
 
@@ -95,7 +94,6 @@ TEST(CSSStyleDeclarationTest, BackgroundColorSetter) {
                   kBackgroundColorPropertyName, background_color, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background_color(background_color);
 }
 
@@ -113,7 +111,6 @@ TEST(CSSStyleDeclarationTest, BackgroundImageSetter) {
                   kBackgroundImagePropertyName, background_image, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background_image(background_image);
 }
 
@@ -131,7 +128,6 @@ TEST(CSSStyleDeclarationTest, BackgroundPositionSetter) {
                   kBackgroundPositionPropertyName, background_position, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background_position(background_position);
 }
 
@@ -149,7 +145,6 @@ TEST(CSSStyleDeclarationTest, BackgroundRepeatSetter) {
                   kBackgroundRepeatPropertyName, background_repeat, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background_repeat(background_repeat);
 }
 
@@ -167,7 +162,6 @@ TEST(CSSStyleDeclarationTest, BackgroundSizeSetter) {
                   kBackgroundSizePropertyName, background_size, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_background_size(background_size);
 }
 
@@ -185,7 +179,6 @@ TEST(CSSStyleDeclarationTest, BorderRadiusSetter) {
                   kBorderRadiusPropertyName, border_radius, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_border_radius(border_radius);
 }
 
@@ -203,7 +196,6 @@ TEST(CSSStyleDeclarationTest, ColorSetter) {
                   kColorPropertyName, color, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_color(color);
 }
 
@@ -221,7 +213,6 @@ TEST(CSSStyleDeclarationTest, ContentSetter) {
                   kContentPropertyName, content, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_content(content);
 }
 
@@ -239,7 +230,6 @@ TEST(CSSStyleDeclarationTest, DisplaySetter) {
                   kDisplayPropertyName, display, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_display(display);
 }
 
@@ -257,7 +247,6 @@ TEST(CSSStyleDeclarationTest, FontFamilySetter) {
                   kFontFamilyPropertyName, font_family, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_font_family(font_family);
 }
 
@@ -275,7 +264,6 @@ TEST(CSSStyleDeclarationTest, FontSizeSetter) {
                   kFontSizePropertyName, font_size, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_font_size(font_size);
 }
 
@@ -293,7 +281,6 @@ TEST(CSSStyleDeclarationTest, FontWeightSetter) {
                   kFontWeightPropertyName, font_weight, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_font_weight(font_weight);
 }
 
@@ -311,7 +298,6 @@ TEST(CSSStyleDeclarationTest, HeightSetter) {
                   kHeightPropertyName, height, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_height(height);
 }
 
@@ -329,7 +315,6 @@ TEST(CSSStyleDeclarationTest, LineHeightSetter) {
                   kLineHeightPropertyName, line_height, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_line_height(line_height);
 }
 
@@ -347,7 +332,6 @@ TEST(CSSStyleDeclarationTest, OpacitySetter) {
                   kOpacityPropertyName, opacity, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_opacity(opacity);
 }
 
@@ -365,7 +349,6 @@ TEST(CSSStyleDeclarationTest, OverflowSetter) {
                   kOverflowPropertyName, overflow, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_overflow(overflow);
 }
 
@@ -401,7 +384,6 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
                   kPositionPropertyName, position, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_position(position);
 }
 
@@ -437,7 +419,6 @@ TEST(CSSStyleDeclarationTest, TextAlignSetter) {
                   kTextAlignPropertyName, text_align, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_text_align(text_align);
 }
 
@@ -509,7 +490,6 @@ TEST(CSSStyleDeclarationTest, TransformSetter) {
                   kTransformPropertyName, transform, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_transform(transform);
 }
 
@@ -527,7 +507,6 @@ TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
                   kVerticalAlignPropertyName, vertical_align, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_vertical_align(vertical_align);
 }
 
@@ -563,7 +542,6 @@ TEST(CSSStyleDeclarationTest, WidthSetter) {
                   kWidthPropertyName, width, _,
                   const_cast<CSSStyleDeclarationData*>(style->data().get())));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
-
   style->set_width(width);
 }
 
@@ -591,12 +569,32 @@ TEST(CSSStyleDeclarationTest, CSSTextSetter) {
       new CSSStyleDeclaration(&css_parser);
 
   const std::string css_text = "font-size: 100px; color: #0047ab;";
+
   EXPECT_CALL(css_parser, ParseDeclarationList(css_text, _))
       .WillOnce(testing::Return(scoped_refptr<CSSStyleDeclarationData>()));
   style->set_css_text(css_text);
 }
 
-TEST(CSSStyleDeclarationTest, CssTextGetter) {
+TEST(CSSStyleDeclarationTest, CSSTextSetterEmptyString) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclarationData> initial_style =
+      new CSSStyleDeclarationData();
+  initial_style->set_display(KeywordValue::GetInline());
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(initial_style, &css_parser);
+
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  const std::string css_text = "";
+
+  EXPECT_CALL(css_parser, ParseDeclarationList(css_text, _))
+      .WillOnce(testing::Return(scoped_refptr<CSSStyleDeclarationData>()));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_css_text(css_text);
+}
+
+TEST(CSSStyleDeclarationTest, CSSTextGetter) {
   MockCSSParser css_parser;
   scoped_refptr<PercentageValue> background_size = new PercentageValue(0.50f);
   scoped_refptr<LengthValue> bottom = new LengthValue(16, kPixelsUnit);

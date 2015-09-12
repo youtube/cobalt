@@ -64,6 +64,10 @@ class FakeCSSGroupingRule : public CSSGroupingRule {
   Type type() const OVERRIDE { return kMediaRule; }
   std::string css_text() const OVERRIDE { return ""; }
   void set_css_text(const std::string& /* css_text */) OVERRIDE {}
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE {
+    set_parent_style_sheet(style_sheet);
+    css_rules()->AttachToCSSStyleSheet(style_sheet);
+  }
 };
 
 class CSSGroupingRuleTest : public ::testing::Test {
