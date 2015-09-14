@@ -63,27 +63,46 @@ class HTMLScriptElement : public HTMLElement {
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
 
-  DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
-
- private:
-  ~HTMLScriptElement() OVERRIDE {}
+  // From Element.
+  void SetParserInserted() OVERRIDE { is_parser_inserted_ = true; }
 
   // From the spec: HTMLScriptElement.
   void Prepare();
 
-  void OnLoadingDone(const std::string& script_url, const std::string& content);
+  DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
+
+ private:
+  ~HTMLScriptElement() OVERRIDE;
+
+  void OnSyncLoadingDone(const std::string& content);
+  void OnSyncLoadingError(const std::string& error);
+
+  void OnLoadingDone(const std::string& content);
   void OnLoadingError(const std::string& error);
   void StopLoading();
+
+  // Whether the script has been started.
+  bool is_already_started_;
+  // Whether the script element is inserted by parser.
+  bool is_parser_inserted_;
+  // The option that defines how the script should be loaded and executed.
+  int load_option_;
+  // SourceLocation for inline script.
+  base::SourceLocation inline_script_location_;
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
-  // The loader.
+  // The loader that is used for asynchronous loads.
   scoped_ptr<loader::Loader> loader_;
-  // Whether the script has been started.
-  bool is_already_started_;
-
-  base::SourceLocation inline_script_location_;
+  // Whether the script is ready to be executed.
+  bool is_ready_;
+  // Whether the sync load is successful.
+  bool is_sync_load_successful_;
+  // Resolved URL of the script.
+  GURL url_;
+  // Content of the script.
+  std::string content_;
 };
 
 }  // namespace dom
