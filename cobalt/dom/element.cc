@@ -267,14 +267,14 @@ bool Element::HasAttribute(const std::string& name) const {
   return iter != attribute_map_.end();
 }
 
-scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
-    const std::string& class_name) const {
-  return HTMLCollection::CreateWithElementsByClassName(this, class_name);
-}
-
 scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
     const std::string& tag_name) const {
   return HTMLCollection::CreateWithElementsByTagName(this, tag_name);
+}
+
+scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
+    const std::string& class_name) const {
+  return HTMLCollection::CreateWithElementsByClassName(this, class_name);
 }
 
 bool Element::GetBooleanAttribute(const std::string& name) const {
