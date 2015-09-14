@@ -32,13 +32,14 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
-  typedef base::Callback<void(const std::string&)> TextCallback;
-  explicit TextDecoder(TextCallback callback) : callback_(callback) {}
+  explicit TextDecoder(base::Callback<void(const std::string&)> done_callback)
+      : done_callback_(done_callback) {}
   ~TextDecoder() OVERRIDE {}
 
   // This function is used for binding callback for creating TextDecoder.
-  static Decoder* Create(TextCallback callback) {
-    return new TextDecoder(callback);
+  static scoped_ptr<Decoder> Create(
+      base::Callback<void(const std::string&)> done_callback) {
+    return scoped_ptr<Decoder>(new TextDecoder(done_callback));
   }
 
   // From Decoder.
@@ -48,13 +49,13 @@ class TextDecoder : public Decoder {
   }
   void Finish() OVERRIDE {
     DCHECK(thread_checker_.CalledOnValidThread());
-    callback_.Run(text_);
+    done_callback_.Run(text_);
   }
 
  private:
   base::ThreadChecker thread_checker_;
   std::string text_;
-  TextCallback callback_;
+  base::Callback<void(const std::string&)> done_callback_;
 };
 
 }  // namespace loader

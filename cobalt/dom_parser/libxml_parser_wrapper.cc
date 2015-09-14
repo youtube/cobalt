@@ -144,14 +144,14 @@ void LibxmlParserWrapper::OnStartElement(
     element->SetAttribute(attributes[i].name.as_string(),
                           attributes[i].value.as_string());
   }
+  element->SetParserInserted();
+  node_stack_.top()->InsertBefore(element, reference_node_);
   node_stack_.push(element);
 }
 
 void LibxmlParserWrapper::OnEndElement(const std::string& name) {
   DCHECK_EQ(node_stack_.top()->node_name(), name);
-  scoped_refptr<dom::Node> element = node_stack_.top();
   node_stack_.pop();
-  node_stack_.top()->InsertBefore(element, reference_node_);
 }
 
 void LibxmlParserWrapper::OnCharacters(const std::string& value) {

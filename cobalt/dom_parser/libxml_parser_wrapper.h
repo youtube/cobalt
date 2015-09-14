@@ -118,6 +118,10 @@ class LibxmlParserWrapper {
     return error_callback_;
   }
 
+  const std::stack<scoped_refptr<dom::Node> >& node_stack() {
+    return node_stack_;
+  }
+
  private:
   const scoped_refptr<dom::Document> document_;
   const scoped_refptr<dom::Node> parent_node_;

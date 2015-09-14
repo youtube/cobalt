@@ -41,6 +41,8 @@
         'loader.h',
         'net_fetcher.cc',
         'net_fetcher.h',
+        'sync_loader.cc',
+        'sync_loader.h',
         'text_decoder.h',
       ],
       'dependencies': [
