@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/rasterizer.h"
+#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
 namespace renderer {
@@ -35,6 +36,7 @@ class RendererModule {
     typedef base::Callback<scoped_ptr<Rasterizer>(
         backend::GraphicsContext*)> CreateRasterizerCallback;
     CreateRasterizerCallback create_rasterizer_function;
+    system_window::SystemWindow* system_window;
 
    private:
     // Implemented per-platform, and allows each platform to customize

@@ -22,6 +22,11 @@
 #include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
+
+namespace system_window {
+class SystemWindow;
+}
+
 namespace renderer {
 namespace backend {
 
@@ -31,7 +36,9 @@ namespace backend {
 // for new platforms for which the graphics system has not yet been implemented.
 class GraphicsSystemStub : public GraphicsSystem {
  public:
-  scoped_ptr<Display> CreateDefaultDisplay() OVERRIDE {
+  scoped_ptr<Display> CreateDisplay(
+      system_window::SystemWindow* system_window) OVERRIDE {
+    UNREFERENCED_PARAMETER(system_window);
     return scoped_ptr<Display>(new DisplayStub());
   }
 

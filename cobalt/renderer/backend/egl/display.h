@@ -22,6 +22,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/renderer/backend/display.h"
+#include "cobalt/renderer/backend/graphics_system.h"
 
 namespace cobalt {
 namespace renderer {
@@ -31,15 +32,9 @@ class RenderTarget;
 
 class DisplayEGL : public Display {
  public:
-  // create_window_cb is required and called when a DisplayEGL object is
-  // constructed, and the window it returns will be setup as the EGL
-  // onscreen rendering target.  The destroy_window_cb callback will be
-  // called when the on screen render target is destructed and we no longer
-  // reference the created EGLNativeWindowType object.
-  DisplayEGL(
-      EGLDisplay display, EGLConfig config,
-      const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-      const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb);
+  // A native window handle is passed in to use as the render target.
+  DisplayEGL(EGLDisplay display, EGLConfig config,
+             EGLNativeWindowType window_handle);
 
   scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE;
 
