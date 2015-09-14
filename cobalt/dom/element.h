@@ -77,10 +77,10 @@ class Element : public Node {
   void RemoveAttribute(const std::string& name);
   bool HasAttribute(const std::string& name) const;
 
-  scoped_refptr<HTMLCollection> GetElementsByClassName(
-      const std::string& class_name) const;
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& tag_name) const;
+  scoped_refptr<HTMLCollection> GetElementsByClassName(
+      const std::string& class_name) const;
 
   // Web API: DOM Parsing and Serialization (partial interface)
   // This interface is extended in the spec DOM Parsing and Serialization.
