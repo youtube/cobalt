@@ -31,7 +31,10 @@ HTMLElementContext::HTMLElementContext(
       web_media_player_factory_(web_media_player_factory),
       script_runner_(script_runner),
       image_cache_(image_cache),
-      html_element_factory_(new HTMLElementFactory()) {}
+      sync_load_thread_("Synchronous Load"),
+      html_element_factory_(new HTMLElementFactory()) {
+  sync_load_thread_.Start();
+}
 
 HTMLElementContext::~HTMLElementContext() {}
 

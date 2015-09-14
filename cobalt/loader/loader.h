@@ -19,8 +19,8 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/callback.h"
-#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
@@ -32,21 +32,23 @@ namespace loader {
 // resource respectively. See the Loader design doc under ***REMOVED***cobalt.
 class Loader {
  public:
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
-
   // The construction of Loader initiates the loading. It takes the ownership
-  // of a Decoder and creates and manages a Fetcher using the given factory
+  // of a Decoder and creates and manages a Fetcher using the given creation
   // method.
   Loader(base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
-         scoped_ptr<Decoder> decoder, ErrorCallback error_callback);
-  virtual ~Loader();
+         scoped_ptr<Decoder> decoder,
+         base::Callback<void(const std::string&)> error_callback);
+
+  ~Loader();
 
  private:
-  class DecoderToFetcherAdapter;
+  class FetcherToDecoderAdapter;
 
   scoped_ptr<Decoder> decoder_;
-  scoped_ptr<DecoderToFetcherAdapter> decoder_to_fetcher_adaptor_;
+  scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   scoped_ptr<Fetcher> fetcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(Loader);
 };
 
 }  // namespace loader

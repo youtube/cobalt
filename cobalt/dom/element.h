@@ -122,6 +122,8 @@ class Element : public Node {
   // Returns a map that holds the actual attributes of the element.
   const AttributeMap& attribute_map() const { return attribute_map_; }
 
+  virtual void SetParserInserted() {}
+
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
   // Points to ">" of opening tag.
