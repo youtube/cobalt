@@ -25,17 +25,10 @@ namespace backend {
 
 class DisplayRenderTargetEGL : public RenderTargetEGL {
  public:
-  // The DisplayRenderTargetEGL is constructed with callback functions for
-  // creating and destroying a EGLNativeWindowType (e.g. "HWND" on Windows and
-  // "Window" on the X Window System.)  These will be passed in to the
-  // GraphicsSystem when it is constructed by platform-specific code.  The
-  // create_window_cb callback will be called when a window is requested
-  // and the destroy_window_cb callback will be called when the display
-  // render target is destructed and we no longer need a window.
-  DisplayRenderTargetEGL(
-      EGLDisplay display, EGLConfig config,
-      const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-      const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb);
+  // The DisplayRenderTargetEGL is constructed with a handle to a native
+  // window to use as the render target.
+  DisplayRenderTargetEGL(EGLDisplay display, EGLConfig config,
+                         EGLNativeWindowType window_handle);
 
   const SurfaceInfo& GetSurfaceInfo() OVERRIDE;
 
@@ -46,7 +39,6 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
 
   EGLDisplay display_;
   EGLConfig config_;
-  base::Callback<void(EGLNativeWindowType)> destroy_window_cb_;
 
   EGLNativeWindowType native_window_;
 
@@ -56,14 +48,8 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
 };
 
 DisplayRenderTargetEGL::DisplayRenderTargetEGL(
-    EGLDisplay display, EGLConfig config,
-    const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-    const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb)
-    : display_(display),
-      config_(config),
-      destroy_window_cb_(destroy_window_cb) {
-  native_window_ = create_window_cb.Run();
-
+    EGLDisplay display, EGLConfig config, EGLNativeWindowType window_handle)
+    : display_(display), config_(config), native_window_(window_handle) {
   surface_ = eglCreateWindowSurface(display_, config_, native_window_, NULL);
 
   // Query and cache information about the surface now that we have created it.
@@ -81,19 +67,14 @@ const SurfaceInfo& DisplayRenderTargetEGL::GetSurfaceInfo() {
   return surface_info_;
 }
 
-DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {
-  destroy_window_cb_.Run(native_window_);
-}
+DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {}
 
 EGLSurface DisplayRenderTargetEGL::GetSurface() const { return surface_; }
 
-DisplayEGL::DisplayEGL(
-    EGLDisplay display, EGLConfig config,
-    const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-    const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb) {
+DisplayEGL::DisplayEGL(EGLDisplay display, EGLConfig config,
+                       EGLNativeWindowType window_handle) {
   // A display effectively just hosts a DisplayRenderTargetEGL.
-  render_target_ = new DisplayRenderTargetEGL(display, config, create_window_cb,
-                                              destroy_window_cb);
+  render_target_ = new DisplayRenderTargetEGL(display, config, window_handle);
 }
 
 scoped_refptr<RenderTarget> DisplayEGL::GetRenderTarget() {
