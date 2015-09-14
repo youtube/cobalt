@@ -16,6 +16,8 @@
 
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
 
+#include "cobalt/dom/html_script_element.h"
+
 namespace cobalt {
 namespace dom_parser {
 namespace {
@@ -78,6 +80,11 @@ void LibxmlHTMLParserWrapper::OnStartElement(
 void LibxmlHTMLParserWrapper::OnEndElement(const std::string& name) {
   if (!IsFullDocument() && (name == "html" || name == "body")) {
     return;
+  }
+  scoped_refptr<dom::HTMLScriptElement> script =
+      node_stack().top()->AsElement()->AsHTMLElement()->AsHTMLScriptElement();
+  if (script) {
+    script->Prepare();
   }
   LibxmlParserWrapper::OnEndElement(name);
 }

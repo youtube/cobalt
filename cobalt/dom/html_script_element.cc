@@ -16,11 +16,14 @@
 
 #include "cobalt/dom/html_script_element.h"
 
+#include <deque>
+
 #include "base/bind.h"
 #include "base/string_util.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/sync_loader.h"
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
@@ -34,6 +37,8 @@ const char HTMLScriptElement::kTagName[] = "script";
 HTMLScriptElement::HTMLScriptElement(Document* document)
     : HTMLElement(document),
       is_already_started_(false),
+      is_parser_inserted_(false),
+      load_option_(0),
       inline_script_location_("[object HTMLScriptElement]", 1, 1) {
   DCHECK(document->html_element_context()->script_runner());
 }
@@ -52,18 +57,8 @@ void HTMLScriptElement::SetOpeningTagLocation(
 
 void HTMLScriptElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  if (HasAttribute("src")) {
-    // In Cobalt we only support asynchronous execution of loaded script, so the
-    // async attribute should be present alongside src.
-    if (!async())
-      LOG(WARNING)
-          << "<script> has src attribute but doesn't have async attribute.";
-    // Prepare the script and execute when it's done.
+  if (!is_parser_inserted_) {
     Prepare();
-  } else {
-    // Immediately execute the script.
-    html_element_context()->script_runner()->Execute(text_content().value(),
-                                                     inline_script_location_);
   }
 }
 
@@ -123,7 +118,7 @@ void HTMLScriptElement::Prepare() {
   //   1. Let src be the value of the element's src attribute.
   //   2. If src is the empty string, queue a task to fire a simple event
   // named error at the element, and abort these steps.
-  if (src() == "") {
+  if (HasAttribute("src") && src() == "") {
     // TODO(***REMOVED***): Report src is empty.
     LOG(ERROR) << "src attribute of script element is empty.";
     return;
@@ -133,8 +128,8 @@ void HTMLScriptElement::Prepare() {
   //   4. If the previous step failed, queue a task to fire a simple event named
   // error at the element, and abort these steps.
   const GURL base_url = owner_document()->url_as_gurl();
-  const GURL url = base_url.Resolve(src());
-  if (!url.is_valid()) {
+  url_ = base_url.Resolve(src());
+  if (!url_.is_valid()) {
     // TODO(***REMOVED***): Report URL cannot be resolved.
     LOG(ERROR) << src() << " cannot be resolved based on " << base_url;
     return;
@@ -145,40 +140,231 @@ void HTMLScriptElement::Prepare() {
   // content attribute, the origin being the origin of the script element's
   // Document, and the default origin behaviour set to taint.
 
-  loader_ = make_scoped_ptr(new loader::Loader(
-      base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(html_element_context()->fetcher_factory()),
-                 url),
-      scoped_ptr<loader::Decoder>(new loader::TextDecoder(
-          base::Bind(&HTMLScriptElement::OnLoadingDone, base::Unretained(this),
-                     url.spec()))),
-      base::Bind(&HTMLScriptElement::OnLoadingError, base::Unretained(this))));
-  owner_document()->IncreaseLoadingCounter();
+  // 15. Then, the first of the following options that describes the situation
+  // must be followed:
 
-  // 15. Not needed by Cobalt.
+  // Option 1 and Option 3 are not needed by Cobalt.
+  if (HasAttribute("src") && is_parser_inserted_ && !async()) {
+    // Option 2
+    // If the element has a src attribute, and the element has been flagged as
+    // "parser-inserted", and the element does not have an async attribute.
+    load_option_ = 2;
+  } else if (HasAttribute("src") && !async()) {
+    // Option 4
+    // If the element has a src attribute, does not have an async attribute, and
+    // does not have the "force-async" flag set.
+    load_option_ = 4;
+  } else if (HasAttribute("src")) {
+    // Option 5
+    // If the element has a src attribute.
+    load_option_ = 5;
+  } else {
+    // Option 6
+    // Otherwise.
+    load_option_ = 6;
+  }
+
+  switch (load_option_) {
+    case 2: {
+      // If the element has a src attribute, and the element has been flagged as
+      // "parser-inserted", and the element does not have an async attribute.
+
+      // The element is the pending parsing-blocking script of the Document of
+      // the parser that created the element. (There can only be one such script
+      // per Document at a time.)
+      is_sync_load_successful_ = false;
+
+      loader::LoadSynchronously(
+          html_element_context()->sync_load_thread()->message_loop(),
+          base::Bind(
+              &loader::FetcherFactory::CreateFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()),
+              url_),
+          base::Bind(&loader::TextDecoder::Create,
+                     base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
+                                base::Unretained(this))),
+          base::Bind(&HTMLScriptElement::OnSyncLoadingError,
+                     base::Unretained(this)));
+
+      if (is_sync_load_successful_) {
+        html_element_context()->script_runner()->Execute(
+            content_, base::SourceLocation(url_.spec(), 1, 1));
+      }
+    } break;
+    case 4: {
+      // If the element has a src attribute, does not have an async attribute,
+      // and does not have the "force-async" flag set.
+
+      // The element must be added to the end of the list of scripts that will
+      // execute in order as soon as possible associated with the Document of
+      // the script element at the time the prepare a script algorithm started.
+      owner_document()->IncreaseLoadingCounter();
+
+      std::deque<HTMLScriptElement*>* scripts_to_be_executed =
+          owner_document()->scripts_to_be_executed();
+      scripts_to_be_executed->push_back(this);
+      loader_.reset(new loader::Loader(
+          base::Bind(
+              &loader::FetcherFactory::CreateFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()),
+              url_),
+          scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
+              &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
+          base::Bind(&HTMLScriptElement::OnLoadingError,
+                     base::Unretained(this))));
+    } break;
+    case 5: {
+      // If the element has a src attribute.
+
+      // The element must be added to the set of scripts that will execute as
+      // soon as possible of the Document of the script element at the time the
+      // prepare a script algorithm started.
+      owner_document()->IncreaseLoadingCounter();
+
+      loader_.reset(new loader::Loader(
+          base::Bind(
+              &loader::FetcherFactory::CreateFetcher,
+              base::Unretained(html_element_context()->fetcher_factory()),
+              url_),
+          scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
+              &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
+          base::Bind(&HTMLScriptElement::OnLoadingError,
+                     base::Unretained(this))));
+    } break;
+    case 6: {
+      // Otherwise.
+
+      // The user agent must immediately execute the script block, even if other
+      // scripts are already executing.
+      html_element_context()->script_runner()->Execute(text_content().value(),
+                                                       inline_script_location_);
+    } break;
+    default: { NOTREACHED(); }
+  }
 }
 
-void HTMLScriptElement::OnLoadingDone(const std::string& script_url,
-                                      const std::string& script_utf8) {
+HTMLScriptElement::~HTMLScriptElement() {
+  if (load_option_) {
+    StopLoading();
+  }
+}
+
+void HTMLScriptElement::OnSyncLoadingDone(const std::string& content) {
+  content_ = content;
+  is_sync_load_successful_ = true;
+}
+
+void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
+  LOG(ERROR) << error;
+}
+
+// Algorithm for Prepare:
+//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
+void HTMLScriptElement::OnLoadingDone(const std::string& content) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
-  html_element_context()->script_runner()->Execute(
-      script_utf8, base::SourceLocation(script_url, 1, 1));
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+  content_ = content;
+  switch (load_option_) {
+    case 4: {
+      // If the element has a src attribute, does not have an async attribute,
+      // and does not have the "force-async" flag set.
+
+      // The task that the networking task source places on the task queue once
+      // the fetching algorithm has completed must run the following steps:
+      //   1. If the element is not now the first element in the list of scripts
+      //   that will execute in order as soon as possible to which it was added
+      //   above, then mark the element as ready but abort these steps without
+      //   executing the script yet.
+      std::deque<HTMLScriptElement*>* scripts_to_be_executed =
+          owner_document()->scripts_to_be_executed();
+      if (scripts_to_be_executed->front() != this) {
+        is_ready_ = true;
+        return;
+      }
+      while (true) {
+        // 2. Execution: Execute the script block corresponding to the first
+        // script element in this list of scripts that will execute in order as
+        // soon as possible.
+        HTMLScriptElement* script = scripts_to_be_executed->front();
+        html_element_context()->script_runner()->Execute(
+            script->content_, base::SourceLocation(script->url_.spec(), 1, 1));
+        // 3. Remove the first element from this list of scripts that will
+        // execute in order as soon as possible.
+        scripts_to_be_executed->pop_front();
+        // 4. If this list of scripts that will execute in order as soon as
+        // possible is still not empty and the first entry has already been
+        // marked
+        // as ready, then jump back to the step labeled execution.
+        if (scripts_to_be_executed->empty() ||
+            !scripts_to_be_executed->front()->is_ready_) {
+          break;
+        }
+      }
+
+      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+    } break;
+    case 5: {
+      // If the element has a src attribute.
+
+      // The task that the networking task source places on the task queue once
+      // the fetching algorithm has completed must execute the script block and
+      // then remove the element from the set of scripts that will execute as
+      // soon as possible.
+      html_element_context()->script_runner()->Execute(
+          content, base::SourceLocation(url_.spec(), 1, 1));
+
+      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
+    } break;
+    default: { NOTREACHED(); }
+  }
   StopLoading();
 }
 
+// Algorithm for Prepare:
+//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingError(const std::string& error) {
   DCHECK(thread_checker_.CalledOnValidThread());
   LOG(ERROR) << error;
-  owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+  switch (load_option_) {
+    case 4: {
+      // If the element has a src attribute, does not have an async attribute,
+      // and does not have the "force-async" flag set.
+      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+    } break;
+    case 5: {
+      // If the element has a src attribute.
+      owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(false);
+    } break;
+    default: { NOTREACHED(); }
+  }
   StopLoading();
 }
 
+// Algorithm for Prepare:
+//   http://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
 void HTMLScriptElement::StopLoading() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(loader_);
-  loader_.reset();
+  switch (load_option_) {
+    case 4: {
+      // If the element has a src attribute, does not have an async attribute,
+      // and does not have the "force-async" flag set.
+      std::deque<HTMLScriptElement*>* scripts_to_be_executed =
+          owner_document()->scripts_to_be_executed();
+
+      std::deque<HTMLScriptElement*>::iterator it = std::find(
+          scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
+      if (it != scripts_to_be_executed->end()) {
+        scripts_to_be_executed->erase(it);
+      }
+
+      DCHECK(loader_);
+      loader_.reset();
+    } break;
+    case 5: {
+      // If the element has a src attribute.
+      DCHECK(loader_);
+      loader_.reset();
+    } break;
+    default: { NOTREACHED(); }
+  }
 }
 
 }  // namespace dom
