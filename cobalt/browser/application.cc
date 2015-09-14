@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,9 +76,13 @@ Application::Application()
   }
   DLOG(INFO) << "Initial URL: " << url;
 
+  // Create the main window for our application.
+  main_system_window_ = system_window::CreateSystemWindow();
+
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.url = url;
+  options.renderer_module_options.system_window = main_system_window_.get();
   browser_module_.reset(new BrowserModule(options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }

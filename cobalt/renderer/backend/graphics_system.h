@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-
 #include "cobalt/renderer/backend/display.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
 namespace renderer {
@@ -41,11 +41,9 @@ class GraphicsSystem {
  public:
   virtual ~GraphicsSystem() {}
 
-  // Creates whatever the default display is for this graphics system.
-  // Typically this would construct a Display associated with the TV or monitor
-  // a device is connected to, but for desktop operating systems this may also
-  // create a Window and refer to that.
-  virtual scoped_ptr<Display> CreateDefaultDisplay() = 0;
+  // Creates a display associated with a window.
+  virtual scoped_ptr<Display> CreateDisplay(
+      system_window::SystemWindow* system_window) = 0;
 
   // Creates a graphics context that can be used to issue graphics commands to
   // the hardware.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/browser/browser_module.h"
+#include "cobalt/system_window/create_system_window.h"
 
 namespace cobalt {
 namespace browser {
@@ -47,6 +48,11 @@ class Application {
   base::Closure quit_closure_;
 
  protected:
+  // The main system window for our application.
+  // This routes event callbacks, and provides a native window handle
+  // on desktop systems.
+  scoped_ptr<system_window::SystemWindow> main_system_window_;
+
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
 };
