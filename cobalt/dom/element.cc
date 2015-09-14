@@ -21,6 +21,7 @@
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_token_list.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -275,6 +276,15 @@ scoped_refptr<HTMLCollection> Element::GetElementsByTagName(
 scoped_refptr<HTMLCollection> Element::GetElementsByClassName(
     const std::string& class_name) const {
   return HTMLCollection::CreateWithElementsByClassName(this, class_name);
+}
+
+scoped_refptr<EventListener> Element::onerror() const {
+  return onerror_listener_;
+}
+
+void Element::set_onerror(const scoped_refptr<EventListener>& listener) {
+  onerror_listener_ = listener;
+  SetAttributeEventListener(EventNames::GetInstance()->error(), listener);
 }
 
 bool Element::GetBooleanAttribute(const std::string& name) const {
