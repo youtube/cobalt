@@ -116,8 +116,17 @@ class RendererPipelineTest : public ::testing::Test {
   int submission_count_;
 };
 
-TEST_F(RendererPipelineTest,
-       RasterizerSubmitIsCalledAtExpectedFrequencyAfterSinglePipelineSubmit) {
+// Since the following tests test the pipeline's claim that it will rasterize
+// the submitted render tree at a specified real time refresh rate, they are
+// marked as flaky, as it is possible for the OS to schedule (or rather, not
+// schedule) the pipeline rasterizer thread in such a way that it is not able
+// to execute frequently enough.  While this may be a problem on machines like
+// Windows and Linux which may have other processes running in the background,
+// devices like game consoles where our process is running alone should never
+// see these tests fail.
+TEST_F(
+    RendererPipelineTest,
+    FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit) {
   pipeline_->Submit(dummy_render_tree_);
 
   // Wait a little bit to give the pipeline some time to rasterize the submitted
@@ -137,8 +146,9 @@ TEST_F(RendererPipelineTest,
   EXPECT_GE(expected_submissions.upper_bound, submission_count_);
 }
 
-TEST_F(RendererPipelineTest,
-       RasterizerSubmitIsCalledAtExpectedFrequencyAfterManyPipelineSubmits) {
+TEST_F(
+    RendererPipelineTest,
+    FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterManyPipelineSubmits) {
   // Here we repeatedly submit a new render tree to the pipeline as fast as
   // we can.  Regardless of the rate that we submit to the pipeline, we expect
   // it to rate-limit its submissions to the rasterizer.
