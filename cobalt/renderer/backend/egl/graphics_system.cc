@@ -24,11 +24,7 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-GraphicsSystemEGL::GraphicsSystemEGL(
-    const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-    const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb)
-    : create_window_cb_(create_window_cb),
-      destroy_window_cb_(destroy_window_cb) {
+GraphicsSystemEGL::GraphicsSystemEGL() {
   display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
@@ -53,9 +49,10 @@ GraphicsSystemEGL::GraphicsSystemEGL(
 
 GraphicsSystemEGL::~GraphicsSystemEGL() { eglTerminate(display_); }
 
-scoped_ptr<Display> GraphicsSystemEGL::CreateDefaultDisplay() {
-  return scoped_ptr<Display>(
-      new DisplayEGL(display_, config_, create_window_cb_, destroy_window_cb_));
+scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
+    system_window::SystemWindow* system_window) {
+  EGLNativeWindowType window_handle = GetHandleFromSystemWindow(system_window);
+  return scoped_ptr<Display>(new DisplayEGL(display_, config_, window_handle));
 }
 
 scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {

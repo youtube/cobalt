@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,10 +38,11 @@ RendererModule::RendererModule(const Options& options) {
     graphics_system_ = backend::CreateDefaultGraphicsSystem();
   }
 
-  // Create/initialize the default display
+  // Create/initialize the display using the system window
+  // specified in the options to get the render target.
   {
-    TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateDefaultDisplay()");
-    display_ = graphics_system_->CreateDefaultDisplay();
+    TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateDisplay()");
+    display_ = graphics_system_->CreateDisplay(options.system_window);
   }
 
   // Create a graphics context associated with the default display's render
