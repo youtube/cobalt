@@ -28,4 +28,7 @@ interface Element : Node {
   boolean hasAttribute(DOMString name);
   HTMLCollection getElementsByTagName(DOMString localName);
   HTMLCollection getElementsByClassName(DOMString classNames);
+
+  // http://www.w3.org/TR/DOM-Level-3-Events/#event-type-error
+  attribute EventListener? onerror;
 };
