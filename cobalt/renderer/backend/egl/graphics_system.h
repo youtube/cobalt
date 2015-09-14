@@ -19,30 +19,32 @@
 
 #include <EGL/egl.h>
 
-#include "base/callback.h"
 #include "cobalt/renderer/backend/graphics_system.h"
+#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
 
+// Helper function that gets the handle of a system window.
+// Each platform that uses an EGL graphics system must provide an
+// implementation of this function.
+EGLNativeWindowType GetHandleFromSystemWindow(
+    system_window::SystemWindow* system_window);
+
 // Returns a EGL-specific graphics system that is implemented via EGL and
 // OpenGL ES.
 class GraphicsSystemEGL : public GraphicsSystem {
  public:
-  GraphicsSystemEGL(
-      const base::Callback<EGLNativeWindowType(void)>& create_window_cb,
-      const base::Callback<void(EGLNativeWindowType)>& destroy_window_cb);
+  GraphicsSystemEGL();
   ~GraphicsSystemEGL() OVERRIDE;
 
-  scoped_ptr<Display> CreateDefaultDisplay() OVERRIDE;
+  scoped_ptr<Display> CreateDisplay(
+      system_window::SystemWindow* system_window) OVERRIDE;
 
   scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE;
 
  private:
-  base::Callback<EGLNativeWindowType(void)> create_window_cb_;
-  base::Callback<void(EGLNativeWindowType)> destroy_window_cb_;
-
   EGLDisplay display_;
   EGLConfig config_;
 };
