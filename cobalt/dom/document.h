@@ -17,6 +17,7 @@
 #ifndef DOM_DOCUMENT_H_
 #define DOM_DOCUMENT_H_
 
+#include <deque>
 #include <string>
 
 #include "base/observer_list.h"
@@ -43,6 +44,7 @@ class HTMLElement;
 class HTMLElementContext;
 class HTMLHeadElement;
 class HTMLHtmlElement;
+class HTMLScriptElement;
 class Location;
 class Text;
 
@@ -164,6 +166,12 @@ class Document : public Node, public cssom::MutationObserver {
 
   scoped_refptr<HTMLHtmlElement> html() const;
 
+  // List of scripts that will execute in order as soon as possible.
+  //   http://www.w3.org/TR/html5/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
+  std::deque<HTMLScriptElement*>* scripts_to_be_executed() {
+    return &scripts_to_be_executed_;
+  }
+
   // These functions are for setting weak references to certain elements in the
   // document.
   void SetBody(HTMLBodyElement* body);
@@ -240,6 +248,8 @@ class Document : public Node, public cssom::MutationObserver {
   GURL url_;
   // List of CSS style sheets.
   scoped_refptr<cssom::StyleSheetList> style_sheets_;
+  // List of scripts that will execute in order as soon as possible.
+  std::deque<HTMLScriptElement*> scripts_to_be_executed_;
   // The number of ongoing loadings.
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.

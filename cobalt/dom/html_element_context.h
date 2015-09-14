@@ -18,6 +18,7 @@
 #define DOM_HTML_ELEMENT_CONTEXT_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/thread.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -56,6 +57,8 @@ class HTMLElementContext {
 
   loader::ImageCache* image_cache() const { return image_cache_; }
 
+  base::Thread* sync_load_thread() { return &sync_load_thread_; }
+
   HTMLElementFactory* html_element_factory() {
     return html_element_factory_.get();
   }
@@ -68,6 +71,7 @@ class HTMLElementContext {
   script::ScriptRunner* const script_runner_;
   loader::ImageCache* const image_cache_;
 
+  base::Thread sync_load_thread_;
   scoped_ptr<HTMLElementFactory> html_element_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLElementContext);
