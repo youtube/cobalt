@@ -18,6 +18,7 @@
 #define CSSOM_CASCADED_STYLE_H_
 
 #include "base/hash_tables.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "googleurl/src/gurl.h"

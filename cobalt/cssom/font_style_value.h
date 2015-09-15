@@ -17,13 +17,18 @@
 #ifndef CSSOM_FONT_STYLE_VALUE_H_
 #define CSSOM_FONT_STYLE_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/keyword_names.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Allows italic or oblique faces to be selected. Italic forms are generally
 // cursive in nature while oblique faces are typically sloped versions of
@@ -47,19 +52,7 @@ class FontStyleValue : public PropertyValue {
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
-    switch (value_) {
-      case kItalic:
-        return kItalicKeywordName;
-      case kNormal:
-        return kNormalKeywordName;
-      case kOblique:
-        return kObliqueKeywordName;
-      default:
-        NOTREACHED();
-        return "";
-    }
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const FontStyleValue& other) const {
     return value_ == other.value_;

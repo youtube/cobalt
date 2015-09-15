@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/transform_function_visitor.h"
 
+#include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/rotate_function.h"

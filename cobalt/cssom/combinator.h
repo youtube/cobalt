@@ -17,6 +17,7 @@
 #ifndef CSSOM_COMBINATOR_H_
 #define CSSOM_COMBINATOR_H_
 
+#include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/selector.h"

@@ -17,7 +17,13 @@
 #ifndef CSSOM_PROPERTY_LIST_VALUE_H_
 #define CSSOM_PROPERTY_LIST_VALUE_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/scoped_ref_list_value.h"
 
 namespace cobalt {

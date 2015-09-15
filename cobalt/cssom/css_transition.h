@@ -21,11 +21,12 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/timing_function.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValue;
 
 // A Transition object represents a persistant transition from one CSS style
 // value to another.  Most of the data members of this class are defined with

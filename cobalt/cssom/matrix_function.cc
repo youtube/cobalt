@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/matrix_function.h"
 
+#include "base/stringprintf.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 
 namespace cobalt {
@@ -31,6 +32,13 @@ MatrixFunction::MatrixFunction(float m00, float m10, float m01, float m11,
 void MatrixFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitMatrix(this);
 }
+
+std::string MatrixFunction::ToString() const {
+  return base::StringPrintf("matrix(%.7g, %.7g, %.7g, %.7g, %.7g, %.7g)",
+                            value_(0, 0), value_(1, 0), value_(0, 1),
+                            value_(1, 1), value_(0, 2), value_(1, 2));
+}
+
 
 }  // namespace cssom
 }  // namespace cobalt

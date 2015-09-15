@@ -17,13 +17,18 @@
 #ifndef CSSOM_NUMBER_VALUE_H_
 #define CSSOM_NUMBER_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Represents a dimensionless value.
 //   http://www.w3.org/TR/css3-values/#numeric-types
@@ -38,7 +43,6 @@ class NumberValue : public PropertyValue {
   std::string ToString() const OVERRIDE {
     return base::StringPrintf("%.7g", value_);
   }
-
 
   bool operator==(const NumberValue& other) const {
     return value_ == other.value_;

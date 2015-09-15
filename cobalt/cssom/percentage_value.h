@@ -17,13 +17,18 @@
 #ifndef CSSOM_PERCENTAGE_VALUE_H_
 #define CSSOM_PERCENTAGE_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Percentage values are always relative to another value, for example a length.
 // Each property that allows percentages also defines the value to which
