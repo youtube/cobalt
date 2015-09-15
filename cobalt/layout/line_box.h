@@ -131,9 +131,9 @@ class LineBox {
   const float top_;
   const scoped_refptr<cssom::PropertyValue> line_height_;
   const render_tree::FontMetrics font_metrics_;
-  const LayoutParams layout_params_;
   const bool should_collapse_leading_white_space_;
   const bool should_collapse_trailing_white_space_;
+  const LayoutParams layout_params_;
   const scoped_refptr<cssom::PropertyValue> text_align_;
 
   bool at_end_;
