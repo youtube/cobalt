@@ -11,19 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# NPLB is "No Platform Left Behind," the certification test suite for Starboard
+# implementations.
+
 {
   'targets': [
     {
-      'target_name': 'starboard',
-      'type': 'none',
+      'target_name': 'nplb',
+      'type': '<(gtest_target_type)',
       'sources': [
-        'atomic.h',
-        'configuration.h',
-        'export.h',
-        'system.h',
+        'main.cc',
+        'system_get_path_test.cc',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/<(starboard_platform)/starboard_platform.gyp:starboard_platform',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
     },
   ],
