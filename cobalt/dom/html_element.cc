@@ -41,6 +41,7 @@
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
+#include "cobalt/dom/html_meta_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
@@ -153,6 +154,8 @@ scoped_refptr<HTMLImageElement> HTMLElement::AsHTMLImageElement() {
 }
 
 scoped_refptr<HTMLLinkElement> HTMLElement::AsHTMLLinkElement() { return NULL; }
+
+scoped_refptr<HTMLMetaElement> HTMLElement::AsHTMLMetaElement() { return NULL; }
 
 scoped_refptr<HTMLParagraphElement> HTMLElement::AsHTMLParagraphElement() {
   return NULL;

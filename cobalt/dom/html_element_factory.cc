@@ -27,6 +27,7 @@
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
+#include "cobalt/dom/html_meta_element.h"
 #include "cobalt/dom/html_paragraph_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/html_span_element.h"
@@ -64,6 +65,7 @@ HTMLElementFactory::HTMLElementFactory() {
   RegisterHTMLElementWithSingleTagName<HTMLHtmlElement>();
   RegisterHTMLElementWithSingleTagName<HTMLImageElement>();
   RegisterHTMLElementWithSingleTagName<HTMLLinkElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLMetaElement>();
   RegisterHTMLElementWithSingleTagName<HTMLParagraphElement>();
   RegisterHTMLElementWithSingleTagName<HTMLScriptElement>();
   RegisterHTMLElementWithSingleTagName<HTMLSpanElement>();
