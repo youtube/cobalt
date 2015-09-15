@@ -12,11 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Defines a set of atomic integer operations that can be used as lightweight
+// synchronization or as building blocks for heavier synchronization
+// primitives. Their use is very subtle and requires detailed understanding of
+// the behavior of supported architectures, so their direct use is not
+// recommended except when rigorously deemed absolutely necessary for
+// performance reasons.
+
 #ifndef STARBOARD_ATOMIC_H_
 #define STARBOARD_ATOMIC_H_
 
 #include "starboard/configuration.h"
 #include "starboard/types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef int32_t SbAtomic32;
 
@@ -111,6 +122,10 @@ SbAtomic64 SbAtomicNoBarrier_Load64(volatile const SbAtomic64 *ptr);
 SbAtomic64 SbAtomicAcquire_Load64(volatile const SbAtomic64 *ptr);
 SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64 *ptr);
 #endif  // SB_IS(64_BIT)
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 // Include the platform definitions of these functions, which should be defined
 // as inlined. This macro is defined on the command line by gyp.
