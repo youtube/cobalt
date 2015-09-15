@@ -96,7 +96,7 @@ void HTMLImageElement::UpdateImageData() {
 
 void HTMLImageElement::OnImageLoaded() {
   DispatchEvent(new Event("load"));
-  cached_image_loaded_callback_handler_.reset();
+  // TODO(***REMOVED***): Reset |cached_image_loaded_callback_handler_| here.
 }
 
 }  // namespace dom
