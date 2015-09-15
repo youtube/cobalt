@@ -17,9 +17,10 @@
 #ifndef CSSOM_MEDIA_FEATURE_H_
 #define CSSOM_MEDIA_FEATURE_H_
 
-#include <utility>
 #include <vector>
 
+#include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/media_feature_names.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/script/wrappable.h"

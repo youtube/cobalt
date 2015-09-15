@@ -18,9 +18,9 @@
 #define CSSOM_MEDIA_QUERY_H_
 
 #include <string>
-#include <utility>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/script/wrappable.h"

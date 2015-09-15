@@ -16,11 +16,13 @@
 
 #include "cobalt/cssom/css_transition_set.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value.h"

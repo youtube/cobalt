@@ -17,13 +17,19 @@
 #ifndef CSSOM_TRANSLATE_FUNCTION_H_
 #define CSSOM_TRANSLATE_FUNCTION_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/cssom/length_value.h"
-#include "cobalt/cssom/percentage_value.h"
+#include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/transform_function.h"
 
 namespace cobalt {
 namespace cssom {
+
+class LengthValue;
+class PercentageValue;
 
 // Specifies a translation by the given amount in the X, Y or Z direction.
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-translatex
@@ -56,32 +62,7 @@ class TranslateFunction : public TransformFunction {
 
   Axis axis() const { return axis_; }
 
-  std::string ToString() const OVERRIDE {
-    char axis = 'X';
-    switch (axis_) {
-      case kXAxis:
-        axis = 'X';
-        break;
-      case kYAxis:
-        axis = 'Y';
-        break;
-      case kZAxis:
-        axis = 'Z';
-        break;
-      default:
-        axis = ' ';
-        NOTREACHED();
-        break;
-    }
-    std::string result = "translate";
-    result.push_back(axis);
-    result.push_back('(');
-    if (offset_) {
-      result.append(offset_->ToString());
-    }
-    result.push_back(')');
-    return result;
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const TranslateFunction& other) const {
     return offset_->Equals(*other.offset_) && axis_ == other.axis_;

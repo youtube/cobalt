@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/length_value.h"
 
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -23,6 +24,12 @@ namespace cssom {
 
 void LengthValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitLength(this);
+}
+
+std::string LengthValue::ToString() const {
+  return base::StringPrintf(
+      "%.7g%s", value_,
+      unit_ == kFontSizesAkaEmUnit ? "em" : unit_ == kPixelsUnit ? "px" : "");
 }
 
 }  // namespace cssom

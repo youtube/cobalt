@@ -17,6 +17,8 @@
 #ifndef CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
 #define CSSOM_FOLLOWING_SIBLING_COMBINATOR_H_
 
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "cobalt/cssom/combinator.h"
 
 namespace cobalt {

@@ -17,6 +17,8 @@
 #ifndef CSSOM_TRANSFORM_FUNCTION_H_
 #define CSSOM_TRANSFORM_FUNCTION_H_
 
+#include <string>
+
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/math/matrix3_f.h"
 

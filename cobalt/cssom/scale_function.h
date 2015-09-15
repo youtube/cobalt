@@ -17,13 +17,17 @@
 #ifndef CSSOM_SCALE_FUNCTION_H_
 #define CSSOM_SCALE_FUNCTION_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/stringprintf.h"
-#include "cobalt/cssom/property_value.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/transform_function.h"
 
 namespace cobalt {
 namespace cssom {
+
+class TransformFunctionVisitor;
 
 // Scale function specifies a 2D scale operation by the scaling vector.
 //   http://www.w3.org/TR/css-transforms-1/#funcdef-scale

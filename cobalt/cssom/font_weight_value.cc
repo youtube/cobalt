@@ -18,6 +18,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -105,6 +106,26 @@ const scoped_refptr<FontWeightValue>& FontWeightValue::GetBlackAka900() {
 
 void FontWeightValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitFontWeight(this);
+}
+
+std::string FontWeightValue::ToString() const {
+  switch (value_) {
+    case kNormalAka400:
+      return kNormalKeywordName;
+    case kBoldAka700:
+      return kBoldKeywordName;
+    case kThinAka100:
+    case kExtraLightAka200:
+    case kLightAka300:
+    case kMediumAka500:
+    case kSemiBoldAka600:
+    case kExtraBoldAka800:
+    case kBlackAka900:
+    default:
+      // These values are not implemented by the scanner/parser.
+      NOTIMPLEMENTED();
+      return "";
+  }
 }
 
 }  // namespace cssom

@@ -19,11 +19,13 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/stringprintf.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 enum ResolutionUnit {
   kDPIUnit,
@@ -44,11 +46,7 @@ class ResolutionValue : public PropertyValue {
   float value() const { return value_; }
   ResolutionUnit unit() const { return unit_; }
 
-  std::string ToString() const OVERRIDE {
-    return base::StringPrintf(
-        "%.7g%s", value_,
-        unit_ == kDPIUnit ? "dpi" : unit_ == kDPCMUnit ? "dpcm" : "");
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const ResolutionValue& other) const {
     return value_ == other.value_ && unit_ == other.unit_;

@@ -18,8 +18,8 @@
 #define CSSOM_CSS_RULE_LIST_H_
 
 #include <string>
-#include <vector>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/css_rule.h"

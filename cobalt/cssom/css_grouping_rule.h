@@ -19,13 +19,17 @@
 
 #include <string>
 
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_rule.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSRuleVisitor;
 class CSSRuleList;
+class CSSRuleVisitor;
 
 // The CSSGroupingRule interface represents an at-rule that contains other rules
 //  nested inside itself.

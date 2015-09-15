@@ -17,15 +17,17 @@
 #ifndef CSSOM_STRING_VALUE_H_
 #define CSSOM_STRING_VALUE_H_
 
-#include <iostream>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Represents a sequence of characters delimited by single or double quotes.
 // Applies to properties like font-family.

@@ -17,11 +17,18 @@
 #ifndef CSSOM_ABSOLUTE_URL_VALUE_H_
 #define CSSOM_ABSOLUTE_URL_VALUE_H_
 
+#include <string>
+
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // This class is used when promoting specified style to computed style and
 // resolving relative URLs to absolute URLs. It is never created by the parser.

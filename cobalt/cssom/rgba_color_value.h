@@ -17,15 +17,17 @@
 #ifndef CSSOM_RGBA_COLOR_VALUE_H_
 #define CSSOM_RGBA_COLOR_VALUE_H_
 
-#include <iostream>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/stringprintf.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Represents color values that are convertible to RGBA without knowledge
 // of element's context, for example:
@@ -58,14 +60,7 @@ class RGBAColorValue : public PropertyValue {
   uint8_t b() const { return static_cast<uint8_t>((value_ >> 8) & 0xFF); }
   uint8_t a() const { return static_cast<uint8_t>((value_ >> 0) & 0xFF); }
 
-  std::string ToString() const OVERRIDE {
-    if (a() >= 255.0) {
-      return base::StringPrintf("rgb(%u,%u,%u)", r(), g(), b());
-    } else {
-      return base::StringPrintf("rgba(%u,%u,%u,%.7g)", r(), g(), b(),
-                                a() / 255.0);
-    }
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const RGBAColorValue& other) const {
     return value_ == other.value_;
