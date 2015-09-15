@@ -18,8 +18,8 @@
 #define CSSOM_MEDIA_LIST_H_
 
 #include <string>
-#include <vector>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/wrappable.h"
 
@@ -28,6 +28,7 @@ namespace cssom {
 
 class CSSParser;
 class MediaQuery;
+class PropertyValue;
 
 typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;
 

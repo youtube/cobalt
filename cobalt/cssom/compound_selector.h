@@ -17,15 +17,16 @@
 #ifndef CSSOM_COMPOUND_SELECTOR_H_
 #define CSSOM_COMPOUND_SELECTOR_H_
 
-#include <string>
-
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
+
+class SelectorVisitor;
 
 // A compound selector is a chain of simple selectors that are not separated by
 // a combinator.

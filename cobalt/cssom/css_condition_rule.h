@@ -17,15 +17,19 @@
 #ifndef CSSOM_CSS_CONDITION_RULE_H_
 #define CSSOM_CSS_CONDITION_RULE_H_
 
-#include "cobalt/cssom/css_grouping_rule.h"
-
 #include <string>
+
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/cssom/css_grouping_rule.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
+class CSSRuleList;
 class CSSRuleVisitor;
-class CSSStyleSheet;
 
 // The CSSConditionRule interface represents all the "conditional" at-rules,
 // which consist of a condition and a statement block.

@@ -18,6 +18,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -60,6 +61,20 @@ const scoped_refptr<FontStyleValue>& FontStyleValue::GetOblique() {
 
 void FontStyleValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitFontStyle(this);
+}
+
+std::string FontStyleValue::ToString() const {
+  switch (value_) {
+    case kItalic:
+      return kItalicKeywordName;
+    case kNormal:
+      return kNormalKeywordName;
+    case kOblique:
+      return kObliqueKeywordName;
+    default:
+      NOTREACHED();
+      return "";
+  }
 }
 
 }  // namespace cssom

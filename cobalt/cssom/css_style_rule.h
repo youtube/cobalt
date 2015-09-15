@@ -21,8 +21,9 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
-#include "base/memory/scoped_vector.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/selector.h"
@@ -30,6 +31,7 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSRuleVisitor;
 class CSSStyleDeclaration;
 class StyleSheet;
 

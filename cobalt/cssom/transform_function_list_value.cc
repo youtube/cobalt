@@ -31,5 +31,15 @@ math::Matrix3F TransformFunctionListValue::ToMatrix() const {
   return transform_matrix;
 }
 
+std::string TransformFunctionListValue::ToString() const {
+  std::string result;
+  for (size_t i = 0; i < value().size(); ++i) {
+    if (!result.empty()) result.append(" ");
+    result.append(value()[i]->ToString());
+  }
+  return result;
+}
+
+
 }  // namespace cssom
 }  // namespace cobalt

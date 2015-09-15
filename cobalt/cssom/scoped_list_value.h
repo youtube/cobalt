@@ -17,12 +17,10 @@
 #ifndef CSSOM_SCOPED_LIST_VALUE_H_
 #define CSSOM_SCOPED_LIST_VALUE_H_
 
-#include <vector>
-
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/cssom/property_value.h"
-#include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
 namespace cssom {

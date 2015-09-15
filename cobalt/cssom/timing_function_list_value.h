@@ -17,6 +17,11 @@
 #ifndef CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 #define CSSOM_TIMING_FUNCTION_LIST_VALUE_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/scoped_ref_list_value.h"
 #include "cobalt/cssom/timing_function.h"
 
@@ -33,14 +38,7 @@ class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
     visitor->VisitTimingFunctionList(this);
   }
 
-  std::string ToString() const OVERRIDE {
-    std::string result;
-    for (size_t i = 0; i < value().size(); ++i) {
-      if (!result.empty()) result.append(", ");
-      result.append(value()[i]->ToString());
-    }
-    return result;
-  }
+  std::string ToString() const OVERRIDE;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimingFunctionListValue);
 

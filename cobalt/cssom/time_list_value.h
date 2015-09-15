@@ -17,11 +17,14 @@
 #ifndef CSSOM_TIME_LIST_VALUE_H_
 #define CSSOM_TIME_LIST_VALUE_H_
 
-#include <inttypes.h>
+#include <string>
 
-#include "base/stringprintf.h"
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/time.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/list_value.h"
+#include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
 namespace cssom {
@@ -38,20 +41,7 @@ class TimeListValue : public ListValue<base::TimeDelta> {
     visitor->VisitTimeList(this);
   }
 
-  std::string ToString() const OVERRIDE {
-    std::string result;
-    for (size_t i = 0; i < value().size(); ++i) {
-      if (!result.empty()) result.append(", ");
-      int64 in_ms = value()[i].InMilliseconds();
-      int64 truncated_to_seconds = in_ms / base::Time::kMillisecondsPerSecond;
-      if (in_ms == base::Time::kMillisecondsPerSecond * truncated_to_seconds) {
-        result.append(base::StringPrintf("%" PRIu64 "s", truncated_to_seconds));
-      } else {
-        result.append(base::StringPrintf("%" PRIu64 "ms", in_ms));
-      }
-    }
-    return result;
-  }
+  std::string ToString() const OVERRIDE;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimeListValue);
 

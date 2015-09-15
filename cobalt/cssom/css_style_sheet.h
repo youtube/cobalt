@@ -18,12 +18,14 @@
 #define CSSOM_CSS_STYLE_SHEET_H_
 
 #include <string>
-#include <vector>
 
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/style_sheet.h"
+#include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace cssom {

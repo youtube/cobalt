@@ -17,6 +17,7 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 
 #include "base/lazy_instance.h"
+#include "cobalt/cssom/media_feature_keyword_value_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -72,6 +73,22 @@ MediaFeatureKeywordValue::GetProgressive() {
 
 void MediaFeatureKeywordValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitMediaFeatureKeywordValue(this);
+}
+
+std::string MediaFeatureKeywordValue::ToString() const {
+  switch (value_) {
+    case kInterlace:
+      return kInterlaceMediaFeatureKeywordValueName;
+    case kLandscape:
+      return kLandscapeMediaFeatureKeywordValueName;
+    case kPortrait:
+      return kPortraitMediaFeatureKeywordValueName;
+    case kProgressive:
+      return kProgressiveMediaFeatureKeywordValueName;
+    default:
+      NOTREACHED();
+      return "";
+  }
 }
 
 }  // namespace cssom
