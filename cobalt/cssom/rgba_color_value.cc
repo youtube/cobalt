@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/rgba_color_value.h"
 
+#include "base/stringprintf.h"
 #include "cobalt/cssom/property_value_visitor.h"
 
 namespace cobalt {
@@ -23,6 +24,15 @@ namespace cssom {
 
 void RGBAColorValue::Accept(PropertyValueVisitor* visitor) {
   visitor->VisitRGBAColor(this);
+}
+
+std::string RGBAColorValue::ToString() const {
+  if (a() >= 255.0) {
+    return base::StringPrintf("rgb(%u,%u,%u)", r(), g(), b());
+  } else {
+    return base::StringPrintf("rgba(%u,%u,%u,%.7g)", r(), g(), b(),
+                              a() / 255.0);
+  }
 }
 
 }  // namespace cssom

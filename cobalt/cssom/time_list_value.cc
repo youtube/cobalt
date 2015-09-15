@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-#include "cobalt/cssom/resolution_value.h"
+#include <inttypes.h>
 
 #include "base/stringprintf.h"
-#include "cobalt/cssom/property_value_visitor.h"
+#include "cobalt/cssom/time_list_value.h"
 
 namespace cobalt {
 namespace cssom {
 
-void ResolutionValue::Accept(PropertyValueVisitor* visitor) {
-  visitor->VisitResolution(this);
-}
-
-std::string ResolutionValue::ToString() const {
-  return base::StringPrintf(
-      "%.7g%s", value_,
-      unit_ == kDPIUnit ? "dpi" : unit_ == kDPCMUnit ? "dpcm" : "");
+std::string TimeListValue::ToString() const {
+  std::string result;
+  for (size_t i = 0; i < value().size(); ++i) {
+    if (!result.empty()) result.append(", ");
+    int64 in_ms = value()[i].InMilliseconds();
+    int64 truncated_to_seconds = in_ms / base::Time::kMillisecondsPerSecond;
+    if (in_ms == base::Time::kMillisecondsPerSecond * truncated_to_seconds) {
+      result.append(base::StringPrintf("%" PRIu64 "s", truncated_to_seconds));
+    } else {
+      result.append(base::StringPrintf("%" PRIu64 "ms", in_ms));
+    }
+  }
+  return result;
 }
 
 }  // namespace cssom

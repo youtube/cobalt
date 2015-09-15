@@ -17,13 +17,15 @@
 #ifndef CSSOM_BEFORE_PSEUDO_ELEMENT_H_
 #define CSSOM_BEFORE_PSEUDO_ELEMENT_H_
 
-#include <string>
-
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
+
+class SelectorVisitor;
 
 // Authors specify the style and location of generated content with the :before
 // and :after pseudo-elements. As their names indicate, the :before and :after

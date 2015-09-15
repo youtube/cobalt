@@ -19,11 +19,15 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
+
+class SelectorVisitor;
 
 // The :empty pseudo-class represents an element that has no children. In terms
 // of the document tree, only element nodes and content nodes (such as DOM

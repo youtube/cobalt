@@ -18,12 +18,13 @@
 #define CSSOM_COMPUTED_STYLE_H_
 
 #include "base/hash_tables.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/loader/image_cache.h"
+#include "base/memory/ref_counted.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace cssom {
+
+class CSSStyleDeclarationData;
 
 typedef base::hash_map<const char*, GURL> GURLMap;
 

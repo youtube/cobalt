@@ -17,13 +17,18 @@
 #ifndef CSSOM_FONT_WEIGHT_VALUE_H_
 #define CSSOM_FONT_WEIGHT_VALUE_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/keyword_names.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 // Specifies the weight of glyphs in the font, their degree of blackness
 // or stroke thickness.
@@ -58,25 +63,8 @@ class FontWeightValue : public PropertyValue {
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
-    switch (value_) {
-      case kNormalAka400:
-        return kNormalKeywordName;
-      case kBoldAka700:
-        return kBoldKeywordName;
-      case kThinAka100:
-      case kExtraLightAka200:
-      case kLightAka300:
-      case kMediumAka500:
-      case kSemiBoldAka600:
-      case kExtraBoldAka800:
-      case kBlackAka900:
-      default:
-        // These values are not implemented by the scanner/parser.
-        NOTIMPLEMENTED();
-        return "";
-    }
-  }
+  std::string ToString() const OVERRIDE;
+
   bool operator==(const FontWeightValue& other) const {
     return value_ == other.value_;
   }

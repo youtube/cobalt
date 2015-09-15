@@ -17,14 +17,17 @@
 #ifndef CSSOM_MATRIX_FUNCTION_H_
 #define CSSOM_MATRIX_FUNCTION_H_
 
-#include "base/memory/ref_counted.h"
-#include "base/stringprintf.h"
-#include "cobalt/cssom/property_value.h"
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/math/matrix3_f.h"
 
 namespace cobalt {
 namespace cssom {
+
+class TransformFunctionVisitor;
 
 // The matrix function allows one to specify a 2D 2x3 affine transformation
 // as a matrix.
@@ -40,11 +43,7 @@ class MatrixFunction : public TransformFunction {
 
   const math::Matrix3F& value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
-    return base::StringPrintf("matrix(%.7g, %.7g, %.7g, %.7g, %.7g, %.7g)",
-                              value_(0, 0), value_(1, 0), value_(0, 1),
-                              value_(1, 1), value_(0, 2), value_(1, 2));
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const MatrixFunction& other) const {
     return value_ == other.value_;

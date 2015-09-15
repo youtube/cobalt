@@ -21,11 +21,14 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/media_feature_keyword_value_names.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
+
+class PropertyValueVisitor;
 
 class MediaFeatureKeywordValue : public PropertyValue {
  public:
@@ -64,22 +67,7 @@ class MediaFeatureKeywordValue : public PropertyValue {
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
-    switch (value_) {
-      case kInterlace:
-        return kInterlaceMediaFeatureKeywordValueName;
-      case kLandscape:
-        return kLandscapeMediaFeatureKeywordValueName;
-      case kPortrait:
-        return kPortraitMediaFeatureKeywordValueName;
-      case kProgressive:
-        return kProgressiveMediaFeatureKeywordValueName;
-      default:
-        NOTREACHED();
-        return "";
-    }
-  }
-
+  std::string ToString() const OVERRIDE;
   bool operator==(const MediaFeatureKeywordValue& other) const {
     return value_ == other.value_;
   }

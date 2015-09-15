@@ -16,8 +16,10 @@
 
 #include "cobalt/cssom/translate_function.h"
 
-#include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cssom/length_value.h"
+#include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/transform_function_visitor.h"
 
 namespace cobalt {
 namespace cssom {
@@ -47,6 +49,33 @@ scoped_refptr<PercentageValue> TranslateFunction::offset_as_percentage() const {
 
 void TranslateFunction::Accept(TransformFunctionVisitor* visitor) const {
   visitor->VisitTranslate(this);
+}
+
+std::string TranslateFunction::ToString() const {
+  char axis = 'X';
+  switch (axis_) {
+    case kXAxis:
+      axis = 'X';
+      break;
+    case kYAxis:
+      axis = 'Y';
+      break;
+    case kZAxis:
+      axis = 'Z';
+      break;
+    default:
+      axis = ' ';
+      NOTREACHED();
+      break;
+  }
+  std::string result = "translate";
+  result.push_back(axis);
+  result.push_back('(');
+  if (offset_) {
+    result.append(offset_->ToString());
+  }
+  result.push_back(')');
+  return result;
 }
 
 }  // namespace cssom

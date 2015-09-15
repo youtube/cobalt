@@ -16,6 +16,8 @@
 
 #include "cobalt/cssom/timing_function.h"
 
+#include <algorithm>
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 
@@ -93,6 +95,28 @@ float SteppingTimingFunction::Evaluate(float x) const {
   return std::min(static_cast<int>(x * number_of_steps_ + offset_amount) /
                       static_cast<float>(number_of_steps_),
                   1.0f);
+}
+
+std::string CubicBezierTimingFunction::ToString() {
+  return base::StringPrintf("cubic-bezier(%.7g,%.7g,%.7g,%.7g)",
+                            cubic_bezier_.x1(), cubic_bezier_.y1(),
+                            cubic_bezier_.x2(), cubic_bezier_.y2());
+}
+
+std::string SteppingTimingFunction::ToString() {
+  std::string result = base::StringPrintf("steps(%d, ", number_of_steps_);
+  switch (value_change_location_) {
+    case kStart: {
+      result.append(kStartKeywordName);
+      break;
+    }
+    case kEnd: {
+      result.append(kEndKeywordName);
+      break;
+    }
+  }
+  result.push_back(')');
+  return result;
 }
 
 }  // namespace cssom

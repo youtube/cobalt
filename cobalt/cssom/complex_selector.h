@@ -17,15 +17,19 @@
 #ifndef CSSOM_COMPLEX_SELECTOR_H_
 #define CSSOM_COMPLEX_SELECTOR_H_
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/adjacent_selector.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {
+
+class SelectorVisitor;
 
 // A complex selector is a chain of one or more adjacent selectors separated by
 // adjacent combinators.
