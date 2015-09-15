@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A description of the current platform in lurid detail such that common code
+// never needs to actually know what the current operating system and
+// architecture are. It is both very pragmatic and canonical in that if any
+// application code finds itself needing to make a platform decision, it should
+// always define a Starboard Configuration feature instead. This implies the
+// continued existence of very narrowly-defined configuration features, but it
+// retains porting control in Starboard.
+
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
 
@@ -40,20 +48,23 @@
 // header available.
 #define SB_HAS(SB_FEATURE) (defined(SB_HAS_##SB_FEATURE) && SB_HAS_##SB_FEATURE)
 
-// Determines at compile-time an aspect of this platform.
+// Determines at compile-time an inherent aspect of this platform.
 #define SB_IS(SB_FEATURE) (defined(SB_IS_##SB_FEATURE) && SB_IS_##SB_FEATURE)
 
-// Determines at compile-time if this platform implements a given version number
-// or above.
+// Determines at compile-time if this platform implements a given Starboard API
+// version number (or above).
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
+
+// A constant expression that evaluates to the size of a statically-sized array.
+#define SB_ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
-#define SB_IS_COMPILER_GCC 1
+#  define SB_IS_COMPILER_GCC 1
 #elif defined(_MSC_VER)
-#define SB_IS_COMPILER_MSVC 1
+#  define SB_IS_COMPILER_MSVC 1
 #endif
 
 
