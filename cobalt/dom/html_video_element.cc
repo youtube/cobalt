@@ -17,6 +17,7 @@
 #include "cobalt/dom/html_video_element.h"
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,6 +28,32 @@ HTMLVideoElement::HTMLVideoElement(Document* document)
     : HTMLMediaElement(document) {}
 
 std::string HTMLVideoElement::tag_name() const { return kTagName; }
+
+uint32 HTMLVideoElement::width() const {
+  uint32 result = 0;
+  std::string value_in_string = GetAttribute("width").value_or("0");
+  if (!base::StringToUint32(value_in_string, &result)) {
+    LOG(WARNING) << "Invalid width attribute: \'" << value_in_string << "\'";
+  }
+  return result;
+}
+
+uint32 HTMLVideoElement::height() const {
+  uint32 result = 0;
+  std::string value_in_string = GetAttribute("height").value_or("0");
+  if (!base::StringToUint32(value_in_string, &result)) {
+    LOG(WARNING) << "Invalid height attribute: \'" << value_in_string << "\'";
+  }
+  return result;
+}
+
+void HTMLVideoElement::set_width(uint32 width) {
+  SetAttribute("width", base::Uint32ToString(width));
+}
+
+void HTMLVideoElement::set_height(uint32 height) {
+  SetAttribute("height", base::Uint32ToString(height));
+}
 
 uint32 HTMLVideoElement::video_width() const {
   if (!player()) {
