@@ -205,8 +205,6 @@ class HTMLMediaElement : public HTMLElement,
   // WebMediaPlayerClient methods
   void NetworkStateChanged() OVERRIDE;
   void ReadyStateChanged() OVERRIDE;
-  void VolumeChanged(float volume) OVERRIDE;
-  void MuteChanged(bool mute) OVERRIDE;
   void TimeChanged() OVERRIDE;
   void DurationChanged() OVERRIDE;
   void RateChanged() OVERRIDE;
