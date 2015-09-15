@@ -56,7 +56,14 @@
         '<(DEPTH)/cobalt/storage/storage.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
-      ]
-    }
+      ],
+      'conditions': [
+        ['starboard != 0', {
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
+          ],
+        }],
+      ],
+    },
   ],
 }
