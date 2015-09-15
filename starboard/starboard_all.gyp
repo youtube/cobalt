@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# The common starboard target. Any target that depends on Starboard should
+# depend on this common target, and not any of the specific starboard_platform
+# targets.
+
 {
   'targets': [
     {
-      'target_name': 'starboard',
+      'target_name': 'starboard_all',
       'type': 'none',
-      'sources': [
-        'atomic.h',
-        'configuration.h',
-        'export.h',
-        'system.h',
-      ],
       'dependencies': [
-        '<(DEPTH)/starboard/<(starboard_platform)/starboard_platform.gyp:starboard_platform',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/nplb/nplb.gyp:nplb',
       ],
     },
   ],

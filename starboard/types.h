@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A suite of standard types that should be universally available on all
+// platforms, specifically focused on explicitly-sized integer types and
+// booleans. This module also includes some related ubiquitous definitions like
+// limits of the explicitly-sized integer types, and standard pointer and int32
+// sentinel values.
+
 #ifndef STARBOARD_TYPES_H_
 #define STARBOARD_TYPES_H_
 
@@ -88,31 +94,31 @@ typedef SB_UINTPTR uintptr_t;
 #  pragma warning(disable : 4310)  // Cast truncates constant value.
 #endif
 
-const   int8_t kSbInt8Min   = ((  int8_t) 0x80);
-const   int8_t kSbInt8Max   = ((  int8_t) 0x7F);
-const  uint8_t kSbUInt8Max  = (( uint8_t) 0xFF);
+static const   int8_t kSbInt8Min  =((  int8_t)0x80);
+static const   int8_t kSbInt8Max  =((  int8_t)0x7F);
+static const  uint8_t kSbUInt8Max =(( uint8_t)0xFF);
 
-const  int16_t kSbInt16Min  = (( int16_t) 0x8000);
-const  int16_t kSbInt16Max  = (( int16_t) 0x7FFF);
-const uint16_t kSbUInt16Max = ((uint16_t) 0xFFFF);
+static const  int16_t kSbInt16Min =(( int16_t)0x8000);
+static const  int16_t kSbInt16Max =(( int16_t)0x7FFF);
+static const uint16_t kSbUInt16Max=((uint16_t)0xFFFF);
 
-const  int32_t kSbInt32Min  = (( int32_t) 0x80000000);
-const  int32_t kSbInt32Max  = (( int32_t) 0x7FFFFFFF);
-const uint32_t kSbUInt32Max = ((uint32_t) 0xFFFFFFFF);
+static const  int32_t kSbInt32Min =(( int32_t)0x80000000);
+static const  int32_t kSbInt32Max =(( int32_t)0x7FFFFFFF);
+static const uint32_t kSbUInt32Max=((uint32_t)0xFFFFFFFF);
 
-const  int64_t kSbInt64Min  = (( int64_t) SB_LONGLONG(0x8000000000000000));
-const  int64_t kSbInt64Max  = (( int64_t) SB_LONGLONG(0x7FFFFFFFFFFFFFFF));
-const uint64_t kSbUInt64Max = ((uint64_t) SB_LONGLONG(0xFFFFFFFFFFFFFFFF));
+static const  int64_t kSbInt64Min =(( int64_t)SB_LONGLONG(0x8000000000000000));
+static const  int64_t kSbInt64Max =(( int64_t)SB_LONGLONG(0x7FFFFFFFFFFFFFFF));
+static const uint64_t kSbUInt64Max=((uint64_t)SB_LONGLONG(0xFFFFFFFFFFFFFFFF));
 
 #if defined(_MSC_VER)
 #  pragma warning(pop)
 #endif
 
 // A value that represents a pointer that must be invalid.
-const void *kSbInvalidPointer = NULL;
+static const void *kSbInvalidPointer = NULL;
 
 // A value that represents an int that is probably invalid.
-const int32_t kSbInvalidInt = kSbInt32Min;
+static const int32_t kSbInvalidInt = kSbInt32Min;
 
 #ifdef __cplusplus
 }  // extern "C"
