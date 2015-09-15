@@ -37,6 +37,10 @@ class HTMLVideoElement : public HTMLMediaElement {
 
   // Web API: HTMLVideoElement
   //
+  uint32 width() const;
+  uint32 height() const;
+  void set_width(uint32 width);
+  void set_height(uint32 height);
   uint32 video_width() const;
   uint32 video_height() const;
 
