@@ -98,6 +98,8 @@
         'html_link_element.h',
         'html_media_element.cc',
         'html_media_element.h',
+        'html_meta_element.cc',
+        'html_meta_element.h',
         'html_paragraph_element.cc',
         'html_paragraph_element.h',
         'html_script_element.cc',
