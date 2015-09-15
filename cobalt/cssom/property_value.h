@@ -17,6 +17,8 @@
 #ifndef CSSOM_PROPERTY_VALUE_H_
 #define CSSOM_PROPERTY_VALUE_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/polymorphic_equatable.h"
 

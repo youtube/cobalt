@@ -19,14 +19,20 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "cobalt/cssom/css_condition_rule.h"
+#include "cobalt/cssom/css_rule.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace cssom {
 
 class MediaList;
+class PropertyValue;
 class CSSRuleList;
 class CSSRuleVisitor;
+class CSSStyleSheet;
 
 // The CSSMediaRule interface represents an @media at-rule.
 //   http://www.w3.org/TR/cssom/#the-cssmediarule-interface

@@ -21,7 +21,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "cobalt/cssom/keyword_names.h"
+#include "base/memory/ref_counted.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -186,59 +187,7 @@ class KeywordValue : public PropertyValue {
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
-    switch (value_) {
-      case kAbsolute:
-        return kAbsoluteKeywordName;
-      case kAuto:
-        return kAutoKeywordName;
-      case kBaseline:
-        return kBaselineKeywordName;
-      case kBlock:
-        return kBlockKeywordName;
-      case kCenter:
-        return kCenterKeywordName;
-      case kContain:
-        return kContainKeywordName;
-      case kCover:
-        return kCoverKeywordName;
-      case kHidden:
-        return kHiddenKeywordName;
-      case kInherit:
-        return kInheritKeywordName;
-      case kInitial:
-        return kInitialKeywordName;
-      case kInline:
-        return kInlineKeywordName;
-      case kInlineBlock:
-        return kInlineBlockKeywordName;
-      case kLeft:
-        return kLeftKeywordName;
-      case kMiddle:
-        return kMiddleKeywordName;
-      case kNone:
-        return kNoneKeywordName;
-      case kNoRepeat:
-        return kNoRepeatKeywordName;
-      case kNormal:
-        return kNormalKeywordName;
-      case kRelative:
-        return kRelativeKeywordName;
-      case kRepeat:
-        return kRepeatKeywordName;
-      case kRight:
-        return kRightKeywordName;
-      case kStatic:
-        return kStaticKeywordName;
-      case kTop:
-        return kTopKeywordName;
-      case kVisible:
-        return kVisibleKeywordName;
-      default:
-        NOTREACHED();
-        return "";
-    }
-  }
+  std::string ToString() const OVERRIDE;
 
   bool operator==(const KeywordValue& other) const {
     return value_ == other.value_;

@@ -17,13 +17,18 @@
 #ifndef CSSOM_ROTATE_FUNCTION_H_
 #define CSSOM_ROTATE_FUNCTION_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/stringprintf.h"
-#include "cobalt/cssom/property_value.h"
+#include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/transform_function.h"
 
 namespace cobalt {
 namespace cssom {
+
+class TransformFunctionVisitor;
 
 // The rotate function specifies a 2D rotation operation by the the specified
 // angle.

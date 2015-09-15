@@ -16,6 +16,7 @@
 
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/initial_style.h"
 
 namespace cobalt {

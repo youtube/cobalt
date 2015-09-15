@@ -17,7 +17,9 @@
 #ifndef CSSOM_STYLE_SHEET_H_
 #define CSSOM_STYLE_SHEET_H_
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/cssom/cascade_priority.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"

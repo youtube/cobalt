@@ -22,6 +22,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/cssom/selector.h"
+#include "cobalt/cssom/specificity.h"
 
 namespace cobalt {
 namespace cssom {

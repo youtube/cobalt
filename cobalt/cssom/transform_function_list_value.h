@@ -17,6 +17,11 @@
 #ifndef CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
 #define CSSOM_TRANSFORM_FUNCTION_LIST_VALUE_H_
 
+#include <string>
+
+#include "base/compiler_specific.h"
+#include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/scoped_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/math/matrix3_f.h"
@@ -39,14 +44,7 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
 
   math::Matrix3F ToMatrix() const;
 
-  std::string ToString() const OVERRIDE {
-    std::string result;
-    for (size_t i = 0; i < value().size(); ++i) {
-      if (!result.empty()) result.append(" ");
-      result.append(value()[i]->ToString());
-    }
-    return result;
-  }
+  std::string ToString() const OVERRIDE;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformFunctionListValue);
 
