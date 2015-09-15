@@ -84,6 +84,8 @@ TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {
   EXPECT_TRUE(html_element->AsHTMLImageElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "link");
   EXPECT_TRUE(html_element->AsHTMLLinkElement());
+  html_element = html_element_factory_.CreateHTMLElement(document_, "meta");
+  EXPECT_TRUE(html_element->AsHTMLMetaElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "p");
   EXPECT_TRUE(html_element->AsHTMLParagraphElement());
   html_element = html_element_factory_.CreateHTMLElement(document_, "script");
