@@ -444,7 +444,7 @@ void HTMLMediaElement::set_muted(bool muted) {
     // Avoid recursion when the player reports volume changes.
     if (!ProcessingMediaPlayerCallback()) {
       if (player_) {
-        // player_->setMuted(muted_);
+        player_->SetVolume(muted_ ? 0 : volume_);
       }
     }
     ScheduleEvent(EventNames::GetInstance()->volumechange());
@@ -1034,8 +1034,7 @@ void HTMLMediaElement::UpdateVolume() {
   }
 
   if (!ProcessingMediaPlayerCallback()) {
-    // player_->SetMuted(muted_);
-    player_->SetVolume(volume_);
+    player_->SetVolume(muted_ ? 0 : volume_);
   }
 }
 
@@ -1053,7 +1052,7 @@ void HTMLMediaElement::UpdatePlayState() {
       // media engine was setup. The media engine should just stash the rate and
       // muted values since it isn't already playing.
       player_->SetRate(playback_rate_);
-      // player_->SetMuted(muted_);
+      player_->SetVolume(muted_ ? 0 : volume_);
 
       player_->Play();
     }
@@ -1167,28 +1166,6 @@ void HTMLMediaElement::NetworkStateChanged() {
 void HTMLMediaElement::ReadyStateChanged() {
   BeginProcessingMediaPlayerCallback();
   SetReadyState(player_->GetReadyState());
-  EndProcessingMediaPlayerCallback();
-}
-
-void HTMLMediaElement::VolumeChanged(float volume) {
-  UNREFERENCED_PARAMETER(volume);
-  BeginProcessingMediaPlayerCallback();
-  if (player_) {
-    float vol = 1.0;  // player_->Volume();
-    if (vol != volume_) {
-      volume_ = vol;
-      UpdateVolume();
-      ScheduleEvent(EventNames::GetInstance()->volumechange());
-    }
-  }
-  EndProcessingMediaPlayerCallback();
-}
-
-void HTMLMediaElement::MuteChanged(bool mute) {
-  UNREFERENCED_PARAMETER(mute);
-  BeginProcessingMediaPlayerCallback();
-  NOTIMPLEMENTED();
-  // if (player_) { setMuted(player_->muted()); }
   EndProcessingMediaPlayerCallback();
 }
 
