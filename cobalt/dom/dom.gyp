@@ -37,6 +37,8 @@
         'console.h',
         'crypto.cc',
         'crypto.h',
+        'data_view.cc',
+        'data_view.h',
         'document.cc',
         'document.h',
         'document_type.cc',
