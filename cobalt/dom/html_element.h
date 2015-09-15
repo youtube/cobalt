@@ -45,6 +45,7 @@ class HTMLHeadingElement;
 class HTMLHtmlElement;
 class HTMLImageElement;
 class HTMLLinkElement;
+class HTMLMetaElement;
 class HTMLParagraphElement;
 class HTMLScriptElement;
 class HTMLSpanElement;
@@ -115,8 +116,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   virtual scoped_refptr<HTMLHeadElement> AsHTMLHeadElement();
   virtual scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement();
   virtual scoped_refptr<HTMLHtmlElement> AsHTMLHtmlElement();
-  virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
   virtual scoped_refptr<HTMLImageElement> AsHTMLImageElement();
+  virtual scoped_refptr<HTMLLinkElement> AsHTMLLinkElement();
+  virtual scoped_refptr<HTMLMetaElement> AsHTMLMetaElement();
   virtual scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement();
   virtual scoped_refptr<HTMLScriptElement> AsHTMLScriptElement();
   virtual scoped_refptr<HTMLSpanElement> AsHTMLSpanElement();
