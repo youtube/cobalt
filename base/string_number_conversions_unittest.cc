@@ -135,6 +135,69 @@ TEST(StringNumberConversionsTest, StringToInt) {
   EXPECT_EQ(0, output);
 }
 
+TEST(StringNumberConversionsTest, StringToInt32) {
+  static const struct {
+    std::string input;
+    int32 output;
+    bool success;
+  } cases[] = {
+    {"0", 0, true},
+    {"42", 42, true},
+    {"42\x99", 42, false},
+    {"\x99" "42\x99", 0, false},
+    {"-2147483648", std::numeric_limits<int32>::min(), true},
+    {"2147483647", std::numeric_limits<int32>::max(), true},
+    {"", 0, false},
+    {" 42", 42, false},
+    {"42 ", 42, false},
+    {"\t\n\v\f\r 42", 42, false},
+    {"blah42", 0, false},
+    {"42blah", 42, false},
+    {"blah42blah", 0, false},
+    {"-273.15", -273, false},
+    {"+98.6", 98, false},
+    {"--123", 0, false},
+    {"++123", 0, false},
+    {"-+123", 0, false},
+    {"+-123", 0, false},
+    {"-", 0, false},
+    {"-2147483649", std::numeric_limits<int32>::min(), false},
+    {"-99999999999", std::numeric_limits<int32>::min(), false},
+    {"2147483648", std::numeric_limits<int32>::max(), false},
+    {"99999999999", std::numeric_limits<int32>::max(), false},
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    int32 output = 0;
+    EXPECT_EQ(cases[i].success, StringToInt32(cases[i].input, &output));
+    EXPECT_EQ(cases[i].output, output);
+
+    string16 utf16_input = UTF8ToUTF16(cases[i].input);
+    output = 0;
+    EXPECT_EQ(cases[i].success, StringToInt32(utf16_input, &output));
+    EXPECT_EQ(cases[i].output, output);
+  }
+
+  // One additional test to verify that conversion of numbers in strings with
+  // embedded NUL characters.  The NUL and extra data after it should be
+  // interpreted as junk after the number.
+  const char input[] = "6\06";
+  std::string input_string(input, arraysize(input) - 1);
+  int32 output;
+  EXPECT_FALSE(StringToInt32(input_string, &output));
+  EXPECT_EQ(6, output);
+
+  string16 utf16_input = UTF8ToUTF16(input_string);
+  output = 0;
+  EXPECT_FALSE(StringToInt32(utf16_input, &output));
+  EXPECT_EQ(6, output);
+
+  output = 0;
+  const char16 negative_wide_input[] = { 0xFF4D, '4', '2', 0};
+  EXPECT_FALSE(StringToInt32(string16(negative_wide_input), &output));
+  EXPECT_EQ(0, output);
+}
+
 TEST(StringNumberConversionsTest, StringToUint32) {
   static const struct {
     std::string input;
