@@ -260,7 +260,6 @@
             'sys_string_conversions_posix.cc',
             'threading/thread_local_posix.cc',
             'threading/thread_local_storage_posix.cc',
-
           ],
           'sources/': [
             ['exclude', '^win/'],
@@ -809,6 +808,10 @@
         ['OS == "lb_shell"', {
           'sources!': [
             'environment_unittest.cc',
+            # We don't use field trials (an experiments framework) in Cobalt,
+            # and these tests depend on the current date being set correctly,
+            # so do not run them.
+            'metrics/field_trial_unittest.cc',
             'metrics/stats_table_unittest.cc',
             'process_util_unittest.cc',
             'shared_memory_unittest.cc',
