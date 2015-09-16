@@ -1,4 +1,6 @@
 15-1-matrix-transform-function
 15-1-rotate-transform-function
+4-bounding-box-should-be-border-box
 7-replaced-boxes-transform
+7-transform-should-establish-stacking-context
 7-translation-transform-supports-percentages
