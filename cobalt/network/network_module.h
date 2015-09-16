@@ -55,7 +55,7 @@ class NetworkModule {
     return url_request_context_getter_;
   }
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy() const {
-    return io_thread_->message_loop_proxy();
+    return thread_->message_loop_proxy();
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
 
@@ -63,7 +63,7 @@ class NetworkModule {
   void OnCreate(base::WaitableEvent* creation_event);
 
   storage::StorageManager* storage_manager_;
-  scoped_ptr<base::Thread> io_thread_;
+  scoped_ptr<base::Thread> thread_;
   scoped_ptr<base::ObjectWatchMultiplexer> object_watch_multiplexer_;
   scoped_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;

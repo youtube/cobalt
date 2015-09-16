@@ -40,7 +40,7 @@ class CreateImagesThread : public base::SimpleThread {
  public:
   CreateImagesThread(ResourceProvider* resource_provider,
                      int num_images_to_create)
-      : base::SimpleThread("CreateImagesThread"),
+      : base::SimpleThread("CreateImages"),
         resource_provider_(resource_provider),
         num_images_to_create_(num_images_to_create) {}
 
@@ -69,7 +69,7 @@ class CreateImagesSpawnerThread : public base::SimpleThread {
                             int threads_to_create,
                             int images_to_create_per_thread,
                             base::Closure finished_callback)
-      : base::SimpleThread("CreateImagesSpawnerThread"),
+      : base::SimpleThread("CreateImagesSpawner"),
         resource_provider_(resource_provider),
         threads_to_create_(threads_to_create),
         images_to_create_per_thread_(images_to_create_per_thread),

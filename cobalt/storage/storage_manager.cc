@@ -106,17 +106,17 @@ void SqlUpdateDatabaseUserVersion(sql::Connection* connection) {
 
 StorageManager::StorageManager(const Options& options)
     : options_(options),
-      sql_thread_(new base::Thread("StorageManager")),
-      io_thread_(new base::Thread("StorageIO")),
+      sql_thread_(new base::Thread("StorageManager SQL")),
+      storage_thread_(new base::Thread("StorageManager Storage")),
       ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
       storage_ready_(true /* manual reset */, false /* initially signalled */),
       connection_(new sql::Connection()),
       loaded_database_version_(0),
       initialized_(false) {
   // Start the savegame load immediately.
-  io_thread_->Start();
-  io_message_loop_ = io_thread_->message_loop_proxy();
-  io_message_loop_->PostTask(
+  storage_thread_->Start();
+  storage_message_loop_ = storage_thread_->message_loop_proxy();
+  storage_message_loop_->PostTask(
       FROM_HERE, base::Bind(&StorageManager::OnInitIO, base::Unretained(this)));
 
   sql_thread_->Start();
@@ -125,15 +125,16 @@ StorageManager::StorageManager(const Options& options)
 
 StorageManager::~StorageManager() {
   // Destroy various objects on the proper thread.
-  io_message_loop_->PostTask(FROM_HERE, base::Bind(&StorageManager::OnDestroyIO,
-                                                   base::Unretained(this)));
+  storage_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&StorageManager::OnDestroyIO, base::Unretained(this)));
 
   sql_message_loop_->PostTask(FROM_HERE, base::Bind(&StorageManager::OnDestroy,
                                                     base::Unretained(this)));
 
   // Force all tasks to finish. Then we can safely let the rest of our
   // member variables be destroyed.
-  io_thread_.reset(NULL);
+  storage_thread_.reset(NULL);
   sql_thread_.reset(NULL);
 }
 
@@ -164,7 +165,7 @@ void StorageManager::Flush(const base::Closure& callback) {
   // Re-start the auto-flush timer.
   flush_timer_->Reset();
 
-  io_message_loop_->PostTask(
+  storage_message_loop_->PostTask(
       FROM_HERE, base::Bind(&StorageManager::OnFlushIO, base::Unretained(this),
                             callback, base::Passed(&raw_bytes_ptr)));
 }
@@ -281,7 +282,7 @@ void StorageManager::FinishInit() {
 }
 
 void StorageManager::OnInitIO() {
-  DCHECK(io_message_loop_->BelongsToCurrentThread());
+  DCHECK(storage_message_loop_->BelongsToCurrentThread());
 
   // Create a savegame object on the storage I/O thread.
   savegame_ = options_.savegame_options.CreateSavegame();
@@ -296,7 +297,7 @@ void StorageManager::OnInitIO() {
 
 void StorageManager::OnFlushIO(const base::Closure& callback,
                                scoped_ptr<Savegame::ByteVector> raw_bytes_ptr) {
-  DCHECK(io_message_loop_->BelongsToCurrentThread());
+  DCHECK(storage_message_loop_->BelongsToCurrentThread());
 
   if (raw_bytes_ptr->size() > 0) {
     bool ret = savegame_->Write(*raw_bytes_ptr);
@@ -317,7 +318,7 @@ void StorageManager::OnDestroy() {
 }
 
 void StorageManager::OnDestroyIO() {
-  DCHECK(io_message_loop_->BelongsToCurrentThread());
+  DCHECK(storage_message_loop_->BelongsToCurrentThread());
   // Ensure these objects are destroyed on the proper thread.
   savegame_.reset(NULL);
 }
