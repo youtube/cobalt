@@ -9,16 +9,20 @@
   <style>
     body {
       font-family: "Droid Sans";
-      font-size: 90px;
+      font-size: 50px;
       font-weight: bold;
     }
     .inline-block {
       background-color: #b3e5fc;
       display: inline-block;
     }
-    span {
+    .invisible {
       background-color: #f44336;
       /* TODO(***REMOVED***): Use "border: 1px solid #4caf50;" in addition to. */
+    }
+    .visible {
+      background-color: #4caf50;
+      padding: 0 10px;
     }
   </style>
 </head>
@@ -27,10 +31,16 @@
     <div class="inline-block"> Hello, world! </div>
   </div>
   <div>
-    <div class="inline-block"><span> </span> Hello, world!</div>
+    <div class="inline-block"><span class="visible"></span><span class="invisible"> </span> Hello, world!</div>
   </div>
   <div>
-    <div class="inline-block">Hello, world!<span> </span> </div>
+    <div class="inline-block"><span class="visible"> </span><span class="invisible"> </span> Hello, world!</div>
+  </div>
+  <div>
+    <div class="inline-block">Hello, world!<span class="invisible"> </span><span class="visible"></span></div>
+  </div>
+  <div>
+    <div class="inline-block">Hello, world!<span class="invisible"> </span><span class="visible"> </span></div>
   </div>
 </body>
 </html>
