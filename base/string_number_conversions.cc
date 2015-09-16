@@ -417,6 +417,14 @@ bool StringToUint(const StringPiece16& input, unsigned* output) {
   return String16ToIntImpl(input, output);
 }
 
+bool StringToInt32(const StringPiece& input, int32* output) {
+  return StringToIntImpl(input, output);
+}
+
+bool StringToInt32(const StringPiece16& input, int32* output) {
+  return String16ToIntImpl(input, output);
+}
+
 bool StringToUint32(const StringPiece& input, uint32* output) {
   return StringToIntImpl(input, output);
 }
