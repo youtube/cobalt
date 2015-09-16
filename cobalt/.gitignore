@@ -1,3 +1,4 @@
 *.pyc
 *.sublime-workspace
 *.swp
+gomacc.lock
