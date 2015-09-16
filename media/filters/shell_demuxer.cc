@@ -213,19 +213,12 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
   TRACE_EVENT0("media_stack", "ShellDemuxer::Initialize()");
   DCHECK(MessageLoopBelongsToCurrentThread());
   DCHECK(reader_);
+  DCHECK(!parser_);
 
   DLOG(INFO) << "this is a PROGRESSIVE playback.";
 
   host_ = host;
   data_source_->set_host(host);
-
-  // construct stream parser with error callback
-  parser_ = ShellParser::Construct(reader_, status_cb);
-  // if we can't construct a parser for this stream it's a fatal error, return
-  if (!parser_) {
-    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
-    return;
-  }
 
   // create audio and video demuxer stream objects
   audio_demuxer_stream_ = new ShellDemuxerStream(this, DemuxerStream::AUDIO);
@@ -239,11 +232,23 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
 
   base::PostTaskAndReplyWithResult(
       blocking_thread_.message_loop_proxy(), FROM_HERE,
-      base::Bind(&ShellDemuxer::ParseConfigBlocking, this),
+      base::Bind(&ShellDemuxer::ParseConfigBlocking, this, status_cb),
       base::Bind(&ShellDemuxer::ParseConfigDone, this, status_cb));
 }
 
-bool ShellDemuxer::ParseConfigBlocking() {
+bool ShellDemuxer::ParseConfigBlocking(const PipelineStatusCB& status_cb) {
+  DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
+  DCHECK(!parser_);
+
+  // construct stream parser with error callback
+  parser_ = ShellParser::Construct(reader_, status_cb);
+  // if we can't construct a parser for this stream it's a fatal error, return
+  // false so ParseConfigDone will notify the caller to Initialize() via
+  // status_cb.
+  if (!parser_) {
+    return false;
+  }
+
   // instruct the parser to extract audio and video config from the file
   if (!parser_->ParseConfig()) {
     return false;
@@ -289,6 +294,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 }
 
 void ShellDemuxer::RequestTask(DemuxerStream::Type type) {
+  DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
   DCHECK(!requested_au_) << "overlapping requests not supported!";
   flushing_ = false;
   // Ask parser for next AU
@@ -350,6 +356,7 @@ void ShellDemuxer::BufferAllocated(scoped_refptr<DecoderBuffer> buffer) {
 }
 
 void ShellDemuxer::DownloadTask(scoped_refptr<DecoderBuffer> buffer) {
+  DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
   // We need a requested_au_ or to have canceled this request and
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
@@ -457,8 +464,7 @@ void ShellDemuxer::Stop(const base::Closure &callback) {
   // errors anymore but as a natural part of stopping
   stopped_ = true;
   // stop the reader, which will stop the datasource and call back
-  reader_->Stop(BindToCurrentLoop(base::Bind(
-      &ShellDemuxer::DataSourceStopped, this, BindToCurrentLoop(callback))));
+  reader_->Stop(base::Bind(&ShellDemuxer::DataSourceStopped, this, callback));
 }
 
 void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
