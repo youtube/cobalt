@@ -189,6 +189,13 @@ class IteratorRangeToNumber {
       if (!Negative::Invoke(begin + 1, end, output)) {
         valid = false;
       }
+      // For unsigned types, any negative value is invalid and will be set to 0.
+      if (traits::min() == 0) {
+        if (*output != 0) {
+          valid = false;
+        }
+        *output = 0;
+      }
     } else {
       if (begin != end && *begin == '+') {
         ++begin;
@@ -407,6 +414,14 @@ bool StringToUint(const StringPiece& input, unsigned* output) {
 }
 
 bool StringToUint(const StringPiece16& input, unsigned* output) {
+  return String16ToIntImpl(input, output);
+}
+
+bool StringToUint32(const StringPiece& input, uint32* output) {
+  return StringToIntImpl(input, output);
+}
+
+bool StringToUint32(const StringPiece16& input, uint32* output) {
   return String16ToIntImpl(input, output);
 }
 
