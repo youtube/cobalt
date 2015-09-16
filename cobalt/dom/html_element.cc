@@ -16,8 +16,7 @@
 
 #include "cobalt/dom/html_element.h"
 
-#include <sstream>
-
+#include "base/string_number_conversions.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/cascaded_style.h"
 #include "cobalt/cssom/computed_style.h"
@@ -68,18 +67,18 @@ scoped_refptr<DOMStringMap> HTMLElement::dataset() {
   return dataset_;
 }
 
-int HTMLElement::tab_index() const {
-  std::istringstream iss(GetAttribute("tabindex").value_or("0"));
-  int value;
-  iss >> value;
-  // If the tabindex attribute cannot be converted to an int, return 0.
-  return iss.fail() ? 0 : value;
+int32 HTMLElement::tab_index() const {
+  int32 tabindex;
+  bool success =
+      base::StringToInt32(GetAttribute("tabindex").value_or(""), &tabindex);
+  if (!success) {
+    LOG(WARNING) << "Element's tabindex is not an integer.";
+  }
+  return tabindex;
 }
 
-void HTMLElement::set_tab_index(int tab_index) {
-  std::ostringstream oss;
-  oss << tab_index;
-  SetAttribute("tabindex", oss.str());
+void HTMLElement::set_tab_index(int32 tab_index) {
+  SetAttribute("tabindex", base::Int32ToString(tab_index));
 }
 
 void HTMLElement::Focus() {
