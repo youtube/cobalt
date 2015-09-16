@@ -65,6 +65,9 @@ BASE_EXPORT bool StringToInt(const StringPiece16& input, int* output);
 BASE_EXPORT bool StringToUint(const StringPiece& input, unsigned* output);
 BASE_EXPORT bool StringToUint(const StringPiece16& input, unsigned* output);
 
+BASE_EXPORT bool StringToUint32(const StringPiece& input, uint32* output);
+BASE_EXPORT bool StringToUint32(const StringPiece16& input, uint32* output);
+
 BASE_EXPORT bool StringToInt64(const StringPiece& input, int64* output);
 BASE_EXPORT bool StringToInt64(const StringPiece16& input, int64* output);
 
