@@ -30,7 +30,7 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
       buffer_size_(options.buffer_size),
       file_(base::kInvalidPlatformFileValue),
       file_offset_(0),
-      io_message_loop_(options.io_message_loop),
+      message_loop_proxy_(options.message_loop_proxy),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK_GT(buffer_size_, 0);
 
@@ -41,7 +41,7 @@ FileFetcher::FileFetcher(const FilePath& file_path, Handler* handler,
 
   // Trigger fetching in the given message loop.
   base::FileUtilProxy::CreateOrOpen(
-      io_message_loop_, actual_file_path,
+      message_loop_proxy_, actual_file_path,
       base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
       base::Bind(&FileFetcher::DidCreateOrOpen,
                  weak_ptr_factory_.GetWeakPtr()));
@@ -54,7 +54,7 @@ FileFetcher::~FileFetcher() {
 
 void FileFetcher::ReadNextChunk() {
   base::FileUtilProxy::Read(
-      io_message_loop_, file_, file_offset_, buffer_size_,
+      message_loop_proxy_, file_, file_offset_, buffer_size_,
       base::Bind(&FileFetcher::DidRead, weak_ptr_factory_.GetWeakPtr()));
 }
 

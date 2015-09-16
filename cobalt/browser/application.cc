@@ -60,7 +60,10 @@ base::TimeDelta GetTimedTraceDuration() {
 }  // namespace
 
 Application::Application()
-    : ui_message_loop_(MessageLoop::TYPE_UI) {
+    : message_loop_(MessageLoop::TYPE_UI) {
+  base::PlatformThread::SetName("Main");
+  message_loop_.set_thread_name("Main");
+
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -83,7 +86,7 @@ Application::Application()
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }
 
-Application::~Application() { DCHECK(!ui_message_loop_.is_running()); }
+Application::~Application() { DCHECK(!message_loop_.is_running()); }
 
 void Application::Quit() {
   if (!quit_closure_.is_null()) {
@@ -104,7 +107,7 @@ void Application::Run() {
     // If the "shutdown_after" command line option is specified, setup a delayed
     // message to quit the application after the specified number of seconds
     // have passed.
-    ui_message_loop_.PostDelayedTask(
+    message_loop_.PostDelayedTask(
         FROM_HERE, quit_closure_,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }

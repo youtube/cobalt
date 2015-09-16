@@ -62,7 +62,7 @@ class CreateImageThread : public base::SimpleThread {
                     base::WaitableEvent* image_ready,
                     scoped_refptr<Image>* image,
                     ResourceProvider* resource_provider)
-      : base::SimpleThread("CreateImageThread"),
+      : base::SimpleThread("CreateImage"),
         animate_has_started_(animate_has_started),
         image_ready_(image_ready),
         image_(image),

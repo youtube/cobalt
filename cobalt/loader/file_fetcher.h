@@ -39,10 +39,10 @@ class FileFetcher : public Fetcher {
    public:
     Options()
         : buffer_size(kDefaultBufferSize),
-          io_message_loop(base::MessageLoopProxy::current()) {}
+          message_loop_proxy(base::MessageLoopProxy::current()) {}
 
     int buffer_size;
-    scoped_refptr<base::MessageLoopProxy> io_message_loop;
+    scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
   FileFetcher(const FilePath& file_path, Handler* handler,
@@ -79,7 +79,7 @@ class FileFetcher : public Fetcher {
   // Current offset in the input file.
   int64 file_offset_;
   // Message loop that is used for actual IO operations in FileUtilProxy.
-  scoped_refptr<base::MessageLoopProxy> io_message_loop_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   // Used internally to support callbacks with weak references to self.
   base::WeakPtrFactory<FileFetcher> weak_ptr_factory_;
 };
