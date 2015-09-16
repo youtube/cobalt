@@ -79,7 +79,7 @@ TRACE_EVENT_BENCHMARK4(
     "FlowInitiator", cobalt::trace_event::FLOW_DURATION,
     "FlowInitiator", cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS,
     "HandleTask()", cobalt::trace_event::FLOW_DURATION) {
-  base::Thread thread("Worker Thread");
+  base::Thread thread("Worker");
   thread.Start();
 
   const int kRenderIterationCount = 40;

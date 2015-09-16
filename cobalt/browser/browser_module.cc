@@ -71,7 +71,7 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
           options.web_module_options)),
-      browser_module_message_loop_(MessageLoop::current()) {
+      self_message_loop_(MessageLoop::current()) {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
   input::KeyboardEventCallback keyboard_event_callback =
@@ -126,10 +126,10 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 void BrowserModule::OnKeyEventProduced(
     const scoped_refptr<dom::KeyboardEvent>& event) {
-  if (MessageLoop::current() != browser_module_message_loop_) {
-    browser_module_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&BrowserModule::OnKeyEventProduced,
-                              base::Unretained(this), event));
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(FROM_HERE,
+                                 base::Bind(&BrowserModule::OnKeyEventProduced,
+                                            base::Unretained(this), event));
     return;
   }
 
