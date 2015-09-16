@@ -37,7 +37,7 @@ class FetcherFactory {
   network::NetworkModule* network_module() const { return network_module_; }
 
  private:
-  base::Thread io_thread_;
+  base::Thread file_thread_;
   network::NetworkModule* network_module_;
 };
 

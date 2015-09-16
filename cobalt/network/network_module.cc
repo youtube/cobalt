@@ -34,15 +34,15 @@ void OnDestroy(scoped_ptr<URLRequestContext> /* url_request_context */,
 
 NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
     : storage_manager_(storage_manager),
-      io_thread_(new base::Thread("IO Thread")),
+      thread_(new base::Thread("NetworkModule")),
       object_watch_multiplexer_(new base::ObjectWatchMultiplexer()) {
   PlatformInit();
 
   // Launch the IO thread.
-  base::Thread::Options io_thread_options;
-  io_thread_options.message_loop_type = MessageLoop::TYPE_IO;
-  io_thread_options.stack_size = 256 * 1024;
-  io_thread_->StartWithOptions(io_thread_options);
+  base::Thread::Options thread_options;
+  thread_options.message_loop_type = MessageLoop::TYPE_IO;
+  thread_options.stack_size = 256 * 1024;
+  thread_->StartWithOptions(thread_options);
 
   base::WaitableEvent creation_event(true, false);
   // Run Network module startup on IO thread,
@@ -56,7 +56,7 @@ NetworkModule::NetworkModule(storage::StorageManager* storage_manager)
   creation_event.Wait();
   DCHECK(url_request_context_);
   url_request_context_getter_ = new network::URLRequestContextGetter(
-      url_request_context_.get(), io_thread_.get());
+      url_request_context_.get(), thread_.get());
 }
 
 NetworkModule::~NetworkModule() {
@@ -72,7 +72,7 @@ NetworkModule::~NetworkModule() {
           base::Passed(&url_request_context_),
           base::Passed(&network_delegate_)));
   // This will run the above task, and then stop the thread.
-  io_thread_.reset(NULL);
+  thread_.reset(NULL);
   object_watch_multiplexer_.reset(NULL);
   PlatformShutdown();
 }
