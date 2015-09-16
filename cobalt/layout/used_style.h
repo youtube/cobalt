@@ -258,67 +258,6 @@ float GetUsedPaddingBottom(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& computed_style,
     const math::SizeF& containing_block_size);
 
-// This class should be used when one needs to determine any of the margin,
-// padding, position (e.g. 'left'/'top') or content size properties.  Since much
-// functionality is common between width and height, the same code can typically
-// be re-used for each, and thus the UsedBoxMetrics class itself has general
-// names (e.g. "size" instead of "width" or "height",).
-class UsedBoxMetrics {
- public:
-  // Constructs and returns a UsedBoxMetrics object based on the horizontal
-  // properties set on the passed in computed_style.  Horizontal here refers
-  // to left/right/width/etc...
-  static UsedBoxMetrics ComputeHorizontal(
-      float containing_block_size,
-      const cssom::CSSStyleDeclarationData& computed_style) {
-    return ComputeMetrics(containing_block_size, computed_style.position(),
-                          computed_style.left(), computed_style.width(),
-                          computed_style.right());
-  }
-
-  // Constructs and returns a UsedBoxMetrics object based on the vertical
-  // properties set on the passed in computed_style.  Vertical here refers
-  // to top/bottom/height/etc...
-  static UsedBoxMetrics ComputeVertical(
-      float containing_block_size,
-      const cssom::CSSStyleDeclarationData& computed_style) {
-    return ComputeMetrics(containing_block_size, computed_style.position(),
-                          computed_style.top(), computed_style.height(),
-                          computed_style.bottom());
-  }
-
-  // The following constraints must hold among the used values of the
-  // properties:
-  //     margin-left + border-left-width + padding-left
-  //   + width
-  //   + padding-right + border-right-width + margin-right
-  //   = width of containing block
-  // (And similarly for heights)
-  //
-  // This function will solve for the variables as much as possible given
-  // values that are already filled in.
-  void ResolveConstraints(float containing_block_size);
-
-  // If a value is available, it is a length with pixel units.
-  base::optional<float> start_offset;
-  base::optional<float> size;
-  base::optional<float> end_offset;
-
-  bool size_depends_on_containing_block;
-  bool offset_depends_on_containing_block;
-
-  // TODO(***REMOVED***): Add support for padding and margins.
-
- private:
-  // Used internally by ComputeHorizontal() and ComputeVertical(), after they
-  // have selected the appropritate properties from the computed style to pass
-  // to this method.
-  static UsedBoxMetrics ComputeMetrics(float containing_block_size,
-                                       cssom::PropertyValue* position,
-                                       cssom::PropertyValue* start_offset,
-                                       cssom::PropertyValue* size,
-                                       cssom::PropertyValue* end_offset);
-};
 }  // namespace layout
 }  // namespace cobalt
 
