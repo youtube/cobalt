@@ -102,6 +102,8 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
+  // TODO(***REMOVED***): Consider move the following functions to private section.
+
   // Issues a task to the demuxer to identify the next buffer of provided type
   // in the stream, allocate memory to contain that buffer, download the bytes
   // in to it, and enqueue the data in the appropriate demuxer stream.
@@ -126,7 +128,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   // blocking_thread_
   // download enough of the stream to parse the configuration. returns
   // false on error.
-  bool ParseConfigBlocking();
+  bool ParseConfigBlocking(const PipelineStatusCB& status_cb);
   void RequestTask(DemuxerStream::Type type);
   void DownloadTask(scoped_refptr<DecoderBuffer> buffer);
   void IssueNextRequestTask();
