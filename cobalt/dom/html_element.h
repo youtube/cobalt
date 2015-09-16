@@ -86,8 +86,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   //
   scoped_refptr<DOMStringMap> dataset();
 
-  int tab_index() const;
-  void set_tab_index(int tab_index);
+  int32 tab_index() const;
+  void set_tab_index(int32 tab_index);
 
   void Focus();
   void Blur();
