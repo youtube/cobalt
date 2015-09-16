@@ -12,12 +12,37 @@
 namespace base {
 namespace {
 
+#if defined(__LB_PS3__)
+// The PS3's local time calculations always use the current daylight savings
+// time when exploding/unexploding time ticks, no matter what the time to
+// explode is.
+#define MAYBE_TimeFormatTimeOfDayDefault12h \
+    DISABLED_TimeFormatTimeOfDayDefault12h
+#define MAYBE_TimeFormatTimeOfDayDefault24h \
+    DISABLED_TimeFormatTimeOfDayDefault24h
+#define MAYBE_TimeFormatTimeOfDayJP \
+    DISABLED_TimeFormatTimeOfDayJP
+#define MAYBE_TimeFormatDateUS \
+    DISABLED_TimeFormatDateUS
+#define MAYBE_TimeFormatDateGB \
+    DISABLED_TimeFormatDateGB
+
+#else
+
+#define MAYBE_TimeFormatTimeOfDayDefault12h TimeFormatTimeOfDayDefault12h
+#define MAYBE_TimeFormatTimeOfDayDefault24h TimeFormatTimeOfDayDefault24h
+#define MAYBE_TimeFormatTimeOfDayJP TimeFormatTimeOfDayJP
+#define MAYBE_TimeFormatDateUS TimeFormatDateUS
+#define MAYBE_TimeFormatDateGB TimeFormatDateGB
+
+#endif
+
 const Time::Exploded kTestDateTimeExploded = {
   2011, 4, 6, 30, // Sat, Apr 30, 2011
   15, 42, 7, 0    // 15:42:07.000
 };
 
-TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault12h) {
+TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayDefault12h) {
   // Test for a locale defaulted to 12h clock.
   // As an instance, we use third_party/icu/source/data/locales/en.txt.
   i18n::SetICUDefaultLocale("en_US");
@@ -50,7 +75,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault12h) {
                                                  kDropAmPm));
 }
 
-TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault24h) {
+TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayDefault24h) {
   // Test for a locale defaulted to 24h clock.
   // As an instance, we use third_party/icu/source/data/locales/en_GB.txt.
   i18n::SetICUDefaultLocale("en_GB");
@@ -83,7 +108,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDefault24h) {
                                                  kDropAmPm));
 }
 
-TEST(TimeFormattingTest, TimeFormatTimeOfDayJP) {
+TEST(TimeFormattingTest, MAYBE_TimeFormatTimeOfDayJP) {
   // Test for a locale that uses different mark than "AM" and "PM".
   // As an instance, we use third_party/icu/source/data/locales/ja.txt.
   i18n::SetICUDefaultLocale("ja_JP");
@@ -116,7 +141,7 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayJP) {
                                                  kDropAmPm));
 }
 
-TEST(TimeFormattingTest, TimeFormatDateUS) {
+TEST(TimeFormattingTest, MAYBE_TimeFormatDateUS) {
   // See third_party/icu/source/data/locales/en.txt.
   // The date patterns are "EEEE, MMMM d, y", "MMM d, y", and "M/d/yy".
   i18n::SetICUDefaultLocale("en_US");
@@ -133,7 +158,7 @@ TEST(TimeFormattingTest, TimeFormatDateUS) {
             TimeFormatFriendlyDate(time));
 }
 
-TEST(TimeFormattingTest, TimeFormatDateGB) {
+TEST(TimeFormattingTest, MAYBE_TimeFormatDateGB) {
   // See third_party/icu/source/data/locales/en_GB.txt.
   // The date patterns are "EEEE, d MMMM y", "d MMM y", and "dd/MM/yyyy".
   i18n::SetICUDefaultLocale("en_GB");
