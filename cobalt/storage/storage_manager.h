@@ -126,8 +126,8 @@ class StorageManager {
   scoped_refptr<base::MessageLoopProxy> sql_message_loop_;
 
   // Storage I/O (savegame reads/writes) runs on a separate thread.
-  scoped_ptr<base::Thread> io_thread_;
-  scoped_refptr<base::MessageLoopProxy> io_message_loop_;
+  scoped_ptr<base::Thread> storage_thread_;
+  scoped_refptr<base::MessageLoopProxy> storage_message_loop_;
 
   // An interface to the storage manager's SQL database that will run on
   // the correct thread.

@@ -37,12 +37,12 @@ class Application {
  protected:
   Application();
 
-  MessageLoop* ui_message_loop() { return &ui_message_loop_; }
+  MessageLoop* message_loop() { return &message_loop_; }
   void Quit();
 
  private:
   // The message loop that will handle UI events.
-  MessageLoop ui_message_loop_;
+  MessageLoop message_loop_;
 
   base::Closure quit_closure_;
 
