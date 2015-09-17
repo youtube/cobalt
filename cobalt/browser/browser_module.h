@@ -30,6 +30,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/system_window/create_system_window.h"
 
 namespace cobalt {
 namespace browser {
@@ -76,6 +77,11 @@ class BrowserModule {
 
   // Error callback for any error that stops the program.
   void OnError(const std::string& error) { LOG(ERROR) << error; }
+
+  // The main system window for our browser.
+  // This routes event callbacks, and provides a native window handle
+  // on desktop systems.
+  scoped_ptr<system_window::SystemWindow> main_system_window_;
 
   storage::StorageManager storage_manager_;
 

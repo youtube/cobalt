@@ -24,12 +24,13 @@
 namespace cobalt {
 namespace renderer {
 
-RendererModule::Options::Options() : system_window(NULL) {
+RendererModule::Options::Options() {
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }
 
-RendererModule::RendererModule(const Options& options) {
+RendererModule::RendererModule(system_window::SystemWindow* system_window,
+                               const Options& options) {
   TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
 
   // Load up the platform's default graphics system.
@@ -39,11 +40,11 @@ RendererModule::RendererModule(const Options& options) {
   }
 
   // Create/initialize the display using the system window
-  // specified in the options to get the render target.
+  // specified in the constructor args to get the render target.
   {
     TRACE_EVENT0("cobalt::renderer", "GraphicsSystem::CreateDisplay()");
-    DCHECK(options.system_window);
-    display_ = graphics_system_->CreateDisplay(options.system_window);
+    DCHECK(system_window);
+    display_ = graphics_system_->CreateDisplay(system_window);
   }
 
   // Create a graphics context associated with the default display's render

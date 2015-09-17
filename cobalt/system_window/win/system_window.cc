@@ -20,6 +20,9 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
+#include "cobalt/dom/event_names.h"
+
+#include <csignal>
 
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
@@ -45,31 +48,6 @@ const int kWindowHeight = 1080;
 // (the thread running Win32WindowThread).
 base::LazyInstance<base::ThreadLocalPointer<SystemWindowWin> > lazy_tls_ptr =
     LAZY_INSTANCE_INITIALIZER;
-
-LRESULT CALLBACK
-WndProc(HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param) {
-  // Get the associated SystemWindowWin instance from thread local storage.
-  // This assumes this function is always called on the same thread.
-  SystemWindowWin* system_window = lazy_tls_ptr.Pointer()->Get();
-  DCHECK(system_window);
-
-  switch (message) {
-    case WM_CLOSE: {
-      // The user expressed a desire to close the window
-      // (e.g. clicked on the X button).  We ignore this for now.
-      DLOG(INFO) << "User clicked X button on window " << system_window;
-      return 0;
-    } break;
-    case WM_KEYDOWN: {
-      // The user has pressed a key on the keyboard. Ignore for now.
-      DLOG(INFO) << "User pressed key: " << w_param;
-      return 0;
-    } break;
-  }
-
-  return DefWindowProc(window_handle, message, w_param, l_param);
-}
-
 }  // namespace
 
 SystemWindowWin::SystemWindowWin()
@@ -88,6 +66,44 @@ void SystemWindowWin::StartWindow() {
       base::Bind(&SystemWindowWin::Win32WindowThread, base::Unretained(this)));
 
   window_initialized.Wait();
+}
+
+LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
+                                          WPARAM w_param, LPARAM l_param) {
+  // Get the associated SystemWindowWin instance from thread local storage.
+  // This assumes this function is always called on the same thread.
+  SystemWindowWin* system_window = lazy_tls_ptr.Pointer()->Get();
+  DCHECK(system_window);
+
+  switch (message) {
+    case WM_CLOSE: {
+      // The user expressed a desire to close the window
+      // TODO(***REMOVED***) - Should really exit the loop and pass control
+      // back to the browser to correctly clean up. However, this is
+      // equivalent to Ctrl+C, which is what we are forced to use now.
+      DLOG(INFO) << "User clicked X button on window " << system_window;
+      raise(SIGINT);
+      return 0;
+    } break;
+    case WM_KEYDOWN: {
+      // The user has pressed a key on the keyboard.
+      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
+          dom::EventNames::GetInstance()->keydown(),
+          dom::KeyboardEvent::kDomKeyLocationStandard,
+          dom::KeyboardEvent::kNoModifier, w_param, 0, false));
+      system_window->HandleKeyboardEvent(keyboard_event);
+    } break;
+    case WM_KEYUP: {
+      // The user has released a key on the keyboard.
+      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
+          dom::EventNames::GetInstance()->keyup(),
+          dom::KeyboardEvent::kDomKeyLocationStandard,
+          dom::KeyboardEvent::kNoModifier, w_param, 0, false));
+      system_window->HandleKeyboardEvent(keyboard_event);
+    } break;
+  }
+
+  return DefWindowProc(window_handle, message, w_param, l_param);
 }
 
 void SystemWindowWin::EndWindow() {
