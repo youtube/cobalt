@@ -26,6 +26,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/renderer/test/scenes/scenes.gyp:scenes',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
       ],
