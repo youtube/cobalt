@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-#include "cobalt/input/input_device_manager_win.h"
+#include "cobalt/input/input_device_manager_desktop.h"
 
 namespace cobalt {
 namespace input {
 
-InputDeviceManagerWin::InputDeviceManagerWin(
-    const KeyboardEventCallback& callback)
-    : InputDeviceManager(callback) {}
-
 // static
-scoped_ptr<InputDeviceManager> InputDeviceManager::Create(
-    const KeyboardEventCallback& callback) {
-  return scoped_ptr<InputDeviceManager>(new InputDeviceManagerWin(callback));
+scoped_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
+    const KeyboardEventCallback& callback,
+    system_window::SystemWindow* system_window) {
+  return scoped_ptr<InputDeviceManager>(
+      new InputDeviceManagerDesktop(callback, system_window));
 }
 
 }  // namespace input

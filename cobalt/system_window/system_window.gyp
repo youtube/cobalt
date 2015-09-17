@@ -23,11 +23,14 @@
       'sources': [
         'create_system_window.h',
         'system_window.h',
+        'system_window_desktop.cc',
+        'system_window_desktop.h',
         'system_window_stub.cc',
         'system_window_stub.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/system_window/<(actual_target_arch)/platform_system_window.gyp:platform_system_window',
       ],
     },

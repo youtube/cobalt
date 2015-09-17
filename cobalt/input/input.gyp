@@ -19,8 +19,6 @@
       'type': 'static_library',
       'sources': [
         'input_device_manager.h',
-        'input_device_manager_<(actual_target_arch).cc',
-        'input_device_manager_<(actual_target_arch).h',
         'input_device_manager_fuzzer.cc',
         'input_device_manager_fuzzer.h',
         'key_repeat_filter.cc',
@@ -30,6 +28,22 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
+      ],
+      'conditions': [
+        ['actual_target_arch=="ps3"', {
+          'sources': [
+            'input_device_manager_ps3.cc',
+            'input_device_manager_ps3.h',
+          ],
+        }],
+        ['actual_target_arch in ["linux", "win"]', {
+          'sources': [
+            'input_device_manager_<(actual_target_arch).cc',
+            'input_device_manager_desktop.cc',
+            'input_device_manager_desktop.h',
+          ],
+        }],
       ],
     },
   ],

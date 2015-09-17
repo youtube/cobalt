@@ -22,6 +22,13 @@
 #include "cobalt/dom/keyboard_event.h"
 
 namespace cobalt {
+
+// Forward-declaring SystemWindow here, as some implementations (e.g. consoles)
+// will never need to know about the class.
+namespace system_window {
+class SystemWindow;
+}
+
 namespace input {
 
 typedef base::Callback<void(const scoped_refptr<dom::KeyboardEvent>&)>
@@ -32,8 +39,11 @@ typedef base::Callback<void(const scoped_refptr<dom::KeyboardEvent>&)>
 // client via a callback provided upon construction.
 class InputDeviceManager {
  public:
-  static scoped_ptr<InputDeviceManager> Create(
-      const KeyboardEventCallback& callback);
+  // Creates an instance using a SystemWindow parameter.
+  // This allows us to hook up keyboard events on desktop systems.
+  static scoped_ptr<InputDeviceManager> CreateFromWindow(
+      const KeyboardEventCallback& callback,
+      system_window::SystemWindow* system_window);
 
   virtual ~InputDeviceManager() {}
 

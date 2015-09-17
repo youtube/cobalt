@@ -41,8 +41,10 @@ const char kInitialDebugConsoleUrl[] =
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url, const Options& options)
-    : storage_manager_(options.storage_manager_options),
-      renderer_module_(options.renderer_module_options),
+    : main_system_window_(system_window::CreateSystemWindow()),
+      storage_manager_(options.storage_manager_options),
+      renderer_module_(main_system_window_.get(),
+                       options.renderer_module_options),
       media_module_(media::MediaModule::Create(
           renderer_module_.pipeline()->GetResourceProvider())),
       network_module_(&storage_manager_),
@@ -82,8 +84,8 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
     input_device_manager_ = scoped_ptr<input::InputDeviceManager>(
         new input::InputDeviceManagerFuzzer(keyboard_event_callback));
   } else {
-    input_device_manager_ =
-        input::InputDeviceManager::Create(keyboard_event_callback);
+    input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+        keyboard_event_callback, main_system_window_.get());
   }
 
   // Set the initial debug console mode according to the command-line args

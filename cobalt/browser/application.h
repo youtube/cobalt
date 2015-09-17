@@ -20,7 +20,6 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/browser/browser_module.h"
-#include "cobalt/system_window/create_system_window.h"
 
 namespace cobalt {
 namespace browser {
@@ -48,11 +47,6 @@ class Application {
   base::Closure quit_closure_;
 
  protected:
-  // The main system window for our application.
-  // This routes event callbacks, and provides a native window handle
-  // on desktop systems.
-  scoped_ptr<system_window::SystemWindow> main_system_window_;
-
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
 };
