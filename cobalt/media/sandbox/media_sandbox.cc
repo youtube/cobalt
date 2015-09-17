@@ -34,8 +34,7 @@ void MediaSandbox::LoadAndPlay(const GURL& url,
                                loader::FetcherFactory* fetcher_factory) {
   player_->SetRate(1.0);
   player_->LoadProgressive(url,
-                           new FetcherBufferedDataSource(MessageLoop::current(),
-                                                         url, fetcher_factory),
+                           new FetcherBufferedDataSource(url, fetcher_factory),
                            ::media::WebMediaPlayer::kCORSModeUnspecified);
   player_->Play();
 }

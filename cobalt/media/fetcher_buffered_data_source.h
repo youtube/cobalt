@@ -34,9 +34,7 @@ namespace media {
 class FetcherBufferedDataSource : public ::media::BufferedDataSource,
                                   private loader::Fetcher::Handler {
  public:
-  // The message_loop is used to avoid re-entrant when calling callbacks or
-  // other member functions.
-  FetcherBufferedDataSource(MessageLoop* message_loop, const GURL& url,
+  FetcherBufferedDataSource(const GURL& url,
                             loader::FetcherFactory* fetcher_factory);
   ~FetcherBufferedDataSource() OVERRIDE;
 
@@ -55,11 +53,12 @@ class FetcherBufferedDataSource : public ::media::BufferedDataSource,
   void OnReceived(const char* data, size_t size) OVERRIDE;
   void OnDone() OVERRIDE;
   void OnError(const std::string& error) OVERRIDE;
+  void Read_Locked(int64 position, int size, uint8* data,
+                   const ReadCB& read_cb);
   void ProcessPendingRead_Locked();
 
   base::Lock lock_;
   std::vector<uint8> buffer_;
-  MessageLoop* message_loop_;
   scoped_ptr<loader::Fetcher> fetcher_;
   volatile State state_;
   ReadCB pending_read_cb_;

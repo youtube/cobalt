@@ -27,10 +27,7 @@ namespace cobalt {
 namespace media {
 
 FetcherBufferedDataSource::FetcherBufferedDataSource(
-    MessageLoop* message_loop, const GURL& url,
-    loader::FetcherFactory* fetcher_factory)
-    : message_loop_(message_loop) {
-  DCHECK(message_loop);
+    const GURL& url, loader::FetcherFactory* fetcher_factory) {
   DCHECK(fetcher_factory);
   DCHECK(!url.path().empty());
 
@@ -50,31 +47,7 @@ void FetcherBufferedDataSource::Read(int64 position, int size, uint8* data,
   DCHECK_GE(size, 0);
 
   base::AutoLock auto_lock(lock_);
-  DCHECK(pending_read_cb_.is_null());
-  if (state_ == kError) {
-    read_cb.Run(-1);
-    return;
-  }
-
-  int64 buffer_size = static_cast<int64>(buffer_.size());
-  DCHECK_GE(buffer_size, 0);
-
-  if (state_ == kFinishedReading) {
-    position = std::min(position, buffer_size);
-    size = static_cast<int>(std::min<int64>(size, buffer_size - position));
-  }
-
-  if (position + size <= buffer_size) {
-    memcpy(data, &buffer_[static_cast<size_t>(position)],
-           static_cast<size_t>(size));
-    read_cb.Run(size);
-    return;
-  }
-
-  pending_read_cb_ = read_cb;
-  pending_read_position_ = position;
-  pending_read_size_ = size;
-  pending_read_data_ = data;
+  Read_Locked(position, size, data, read_cb);
 }
 
 void FetcherBufferedDataSource::Stop(const base::Closure& callback) {
@@ -134,14 +107,43 @@ void FetcherBufferedDataSource::OnError(const std::string& error) {
   ProcessPendingRead_Locked();
 }
 
+void FetcherBufferedDataSource::Read_Locked(int64 position, int size,
+                                            uint8* data,
+                                            const ReadCB& read_cb) {
+  lock_.AssertAcquired();
+
+  DCHECK(pending_read_cb_.is_null());
+  if (state_ == kError) {
+    read_cb.Run(-1);
+    return;
+  }
+
+  int64 buffer_size = static_cast<int64>(buffer_.size());
+  DCHECK_GE(buffer_size, 0);
+
+  if (state_ == kFinishedReading) {
+    position = std::min(position, buffer_size);
+    size = static_cast<int>(std::min<int64>(size, buffer_size - position));
+  }
+
+  if (position + size <= buffer_size) {
+    memcpy(data, &buffer_[static_cast<size_t>(position)],
+           static_cast<size_t>(size));
+    read_cb.Run(size);
+    return;
+  }
+
+  pending_read_cb_ = read_cb;
+  pending_read_position_ = position;
+  pending_read_size_ = size;
+  pending_read_data_ = data;
+}
+
 void FetcherBufferedDataSource::ProcessPendingRead_Locked() {
   lock_.AssertAcquired();
   if (!pending_read_cb_.is_null()) {
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(&FetcherBufferedDataSource::Read, this,
-                              pending_read_position_, pending_read_size_,
-                              pending_read_data_,
-                              base::ResetAndReturn(&pending_read_cb_)));
+    Read_Locked(pending_read_position_, pending_read_size_, pending_read_data_,
+                base::ResetAndReturn(&pending_read_cb_));
   }
 }
 
