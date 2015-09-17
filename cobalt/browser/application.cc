@@ -76,13 +76,9 @@ Application::Application()
   }
   DLOG(INFO) << "Initial URL: " << url;
 
-  // Create the main window for our application.
-  main_system_window_ = system_window::CreateSystemWindow();
-
   // Create the main components of our browser.
   BrowserModule::Options options;
   options.web_module_options.name = "MainWebModule";
-  options.renderer_module_options.system_window = main_system_window_.get();
   browser_module_.reset(new BrowserModule(url, options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }

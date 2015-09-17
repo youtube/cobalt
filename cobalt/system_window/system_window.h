@@ -17,11 +17,12 @@
 #ifndef SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 #define SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
+#include "cobalt/dom/keyboard_event.h"
+
 namespace cobalt {
 namespace system_window {
 
-// A SystemWindow represents a window on desktop systems, or the screen
-// on non-windowed systems, e.g. consoles.
+// A SystemWindow represents a window on desktop systems.
 // The SystemWindow routes callbacks for user input, and provides the
 // information necessary to create a display render target for a graphics
 // system. A SystemWindow is typically created via a call to
