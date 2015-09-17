@@ -635,11 +635,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (!url.is_empty() && url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
-    player_->LoadProgressive(url,
-                             new media::FetcherBufferedDataSource(
-                                 MessageLoop::current(), url,
-                                 html_element_context()->fetcher_factory()),
-                             WebMediaPlayer::kCORSModeUnspecified);
+    player_->LoadProgressive(
+        url, new media::FetcherBufferedDataSource(
+                 url, html_element_context()->fetcher_factory()),
+        WebMediaPlayer::kCORSModeUnspecified);
   }
   // if (!player_->Load(url, WebMediaPlayer::kCORSModeUnspecified))
   //   MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
