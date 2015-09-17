@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# The common starboard target. Any target that depends on Starboard should
+# depend on this common target, and not any of the specific starboard_platform
+# targets.
+
 {
   'targets': [
     {
@@ -20,6 +25,7 @@
         'atomic.h',
         'configuration.h',
         'export.h',
+        'memory.h',
         'system.h',
       ],
       'dependencies': [
