@@ -22,6 +22,14 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'main.cc',
+        'memory_allocate_aligned_test.cc',
+        'memory_allocate_test.cc',
+        'memory_copy_test.cc',
+        'memory_free_aligned_test.cc',
+        'memory_free_test.cc',
+        'memory_move_test.cc',
+        'memory_reallocate_test.cc',
+        'memory_set_test.cc',
         'system_get_path_test.cc',
       ],
       'dependencies': [
