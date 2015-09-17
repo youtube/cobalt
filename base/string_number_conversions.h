@@ -27,19 +27,29 @@
 
 namespace base {
 
+// The following macro expects a macro functor accepting two parameters: a name
+// and a C++ type.  It is used to generate the declarations, definitions and
+// unit tests for types listed below.
+#define INTEGRAL_STRING_CONVERSIONS_FOR_EACH(MacroOp) \
+  MacroOp(Int, int)                                   \
+  MacroOp(Uint, unsigned int)                         \
+  MacroOp(Int8, int8)                                 \
+  MacroOp(Uint8, uint8)                               \
+  MacroOp(Int16, int16)                               \
+  MacroOp(Uint16, uint16)                             \
+  MacroOp(Int32, int32)                               \
+  MacroOp(Uint32, uint32)                             \
+  MacroOp(Int64, int64)                               \
+  MacroOp(Uint64, uint64)                             \
+  MacroOp(SizeT, size_t)
+
 // Number -> string conversions ------------------------------------------------
+#define DECLARE_INTEGRAL_TO_STRING_CONVERSIONS(Name, CppType) \
+  BASE_EXPORT std::string Name##ToString(CppType value);      \
+  BASE_EXPORT string16 Name##ToString16(CppType value);
 
-BASE_EXPORT std::string IntToString(int value);
-BASE_EXPORT string16 IntToString16(int value);
-
-BASE_EXPORT std::string UintToString(unsigned value);
-BASE_EXPORT string16 UintToString16(unsigned value);
-
-BASE_EXPORT std::string Int64ToString(int64 value);
-BASE_EXPORT string16 Int64ToString16(int64 value);
-
-BASE_EXPORT std::string Uint64ToString(uint64 value);
-BASE_EXPORT string16 Uint64ToString16(uint64 value);
+INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DECLARE_INTEGRAL_TO_STRING_CONVERSIONS)
+#undef DECLARE_INTEGRAL_TO_STRING_CONVERSIONS
 
 // DoubleToString converts the double to a string format that ignores the
 // locale. If you want to use locale specific formatting, use ICU.
@@ -59,26 +69,12 @@ BASE_EXPORT std::string DoubleToString(double value);
 //  - No characters parseable as a number at the beginning of the string.
 //    |*output| will be set to 0.
 //  - Empty string.  |*output| will be set to 0.
-BASE_EXPORT bool StringToInt(const StringPiece& input, int* output);
-BASE_EXPORT bool StringToInt(const StringPiece16& input, int* output);
+#define DECLARE_STRING_TO_INTEGRAL_CONVERSIONS(Name, CppType)                 \
+  BASE_EXPORT bool StringTo##Name(const StringPiece& input, CppType* output); \
+  BASE_EXPORT bool StringTo##Name(const StringPiece16& input, CppType* output);
 
-BASE_EXPORT bool StringToUint(const StringPiece& input, unsigned* output);
-BASE_EXPORT bool StringToUint(const StringPiece16& input, unsigned* output);
-
-BASE_EXPORT bool StringToInt32(const StringPiece& input, int32* output);
-BASE_EXPORT bool StringToInt32(const StringPiece16& input, int32* output);
-
-BASE_EXPORT bool StringToUint32(const StringPiece& input, uint32* output);
-BASE_EXPORT bool StringToUint32(const StringPiece16& input, uint32* output);
-
-BASE_EXPORT bool StringToInt64(const StringPiece& input, int64* output);
-BASE_EXPORT bool StringToInt64(const StringPiece16& input, int64* output);
-
-BASE_EXPORT bool StringToUint64(const StringPiece& input, uint64* output);
-BASE_EXPORT bool StringToUint64(const StringPiece16& input, uint64* output);
-
-BASE_EXPORT bool StringToSizeT(const StringPiece& input, size_t* output);
-BASE_EXPORT bool StringToSizeT(const StringPiece16& input, size_t* output);
+INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DECLARE_STRING_TO_INTEGRAL_CONVERSIONS)
+#undef DECLARE_STRING_TO_INTEGRAL_CONVERSIONS
 
 // For floating-point conversions, only conversions of input strings in decimal
 // form are defined to work.  Behavior with strings representing floating-point
