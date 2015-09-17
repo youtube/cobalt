@@ -36,7 +36,6 @@ class RendererModule {
     typedef base::Callback<scoped_ptr<Rasterizer>(
         backend::GraphicsContext*)> CreateRasterizerCallback;
     CreateRasterizerCallback create_rasterizer_function;
-    system_window::SystemWindow* system_window;
 
    private:
     // Implemented per-platform, and allows each platform to customize
@@ -44,7 +43,8 @@ class RendererModule {
     void SetPerPlatformDefaultOptions();
   };
 
-  explicit RendererModule(const Options& options);
+  explicit RendererModule(system_window::SystemWindow* system_window,
+                          const Options& options);
   ~RendererModule();
 
   renderer::Pipeline* pipeline() { return pipeline_.get(); }

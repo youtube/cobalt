@@ -33,6 +33,7 @@
         '<(DEPTH)/cobalt/media/media.gyp:media',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
