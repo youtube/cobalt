@@ -5,325 +5,192 @@
 #include <math.h>
 
 #include <limits>
+#include <sstream>
 
 #include "base/string_number_conversions.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
-
 namespace {
 
-template <typename INT>
-struct IntToStringTest {
-  INT num;
-  const char* sexpected;
-  const char* uexpected;
+// When insert values of one byte type like char or uint8 into output streams,
+// the values will be output as a character.  In our tests we'd like it to be
+// output as its numeric value.  We introduce the following template class so
+// we can use 'oss << static_cast<StreamSafeType<int8>::Type>(value);' to output
+// the value in int8 as a number.
+template <typename T>
+struct StreamSafeType {
+  typedef T Type;
+};
+template <>
+struct StreamSafeType<int8> {
+  typedef int16 Type;
+};
+template <>
+struct StreamSafeType<uint8> {
+  typedef uint16 Type;
 };
 
-}  // namespace
-
-TEST(StringNumberConversionsTest, IntToString) {
-  static const IntToStringTest<int> int_tests[] = {
-      { 0, "0", "0" },
-      { -1, "-1", "4294967295" },
-      { std::numeric_limits<int>::max(), "2147483647", "2147483647" },
-      { std::numeric_limits<int>::min(), "-2147483648", "2147483648" },
-  };
-  static const IntToStringTest<int64> int64_tests[] = {
-      { 0, "0", "0" },
-      { -1, "-1", "18446744073709551615" },
-      { std::numeric_limits<int64>::max(),
-        "9223372036854775807",
-        "9223372036854775807", },
-      { std::numeric_limits<int64>::min(),
-        "-9223372036854775808",
-        "9223372036854775808" },
-  };
-
-  for (size_t i = 0; i < arraysize(int_tests); ++i) {
-    const IntToStringTest<int>* test = &int_tests[i];
-    EXPECT_EQ(IntToString(test->num), test->sexpected);
-    EXPECT_EQ(IntToString16(test->num), UTF8ToUTF16(test->sexpected));
-    EXPECT_EQ(UintToString(test->num), test->uexpected);
-    EXPECT_EQ(UintToString16(test->num), UTF8ToUTF16(test->uexpected));
+TEST(StringNumberConversionsTest, IntegralToString) {
+#define DEFINE_INTEGRAL_TO_STRING_TEST(Name, CppType)                         \
+  {                                                                           \
+    static const CppType kValuesToTest[] = {                                  \
+        0, static_cast<CppType>(-1), 42, std::numeric_limits<CppType>::min(), \
+        std::numeric_limits<CppType>::max()};                                 \
+    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValuesToTest); ++i) {            \
+      CppType value = static_cast<CppType>(kValuesToTest[i]);                 \
+      std::ostringstream oss;                                                 \
+      oss << static_cast<StreamSafeType<CppType>::Type>(value);               \
+      EXPECT_EQ(oss.str(), Name##ToString(value));                            \
+      EXPECT_EQ(UTF8ToUTF16(oss.str()), Name##ToString16(value));             \
+    }                                                                         \
   }
-  for (size_t i = 0; i < arraysize(int64_tests); ++i) {
-    const IntToStringTest<int64>* test = &int64_tests[i];
-    EXPECT_EQ(Int64ToString(test->num), test->sexpected);
-    EXPECT_EQ(Int64ToString16(test->num), UTF8ToUTF16(test->sexpected));
-    EXPECT_EQ(Uint64ToString(test->num), test->uexpected);
-    EXPECT_EQ(Uint64ToString16(test->num), UTF8ToUTF16(test->uexpected));
-  }
+
+  INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_INTEGRAL_TO_STRING_TEST)
+#undef DEFINE_INTEGRAL_TO_STRING_TEST
 }
 
-TEST(StringNumberConversionsTest, Uint64ToString) {
-  static const struct {
-    uint64 input;
-    std::string output;
-  } cases[] = {
-    {0, "0"},
-    {42, "42"},
-    {INT_MAX, "2147483647"},
-    {kuint64max, "18446744073709551615"},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i)
-    EXPECT_EQ(cases[i].output, Uint64ToString(cases[i].input));
-}
-
-TEST(StringNumberConversionsTest, StringToInt) {
-  static const struct {
-    std::string input;
-    int output;
-    bool success;
-  } cases[] = {
-    {"0", 0, true},
-    {"42", 42, true},
-    {"42\x99", 42, false},
-    {"\x99" "42\x99", 0, false},
-    {"-2147483648", INT_MIN, true},
-    {"2147483647", INT_MAX, true},
-    {"", 0, false},
-    {" 42", 42, false},
-    {"42 ", 42, false},
-    {"\t\n\v\f\r 42", 42, false},
-    {"blah42", 0, false},
-    {"42blah", 42, false},
-    {"blah42blah", 0, false},
-    {"-273.15", -273, false},
-    {"+98.6", 98, false},
-    {"--123", 0, false},
-    {"++123", 0, false},
-    {"-+123", 0, false},
-    {"+-123", 0, false},
-    {"-", 0, false},
-    {"-2147483649", INT_MIN, false},
-    {"-99999999999", INT_MIN, false},
-    {"2147483648", INT_MAX, false},
-    {"99999999999", INT_MAX, false},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    int output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt(cases[i].input, &output));
-    EXPECT_EQ(cases[i].output, output);
-
-    string16 utf16_input = UTF8ToUTF16(cases[i].input);
-    output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt(utf16_input, &output));
-    EXPECT_EQ(cases[i].output, output);
+TEST(StringNumberConversionsTest, StringToIntegral) {
+#define DEFINE_STRING_TO_INTEGRAL_TEST(Name, CppType)                         \
+  {                                                                           \
+    static const CppType kValuesToTest[] = {                                  \
+        0, 42, std::numeric_limits<CppType>::min(),                           \
+        std::numeric_limits<CppType>::max()};                                 \
+    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValuesToTest); ++i) {            \
+      std::ostringstream oss;                                                 \
+      oss << static_cast<StreamSafeType<CppType>::Type>(kValuesToTest[i]);    \
+                                                                              \
+      CppType output = 0;                                                     \
+      EXPECT_TRUE(StringTo##Name(oss.str(), &output));                        \
+      EXPECT_EQ(kValuesToTest[i], output);                                    \
+                                                                              \
+      string16 utf16_input = UTF8ToUTF16(oss.str());                          \
+      output = 0;                                                             \
+      EXPECT_TRUE(StringTo##Name(utf16_input, &output));                      \
+      EXPECT_EQ(kValuesToTest[i], output);                                    \
+    }                                                                         \
+                                                                              \
+    /* One additional test to verify that conversion of numbers in strings    \
+     * with */                                                                \
+    /* embedded NUL characters.  The NUL and extra data after it should be */ \
+    /* interpreted as junk after the number. */                               \
+    const char input[] = "6\06";                                              \
+    std::string input_string(input, arraysize(input) - 1);                    \
+    CppType output;                                                           \
+    EXPECT_FALSE(StringTo##Name(input_string, &output));                      \
+    EXPECT_EQ(6, output);                                                     \
+                                                                              \
+    string16 utf16_input = UTF8ToUTF16(input_string);                         \
+    output = 0;                                                               \
+    EXPECT_FALSE(StringTo##Name(utf16_input, &output));                       \
+    EXPECT_EQ(6, output);                                                     \
+                                                                              \
+    output = 0;                                                               \
+    const char16 negative_wide_input[] = {0xFF4D, '4', '2', 0};               \
+    EXPECT_FALSE(StringTo##Name(string16(negative_wide_input), &output));     \
+    EXPECT_EQ(0, output);                                                     \
   }
 
-  // One additional test to verify that conversion of numbers in strings with
-  // embedded NUL characters.  The NUL and extra data after it should be
-  // interpreted as junk after the number.
-  const char input[] = "6\06";
-  std::string input_string(input, arraysize(input) - 1);
-  int output;
-  EXPECT_FALSE(StringToInt(input_string, &output));
-  EXPECT_EQ(6, output);
-
-  string16 utf16_input = UTF8ToUTF16(input_string);
-  output = 0;
-  EXPECT_FALSE(StringToInt(utf16_input, &output));
-  EXPECT_EQ(6, output);
-
-  output = 0;
-  const char16 negative_wide_input[] = { 0xFF4D, '4', '2', 0};
-  EXPECT_FALSE(StringToInt(string16(negative_wide_input), &output));
-  EXPECT_EQ(0, output);
+  INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_STRING_TO_INTEGRAL_TEST)
+#undef DEFINE_STRING_TO_INTEGRAL_TEST
 }
 
-TEST(StringNumberConversionsTest, StringToInt32) {
-  static const struct {
-    std::string input;
-    int32 output;
-    bool success;
-  } cases[] = {
-    {"0", 0, true},
-    {"42", 42, true},
-    {"42\x99", 42, false},
-    {"\x99" "42\x99", 0, false},
-    {"-2147483648", std::numeric_limits<int32>::min(), true},
-    {"2147483647", std::numeric_limits<int32>::max(), true},
-    {"", 0, false},
-    {" 42", 42, false},
-    {"42 ", 42, false},
-    {"\t\n\v\f\r 42", 42, false},
-    {"blah42", 0, false},
-    {"42blah", 42, false},
-    {"blah42blah", 0, false},
-    {"-273.15", -273, false},
-    {"+98.6", 98, false},
-    {"--123", 0, false},
-    {"++123", 0, false},
-    {"-+123", 0, false},
-    {"+-123", 0, false},
-    {"-", 0, false},
-    {"-2147483649", std::numeric_limits<int32>::min(), false},
-    {"-99999999999", std::numeric_limits<int32>::min(), false},
-    {"2147483648", std::numeric_limits<int32>::max(), false},
-    {"99999999999", std::numeric_limits<int32>::max(), false},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    int32 output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt32(cases[i].input, &output));
-    EXPECT_EQ(cases[i].output, output);
-
-    string16 utf16_input = UTF8ToUTF16(cases[i].input);
-    output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt32(utf16_input, &output));
-    EXPECT_EQ(cases[i].output, output);
+TEST(StringNumberConversionsTest, StringToIntegralFailure) {
+#define DEFINE_STRING_TO_INTEGRAL_TEST(Name, CppType)                        \
+  {                                                                          \
+    static const struct {                                                    \
+      std::string input;                                                     \
+      CppType output;                                                        \
+    } kCasesToTest[] = {                                                     \
+      {"42\x99", 42},                                                        \
+      {"\x99" "42\x99", 0},                                                  \
+      {"", 0},                                                               \
+      {" 42", 42},                                                           \
+      {"42 ", 42},                                                           \
+      {"\t\n\v\f\r 42", 42},                                                 \
+      {"blah42", 0},                                                         \
+      {"42blah", 42},                                                        \
+      {"blah42blah", 0},                                                     \
+      {"-73.15", -73},                                                       \
+      {"+98.6", 98},                                                         \
+      {"--123", 0},                                                          \
+      {"++123", 0},                                                          \
+      {"-+123", 0},                                                          \
+      {"+-123", 0},                                                          \
+      {"-", 0},                                                              \
+      {"-99999999999999999999999", std::numeric_limits<CppType>::min()},     \
+      {"99999999999999999999999", std::numeric_limits<CppType>::max()},      \
+      };                                                                     \
+                                                                             \
+    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kCasesToTest); ++i) {            \
+      CppType expected_value = kCasesToTest[i].output;                       \
+      if (std::numeric_limits<CppType>::min() == 0 &&                        \
+          kCasesToTest[i].input[0] == '-') {                                 \
+        /* Any negative values should be mapped to 0 on unsigned types. */   \
+        expected_value = 0;                                                  \
+      }                                                                      \
+      CppType output = 0;                                                    \
+      EXPECT_FALSE(StringTo##Name(kCasesToTest[i].input, &output));          \
+      EXPECT_EQ(expected_value, output);                                     \
+                                                                             \
+      string16 utf16_input = UTF8ToUTF16(kCasesToTest[i].input);             \
+      output = 0;                                                            \
+      EXPECT_FALSE(StringTo##Name(utf16_input, &output));                    \
+      EXPECT_EQ(expected_value, output);                                     \
+    }                                                                        \
   }
 
-  // One additional test to verify that conversion of numbers in strings with
-  // embedded NUL characters.  The NUL and extra data after it should be
-  // interpreted as junk after the number.
-  const char input[] = "6\06";
-  std::string input_string(input, arraysize(input) - 1);
-  int32 output;
-  EXPECT_FALSE(StringToInt32(input_string, &output));
-  EXPECT_EQ(6, output);
-
-  string16 utf16_input = UTF8ToUTF16(input_string);
-  output = 0;
-  EXPECT_FALSE(StringToInt32(utf16_input, &output));
-  EXPECT_EQ(6, output);
-
-  output = 0;
-  const char16 negative_wide_input[] = { 0xFF4D, '4', '2', 0};
-  EXPECT_FALSE(StringToInt32(string16(negative_wide_input), &output));
-  EXPECT_EQ(0, output);
+  INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_STRING_TO_INTEGRAL_TEST)
+#undef DEFINE_STRING_TO_INTEGRAL_TEST
 }
 
-TEST(StringNumberConversionsTest, StringToUint32) {
-  static const struct {
-    std::string input;
-    uint32 output;
-    bool success;
-  } cases[] = {
-    {"0", 0, true},
-    {"42", 42, true},
-    {"42\x99", 42, false},
-    {"\x99" "42\x99", 0, false},
-    {"-2147483648", 0, false},
-    {"4294967295", std::numeric_limits<uint32>::max(), true},
-    {"", 0, false},
-    {" 42", 42, false},
-    {"42 ", 42, false},
-    {"\t\n\v\f\r 42", 42, false},
-    {"blah42", 0, false},
-    {"42blah", 42, false},
-    {"blah42blah", 0, false},
-    {"-273.15", 0, false},
-    {"+98.6", 98, false},
-    {"--123", 0, false},
-    {"++123", 0, false},
-    {"-+123", 0, false},
-    {"+-123", 0, false},
-    {"-0", 0, true},
-    {"-", 0, false},
-    {"-2147483649", 0, false},
-    {"-99999999999", 0, false},
-    {"99999999999", std::numeric_limits<uint32>::max(), false},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    uint32 output = 0;
-    EXPECT_EQ(cases[i].success, StringToUint32(cases[i].input, &output));
-    EXPECT_EQ(cases[i].output, output);
-
-    string16 utf16_input = UTF8ToUTF16(cases[i].input);
-    output = 0;
-    EXPECT_EQ(cases[i].success, StringToUint32(utf16_input, &output));
-    EXPECT_EQ(cases[i].output, output);
+TEST(StringNumberConversionsTest, StringToIntegralOffByOne) {
+#define DEFINE_STRING_TO_INTEGRAL_TEST(Name, CppType)                          \
+  {                                                                            \
+    CppType expected_value = std::numeric_limits<CppType>::min();              \
+    /* This check doesn't apply to unsigned types */                           \
+    if (expected_value != 0) {                                                 \
+      std::ostringstream oss;                                                  \
+      oss << static_cast<StreamSafeType<CppType>::Type>(expected_value);       \
+      std::string input = oss.str();                                           \
+      /* The lowest digit of the value cannot be '9'. */                       \
+      ASSERT_NE(*input.rbegin(), '9');                                         \
+      /* Decrease the value by one, so the value is too small to represent. */ \
+      /* Note that to decrease a negative value by one, we have to actually */ \
+      /* increase its last digit by one. */                                    \
+      ++*input.rbegin();                                                       \
+                                                                               \
+      CppType output = 0;                                                      \
+      EXPECT_FALSE(StringTo##Name(input, &output));                            \
+      EXPECT_EQ(expected_value, output);                                       \
+                                                                               \
+      string16 utf16_input = UTF8ToUTF16(input);                               \
+      output = 0;                                                              \
+      EXPECT_FALSE(StringTo##Name(utf16_input, &output));                      \
+      EXPECT_EQ(expected_value, output);                                       \
+    }                                                                          \
+    expected_value = std::numeric_limits<CppType>::max();                      \
+    std::ostringstream oss;                                                    \
+    oss << static_cast<StreamSafeType<CppType>::Type>(expected_value);         \
+    std::string input = oss.str();                                             \
+    /* The lowest digit of the value cannot be '9'. */                         \
+    ASSERT_NE(*input.rbegin(), '0');                                           \
+    /* Increase the value by one, so the value is too large to represent. */   \
+    ++*input.rbegin();                                                         \
+                                                                               \
+    CppType output = 0;                                                        \
+    EXPECT_FALSE(StringTo##Name(input, &output));                              \
+    EXPECT_EQ(expected_value, output);                                         \
+                                                                               \
+    string16 utf16_input = UTF8ToUTF16(input);                                 \
+    output = 0;                                                                \
+    EXPECT_FALSE(StringTo##Name(utf16_input, &output));                        \
+    EXPECT_EQ(expected_value, output);                                         \
   }
 
-  // One additional test to verify that conversion of numbers in strings with
-  // embedded NUL characters.  The NUL and extra data after it should be
-  // interpreted as junk after the number.
-  const char input[] = "6\06";
-  std::string input_string(input, arraysize(input) - 1);
-  uint32 output;
-  EXPECT_FALSE(StringToUint32(input_string, &output));
-  EXPECT_EQ(6, output);
-
-  string16 utf16_input = UTF8ToUTF16(input_string);
-  output = 0;
-  EXPECT_FALSE(StringToUint32(utf16_input, &output));
-  EXPECT_EQ(6, output);
-
-  output = 0;
-  const char16 negative_wide_input[] = {0xFF4D, '4', '2', 0};
-  EXPECT_FALSE(StringToUint32(string16(negative_wide_input), &output));
-  EXPECT_EQ(0, output);
-}
-
-TEST(StringNumberConversionsTest, StringToInt64) {
-  static const struct {
-    std::string input;
-    int64 output;
-    bool success;
-  } cases[] = {
-    {"0", 0, true},
-    {"42", 42, true},
-    {"-2147483648", INT_MIN, true},
-    {"2147483647", INT_MAX, true},
-    {"-2147483649", GG_INT64_C(-2147483649), true},
-    {"-99999999999", GG_INT64_C(-99999999999), true},
-    {"2147483648", GG_INT64_C(2147483648), true},
-    {"99999999999", GG_INT64_C(99999999999), true},
-    {"9223372036854775807", kint64max, true},
-    {"-9223372036854775808", kint64min, true},
-    {"09", 9, true},
-    {"-09", -9, true},
-    {"", 0, false},
-    {" 42", 42, false},
-    {"42 ", 42, false},
-    {"0x42", 0, false},
-    {"\t\n\v\f\r 42", 42, false},
-    {"blah42", 0, false},
-    {"42blah", 42, false},
-    {"blah42blah", 0, false},
-    {"-273.15", -273, false},
-    {"+98.6", 98, false},
-    {"--123", 0, false},
-    {"++123", 0, false},
-    {"-+123", 0, false},
-    {"+-123", 0, false},
-    {"-", 0, false},
-    {"-9223372036854775809", kint64min, false},
-    {"-99999999999999999999", kint64min, false},
-    {"9223372036854775808", kint64max, false},
-    {"99999999999999999999", kint64max, false},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    int64 output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt64(cases[i].input, &output));
-    EXPECT_EQ(cases[i].output, output);
-
-    string16 utf16_input = UTF8ToUTF16(cases[i].input);
-    output = 0;
-    EXPECT_EQ(cases[i].success, StringToInt64(utf16_input, &output));
-    EXPECT_EQ(cases[i].output, output);
-  }
-
-  // One additional test to verify that conversion of numbers in strings with
-  // embedded NUL characters.  The NUL and extra data after it should be
-  // interpreted as junk after the number.
-  const char input[] = "6\06";
-  std::string input_string(input, arraysize(input) - 1);
-  int64 output;
-  EXPECT_FALSE(StringToInt64(input_string, &output));
-  EXPECT_EQ(6, output);
-
-  string16 utf16_input = UTF8ToUTF16(input_string);
-  output = 0;
-  EXPECT_FALSE(StringToInt64(utf16_input, &output));
-  EXPECT_EQ(6, output);
+  INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_STRING_TO_INTEGRAL_TEST)
+#undef DEFINE_STRING_TO_INTEGRAL_TEST
 }
 
 TEST(StringNumberConversionsTest, HexStringToInt) {
@@ -517,4 +384,5 @@ TEST(StringNumberConversionsTest, HexEncode) {
   EXPECT_EQ(hex.compare("01FF02FE038081"), 0);
 }
 
+}  // namespace
 }  // namespace base

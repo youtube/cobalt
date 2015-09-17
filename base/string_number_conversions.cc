@@ -11,6 +11,7 @@
 
 #include <limits>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
 #include "base/utf_string_conversions.h"
@@ -19,50 +20,34 @@ namespace base {
 
 namespace {
 
-template <typename STR, typename INT, typename UINT, bool NEG>
+// The following template is used to convert a size in bytes value into an
+// unsigned integral type.  For example, if we want to use the unsigned type
+// corresponding to int, we can use type MakeUnsigned<sizeof(int)>::Unsigned.
+template <size_t size_in_bytes>
+struct MakeUnsigned {};
+
+template <>
+struct MakeUnsigned<1> {
+  typedef uint8 Unsigned;
+};
+
+template <>
+struct MakeUnsigned<2> {
+  typedef uint16 Unsigned;
+};
+
+template <>
+struct MakeUnsigned<4> {
+  typedef uint32 Unsigned;
+};
+
+template <>
+struct MakeUnsigned<8> {
+  typedef uint64 Unsigned;
+};
+
+template <typename STR, typename INT>
 struct IntToStringT {
-  // This is to avoid a compiler warning about unary minus on unsigned type.
-  // For example, say you had the following code:
-  //   template <typename INT>
-  //   INT abs(INT value) { return value < 0 ? -value : value; }
-  // Even though if INT is unsigned, it's impossible for value < 0, so the
-  // unary minus will never be taken, the compiler will still generate a
-  // warning.  We do a little specialization dance...
-  template <typename INT2, typename UINT2, bool NEG2>
-  struct ToUnsignedT {};
-
-  template <typename INT2, typename UINT2>
-  struct ToUnsignedT<INT2, UINT2, false> {
-    static UINT2 ToUnsigned(INT2 value) {
-      return static_cast<UINT2>(value);
-    }
-  };
-
-  template <typename INT2, typename UINT2>
-  struct ToUnsignedT<INT2, UINT2, true> {
-    static UINT2 ToUnsigned(INT2 value) {
-      return static_cast<UINT2>(value < 0 ? -value : value);
-    }
-  };
-
-  // This set of templates is very similar to the above templates, but
-  // for testing whether an integer is negative.
-  template <typename INT2, bool NEG2>
-  struct TestNegT {};
-  template <typename INT2>
-  struct TestNegT<INT2, false> {
-    static bool TestNeg(INT2 value) {
-      // value is unsigned, and can never be negative.
-      return false;
-    }
-  };
-  template <typename INT2>
-  struct TestNegT<INT2, true> {
-    static bool TestNeg(INT2 value) {
-      return value < 0;
-    }
-  };
-
   static STR IntToString(INT value) {
     // log10(2) ~= 0.3 bytes needed per bit or per byte log10(2**8) ~= 2.4.
     // So round up to allocate 3 output characters per byte, plus 1 for '-'.
@@ -72,22 +57,25 @@ struct IntToStringT {
     // then return the substr of what we ended up using.
     STR outbuf(kOutputBufSize, 0);
 
-    bool is_neg = TestNegT<INT, NEG>::TestNeg(value);
-    // Even though is_neg will never be true when INT is parameterized as
-    // unsigned, even the presence of the unary operation causes a warning.
-    UINT res = ToUnsignedT<INT, UINT, NEG>::ToUnsigned(value);
+    // We cannot directly use 'value < 0' as it will generate a warning on
+    // unsigned types in certain compilers because such check is meaningless.
+    bool is_neg = value < 1 && value != 0;
+    // We cannot simply use '-value' as it will generate a warning on unsigned
+    // types in certain compilers which treats such operation as invalid.
+    typename MakeUnsigned<sizeof(value)>::Unsigned res =
+        is_neg ? 0 - value : value;
 
     for (typename STR::iterator it = outbuf.end();;) {
-      --it;
       DCHECK(it != outbuf.begin());
+      --it;
       *it = static_cast<typename STR::value_type>((res % 10) + '0');
       res /= 10;
 
       // We're done..
       if (res == 0) {
         if (is_neg) {
-          --it;
           DCHECK(it != outbuf.begin());
+          --it;
           *it = static_cast<typename STR::value_type>('-');
         }
         return STR(it, outbuf.end());
@@ -355,44 +343,16 @@ bool String16ToIntImpl(const StringPiece16& input, VALUE* output) {
 
 }  // namespace
 
-std::string IntToString(int value) {
-  return IntToStringT<std::string, int, unsigned int, true>::
-      IntToString(value);
-}
+#define DEFINE_INTEGRAL_TO_STRING_CONVERSIONS(Name, CppType)       \
+  std::string Name##ToString(CppType value) {                      \
+    return IntToStringT<std::string, CppType>::IntToString(value); \
+  }                                                                \
+  string16 Name##ToString16(CppType value) {                       \
+    return IntToStringT<string16, CppType>::IntToString(value);    \
+  }
 
-string16 IntToString16(int value) {
-  return IntToStringT<string16, int, unsigned int, true>::
-      IntToString(value);
-}
-
-std::string UintToString(unsigned int value) {
-  return IntToStringT<std::string, unsigned int, unsigned int, false>::
-      IntToString(value);
-}
-
-string16 UintToString16(unsigned int value) {
-  return IntToStringT<string16, unsigned int, unsigned int, false>::
-      IntToString(value);
-}
-
-std::string Int64ToString(int64 value) {
-  return IntToStringT<std::string, int64, uint64, true>::
-      IntToString(value);
-}
-
-string16 Int64ToString16(int64 value) {
-  return IntToStringT<string16, int64, uint64, true>::IntToString(value);
-}
-
-std::string Uint64ToString(uint64 value) {
-  return IntToStringT<std::string, uint64, uint64, false>::
-      IntToString(value);
-}
-
-string16 Uint64ToString16(uint64 value) {
-  return IntToStringT<string16, uint64, uint64, false>::
-      IntToString(value);
-}
+INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_INTEGRAL_TO_STRING_CONVERSIONS)
+#undef DEFINE_INTEGRAL_TO_STRING_CONVERSIONS
 
 std::string DoubleToString(double value) {
   // According to g_fmt.cc, it is sufficient to declare a buffer of size 32.
@@ -401,61 +361,16 @@ std::string DoubleToString(double value) {
   return std::string(buffer);
 }
 
-bool StringToInt(const StringPiece& input, int* output) {
-  return StringToIntImpl(input, output);
-}
+#define DEFINE_STRING_TO_INTEGRAL_CONVERSIONS(Name, CppType)         \
+  bool StringTo##Name(const StringPiece& input, CppType* output) {   \
+    return StringToIntImpl(input, output);                           \
+  }                                                                  \
+  bool StringTo##Name(const StringPiece16& input, CppType* output) { \
+    return String16ToIntImpl(input, output);                         \
+  }
 
-bool StringToInt(const StringPiece16& input, int* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToUint(const StringPiece& input, unsigned* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToUint(const StringPiece16& input, unsigned* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToInt32(const StringPiece& input, int32* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToInt32(const StringPiece16& input, int32* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToUint32(const StringPiece& input, uint32* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToUint32(const StringPiece16& input, uint32* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToInt64(const StringPiece& input, int64* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToInt64(const StringPiece16& input, int64* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToUint64(const StringPiece& input, uint64* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToUint64(const StringPiece16& input, uint64* output) {
-  return String16ToIntImpl(input, output);
-}
-
-bool StringToSizeT(const StringPiece& input, size_t* output) {
-  return StringToIntImpl(input, output);
-}
-
-bool StringToSizeT(const StringPiece16& input, size_t* output) {
-  return String16ToIntImpl(input, output);
-}
+INTEGRAL_STRING_CONVERSIONS_FOR_EACH(DEFINE_STRING_TO_INTEGRAL_CONVERSIONS)
+#undef DEFINE_STRING_TO_INTEGRAL_CONVERSIONS
 
 bool StringToDouble(const std::string& input, double* output) {
   errno = 0;  // Thread-safe?  It is on at least Mac, Linux, and Windows.
