@@ -137,7 +137,7 @@ class Scanner {
   // to try scanning a token through a fast track that does not require copying,
   // second time through a slower copying track if an escape sequence is found
   // during the first pass.
-  bool TryScanUnicodeRange(TrivialStringPiece* value);
+  bool TryScanUnicodeRange(TrivialIntPair* value);
   void ScanIdentifier(TrivialStringPiece* value, bool* has_escape);
   bool IsInputIteratorAtIdentifierStart() const;
   template <bool copy>

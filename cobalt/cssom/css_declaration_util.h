@@ -14,31 +14,22 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_CSS_RULE_VISITOR_H_
-#define CSSOM_CSS_RULE_VISITOR_H_
+#ifndef CSSOM_CSS_DECLARATION_UTIL_H_
+#define CSSOM_CSS_DECLARATION_UTIL_H_
+
+#include <string>
+
+#include "base/memory/ref_counted.h"
+#include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
 namespace cssom {
 
-class CSSStyleRule;
-class CSSMediaRule;
-class CSSFontFaceRule;
-
-// Type-safe branching on a class hierarchy of CSS selectors,
-// implemented after a classical GoF pattern (see
-// http://en.wikipedia.org/wiki/Visitor_pattern#Java_example).
-class CSSRuleVisitor {
- public:
-  // Simple selectors.
-  virtual void VisitCSSStyleRule(CSSStyleRule* css_style_rule) = 0;
-  virtual void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) = 0;
-  virtual void VisitCSSMediaRule(CSSMediaRule* css_media_rule) = 0;
-
- protected:
-  ~CSSRuleVisitor() {}
-};
+void AppendPropertyDeclaration(
+    const char* const property_name,
+    const scoped_refptr<PropertyValue>& property_value, std::string* output);
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_CSS_RULE_VISITOR_H_
+#endif  // CSSOM_CSS_DECLARATION_UTIL_H_

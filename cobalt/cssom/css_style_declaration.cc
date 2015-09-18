@@ -19,6 +19,7 @@
 #include "base/lazy_instance.h"
 #include "base/string_util.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule.h"
 #include "cobalt/cssom/mutation_observer.h"
@@ -58,7 +59,6 @@ CSSStyleDeclaration::CSSStyleDeclaration(
 }
 
 CSSStyleDeclaration::~CSSStyleDeclaration() {}
-
 
 std::string CSSStyleDeclaration::background() const {
   // In order to implement this properly we must either save the incoming string
@@ -408,30 +408,6 @@ void CSSStyleDeclaration::set_z_index(const std::string& z_index) {
   SetPropertyValue(kZIndexPropertyName, z_index);
 }
 
-namespace {
-
-// Append a property declaration to a string.
-// When the given string is not empty, this also adds the single space separator
-// needed for the serialization of a CSS declaration block.
-//   http://www.w3.org/TR/cssom/#serialize-a-css-declaration
-void AppendPropertyDeclaration(
-    const char* const property_name,
-    const scoped_refptr<PropertyValue>& property_value, std::string* output) {
-  if (property_value) {
-    DCHECK(output);
-    DCHECK(property_name);
-    if (!output->empty()) {
-      output->push_back(' ');
-    }
-    output->append(property_name);
-    output->append(": ");
-    output->append(property_value->ToString());
-    output->push_back(';');
-  }
-}
-
-}  // namespace
-
 // This returns the result of serializing a CSS declaration block.
 // The current implementation does not handle shorthands.
 //   http://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
@@ -505,7 +481,7 @@ std::string CSSStyleDeclaration::css_text() const {
                             data_->transition_delay(), &css_text);
   AppendPropertyDeclaration(kTransitionDurationPropertyName,
                             data_->transition_duration(), &css_text);
-  AppendPropertyDeclaration(kTransitionPropertyName,
+  AppendPropertyDeclaration(kTransitionPropertyPropertyName,
                             data_->transition_property(), &css_text);
   AppendPropertyDeclaration(kTransitionTimingFunctionPropertyName,
                             data_->transition_timing_function(), &css_text);
@@ -522,7 +498,7 @@ std::string CSSStyleDeclaration::css_text() const {
 void CSSStyleDeclaration::set_css_text(const std::string& css_text) {
   DCHECK(css_parser_);
   scoped_refptr<CSSStyleDeclarationData> declaration =
-      css_parser_->ParseDeclarationList(
+      css_parser_->ParseStyleDeclarationList(
           css_text, non_trivial_static_fields.Get().location);
 
   if (declaration) {
@@ -608,6 +584,9 @@ unsigned int CSSStyleDeclaration::length() const {
   if (data_->overflow()) {
     ++length;
   }
+  if (data_->overflow_wrap()) {
+    ++length;
+  }
   if (data_->padding_bottom()) {
     ++length;
   }
@@ -626,7 +605,19 @@ unsigned int CSSStyleDeclaration::length() const {
   if (data_->right()) {
     ++length;
   }
+  if (data_->tab_size()) {
+    ++length;
+  }
   if (data_->text_align()) {
+    ++length;
+  }
+  if (data_->text_indent()) {
+    ++length;
+  }
+  if (data_->text_overflow()) {
+    ++length;
+  }
+  if (data_->text_transform()) {
     ++length;
   }
   if (data_->top()) {
@@ -648,6 +639,9 @@ unsigned int CSSStyleDeclaration::length() const {
     ++length;
   }
   if (data_->vertical_align()) {
+    ++length;
+  }
+  if (data_->white_space()) {
     ++length;
   }
   if (data_->width()) {
@@ -803,6 +797,12 @@ base::optional<std::string> CSSStyleDeclaration::Item(
     }
     ++length;
   }
+  if (data_->overflow_wrap()) {
+    if (length == index) {
+      return std::string(kOverflowWrapPropertyName);
+    }
+    ++length;
+  }
   if (data_->padding_bottom()) {
     if (length == index) {
       return std::string(kPaddingBottomPropertyName);
@@ -839,9 +839,33 @@ base::optional<std::string> CSSStyleDeclaration::Item(
     }
     ++length;
   }
+  if (data_->tab_size()) {
+    if (length == index) {
+      return std::string(kTabSizePropertyName);
+    }
+    ++length;
+  }
   if (data_->text_align()) {
     if (length == index) {
       return std::string(kTextAlignPropertyName);
+    }
+    ++length;
+  }
+  if (data_->text_indent()) {
+    if (length == index) {
+      return std::string(kTextIndentPropertyName);
+    }
+    ++length;
+  }
+  if (data_->text_overflow()) {
+    if (length == index) {
+      return std::string(kTextOverflowPropertyName);
+    }
+    ++length;
+  }
+  if (data_->text_transform()) {
+    if (length == index) {
+      return std::string(kTextTransformPropertyName);
     }
     ++length;
   }
@@ -887,6 +911,12 @@ base::optional<std::string> CSSStyleDeclaration::Item(
     }
     ++length;
   }
+  if (data_->white_space()) {
+    if (length == index) {
+      return std::string(kWhiteSpacePropertyName);
+    }
+    ++length;
+  }
   if (data_->width()) {
     if (length == index) {
       return std::string(kWidthPropertyName);
@@ -912,9 +942,9 @@ std::string CSSStyleDeclaration::GetPropertyValue(
 void CSSStyleDeclaration::SetPropertyValue(const std::string& property_name,
                                            const std::string& property_value) {
   DCHECK(css_parser_);
-  css_parser_->ParsePropertyIntoStyle(property_name, property_value,
-                                      non_trivial_static_fields.Get().location,
-                                      data_.get());
+  css_parser_->ParsePropertyIntoDeclarationData(
+      property_name, property_value, non_trivial_static_fields.Get().location,
+      data_.get());
 
   RecordMutation();
 }

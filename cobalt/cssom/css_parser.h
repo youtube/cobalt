@@ -25,6 +25,8 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSDeclarationData;
+class CSSFontFaceDeclarationData;
 class CSSStyleDeclarationData;
 class CSSStyleRule;
 class CSSStyleSheet;
@@ -57,8 +59,14 @@ class CSSParser {
 
   // Parses the contents of a HTMLElement.style attribute.
   // Always returns non-NULL declaration, even if an error occurred.
-  virtual scoped_refptr<CSSStyleDeclarationData> ParseDeclarationList(
+  virtual scoped_refptr<CSSStyleDeclarationData> ParseStyleDeclarationList(
       const std::string& input, const base::SourceLocation& input_location) = 0;
+
+  // Parses the contents of an @font-face rule.
+  // Always returns non-NULL declaration, even if an error occurred.
+  virtual scoped_refptr<CSSFontFaceDeclarationData>
+  ParseFontFaceDeclarationList(const std::string& input,
+                               const base::SourceLocation& input_location) = 0;
 
   // Parses the property value.
   // |property_name| must be a valid CSS property name (see property_names.h).
@@ -73,10 +81,10 @@ class CSSParser {
   // property with property_name.  The style_declaration parameter will have
   // its specified property set to the resulting parsed value.
   // This is Cobalt's equivalent of a "list of component values".
-  virtual void ParsePropertyIntoStyle(
+  virtual void ParsePropertyIntoDeclarationData(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
-      CSSStyleDeclarationData* style_declaration) = 0;
+      CSSDeclarationData* declaration_data) = 0;
 
   // Parses the media query.
   // Always returns non-NULL style rule, even if an error occurred.

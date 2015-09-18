@@ -25,6 +25,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -36,7 +37,9 @@
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_value.h"
+#include "cobalt/cssom/url_src_value.h"
 
 namespace cobalt {
 namespace cssom {
@@ -77,6 +80,11 @@ void DefaultingPropertyValueVisitor::VisitLength(LengthValue* length_value) {
 void DefaultingPropertyValueVisitor::VisitLinearGradient(
     LinearGradientValue* linear_gradient_value) {
   VisitDefault(linear_gradient_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitLocalSrc(
+    LocalSrcValue* local_src_value) {
+  VisitDefault(local_src_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitMediaFeatureKeywordValue(
@@ -131,8 +139,17 @@ void DefaultingPropertyValueVisitor::VisitTransformFunctionList(
   VisitDefault(transform_function_list_value);
 }
 
+void DefaultingPropertyValueVisitor::VisitUnicodeRange(
+    UnicodeRangeValue* unicode_range_value) {
+  VisitDefault(unicode_range_value);
+}
+
 void DefaultingPropertyValueVisitor::VisitURL(URLValue* url_value) {
   VisitDefault(url_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitUrlSrc(UrlSrcValue* url_src_value) {
+  VisitDefault(url_src_value);
 }
 
 void NotReachedPropertyValueVisitor::VisitDefault(

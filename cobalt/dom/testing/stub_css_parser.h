@@ -32,7 +32,11 @@ class StubCSSParser : public cssom::CSSParser {
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
-  scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList(
+  scoped_refptr<cssom::CSSStyleDeclarationData> ParseStyleDeclarationList(
+      const std::string& input,
+      const base::SourceLocation& input_location) OVERRIDE;
+
+  scoped_refptr<cssom::CSSFontFaceDeclarationData> ParseFontFaceDeclarationList(
       const std::string& input,
       const base::SourceLocation& input_location) OVERRIDE;
 
@@ -40,10 +44,10 @@ class StubCSSParser : public cssom::CSSParser {
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location) OVERRIDE;
 
-  void ParsePropertyIntoStyle(
+  void ParsePropertyIntoDeclarationData(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
-      cssom::CSSStyleDeclarationData* style_declaration) OVERRIDE;
+      cssom::CSSDeclarationData* declaration_data) OVERRIDE;
 
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
       const std::string& media_query,

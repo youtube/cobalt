@@ -209,6 +209,84 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCursive:
+    case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kHidden:
+    case cssom::KeywordValue::kInherit:
+    case cssom::KeywordValue::kInitial:
+    case cssom::KeywordValue::kInline:
+    case cssom::KeywordValue::kInlineBlock:
+    case cssom::KeywordValue::kLeft:
+    case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonospace:
+    case cssom::KeywordValue::kNone:
+    case cssom::KeywordValue::kNoRepeat:
+    case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kPre:
+    case cssom::KeywordValue::kRelative:
+    case cssom::KeywordValue::kRepeat:
+    case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kSerif:
+    case cssom::KeywordValue::kStatic:
+    case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kUppercase:
+    case cssom::KeywordValue::kVisible:
+    default:
+      NOTREACHED();
+  }
+}
+
+void UsedBackgroundSizeScaleProvider::VisitLength(cssom::LengthValue* length) {
+  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
+  scale_ = length->value() / image_length_;
+}
+
+void UsedBackgroundSizeScaleProvider::VisitPercentage(
+    cssom::PercentageValue* percentage) {
+  scale_ = frame_length_ * percentage->value() / image_length_;
+}
+
+// TODO(***REMOVED***): Factor in generic families.
+//   http://www.w3.org/TR/css3-fonts/#font-family-prop
+class UsedFontFamilyProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  typedef std::vector<std::string> FontFamilyList;
+
+  UsedFontFamilyProvider() {}
+
+  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitPropertyList(cssom::PropertyListValue* property_list) OVERRIDE;
+  void VisitString(cssom::StringValue* percentage) OVERRIDE;
+
+  const FontFamilyList& font_families() const { return font_families_; }
+
+ private:
+  FontFamilyList font_families_;
+
+  DISALLOW_COPY_AND_ASSIGN(UsedFontFamilyProvider);
+};
+
+void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
+  switch (keyword->value()) {
+    case cssom::KeywordValue::kCursive:
+    case cssom::KeywordValue::kFantasy:
+    case cssom::KeywordValue::kMonospace:
+    case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kSerif:
+      font_families_.push_back(keyword->ToString());
+      break;
+    case cssom::KeywordValue::kAuto:
+    case cssom::KeywordValue::kAbsolute:
+    case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBreakWord:
+    case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kContain:
+    case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
@@ -234,14 +312,15 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
   }
 }
 
-void UsedBackgroundSizeScaleProvider::VisitLength(cssom::LengthValue* length) {
-  DCHECK_EQ(cssom::kPixelsUnit, length->unit());
-  scale_ = length->value() / image_length_;
+void UsedFontFamilyProvider::VisitPropertyList(
+    cssom::PropertyListValue* property_list) {
+  for (size_t i = 0; i < property_list->value().size(); ++i) {
+    property_list->value()[i]->Accept(this);
+  }
 }
 
-void UsedBackgroundSizeScaleProvider::VisitPercentage(
-    cssom::PercentageValue* percentage) {
-  scale_ = frame_length_ * percentage->value() / image_length_;
+void UsedFontFamilyProvider::VisitString(cssom::StringValue* string) {
+  font_families_.push_back(string->value());
 }
 
 }  // namespace
@@ -256,8 +335,14 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
     const scoped_refptr<cssom::PropertyValue>& font_size_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_style_refptr,
     const scoped_refptr<cssom::PropertyValue>& font_weight_refptr) const {
-  cssom::StringValue* font_family =
-      base::polymorphic_downcast<cssom::StringValue*>(font_family_refptr.get());
+  UsedFontFamilyProvider font_family_provider;
+  font_family_refptr->Accept(&font_family_provider);
+  const UsedFontFamilyProvider::FontFamilyList& font_family_list =
+      font_family_provider.font_families();
+  // TODO(***REMOVED***): This will be modified to return the list of fonts soon.
+  std::string font_family_name =
+      font_family_list.size() > 0 ? font_family_list[0] : "Droid Sans";
+
   cssom::LengthValue* font_size =
       base::polymorphic_downcast<cssom::LengthValue*>(font_size_refptr.get());
   DCHECK_EQ(cssom::kPixelsUnit, font_size->unit());
@@ -272,7 +357,7 @@ scoped_refptr<render_tree::Font> UsedStyleProvider::GetUsedFont(
                                              font_weight->value());
 
   return resource_provider_->GetPreInstalledFont(
-      font_family->value().c_str(), render_tree_font_style, font_size->value());
+      font_family_name.c_str(), render_tree_font_style, font_size->value());
 }
 
 scoped_refptr<render_tree::Image> UsedStyleProvider::ResolveURLToImage(
@@ -453,8 +538,10 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kBlock:
     case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -462,6 +549,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kInlineBlock:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
@@ -470,6 +558,8 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -699,7 +789,9 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kClip:
       case cssom::KeywordValue::kContain:
       case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
+      case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
@@ -707,6 +799,7 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kInlineBlock:
       case cssom::KeywordValue::kLeft:
       case cssom::KeywordValue::kMiddle:
+      case cssom::KeywordValue::kMonospace:
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
@@ -715,6 +808,8 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kRelative:
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kRight:
+      case cssom::KeywordValue::kSansSerif:
+      case cssom::KeywordValue::kSerif:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:

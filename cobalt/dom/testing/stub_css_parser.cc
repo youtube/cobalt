@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/testing/stub_css_parser.h"
 
+#include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -42,11 +43,19 @@ scoped_refptr<cssom::CSSStyleRule> StubCSSParser::ParseStyleRule(
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData>
-StubCSSParser::ParseDeclarationList(
+StubCSSParser::ParseStyleDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   UNREFERENCED_PARAMETER(input);
   UNREFERENCED_PARAMETER(input_location);
   return new cssom::CSSStyleDeclarationData();
+}
+
+scoped_refptr<cssom::CSSFontFaceDeclarationData>
+StubCSSParser::ParseFontFaceDeclarationList(
+    const std::string& input, const base::SourceLocation& input_location) {
+  UNREFERENCED_PARAMETER(input);
+  UNREFERENCED_PARAMETER(input_location);
+  return new cssom::CSSFontFaceDeclarationData();
 }
 
 scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
@@ -58,14 +67,14 @@ scoped_refptr<cssom::PropertyValue> StubCSSParser::ParsePropertyValue(
   return NULL;
 }
 
-void StubCSSParser::ParsePropertyIntoStyle(
+void StubCSSParser::ParsePropertyIntoDeclarationData(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location,
-    cssom::CSSStyleDeclarationData* style_declaration) {
+    cssom::CSSDeclarationData* declaration_data) {
   UNREFERENCED_PARAMETER(property_name);
   UNREFERENCED_PARAMETER(property_value);
   UNREFERENCED_PARAMETER(property_location);
-  UNREFERENCED_PARAMETER(style_declaration);
+  UNREFERENCED_PARAMETER(declaration_data);
 }
 
 scoped_refptr<cssom::MediaQuery> StubCSSParser::ParseMediaQuery(
