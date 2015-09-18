@@ -83,10 +83,20 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/css3-background/#the-background-size
     kCover,
 
+    // "cursive" is a value of "font_family" property which indicates a generic
+    // font family using a more informal script style.
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    kCursive,
+
     // "ellipsis" is a value of "text-overflow" property which specifies
     // rendering an ellipsis to represent clipped inline content.
     //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
     kEllipsis,
+
+    // "fantasy" is a value of "font_family" property which indicates a generic
+    // font family using decorative or expressive representations of characters.
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    kFantasy,
 
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
@@ -123,6 +133,12 @@ class KeywordValue : public PropertyValue {
     // content should be aligned vertically centered.
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kMiddle,
+
+    // "monospace" is a value of "font_family" property which indicates a
+    // generic
+    // font family using glyphs with the same fixed width.
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    kMonospace,
 
     // "none" is a value of "transform" property which means that HTML element
     // is rendered as is.
@@ -168,6 +184,17 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kRight,
 
+    // "sans-serif" is a value of "font_family" property which indicates a
+    // generic font family using glyphs with low contrast and plain stroke
+    // endings (without flaring, cross stroke or other ornamentation).
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    kSansSerif,
+
+    // "serif" is a value of "font_family" property which indicates a generic
+    // font family representing the formal text style for script.
+    //   http://www.w3.org/TR/css3-fonts/#generic-font-families
+    kSerif,
+
     // "static" is a value of "position" property which indicates that a box
     // is laid out according to the normal flow.
     //   http://www.w3.org/TR/CSS21/visuren.html#choose-position
@@ -203,7 +230,9 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetClip();
   static const scoped_refptr<KeywordValue>& GetContain();
   static const scoped_refptr<KeywordValue>& GetCover();
+  static const scoped_refptr<KeywordValue>& GetCursive();
   static const scoped_refptr<KeywordValue>& GetEllipsis();
+  static const scoped_refptr<KeywordValue>& GetFantasy();
   static const scoped_refptr<KeywordValue>& GetHidden();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();
@@ -211,6 +240,7 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetInlineBlock();
   static const scoped_refptr<KeywordValue>& GetLeft();
   static const scoped_refptr<KeywordValue>& GetMiddle();
+  static const scoped_refptr<KeywordValue>& GetMonospace();
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNoRepeat();
   static const scoped_refptr<KeywordValue>& GetNormal();
@@ -219,6 +249,8 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetRelative();
   static const scoped_refptr<KeywordValue>& GetRepeat();
   static const scoped_refptr<KeywordValue>& GetRight();
+  static const scoped_refptr<KeywordValue>& GetSansSerif();
+  static const scoped_refptr<KeywordValue>& GetSerif();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();
   static const scoped_refptr<KeywordValue>& GetUppercase();

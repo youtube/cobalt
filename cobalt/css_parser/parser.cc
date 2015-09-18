@@ -33,6 +33,7 @@
 #include "cobalt/css_parser/scanner.h"
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
+#include "cobalt/css_parser/trivial_type_pairs.h"
 #include "cobalt/cssom/after_pseudo_element.h"
 #include "cobalt/cssom/before_pseudo_element.h"
 #include "cobalt/cssom/child_combinator.h"
@@ -68,6 +69,7 @@
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/type_selector.h"
+#include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_value.h"
 
 namespace cobalt {
@@ -107,12 +109,14 @@ class ParserImpl {
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet();
   scoped_refptr<cssom::CSSStyleRule> ParseStyleRule();
-  scoped_refptr<cssom::CSSStyleDeclarationData> ParseDeclarationList();
+  scoped_refptr<cssom::CSSStyleDeclarationData> ParseStyleDeclarationList();
+  scoped_refptr<cssom::CSSFontFaceDeclarationData>
+  ParseFontFaceDeclarationList();
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name);
-  void ParsePropertyIntoStyle(
+  void ParsePropertyIntoDeclarationData(
       const std::string& property_name,
-      cssom::CSSStyleDeclarationData* style_declaration);
+      cssom::CSSDeclarationData* declaration_data);
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery();
 
   Scanner& scanner() { return scanner_; }
@@ -134,17 +138,23 @@ class ParserImpl {
   void set_style_rule(const scoped_refptr<cssom::CSSStyleRule>& style_rule) {
     style_rule_ = style_rule;
   }
-  void set_declaration_list(
-      const scoped_refptr<cssom::CSSStyleDeclarationData>& declaration_list) {
-    declaration_list_ = declaration_list;
+  void set_style_declaration_data(
+      const scoped_refptr<cssom::CSSStyleDeclarationData>&
+          style_declaration_data) {
+    style_declaration_data_ = style_declaration_data;
+  }
+  void set_font_face_declaration_data(
+      const scoped_refptr<cssom::CSSFontFaceDeclarationData>&
+          font_face_declaration_data) {
+    font_face_declaration_data_ = font_face_declaration_data;
   }
   void set_property_value(
       const scoped_refptr<cssom::PropertyValue>& property_value) {
     property_value_ = property_value;
   }
 
-  cssom::CSSStyleDeclarationData* into_declaration_list() {
-    return into_declaration_list_;
+  cssom::CSSDeclarationData* into_declaration_data() {
+    return into_declaration_data_;
   }
 
  private:
@@ -172,12 +182,13 @@ class ParserImpl {
   scoped_refptr<cssom::MediaQuery> media_query_;
   scoped_refptr<cssom::CSSStyleSheet> style_sheet_;
   scoped_refptr<cssom::CSSStyleRule> style_rule_;
-  scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list_;
+  scoped_refptr<cssom::CSSStyleDeclarationData> style_declaration_data_;
+  scoped_refptr<cssom::CSSFontFaceDeclarationData> font_face_declaration_data_;
   scoped_refptr<cssom::PropertyValue> property_value_;
 
-  // Acts as the destination style declaration when ParsePropertyIntoStyle() is
-  // called.
-  cssom::CSSStyleDeclarationData* into_declaration_list_;
+  // Acts as the destination declaration data when
+  // ParsePropertyIntoDeclarationData() is called.
+  cssom::CSSDeclarationData* into_declaration_data_;
 
   static void IncludeInputWithMessage(const std::string& input,
                                       const Parser::OnMessageCallback& callback,
@@ -201,7 +212,7 @@ ParserImpl::ParserImpl(const std::string& input,
       message_verbosity_(message_verbosity),
       css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
-      into_declaration_list_(NULL) {}
+      into_declaration_data_(NULL) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   scanner_.PrependToken(kStyleSheetEntryPointToken);
@@ -216,10 +227,17 @@ scoped_refptr<cssom::CSSStyleRule> ParserImpl::ParseStyleRule() {
 }
 
 scoped_refptr<cssom::CSSStyleDeclarationData>
-ParserImpl::ParseDeclarationList() {
-  scanner_.PrependToken(kDeclarationListEntryPointToken);
-  return Parse() ? declaration_list_
+ParserImpl::ParseStyleDeclarationList() {
+  scanner_.PrependToken(kStyleDeclarationListEntryPointToken);
+  return Parse() ? style_declaration_data_
                  : make_scoped_refptr(new cssom::CSSStyleDeclarationData());
+}
+
+scoped_refptr<cssom::CSSFontFaceDeclarationData>
+ParserImpl::ParseFontFaceDeclarationList() {
+  scanner_.PrependToken(kFontFaceDeclarationListEntryPointToken);
+  return Parse() ? font_face_declaration_data_
+                 : make_scoped_refptr(new cssom::CSSFontFaceDeclarationData());
 }
 
 scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
@@ -248,9 +266,9 @@ scoped_refptr<cssom::PropertyValue> ParserImpl::ParsePropertyValue(
   return Parse() ? property_value_ : NULL;
 }
 
-void ParserImpl::ParsePropertyIntoStyle(
+void ParserImpl::ParsePropertyIntoDeclarationData(
     const std::string& property_name,
-    cssom::CSSStyleDeclarationData* style_declaration) {
+    cssom::CSSDeclarationData* declaration_data) {
   Token property_name_token;
   bool known_property_name =
       scanner_.DetectPropertyNameToken(property_name, &property_name_token);
@@ -264,11 +282,11 @@ void ParserImpl::ParsePropertyIntoStyle(
     return;
   }
 
-  scanner_.PrependToken(kPropertyIntoStyleEntryPointToken);
+  scanner_.PrependToken(kPropertyIntoDeclarationDataEntryPointToken);
   scanner_.PrependToken(property_name_token);
   scanner_.PrependToken(':');
 
-  into_declaration_list_ = style_declaration;
+  into_declaration_data_ = declaration_data;
   Parse();
 }
 
@@ -454,11 +472,19 @@ scoped_refptr<cssom::CSSStyleRule> Parser::ParseStyleRule(
   return parser_impl.ParseStyleRule();
 }
 
-scoped_refptr<cssom::CSSStyleDeclarationData> Parser::ParseDeclarationList(
+scoped_refptr<cssom::CSSStyleDeclarationData> Parser::ParseStyleDeclarationList(
     const std::string& input, const base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
                          on_error_callback_, message_verbosity_);
-  return parser_impl.ParseDeclarationList();
+  return parser_impl.ParseStyleDeclarationList();
+}
+
+scoped_refptr<cssom::CSSFontFaceDeclarationData>
+Parser::ParseFontFaceDeclarationList(
+    const std::string& input, const base::SourceLocation& input_location) {
+  ParserImpl parser_impl(input, input_location, this, on_warning_callback_,
+                         on_error_callback_, message_verbosity_);
+  return parser_impl.ParseFontFaceDeclarationList();
 }
 
 scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
@@ -470,14 +496,15 @@ scoped_refptr<cssom::PropertyValue> Parser::ParsePropertyValue(
   return parser_impl.ParsePropertyValue(property_name);
 }
 
-void Parser::ParsePropertyIntoStyle(
+void Parser::ParsePropertyIntoDeclarationData(
     const std::string& property_name, const std::string& property_value,
     const base::SourceLocation& property_location,
-    cssom::CSSStyleDeclarationData* style_declaration) {
+    cssom::CSSDeclarationData* declaration_data) {
   ParserImpl parser_impl(property_value, property_location, this,
                          on_warning_callback_, on_error_callback_,
                          message_verbosity_);
-  return parser_impl.ParsePropertyIntoStyle(property_name, style_declaration);
+  return parser_impl.ParsePropertyIntoDeclarationData(property_name,
+                                                      declaration_data);
 }
 
 scoped_refptr<cssom::MediaQuery> Parser::ParseMediaQuery(

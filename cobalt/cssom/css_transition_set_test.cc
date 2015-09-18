@@ -22,6 +22,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/number_value.h"
+#include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/string_value.h"
@@ -40,6 +41,15 @@ scoped_refptr<TimeListValue> MakeTimeListWithSingleTime(float time_in_seconds) {
   time_list->push_back(base::TimeDelta::FromMicroseconds(static_cast<int64>(
       time_in_seconds * base::Time::kMicrosecondsPerSecond)));
   return make_scoped_refptr(new TimeListValue(time_list.Pass()));
+}
+
+scoped_refptr<PropertyListValue> MakePropertyListWithSingleProperty(
+    const scoped_refptr<PropertyValue>& property_value) {
+  scoped_ptr<PropertyListValue::Builder> property_list_builder(
+      new PropertyListValue::Builder());
+  property_list_builder->push_back(property_value.get());
+  return make_scoped_refptr(
+      new PropertyListValue(property_list_builder.Pass()));
 }
 
 scoped_refptr<ConstStringListValue> MakePropertyNameListWithSingleProperty(
@@ -67,7 +77,8 @@ scoped_refptr<CSSStyleDeclarationData> CreateTestComputedData() {
   initial_data->set_background_color(new RGBAColorValue(0xffffffff));
   initial_data->set_color(new RGBAColorValue(0x00000000));
   initial_data->set_display(KeywordValue::GetBlock());
-  initial_data->set_font_family(new StringValue("Droid Sans"));
+  initial_data->set_font_family(
+      MakePropertyListWithSingleProperty(new StringValue("Droid Sans")));
   initial_data->set_font_size(new LengthValue(16, kPixelsUnit));
   initial_data->set_height(new LengthValue(400, kPixelsUnit));
   initial_data->set_opacity(new NumberValue(0.5f));

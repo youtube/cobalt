@@ -35,13 +35,15 @@ TEST_F(ScannerTest, ScansSingleCodePointUnicodeRange) {
 
   ASSERT_EQ(kUnicodeRangeToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("1f4a9", token_value_.string);
+  ASSERT_EQ(0x1f4a9, token_value_.integer_pair.first);
+  ASSERT_EQ(0x1f4a9, token_value_.integer_pair.second);
 
   ASSERT_EQ(kWhitespaceToken, yylex(&token_value_, &token_location_, &scanner));
 
   ASSERT_EQ(kUnicodeRangeToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("1F4A9", token_value_.string);
+  ASSERT_EQ(0x1f4a9, token_value_.integer_pair.first);
+  ASSERT_EQ(0x1f4a9, token_value_.integer_pair.second);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -51,7 +53,8 @@ TEST_F(ScannerTest, ScansLowerToUpperBoundUnicodeRange) {
 
   ASSERT_EQ(kUnicodeRangeToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("32-ff", token_value_.string);
+  ASSERT_EQ(0x32, token_value_.integer_pair.first);
+  ASSERT_EQ(0xff, token_value_.integer_pair.second);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -61,7 +64,8 @@ TEST_F(ScannerTest, ScansWildcardUnicodeRange) {
 
   ASSERT_EQ(kUnicodeRangeToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("04??", token_value_.string);
+  ASSERT_EQ(0x400, token_value_.integer_pair.first);
+  ASSERT_EQ(0x4ff, token_value_.integer_pair.second);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
@@ -96,7 +100,8 @@ TEST_F(ScannerTest, ScansSixDigitUnicodeRange) {
 
   ASSERT_EQ(kUnicodeRangeToken,
             yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("111111", token_value_.string);
+  ASSERT_EQ(0x111111, token_value_.integer_pair.first);
+  ASSERT_EQ(0x111111, token_value_.integer_pair.second);
 
   ASSERT_EQ(kIntegerToken, yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(11, token_value_.integer);
@@ -763,6 +768,15 @@ TEST_F(ScannerTest, ScansNotFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
+TEST_F(ScannerTest, ScansCalcFunction) {
+  Scanner scanner("calc()", &string_pool_);
+
+  ASSERT_EQ(kCalcFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
 TEST_F(ScannerTest, ScansCueFunction) {
   Scanner scanner("cue()", &string_pool_);
 
@@ -772,10 +786,19 @@ TEST_F(ScannerTest, ScansCueFunction) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansCalcFunction) {
-  Scanner scanner("calc()", &string_pool_);
+TEST_F(ScannerTest, ScansFormatFunction) {
+  Scanner scanner("format()", &string_pool_);
 
-  ASSERT_EQ(kCalcFunctionToken,
+  ASSERT_EQ(kFormatFunctionToken,
+            yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansLocalFunction) {
+  Scanner scanner("local()", &string_pool_);
+
+  ASSERT_EQ(kLocalFunctionToken,
             yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(')', yylex(&token_value_, &token_location_, &scanner));
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));

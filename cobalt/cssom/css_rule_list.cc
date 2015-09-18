@@ -19,6 +19,7 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_rule_visitor.h"
@@ -87,6 +88,13 @@ void CSSRuleList::AppendCSSStyleRule(
   css_rules_.push_back(css_style_rule);
 }
 
+// Appends a CSSFontFaceRule to the current style sheet.
+void CSSRuleList::AppendCSSFontFaceRule(
+    const scoped_refptr<CSSFontFaceRule>& css_font_face_rule) {
+  css_rules_.push_back(css_font_face_rule);
+}
+
+// Appends a CSSMediaRule to the current style sheet.
 void CSSRuleList::AppendCSSMediaRule(
     const scoped_refptr<CSSMediaRule>& css_media_rule) {
   if (parent_style_sheet_) {

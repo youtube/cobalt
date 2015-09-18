@@ -159,12 +159,15 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kNoWrap:
@@ -172,6 +175,8 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -343,13 +348,16 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
+    case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
     case cssom::KeywordValue::kLeft:
     case cssom::KeywordValue::kMiddle:
+    case cssom::KeywordValue::kMonospace:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
     case cssom::KeywordValue::kNoWrap:
@@ -357,6 +365,8 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
+    case cssom::KeywordValue::kSansSerif:
+    case cssom::KeywordValue::kSerif:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
@@ -412,6 +422,24 @@ void BoxGenerator::AppendChildBoxToLine(Box* child_box_ptr) {
   }
 }
 
+namespace {
+
+class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
+ public:
+  ContentProvider() {}
+
+  const std::string& content_string() const { return content_string_; }
+
+  void VisitString(cssom::StringValue* string_value) OVERRIDE {
+    content_string_ = string_value->value();
+  }
+
+ private:
+  std::string content_string_;
+};
+
+}  // namespace
+
 void BoxGenerator::AppendPseudoElementToLine(
     dom::HTMLElement* html_element,
     dom::PseudoElementType pseudo_element_type) {
@@ -436,10 +464,11 @@ void BoxGenerator::AppendPseudoElementToLine(
 
       // The generated content is a text node with the string value of the
       // 'content' property.
-      const std::string& content_string =
-          pseudo_element->computed_style()->content()->ToString();
+      ContentProvider content_provider;
+      pseudo_element->computed_style()->content()->Accept(&content_provider);
       scoped_refptr<dom::Text> child_node(
-          new dom::Text(html_element->owner_document(), content_string));
+          new dom::Text(html_element->owner_document(),
+                        content_provider.content_string()));
 
       BoxGenerator child_box_generator(pseudo_element->computed_style(),
                                        used_style_provider_,

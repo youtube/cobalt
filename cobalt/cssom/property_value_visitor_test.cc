@@ -24,6 +24,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
@@ -38,7 +39,9 @@
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_value.h"
+#include "cobalt/cssom/url_src_value.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -59,6 +62,7 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(LinearGradientValue* linear_gradient_value));
   MOCK_METHOD1(VisitList, void(ConstStringListValue* const_string_list_value));
   MOCK_METHOD1(VisitList, void(TimeListValue* time_list_value));
+  MOCK_METHOD1(VisitLocalSrc, void(LocalSrcValue* local_src_value));
   MOCK_METHOD1(VisitMediaFeatureKeywordValue,
                void(MediaFeatureKeywordValue* media_feature_keyword_value));
   MOCK_METHOD1(VisitNumber, void(NumberValue* number_value));
@@ -73,7 +77,9 @@ class MockPropertyValueVisitor : public PropertyValueVisitor {
                void(TimingFunctionListValue* timing_function_list_value));
   MOCK_METHOD1(VisitTransformFunctionList,
                void(TransformFunctionListValue* transform_list_value));
+  MOCK_METHOD1(VisitUnicodeRange, void(UnicodeRangeValue* unicode_range_value));
   MOCK_METHOD1(VisitURL, void(URLValue* url_value));
+  MOCK_METHOD1(VisitUrlSrc, void(UrlSrcValue* url_src_value));
 };
 
 TEST(PropertyValueVisitorTest, VisitsAbsoluteURLValue) {
@@ -127,6 +133,13 @@ TEST(PropertyValueVisitorTest, VisitsLengthValue) {
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitLength(length_value.get()));
   length_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsLocalSrcValue) {
+  scoped_refptr<LocalSrcValue> local_src_value = new LocalSrcValue("Gentium");
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitLocalSrc(local_src_value.get()));
+  local_src_value->Accept(&mock_visitor);
 }
 
 TEST(PropertyValueVisitorTest, VisitsMediaFeatureKeywordValue) {
@@ -226,11 +239,27 @@ TEST(PropertyValueVisitorTest, VisitsTransformListValue) {
   transform_list_value->Accept(&mock_visitor);
 }
 
+TEST(PropertyValueVisitorTest, VisitsUnicodeRangeValue) {
+  scoped_refptr<UnicodeRangeValue> unicode_range_value =
+      new UnicodeRangeValue(0, 0x10FFFF);
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitUnicodeRange(unicode_range_value.get()));
+  unicode_range_value->Accept(&mock_visitor);
+}
+
 TEST(PropertyValueVisitorTest, VisitsURLValue) {
   scoped_refptr<URLValue> url_value = new URLValue("");
   MockPropertyValueVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitURL(url_value.get()));
   url_value->Accept(&mock_visitor);
+}
+
+TEST(PropertyValueVisitorTest, VisitsUrlSrcValue) {
+  scoped_refptr<UrlSrcValue> url_src_value =
+      new UrlSrcValue(new URLValue(""), "'Droid Sans'");
+  MockPropertyValueVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, VisitUrlSrc(url_src_value.get()));
+  url_src_value->Accept(&mock_visitor);
 }
 
 }  // namespace cssom
