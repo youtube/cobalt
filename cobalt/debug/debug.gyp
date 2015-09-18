@@ -23,28 +23,11 @@
       'sources': [
         'debug_hub.cc',
         'debug_hub.h',
-        'console_values.cc',
-        'console_values.h',
         'system_stats_tracker.cc',
         'system_stats_tracker.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-      ],
-    },
-
-    {
-      'target_name': 'debug_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'testing/console_values_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:run_all_unittests',
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'debug',
       ],
     },
   ],

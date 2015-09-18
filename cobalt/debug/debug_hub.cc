@@ -16,9 +16,7 @@
 
 #include "cobalt/debug/debug_hub.h"
 
-#if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/console_values.h"
-#endif  // ENABLE_DEBUG_CONSOLE
+#include "cobalt/base/console_values.h"
 
 namespace cobalt {
 namespace debug {
