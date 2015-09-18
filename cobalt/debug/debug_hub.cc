@@ -78,7 +78,7 @@ void DebugHub::RemoveLogMessageCallback(int callback_id) {
 // support return of a string array.
 std::string DebugHub::GetConsoleValueNames() const {
   std::string ret = "";
-  ConsoleValueManager* cvm = ConsoleValueManager::GetInstance();
+  base::ConsoleValueManager* cvm = base::ConsoleValueManager::GetInstance();
   DCHECK(cvm);
 
   if (cvm) {
@@ -98,11 +98,11 @@ std::string DebugHub::GetConsoleValueNames() const {
 
 std::string DebugHub::GetConsoleValue(const std::string& name) const {
   std::string ret = "<undefined>";
-  ConsoleValueManager* cvm = ConsoleValueManager::GetInstance();
+  base::ConsoleValueManager* cvm = base::ConsoleValueManager::GetInstance();
   DCHECK(cvm);
 
   if (cvm) {
-    ConsoleValueManager::ValueQueryResults result =
+    base::ConsoleValueManager::ValueQueryResults result =
         cvm->GetValueAsPrettyString(name);
     if (result.valid) {
       ret = result.value;
