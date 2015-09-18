@@ -25,6 +25,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -39,7 +40,9 @@
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
+#include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_value.h"
+#include "cobalt/cssom/url_src_value.h"
 #include "cobalt/math/matrix_interpolation.h"
 #include "cobalt/math/transform_2d.h"
 
@@ -90,6 +93,7 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitLength(LengthValue* start_length_value) OVERRIDE;
   void VisitLinearGradient(
       LinearGradientValue* start_linear_gradient_value) OVERRIDE;
+  void VisitLocalSrc(LocalSrcValue* local_src_value) OVERRIDE;
   void VisitMediaFeatureKeywordValue(
       MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
@@ -104,7 +108,9 @@ class AnimatorVisitor : public PropertyValueVisitor {
   void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
   void VisitTimingFunctionList(
       TimingFunctionListValue* start_timing_function_list_value) OVERRIDE;
+  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
+  void VisitUrlSrc(UrlSrcValue* url_src_value) OVERRIDE;
 
  private:
   scoped_refptr<PropertyValue> end_value_;
@@ -399,7 +405,9 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kCursive:
     case KeywordValue::kEllipsis:
+    case KeywordValue::kFantasy:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -407,6 +415,7 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kInlineBlock:
     case KeywordValue::kLeft:
     case KeywordValue::kMiddle:
+    case KeywordValue::kMonospace:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
     case KeywordValue::kNoWrap:
@@ -414,6 +423,8 @@ void AnimatorVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
+    case KeywordValue::kSansSerif:
+    case KeywordValue::kSerif:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
@@ -431,6 +442,11 @@ void AnimatorVisitor::VisitLength(LengthValue* /*start_length_value*/) {
 
 void AnimatorVisitor::VisitLinearGradient(
     LinearGradientValue* /*start_linear_gradient_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitLocalSrc(LocalSrcValue* /*local_src_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }
@@ -513,7 +529,18 @@ void AnimatorVisitor::VisitTimingFunctionList(
   animated_value_ = end_value_;
 }
 
+void AnimatorVisitor::VisitUnicodeRange(
+    UnicodeRangeValue* /*unicode_range_value*/) {
+  NOTREACHED();
+  animated_value_ = end_value_;
+}
+
 void AnimatorVisitor::VisitURL(URLValue* /*url_value*/) {
+  NOTREACHED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitUrlSrc(UrlSrcValue* /*url_src_value*/) {
   NOTREACHED();
   animated_value_ = end_value_;
 }

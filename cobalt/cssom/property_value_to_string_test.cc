@@ -225,7 +225,7 @@ TEST(PropertyValueToStringTest, LinearGradientValueSideOrCorner) {
 
 TEST(PropertyValueToStringTest, StringValue) {
   scoped_refptr<StringValue> property(new StringValue("cobalt"));
-  EXPECT_EQ(property->ToString(), "cobalt");
+  EXPECT_EQ(property->ToString(), "'cobalt'");
 }
 
 TEST(PropertyValueToStringTest, TimeListValue) {

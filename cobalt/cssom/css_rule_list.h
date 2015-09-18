@@ -28,6 +28,7 @@
 namespace cobalt {
 namespace cssom {
 
+class CSSFontFaceRule;
 class CSSMediaRule;
 class CSSParser;
 class CSSRuleVisitor;
@@ -72,6 +73,10 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
 
   // Appends a CSSStyleRule to the rule list.
   void AppendCSSStyleRule(const scoped_refptr<CSSStyleRule>& css_style_rule);
+
+  // Appends a CSSFontFaceRule to the rule list.
+  void AppendCSSFontFaceRule(
+      const scoped_refptr<CSSFontFaceRule>& css_font_face_rule);
 
   // Appends a CSSMediaRule to the rule list.
   void AppendCSSMediaRule(const scoped_refptr<CSSMediaRule>& css_media_rule);

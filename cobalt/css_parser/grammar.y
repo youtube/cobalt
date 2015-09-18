@@ -42,9 +42,10 @@
 
 // Token values returned by a scanner.
 %union TokenValue {
-  TrivialStringPiece string;
-  int integer;
   float real;
+  int integer;
+  TrivialIntPair integer_pair;
+  TrivialStringPiece string;
 }
 
 //
@@ -56,9 +57,10 @@
 %token kMediaQueryEntryPointToken
 %token kStyleSheetEntryPointToken
 %token kStyleRuleEntryPointToken
-%token kDeclarationListEntryPointToken
+%token kStyleDeclarationListEntryPointToken
+%token kFontFaceDeclarationListEntryPointToken
 %token kPropertyValueEntryPointToken
-%token kPropertyIntoStyleEntryPointToken
+%token kPropertyIntoDeclarationDataEntryPointToken
 
 // Tokens without a value.
 %token kEndOfFileToken 0                // null
@@ -104,6 +106,7 @@
 %token kPaddingTopToken                       // padding-top
 %token kPositionToken                         // position
 %token kRightToken                            // right
+%token kSrcToken                              // src
 %token kTabSizeToken                          // tab-size
 %token kTextAlignToken                        // text-align
 %token kTextIndentToken                       // text-indent
@@ -116,6 +119,7 @@
 %token kTransitionPropertyToken               // transition-property
 %token kTransitionTimingFunctionToken         // transition-timing-function
 %token kTransitionToken                       // transition
+%token kUnicodeRangePropertyToken             // unicode-range
 %token kVerticalAlignToken                    // vertical-align
 %token kWhiteSpacePropertyToken               // white-space
 %token kWidthToken                            // width
@@ -134,12 +138,14 @@
 %token kClipToken                       // clip
 %token kContainToken                    // contain
 %token kCoverToken                      // cover
+%token kCursiveToken                    // cursive
 %token kEaseInOutToken                  // ease-in-out
 %token kEaseInToken                     // ease-in
 %token kEaseOutToken                    // ease-out
 %token kEaseToken                       // ease
 %token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
+%token kFantasyToken                    // fantasy
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
 %token kInitialToken                    // initial
@@ -149,6 +155,7 @@
 %token kLinearToken                     // linear
 // %token kLeftToken                    // left - also property name token
 %token kMiddleToken                     // middle
+%token kMonospaceToken                  // monospace
 %token kNoneToken                       // none
 %token kNoRepeatToken                   // no-repeat
 %token kNormalToken                     // normal
@@ -160,6 +167,8 @@
 %token kRepeatYToken                    // repeat-y
 %token kRelativeToken                   // relative
 // %token kRightToken                   // right - also property name token
+%token kSansSerifToken                  // sans-serif
+%token kSerifToken                      // serif
 %token kStartToken                      // start
 %token kStaticToken                     // static
 %token kStepEndToken                    // step-end
@@ -262,7 +271,9 @@
 %token kCalcFunctionToken               // calc(
 %token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
+%token kFormatFunctionToken             // format(
 %token kLinearGradientFunctionToken     // linear-gradient(
+%token kLocalFunctionToken              // local(
 %token kMatrixFunctionToken             // matrix(
 %token kMaxFunctionToken                // -webkit-max(
 %token kMinFunctionToken                // -webkit-min(
@@ -286,7 +297,6 @@
 %token <string> kNthToken               // an+b, where a, b - integers
 %token <string> kHexToken               // #...
 %token <string> kIdSelectorToken        // #...
-%token <string> kUnicodeRangeToken      // u+..., U+...
 %token <string> kUriToken               // url(...)
 %token <string> kInvalidFunctionToken   // ...(
 %token <string> kInvalidNumberToken     // ... (digits)
@@ -329,6 +339,9 @@
 %token <real> kDotsPerCentimeterToken                       // ...dpcm
 %token <real> kFractionsToken                               // ...fr
 
+// Tokens with an integer pair value
+%token <integer_pair> kUnicodeRangeToken                    // u+..., U+...
+
 //
 // Rules and their types, sorted by type name.
 //
@@ -369,6 +382,11 @@
 %type <resolution> resolution
 %destructor { $$->Release(); } <resolution>
 
+%union { cssom::StringValue* string_value; }
+%type <string_value> font_family_name_identifier
+                     font_family_specific_name
+%destructor { $$->Release(); } <string_value>
+
 // base::TimeDelta's internal value.  One can construct a base::TimeDelta from
 // this value using the function base::TimeDelta::FromInternalValue().  We use
 // it instead of base::TimeDelta because base::TimeDelta does not have a
@@ -403,7 +421,13 @@
                        common_values_without_errors
                        content_property_value
                        display_property_value
-                       font_family_name
+                       font_face_url_src
+                       font_face_local_src
+                       font_face_src_list_element
+                       font_face_src_property_value
+                       font_family_generic_name
+                       font_family_disallowed_name
+                       font_family_name_list_element
                        font_family_property_value
                        font_size_property_value
                        font_style_property_value
@@ -421,8 +445,8 @@
                        overflow_wrap_property_value
                        padding_side_property_value
                        padding_width
-                       scan_media_feature_keyword_value
                        position_property_value
+                       scan_media_feature_keyword_value
                        tab_size_property_value
                        text_align_property_value
                        text_indent_property_value
@@ -433,6 +457,7 @@
                        transition_duration_property_value
                        transition_property_property_value
                        transition_timing_function_property_value
+                       unicode_range_property_value
                        url
                        vertical_align_property_value
                        white_space_property_value
@@ -490,12 +515,20 @@
 %type <string> animatable_property_token
 
 %union { cssom::CSSStyleDeclarationData* style_declaration_data; }
-%type <style_declaration_data> declaration_list
+%type <style_declaration_data> style_declaration_list
 %destructor { $$->Release(); } <style_declaration_data>
 
 %union { cssom::CSSStyleDeclaration* style_declaration; }
-%type <style_declaration> declaration_block
+%type <style_declaration> style_declaration_block
 %destructor { $$->Release(); } <style_declaration>
+
+%union { cssom::CSSFontFaceRule* font_face_rule; }
+%type <font_face_rule> at_font_face_rule
+%destructor { $$->Release(); } <font_face_rule>
+
+%union { cssom::CSSFontFaceDeclarationData* font_face_declaration_data; }
+%type <font_face_declaration_data> font_face_declaration_list
+%destructor { $$->Release(); } <font_face_declaration_data>
 
 %union { cssom::CSSMediaRule* media_rule; }
 %type <media_rule> at_media_rule
@@ -527,15 +560,18 @@
 %type <media_feature_operator> media_feature_operator
 
 %union { cssom::CSSStyleRule* style_rule; }
-%type <style_rule> at_rule qualified_rule rule style_rule
+%type <style_rule> qualified_rule rule style_rule
 %destructor { $$->Release(); } <style_rule>
 
-%union { cssom::PropertyListValue::Builder* background_property_list; }
-%type <background_property_list> comma_separated_background_image_list
-                                 maybe_background_size
-                                 background_position_property_list
-                                 background_size_property_list
-%destructor { delete $$; } <background_property_list>
+%union { cssom::PropertyListValue::Builder* property_list; }
+%type <property_list> comma_separated_background_image_list
+                      maybe_background_size
+                      background_position_property_list
+                      background_size_property_list
+                      comma_separated_font_family_name_list
+                      comma_separated_font_face_src_list
+                      comma_separated_unicode_range_list
+%destructor { delete $$; } <property_list>
 
 %union { cssom::TransformFunction* transform_function; }
 %type <transform_function> scale_function_parameters transform_function
@@ -610,13 +646,13 @@ errors:
 // @-rules.
 // ...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:...:.
 
-at_rule:
-    kFontFaceToken maybe_whitespace declaration_block {
-    scoped_refptr<cssom::CSSStyleDeclaration> style =
-        MakeScopedRefPtrAndRelease($3);
-    // TODO(***REMOVED***): Implement.
-    parser_impl->LogWarning(@1, "@font-face is not implemented yet");
-    $$ = NULL;
+// The @font-face rule consists of the @font-face at-keyword followed by a block
+// of descriptor declarations.
+//   http://www.w3.org/TR/css3-fonts/#font-face-rule
+at_font_face_rule:
+    kFontFaceToken maybe_whitespace '{' maybe_whitespace
+        font_face_declaration_list '}' maybe_whitespace {
+    $$ = AddRef(new cssom::CSSFontFaceRule(MakeScopedRefPtrAndRelease($5)));
   }
   ;
 
@@ -979,6 +1015,9 @@ identifier_token:
   | kRightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRightPropertyName);
   }
+  | kSrcToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSrcPropertyName);
+  }
   | kTabSizeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTabSizePropertyName);
   }
@@ -1020,6 +1059,9 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
              cssom::kTransitionTimingFunctionPropertyName);
   }
+  | kUnicodeRangePropertyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kUnicodeRangePropertyName);
+  }
   | kVerticalAlignToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVerticalAlignPropertyName);
   }
@@ -1060,6 +1102,9 @@ identifier_token:
   | kCoverToken {
     $$ = TrivialStringPiece::FromCString(cssom::kCoverKeywordName);
   }
+  | kCursiveToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kCursiveKeywordName);
+  }
   | kEaseToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEaseKeywordName);
   }
@@ -1074,6 +1119,9 @@ identifier_token:
   }
   | kEndToken {
     $$ = TrivialStringPiece::FromCString(cssom::kEndKeywordName);
+  }
+  | kFantasyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kFantasyKeywordName);
   }
   | kHiddenToken {
     $$ = TrivialStringPiece::FromCString(cssom::kHiddenKeywordName);
@@ -1098,6 +1146,9 @@ identifier_token:
   }
   | kMiddleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kMiddleKeywordName);
+  }
+  | kMonospaceToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kMonospaceKeywordName);
   }
   | kNoneToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNoneKeywordName);
@@ -1128,6 +1179,12 @@ identifier_token:
   }
   | kRelativeToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRelativeKeywordName);
+  }
+  | kSansSerifToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSansSerifKeywordName);
+  }
+  | kSerifToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kSerifKeywordName);
   }
   | kStartToken {
     $$ = TrivialStringPiece::FromCString(cssom::kStartKeywordName);
@@ -1570,6 +1627,7 @@ time:
     $$ = base::TimeDelta::FromMilliseconds(static_cast<int64>($1 * $2)).
              ToInternalValue();
   }
+  ;
 
 colon: ':' maybe_whitespace ;
 comma: ',' maybe_whitespace ;
@@ -2095,21 +2153,149 @@ display_property_value:
   | common_values
   ;
 
-// Font family names other than generic families must be given quoted
-// as strings.
+// External font-face references consist of a URL, followed by an optional
+// hint describing the format of the font resource referenced by that URL.
+//   http://www.w3.org/TR/css3-fonts/#descdef-src
+font_face_url_src:
+    url kFormatFunctionToken maybe_whitespace kStringToken maybe_whitespace ')'
+        maybe_whitespace {
+    $$ = AddRef(new cssom::UrlSrcValue(MakeScopedRefPtrAndRelease($1),
+                                       $4.ToString()));
+  }
+  | url {
+    $$ = AddRef(new cssom::UrlSrcValue(MakeScopedRefPtrAndRelease($1), ""));
+  }
+  ;
+
+// The syntax for a local font-face reference is a unique font face name enclosed by
+// "local(" and ")".
+//   http://www.w3.org/TR/css3-fonts/#descdef-src
+font_face_local_src:
+    kLocalFunctionToken maybe_whitespace font_family_specific_name ')'
+        maybe_whitespace {
+    $$ = AddRef(new cssom::LocalSrcValue($3->value()));
+  }
+  ;
+
+font_face_src_list_element:
+    font_face_url_src
+  | font_face_local_src
+  ;
+
+comma_separated_font_face_src_list:
+    font_face_src_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_font_face_src_list comma font_face_src_list_element {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
+  }
+  ;
+
+// The src descriptor specifies the resource containing font data. Its value is
+// a prioritized, comma-separated list of external references or
+// locally-installed font face names.
+//   http://www.w3.org/TR/css3-fonts/#src-desc
+font_face_src_property_value:
+    comma_separated_font_face_src_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
+// The unquoted name must be a sequence of identifiers separated by whitespace
+// which is converted to a string by joining the identifiers together separated
+// by a single space.
+//   http://www.w3.org/TR/css3-fonts/#descdef-src
+font_family_name_identifier:
+    kIdentifierToken maybe_whitespace {
+    $$ = AddRef(new cssom::StringValue($1.ToString()));
+  }
+  | kIdentifierToken maybe_whitespace
+    font_family_name_identifier {
+    $$ = AddRef(
+        new cssom::StringValue($1.ToString() + " " + $3->value()));
+  }
+  ;
+
+// Font family names other than generic families must be quoted
+// as strings or unquoted as a sequence of one or more identifiers.
 //   http://www.w3.org/TR/css3-fonts/#family-name-value
-font_family_name:
+font_family_specific_name:
     kStringToken maybe_whitespace {
     $$ = AddRef(new cssom::StringValue($1.ToString()));
+  }
+  | font_family_name_identifier
+  ;
+
+// Generic families are defined in all CSS implementations.
+//   http://www.w3.org/TR/css3-fonts/#generic-font-families
+font_family_generic_name:
+    kCursiveToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetCursive().get());
+  }
+  | kFantasyToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetFantasy().get());
+  }
+  | kMonospaceToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetMonospace().get());
+  }
+  | kSansSerifToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetSansSerif().get());
+  }
+  | kSerifToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetSerif().get());
+  }
+  ;
+
+// "inherit" and "initial" are reserved values and not allowed as font family
+// names.
+//   http://www.w3.org/TR/css3-fonts/#propdef-font-family
+font_family_disallowed_name:
+  // Check for disallowed identifiers
+    kInheritToken maybe_whitespace {
+    $$ = NULL;
+  }
+  | kInitialToken maybe_whitespace {
+    $$ = NULL;
+  }
+  ;
+
+// There are two types of font family names:
+//   -- The name of a specific font family
+//   -- A generic font family which can be used as a general fallback mechanism
+//   http://www.w3.org/TR/css3-fonts/#family-name-value
+font_family_name_list_element:
+    font_family_disallowed_name
+  | font_family_generic_name
+  | font_family_specific_name { $$ = $1; }
+  ;
+
+comma_separated_font_family_name_list:
+    font_family_name_list_element {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(MakeScopedRefPtrAndRelease($1));
+  }
+  | comma_separated_font_family_name_list comma
+    font_family_name_list_element {
+    $$ = $1;
+    $$->push_back(MakeScopedRefPtrAndRelease($3));
   }
   ;
 
 // Prioritized list of font family names.
 //   http://www.w3.org/TR/css3-fonts/#font-family-prop
-//
-// TODO(***REMOVED***): Support multiple family names.
 font_family_property_value:
-    font_family_name
+    comma_separated_font_family_name_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
   | common_values
   ;
 
@@ -2883,6 +3069,28 @@ transition_property_value:
   }
   ;
 
+unicode_range_property_value:
+    comma_separated_unicode_range_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    $$ = property_value
+         ? AddRef(new cssom::PropertyListValue(property_value.Pass()))
+         : NULL;
+  }
+  | common_values
+  ;
+
+comma_separated_unicode_range_list:
+    kUnicodeRangeToken maybe_whitespace {
+    $$ = new cssom::PropertyListValue::Builder();
+    $$->push_back(new cssom::UnicodeRangeValue($1.first, $1.second));
+  }
+  | comma_separated_unicode_range_list comma kUnicodeRangeToken
+        maybe_whitespace {
+    $$ = $1;
+    $$->push_back(new cssom::UnicodeRangeValue($3.first, $3.second));
+  }
+  ;
+
 // This property declares how white space inside the element is handled.
 //   http://www.w3.org/TR/css3-text/#white-space-property
 white_space_property_value:
@@ -2895,7 +3103,6 @@ white_space_property_value:
   | kPreToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetPre().get());
   }
-  | common_values
   ;
 
 // Specifies the content width of boxes.
@@ -3226,6 +3433,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kSrcToken maybe_whitespace colon font_face_src_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kSrcPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kTabSizeToken maybe_whitespace colon tab_size_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTabSizePropertyName,
@@ -3321,6 +3534,12 @@ maybe_declaration:
                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kUnicodeRangePropertyToken maybe_whitespace colon
+      unicode_range_property_value maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kUnicodeRangePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kVerticalAlignToken maybe_whitespace colon vertical_align_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kVerticalAlignPropertyName,
@@ -3366,27 +3585,46 @@ semicolon: ';' maybe_whitespace ;
 
 // Consume a list of declarations.
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-declarations0
-declaration_list:
+style_declaration_list:
     maybe_declaration {
     $$ = AddRef(new cssom::CSSStyleDeclarationData());
 
     scoped_ptr<PropertyDeclaration> property_declaration($1);
     if (property_declaration) {
-      property_declaration->ApplyToStyle($$);
+      property_declaration->Apply($$);
     }
   }
-  | declaration_list semicolon maybe_declaration {
+  | style_declaration_list semicolon maybe_declaration {
     $$ = $1;
 
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration) {
-      property_declaration->ApplyToStyle($$);
+      property_declaration->Apply($$);
     }
   }
   ;
 
-declaration_block:
-    '{' maybe_whitespace declaration_list '}' maybe_whitespace {
+font_face_declaration_list:
+    maybe_declaration {
+    $$ = AddRef(new cssom::CSSFontFaceDeclarationData());
+
+    scoped_ptr<PropertyDeclaration> property_declaration($1);
+    if (property_declaration) {
+      property_declaration->Apply($$);
+    }
+  }
+  | font_face_declaration_list semicolon maybe_declaration {
+    $$ = $1;
+
+    scoped_ptr<PropertyDeclaration> property_declaration($3);
+    if (property_declaration) {
+      property_declaration->Apply($$);
+    }
+  }
+  ;
+
+style_declaration_block:
+    '{' maybe_whitespace style_declaration_list '}' maybe_whitespace {
     $$ = AddRef(new cssom::CSSStyleDeclaration(
              MakeScopedRefPtrAndRelease($3), parser_impl->css_parser()));
   }
@@ -3409,7 +3647,7 @@ rule_list_block:
 // of property declarations.
 //   http://www.w3.org/TR/css3-syntax/#style-rule
 style_rule:
-    selector_list declaration_block {
+    selector_list style_declaration_block {
     scoped_ptr<cssom::Selectors> selectors($1);
     scoped_refptr<cssom::CSSStyleDeclaration> style =
         MakeScopedRefPtrAndRelease($2);
@@ -3425,11 +3663,11 @@ style_rule:
 // To parse a CSS stylesheet, interpret all of the resulting top-level qualified
 // rules as style rules.
 //   http://www.w3.org/TR/css3-syntax/#css-stylesheets
-qualified_rule: style_rule ;
+qualified_rule: style_rule;
 
 invalid_rule:
     error ';' maybe_whitespace { parser_impl->LogWarning(@1, "invalid rule"); }
-  | error declaration_block {
+  | error style_declaration_block {
     scoped_refptr<cssom::CSSStyleDeclaration> unused_style =
         MakeScopedRefPtrAndRelease($2);
     parser_impl->LogWarning(@1, "invalid rule");
@@ -3440,7 +3678,6 @@ invalid_rule:
 //   http://www.w3.org/TR/css3-syntax/#consume-a-list-of-rules
 rule:
     kSgmlCommentDelimiterToken maybe_whitespace { $$ = NULL; }
-  | at_rule
   | qualified_rule
   | invalid_rule { $$ = NULL; }
   ;
@@ -3455,6 +3692,16 @@ rule_list:
         MakeScopedRefPtrAndRelease($2);
     if (style_rule) {
       $$->AppendCSSStyleRule(style_rule);
+    }
+  }
+  | rule_list at_font_face_rule {
+    $$ = $1;
+    scoped_refptr<cssom::CSSFontFaceRule> font_face_rule =
+        MakeScopedRefPtrAndRelease($2);
+    if (font_face_rule && font_face_rule->IsValid()) {
+      $$->AppendCSSFontFaceRule(font_face_rule);
+    } else {
+      parser_impl->LogWarning(@2, "invalid font-face");
     }
   }
   // Conditional group rules can be nested.
@@ -3503,10 +3750,18 @@ entry_point:
     parser_impl->set_style_rule(style_rule);
   }
   // Parses the contents of a HTMLElement.style attribute.
-  | kDeclarationListEntryPointToken maybe_whitespace declaration_list {
-    scoped_refptr<cssom::CSSStyleDeclarationData> declaration_list =
+  | kStyleDeclarationListEntryPointToken maybe_whitespace 
+        style_declaration_list {
+    scoped_refptr<cssom::CSSStyleDeclarationData> declaration_data =
         MakeScopedRefPtrAndRelease($3);
-    parser_impl->set_declaration_list(declaration_list);
+    parser_impl->set_style_declaration_data(declaration_data);
+  }
+  // Parses the contents of an @font-face rule.
+  | kFontFaceDeclarationListEntryPointToken maybe_whitespace 
+        font_face_declaration_list {
+    scoped_refptr<cssom::CSSFontFaceDeclarationData> declaration_data =
+        MakeScopedRefPtrAndRelease($3);
+    parser_impl->set_font_face_declaration_data(declaration_data);
   }
   // Parses a single non-shorthand property value.
   | kPropertyValueEntryPointToken maybe_whitespace maybe_declaration {
@@ -3524,18 +3779,19 @@ entry_point:
     }
   }
   // Parses the property value and correspondingly sets the values of a passed
-  // in CSSStyleDeclarationData.
+  // in CSSDeclarationData.
   // This is Cobalt's equivalent of a "list of component values".
-  | kPropertyIntoStyleEntryPointToken maybe_whitespace maybe_declaration {
+  | kPropertyIntoDeclarationDataEntryPointToken maybe_whitespace
+        maybe_declaration {
     scoped_ptr<PropertyDeclaration> property_declaration($3);
     if (property_declaration != NULL) {
       if (property_declaration->important) {
         parser_impl->LogError(
             @1, "!important is not allowed when setting single property value");
       } else {
-        DCHECK(parser_impl->into_declaration_list());
-        property_declaration->ApplyToStyle(
-            parser_impl->into_declaration_list());
+        DCHECK(parser_impl->into_declaration_data());
+        property_declaration->Apply(
+            parser_impl->into_declaration_data());
       }
     }
   }
