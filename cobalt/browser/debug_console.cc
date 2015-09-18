@@ -22,19 +22,17 @@
 namespace cobalt {
 namespace browser {
 
-DebugConsole::DebugConsole(const WebModule::OnRenderTreeProducedCallback&
-                               render_tree_produced_callback,
-                           const base::Callback<void(const std::string&)>&
-                               error_callback,
-                           media::MediaModule* media_module,
-                           network::NetworkModule* network_module,
-                           const math::Size& window_dimensions,
-                           render_tree::ResourceProvider* resource_provider,
-                           float layout_refresh_rate,
-                           const WebModule::Options& options)
-    : web_module_(render_tree_produced_callback, error_callback, media_module,
-                  network_module, window_dimensions, resource_provider,
-                  layout_refresh_rate, options) {}
+DebugConsole::DebugConsole(
+    const GURL& url, const WebModule::OnRenderTreeProducedCallback&
+                         render_tree_produced_callback,
+    const base::Callback<void(const std::string&)>& error_callback,
+    media::MediaModule* media_module, network::NetworkModule* network_module,
+    const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const WebModule::Options& options)
+    : web_module_(url, render_tree_produced_callback, error_callback,
+                  media_module, network_module, window_dimensions,
+                  resource_provider, layout_refresh_rate, options) {}
 
 DebugConsole::~DebugConsole() {}
 

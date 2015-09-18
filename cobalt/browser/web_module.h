@@ -63,24 +63,27 @@ class WebModule {
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
-    Options() : layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
-    explicit Options(GURL initial_url)
-        : url(initial_url),
+    Options()
+        : name("WebModule"),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
-    Options(GURL initial_url,
+    explicit Options(const std::string& name)
+        : name(name),
+          layout_trigger(layout::LayoutManager::kOnDocumentMutation) {}
+    Options(const std::string& name,
             const scoped_refptr<debug::DebugHub>& initial_debug_hub)
-        : url(initial_url),
+        : name(name),
           layout_trigger(layout::LayoutManager::kOnDocumentMutation),
           debug_hub(initial_debug_hub) {}
 
-    GURL url;
+    std::string name;
     layout::LayoutManager::LayoutTrigger layout_trigger;
     scoped_refptr<debug::DebugHub> debug_hub;
   };
 
   typedef layout::LayoutManager::OnRenderTreeProducedCallback
       OnRenderTreeProducedCallback;
-  WebModule(const OnRenderTreeProducedCallback& render_tree_produced_callback,
+  WebModule(const GURL& initial_url,
+            const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const base::Callback<void(const std::string&)>& error_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
@@ -96,6 +99,8 @@ class WebModule {
   std::string GetUserAgent() const;
 
  private:
+  std::string name_;
+
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;

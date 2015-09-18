@@ -173,7 +173,6 @@ TEST_P(LayoutTest, LayoutTest) {
   // Setup the WebModule options.  In particular, we specify here the URL of
   // the test that we wish to run.
   browser::WebModule::Options web_module_options;
-  web_module_options.url = GetParam().url;
   web_module_options.layout_trigger = layout::LayoutManager::kOnDocumentLoad;
 
   // Setup the function that should be called whenever the WebModule produces
@@ -196,9 +195,9 @@ TEST_P(LayoutTest, LayoutTest) {
 
   // Create the web module.
   browser::WebModule web_module(
-      callback_function, base::Bind(&AcceptDocumentError, &run_loop),
-      stub_media_module.get(), &network_module, kTestViewportSize,
-      pixel_tester.GetResourceProvider(),
+      GetParam().url, callback_function,
+      base::Bind(&AcceptDocumentError, &run_loop), stub_media_module.get(),
+      &network_module, kTestViewportSize, pixel_tester.GetResourceProvider(),
       60.0f,  // Layout refresh rate. Doesn't matter much for layout tests.
       web_module_options);
 
