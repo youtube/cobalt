@@ -96,6 +96,7 @@ WebModule::WebModule(
           &local_storage_database_, media_module, execution_state_.get(),
           script_runner_.get(), initial_url, network_module->user_agent(),
           network_module->preferred_language(), error_callback)),
+      window_weak_(base::AsWeakPtr(window_.get())),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),
@@ -198,6 +199,15 @@ void WebModule::OnPartialLayoutConsoleCommandReceived(
   }
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+#if defined(ENABLE_WEBDRIVER)
+scoped_ptr<webdriver::SessionDriver> WebModule::CreateSessionDriver(
+    const webdriver::protocol::SessionId& session_id) {
+  // This may be called from a thread other than web_module_message_loop_.
+  return make_scoped_ptr(new webdriver::SessionDriver(
+      session_id, window_weak_, self_message_loop_->message_loop_proxy()));
+}
+#endif
 
 }  // namespace browser
 }  // namespace cobalt

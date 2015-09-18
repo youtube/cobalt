@@ -20,6 +20,9 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/browser/browser_module.h"
+#if defined(ENABLE_WEBDRIVER)
+#include "cobalt/webdriver/web_driver_module.h"
+#endif
 
 namespace cobalt {
 namespace browser {
@@ -49,6 +52,11 @@ class Application {
  protected:
   // Main components of the Cobalt browser application.
   scoped_ptr<BrowserModule> browser_module_;
+
+#if defined(ENABLE_WEBDRIVER)
+  // WebDriver implementation with embedded HTTP server.
+  scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
+#endif
 };
 
 // Factory method for creating an application.  It should be implemented
