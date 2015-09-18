@@ -80,17 +80,20 @@ std::string WebModule::GetUserAgent() const {
 }
 
 WebModule::WebModule(
+    const GURL& initial_url,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     const base::Callback<void(const std::string&)>& error_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
-    : css_parser_(css_parser::Parser::Create()),
+    : name_(options.name),
+      css_parser_(css_parser::Parser::Create()),
       dom_parser_(new dom_parser::Parser(error_callback)),
       fetcher_factory_(new loader::FetcherFactory(network_module)),
-      image_cache_(
-          new loader::ImageCache(resource_provider, fetcher_factory_.get())),
+      image_cache_(new loader::ImageCache(
+          base::StringPrintf("%s.ImageCache", name_.c_str()), resource_provider,
+          fetcher_factory_.get())),
       local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
@@ -100,7 +103,7 @@ WebModule::WebModule(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
           image_cache_.get(), &local_storage_database_, media_module,
-          script_runner_.get(), options.url, GetUserAgent(), error_callback)),
+          script_runner_.get(), initial_url, GetUserAgent(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),
