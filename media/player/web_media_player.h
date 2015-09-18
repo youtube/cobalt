@@ -93,41 +93,41 @@ class WebMediaPlayer {
   virtual void SetRate(float rate) = 0;
   virtual void SetVolume(float volume) = 0;
   virtual void SetVisible(bool visible) = 0;
-  virtual const Ranges<base::TimeDelta>& Buffered() = 0;
-  virtual float MaxTimeSeekable() const = 0;
+  virtual const Ranges<base::TimeDelta>& GetBufferedTimeRanges() = 0;
+  virtual float GetMaxTimeSeekable() const = 0;
 
   // True if the loaded media has a playable video/audio track.
   virtual bool HasVideo() const = 0;
   virtual bool HasAudio() const = 0;
 
   // Dimension of the video.
-  virtual gfx::Size NaturalSize() const = 0;
+  virtual gfx::Size GetNaturalSize() const = 0;
 
   // Getters of playback state.
-  virtual bool Paused() const = 0;
-  virtual bool Seeking() const = 0;
-  virtual float Duration() const = 0;
-  virtual float CurrentTime() const = 0;
+  virtual bool IsPaused() const = 0;
+  virtual bool IsSeeking() const = 0;
+  virtual float GetDuration() const = 0;
+  virtual float GetCurrentTime() const = 0;
 
   // Get rate of loading the resource.
-  virtual int DataRate() const = 0;
+  virtual int GetDataRate() const = 0;
 
   // Internal states of loading and network.
   virtual NetworkState GetNetworkState() const = 0;
   virtual ReadyState GetReadyState() const = 0;
 
   virtual bool DidLoadingProgress() const = 0;
-  virtual unsigned long long TotalBytes() const = 0;
+  virtual unsigned long long GetTotalBytes() const = 0;
 
   virtual bool HasSingleSecurityOrigin() const = 0;
   virtual bool DidPassCORSAccessCheck() const = 0;
 
   virtual float MediaTimeForTimeValue(float timeValue) const = 0;
 
-  virtual unsigned DecodedFrameCount() const = 0;
-  virtual unsigned DroppedFrameCount() const = 0;
-  virtual unsigned AudioDecodedByteCount() const = 0;
-  virtual unsigned VideoDecodedByteCount() const = 0;
+  virtual unsigned GetDecodedFrameCount() const = 0;
+  virtual unsigned GetDroppedFrameCount() const = 0;
+  virtual unsigned GetAudioDecodedByteCount() const = 0;
+  virtual unsigned GetVideoDecodedByteCount() const = 0;
 
   virtual ShellVideoFrameProvider* GetVideoFrameProvider() { return NULL; }
   virtual scoped_refptr<VideoFrame> GetCurrentFrame() { return 0; }

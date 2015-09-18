@@ -386,7 +386,7 @@ void WebMediaPlayerImpl::Seek(float seconds) {
   // Ignore any seek request that is near the end of the stream when the
   // current playback position is also near the end of the stream to avoid
   // a hang in the MediaEngine.
-  if (IsNearTheEndOfStream(this, CurrentTime()) &&
+  if (IsNearTheEndOfStream(this, GetCurrentTime()) &&
       IsNearTheEndOfStream(this, seconds)) {
     return;
   }
@@ -484,7 +484,7 @@ bool WebMediaPlayerImpl::HasAudio() const {
   return pipeline_->HasAudio();
 }
 
-gfx::Size WebMediaPlayerImpl::NaturalSize() const {
+gfx::Size WebMediaPlayerImpl::GetNaturalSize() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   gfx::Size size;
@@ -492,13 +492,13 @@ gfx::Size WebMediaPlayerImpl::NaturalSize() const {
   return size;
 }
 
-bool WebMediaPlayerImpl::Paused() const {
+bool WebMediaPlayerImpl::IsPaused() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   return pipeline_->GetPlaybackRate() == 0.0f;
 }
 
-bool WebMediaPlayerImpl::Seeking() const {
+bool WebMediaPlayerImpl::IsSeeking() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
@@ -507,7 +507,7 @@ bool WebMediaPlayerImpl::Seeking() const {
   return seeking_;
 }
 
-float WebMediaPlayerImpl::Duration() const {
+float WebMediaPlayerImpl::GetDuration() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
@@ -523,14 +523,14 @@ float WebMediaPlayerImpl::Duration() const {
   return static_cast<float>(duration.InSecondsF());
 }
 
-float WebMediaPlayerImpl::CurrentTime() const {
+float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   if (paused_)
     return static_cast<float>(paused_time_.InSecondsF());
   return static_cast<float>(pipeline_->GetMediaTime().InSecondsF());
 }
 
-int WebMediaPlayerImpl::DataRate() const {
+int WebMediaPlayerImpl::GetDataRate() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   // TODO(hclam): Add this method call if pipeline has it in the interface.
@@ -547,13 +547,13 @@ WebMediaPlayer::ReadyState WebMediaPlayerImpl::GetReadyState() const {
   return ready_state_;
 }
 
-const Ranges<base::TimeDelta>& WebMediaPlayerImpl::Buffered() {
+const Ranges<base::TimeDelta>& WebMediaPlayerImpl::GetBufferedTimeRanges() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   buffered_ = pipeline_->GetBufferedTimeRanges();
   return buffered_;
 }
 
-float WebMediaPlayerImpl::MaxTimeSeekable() const {
+float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   // We don't support seeking in streaming media.
@@ -567,7 +567,7 @@ bool WebMediaPlayerImpl::DidLoadingProgress() const {
   return pipeline_->DidLoadingProgress();
 }
 
-unsigned long long WebMediaPlayerImpl::TotalBytes() const {
+unsigned long long WebMediaPlayerImpl::GetTotalBytes() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   return pipeline_->GetTotalBytes();
@@ -587,28 +587,28 @@ float WebMediaPlayerImpl::MediaTimeForTimeValue(float timeValue) const {
   return ConvertSecondsToTimestamp(timeValue).InSecondsF();
 }
 
-unsigned WebMediaPlayerImpl::DecodedFrameCount() const {
+unsigned WebMediaPlayerImpl::GetDecodedFrameCount() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   PipelineStatistics stats = pipeline_->GetStatistics();
   return stats.video_frames_decoded;
 }
 
-unsigned WebMediaPlayerImpl::DroppedFrameCount() const {
+unsigned WebMediaPlayerImpl::GetDroppedFrameCount() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   PipelineStatistics stats = pipeline_->GetStatistics();
   return stats.video_frames_dropped;
 }
 
-unsigned WebMediaPlayerImpl::AudioDecodedByteCount() const {
+unsigned WebMediaPlayerImpl::GetAudioDecodedByteCount() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   PipelineStatistics stats = pipeline_->GetStatistics();
   return stats.audio_bytes_decoded;
 }
 
-unsigned WebMediaPlayerImpl::VideoDecodedByteCount() const {
+unsigned WebMediaPlayerImpl::GetVideoDecodedByteCount() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   PipelineStatistics stats = pipeline_->GetStatistics();
@@ -691,11 +691,11 @@ bool WebMediaPlayerImpl::SourceAppend(const std::string& id,
                                       unsigned length) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  float old_duration = Duration();
+  float old_duration = GetDuration();
   if (!chunk_demuxer_->AppendData(id, data, length))
     return false;
 
-  if (old_duration != Duration())
+  if (old_duration != GetDuration())
     GetClient()->DurationChanged();
 
   return true;
@@ -735,11 +735,11 @@ void WebMediaPlayerImpl::SourceEndOfStream(
       NOTIMPLEMENTED();
   }
 
-  float old_duration = Duration();
+  float old_duration = GetDuration();
   if (!chunk_demuxer_->EndOfStream(pipeline_status))
     DVLOG(1) << "EndOfStream call failed.";
 
-  if (old_duration != Duration())
+  if (old_duration != GetDuration())
     GetClient()->DurationChanged();
 }
 
