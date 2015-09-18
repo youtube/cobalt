@@ -21,6 +21,8 @@
         '<(DEPTH)/lbshell/src/lb_reuse_allocator.cc',
         'cobalt_paths.h',
         'compiler.h',
+        'console_values.cc',
+        'console_values.h',
         'init_cobalt.cc',
         'init_cobalt.h',
         'log_message_handler.cc',
@@ -38,6 +40,31 @@
       'export_dependent_settings': [
         '<(DEPTH)/base/base.gyp:base',
       ],
+    },
+
+    {
+      'target_name': 'base_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'console_values_test.cc',
+      ],
+      'dependencies': [
+        'base',
+        '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+      ],
+    },
+    {
+      'target_name': 'base_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'base_test',
+      ],
+      'variables': {
+        'executable_name': 'base_test',
+      },
+      'includes': [ '../build/deploy.gypi' ],
     },
   ],
 }
