@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_STRING_VALUE_H_
-#define CSSOM_STRING_VALUE_H_
+#ifndef CSSOM_LOCAL_SRC_VALUE_H_
+#define CSSOM_LOCAL_SRC_VALUE_H_
 
 #include <string>
 
@@ -29,34 +29,34 @@ namespace cssom {
 
 class PropertyValueVisitor;
 
-// Represents a sequence of characters delimited by single or double quotes.
-// Applies to properties like font-family.
-// See http://www.w3.org/TR/css3-values/#strings for details.
-class StringValue : public PropertyValue {
+// A LocalSrcValue is a pointer to a resource that corresponds to the local
+// function token in the font-face src descriptor.
+//  http://www.w3.org/TR/css3-fonts/#descdef-src
+class LocalSrcValue : public PropertyValue {
  public:
-  explicit StringValue(const std::string& value) : value_(value) {}
+  explicit LocalSrcValue(const std::string& src);
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  const std::string& value() const { return value_; }
+  const std::string& value() const { return src_; }
 
-  std::string ToString() const OVERRIDE { return "'" + value_ + "'"; }
+  std::string ToString() const OVERRIDE;
 
-  bool operator==(const StringValue& other) const {
-    return value_ == other.value_;
+  bool operator==(const LocalSrcValue& other) const {
+    return src_ == other.src_;
   }
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(StringValue);
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LocalSrcValue);
 
  private:
-  ~StringValue() OVERRIDE {}
+  ~LocalSrcValue() OVERRIDE {}
 
-  const std::string value_;
+  const std::string src_;
 
-  DISALLOW_COPY_AND_ASSIGN(StringValue);
+  DISALLOW_COPY_AND_ASSIGN(LocalSrcValue);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_STRING_VALUE_H_
+#endif  // CSSOM_LOCAL_SRC_VALUE_H_

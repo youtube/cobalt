@@ -423,7 +423,7 @@ bool Scanner::DetectPropertyNameToken(const std::string& property_name,
 Token Scanner::ScanFromCaselessU(TokenValue* token_value) {
   const char* saved_input_iterator(input_iterator_++);
   if (UNLIKELY(*input_iterator_ == '+')) {
-    if (TryScanUnicodeRange(&token_value->string)) {
+    if (TryScanUnicodeRange(&token_value->integer_pair)) {
       return kUnicodeRangeToken;
     }
   }
@@ -1001,40 +1001,49 @@ Token Scanner::ScanFromTilde() {
   return '~';
 }
 
-bool Scanner::TryScanUnicodeRange(TrivialStringPiece* value) {
+bool Scanner::TryScanUnicodeRange(TrivialIntPair* value) {
   DCHECK_EQ(*input_iterator_, '+');
   const char* saved_input_iterator(input_iterator_);
   ++input_iterator_;
-  int length(6);
+  int length = 6;
+  int start_value = 0;
+  bool range_set = false;
 
   while (IsHexDigit(*input_iterator_) && length > 0) {
+    start_value = start_value * 16 + HexDigitToInt(*input_iterator_);
     ++input_iterator_;
     --length;
   }
 
+  int32 end_value = start_value;
+
   if (length > 0 && *input_iterator_ == '?') {
     // At most 5 hex digit followed by a question mark.
     do {
+      start_value *= 16;
+      end_value = end_value * 16 + 0xF;
       ++input_iterator_;
       --length;
-    } while (*input_iterator_ == '?' && length > 0);
-    value->begin = saved_input_iterator + 1;
-    value->end = input_iterator_;
-    return true;
-  }
-
-  if (length < 6) {
+    } while (length > 0 && *input_iterator_ == '?');
+    range_set = true;
+  } else if (length < 6) {
     // At least one hex digit.
     if (input_iterator_[0] == '-' && IsHexDigit(input_iterator_[1])) {
       // Followed by a dash and a hex digit.
       ++input_iterator_;
       length = 6;
+      end_value = 0;
       do {
+        end_value = end_value * 16 + HexDigitToInt(*input_iterator_);
         ++input_iterator_;
       } while (--length > 0 && IsHexDigit(*input_iterator_));
     }
-    value->begin = saved_input_iterator + 1;
-    value->end = input_iterator_;
+    range_set = true;
+  }
+
+  if (range_set) {
+    value->first = start_value;
+    value->second = end_value;
     return true;
   }
 
@@ -1139,6 +1148,10 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kAllToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSrcPropertyName)) {
+        *property_name_token = kSrcToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kTopPropertyName)) {
         *property_name_token = kTopToken;
         return true;
@@ -1225,13 +1238,13 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kFontSizeToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kTransformPropertyName)) {
+        *property_name_token = kTransformToken;
+        return true;
+      }
       // NOTE: word-wrap is treated as an alias for overflow-wrap
       if (IsEqualToCssIdentifier(name.begin, cssom::kWordWrapPropertyName)) {
         *property_name_token = kOverflowWrapToken;
-        return true;
-      }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTransformPropertyName)) {
-        *property_name_token = kTransformToken;
         return true;
       }
       return false;
@@ -1325,6 +1338,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       if (IsEqualToCssIdentifier(name.begin,
                                  cssom::kTextOverflowPropertyName)) {
         *property_name_token = kTextOverflowToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::kUnicodeRangePropertyName)) {
+        *property_name_token = kUnicodeRangePropertyToken;
         return true;
       }
       return false;
@@ -1489,6 +1507,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kRightToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSerifKeywordName)) {
+        *property_value_token = kSerifToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStartKeywordName)) {
         *property_value_token = kStartToken;
         return true;
@@ -1547,8 +1569,16 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kContainToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kCursiveKeywordName)) {
+        *property_value_token = kCursiveToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kEaseInKeywordName)) {
         *property_value_token = kEaseInToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kFantasyKeywordName)) {
+        *property_value_token = kFantasyToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kInheritKeywordName)) {
@@ -1605,6 +1635,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
       return false;
 
     case 9:
+      if (IsEqualToCssIdentifier(name.begin, cssom::kMonospaceKeywordName)) {
+        *property_value_token = kMonospaceToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, cssom::kNoRepeatKeywordName)) {
         *property_value_token = kNoRepeatToken;
         return true;
@@ -1618,6 +1652,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
     case 10:
       if (IsEqualToCssIdentifier(name.begin, cssom::kBreakWordKeywordName)) {
         *property_value_token = kBreakWordToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kSansSerifKeywordName)) {
+        *property_value_token = kSansSerifToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, cssom::kStepStartKeywordName)) {
@@ -1758,6 +1796,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       return false;
 
     case 5:
+      if (IsEqualToCssIdentifier(name.begin, "local")) {
+        *known_function_token = kLocalFunctionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "scale")) {
         *known_function_token = kScaleFunctionToken;
         return true;
@@ -1769,6 +1811,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
       return false;
 
     case 6:
+      if (IsEqualToCssIdentifier(name.begin, "format")) {
+        *known_function_token = kFormatFunctionToken;
+        return true;
+      }
       if (IsEqualToCssIdentifier(name.begin, "matrix")) {
         *known_function_token = kMatrixFunctionToken;
         return true;

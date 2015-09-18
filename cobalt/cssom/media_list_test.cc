@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/media_list.h"
 
+#include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -40,17 +41,19 @@ class MockCSSParser : public CSSParser {
   MOCK_METHOD2(ParseStyleRule,
                scoped_refptr<CSSStyleRule>(const std::string&,
                                            const base::SourceLocation&));
-  MOCK_METHOD2(ParseDeclarationList,
+  MOCK_METHOD2(ParseStyleDeclarationList,
                scoped_refptr<CSSStyleDeclarationData>(
+                   const std::string&, const base::SourceLocation&));
+  MOCK_METHOD2(ParseFontFaceDeclarationList,
+               scoped_refptr<CSSFontFaceDeclarationData>(
                    const std::string&, const base::SourceLocation&));
   MOCK_METHOD3(ParsePropertyValue,
                scoped_refptr<PropertyValue>(const std::string&,
                                             const std::string&,
                                             const base::SourceLocation&));
-  MOCK_METHOD4(ParsePropertyIntoStyle,
+  MOCK_METHOD4(ParsePropertyIntoDeclarationData,
                void(const std::string&, const std::string&,
-                    const base::SourceLocation&,
-                    CSSStyleDeclarationData* style_declaration));
+                    const base::SourceLocation&, CSSDeclarationData*));
   MOCK_METHOD2(ParseMediaQuery,
                scoped_refptr<MediaQuery>(const std::string&,
                                          const base::SourceLocation&));

@@ -90,6 +90,7 @@
         'transition_shorthand_property_parse_structures.cc',
         'transition_shorthand_property_parse_structures.h',
         'trivial_string_piece.h',
+        'trivial_type_pairs.h',
       ],
       # Scanner exposes UChar32 in a header.
       'direct_dependent_settings': {

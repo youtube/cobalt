@@ -30,6 +30,7 @@ class IntegerValue;
 class KeywordValue;
 class LengthValue;
 class LinearGradientValue;
+class LocalSrcValue;
 class MediaFeatureKeywordValue;
 class NumberValue;
 class PercentageValue;
@@ -42,7 +43,9 @@ class StringValue;
 class TimeListValue;
 class TimingFunctionListValue;
 class TransformFunctionListValue;
+class UnicodeRangeValue;
 class URLValue;
+class UrlSrcValue;
 
 // Type-safe branching on a class hierarchy of CSS property values,
 // implemented after a classical GoF pattern (see
@@ -59,6 +62,7 @@ class PropertyValueVisitor {
   virtual void VisitLength(LengthValue* length_value) = 0;
   virtual void VisitLinearGradient(
       LinearGradientValue* linear_gradient_value) = 0;
+  virtual void VisitLocalSrc(LocalSrcValue* local_src_value) = 0;
   virtual void VisitMediaFeatureKeywordValue(
       MediaFeatureKeywordValue* media_feature_keyword_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
@@ -73,7 +77,9 @@ class PropertyValueVisitor {
       TimingFunctionListValue* timing_function_list_value) = 0;
   virtual void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) = 0;
+  virtual void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) = 0;
   virtual void VisitURL(URLValue* url_value) = 0;
+  virtual void VisitUrlSrc(UrlSrcValue* url_src_value) = 0;
 
  protected:
   ~PropertyValueVisitor() {}
@@ -93,6 +99,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
   void VisitInteger(IntegerValue* integer_value) OVERRIDE;
   void VisitLength(LengthValue* length_value) OVERRIDE;
   void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
+  void VisitLocalSrc(LocalSrcValue* local_src_value) OVERRIDE;
   void VisitMediaFeatureKeywordValue(
       MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
@@ -107,7 +114,9 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
       TimingFunctionListValue* timing_function_list_value) OVERRIDE;
   void VisitTransformFunctionList(
       TransformFunctionListValue* transform_function_list_value) OVERRIDE;
+  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) OVERRIDE;
   void VisitURL(URLValue* url_value) OVERRIDE;
+  void VisitUrlSrc(UrlSrcValue* url_src_value) OVERRIDE;
 
  protected:
   virtual void VisitDefault(PropertyValue* property_value) = 0;
