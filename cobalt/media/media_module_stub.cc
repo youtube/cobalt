@@ -47,33 +47,33 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
   void SetRate(float rate) OVERRIDE { UNREFERENCED_PARAMETER(rate); }
   void SetVolume(float volume) OVERRIDE { UNREFERENCED_PARAMETER(volume); }
   void SetVisible(bool visible) OVERRIDE { UNREFERENCED_PARAMETER(visible); }
-  const ::media::Ranges<base::TimeDelta>& Buffered() OVERRIDE {
+  const ::media::Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE {
     return buffer_;
   }
-  float MaxTimeSeekable() const OVERRIDE { return 0.f; }
+  float GetMaxTimeSeekable() const OVERRIDE { return 0.f; }
 
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const OVERRIDE { return false; }
   bool HasAudio() const OVERRIDE { return false; }
 
   // Dimension of the video.
-  gfx::Size NaturalSize() const OVERRIDE { return gfx::Size(); }
+  gfx::Size GetNaturalSize() const OVERRIDE { return gfx::Size(); }
 
   // Getters of playback state.
-  bool Paused() const OVERRIDE { return false; }
-  bool Seeking() const OVERRIDE { return false; }
-  float Duration() const OVERRIDE { return 0.f; }
-  float CurrentTime() const OVERRIDE { return 0.f; }
+  bool IsPaused() const OVERRIDE { return false; }
+  bool IsSeeking() const OVERRIDE { return false; }
+  float GetDuration() const OVERRIDE { return 0.f; }
+  float GetCurrentTime() const OVERRIDE { return 0.f; }
 
   // Get rate of loading the resource.
-  int DataRate() const OVERRIDE { return 1; }
+  int GetDataRate() const OVERRIDE { return 1; }
 
   // Internal states of loading and network.
   NetworkState GetNetworkState() const OVERRIDE { return kNetworkStateEmpty; }
   ReadyState GetReadyState() const OVERRIDE { return kReadyStateHaveNothing; }
 
   bool DidLoadingProgress() const OVERRIDE { return false; }
-  unsigned long long TotalBytes() const OVERRIDE { return 0; }
+  unsigned long long GetTotalBytes() const OVERRIDE { return 0; }
 
   bool HasSingleSecurityOrigin() const OVERRIDE { return false; }
   bool DidPassCORSAccessCheck() const OVERRIDE { return false; }
@@ -83,10 +83,10 @@ class DummyWebMediaPlayer : public ::media::WebMediaPlayer {
     return 0.f;
   }
 
-  unsigned DecodedFrameCount() const OVERRIDE { return 0; }
-  unsigned DroppedFrameCount() const OVERRIDE { return 0; }
-  unsigned AudioDecodedByteCount() const OVERRIDE { return 0; }
-  unsigned VideoDecodedByteCount() const OVERRIDE { return 0; }
+  unsigned GetDecodedFrameCount() const OVERRIDE { return 0; }
+  unsigned GetDroppedFrameCount() const OVERRIDE { return 0; }
+  unsigned GetAudioDecodedByteCount() const OVERRIDE { return 0; }
+  unsigned GetVideoDecodedByteCount() const OVERRIDE { return 0; }
 
   ::media::Ranges<base::TimeDelta> buffer_;
 };

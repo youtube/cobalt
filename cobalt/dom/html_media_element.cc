@@ -125,7 +125,8 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
     return buffered;
   }
 
-  const ::media::Ranges<base::TimeDelta>& player_buffered = player_->Buffered();
+  const ::media::Ranges<base::TimeDelta>& player_buffered =
+      player_->GetBufferedTimeRanges();
 
   for (int i = 0; i < static_cast<int>(player_buffered.size()); ++i) {
     buffered->Add(player_buffered.start(i).InSecondsF(),
@@ -271,7 +272,7 @@ float HTMLMediaElement::current_time(
     return last_seek_time_;
   }
 
-  return player_->CurrentTime();
+  return player_->GetCurrentTime();
 }
 
 void HTMLMediaElement::set_current_time(
@@ -290,7 +291,7 @@ void HTMLMediaElement::set_current_time(
 
 float HTMLMediaElement::duration() const {
   if (player_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
-    return player_->Duration();
+    return player_->GetDuration();
   }
 
   return std::numeric_limits<float>::quiet_NaN();
@@ -338,8 +339,8 @@ const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
 }
 
 scoped_refptr<TimeRanges> HTMLMediaElement::seekable() const {
-  if (player_ && player_->MaxTimeSeekable() != 0) {
-    return new TimeRanges(0, player_->MaxTimeSeekable());
+  if (player_ && player_->GetMaxTimeSeekable() != 0) {
+    return new TimeRanges(0, player_->GetMaxTimeSeekable());
   }
   return new TimeRanges;
 }
@@ -1044,7 +1045,7 @@ void HTMLMediaElement::UpdatePlayState() {
   }
 
   bool should_be_playing = PotentiallyPlaying();
-  bool player_paused = player_->Paused();
+  bool player_paused = player_->IsPaused();
 
   if (should_be_playing) {
     if (player_paused) {
@@ -1175,7 +1176,7 @@ void HTMLMediaElement::TimeChanged() {
   // 4.8.10.9 step 14 & 15.  Needed if no ReadyState change is associated with
   // the seek.
   if (seeking_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveCurrentData &&
-      !player_->Seeking()) {
+      !player_->IsSeeking()) {
     FinishSeek();
   }
 
@@ -1252,7 +1253,7 @@ void HTMLMediaElement::PlaybackStateChanged() {
   }
 
   BeginProcessingMediaPlayerCallback();
-  if (player_->Paused()) {
+  if (player_->IsPaused()) {
     Pause();
   } else {
     Play();
