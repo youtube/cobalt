@@ -21,6 +21,8 @@ namespace base {
   bool PathProvider(int key, FilePath* result);
 #if defined(OS_WIN)
   bool PathProviderWin(int key, FilePath* result);
+#elif defined(OS_STARBOARD)
+  bool PathProviderStarboard(int key, FilePath* result);
 #elif defined(__LB_SHELL__)
   bool PathProviderShell(int key, FilePath* result);
 #elif defined(OS_MACOSX)
@@ -96,6 +98,18 @@ Provider base_provider_android = {
 };
 #endif
 
+#if defined(OS_STARBOARD)
+Provider base_provider_starboard = {
+  base::PathProviderStarboard,
+  &base_provider,
+#ifndef NDEBUG
+  base::PATH_POSIX_START,
+  base::PATH_POSIX_END,
+#endif
+  true
+};
+#endif
+
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 Provider base_provider_posix = {
 #if defined(__LB_SHELL__)
@@ -128,6 +142,8 @@ struct PathData {
     providers = &base_provider_android;
 #elif defined(OS_POSIX)
     providers = &base_provider_posix;
+#elif defined(OS_STARBOARD)
+    providers = &base_provider_starboard;
 #endif
   }
 
