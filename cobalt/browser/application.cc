@@ -31,6 +31,27 @@ namespace browser {
 
 namespace {
 
+#if defined(ENABLE_WEBDRIVER)
+int GetWebDriverPort() {
+  // The default port on which the webdriver server should listen for incoming
+  // connections.
+  const int kDefaultWebDriverPort = 9515;
+  int webdriver_port = kDefaultWebDriverPort;
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kWebDriverPort)) {
+    if (!base::StringToInt(
+            command_line->GetSwitchValueASCII(switches::kWebDriverPort),
+            &webdriver_port)) {
+      DLOG(ERROR) << "Invalid port specified for WebDriver server: "
+                  << command_line->GetSwitchValueASCII(switches::kWebDriverPort)
+                  << ". Using default port: " << kDefaultWebDriverPort;
+      webdriver_port = kDefaultWebDriverPort;
+    }
+  }
+  return webdriver_port;
+}
+#endif
+
 std::string GetInitialURL() {
   // Allow the user to override the default initial URL via a command line
   // parameter.
@@ -85,6 +106,16 @@ Application::Application()
   options.language = "en-US";
   browser_module_.reset(new BrowserModule(url, options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
+
+#if defined(ENABLE_WEBDRIVER)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kEnableWebDriver)) {
+    int webdriver_port = GetWebDriverPort();
+    web_driver_module_.reset(new webdriver::WebDriverModule(
+        webdriver_port, base::Bind(&BrowserModule::CreateSessionDriver,
+                                   base::Unretained(browser_module_.get()))));
+  }
+#endif
 }
 
 Application::~Application() { DCHECK(!message_loop_.is_running()); }

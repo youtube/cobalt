@@ -86,6 +86,8 @@
     'werror': '',
     # Cobalt doesn't currently support tcmalloc.
     'linux_use_tcmalloc': 0,
+
+    'enable_webdriver%': 0,
   },
 
   'target_defaults': {

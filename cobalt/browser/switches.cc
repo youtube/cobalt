@@ -45,6 +45,12 @@ const char kDebugConsoleMode[] = "debug_console";
 // Switches partial layout: on | off
 const char kPartialLayout[] = "partial_layout";
 
+// Create WebDriver server.
+const char kEnableWebDriver[] = "enable_webdriver";
+
+// Port that the WebDriver server should be listening on.
+const char kWebDriverPort[] = "webdriver_port";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

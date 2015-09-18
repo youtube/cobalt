@@ -40,6 +40,7 @@
 #include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -105,6 +106,13 @@ class WebModule {
   std::string GetItemInLocalStorage(const std::string& key);
   void SetItemInLocalStorage(const std::string& key, const std::string& value);
 
+#if defined(ENABLE_WEBDRIVER)
+  // Create a new webdriver::SessionDriver that interacts with this WebModule
+  // instance.
+  scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
+      const webdriver::protocol::SessionId& session_id);
+#endif
+
  private:
   // Called by ExecuteJavascript, if that method is called from a different
   // message loop to the one this WebModule is running on. Sets the result
@@ -162,6 +170,12 @@ class WebModule {
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
+
+  // Cache a WeakPtr in the WebModule that is bound to the Window's message loop
+  // so we can ensure that all subsequently created WeakPtr's are also bound to
+  // the same loop.
+  // See the documentation in base/memory/weak_ptr.h for details.
+  base::WeakPtr<dom::Window> window_weak_;
 
   // Environment Settings object
   scoped_ptr<dom::DOMSettings> environment_settings_;
