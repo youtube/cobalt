@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef BROWSER_SWITCHES_H_
-#define BROWSER_SWITCHES_H_
+#include "cobalt/webdriver/protocol/size.h"
 
 namespace cobalt {
-namespace browser {
-namespace switches {
+namespace webdriver {
+namespace protocol {
+namespace {
+const char kWidthKey[] = "width";
+const char kHeightKey[] = "height";
+}  // namespace
 
-extern const char kInitialURL[];
-extern const char kTimedTrace[];
-extern const char kInputFuzzer[];
-extern const char kShutdownAfter[];
-extern const char kDebugConsoleMode[];
-extern const char kPartialLayout[];
-extern const char kEnableWebDriver[];
-extern const char kWebDriverPort[];
+scoped_ptr<base::Value> Size::ToValue(const Size& size) {
+  scoped_ptr<base::DictionaryValue> size_value(new base::DictionaryValue());
+  size_value->SetDouble(kWidthKey, size.width_);
+  size_value->SetDouble(kHeightKey, size.height_);
+  return size_value.PassAs<base::Value>();
+}
 
-}  // namespace switches
-}  // namespace browser
+}  // namespace protocol
+}  // namespace webdriver
 }  // namespace cobalt
-
-#endif  // BROWSER_SWITCHES_H_
