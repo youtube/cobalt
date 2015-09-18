@@ -129,24 +129,24 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetVolume(float volume) OVERRIDE;
   void SetVisible(bool visible) OVERRIDE;
   virtual bool GetTotalBytesKnown();
-  const Ranges<base::TimeDelta>& Buffered() OVERRIDE;
-  float MaxTimeSeekable() const OVERRIDE;
+  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE;
+  float GetMaxTimeSeekable() const OVERRIDE;
 
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const OVERRIDE;
   bool HasAudio() const OVERRIDE;
 
   // Dimensions of the video.
-  gfx::Size NaturalSize() const OVERRIDE;
+  gfx::Size GetNaturalSize() const OVERRIDE;
 
   // Getters of playback state.
-  bool Paused() const OVERRIDE;
-  bool Seeking() const OVERRIDE;
-  float Duration() const OVERRIDE;
-  float CurrentTime() const OVERRIDE;
+  bool IsPaused() const OVERRIDE;
+  bool IsSeeking() const OVERRIDE;
+  float GetDuration() const OVERRIDE;
+  float GetCurrentTime() const OVERRIDE;
 
   // Get rate of loading the resource.
-  int32 DataRate() const OVERRIDE;
+  int32 GetDataRate() const OVERRIDE;
 
   // Internal states of loading and network.
   // TODO(hclam): Ask the pipeline about the state rather than having reading
@@ -155,17 +155,17 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayer::ReadyState GetReadyState() const OVERRIDE;
 
   bool DidLoadingProgress() const OVERRIDE;
-  unsigned long long TotalBytes() const OVERRIDE;
+  unsigned long long GetTotalBytes() const OVERRIDE;
 
   bool HasSingleSecurityOrigin() const OVERRIDE;
   bool DidPassCORSAccessCheck() const OVERRIDE;
 
   float MediaTimeForTimeValue(float timeValue) const OVERRIDE;
 
-  unsigned DecodedFrameCount() const OVERRIDE;
-  unsigned DroppedFrameCount() const OVERRIDE;
-  unsigned AudioDecodedByteCount() const OVERRIDE;
-  unsigned VideoDecodedByteCount() const OVERRIDE;
+  unsigned GetDecodedFrameCount() const OVERRIDE;
+  unsigned GetDroppedFrameCount() const OVERRIDE;
+  unsigned GetAudioDecodedByteCount() const OVERRIDE;
+  unsigned GetVideoDecodedByteCount() const OVERRIDE;
 
   // TODO(***REMOVED***) : Investigate if we should make ShellVideoFrameProvider
   // into a non-singleton class to support play back multiple videos
