@@ -32,6 +32,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/create_system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+#include "cobalt/webdriver/session_driver.h"
 
 namespace cobalt {
 namespace browser {
@@ -54,6 +55,13 @@ class BrowserModule {
   ~BrowserModule();
 
   const std::string& GetUserAgent() { return network_module_.user_agent(); }
+
+#if defined(ENABLE_WEBDRIVER)
+  scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
+      const webdriver::protocol::SessionId& session_id) {
+    return web_module_.CreateSessionDriver(session_id);
+  }
+#endif
 
  private:
   // Glue function to deal with the production of the main render tree,
