@@ -40,7 +40,7 @@ const char kInitialDebugConsoleUrl[] =
 
 }  // namespace
 
-BrowserModule::BrowserModule(const Options& options)
+BrowserModule::BrowserModule(const GURL& url, const Options& options)
     : storage_manager_(options.storage_manager_options),
       renderer_module_(options.renderer_module_options),
       media_module_(media::MediaModule::Create(
@@ -49,6 +49,7 @@ BrowserModule::BrowserModule(const Options& options)
       debug_hub_(new debug::DebugHub()),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(debug_console_(
+          GURL(kInitialDebugConsoleUrl),
           base::Bind(&BrowserModule::OnDebugConsoleRenderTreeProduced,
                      base::Unretained(this)),
           base::Bind(&BrowserModule::OnError, base::Unretained(this)),
@@ -56,12 +57,12 @@ BrowserModule::BrowserModule(const Options& options)
           math::Size(kInitialWidth, kInitialHeight),
           renderer_module_.pipeline()->GetResourceProvider(),
           renderer_module_.pipeline()->refresh_rate(),
-          WebModule::Options(GURL(kInitialDebugConsoleUrl), debug_hub_))),
+          WebModule::Options("DebugConsoleWebModule", debug_hub_))),
       render_tree_combiner_(renderer_module_.pipeline()),
 #endif  // ENABLE_DEBUG_CONSOLE
       ALLOW_THIS_IN_INITIALIZER_LIST(web_module_(
-          base::Bind(&BrowserModule::OnRenderTreeProduced,
-                     base::Unretained(this)),
+          url, base::Bind(&BrowserModule::OnRenderTreeProduced,
+                          base::Unretained(this)),
           base::Bind(&BrowserModule::OnError, base::Unretained(this)),
           media_module_.get(), &network_module_,
           math::Size(kInitialWidth, kInitialHeight),
