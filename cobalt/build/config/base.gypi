@@ -170,6 +170,7 @@
         'cflags': [ '<@(compiler_flags_debug)' ],
         'ldflags': [ '<@(linker_flags_debug)' ],
         'defines': [
+          'ALLOCATOR_STATS_TRACKING',
           '_DEBUG',
           'COBALT_BOX_DUMP_ENABLED',
           'COBALT_BUILD_TYPE_DEBUG',
@@ -185,6 +186,7 @@
         'cflags': [ '<@(compiler_flags_devel)' ],
         'ldflags': [ '<@(linker_flags_devel)' ],
         'defines': [
+          'ALLOCATOR_STATS_TRACKING',
           'NDEBUG',
           'COBALT_BUILD_TYPE_DEVEL',
           '__LB_SHELL__FORCE_LOGGING__',
@@ -199,6 +201,7 @@
         'cflags': [ '<@(compiler_flags_qa)' ],
         'ldflags': [ '<@(linker_flags_qa)' ],
         'defines': [
+          'ALLOCATOR_STATS_TRACKING',
           'NDEBUG',
           'COBALT_BUILD_TYPE_QA',
           '__LB_SHELL__FOR_QA__',
