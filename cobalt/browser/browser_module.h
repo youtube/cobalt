@@ -47,7 +47,7 @@ class BrowserModule {
     WebModule::Options web_module_options;
   };
 
-  explicit BrowserModule(const Options& options);
+  BrowserModule(const GURL& url, const Options& options);
   ~BrowserModule();
 
   std::string GetUserAgent() { return web_module_.GetUserAgent(); }

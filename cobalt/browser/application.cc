@@ -81,9 +81,9 @@ Application::Application()
 
   // Create the main components of our browser.
   BrowserModule::Options options;
-  options.web_module_options.url = url;
+  options.web_module_options.name = "MainWebModule";
   options.renderer_module_options.system_window = main_system_window_.get();
-  browser_module_.reset(new BrowserModule(options));
+  browser_module_.reset(new BrowserModule(url, options));
   DLOG(INFO) << "User Agent: " << browser_module_->GetUserAgent();
 }
 

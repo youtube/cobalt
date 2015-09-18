@@ -162,7 +162,7 @@ function consoleValueNodeToString(name, node, prefix) {
                                        name);
   } else if (numChildren > 1) {
     result += '{';
-    result += consoleValueTreeToString(children, prefix);
+    result += consoleValueTreeToString(children, null);
     result += '}';
   }
   return result;
@@ -189,6 +189,7 @@ function consoleValueTreeToString(cvalTree, prefix) {
 }
 
 function updateHud(time) {
+  getConsoleValueNames();
   var cvalTree = buildConsoleValueTree(activeCVals);
   var cvalString = consoleValueTreeToString(cvalTree.children, null);
   printToHud(cvalString);
@@ -227,7 +228,6 @@ function addLogMessageCallback() {
 function start() {
   createMessageBuffer(false);
   addLogMessageCallback();
-  getConsoleValueNames();
   curr = window.performance.now();
   window.requestAnimationFrame(animate);
 }

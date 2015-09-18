@@ -34,8 +34,8 @@ class DebugConsole {
     kDebugConsoleOnly
   };
 
-  DebugConsole(const WebModule::OnRenderTreeProducedCallback&
-                   render_tree_produced_callback,
+  DebugConsole(const GURL& url, const WebModule::OnRenderTreeProducedCallback&
+                                    render_tree_produced_callback,
                const base::Callback<void(const std::string&)>& error_callback,
                media::MediaModule* media_module,
                network::NetworkModule* network_module,
