@@ -24,6 +24,7 @@
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_condition_rule.h"
+#include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_grouping_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_parser.h"
@@ -54,6 +55,11 @@ class MediaRuleUpdater : public CSSRuleVisitor {
 
   void VisitCSSStyleRule(CSSStyleRule* css_style_rule) OVERRIDE {
     UNREFERENCED_PARAMETER(css_style_rule);
+    // Do nothing.
+  }
+
+  void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) OVERRIDE {
+    UNREFERENCED_PARAMETER(css_font_face_rule);
     // Do nothing.
   }
 
@@ -163,12 +169,19 @@ class CSSStyleSheet::CSSRuleIndexer : public CSSRuleVisitor {
     }
   }
 
+  void VisitCSSFontFaceRule(CSSFontFaceRule* css_font_face_rule) OVERRIDE {
+    css_font_face_rule->set_index(next_css_rule_priority_index_++);
+    // TODO(***REMOVED***): Implement the visitor
+    NOTIMPLEMENTED() << "VisitCSSFontFaceRule not implemented yet.";
+  }
+
   void VisitCSSMediaRule(CSSMediaRule* css_media_rule) OVERRIDE {
     css_media_rule->set_index(next_css_rule_priority_index_++);
     if (css_media_rule->GetCachedConditionValue()) {
       css_media_rule->css_rules()->Accept(this);
     }
   }
+
 
  private:
   // The priority index to be used for the next appended CSS Rule.

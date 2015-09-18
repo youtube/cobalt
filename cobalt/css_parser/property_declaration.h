@@ -43,12 +43,12 @@ struct PropertyDeclaration {
   // using this constructor object and then populate it manually.
   explicit PropertyDeclaration(bool important) : important(important) {}
 
-  void ApplyToStyle(cssom::CSSStyleDeclarationData* style) const {
+  void Apply(cssom::CSSDeclarationData* declaration_data) const {
     for (NameValuePairList::const_iterator iter = property_values.begin();
          iter != property_values.end(); ++iter) {
-      style->SetPropertyValue(iter->name, iter->value);
+      declaration_data->SetPropertyValue(iter->name, iter->value);
       // TODO(***REMOVED***): Set property importance.
-      DCHECK_EQ(iter->value, style->GetPropertyValue(iter->name));
+      DCHECK_EQ(iter->value, declaration_data->GetPropertyValue(iter->name));
     }
   }
 

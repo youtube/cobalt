@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CSSOM_STRING_VALUE_H_
-#define CSSOM_STRING_VALUE_H_
+#ifndef CSSOM_UNICODE_RANGE_VALUE_H_
+#define CSSOM_UNICODE_RANGE_VALUE_H_
 
 #include <string>
 
@@ -29,34 +29,36 @@ namespace cssom {
 
 class PropertyValueVisitor;
 
-// Represents a sequence of characters delimited by single or double quotes.
-// Applies to properties like font-family.
-// See http://www.w3.org/TR/css3-values/#strings for details.
-class StringValue : public PropertyValue {
+// See http://www.w3.org/TR/css3-fonts/#unicode-range-desc for details.
+class UnicodeRangeValue : public PropertyValue {
  public:
-  explicit StringValue(const std::string& value) : value_(value) {}
+  UnicodeRangeValue(int start, int end);
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
 
-  const std::string& value() const { return value_; }
+  int start() const { return start_; }
+  int end() const { return end_; }
 
-  std::string ToString() const OVERRIDE { return "'" + value_ + "'"; }
+  std::string ToString() const OVERRIDE;
 
-  bool operator==(const StringValue& other) const {
-    return value_ == other.value_;
+  bool operator==(const UnicodeRangeValue& other) const {
+    return start_ == other.start_ && end_ == other.end_;
   }
 
-  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(StringValue);
+  bool IsValid() const;
+
+  DEFINE_POLYMORPHIC_EQUATABLE_TYPE(UnicodeRangeValue);
 
  private:
-  ~StringValue() OVERRIDE {}
+  ~UnicodeRangeValue() OVERRIDE {}
 
-  const std::string value_;
+  const int start_;
+  const int end_;
 
-  DISALLOW_COPY_AND_ASSIGN(StringValue);
+  DISALLOW_COPY_AND_ASSIGN(UnicodeRangeValue);
 };
 
 }  // namespace cssom
 }  // namespace cobalt
 
-#endif  // CSSOM_STRING_VALUE_H_
+#endif  // CSSOM_UNICODE_RANGE_VALUE_H_

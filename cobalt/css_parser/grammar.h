@@ -37,10 +37,12 @@
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
+#include "cobalt/css_parser/trivial_type_pairs.h"
 #include "cobalt/cssom/combinator.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_declaration_data.h"
@@ -50,6 +52,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
+#include "cobalt/cssom/local_src_value.h"
 #include "cobalt/cssom/media_feature.h"
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/media_list.h"
@@ -63,6 +66,7 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/url_src_value.h"
 
 namespace cobalt {
 namespace css_parser {
