@@ -59,6 +59,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                loader::ImageCache* image_cache,
                LocalStorageDatabase* local_storage_database,
                media::WebMediaPlayerFactory* web_media_player_factory,
+               script::ExecutionState* execution_state,
                script::ScriptRunner* script_runner, const GURL& url,
                const std::string& user_agent,
                const base::Callback<void(const std::string&)>& error_callback)
@@ -79,7 +80,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
       performance_(new Performance()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
-      console_(new Console()),
+      console_(new Console(execution_state)),
       window_timers_(new WindowTimers()),
       animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList()),
