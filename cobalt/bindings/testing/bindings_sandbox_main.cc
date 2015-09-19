@@ -62,7 +62,8 @@ int main(int argc, char** argv) {
 
     // Convert the utf8 string into a form that can be consumed by the
     // JavaScript engine.
-    scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(line);
+    scoped_refptr<SourceCode> source = SourceCode::CreateSourceCode(
+        line, base::SourceLocation("[stdin]", 1, 1));
 
     // Execute the script and get the results of execution.
     std::string result;

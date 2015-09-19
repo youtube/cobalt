@@ -19,11 +19,11 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
-#include "base/callback.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
@@ -33,10 +33,11 @@
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/loader.h"
 #include "cobalt/loader/image_cache.h"
+#include "cobalt/loader/loader.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "googleurl/src/gurl.h"
 
@@ -73,6 +74,7 @@ class Window : public EventTarget {
          loader::ImageCache* image_cache,
          LocalStorageDatabase* local_storage_database,
          media::WebMediaPlayerFactory* web_media_player_factory,
+         script::ExecutionState* execution_state,
          script::ScriptRunner* script_runner, const GURL& url,
          const std::string& user_agent,
          const base::Callback<void(const std::string&)>& error_callback);

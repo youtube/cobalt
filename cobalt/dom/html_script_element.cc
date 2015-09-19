@@ -32,11 +32,23 @@ namespace dom {
 const char HTMLScriptElement::kTagName[] = "script";
 
 HTMLScriptElement::HTMLScriptElement(Document* document)
-    : HTMLElement(document), is_already_started_(false) {
+    : HTMLElement(document),
+      is_already_started_(false),
+      inline_script_location_("[object HTMLScriptElement]", 1, 1) {
   DCHECK(document->html_element_context()->script_runner());
 }
 
 std::string HTMLScriptElement::tag_name() const { return kTagName; }
+
+scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
+  return this;
+}
+
+void HTMLScriptElement::SetOpeningTagLocation(
+    const base::SourceLocation& opening_tag_location) {
+  inline_script_location_ = opening_tag_location;
+  ++inline_script_location_.column_number;  // JavaScript code starts after ">".
+}
 
 void HTMLScriptElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
@@ -50,7 +62,8 @@ void HTMLScriptElement::OnInsertedIntoDocument() {
     Prepare();
   } else {
     // Immediately execute the script.
-    html_element_context()->script_runner()->Execute(text_content().value());
+    html_element_context()->script_runner()->Execute(text_content().value(),
+                                                     inline_script_location_);
   }
 }
 
@@ -136,18 +149,21 @@ void HTMLScriptElement::Prepare() {
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(html_element_context()->fetcher_factory()),
                  url),
-      scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
-          &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
+      scoped_ptr<loader::Decoder>(new loader::TextDecoder(
+          base::Bind(&HTMLScriptElement::OnLoadingDone, base::Unretained(this),
+                     url.spec()))),
       base::Bind(&HTMLScriptElement::OnLoadingError, base::Unretained(this))));
   owner_document()->IncreaseLoadingCounter();
 
   // 15. Not needed by Cobalt.
 }
 
-void HTMLScriptElement::OnLoadingDone(const std::string& content) {
+void HTMLScriptElement::OnLoadingDone(const std::string& script_url,
+                                      const std::string& script_utf8) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // TODO(***REMOVED***) Consider passing in a callback rather than an interface.
-  html_element_context()->script_runner()->Execute(content);
+  html_element_context()->script_runner()->Execute(
+      script_utf8, base::SourceLocation(script_url, 1, 1));
   owner_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent(true);
   StopLoading();
 }

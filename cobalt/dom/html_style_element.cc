@@ -29,20 +29,28 @@ namespace dom {
 // static
 const char HTMLStyleElement::kTagName[] = "style";
 
+HTMLStyleElement::HTMLStyleElement(Document* document)
+    : HTMLElement(document),
+      style_sheet_location_("[object HTMLStyleElement]", 1, 1) {}
+
 std::string HTMLStyleElement::tag_name() const { return kTagName; }
+
+scoped_refptr<HTMLStyleElement> HTMLStyleElement::AsHTMLStyleElement() {
+  return this;
+}
 
 void HTMLStyleElement::SetOpeningTagLocation(
     const base::SourceLocation& opening_tag_location) {
-  content_location_ = opening_tag_location;
-  ++content_location_.column_number;  // CSS code starts after ">".
+  style_sheet_location_ = opening_tag_location;
+  ++style_sheet_location_.column_number;  // CSS code starts after ">".
 }
 
 void HTMLStyleElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       html_element_context()->css_parser()->ParseStyleSheet(
-          text_content().value(), content_location_);
-  style_sheet->SetLocationUrl(GURL(content_location_.file_path));
+          text_content().value(), style_sheet_location_);
+  style_sheet->SetLocationUrl(GURL(style_sheet_location_.file_path));
   owner_document()->style_sheets()->Append(style_sheet);
 }
 
