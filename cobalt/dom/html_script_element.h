@@ -21,6 +21,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/loader.h"
 
@@ -53,9 +54,11 @@ class HTMLScriptElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE {
-    return this;
-  }
+  // From HTMLElement.
+  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE;
+
+  void SetOpeningTagLocation(
+      const base::SourceLocation& opening_tag_location) OVERRIDE;
 
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
@@ -68,7 +71,7 @@ class HTMLScriptElement : public HTMLElement {
   // From the spec: HTMLScriptElement.
   void Prepare();
 
-  void OnLoadingDone(const std::string& content);
+  void OnLoadingDone(const std::string& script_url, const std::string& content);
   void OnLoadingError(const std::string& error);
   void StopLoading();
 
@@ -79,6 +82,8 @@ class HTMLScriptElement : public HTMLElement {
   scoped_ptr<loader::Loader> loader_;
   // Whether the script has been started.
   bool is_already_started_;
+
+  base::SourceLocation inline_script_location_;
 };
 
 }  // namespace dom

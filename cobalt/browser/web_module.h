@@ -127,6 +127,9 @@ class WebModule {
   // but since there is only one window, we can have one per browser.
   scoped_refptr<script::GlobalObjectProxy> global_object_proxy_;
 
+  // Used by |Console| to obtain a JavaScript stack trace.
+  scoped_ptr<script::ExecutionState> execution_state_;
+
   // Interface for the document to execute JavaScript code.
   scoped_ptr<script::ScriptRunner> script_runner_;
 

@@ -18,20 +18,24 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/script/global_object_proxy.h"
+#include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace script {
+
+class GlobalObjectProxy;
 
 // Maintains a handle to a JavaScript global object, and provides an interface
 // to execute JavaScript code.
 class ScriptRunner {
  public:
   static scoped_ptr<ScriptRunner> CreateScriptRunner(
-      const scoped_refptr<GlobalObjectProxy> global_object_proxy);
+      const scoped_refptr<GlobalObjectProxy>& global_object_proxy);
 
-  virtual void Execute(const std::string& script_utf8) = 0;
+  virtual void Execute(const std::string& script_utf8,
+                       const base::SourceLocation& script_location) = 0;
   virtual ~ScriptRunner() {}
 };
 

@@ -20,8 +20,10 @@ namespace cobalt {
 namespace dom {
 namespace testing {
 
-void StubScriptRunner::Execute(const std::string& script_utf8) {
+void StubScriptRunner::Execute(const std::string& script_utf8,
+                               const base::SourceLocation& script_location) {
   UNREFERENCED_PARAMETER(script_utf8);
+  UNREFERENCED_PARAMETER(script_location);
 }
 
 }  // namespace testing
