@@ -97,13 +97,16 @@ WebModule::WebModule(
       local_storage_database_(network_module->storage_manager()),
       javascript_engine_(script::JavaScriptEngine::CreateEngine()),
       global_object_proxy_(javascript_engine_->CreateGlobalObjectProxy()),
+      execution_state_(
+          script::ExecutionState::CreateExecutionState(global_object_proxy_)),
       script_runner_(
           script::ScriptRunner::CreateScriptRunner(global_object_proxy_)),
       window_(new dom::Window(
           window_dimensions.width(), window_dimensions.height(),
           css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
           image_cache_.get(), &local_storage_database_, media_module,
-          script_runner_.get(), initial_url, GetUserAgent(), error_callback)),
+          execution_state_.get(), script_runner_.get(), initial_url,
+          GetUserAgent(), error_callback)),
       environment_settings_(new dom::DOMSettings(
           fetcher_factory_.get(), window_, javascript_engine_.get(),
           global_object_proxy_.get())),

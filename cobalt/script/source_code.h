@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace script {
@@ -31,7 +32,8 @@ class SourceCode : public base::RefCounted<SourceCode> {
   // can be evaluated.
   // Defined in the engine's implementation.
   static scoped_refptr<SourceCode> CreateSourceCode(
-      const std::string& script_utf8);
+      const std::string& script_utf8,
+      const base::SourceLocation& script_location);
 
  protected:
   SourceCode() {}

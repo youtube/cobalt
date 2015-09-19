@@ -34,9 +34,7 @@ class HTMLStyleElement : public HTMLElement {
  public:
   static const char kTagName[];
 
-  explicit HTMLStyleElement(Document* document)
-      : HTMLElement(document),
-        content_location_("[object HTMLStyleElement]", 1, 1) {}
+  explicit HTMLStyleElement(Document* document);
 
   // Web API: Element
   std::string tag_name() const OVERRIDE;
@@ -48,7 +46,7 @@ class HTMLStyleElement : public HTMLElement {
   // Custom, not in any spec.
   //
   // From HTMLElement.
-  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE;
 
   void SetOpeningTagLocation(
       const base::SourceLocation& opening_tag_location) OVERRIDE;
@@ -61,7 +59,7 @@ class HTMLStyleElement : public HTMLElement {
  private:
   ~HTMLStyleElement() OVERRIDE {}
 
-  base::SourceLocation content_location_;
+  base::SourceLocation style_sheet_location_;
 };
 
 }  // namespace dom
