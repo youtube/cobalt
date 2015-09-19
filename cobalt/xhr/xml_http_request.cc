@@ -25,6 +25,7 @@
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/javascript_engine.h"
 #include "net/http/http_util.h"
 

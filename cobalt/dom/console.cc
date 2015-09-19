@@ -16,15 +16,19 @@
 
 #include "cobalt/dom/console.h"
 
-
 #include "base/logging.h"
 
 namespace cobalt {
 namespace dom {
 
-void Console::Log(const std::string& text) {
+Console::Console(script::ExecutionState* execution_state)
+    : execution_state_(execution_state) {}
+
+void Console::Log(const std::string& text) const {
   LOG(INFO) << "[console.log()] " << text;
 }
+
+void Console::Trace() const { LOG(INFO) << execution_state_->GetStackTrace(); }
 
 }  // namespace dom
 }  // namespace cobalt

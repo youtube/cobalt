@@ -51,7 +51,8 @@ class BindingsTestBase : public ::testing::Test {
 
   bool EvaluateScript(const std::string& script, std::string* out_result) {
     scoped_refptr<script::SourceCode> source =
-        script::SourceCode::CreateSourceCode(script);
+        script::SourceCode::CreateSourceCode(
+            script, base::SourceLocation("[object BindingsTestBase]", 1, 1));
     return global_object_proxy_->EvaluateScript(source, out_result);
   }
 

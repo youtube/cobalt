@@ -13,33 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#ifndef SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
-#define SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
+#ifndef SCRIPT_EXECUTION_STATE_H_
+#define SCRIPT_EXECUTION_STATE_H_
 
 #include <string>
 
-#include "cobalt/script/source_code.h"
-
-#include "config.h"
-#include "third_party/WebKit/Source/JavaScriptCore/parser/SourceCode.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 
 namespace cobalt {
 namespace script {
-namespace javascriptcore {
 
-class JSCSourceCode : public SourceCode {
+class GlobalObjectProxy;
+
+// Provides access to the state of JavaScript execution.
+class ExecutionState {
  public:
-  explicit JSCSourceCode(const std::string& source_utf8,
-                         const base::SourceLocation& source_location);
-  JSC::SourceCode& source() { return source_; }
+  static scoped_ptr<ExecutionState> CreateExecutionState(
+      const scoped_refptr<GlobalObjectProxy>& global_object_proxy);
 
- private:
-  JSC::SourceCode source_;
+  virtual std::string GetStackTrace() const = 0;
+  virtual ~ExecutionState() {}
 };
 
-}  // namespace javascriptcore
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_JAVASCRIPTCORE_JSC_SOURCE_CODE_H_
+#endif  // SCRIPT_EXECUTION_STATE_H_

@@ -17,6 +17,7 @@
 #include "cobalt/script/script_runner.h"
 
 #include "base/logging.h"
+#include "cobalt/script/global_object_proxy.h"
 #include "cobalt/script/source_code.h"
 
 namespace cobalt {
@@ -30,31 +31,32 @@ class ScriptRunnerImpl : public ScriptRunner {
       const scoped_refptr<GlobalObjectProxy> global_object_proxy)
       : global_object_proxy_(global_object_proxy) {}
 
-  void Execute(const std::string& script_utf8) OVERRIDE;
+  void Execute(const std::string& script_utf8,
+               const base::SourceLocation& script_location) OVERRIDE;
 
  private:
   scoped_refptr<GlobalObjectProxy> global_object_proxy_;
 };
 
-void ScriptRunnerImpl::Execute(const std::string& script_utf8) {
+void ScriptRunnerImpl::Execute(const std::string& script_utf8,
+                               const base::SourceLocation& script_location) {
   scoped_refptr<SourceCode> source_code =
-      SourceCode::CreateSourceCode(script_utf8);
+      SourceCode::CreateSourceCode(script_utf8, script_location);
   if (source_code == NULL) {
-    NOTREACHED() << "Failed to pre-process javascript source.";
+    NOTREACHED() << "Failed to pre-process JavaScript source.";
     return;
   }
   std::string result;
   if (!global_object_proxy_->EvaluateScript(source_code, &result)) {
-    DLOG(WARNING) << "Failed to execute javascript: " << result;
+    DLOG(WARNING) << "Failed to execute JavaScript: " << result;
   }
 }
 
 }  // namespace
 
 scoped_ptr<ScriptRunner> ScriptRunner::CreateScriptRunner(
-    const scoped_refptr<GlobalObjectProxy> global_object_proxy) {
-  return make_scoped_ptr<ScriptRunner>(
-             new ScriptRunnerImpl(global_object_proxy)).Pass();
+    const scoped_refptr<GlobalObjectProxy>& global_object_proxy) {
+  return scoped_ptr<ScriptRunner>(new ScriptRunnerImpl(global_object_proxy));
 }
 
 }  // namespace script

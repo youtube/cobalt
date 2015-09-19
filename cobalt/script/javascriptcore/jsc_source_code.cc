@@ -37,35 +37,38 @@ namespace {
 class UTF8StringSourceProvider : public JSC::SourceProvider {
  public:
   static WTF::PassRefPtr<UTF8StringSourceProvider> Create(
-      const std::string& utf8_string) {
-    return WTF::adoptRef(new UTF8StringSourceProvider(utf8_string));
+      const std::string& source_utf8, const std::string& source_url) {
+    return WTF::adoptRef(new UTF8StringSourceProvider(source_utf8, source_url));
   }
   const WTF::String& source() const OVERRIDE { return source_; }
 
  private:
-  explicit UTF8StringSourceProvider(const std::string& utf8_string)
-      : SourceProvider(WTF::String(), WTF::TextPosition::minimumPosition()) {
-    source_ = ToWTFString(utf8_string);
+  explicit UTF8StringSourceProvider(const std::string& source_utf8,
+                                    const std::string& source_url)
+      : SourceProvider(ToWTFString(source_url),
+                       WTF::TextPosition::minimumPosition()) {
+    source_ = ToWTFString(source_utf8);
   }
   WTF::String source_;
 };
 
 }  // namespace
 
-JSCSourceCode::JSCSourceCode(const std::string& utf8_string) {
-  DCHECK(IsStringUTF8(utf8_string));
+JSCSourceCode::JSCSourceCode(const std::string& source_utf8,
+                             const base::SourceLocation& source_location) {
+  DCHECK(IsStringUTF8(source_utf8));
   RefPtr<UTF8StringSourceProvider> source_provider =
-      UTF8StringSourceProvider::Create(utf8_string);
-  source_ = JSC::SourceCode(source_provider);
+      UTF8StringSourceProvider::Create(source_utf8, source_location.file_path);
+  source_ = JSC::SourceCode(source_provider, source_location.line_number);
 }
 
 }  // namespace javascriptcore
 
 // static method declared in public interface
 scoped_refptr<SourceCode> SourceCode::CreateSourceCode(
-    const std::string& script_utf8) {
-  return make_scoped_refptr<javascriptcore::JSCSourceCode>(
-      new javascriptcore::JSCSourceCode(script_utf8));
+    const std::string& source_utf8,
+    const base::SourceLocation& source_location) {
+  return new javascriptcore::JSCSourceCode(source_utf8, source_location);
 }
 
 }  // namespace script
