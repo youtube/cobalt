@@ -118,14 +118,29 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string overflow() const;
   void set_overflow(const std::string& overflow);
 
+  std::string overflow_wrap() const;
+  void set_overflow_wrap(const std::string& overflow_wrap);
+
   std::string position() const;
   void set_position(const std::string& position);
 
   std::string right() const;
   void set_right(const std::string& right);
 
+  std::string tab_size() const;
+  void set_tab_size(const std::string& tab_size);
+
   std::string text_align() const;
   void set_text_align(const std::string& text_align);
+
+  std::string text_indent() const;
+  void set_text_indent(const std::string& text_indent);
+
+  std::string text_overflow() const;
+  void set_text_overflow(const std::string& text_overflow);
+
+  std::string text_transform() const;
+  void set_text_transform(const std::string& text_transform);
 
   std::string top() const;
   void set_top(const std::string& top);
@@ -152,8 +167,14 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string vertical_align() const;
   void set_vertical_align(const std::string& vertical_align);
 
+  std::string white_space() const;
+  void set_white_space(const std::string& width);
+
   std::string width() const;
   void set_width(const std::string& width);
+
+  std::string word_wrap() const;
+  void set_word_wrap(const std::string& word_wrap);
 
   std::string z_index() const;
   void set_z_index(const std::string& z_index);

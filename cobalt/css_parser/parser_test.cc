@@ -1629,6 +1629,21 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
   EXPECT_FLOAT_EQ(1, opaque->value());
 }
 
+TEST_F(ParserTest, ParsesBreakWordOverflowWrap) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("overflow-wrap: break-word;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetBreakWord(), style->overflow_wrap());
+}
+
+TEST_F(ParserTest, ParsesNormalOverflowWrap) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("overflow-wrap: normal;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->overflow_wrap());
+}
+
 TEST_F(ParserTest, ParsesHiddenOverflow) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("overflow: hidden;", source_location_);
@@ -2088,6 +2103,16 @@ TEST_F(ParserTest, RecoversFromInvalidTransformList) {
   EXPECT_TRUE(style->color());
 }
 
+TEST_F(ParserTest, ParsesIntegerTabSize) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("tab-size: 4;", source_location_);
+
+  scoped_refptr<cssom::IntegerValue> tab_size =
+      dynamic_cast<cssom::IntegerValue*>(style->tab_size().get());
+  ASSERT_TRUE(tab_size);
+  EXPECT_EQ(4, tab_size->value());
+}
+
 TEST_F(ParserTest, ParsesLeftTextAlign) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("text-align: left;", source_location_);
@@ -2107,6 +2132,69 @@ TEST_F(ParserTest, ParsesRightTextAlign) {
       parser_.ParseDeclarationList("text-align: right;", source_location_);
 
   EXPECT_EQ(cssom::KeywordValue::GetRight(), style->text_align());
+}
+
+TEST_F(ParserTest, ParseZeroLengthTextIndent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-indent: 0;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> text_indent =
+      dynamic_cast<cssom::LengthValue*>(style->text_indent().get());
+  ASSERT_TRUE(text_indent);
+  EXPECT_FLOAT_EQ(0, text_indent->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_indent->unit());
+}
+
+TEST_F(ParserTest, ParseRelativeLengthTextIndent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-indent: 4em", source_location_);
+
+  scoped_refptr<cssom::LengthValue> text_indent =
+      dynamic_cast<cssom::LengthValue*>(style->text_indent().get());
+  ASSERT_TRUE(text_indent);
+  EXPECT_FLOAT_EQ(4, text_indent->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, text_indent->unit());
+}
+
+TEST_F(ParserTest, ParseAbsoluteLengthTextIndent) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-indent: 100px;", source_location_);
+
+  scoped_refptr<cssom::LengthValue> text_indent =
+      dynamic_cast<cssom::LengthValue*>(style->text_indent().get());
+  ASSERT_TRUE(text_indent);
+  EXPECT_FLOAT_EQ(100, text_indent->value());
+  EXPECT_EQ(cssom::kPixelsUnit, text_indent->unit());
+}
+
+TEST_F(ParserTest, ParsesClipTextOverflow) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-overflow: clip;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetClip(), style->text_overflow());
+}
+
+TEST_F(ParserTest, ParsesEllipsisTextOverflow) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-overflow: ellipsis;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetEllipsis(), style->text_overflow());
+}
+
+TEST_F(ParserTest, ParsesNoneTextTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-transform: none;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(), style->text_transform());
+}
+
+TEST_F(ParserTest, ParsesUppercaseTextTransform) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("text-transform: uppercase;",
+                                   source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetUppercase(), style->text_transform());
 }
 
 TEST_F(ParserTest, ParsesBaselineVerticalAlign) {
@@ -2131,6 +2219,27 @@ TEST_F(ParserTest, ParsesTopVerticalAlign) {
   EXPECT_EQ(cssom::KeywordValue::GetTop(), style->vertical_align());
 }
 
+TEST_F(ParserTest, ParsesNormalWhiteSpace) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("white-space: normal;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->white_space());
+}
+
+TEST_F(ParserTest, ParsesNoWrapWhiteSpace) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("white-space: nowrap;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNoWrap(), style->white_space());
+}
+
+TEST_F(ParserTest, ParsesPreWhiteSpace) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("white-space: pre;", source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetPre(), style->white_space());
+}
+
 TEST_F(ParserTest, ParsesWidth) {
   scoped_refptr<cssom::CSSStyleDeclarationData> style =
       parser_.ParseDeclarationList("width: 100px;", source_location_);
@@ -2140,6 +2249,24 @@ TEST_F(ParserTest, ParsesWidth) {
   ASSERT_TRUE(width);
   EXPECT_FLOAT_EQ(100, width->value());
   EXPECT_EQ(cssom::kPixelsUnit, width->unit());
+}
+
+TEST_F(ParserTest, ParsesBreakWordWordWrap) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("word-wrap: break-word;", source_location_);
+
+  // word-wrap is treated as an alias for overflow-wrap
+  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  EXPECT_EQ(cssom::KeywordValue::GetBreakWord(), style->overflow_wrap());
+}
+
+TEST_F(ParserTest, ParsesNormalWordWrap) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> style =
+      parser_.ParseDeclarationList("word-wrap: normal;", source_location_);
+
+  // word-wrap is treated as an alias for overflow-wrap
+  //   http://www.w3.org/TR/css-text-3/#overflow-wrap
+  EXPECT_EQ(cssom::KeywordValue::GetNormal(), style->overflow_wrap());
 }
 
 TEST_F(ParserTest, ParsesValidPropertyValue) {
