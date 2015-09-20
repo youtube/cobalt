@@ -96,6 +96,7 @@
 %token kMarginTopToken                        // margin-top
 %token kOpacityToken                          // opacity
 %token kOverflowToken                         // overflow
+%token kOverflowWrapToken                     // overflow-wrap
 %token kPaddingBottomToken                    // padding-bottom
 %token kPaddingLeftToken                      // padding-left
 %token kPaddingRightToken                     // padding-right
@@ -103,7 +104,11 @@
 %token kPaddingTopToken                       // padding-top
 %token kPositionToken                         // position
 %token kRightToken                            // right
+%token kTabSizeToken                          // tab-size
 %token kTextAlignToken                        // text-align
+%token kTextIndentToken                       // text-indent
+%token kTextOverflowToken                     // text-overflow
+%token kTextTransformToken                    // text-transform
 %token kTopToken                              // top
 %token kTransformToken                        // transform
 %token kTransitionDelayToken                  // transition-delay
@@ -112,6 +117,7 @@
 %token kTransitionTimingFunctionToken         // transition-timing-function
 %token kTransitionToken                       // transition
 %token kVerticalAlignToken                    // vertical-align
+%token kWhiteSpacePropertyToken               // white-space
 %token kWidthToken                            // width
 %token kZIndexToken                           // z-index
 
@@ -123,13 +129,16 @@
 %token kBaselineToken                   // baseline
 %token kBlockToken                      // block
 %token kBoldToken                       // bold
+%token kBreakWordToken                  // break-word
 %token kCenterToken                     // center
+%token kClipToken                       // clip
 %token kContainToken                    // contain
 %token kCoverToken                      // cover
 %token kEaseInOutToken                  // ease-in-out
 %token kEaseInToken                     // ease-in
 %token kEaseOutToken                    // ease-out
 %token kEaseToken                       // ease
+%token kEllipsisToken                   // ellipsis
 %token kEndToken                        // end
 %token kHiddenToken                     // hidden
 %token kInheritToken                    // inherit
@@ -143,7 +152,9 @@
 %token kNoneToken                       // none
 %token kNoRepeatToken                   // no-repeat
 %token kNormalToken                     // normal
+%token kNoWrapToken                     // nowrap
 %token kObliqueToken                    // oblique
+%token kPreToken                        // pre
 %token kRepeatToken                     // repeat
 %token kRepeatXToken                    // repeat-x
 %token kRepeatYToken                    // repeat-y
@@ -155,6 +166,7 @@
 %token kStepStartToken                  // step-start
 %token kToToken                         // to
 // %token kTopToken                     // top - also property name token
+%token kUppercaseToken                  // uppercase
 %token kVisibleToken                    // visible
 
 // Pseudo-class name tokens.
@@ -406,11 +418,16 @@
                        opacity_property_value
                        orientation_media_feature_keyword_value
                        overflow_property_value
+                       overflow_wrap_property_value
                        padding_side_property_value
                        padding_width
                        scan_media_feature_keyword_value
                        position_property_value
+                       tab_size_property_value
                        text_align_property_value
+                       text_indent_property_value
+                       text_overflow_property_value
+                       text_transform_property_value
                        transform_property_value
                        transition_delay_property_value
                        transition_duration_property_value
@@ -418,6 +435,7 @@
                        transition_timing_function_property_value
                        url
                        vertical_align_property_value
+                       white_space_property_value
                        width_property_value
                        z_index_property_value
 %destructor { $$->Release(); } <property_value>
@@ -942,6 +960,9 @@ identifier_token:
   | kOverflowToken {
     $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
   }
+  | kOverflowWrapToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kOverflowWrapPropertyName);
+  }
   | kPaddingBottomToken {
     $$ = TrivialStringPiece::FromCString(cssom::kPaddingBottomPropertyName);
   }
@@ -963,8 +984,20 @@ identifier_token:
   | kRightToken {
     $$ = TrivialStringPiece::FromCString(cssom::kRightPropertyName);
   }
+  | kTabSizeToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTabSizePropertyName);
+  }
   | kTextAlignToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTextAlignPropertyName);
+  }
+  | kTextIndentToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTextIndentPropertyName);
+  }
+  | kTextOverflowToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTextOverflowPropertyName);
+  }
+  | kTextTransformToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kTextTransformPropertyName);
   }
   | kTopToken {
     $$ = TrivialStringPiece::FromCString(cssom::kTopPropertyName);
@@ -995,6 +1028,9 @@ identifier_token:
   | kVerticalAlignToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVerticalAlignPropertyName);
   }
+  | kWhiteSpacePropertyToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kWhiteSpacePropertyName);
+  }
   | kWidthToken {
     $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
   }
@@ -1014,8 +1050,14 @@ identifier_token:
   | kBoldToken {
     $$ = TrivialStringPiece::FromCString(cssom::kBoldKeywordName);
   }
+  | kBreakWordToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kBreakWordKeywordName);
+  }
   | kCenterToken {
     $$ = TrivialStringPiece::FromCString(cssom::kCenterKeywordName);
+  }
+  | kClipToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kClipKeywordName);
   }
   | kContainToken {
     $$ = TrivialStringPiece::FromCString(cssom::kContainKeywordName);
@@ -1071,6 +1113,12 @@ identifier_token:
   | kNormalToken {
     $$ = TrivialStringPiece::FromCString(cssom::kNormalKeywordName);
   }
+  | kNoWrapToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kNoWrapKeywordName);
+  }
+  | kPreToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kPreKeywordName);
+  }
   | kObliqueToken {
     $$ = TrivialStringPiece::FromCString(cssom::kObliqueKeywordName);
   }
@@ -1105,6 +1153,9 @@ identifier_token:
   //| kTopToken {
   //  $$ = TrivialStringPiece::FromCString(cssom::kTopKeywordName);
   //}
+  | kUppercaseToken {
+    $$ = TrivialStringPiece::FromCString(cssom::kUppercaseKeywordName);
+  }
   | kVisibleToken {
     $$ = TrivialStringPiece::FromCString(cssom::kVisibleKeywordName);
   }
@@ -2236,6 +2287,20 @@ overflow_property_value:
   | common_values
   ;
 
+// Specifies whether the user agent may arbitrarily break within a word to
+// prevent overflow when an otherwise unbreakable string is too long to
+// fit within the line box.
+//   http://www.w3.org/TR/css-text-3/#overflow-wrap-property
+overflow_wrap_property_value:
+    kBreakWordToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetBreakWord().get());
+  }
+  | kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNormal().get());
+  }
+  | common_values
+  ;
+
 // <padding-width> value type.
 //   http://www.w3.org/TR/CSS21/box.html#value-def-padding-width
 padding_width:
@@ -2349,6 +2414,17 @@ scale_function_parameters:
   }
   ;
 
+// This property determines the tab size used to render preserved tab
+// characters. Integers represent the measure as multiples of the space
+// character's advance width. Negative values are not allowed.
+//   http://www.w3.org/TR/css-text-3/#tab-size
+tab_size_property_value:
+    positive_integer {
+    $$ = AddRef(new cssom::IntegerValue($1));
+  }
+  | common_values
+  ;
+
 // This property describes how inline-level content of a block container is
 // aligned.
 //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
@@ -2361,6 +2437,41 @@ text_align_property_value:
   }
   | kRightToken maybe_whitespace {
     $$ = AddRef(cssom::KeywordValue::GetRight().get());
+  }
+  | common_values
+  ;
+
+// This property specifies the indentation applied to lines of inline content in
+// a block.
+//   http://www.w3.org/TR/css-text-3/#text-indent
+text_indent_property_value:
+    length {
+    $$ = $1;
+  }
+  | common_values
+  ;
+
+// This property specifies rendering when inline content overflows its line box
+// edge in the inline progression direction of its block container element.
+//   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+text_overflow_property_value:
+    kClipToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetClip().get());
+  }
+  | kEllipsisToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetEllipsis().get());
+  }
+  | common_values
+  ;
+
+// This property controls capitalization effects of an element's text.
+//   http://www.w3.org/TR/css3-text/#text-transform-property
+text_transform_property_value:
+    kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | kUppercaseToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetUppercase().get());
   }
   | common_values
   ;
@@ -2777,6 +2888,21 @@ transition_property_value:
   }
   ;
 
+// This property declares how white space inside the element is handled.
+//   http://www.w3.org/TR/css3-text/#white-space-property
+white_space_property_value:
+    kNormalToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNormal().get());
+  }
+  | kNoWrapToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNoWrap().get());
+  }
+  | kPreToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetPre().get());
+  }
+  | common_values
+  ;
+
 // Specifies the content width of boxes.
 //   http://www.w3.org/TR/CSS21/visudet.html#the-width-property
 width_property_value:
@@ -3038,6 +3164,12 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kOverflowWrapToken maybe_whitespace colon overflow_wrap_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowWrapPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kPaddingBottomToken maybe_whitespace colon padding_side_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kPaddingBottomPropertyName,
@@ -3099,9 +3231,33 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
+  | kTabSizeToken maybe_whitespace colon tab_size_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTabSizePropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kTextAlignToken maybe_whitespace colon text_align_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kTextAlignPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextIndentToken maybe_whitespace colon text_indent_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextIndentPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextOverflowToken maybe_whitespace colon text_overflow_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextOverflowPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kTextTransformToken maybe_whitespace colon text_transform_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextTransformPropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -3173,6 +3329,12 @@ maybe_declaration:
   | kVerticalAlignToken maybe_whitespace colon vertical_align_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kVerticalAlignPropertyName,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kWhiteSpacePropertyToken maybe_whitespace colon white_space_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kWhiteSpacePropertyName,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

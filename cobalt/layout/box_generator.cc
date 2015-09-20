@@ -154,9 +154,12 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -164,11 +167,14 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -328,9 +334,12 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kAuto:
     case cssom::KeywordValue::kBaseline:
+    case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -338,11 +347,14 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kMiddle:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();

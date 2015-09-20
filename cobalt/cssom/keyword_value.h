@@ -54,10 +54,22 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visuren.html#display-prop
     kBlock,
 
+    // "break-word" is a value of "overflow-wrap" property which specifies to
+    // the user agent that an unbreakable word may be broken at an arbitrary
+    // point if there are no otherwise-acceptable break points in the line.
+    //   http://www.w3.org/TR/css-text-3/#overflow-wrap-property
+    kBreakWord,
+
     // "center" is a value of "text-align" property that indicates that the
     // content should be aligned horizontally centered.
     //   http://www.w3.org/TR/CSS21/text.html#propdef-text-align
     kCenter,
+
+    // "clip" is a value of "text-overflow" property which specifies clipping
+    // content that overflows its block container element. Characters may be
+    // only partially rendered.
+    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    kClip,
 
     // "contain" is a value of "background-size" property which scales the
     // image to the largest size such that both its width and its height can
@@ -70,6 +82,11 @@ class KeywordValue : public PropertyValue {
     // inside the background positioning area.
     //   http://www.w3.org/TR/css3-background/#the-background-size
     kCover,
+
+    // "ellipsis" is a value of "text-overflow" property which specifies
+    // rendering an ellipsis to represent clipped inline content.
+    //   http://www.w3.org/TR/css3-ui/#propdef-text-overflow
+    kEllipsis,
 
     // "hidden" is a value of "overflow" property which indicates that
     // the content is clipped.
@@ -123,6 +140,18 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visudet.html#line-height
     kNormal,
 
+    // "nowrap" is a value of "white-space" property which tells user agents
+    // that white space should be collapsed as for "normal" but line breaks
+    // should be suppressed within text.
+    //   http://www.w3.org/TR/css3-text/#white-space-property
+    kNoWrap,
+
+    // "pre" is a value of "white-space" property which tells user agents that
+    // white space inside the element should not be collapsed and lines should
+    // only be broken at preserved newline characters.
+    //   http://www.w3.org/TR/css3-text/#white-space-property
+    kPre,
+
     // "relative" is a value of "position" property which indicates that values
     // of "top", "right", "bottom", and "left" properties specify offsets
     // with respect to the box's in-flow position.
@@ -149,6 +178,12 @@ class KeywordValue : public PropertyValue {
     //   http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align
     kTop,
 
+    // "uppercase" is a value of "text_transform" property that indicates that
+    // all characters in each word of the element's text should be put in
+    // uppercase.
+    //   http://www.w3.org/TR/css3-text/#text-transform-property
+    kUppercase,
+
     // "visible" is a value of "overflow" property which indicates that
     // the content is not clipped.
     //   http://www.w3.org/TR/CSS21/visufx.html#overflow
@@ -163,9 +198,12 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetAuto();
   static const scoped_refptr<KeywordValue>& GetBaseline();
   static const scoped_refptr<KeywordValue>& GetBlock();
+  static const scoped_refptr<KeywordValue>& GetBreakWord();
   static const scoped_refptr<KeywordValue>& GetCenter();
+  static const scoped_refptr<KeywordValue>& GetClip();
   static const scoped_refptr<KeywordValue>& GetContain();
   static const scoped_refptr<KeywordValue>& GetCover();
+  static const scoped_refptr<KeywordValue>& GetEllipsis();
   static const scoped_refptr<KeywordValue>& GetHidden();
   static const scoped_refptr<KeywordValue>& GetInherit();
   static const scoped_refptr<KeywordValue>& GetInitial();
@@ -176,11 +214,14 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetNone();
   static const scoped_refptr<KeywordValue>& GetNoRepeat();
   static const scoped_refptr<KeywordValue>& GetNormal();
+  static const scoped_refptr<KeywordValue>& GetNoWrap();
+  static const scoped_refptr<KeywordValue>& GetPre();
   static const scoped_refptr<KeywordValue>& GetRelative();
   static const scoped_refptr<KeywordValue>& GetRepeat();
   static const scoped_refptr<KeywordValue>& GetRight();
   static const scoped_refptr<KeywordValue>& GetStatic();
   static const scoped_refptr<KeywordValue>& GetTop();
+  static const scoped_refptr<KeywordValue>& GetUppercase();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
   void Accept(PropertyValueVisitor* visitor) OVERRIDE;
