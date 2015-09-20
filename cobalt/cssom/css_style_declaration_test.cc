@@ -391,6 +391,24 @@ TEST(CSSStyleDeclarationTest, OverflowSetter) {
   style->set_overflow(overflow);
 }
 
+TEST(CSSStyleDeclarationTest, OverflowWrapSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string overflow_wrap = "break-word";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kOverflowWrapPropertyName, overflow_wrap, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_overflow_wrap(overflow_wrap);
+}
+
 TEST(CSSStyleDeclarationTest, PositionSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -409,6 +427,24 @@ TEST(CSSStyleDeclarationTest, PositionSetter) {
   style->set_position(position);
 }
 
+TEST(CSSStyleDeclarationTest, TabSizeSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string tab_size = "4";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kTabSizePropertyName, tab_size, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_tab_size(tab_size);
+}
+
 TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -425,6 +461,60 @@ TEST(CSSStyleDeclarationTest, TextAlignSetter) {
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
 
   style->set_text_align(text_align);
+}
+
+TEST(CSSStyleDeclarationTest, TextIndentSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string text_indent = "4em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kTextIndentPropertyName, text_indent, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_indent(text_indent);
+}
+
+TEST(CSSStyleDeclarationTest, TextOverflowSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string text_overflow = "ellipsis";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kTextOverflowPropertyName, text_overflow, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_overflow(text_overflow);
+}
+
+TEST(CSSStyleDeclarationTest, TextTransformSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string text_transform = "uppercase";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kTextTransformPropertyName, text_transform, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_text_transform(text_transform);
 }
 
 TEST(CSSStyleDeclarationTest, TransformSetter) {
@@ -463,6 +553,24 @@ TEST(CSSStyleDeclarationTest, VerticalAlignSetter) {
   style->set_vertical_align(vertical_align);
 }
 
+TEST(CSSStyleDeclarationTest, WhiteSpaceSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string white_space = "pre";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kWhiteSpacePropertyName, white_space, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_white_space(white_space);
+}
+
 TEST(CSSStyleDeclarationTest, WidthSetter) {
   MockCSSParser css_parser;
   scoped_refptr<CSSStyleDeclaration> style =
@@ -479,6 +587,24 @@ TEST(CSSStyleDeclarationTest, WidthSetter) {
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
 
   style->set_width(width);
+}
+
+TEST(CSSStyleDeclarationTest, WordWrapSetter) {
+  MockCSSParser css_parser;
+  scoped_refptr<CSSStyleDeclaration> style =
+      new CSSStyleDeclaration(&css_parser);
+
+  const std::string word_wrap = "break-word";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoStyle(
+                  kWordWrapPropertyName, word_wrap, _,
+                  const_cast<CSSStyleDeclarationData*>(style->data().get())));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+
+  style->set_word_wrap(word_wrap);
 }
 
 TEST(CSSStyleDeclarationTest, CSSTextSetter) {

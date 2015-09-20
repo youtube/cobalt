@@ -119,6 +119,9 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     if (!style->overflow() && declared_style->overflow()) {
       style->set_overflow(declared_style->overflow());
     }
+    if (!style->overflow_wrap() && declared_style->overflow_wrap()) {
+      style->set_overflow_wrap(declared_style->overflow_wrap());
+    }
     if (!style->padding_bottom() && declared_style->padding_bottom()) {
       style->set_padding_bottom(declared_style->padding_bottom());
     }
@@ -137,8 +140,20 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     if (!style->right() && declared_style->right()) {
       style->set_right(declared_style->right());
     }
+    if (!style->tab_size() && declared_style->tab_size()) {
+      style->set_tab_size(declared_style->tab_size());
+    }
     if (!style->text_align() && declared_style->text_align()) {
       style->set_text_align(declared_style->text_align());
+    }
+    if (!style->text_indent() && declared_style->text_indent()) {
+      style->set_text_indent(declared_style->text_indent());
+    }
+    if (!style->text_overflow() && declared_style->text_overflow()) {
+      style->set_text_overflow(declared_style->text_overflow());
+    }
+    if (!style->text_transform() && declared_style->text_transform()) {
+      style->set_text_transform(declared_style->text_transform());
     }
     if (!style->top() && declared_style->top()) {
       style->set_top(declared_style->top());
@@ -164,6 +179,9 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     }
     if (!style->vertical_align() && declared_style->vertical_align()) {
       style->set_vertical_align(declared_style->vertical_align());
+    }
+    if (!style->white_space() && declared_style->white_space()) {
+      style->set_white_space(declared_style->white_space());
     }
     if (!style->width() && declared_style->width()) {
       style->set_width(declared_style->width());
