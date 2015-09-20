@@ -204,9 +204,12 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kContain:
     case cssom::KeywordValue::kCover:
+    case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -217,11 +220,14 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -445,7 +451,10 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kAbsolute:
     case cssom::KeywordValue::kBaseline:
     case cssom::KeywordValue::kBlock:
+    case cssom::KeywordValue::kBreakWord:
     case cssom::KeywordValue::kCenter:
+    case cssom::KeywordValue::kClip:
+    case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kHidden:
     case cssom::KeywordValue::kInherit:
     case cssom::KeywordValue::kInitial:
@@ -456,11 +465,14 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
     case cssom::KeywordValue::kNoRepeat:
     case cssom::KeywordValue::kNormal:
+    case cssom::KeywordValue::kNoWrap:
+    case cssom::KeywordValue::kPre:
     case cssom::KeywordValue::kRelative:
     case cssom::KeywordValue::kRepeat:
     case cssom::KeywordValue::kRight:
     case cssom::KeywordValue::kStatic:
     case cssom::KeywordValue::kTop:
+    case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -682,9 +694,12 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kAbsolute:
       case cssom::KeywordValue::kBaseline:
       case cssom::KeywordValue::kBlock:
+      case cssom::KeywordValue::kBreakWord:
       case cssom::KeywordValue::kCenter:
+      case cssom::KeywordValue::kClip:
       case cssom::KeywordValue::kContain:
       case cssom::KeywordValue::kCover:
+      case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kHidden:
       case cssom::KeywordValue::kInherit:
       case cssom::KeywordValue::kInitial:
@@ -695,11 +710,14 @@ class UsedLengthProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNoRepeat:
       case cssom::KeywordValue::kNormal:
+      case cssom::KeywordValue::kNoWrap:
+      case cssom::KeywordValue::kPre:
       case cssom::KeywordValue::kRelative:
       case cssom::KeywordValue::kRepeat:
       case cssom::KeywordValue::kRight:
       case cssom::KeywordValue::kStatic:
       case cssom::KeywordValue::kTop:
+      case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
       default:
         NOTREACHED();

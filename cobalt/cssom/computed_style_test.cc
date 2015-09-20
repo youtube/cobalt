@@ -127,6 +127,30 @@ TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
   EXPECT_EQ(cssom::kPixelsUnit, computed_line_height->unit());
 }
 
+TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
+  scoped_refptr<cssom::CSSStyleDeclarationData> computed_style =
+      new cssom::CSSStyleDeclarationData();
+  computed_style->set_font_size(
+      new cssom::LengthValue(2, cssom::kFontSizesAkaEmUnit));
+  computed_style->set_text_indent(
+      new cssom::LengthValue(1.5f, cssom::kFontSizesAkaEmUnit));
+
+  scoped_refptr<cssom::CSSStyleDeclarationData> parent_computed_style =
+      new cssom::CSSStyleDeclarationData();
+  parent_computed_style->AssignFrom(*cssom::GetInitialStyle());
+  parent_computed_style->set_font_size(
+      new cssom::LengthValue(100, cssom::kPixelsUnit));
+
+  PromoteToSpecifiedStyle(computed_style, parent_computed_style);
+  PromoteToComputedStyle(computed_style, parent_computed_style, NULL);
+
+  cssom::LengthValue* computed_text_indent =
+      base::polymorphic_downcast<cssom::LengthValue*>(
+          computed_style->text_indent().get());
+  EXPECT_EQ(300, computed_text_indent->value());
+  EXPECT_EQ(cssom::kPixelsUnit, computed_text_indent->unit());
+}
+
 TEST(PromoteToComputedStyle, BackgroundImageAbsoluteURL) {
   scoped_refptr<cssom::CSSStyleDeclarationData> computed_style(
       new cssom::CSSStyleDeclarationData());

@@ -46,7 +46,7 @@ TEST(SpecificityTest, AddFrom) {
   EXPECT_EQ(Specificity(1, 1, 1), s1);
 }
 
-TEST(SpecificityTest, AddFromClampping) {
+TEST(SpecificityTest, AddFromClamping) {
   Specificity s1(0, 0, 126);
   Specificity s2(0, 0, 1);
   s1.AddFrom(s2);

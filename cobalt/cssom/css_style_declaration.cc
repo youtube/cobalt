@@ -250,6 +250,14 @@ void CSSStyleDeclaration::set_overflow(const std::string& overflow) {
   SetPropertyValue(kOverflowPropertyName, overflow);
 }
 
+std::string CSSStyleDeclaration::overflow_wrap() const {
+  return data_->overflow_wrap() ? data_->overflow_wrap()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_overflow_wrap(const std::string& overflow_wrap) {
+  SetPropertyValue(kOverflowWrapPropertyName, overflow_wrap);
+}
+
 std::string CSSStyleDeclaration::position() const {
   return data_->position() ? data_->position()->ToString() : "";
 }
@@ -266,12 +274,45 @@ void CSSStyleDeclaration::set_right(const std::string& right) {
   SetPropertyValue(kRightPropertyName, right);
 }
 
+std::string CSSStyleDeclaration::tab_size() const {
+  return data_->tab_size() ? data_->tab_size()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_tab_size(const std::string& tab_size) {
+  SetPropertyValue(kTabSizePropertyName, tab_size);
+}
+
 std::string CSSStyleDeclaration::text_align() const {
   return data_->text_align() ? data_->text_align()->ToString() : "";
 }
 
 void CSSStyleDeclaration::set_text_align(const std::string& text_align) {
   SetPropertyValue(kTextAlignPropertyName, text_align);
+}
+
+std::string CSSStyleDeclaration::text_indent() const {
+  return data_->text_indent() ? data_->text_indent()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_text_indent(const std::string& text_indent) {
+  SetPropertyValue(kTextIndentPropertyName, text_indent);
+}
+
+std::string CSSStyleDeclaration::text_overflow() const {
+  return data_->text_overflow() ? data_->text_overflow()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_text_overflow(const std::string& text_overflow) {
+  SetPropertyValue(kTextOverflowPropertyName, text_overflow);
+}
+
+std::string CSSStyleDeclaration::text_transform() const {
+  return data_->text_transform() ? data_->text_transform()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_text_transform(
+    const std::string& text_transform) {
+  SetPropertyValue(kTextTransformPropertyName, text_transform);
 }
 
 std::string CSSStyleDeclaration::top() const {
@@ -352,12 +393,30 @@ void CSSStyleDeclaration::set_vertical_align(
   SetPropertyValue(kVerticalAlignPropertyName, vertical_align);
 }
 
+std::string CSSStyleDeclaration::white_space() const {
+  return data_->white_space() ? data_->white_space()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_white_space(const std::string& white_space) {
+  SetPropertyValue(kWhiteSpacePropertyName, white_space);
+}
+
 std::string CSSStyleDeclaration::width() const {
   return data_->width() ? data_->width()->ToString() : "";
 }
 
 void CSSStyleDeclaration::set_width(const std::string& width) {
   SetPropertyValue(kWidthPropertyName, width);
+}
+
+// word-wrap is treated as an alias for overflow-wrap
+//   http://www.w3.org/TR/css-text-3/#overflow-wrap
+std::string CSSStyleDeclaration::word_wrap() const {
+  return data_->overflow_wrap() ? data_->overflow_wrap()->ToString() : "";
+}
+
+void CSSStyleDeclaration::set_word_wrap(const std::string& word_wrap) {
+  SetPropertyValue(kWordWrapPropertyName, word_wrap);
 }
 
 std::string CSSStyleDeclaration::z_index() const {
@@ -436,6 +495,8 @@ std::string CSSStyleDeclaration::css_text() const {
   AppendPropertyDeclaration(kOpacityPropertyName, data_->opacity(), &css_text);
   AppendPropertyDeclaration(kOverflowPropertyName, data_->overflow(),
                             &css_text);
+  AppendPropertyDeclaration(kOverflowWrapPropertyName, data_->overflow_wrap(),
+                            &css_text);
   AppendPropertyDeclaration(kPaddingBottomPropertyName, data_->padding_bottom(),
                             &css_text);
   AppendPropertyDeclaration(kPaddingLeftPropertyName, data_->padding_left(),
@@ -447,7 +508,14 @@ std::string CSSStyleDeclaration::css_text() const {
   AppendPropertyDeclaration(kPositionPropertyName, data_->position(),
                             &css_text);
   AppendPropertyDeclaration(kRightPropertyName, data_->right(), &css_text);
+  AppendPropertyDeclaration(kTabSizePropertyName, data_->tab_size(), &css_text);
   AppendPropertyDeclaration(kTextAlignPropertyName, data_->text_align(),
+                            &css_text);
+  AppendPropertyDeclaration(kTextIndentPropertyName, data_->text_indent(),
+                            &css_text);
+  AppendPropertyDeclaration(kTextOverflowPropertyName, data_->text_overflow(),
+                            &css_text);
+  AppendPropertyDeclaration(kTextTransformPropertyName, data_->text_transform(),
                             &css_text);
   AppendPropertyDeclaration(kTopPropertyName, data_->top(), &css_text);
   AppendPropertyDeclaration(kTransformPropertyName, data_->transform(),
@@ -461,6 +529,8 @@ std::string CSSStyleDeclaration::css_text() const {
   AppendPropertyDeclaration(kTransitionTimingFunctionPropertyName,
                             data_->transition_timing_function(), &css_text);
   AppendPropertyDeclaration(kVerticalAlignPropertyName, data_->vertical_align(),
+                            &css_text);
+  AppendPropertyDeclaration(kWhiteSpacePropertyName, data_->white_space(),
                             &css_text);
   AppendPropertyDeclaration(kWidthPropertyName, data_->width(), &css_text);
   AppendPropertyDeclaration(kZIndexPropertyName, data_->z_index(), &css_text);

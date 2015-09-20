@@ -29,9 +29,12 @@ struct KeywordValue::NonTrivialStaticFields {
         auto_value(new KeywordValue(KeywordValue::kAuto)),
         baseline_value(new KeywordValue(KeywordValue::kBaseline)),
         block_value(new KeywordValue(KeywordValue::kBlock)),
+        break_word_value(new KeywordValue(KeywordValue::kBreakWord)),
         center_value(new KeywordValue(KeywordValue::kCenter)),
+        clip_value(new KeywordValue(KeywordValue::kClip)),
         contain_value(new KeywordValue(KeywordValue::kContain)),
         cover_value(new KeywordValue(KeywordValue::kCover)),
+        ellipsis_value(new KeywordValue(KeywordValue::kEllipsis)),
         hidden_value(new KeywordValue(KeywordValue::kHidden)),
         inherit_value(new KeywordValue(KeywordValue::kInherit)),
         initial_value(new KeywordValue(KeywordValue::kInitial)),
@@ -42,20 +45,26 @@ struct KeywordValue::NonTrivialStaticFields {
         none_value(new KeywordValue(KeywordValue::kNone)),
         no_repeat_value(new KeywordValue(KeywordValue::kNoRepeat)),
         normal_value(new KeywordValue(KeywordValue::kNormal)),
+        nowrap_value(new KeywordValue(KeywordValue::kNoWrap)),
+        pre_value(new KeywordValue(KeywordValue::kPre)),
         relative_value(new KeywordValue(KeywordValue::kRelative)),
         repeat_value(new KeywordValue(KeywordValue::kRepeat)),
         right_value(new KeywordValue(KeywordValue::kRight)),
         static_value(new KeywordValue(KeywordValue::kStatic)),
         top_value(new KeywordValue(KeywordValue::kTop)),
+        uppercase_value(new KeywordValue(KeywordValue::kUppercase)),
         visible_value(new KeywordValue(KeywordValue::kVisible)) {}
 
   const scoped_refptr<KeywordValue> absolute_value;
   const scoped_refptr<KeywordValue> auto_value;
   const scoped_refptr<KeywordValue> baseline_value;
   const scoped_refptr<KeywordValue> block_value;
+  const scoped_refptr<KeywordValue> break_word_value;
   const scoped_refptr<KeywordValue> center_value;
+  const scoped_refptr<KeywordValue> clip_value;
   const scoped_refptr<KeywordValue> contain_value;
   const scoped_refptr<KeywordValue> cover_value;
+  const scoped_refptr<KeywordValue> ellipsis_value;
   const scoped_refptr<KeywordValue> hidden_value;
   const scoped_refptr<KeywordValue> inherit_value;
   const scoped_refptr<KeywordValue> initial_value;
@@ -66,11 +75,14 @@ struct KeywordValue::NonTrivialStaticFields {
   const scoped_refptr<KeywordValue> none_value;
   const scoped_refptr<KeywordValue> no_repeat_value;
   const scoped_refptr<KeywordValue> normal_value;
+  const scoped_refptr<KeywordValue> nowrap_value;
+  const scoped_refptr<KeywordValue> pre_value;
   const scoped_refptr<KeywordValue> relative_value;
   const scoped_refptr<KeywordValue> repeat_value;
   const scoped_refptr<KeywordValue> right_value;
   const scoped_refptr<KeywordValue> static_value;
   const scoped_refptr<KeywordValue> top_value;
+  const scoped_refptr<KeywordValue> uppercase_value;
   const scoped_refptr<KeywordValue> visible_value;
 
  private:
@@ -101,8 +113,16 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetBlock() {
   return non_trivial_static_fields.Get().block_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetBreakWord() {
+  return non_trivial_static_fields.Get().block_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetCenter() {
   return non_trivial_static_fields.Get().center_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetClip() {
+  return non_trivial_static_fields.Get().clip_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetContain() {
@@ -111,6 +131,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetContain() {
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetCover() {
   return non_trivial_static_fields.Get().cover_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetEllipsis() {
+  return non_trivial_static_fields.Get().ellipsis_value;
 }
 
 const scoped_refptr<KeywordValue>& KeywordValue::GetHidden() {
@@ -153,6 +177,14 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetNormal() {
   return non_trivial_static_fields.Get().normal_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetNoWrap() {
+  return non_trivial_static_fields.Get().nowrap_value;
+}
+
+const scoped_refptr<KeywordValue>& KeywordValue::GetPre() {
+  return non_trivial_static_fields.Get().pre_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetRelative() {
   return non_trivial_static_fields.Get().relative_value;
 }
@@ -173,6 +205,10 @@ const scoped_refptr<KeywordValue>& KeywordValue::GetTop() {
   return non_trivial_static_fields.Get().top_value;
 }
 
+const scoped_refptr<KeywordValue>& KeywordValue::GetUppercase() {
+  return non_trivial_static_fields.Get().uppercase_value;
+}
+
 const scoped_refptr<KeywordValue>& KeywordValue::GetVisible() {
   return non_trivial_static_fields.Get().visible_value;
 }
@@ -191,12 +227,18 @@ std::string KeywordValue::ToString() const {
       return kBaselineKeywordName;
     case kBlock:
       return kBlockKeywordName;
+    case kBreakWord:
+      return kBreakWordKeywordName;
     case kCenter:
       return kCenterKeywordName;
+    case kClip:
+      return kClipKeywordName;
     case kContain:
       return kContainKeywordName;
     case kCover:
       return kCoverKeywordName;
+    case kEllipsis:
+      return kEllipsisKeywordName;
     case kHidden:
       return kHiddenKeywordName;
     case kInherit:
@@ -217,6 +259,10 @@ std::string KeywordValue::ToString() const {
       return kNoRepeatKeywordName;
     case kNormal:
       return kNormalKeywordName;
+    case kNoWrap:
+      return kNoWrapKeywordName;
+    case kPre:
+      return kPreKeywordName;
     case kRelative:
       return kRelativeKeywordName;
     case kRepeat:
@@ -227,6 +273,8 @@ std::string KeywordValue::ToString() const {
       return kStaticKeywordName;
     case kTop:
       return kTopKeywordName;
+    case kUppercase:
+      return kUppercaseKeywordName;
     case kVisible:
       return kVisibleKeywordName;
     default:
