@@ -170,9 +170,12 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -182,11 +185,14 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMiddle:
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -231,9 +237,12 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -244,11 +253,14 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNone:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -302,9 +314,12 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -315,11 +330,14 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -382,9 +400,12 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -395,11 +416,14 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -458,9 +482,12 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -471,11 +498,14 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -559,9 +589,12 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -571,11 +604,14 @@ void ComputedBackgroundImageProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMiddle:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -652,7 +688,10 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kAbsolute:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -663,11 +702,14 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kNone:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -775,6 +817,34 @@ void ComputedTransformFunctionProvider::VisitTranslate(
     } break;
     default: { NOTREACHED(); }
   }
+}
+
+// Absolutizes the value of "text-indent" property.
+class ComputedTextIndentProvider : public NotReachedPropertyValueVisitor {
+ public:
+  explicit ComputedTextIndentProvider(const LengthValue* computed_font_size);
+
+  void VisitLength(LengthValue* length) OVERRIDE;
+
+  const scoped_refptr<LengthValue>& computed_text_indent() const {
+    return computed_text_indent_;
+  }
+
+ private:
+  const LengthValue* computed_font_size_;
+
+  scoped_refptr<LengthValue> computed_text_indent_;
+
+  DISALLOW_COPY_AND_ASSIGN(ComputedTextIndentProvider);
+};
+
+ComputedTextIndentProvider::ComputedTextIndentProvider(
+    const LengthValue* computed_font_size)
+    : computed_font_size_(computed_font_size) {}
+
+void ComputedTextIndentProvider::VisitLength(LengthValue* specified_length) {
+  computed_text_indent_ =
+      ProvideAbsoluteLength(specified_length, computed_font_size_);
 }
 
 namespace {
@@ -888,9 +958,12 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kAuto:
     case KeywordValue::kBaseline:
     case KeywordValue::kBlock:
+    case KeywordValue::kBreakWord:
     case KeywordValue::kCenter:
+    case KeywordValue::kClip:
     case KeywordValue::kContain:
     case KeywordValue::kCover:
+    case KeywordValue::kEllipsis:
     case KeywordValue::kHidden:
     case KeywordValue::kInherit:
     case KeywordValue::kInitial:
@@ -900,11 +973,14 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kMiddle:
     case KeywordValue::kNoRepeat:
     case KeywordValue::kNormal:
+    case KeywordValue::kNoWrap:
+    case KeywordValue::kPre:
     case KeywordValue::kRelative:
     case KeywordValue::kRepeat:
     case KeywordValue::kRight:
     case KeywordValue::kStatic:
     case KeywordValue::kTop:
+    case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
     default:
       NOTREACHED();
@@ -1024,6 +1100,11 @@ void PromoteToComputedStyle(
       font_size_provider.computed_font_size().get());
   specified_style->transform()->Accept(&transform_provider);
   specified_style->set_transform(transform_provider.computed_transform_list());
+
+  ComputedTextIndentProvider text_indent_provider(
+      font_size_provider.computed_font_size().get());
+  specified_style->text_indent()->Accept(&text_indent_provider);
+  specified_style->set_text_indent(text_indent_provider.computed_text_indent());
 
   ComputedPositionOffsetProvider bottom_provider(
       font_size_provider.computed_font_size().get());
