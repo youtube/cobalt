@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The common starboard target. Any target that depends on Starboard should
-# depend on this common target, and not any of the specific starboard_platform
+# The common "starboard" target. Any target that depends on Starboard should
+# depend on this common target, and not any of the specific "starboard_platform"
 # targets.
 
 {
@@ -29,7 +29,7 @@
         'system.h',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/<(starboard_platform)/starboard_platform.gyp:starboard_platform',
+        '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
       ],
     },
   ],
