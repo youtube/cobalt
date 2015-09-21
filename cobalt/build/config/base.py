@@ -38,6 +38,10 @@ class PlatformConfigBase(object):
     self.platform = platform
     self.config_path = _CURRENT_PATH
 
+  def IsStarboard(self):
+    """Returns whether this platform is a Starboard platform."""
+    return False
+
   def GetBuildFormat(self):
     """Returns the desired build format."""
     return 'ninja'
