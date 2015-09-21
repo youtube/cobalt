@@ -12,6 +12,7 @@
       }],
       ['OS=="mac"', {'os_include': 'mac'}],
       ['OS=="win"', {'os_include': 'win32'}],
+      ['OS=="starboard"', {'os_include': 'starboard'}],
     ],
     'use_system_libxml%': 0,
   },

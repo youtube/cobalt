@@ -113,7 +113,7 @@
             }],
           ],
         }],
-        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target"', {
+        ['(OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")) and _toolset == "target"', {
           'conditions': [
             ['target_arch == "ia32"', {
               'sources/': [
@@ -149,12 +149,12 @@
             }],
           ],
         }],
-        ['(OS == "android" or (OS == "lb_shell" and target_arch == "android")) and _toolset == "target" and android_build_type == 0', {
+        ['(OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")) and _toolset == "target" and android_build_type == 0', {
           'dependencies': [
             'base_java',
           ],
         }],
-        ['OS == "lb_shell" and target_arch == "android"', {
+        ['((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
           'link_settings': {
             'libraries': [
               # for android_getCpuCount
@@ -221,7 +221,7 @@
             }],
           ],
         }],
-        ['OS=="lb_shell"', {
+        ['OS == "lb_shell"', {
           'conditions': [
             ['target_arch != "android"', {
               'dependencies!': [
@@ -231,16 +231,11 @@
             # toolset can be host or target.
             # (host in the case of e.g. protobuf compiler.)
             # We only want posix_emulation for target builds.
-            ['_toolset == "target" and starboard == 0', {
+            ['_toolset == "target"', {
               'dependencies': [
                 '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
               ],
-            }],
-            ['_toolset == "target" and starboard != 0', {
-              'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
-               ],
-            }],
+            }],  # _toolset == "target"
           ],
           'sources': [
             'debug/debugger_shell.cc',
@@ -253,19 +248,24 @@
             'threading/thread_local_storage_shell.cc',
             'threading/worker_pool_shell.cc',
           ],
+        }],  # OS=="lb_shell"
+        ['OS == "starboard"', {
+          'conditions': [
+            ['_toolset == "target"', {
+              'dependencies': [
+                '<(DEPTH)/starboard/starboard.gyp:starboard',
+               ],
+            }],  # _toolset == "target"
+          ],
+          'sources': [
+            'base_paths_starboard.cc',
+          ],
+        }],  # OS=="starboard"
+        ['OS == "lb_shell" or OS == "starboard"', {
           'sources!': [
-            'debug/debugger_posix.cc',
-            'debug/stack_trace_posix.cc',
             'file_descriptor_shuffle.cc',
-            'sys_string_conversions_posix.cc',
-            'threading/thread_local_posix.cc',
-            'threading/thread_local_storage_posix.cc',
           ],
-          'sources/': [
-            ['exclude', '^win/'],
-            ['exclude', '_win.cc$'],
-          ],
-        }],
+        }],  # OS == "lb_shell" or OS == "starboard"
       ],
       'sources': [
         'third_party/nspr/prcpucfg.h',
@@ -325,12 +325,12 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        ['OS=="lb_shell" and starboard == 0', {
+        ['OS=="lb_shell"', {
           'dependencies': [
             '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
           ],
         }],
-        ['OS=="lb_shell" and starboard != 0', {
+        ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',
           ],
@@ -430,7 +430,7 @@
         '..',
       ],
       'conditions': [
-        ['OS == "lb_shell"', {
+        ['OS == "lb_shell" or OS=="starboard"', {
           'sources/': [
             ['exclude', '^win/'],
           ],
@@ -959,7 +959,7 @@
             ['include', '^test/test_file_util_mac\\.cc$'],
           ],
         }],
-        ['OS == "lb_shell"', {
+        ['OS == "lb_shell" or OS=="starboard"', {
           'sources/': [
             ['exclude', 'test/multiprocess_test'],
           ],
@@ -1146,7 +1146,7 @@
         },
       ],
     }],
-    ['OS == "android" or (OS == "lb_shell" and target_arch == "android")', {
+    ['OS == "android" or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
       'targets': [
         {
           'target_name': 'base_jni_headers',
@@ -1225,7 +1225,7 @@
     # in the gyp make generator.  What is the correct way to extract
     # this path from gyp and into 'raw' for input to antfiles?
     # Hard-coding in the gypfile seems a poor choice.
-    ['(OS == "android" and gtest_target_type == "shared_library") or (OS == "lb_shell" and target_arch == "android")', {
+    ['(OS == "android" and gtest_target_type == "shared_library") or ((OS == "lb_shell" or OS == "starboard") and target_arch == "android")', {
       'targets': [
         {
           'target_name': 'base_unittests_apk',
