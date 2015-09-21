@@ -421,7 +421,7 @@
         }],
 
         # A flag for POSIX platforms
-        ['OS=="win"', {
+        ['OS=="win" or OS=="starboard"', {
           'os_posix%': 0,
         }, {
           'os_posix%': 1,
@@ -442,7 +442,7 @@
         }],
 
         # Flags to use X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac" or OS=="ios" or OS=="android" or OS=="lb_shell"', {
+        ['OS=="win" or OS=="mac" or OS=="ios" or OS=="android" or OS=="lb_shell" or OS=="starboard"', {
           'use_glib%': 0,
           'use_x11%': 0,
         }, {
@@ -1058,7 +1058,7 @@
           }],
         ],
       }],  # OS=="ios"
-      ['OS=="android" or (OS=="lb_shell" and target_arch=="android")', {
+      ['OS=="android" or ((OS=="lb_shell" or OS=="starboard") and target_arch=="android")', {
         # Location of Android NDK.
         'variables': {
           'variables': {

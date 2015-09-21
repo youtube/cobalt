@@ -10,10 +10,10 @@
     # Override to dynamically link the cras (ChromeOS audio) library.
     'use_cras%': 0,
     'conditions': [
-      ['OS == "android" or OS == "ios" or OS == "lb_shell"', {
+      ['OS == "android" or OS == "ios" or OS == "lb_shell" or OS == "starboard"', {
         # Android and iOS don't use ffmpeg.
         'use_ffmpeg%': 0,
-      }, {  # 'OS != "android" and OS != "ios"' and OS != "lb_shell"
+      }, {  # 'OS != "android" and OS != "ios"' and OS != "lb_shell" and OS != "starboard"
         'use_ffmpeg%': 1,
       }],
     ],
@@ -453,11 +453,9 @@
             'filters/ffmpeg_video_decoder.h',
           ],
         }],
-        ['OS == "lb_shell"', {
+        ['OS == "lb_shell" or OS == "starboard"', {
           'include_dirs': [
             '<(DEPTH)/../..', # for our explicit external/ inclusion of headers
-            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
-            '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
           ],
           'sources/': [
             ['exclude', 'android'],
@@ -533,15 +531,6 @@
             ['exclude', 'video/capture/fake_video_capture_device'],
           ],
           'conditions': [
-            ['starboard == 0', {
-              'dependencies': [
-                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-              ],
-            }, {  # else
-              'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
-               ],
-            }],
             ['target_arch=="xb1" and actual_target_arch!="win"', {
               'dependencies' : [
                 '../third_party/modp_b64/modp_b64.gyp:modp_b64',
@@ -552,11 +541,6 @@
                   'ComponentExtensions': 'true'
                 },
               },
-            }],
-            ['(target_arch=="xb1" and actual_target_arch!="win") or target_arch=="xb360"', {
-              'sources': [
-                '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
-              ],
             }],
             ['target_arch=="linux"', {
               'sources': [
@@ -666,7 +650,7 @@
               ],
             }],
           ],
-        }, { # OS != lb_shell
+        }, {  # OS != "lb_shell" and OS != "starboard"
           'dependencies': [
             'yuv_convert',
             '../third_party/openmax/openmax.gyp:il',
@@ -675,7 +659,28 @@
           'sources/': [
             ['exclude', 'shell_'],
           ],
-        }],
+        }],  # OS != "lb_shell" and OS != "starboard"
+        ['OS == "lb_shell"', {
+          'include_dirs': [
+            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
+            '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
+          ],
+          'dependencies': [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+          'conditions': [
+            ['(target_arch=="xb1" and actual_target_arch!="win") or target_arch=="xb360"', {
+              'sources': [
+                '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
+              ],
+            }],
+          ],
+        }],  # OS == "lb_shell"
+        ['OS == "starboard"', {
+          'dependencies': [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+          ],
+        }],  # OS == "starboard"
         ['OS == "ios"', {
           'includes': [
             # For shared_memory_support_sources variable.
@@ -1041,7 +1046,7 @@
             ['include', '^base/run_all_unittests\\.cc$'],
           ],
         }],
-        ['OS=="android" or OS=="lb_shell"', {
+        ['OS=="android" or OS=="lb_shell" or OS=="starboard"', {
           'sources!': [
             'audio/audio_input_volume_unittest.cc',
             'base/test_data_util.cc',
@@ -1086,7 +1091,7 @@
             'base/simd/convert_rgb_to_yuv_unittest.cc',
           ],
         }],
-        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell"', {
+        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell" or OS=="starboard"', {
           'sources': [
             'mp4/aac_unittest.cc',
             'mp4/avc_unittest.cc',
@@ -1097,7 +1102,7 @@
             'mp4/track_run_iterator_unittest.cc',
           ],
         }],
-        ['OS == "lb_shell"', {
+        ['OS == "lb_shell" or OS=="starboard"', {
           'sources': [
             'audio/mock_shell_audio_streamer.h',
             'audio/shell_audio_sink_unittest.cc',
@@ -1428,7 +1433,7 @@
         },
       ],
     }],
-    ['OS == "lb_shell" and target_arch == "ps3"', {
+    ['(OS == "lb_shell" or OS == "starboard") and target_arch == "ps3"', {
       'targets': [
         {
           # this target builds SPU task objects into a PPU-linkable static library
@@ -1625,7 +1630,7 @@
 
       ],
     }],
-    ['OS != "android" and OS != "ios" and OS != "lb_shell"', {
+    ['OS != "android" and OS != "ios" and OS != "lb_shell" and OS != "starboard"', {
       # Android and iOS do not use ffmpeg, so disable the targets which require
       # it.
       'targets': [

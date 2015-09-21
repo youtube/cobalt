@@ -129,24 +129,22 @@
             'capi_util.cc',
           ],
         }],
-        ['OS=="lb_shell"', {
+        ['OS == "lb_shell"', {
+          'dependencies' : [
+            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
+          ],
+        }],
+        ['OS == "starboard"', {
+          'dependencies' : [
+            '<(DEPTH)/starboard/starboard.gyp:starboard',
+          ],
+        }],
+        ['OS == "lb_shell" or OS == "starboard"', {
           'dependencies' : [
             '../third_party/openssl/openssl.gyp:openssl',
           ],
           'sources/': [
             ['exclude', '_nss.cc$'],
-            ['exclude', '_win.cc$'],
-          ],
-          'conditions': [
-            ['starboard == 0', {
-              'dependencies': [
-                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-              ],
-            }, {  # else
-              'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
-               ],
-            }],
           ],
         }],
         [ 'use_openssl==1', {
