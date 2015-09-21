@@ -59,7 +59,7 @@
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
       ],
       'conditions': [
-        ['starboard != 0', {
+        ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/starboard/starboard_all.gyp:starboard_all',
           ],

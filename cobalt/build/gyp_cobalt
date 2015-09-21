@@ -206,6 +206,8 @@ class _GypRunner(object):
         'cobalt_sha1': gyp_utils.GitHash('cobalt'),
         'host_os': _GetHostOS(),
     }
+    if self.platform_config.IsStarboard():
+      variables['OS'] = 'starboard'
     _AppendVariables(variables, self.common_args)
 
     # Append generator variables.
