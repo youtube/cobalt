@@ -48,17 +48,6 @@
     'lb_shell_sha1%': '<(cobalt_sha1)',
 
 
-    # Starboard configuration.
-
-    # Whether the current platform is using the Starboard porting library.
-    'starboard%': 0,
-
-    # Which platform Starboard is targeting (lower-case name, e.g. 'linux').
-    # This value is passed on to the STARBOARD_PLATFORM global preprocessor
-    # define.
-    'starboard_platform%': 'none',
-
-
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker
@@ -114,7 +103,6 @@
     },
     'defines': [
       'COBALT',
-      '__LB_SHELL__',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -137,8 +125,6 @@
     # be refactored and removed.
     'include_dirs_target': [
       '<(DEPTH)/lbshell/src',
-      '<(DEPTH)/lbshell/src/platform/<(target_arch)',
-      '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
     ],
     'conditions': [
       ['posix_emulation_target_type == "shared_library"', {
@@ -146,17 +132,23 @@
           '__LB_BASE_SHARED__=1',
         ],
       }],
-      ['starboard == 0', {
+      ['OS == "lb_shell"', {
+        'defines': [
+          '__LB_SHELL__',
+        ],
         'include_dirs_target': [
+          '<(DEPTH)/lbshell/src/platform/<(target_arch)',
+          '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
           # headers that we don't need, but should exist somewhere in the path:
           '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
         ],
-      }, {  # else
+      }],  # OS == "lb_shell"
+      ['OS == "starboard"', {
         # Keeps common Starboard target changes in the starboard project.
         'includes': [
           '../../../starboard/starboard_base_target.gypi',
         ],
-      }],
+      }],  # OS == "starboard"
       ['target_arch in ["xb1", "xb360"]', {
         'defines': ['_USE_MATH_DEFINES'],  # For #define M_PI
       }],
