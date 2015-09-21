@@ -51,7 +51,7 @@
         ['include', 'lbshell/src/platform/<(actual_target_arch)'],
       ],
     }],
-    ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell"', {
+    ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell" or OS=="starboard"', {
       'sources/': [
         ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)posix/'],
