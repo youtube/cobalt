@@ -581,30 +581,6 @@
               'synchronization/waitable_event_shell.cc',
               '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/base -type f)',
             ],
-            'sources!': [
-              'environment.cc',
-              'file_descriptor_shuffle.cc',
-              'file_util_android.cc',
-              'file_util_posix.cc',
-              'files/file_path_watcher.cc',
-              'files/file_path_watcher_kqueue.cc',
-              'files/file_path_watcher_stub.cc',
-              'message_pump_libevent.cc',
-              'message_pump_libevent.h',
-              'metrics/stats_table.cc',
-              'metrics/stats_table.h',
-              'native_library_posix.cc',
-              'platform_file_posix.cc',
-              'process_posix.cc',
-              'process_util_posix.cc',
-              'rand_util_posix.cc',
-              'shared_memory_android.cc',
-              'shared_memory_posix.cc',
-              'sync_socket_posix.cc',
-              'sys_info_posix.cc',
-              'threading/platform_thread_posix.cc',
-              'time_posix.cc',
-            ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
             ],
@@ -627,6 +603,38 @@
               ['include', 'native_library_posix.cc'],
             ],
           }],
+          # For Starboard, we are going to build this back up as necessary.
+          ['OS=="starboard"', {
+            'sources': [
+              'base_paths_starboard.cc',
+              'circular_buffer_shell.h',
+              'circular_buffer_shell.cc',
+            ],
+            'sources/': [
+              ['include', 'sys_string_conversions_linux.cc'],
+            ],
+            'conditions': [
+              ['target_arch!="linux" and target_arch!="android"', {
+                'sources!': [
+                  # Since wchar_t is 2-bytes wide, string16 == wstring here.
+                  'string16.cc',
+                ],
+              }],
+            ],
+          }],  # OS == "starboard"
+          [ 'OS=="lb_shell" or OS=="starboard"', {
+            'sources!': [
+              'environment.cc',
+              'file_descriptor_shuffle.cc',
+              'files/file_path_watcher.cc',
+              'files/file_path_watcher_kqueue.cc',
+              'files/file_path_watcher_stub.cc',
+              'message_pump_libevent.cc',
+              'message_pump_libevent.h',
+              'metrics/stats_table.cc',
+              'metrics/stats_table.h',
+            ],
+          }],  # OS == "lb_shell" or OS == "starboard"
         ],
         'target_conditions': [
           ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
