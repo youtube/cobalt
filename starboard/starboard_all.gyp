@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The common starboard target. Any target that depends on Starboard should
-# depend on this common target, and not any of the specific starboard_platform
-# targets.
+# The Starboard "all" target, which includes all interesting targets for the
+# Starboard project.
 
 {
   'targets': [
