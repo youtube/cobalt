@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -41,6 +42,9 @@ class DOMStringMap : public script::Wrappable,
 
   // Custom, not in any spec.
   bool CanQueryNamedProperty(const std::string& key) const;
+
+  // Custom, not in any spec.
+  void EnumerateNamedProperties(script::PropertyEnumerator* enumerator);
 
   DEFINE_WRAPPABLE_TYPE(DOMStringMap);
 
