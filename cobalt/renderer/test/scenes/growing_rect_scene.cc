@@ -44,10 +44,10 @@ namespace scenes {
 
 namespace {
 
-void AnimateGrowingRectComposition(base::Time start_time,
+void AnimateGrowingRectComposition(base::TimeDelta start_time,
                                    const math::SizeF& output_dimensions,
                                    CompositionNode::Builder* composition_node,
-                                   base::Time time) {
+                                   base::TimeDelta time) {
   const float kGrowingRectPeriod = 5.0f;
   float rect_size_scale =
       Sawtooth((time - start_time).InSecondsF() / kGrowingRectPeriod);
@@ -65,8 +65,7 @@ void AnimateGrowingRectComposition(base::Time start_time,
 }  // namespace
 
 RenderTreeWithAnimations CreateGrowingRectScene(
-    const math::SizeF& output_dimensions,
-    base::Time start_time) {
+    const math::SizeF& output_dimensions, base::TimeDelta start_time) {
   // Create a centered, sawtoothed-growing black rectangle.  We need a
   // composition node for this so that the rectangle's position can be set
   // and animated.  We also use the composition node to animate the RectNode's

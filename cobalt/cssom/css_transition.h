@@ -37,14 +37,14 @@ class Transition {
   Transition(const char* target_property,
              const scoped_refptr<PropertyValue>& start_value,
              const scoped_refptr<PropertyValue>& end_value,
-             const base::Time& start_time, const base::TimeDelta& duration,
+             const base::TimeDelta& start_time, const base::TimeDelta& duration,
              const base::TimeDelta& delay,
              const scoped_refptr<TimingFunction>& timing_function,
              scoped_refptr<PropertyValue> reversing_adjusted_start_value,
              float reversing_shortening_factor);
 
   const char* target_property() const { return target_property_; }
-  const base::Time& start_time() const { return start_time_; }
+  const base::TimeDelta& start_time() const { return start_time_; }
   const base::TimeDelta& duration() const { return duration_; }
   const base::TimeDelta& delay() const { return delay_; }
   const scoped_refptr<TimingFunction>& timing_function() const {
@@ -74,17 +74,17 @@ class Transition {
 
   // Returns the animation progress at a specified time.  This will take into
   // account animation delay, duration, and timing function.
-  float Progress(const base::Time& time) const;
-  const base::Time EndTime() const;
+  float Progress(const base::TimeDelta& time) const;
+  const base::TimeDelta EndTime() const;
 
   // Produces an animated property value for the specified time.
-  scoped_refptr<PropertyValue> Evaluate(const base::Time& time) const;
+  scoped_refptr<PropertyValue> Evaluate(const base::TimeDelta& time) const;
 
  private:
   const char* target_property_;
   scoped_refptr<PropertyValue> start_value_;
   scoped_refptr<PropertyValue> end_value_;
-  base::Time start_time_;
+  base::TimeDelta start_time_;
   base::TimeDelta duration_;
   base::TimeDelta delay_;
   scoped_refptr<TimingFunction> timing_function_;

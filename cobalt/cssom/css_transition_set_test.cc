@@ -109,7 +109,7 @@ TEST_F(TransitionSetTest, TransitionPropertyOfAllGeneratesATransition) {
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
   EXPECT_TRUE(
@@ -124,7 +124,7 @@ TEST_F(TransitionSetTest,
       MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
   EXPECT_TRUE(
@@ -137,7 +137,7 @@ TEST_F(TransitionSetTest, TransitionPropertyOfNoneGeneratesNoTransition) {
   end_->set_transition_property(KeywordValue::GetNone());
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_TRUE(transition_set.empty());
 }
@@ -149,7 +149,7 @@ TEST_F(TransitionSetTest, TransitionDurationOfZeroGeneratesNoTransition) {
       MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_TRUE(transition_set.empty());
   EXPECT_EQ(
@@ -163,7 +163,7 @@ TEST_F(TransitionSetTest, NoStyleChangesGeneratesNoTransitions) {
       MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_TRUE(transition_set.empty());
 }
@@ -176,7 +176,7 @@ TEST_F(TransitionSetTest, TransitionDelayIsAccountedFor) {
       MakePropertyNameListWithSingleProperty(kBackgroundColorPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   const Transition* transition =
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName);
@@ -214,7 +214,7 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
@@ -223,7 +223,7 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
 
   Transition expected_transition(
       kBackgroundColorPropertyName, new RGBAColorValue(0xffffffff),
-      new RGBAColorValue(0x00000000), base::Time::UnixEpoch(),
+      new RGBAColorValue(0x00000000), base::TimeDelta(),
       base::TimeDelta::FromSeconds(1), base::TimeDelta(),
       TimingFunction::GetLinear(), new RGBAColorValue(0xffffffff), 1.0f);
 
@@ -231,7 +231,8 @@ TEST_F(TransitionSetTest, TransitionSetProducesValidFirstTransition) {
 
   // The transition should remain untouched if the style remains unchanged and
   // the transition has not completed.
-  transition_set.UpdateTransitions(base::Time::FromDoubleT(0.5), *end_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(0.5), *end_,
+                                   *end_);
 
   EXPECT_FALSE(transition_set.empty());
   transition =
@@ -248,27 +249,20 @@ TEST_F(TransitionSetTest, TransitionSetRemovesTransitionAfterCompletion) {
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
 
   EXPECT_FALSE(transition_set.empty());
   EXPECT_TRUE(
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName));
 
-  transition_set.UpdateTransitions(base::Time::FromDoubleT(2.0), *end_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(2.0), *end_,
+                                   *end_);
 
   EXPECT_TRUE(transition_set.empty());
   EXPECT_EQ(
       static_cast<Transition*>(NULL),
       transition_set.GetTransitionForProperty(kBackgroundColorPropertyName));
 }
-
-namespace {
-base::TimeDelta TimeDeltaFromSecondsF(float seconds) {
-  return base::TimeDelta::FromMicroseconds(
-      static_cast<int64>(seconds * base::Time::kMicrosecondsPerSecond));
-}
-}  // namespace
-
 
 TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   end_->set_background_color(new RGBAColorValue(0x00000000));
@@ -282,8 +276,9 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
-  transition_set.UpdateTransitions(base::Time::FromDoubleT(0.5), *end_, *end2);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(0.5), *end_,
+                                   *end2);
 
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
@@ -291,11 +286,11 @@ TEST_F(TransitionSetTest, TransitionsFromTransitionsWork) {
   ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
-      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
-                 new RGBAColorValue(0x000000ff), base::Time::FromDoubleT(0.5),
-                 TimeDeltaFromSecondsF(1.0f), base::TimeDelta(),
-                 TimingFunction::GetLinear(), new RGBAColorValue(0x80808080),
-                 1.0f),
+      Transition(
+          kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
+          new RGBAColorValue(0x000000ff), base::TimeDelta::FromSecondsD(0.5),
+          base::TimeDelta::FromSecondsD(1.0f), base::TimeDelta(),
+          TimingFunction::GetLinear(), new RGBAColorValue(0x80808080), 1.0f),
       *transition);
 }
 
@@ -309,9 +304,9 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
       MakePropertyNameListWithSingleProperty(kAllPropertyName));
 
   TransitionSet transition_set;
-  transition_set.UpdateTransitions(base::Time::UnixEpoch(), *start_, *end_);
-  transition_set.UpdateTransitions(
-      base::Time::FromDoubleT(0.5), *end_, *start_);
+  transition_set.UpdateTransitions(base::TimeDelta(), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(0.5), *end_,
+                                   *start_);
 
   EXPECT_FALSE(transition_set.empty());
   const Transition* transition =
@@ -319,16 +314,16 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
-      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
-                 new RGBAColorValue(0xffffffff), base::Time::FromDoubleT(0.5),
-                 TimeDeltaFromSecondsF(0.5f), base::TimeDelta(),
-                 TimingFunction::GetLinear(), new RGBAColorValue(0x00000000),
-                 0.5f),
+      Transition(
+          kBackgroundColorPropertyName, new RGBAColorValue(0x80808080),
+          new RGBAColorValue(0xffffffff), base::TimeDelta::FromSecondsD(0.5),
+          base::TimeDelta::FromSecondsD(0.5f), base::TimeDelta(),
+          TimingFunction::GetLinear(), new RGBAColorValue(0x00000000), 0.5f),
       *transition);
 
   // Let's try reversing the transition again.
-  transition_set.UpdateTransitions(
-      base::Time::FromDoubleT(0.75), *start_, *end_);
+  transition_set.UpdateTransitions(base::TimeDelta::FromSecondsD(0.75), *start_,
+                                   *end_);
 
   EXPECT_FALSE(transition_set.empty());
   transition =
@@ -336,11 +331,11 @@ TEST_F(TransitionSetTest, ReverseTransitionsWork) {
   ASSERT_TRUE(transition);
 
   CheckTransitionsEqual(
-      Transition(kBackgroundColorPropertyName, new RGBAColorValue(0xc0c0c0c0),
-                 new RGBAColorValue(0x00000000), base::Time::FromDoubleT(0.75),
-                 TimeDeltaFromSecondsF(0.75f), base::TimeDelta(),
-                 TimingFunction::GetLinear(), new RGBAColorValue(0xffffffff),
-                 0.75f),
+      Transition(
+          kBackgroundColorPropertyName, new RGBAColorValue(0xc0c0c0c0),
+          new RGBAColorValue(0x00000000), base::TimeDelta::FromSecondsD(0.75),
+          base::TimeDelta::FromSecondsD(0.75f), base::TimeDelta(),
+          TimingFunction::GetLinear(), new RGBAColorValue(0xffffffff), 0.75f),
       *transition);
 }
 
