@@ -21,6 +21,11 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
+const char kPrefix[] = "data-";
+// Subtract one for nul terminator.
+const size_t kPrefixLength = sizeof(kPrefix) - 1;
+}  // namespace
 
 DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
     : element_(element) {
@@ -28,16 +33,29 @@ DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
 }
 
 std::string DOMStringMap::AnonymousNamedGetter(const std::string& key) {
-  return element_->GetAttribute("data-" + key).value();
+  return element_->GetAttribute(kPrefix + key).value();
 }
 
 void DOMStringMap::AnonymousNamedSetter(const std::string& key,
                                         const std::string& value) {
-  element_->SetAttribute("data-" + key, value);
+  element_->SetAttribute(kPrefix + key, value);
 }
 
 bool DOMStringMap::CanQueryNamedProperty(const std::string& key) const {
-  return element_->HasAttribute("data-" + key);
+  return element_->HasAttribute(kPrefix + key);
+}
+
+void DOMStringMap::EnumerateNamedProperties(
+    script::PropertyEnumerator* enumerator) {
+  for (Element::AttributeMap::const_iterator it =
+           element_->attribute_map().begin();
+       it != element_->attribute_map().end(); ++it) {
+    const std::string& attribute_name = it->first;
+    if (attribute_name.size() > kPrefixLength &&
+        attribute_name.compare(0, kPrefixLength, kPrefix) == 0) {
+      enumerator->AddProperty(it->first.substr(kPrefixLength));
+    }
+  }
 }
 
 DOMStringMap::~DOMStringMap() { Stats::GetInstance()->Remove(this); }

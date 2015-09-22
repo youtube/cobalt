@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "base/stringprintf.h"
 #include "cobalt/bindings/testing/anonymous_getter_setter_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/derived_getter_setter_interface.h"
@@ -21,6 +22,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::Invoke;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::ReturnArg;
@@ -36,6 +38,21 @@ typedef InterfaceBindingsTest<AnonymousGetterSetterInterface>
     AnonymousGetterSetterBindingsTest;
 typedef InterfaceBindingsTest<DerivedGetterSetterInterface>
     DerivedGetterSetterBindingsTest;
+
+class NamedPropertiesEnumerator {
+ public:
+  explicit NamedPropertiesEnumerator(int num_properties)
+      : num_properties_(num_properties) {}
+  void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) {
+    for (int i = 0; i < num_properties_; ++i) {
+      char letter = 'a' + i;
+      enumerator->AddProperty(StringPrintf("property_%c", letter));
+    }
+  }
+
+ private:
+  int num_properties_;
+};
 }  // namespace
 
 TEST_F(GetterSetterBindingsTest, IndexedGetter) {
@@ -130,6 +147,56 @@ TEST_F(GetterSetterBindingsTest, NamedSetter) {
 
   EXPECT_CALL(test_mock(), NamedSetter(std::string("foo"), std::string("bar")));
   EXPECT_TRUE(EvaluateScript("test.namedSetter(\"foo\", \"bar\");", NULL));
+}
+
+TEST_F(AnonymousGetterSetterBindingsTest, EnumerateIndexedProperties) {
+  std::string result;
+  EXPECT_CALL(test_mock(), length()).Times(5).WillRepeatedly(Return(4));
+  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_));
+  EXPECT_TRUE(
+      EvaluateScript("var properties = [];"
+                     "for (p in test) { properties.push(p); }"
+                     "properties;",
+                     &result));
+
+  EXPECT_STREQ("0,1,2,3,length", result.c_str());
+}
+
+TEST_F(AnonymousGetterSetterBindingsTest, EnumerateNamedProperties) {
+  NamedPropertiesEnumerator enumerator(4);
+
+  std::string result;
+  EXPECT_CALL(test_mock(), length()).WillOnce(Return(0));
+  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_))
+      .WillOnce(Invoke(&enumerator,
+                       &NamedPropertiesEnumerator::EnumerateNamedProperties));
+  EXPECT_TRUE(
+      EvaluateScript("var properties = [];"
+                     "for (p in test) { properties.push(p); }"
+                     "properties;",
+                     &result));
+
+  EXPECT_STREQ("property_a,property_b,property_c,property_d,length",
+               result.c_str());
+}
+
+TEST_F(AnonymousGetterSetterBindingsTest, EnumeratedPropertiesOrdering) {
+  NamedPropertiesEnumerator enumerator(2);
+
+  std::string result;
+  EXPECT_CALL(test_mock(), length()).Times(3).WillRepeatedly(Return(2));
+  EXPECT_CALL(test_mock(), EnumerateNamedProperties(_))
+      .WillOnce(Invoke(&enumerator,
+                       &NamedPropertiesEnumerator::EnumerateNamedProperties));
+  EXPECT_TRUE(
+      EvaluateScript("var properties = [];"
+                     "for (p in test) { properties.push(p); }"
+                     "properties;",
+                     &result));
+
+  // Indexed properties should come first, then named properties, and then
+  // other "regular" properties that are defined on the interface;
+  EXPECT_STREQ("0,1,property_a,property_b,length", result.c_str());
 }
 
 TEST_F(AnonymousGetterSetterBindingsTest, IndexedGetter) {

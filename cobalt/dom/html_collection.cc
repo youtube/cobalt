@@ -54,6 +54,8 @@ class NodeCollection : public HTMLCollection {
   scoped_refptr<Element> NamedItem(const std::string& name) const OVERRIDE;
 
   bool CanQueryNamedProperty(const std::string& name) const OVERRIDE;
+  void EnumerateNamedProperties(
+      script::PropertyEnumerator* enumerator) const OVERRIDE;
 
  private:
   // Checks if the collection cache is up to date and refreshes it if it's not.
@@ -126,6 +128,18 @@ template <typename NodeIterator>
 bool NodeCollection<NodeIterator>::CanQueryNamedProperty(
     const std::string& name) const {
   return NamedItem(name) != NULL;
+}
+
+template <typename NodeIterator>
+void NodeCollection<NodeIterator>::EnumerateNamedProperties(
+    script::PropertyEnumerator* enumerator) const {
+  MaybeRefreshCollection();
+  for (size_t i = 0; i < cached_collection_.size(); ++i) {
+    scoped_refptr<Element> element = cached_collection_[i];
+    if (element) {
+      enumerator->AddProperty(element->id());
+    }
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////
