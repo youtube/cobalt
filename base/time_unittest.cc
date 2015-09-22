@@ -485,6 +485,52 @@ TEST_F(TimeTest, ExplodeBeforeUnixEpoch) {
   EXPECT_EQ(1, exploded.millisecond);
 }
 
+TEST_F(TimeTest, TimeDeltaMax) {
+  TimeDelta max = TimeDelta::Max();
+  EXPECT_TRUE(max.is_max());
+  EXPECT_EQ(max, TimeDelta::Max());
+  EXPECT_GT(max, TimeDelta::FromDays(100 * 365));
+  EXPECT_GT(max, TimeDelta());
+}
+
+TEST_F(TimeTest, TimeDeltaMaxConversions) {
+  TimeDelta t = TimeDelta::Max();
+  EXPECT_EQ(std::numeric_limits<int64>::max(), t.ToInternalValue());
+
+  EXPECT_EQ(std::numeric_limits<int>::max(), t.InDays());
+  EXPECT_EQ(std::numeric_limits<int>::max(), t.InHours());
+  EXPECT_EQ(std::numeric_limits<int>::max(), t.InMinutes());
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), t.InSecondsF());
+  EXPECT_EQ(std::numeric_limits<int64>::max(), t.InSeconds());
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), t.InMillisecondsF());
+  EXPECT_EQ(std::numeric_limits<int64>::max(), t.InMilliseconds());
+  EXPECT_EQ(std::numeric_limits<int64>::max(), t.InMillisecondsRoundedUp());
+
+  t = TimeDelta::FromDays(std::numeric_limits<int>::max());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromHours(std::numeric_limits<int>::max());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromMinutes(std::numeric_limits<int>::max());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromSeconds(std::numeric_limits<int64>::max());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromMilliseconds(std::numeric_limits<int64>::max());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromSecondsD(std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromMillisecondsD(std::numeric_limits<double>::infinity());
+  EXPECT_TRUE(t.is_max());
+
+  t = TimeDelta::FromMicroseconds(std::numeric_limits<int64>::max());
+  EXPECT_TRUE(t.is_max());
+}
+
 TEST_F(TimeTest, Max) {
   Time max = Time::Max();
   EXPECT_TRUE(max.is_max());
@@ -629,6 +675,10 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_TRUE(TimeDelta::FromSeconds(2) == TimeDelta::FromMilliseconds(2000));
   EXPECT_TRUE(TimeDelta::FromMilliseconds(2) ==
               TimeDelta::FromMicroseconds(2000));
+  EXPECT_TRUE(TimeDelta::FromSecondsD(2.3) ==
+              TimeDelta::FromMilliseconds(2300));
+  EXPECT_TRUE(TimeDelta::FromMillisecondsD(2.5) ==
+              TimeDelta::FromMicroseconds(2500));
   EXPECT_EQ(13, TimeDelta::FromDays(13).InDays());
   EXPECT_EQ(13, TimeDelta::FromHours(13).InHours());
   EXPECT_EQ(13, TimeDelta::FromMinutes(13).InMinutes());
@@ -636,6 +686,10 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(13.0, TimeDelta::FromSeconds(13).InSecondsF());
   EXPECT_EQ(13, TimeDelta::FromMilliseconds(13).InMilliseconds());
   EXPECT_EQ(13.0, TimeDelta::FromMilliseconds(13).InMillisecondsF());
+  EXPECT_EQ(13, TimeDelta::FromSecondsD(13.1).InSeconds());
+  EXPECT_EQ(13.1, TimeDelta::FromSecondsD(13.1).InSecondsF());
+  EXPECT_EQ(13, TimeDelta::FromMillisecondsD(13.3).InMilliseconds());
+  EXPECT_EQ(13.3, TimeDelta::FromMillisecondsD(13.3).InMillisecondsF());
   EXPECT_EQ(13, TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
