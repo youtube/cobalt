@@ -24,6 +24,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/dom/storage_area.h"
+#include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
@@ -60,6 +61,9 @@ class Storage : public script::Wrappable {
 
   // Custom, not in any spec.
   bool CanQueryNamedProperty(const std::string& name) const;
+
+  // Custom, not in any spec.
+  void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) const;
 
   virtual bool DispatchEvent(const base::optional<std::string>& key,
                              const base::optional<std::string>& old_value,
