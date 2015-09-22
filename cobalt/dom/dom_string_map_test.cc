@@ -21,6 +21,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/script/testing/mock_property_enumerator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -48,6 +49,9 @@ TEST_F(DOMStringMapTest, Getter) {
   root_->SetAttribute("data-foo", "bar");
   EXPECT_TRUE(dom_string_map->CanQueryNamedProperty("foo"));
   EXPECT_EQ("bar", dom_string_map->AnonymousNamedGetter("foo"));
+  script::testing::MockPropertyEnumerator enumerator;
+  EXPECT_CALL(enumerator, AddProperty("foo"));
+  dom_string_map->EnumerateNamedProperties(&enumerator);
 }
 
 TEST_F(DOMStringMapTest, Setter) {
@@ -58,6 +62,9 @@ TEST_F(DOMStringMapTest, Setter) {
   EXPECT_TRUE(dom_string_map->CanQueryNamedProperty("foo"));
   EXPECT_EQ("bar", root_->GetAttribute("data-foo").value());
   EXPECT_EQ("bar", dom_string_map->AnonymousNamedGetter("foo"));
+  script::testing::MockPropertyEnumerator enumerator;
+  EXPECT_CALL(enumerator, AddProperty("foo"));
+  dom_string_map->EnumerateNamedProperties(&enumerator);
 }
 
 }  // namespace dom
