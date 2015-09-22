@@ -29,8 +29,7 @@ namespace scenes {
 // This scene gives a gray rectangle centered in the screen that slowly grows
 // to fill the screen.
 RenderTreeWithAnimations CreateGrowingRectScene(
-    const math::SizeF& output_dimensions,
-    base::Time start_time);
+    const math::SizeF& output_dimensions, base::TimeDelta start_time);
 
 }  // namespace scenes
 }  // namespace test

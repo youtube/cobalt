@@ -31,8 +31,7 @@ namespace scenes {
 // that are all spinning at different rates.
 RenderTreeWithAnimations CreateSpinningSpritesScene(
     render_tree::ResourceProvider* resource_provider,
-    const math::SizeF& output_dimensions,
-    base::Time start_time);
+    const math::SizeF& output_dimensions, base::TimeDelta start_time);
 
 }  // namespace scenes
 }  // namespace test

@@ -104,7 +104,7 @@ float ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 namespace {
 
 void AnimateCB(ReplacedBox::ReplaceImageCB replace_image_cb,
-               ImageNode::Builder* image_node, base::Time /*time*/) {
+               ImageNode::Builder* image_node, base::TimeDelta /*time*/) {
   DCHECK(!replace_image_cb.is_null());
   DCHECK(image_node);
   image_node->source = replace_image_cb.Run();

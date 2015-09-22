@@ -327,7 +327,8 @@ void Document::UpdateComputedStyles(
     // all animations that may be triggered here must start at the exact same
     // time if they were triggered in the same style change event.
     //   http://www.w3.org/TR/css3-transitions/#starting
-    base::Time style_change_event_time = base::Time::Now();
+    base::TimeDelta style_change_event_time =
+        base::Time::Now() - base::Time::UnixEpoch();
 
     TRACE_EVENT0("cobalt::layout", "UpdateComputedStyle");
     html()->UpdateComputedStyleRecursively(root_computed_style,

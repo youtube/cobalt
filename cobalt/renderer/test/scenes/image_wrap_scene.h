@@ -33,8 +33,7 @@ namespace scenes {
 // ImageNode's local_matrix parameter.
 RenderTreeWithAnimations CreateImageWrapScene(
     render_tree::ResourceProvider* resource_provider,
-    const math::SizeF& output_dimensions,
-    base::Time start_time);
+    const math::SizeF& output_dimensions, base::TimeDelta start_time);
 
 }  // namespace scenes
 }  // namespace test

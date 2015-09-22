@@ -49,8 +49,9 @@ namespace cssom {
 Transition::Transition(
     const char* target_property,
     const scoped_refptr<PropertyValue>& start_value,
-    const scoped_refptr<PropertyValue>& end_value, const base::Time& start_time,
-    const base::TimeDelta& duration, const base::TimeDelta& delay,
+    const scoped_refptr<PropertyValue>& end_value,
+    const base::TimeDelta& start_time, const base::TimeDelta& duration,
+    const base::TimeDelta& delay,
     const scoped_refptr<TimingFunction>& timing_function,
     scoped_refptr<PropertyValue> reversing_adjusted_start_value,
     float reversing_shortening_factor)
@@ -517,20 +518,20 @@ void AnimatorVisitor::VisitURL(URLValue* /*url_value*/) {
   animated_value_ = end_value_;
 }
 
-float Transition::Progress(const base::Time& time) const {
+float Transition::Progress(const base::TimeDelta& time) const {
   base::TimeDelta since_start = time - start_time_;
   return timing_function_->Evaluate(static_cast<float>(
       (since_start - delay_).InSecondsF() / duration_.InSecondsF()));
 }
 
-const base::Time Transition::EndTime() const {
+const base::TimeDelta Transition::EndTime() const {
   return start_time_ +
          (duration_ < base::TimeDelta() ? base::TimeDelta() : duration_) +
          delay_;
 }
 
 scoped_refptr<PropertyValue> Transition::Evaluate(
-    const base::Time& time) const {
+    const base::TimeDelta& time) const {
   // Return the animated property value given all animation parameters.
   AnimatorVisitor animator(end_value_, Progress(time));
   start_value_->Accept(&animator);
