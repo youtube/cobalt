@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -57,6 +58,10 @@ class HTMLCollection : public script::Wrappable {
 
   // Custom, not in any spec.
   virtual bool CanQueryNamedProperty(const std::string& name) const = 0;
+
+  // Custom, not in any spec.
+  virtual void EnumerateNamedProperties(
+      script::PropertyEnumerator* enumerator) const = 0;
 
   DEFINE_WRAPPABLE_TYPE(HTMLCollection);
 
