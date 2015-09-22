@@ -51,17 +51,17 @@ int main(int argc, char** argv) {
 
   // Construct our render tree and associated animations to be passed into
   // the renderer pipeline for display.
-  RenderTreeWithAnimations scene =
-      AddBlankBackgroundToScene(
-          CreateAllScenesCombinedScene(
-              renderer_module.pipeline()->GetResourceProvider(),
-              output_dimensions,
-              base::Time::Now()),
-          output_dimensions);
+  base::TimeDelta start_time = base::Time::Now() - base::Time::UnixEpoch();
+  RenderTreeWithAnimations scene = AddBlankBackgroundToScene(
+      CreateAllScenesCombinedScene(
+          renderer_module.pipeline()->GetResourceProvider(), output_dimensions,
+          start_time),
+      output_dimensions);
 
   // Pass the render tree along with associated animations into the renderer
   // module to be displayed.
-  renderer_module.pipeline()->Submit(scene.render_tree, scene.animations);
+  renderer_module.pipeline()->Submit(scene.render_tree, scene.animations,
+                                     start_time);
 
   base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(30));
 

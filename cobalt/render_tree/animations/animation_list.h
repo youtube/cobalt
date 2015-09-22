@@ -46,10 +46,8 @@ class Animation {
   // animation function (assuming ColorRGBA has operator*() defined):
   //
   //   void InterpolateTextColor(
-  //       base::Time start_time,
   //       ColorRGBA final_color, base::TimeDelta duration,
-  //       TextNode::Builder* text_node, base::Time time) {
-  //     base::TimeDelta time_elapsed = start_time - time;
+  //       TextNode::Builder* text_node, base::TimeDelta time_elapsed) {
   //     if (time_elapsed < duration) {
   //       double progress = time_elapsed.InSecondsF() / duration.InSecondsF();
   //       text_node->color =
@@ -65,13 +63,13 @@ class Animation {
   //   AnimationList<TextNode>::Builder animation_list_builder;
   //   animation_list_builder.push_back(
   //       base::Bind(&InterpolateTextColor,
-  //                  base::Time::Now(), ColorRGBA(0.0f, 1.0f, 0.0f),
+  //                  ColorRGBA(0.0f, 1.0f, 0.0f),
   //                  base::TimeDelta::FromSeconds(1)));
   //
   // You can now create an AnimationList object from the AnimationList::Builder
   // and ultimately add that to a NodeAnimationsMap object so that it can be
   // mapped to a specific TextNode that it should be applied to.
-  typedef base::Callback<void(typename T::Builder*, base::Time)> Function;
+  typedef base::Callback<void(typename T::Builder*, base::TimeDelta)> Function;
 };
 
 // The AnimationListBase is used so that we can acquire a non-template handle

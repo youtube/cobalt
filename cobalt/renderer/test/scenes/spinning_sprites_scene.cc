@@ -65,10 +65,10 @@ float RandRange(float lower, float upper) {
   return base::RandDouble() * (upper - lower) + lower;
 }
 
-void AnimateSprite(base::Time start_time, int child_index,
+void AnimateSprite(base::TimeDelta start_time, int child_index,
                    const SpriteInfo& sprite_info, const SizeF& child_size,
                    CompositionNode::Builder* composition_node,
-                   base::Time time) {
+                   base::TimeDelta time) {
   CompositionNode::ComposedChild* child =
       composition_node->GetChild(child_index);
 
@@ -118,9 +118,8 @@ scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
 }  // namespace
 
 RenderTreeWithAnimations CreateSpinningSpritesScene(
-    ResourceProvider* resource_provider,
-    const math::SizeF& output_dimensions,
-    base::Time start_time) {
+    ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
+    base::TimeDelta start_time) {
   // Create an image for each SpriteInfo we have in our sprite_infos vector.
   // They will be positioned and scaled according to their SpriteInfo settings,
   // and rotated according to time.
@@ -145,7 +144,7 @@ RenderTreeWithAnimations CreateSpinningSpritesScene(
             sprite_info.position.y() * output_dimensions.height()));
 
     sprite_animation_list.animations.push_back(
-        base::Bind(&AnimateSprite, base::Time::Now(), i, sprite_info,
+        base::Bind(&AnimateSprite, start_time, i, sprite_info,
                    image_node->data().destination_size));
   }
 

@@ -148,12 +148,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void UpdateComputedStyle(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style,
-      const base::Time& style_change_event_time);
+      const base::TimeDelta& style_change_event_time);
   // Calls UpdateComputedStyle() on itself and all descendants.
   void UpdateComputedStyleRecursively(
       const scoped_refptr<const cssom::CSSStyleDeclarationData>&
           parent_computed_style,
-      const base::Time& style_change_event_time, bool ancestors_were_valid);
+      const base::TimeDelta& style_change_event_time,
+      bool ancestors_were_valid);
 
   // Clears the cached set of CSS rules that match with this HTML element.
   void ClearMatchingRules();
