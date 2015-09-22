@@ -1,0 +1,191 @@
+/*
+Copyright 2014 Google Inc. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+body {
+  background: #fff;
+  font-size: 10px;
+  margin: 30px;
+  width: 1280px;
+}
+
+textarea { color: #369; }
+
+h2 {
+  margin: 10px 0 0 0;
+}
+
+h3 {
+  margin: 10px 0 0 0;
+}
+
+.test-table .index { width: 30px; text-align: right; }
+.test-table .status {
+  width: 20px;
+  color: #fff;
+  text-align: right;
+}
+
+.test-table .status_current {
+  width: 20px;
+  text-align: right;
+}
+
+.test-table .desc { width: 200px; }
+.test-table .state { width: 30px; text-align: center; }
+.test-table .failstate { width: 30px; text-align: center; }
+
+.test-table {
+  width: 380px;
+  text-align: left;
+  margin: 0px;
+  display: inline-block;
+}
+
+.test-table th {
+  font-weight: bold;
+  color: #039;
+  padding: 10px 8px 4px;
+}
+
+.test-table td {
+  font-size: 9px;
+  color: #669;
+  padding: 9px 8px 0;
+}
+
+.test-table td.failstate {
+  font-size: 9px;
+  color: #f00;
+  padding: 9px 8px 0;
+}
+
+.test-table td.small {
+  font-size: 6px;
+  color: #0a0;
+  padding: 9px 8px 0;
+}
+
+.compact-list .cell-category {
+  font-weight: bold;
+  color: #039;
+}
+
+.compact-list .cell-divider {
+  width: 5px;
+}
+
+.compact-list .cell-status-normal {
+  text-align: center;
+}
+
+.compact-list .cell-status-running {
+  text-align: center;
+}
+
+.compact-list .cell-status-fail {
+  background-color: #800;
+  color: #FFF;
+  text-align: center;
+}
+
+.compact-list .cell-status-pass {
+  background-color: #080;
+  color: #FFF;
+  text-align: center;
+}
+
+.compact-list .test-status-none {
+  width: 5px;
+}
+
+.compact-list .test-status-running {
+  width: 5px;
+  background-color: #880;
+}
+
+.compact-list .test-status-fail {
+  width: 5px;
+  background-color: #800;
+}
+
+.compact-list .test-status-pass {
+  width: 5px;
+  background-color: #080;
+}
+
+.compact-list .test-status-optional-fail {
+  width: 3px;
+  padding: 0px;
+}
+
+ul {
+  padding-left: 20px;
+  margin-top: 5px;
+}
+
+div.container {
+  width:100%;
+  margin:5px 0 5px 0;
+  padding:5px 0 5px 0;
+  overflow:hidden;
+}
+
+div.container_hidden {
+  width:100%;
+  margin:10px 0 10px 0;
+  overflow:hidden;
+  display:none;
+}
+
+.box-left {
+  width:740px;
+}
+
+.box-right {
+  width:420px;
+}
+
+.desc-expl-popup {
+  position: absolute;
+  padding: 0.5em;
+  z-index: 100;
+  display: none;
+}
+
+span.nowrap {
+  display: inline-block;
+  margin: 0px 10px 0px 0px;
+  width: 200px;
+}
+
+span.code {
+}
+
+.rightmargin20 {
+  margin-left: 0px;
+  margin-right: 20px;
+}
+
+.rightmargin20new {
+  margin-left: 0px;
+  margin-right: 20px;
+  color: #f00;
+  font-weight: bold;
+}
+
+a.title_link {
+  color: #000;
+}
