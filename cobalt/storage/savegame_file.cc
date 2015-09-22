@@ -76,11 +76,15 @@ bool SavegameFile::PlatformRead(ByteVector* bytes_ptr) {
   }
   ByteVector& bytes = *bytes_ptr;
   bytes.resize(static_cast<size_t>(file_size));
-  int bytes_read =
-      file_util::ReadFile(savegame_path_, reinterpret_cast<char*>(&bytes[0]),
-                          static_cast<int>(file_size));
-  bytes.resize(static_cast<size_t>(std::max(0, bytes_read)));
-  return bytes_read == file_size;
+  if (!bytes.empty()) {
+    int bytes_read =
+        file_util::ReadFile(savegame_path_, reinterpret_cast<char*>(&bytes[0]),
+                            static_cast<int>(file_size));
+    bytes.resize(static_cast<size_t>(std::max(0, bytes_read)));
+    return bytes_read == file_size;
+  } else {
+    return true;
+  }
 }
 
 bool SavegameFile::PlatformWrite(const ByteVector& bytes) {
