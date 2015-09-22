@@ -18,6 +18,7 @@
 
 #include "base/at_exit.h"
 #include "base/json/json_writer.h"
+#include "base/logging.h"
 #include "base/values.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/trace_event/benchmark.h"
@@ -84,6 +85,9 @@ void JsonPrint(const BenchmarkResultsMap& benchmarks) {
 int main(int argc, char** argv) {
   base::AtExitManager at_exit;
   cobalt::InitCobalt(argc, argv);
+#if defined(NDEBUG)
+  logging::SetMinLogLevel(logging::LOG_FATAL);
+#endif
   BenchmarkResultsMap benchmarks =
       cobalt::trace_event::BenchmarkRegistrar::GetInstance()
           ->ExecuteBenchmarks();
