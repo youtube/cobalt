@@ -66,6 +66,7 @@ TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
   }
 
   memory = SbMemoryReallocate(memory, kSize / 2);
+  data = static_cast<char *>(memory);
   ASSERT_NE(static_cast<void *>(NULL), memory);
   for (int i = 0; i < kSize / 2; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
@@ -88,6 +89,7 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
 
   memory = SbMemoryReallocate(memory, kSize * 2);
   ASSERT_NE(static_cast<void *>(NULL), memory);
+  data = static_cast<char *>(memory);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
@@ -124,6 +126,7 @@ TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
   }
 
   memory = SbMemoryReallocate(memory, kSize);
+  data = static_cast<char *>(memory);
   ASSERT_NE(static_cast<void *>(NULL), memory);
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
