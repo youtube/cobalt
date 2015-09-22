@@ -84,8 +84,7 @@ void Pipeline::ShutdownRasterizerThread() {
   // Do not retain any more references to the current render tree (which
   // may refer to rasterizer resources) or animations which may refer to
   // render trees.
-  current_animations_ = NULL;
-  current_tree_ = NULL;
+  last_submission_ = base::nullopt;
 
   // Finally, destroy the rasterizer.
   rasterizer_.reset();
@@ -98,45 +97,49 @@ render_tree::ResourceProvider* Pipeline::GetResourceProvider() {
 
 void Pipeline::Submit(const scoped_refptr<Node>& render_tree) {
   Submit(render_tree,
-         new NodeAnimationsMap(NodeAnimationsMap::Builder().Pass()));
-}
-
-void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
-                      const scoped_refptr<NodeAnimationsMap>& animations) {
-  // Execute the actual set of the new render tree on the rasterizer tree.
-  rasterizer_thread_->message_loop()->PostTask(
-      FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree, animations, base::Closure()));
+         new NodeAnimationsMap(NodeAnimationsMap::Builder().Pass()),
+         base::TimeDelta());
 }
 
 void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
                       const scoped_refptr<NodeAnimationsMap>& animations,
+                      base::TimeDelta offset_from_origin) {
+  // Execute the actual set of the new render tree on the rasterizer tree.
+  Submit(render_tree, animations, offset_from_origin, base::Closure());
+}
+
+void Pipeline::Submit(const scoped_refptr<Node>& render_tree,
+                      const scoped_refptr<NodeAnimationsMap>& animations,
+                      base::TimeDelta offset_from_origin,
                       const base::Closure& submit_complete_callback) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
   // Execute the actual set of the new render tree on the rasterizer tree.
   rasterizer_thread_->message_loop()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
-                            render_tree, animations, submit_complete_callback));
+                            render_tree, animations, offset_from_origin,
+                            submit_complete_callback));
 }
 
 
 void Pipeline::SetNewRenderTree(
     const scoped_refptr<Node>& render_tree,
     const scoped_refptr<NodeAnimationsMap>& animations,
+    base::TimeDelta offset_from_origin,
     const base::Closure& submit_complete_callback) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree.get());
 
-  if (current_tree_) {
+  if (last_submission_) {
     TRACE_EVENT_FLOW_END0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                          current_tree_.get());
+                          last_submission_->render_tree.get());
+    last_submission_ = base::nullopt;
   }
   TRACE_EVENT_FLOW_BEGIN0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
                           render_tree.get());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
-  current_tree_ = render_tree;
-  current_animations_ = animations;
-  current_submit_complete_callback_ = submit_complete_callback;
+
+  last_submission_.emplace(
+      render_tree, animations, offset_from_origin, submit_complete_callback);
 
   // Start the rasterization timer if it is not yet started.
   if (!refresh_rate_timer_) {
@@ -167,22 +170,31 @@ void Pipeline::SetNewRenderTree(
 }
 
 void Pipeline::RasterizeCurrentTree() {
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+  DCHECK(last_submission_);
+  DCHECK(last_submission_->render_tree.get());
   TRACE_EVENT_FLOW_STEP0("cobalt::renderer", "Pipeline::SetNewRenderTree()",
-                         current_tree_.get(),
+                         last_submission_->render_tree.get(),
                          "Pipeline::RasterizeCurrentTree()");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
-  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
-  DCHECK(current_tree_.get());
+
+  if (!last_submission_->processing_start_time) {
+    last_submission_->processing_start_time = base::Time::Now();
+  }
+  base::TimeDelta time_from_origin =
+      (base::Time::Now() - *last_submission_->processing_start_time) +
+      last_submission_->offset_from_origin;
 
   // Animate the last submitted render tree using the last submitted animations.
   scoped_refptr<Node> animated_render_tree =
-      current_animations_->Apply(current_tree_, base::Time::Now());
+      last_submission_->animations->Apply(
+          last_submission_->render_tree, time_from_origin);
 
   // Rasterize the animated render tree.
   rasterizer_->Submit(animated_render_tree, render_target_);
 
-  if (!current_submit_complete_callback_.is_null()) {
-    current_submit_complete_callback_.Run();
+  if (!last_submission_->submit_complete_callback.is_null()) {
+    last_submission_->submit_complete_callback.Run();
   }
 }
 

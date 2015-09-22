@@ -46,7 +46,7 @@ class TransitionSet {
   // completed, updating existing transitions with new values, or creating new
   // transitions.  The implementation of this method is defined here:
   //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
-  void UpdateTransitions(const base::Time& current_time,
+  void UpdateTransitions(const base::TimeDelta& current_time,
                          const CSSStyleDeclarationData& source,
                          const CSSStyleDeclarationData& destination);
 
@@ -61,12 +61,12 @@ class TransitionSet {
   // Given a time and a target style, animates all properties found to be
   // transitioning by this TransitionSet.  Non-animated properties are not
   // adjusted on the target style.
-  void ApplyTransitions(const base::Time& current_time,
+  void ApplyTransitions(const base::TimeDelta& current_time,
                         CSSStyleDeclarationData* target_style) const;
 
  private:
   void UpdateTransitionForProperty(
-      const char* property_name, const base::Time& current_time,
+      const char* property_name, const base::TimeDelta& current_time,
       const scoped_refptr<PropertyValue>& source_value,
       const scoped_refptr<PropertyValue>& destination_value,
       const CSSStyleDeclarationData& transition_style);

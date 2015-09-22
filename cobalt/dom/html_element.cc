@@ -187,7 +187,7 @@ PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& inline_style,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const base::Time& style_change_event_time,
+    const base::TimeDelta& style_change_event_time,
     cssom::TransitionSet* transitions,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         previous_computed_style) {
@@ -234,7 +234,7 @@ PromoteMatchingRulesToComputedStyle(
 void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const base::Time& style_change_event_time) {
+    const base::TimeDelta& style_change_event_time) {
   scoped_refptr<Document> document = owner_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
@@ -278,7 +278,7 @@ void HTMLElement::UpdateComputedStyle(
 void HTMLElement::UpdateComputedStyleRecursively(
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
-    const base::Time& style_change_event_time, bool ancestors_were_valid) {
+    const base::TimeDelta& style_change_event_time, bool ancestors_were_valid) {
   bool is_valid = ancestors_were_valid && computed_style_valid_;
   if (!is_valid) {
     UpdateComputedStyle(parent_computed_style, style_change_event_time);

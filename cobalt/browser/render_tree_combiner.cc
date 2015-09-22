@@ -60,20 +60,23 @@ void RenderTreeCombiner::SubmitToRenderer() {
                          math::Matrix3F::Identity());
         scoped_refptr<render_tree::Node> combined_tree =
             new render_tree::CompositionNode(builder);
-        renderer_pipeline_->Submit(combined_tree, main_animations_map_);
+        renderer_pipeline_->Submit(combined_tree, main_animations_map_,
+                                   base::Time::Now() - base::Time::UnixEpoch());
       }
       break;
     case DebugConsole::kDebugConsoleOnly:
       if (debug_console_render_tree_.get()) {
         renderer_pipeline_->Submit(debug_console_render_tree_,
-                                   debug_console_animations_map_);
+                                   debug_console_animations_map_,
+                                   base::Time::Now() - base::Time::UnixEpoch());
       }
       break;
     case DebugConsole::kDebugConsoleHide:
     case DebugConsole::kDebugConsoleOff:
     default:
       if (main_render_tree_.get()) {
-        renderer_pipeline_->Submit(main_render_tree_, main_animations_map_);
+        renderer_pipeline_->Submit(main_render_tree_, main_animations_map_,
+                                   base::Time::Now() - base::Time::UnixEpoch());
       }
   }
 }
