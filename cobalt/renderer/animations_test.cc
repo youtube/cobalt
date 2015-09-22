@@ -39,7 +39,9 @@ namespace {
 void AnimateImageNode(base::WaitableEvent* animate_has_started,
                       base::WaitableEvent* image_ready,
                       scoped_refptr<Image>* image,
-                      ImageNode::Builder* image_node, base::Time time) {
+                      ImageNode::Builder* image_node, base::TimeDelta time) {
+  UNREFERENCED_PARAMETER(time);
+
   // Time to animate the image!  First signal that we are in the animation
   // callback which will prompt the CreateImageThread to create the image.
   animate_has_started->Signal();
@@ -158,7 +160,8 @@ TEST(ResourceProviderTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
 
     // Submit the render tree and animation to the rendering pipeline for
     // rasterization (and the execution of our animation callback).
-    pipeline.Submit(test_node, new NodeAnimationsMap(animations.Pass()));
+    pipeline.Submit(test_node, new NodeAnimationsMap(animations.Pass()),
+                    base::Time::Now() - base::Time::UnixEpoch());
 
     // Wait for all events that we have planned to occur.
     animate_has_started.Wait();

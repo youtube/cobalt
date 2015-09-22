@@ -47,11 +47,11 @@ namespace scenes {
 
 namespace {
 
-void AnimateMarqueeElement(base::Time start_time, int child_index,
+void AnimateMarqueeElement(base::TimeDelta start_time, int child_index,
                            const RectF& text_bounds,
                            const SizeF& output_dimensions,
                            CompositionNode::Builder* composition_node,
-                           base::Time time) {
+                           base::TimeDelta time) {
   // Calculate the animated x position of the text.
   const float kTextMarqueePeriod = 10.0f;
   float text_start_position = -text_bounds.right();
@@ -71,9 +71,8 @@ void AnimateMarqueeElement(base::Time start_time, int child_index,
 }  // namespace
 
 RenderTreeWithAnimations CreateMarqueeScene(
-    ResourceProvider* resource_provider,
-    const math::SizeF& output_dimensions,
-    base::Time start_time) {
+    ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
+    base::TimeDelta start_time) {
   CompositionNode::Builder marquee_scene_builder;
   NodeAnimationsMap::Builder animations;
 

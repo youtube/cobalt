@@ -37,9 +37,8 @@ namespace test {
 namespace scenes {
 
 RenderTreeWithAnimations CreateAllScenesCombinedScene(
-    ResourceProvider* resource_provider,
-    const SizeF& output_dimensions,
-    base::Time start_time) {
+    ResourceProvider* resource_provider, const SizeF& output_dimensions,
+    base::TimeDelta start_time) {
   TRACE_EVENT0("cobalt::renderer_sandbox",
                "CreateAllScenesCombinedScene()");
   CompositionNode::Builder all_scenes_combined_scene_builder;

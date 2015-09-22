@@ -67,7 +67,7 @@ int GetPropertyTransitionIndex(
 TransitionSet::TransitionSet() {}
 
 void TransitionSet::UpdateTransitions(
-    const base::Time& current_time,
+    const base::TimeDelta& current_time,
     const CSSStyleDeclarationData& source_computed_style,
     const CSSStyleDeclarationData& destination_computed_style) {
   TimeListValue* transition_duration =
@@ -107,7 +107,7 @@ void TransitionSet::InsertOrReplaceInInternalMap(
 
 namespace {
 void SetReversingValues(
-    const base::Time& current_time, const Transition& old_transition,
+    const base::TimeDelta& current_time, const Transition& old_transition,
     const scoped_refptr<PropertyValue>& new_start_value,
     const scoped_refptr<PropertyValue>& new_end_value,
     scoped_refptr<PropertyValue>* new_reversing_adjusted_start_value,
@@ -141,7 +141,7 @@ base::TimeDelta ScaleTimeDelta(const base::TimeDelta& time_delta, float scale) {
 // the old transition's values (so that we can smoothly transition out of the
 // middle of an old transition).
 Transition CreateTransitionOverOldTransition(
-    const char* property_name, const base::Time& current_time,
+    const char* property_name, const base::TimeDelta& current_time,
     const Transition& old_transition, const base::TimeDelta& duration,
     const base::TimeDelta& delay,
     const scoped_refptr<TimingFunction>& timing_function,
@@ -176,7 +176,7 @@ Transition CreateTransitionOverOldTransition(
 }  // namespace
 
 void TransitionSet::UpdateTransitionForProperty(
-    const char* property_name, const base::Time& current_time,
+    const char* property_name, const base::TimeDelta& current_time,
     const scoped_refptr<PropertyValue>& start_value,
     const scoped_refptr<PropertyValue>& end_value,
     const CSSStyleDeclarationData& transition_style) {
@@ -268,7 +268,7 @@ const Transition* TransitionSet::GetTransitionForProperty(
 }
 
 void TransitionSet::ApplyTransitions(
-    const base::Time& current_time,
+    const base::TimeDelta& current_time,
     CSSStyleDeclarationData* target_style) const {
   // For each animatable property, check if it's transitioning, and if so,
   // evaluate its new animated value given the current time and update the

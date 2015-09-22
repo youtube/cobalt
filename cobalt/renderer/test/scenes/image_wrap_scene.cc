@@ -50,9 +50,8 @@ namespace scenes {
 
 namespace {
 
-void AnimateImage(base::Time start_time,
-                  ImageNode::Builder* composition_node,
-                  base::Time time) {
+void AnimateImage(base::TimeDelta start_time,
+                  ImageNode::Builder* composition_node, base::TimeDelta time) {
   float elapsed_time_in_seconds = (time - start_time).InSecondsF();
 
   // Determine the scale of the local image transform, given the current
@@ -89,9 +88,8 @@ scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
 }  // namespace
 
 RenderTreeWithAnimations CreateImageWrapScene(
-    ResourceProvider* resource_provider,
-    const math::SizeF& output_dimensions,
-    base::Time start_time) {
+    ResourceProvider* resource_provider, const math::SizeF& output_dimensions,
+    base::TimeDelta start_time) {
   CompositionNode::Builder image_wrap_scene_builder;
   NodeAnimationsMap::Builder animations;
 
