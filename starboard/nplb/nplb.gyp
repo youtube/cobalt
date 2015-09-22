@@ -30,6 +30,11 @@
         'memory_move_test.cc',
         'memory_reallocate_test.cc',
         'memory_set_test.cc',
+        'mutex_acquire_test.cc',
+        'mutex_acquire_try_test.cc',
+        'mutex_create_test.cc',
+        'mutex_destroy_test.cc',
+        'mutex_release_test.cc',
         'system_get_path_test.cc',
       ],
       'dependencies': [
