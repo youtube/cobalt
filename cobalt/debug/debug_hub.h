@@ -50,6 +50,12 @@ class DebugHub : public script::Wrappable {
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
   };
 
+  // Debug console modes.
+  static const int kDebugConsoleOff = 0;
+  static const int kDebugConsoleHud = 1;
+  static const int kDebugConsoleOn = 2;
+  static const int kDebugConsoleNumModes = kDebugConsoleOn + 1;
+
   // Declare logging levels here for export to JS
   static const int kLogInfo = logging::LOG_INFO;
   static const int kLogWarning = logging::LOG_WARNING;
@@ -75,6 +81,10 @@ class DebugHub : public script::Wrappable {
   // Gets the value of a named CVal as a pretty string.
   std::string GetConsoleValue(const std::string& name) const;
 
+  int GetDebugConsoleMode() const;
+  void SetDebugConsoleMode(int debug_console_mode);
+  int CycleDebugConsoleMode();
+
   DEFINE_WRAPPABLE_TYPE(DebugHub);
 
  private:
@@ -92,6 +102,9 @@ class DebugHub : public script::Wrappable {
 
   // Maintains a collection of CVals continuously updated with system stats.
   SystemStatsTracker system_stats_tracker;
+
+  // The current debug console mode
+  int debug_console_mode_;
 #endif  // ENABLE_DEBUG_CONSOLE
 };
 
