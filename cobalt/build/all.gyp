@@ -60,6 +60,7 @@
         '<(DEPTH)/cobalt/script/javascriptcore.gyp:*',
         '<(DEPTH)/cobalt/storage/storage.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
+        '<(DEPTH)/cobalt/web_animations/web_animations.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
       ],
       'conditions': [

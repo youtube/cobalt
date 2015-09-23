@@ -145,7 +145,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<NodeList> QuerySelectorAll(const std::string& selectors);
 
   // Web Animations API
-  // http://www.w3.org/TR/web-animations/#extensions-to-the-document-interface
+  // http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
   scoped_refptr<DocumentTimeline> timeline() { return default_timeline_; }
 
   // Custom, not in any spec: Node.

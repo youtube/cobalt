@@ -400,8 +400,9 @@ void AddRulesOnNodeToElement(HTMLElement* element,
 
     // Make sure the pseudo element exists under element.
     if (!element->pseudo_element(pseudo_element_type)) {
-      element->set_pseudo_element(pseudo_element_type,
-                                  new dom::PseudoElement());
+      element->set_pseudo_element(
+          pseudo_element_type,
+          make_scoped_ptr(new dom::PseudoElement(element)));
     }
 
     target_matching_rules =
