@@ -531,7 +531,9 @@
 %type <sign> maybe_sign_token
 
 %type <string> identifier_token
-%type <string> animatable_property_token
+
+%union { cssom::PropertyKey property_key; }
+%type <property_key> animatable_property_token
 
 %union { cssom::CSSStyleDeclarationData* style_declaration_data; }
 %type <style_declaration_data> style_declaration_list
@@ -607,7 +609,7 @@
 %type <time_list> comma_separated_time_list
 %destructor { delete $$; } <time_list>
 
-%union { cssom::ConstStringListValue::Builder* property_name_list; }
+%union { cssom::PropertyKeyListValue::Builder* property_name_list; }
 %type <property_name_list> comma_separated_animatable_property_name_list
 %destructor { delete $$; } <property_name_list>
 
@@ -959,178 +961,178 @@ identifier_token:
     kIdentifierToken
   // Property names.
   | kAllToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kAllPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kAllProperty));
   }
   | kBackgroundToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundProperty));
   }
   | kBackgroundColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundColorProperty));
   }
   | kBackgroundImageToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundImagePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundImageProperty));
   }
   | kBackgroundPositionToken {
     $$ =
-        TrivialStringPiece::FromCString(cssom::kBackgroundPositionPropertyName);
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundPositionProperty));
   }
   | kBackgroundRepeatToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundRepeatPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundRepeatProperty));
   }
   | kBackgroundSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundSizePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBackgroundSizeProperty));
   }
   | kBorderRadiusToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBorderRadiusProperty));
   }
   | kBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBottomPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kBottomProperty));
   }
   | kColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kColorProperty));
   }
   | kContentToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kContentPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kContentProperty));
   }
   | kDisplayToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kDisplayPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kDisplayProperty));
   }
   | kFontFamilyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kFontFamilyPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontFamilyProperty));
   }
   | kFontSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kFontSizePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontSizeProperty));
   }
   | kFontWeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kFontWeightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kFontWeightProperty));
   }
   | kHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kHeightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kHeightProperty));
   }
   | kLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kLeftPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kLeftProperty));
   }
   | kLineHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kLineHeightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kLineHeightProperty));
   }
   | kMarginBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMarginBottomPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginBottomProperty));
   }
   | kMarginLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMarginLeftPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginLeftProperty));
   }
   | kMarginRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMarginRightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginRightProperty));
   }
   | kMarginTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMarginTopPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginTopProperty));
   }
   | kMarginToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMarginPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMarginProperty));
   }
   | kMaxHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMaxHeightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMaxHeightProperty));
   }
   | kMaxWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMaxWidthPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMaxWidthProperty));
   }
   | kMinHeightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMinHeightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMinHeightProperty));
   }
   | kMinWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kMinWidthPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kMinWidthProperty));
   }
   | kOpacityToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOpacityProperty));
   }
   | kOverflowToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kOverflowPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOverflowProperty));
   }
   | kOverflowWrapToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kOverflowWrapPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kOverflowWrapProperty));
   }
   | kPaddingBottomToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPaddingBottomPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingBottomProperty));
   }
   | kPaddingLeftToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPaddingLeftPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingLeftProperty));
   }
   | kPaddingRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPaddingRightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingRightProperty));
   }
   | kPaddingTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPaddingTopPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingTopProperty));
   }
   | kPaddingToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPaddingPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPaddingProperty));
   }
   | kPositionToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kPositionPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kPositionProperty));
   }
   | kRightToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kRightPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kRightProperty));
   }
   | kSrcToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kSrcPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kSrcProperty));
   }
   | kTabSizeToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTabSizePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTabSizeProperty));
   }
   | kTextAlignToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTextAlignPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextAlignProperty));
   }
   | kTextIndentToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTextIndentPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextIndentProperty));
   }
   | kTextOverflowToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTextOverflowPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextOverflowProperty));
   }
   | kTextTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTextTransformPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTextTransformProperty));
   }
   | kTopToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTopPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTopProperty));
   }
   | kTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransformProperty));
   }
   | kTransitionToken {
     $$ =
-        TrivialStringPiece::FromCString(cssom::kTransitionPropertyName);
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionProperty));
   }
   | kTransitionDelayToken {
     $$ =
-        TrivialStringPiece::FromCString(cssom::kTransitionDelayPropertyName);
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionDelayProperty));
   }
   | kTransitionDurationToken {
     $$ =
-        TrivialStringPiece::FromCString(cssom::kTransitionDurationPropertyName);
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionDurationProperty));
   }
   | kTransitionPropertyToken {
     $$ =
-        TrivialStringPiece::FromCString(cssom::kTransitionPropertyPropertyName);
+        TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kTransitionPropertyProperty));
   }
   | kTransitionTimingFunctionToken {
     $$ = TrivialStringPiece::FromCString(
-             cssom::kTransitionTimingFunctionPropertyName);
+             cssom::GetPropertyName(cssom::kTransitionTimingFunctionProperty));
   }
   | kUnicodeRangePropertyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kUnicodeRangePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kUnicodeRangeProperty));
   }
   | kVerticalAlignToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kVerticalAlignPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kVerticalAlignProperty));
   }
   | kVisibilityToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kVisibilityPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kVisibilityProperty));
   }
   | kWhiteSpacePropertyToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kWhiteSpacePropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kWhiteSpaceProperty));
   }
   | kWidthToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kWidthPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kWidthProperty));
   }
   | kZIndexToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kZIndexPropertyName);
+    $$ = TrivialStringPiece::FromCString(cssom::GetPropertyName(cssom::kZIndexProperty));
   }
   // Property values.
   | kAbsoluteToken {
@@ -1262,7 +1264,7 @@ identifier_token:
   | kToToken {
     $$ = TrivialStringPiece::FromCString(cssom::kToKeywordName);
   }
-  // This is redundant with the kTopPropertyName defined above.
+  // This is redundant with the GetPropertyName(kTopProperty) defined above.
   //| kTopToken {
   //  $$ = TrivialStringPiece::FromCString(cssom::kTopKeywordName);
   //}
@@ -3182,13 +3184,13 @@ transition_timing_function_property_value:
 //   http://www.w3.org/TR/css3-transitions/#transition-property
 comma_separated_animatable_property_name_list:
     animatable_property_token maybe_whitespace {
-    $$ = new cssom::ConstStringListValue::Builder();
-    $$->push_back($1.begin);
+    $$ = new cssom::PropertyKeyListValue::Builder();
+    $$->push_back($1);
   }
   | comma_separated_animatable_property_name_list comma
     animatable_property_token maybe_whitespace {
     $$ = $1;
-    $$->push_back($3.begin);
+    $$->push_back($3);
   }
   | errors {
     parser_impl->LogError(@1, "unsupported property value for animation");
@@ -3203,10 +3205,10 @@ transition_property_property_value:
     $$ = AddRef(cssom::KeywordValue::GetNone().get());
   }
   | comma_separated_animatable_property_name_list {
-    scoped_ptr<cssom::ConstStringListValue::Builder>
+    scoped_ptr<cssom::PropertyKeyListValue::Builder>
         property_name_list($1);
     $$ = property_name_list
-         ? AddRef(new cssom::ConstStringListValue(property_name_list.Pass()))
+         ? AddRef(new cssom::PropertyKeyListValue(property_name_list.Pass()))
          : NULL;
   }
   | common_values_without_errors
@@ -3218,7 +3220,7 @@ transition_property_property_value:
 single_transition_element:
     animatable_property_token maybe_whitespace {
     if (!$<single_transition>0->property) {
-      $<single_transition>0->property = $1.begin;
+      $<single_transition>0->property = $1;
     } else {
       parser_impl->LogWarning(
           @1, "transition-property value declared twice in transition.");
@@ -3226,10 +3228,10 @@ single_transition_element:
   }
   | kNoneToken maybe_whitespace {
     if (!$<single_transition>0->property) {
-      // We use cssom::kNoneKeywordName as a symbol that 'none' was specified
+      // We use cssom::kNoneProperty as a symbol that 'none' was specified
       // here and that the entire transition-property list value should be set
       // to the None keyword.
-      $<single_transition>0->property = cssom::kNoneKeywordName;
+      $<single_transition>0->property = cssom::kNoneProperty;
     } else {
       parser_impl->LogWarning(
           @1, "transition-property value declared twice in transition.");
@@ -3324,11 +3326,11 @@ transition_property_value:
     // Before proceeding, check that 'none' is not specified if the
     // number of transition statements is larger than 1, as per the
     // specification.
-    const cssom::ConstStringListValue::Builder& property_list_builder =
+    const cssom::PropertyKeyListValue::Builder& property_list_builder =
         *(transition_builder->property_list_builder);
     if (property_list_builder.size() > 1) {
       for (int i = 0; i < static_cast<int>(property_list_builder.size()); ++i) {
-        if (property_list_builder[i] == cssom::kNoneKeywordName) {
+        if (property_list_builder[i] == cssom::kNoneProperty) {
           parser_impl->LogWarning(
               @1, "If 'none' is specified, transition can only have one item.");
           break;
@@ -3339,10 +3341,10 @@ transition_property_value:
     scoped_ptr<TransitionShorthand> transition(new TransitionShorthand());
 
     if (property_list_builder.size() == 1 &&
-        property_list_builder[0] == cssom::kNoneKeywordName) {
+        property_list_builder[0] == cssom::kNoneProperty) {
       transition->property_list = cssom::KeywordValue::GetNone();
     } else {
-      transition->property_list = new cssom::ConstStringListValue(
+      transition->property_list = new cssom::PropertyKeyListValue(
           transition_builder->property_list_builder.Pass());
     }
     transition->duration_list = new cssom::TimeListValue(
@@ -3454,22 +3456,22 @@ z_index_property_value:
 //   http://www.w3.org/TR/css3-transitions/#animatable-css
 animatable_property_token:
     kAllToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kAllPropertyName);
+    $$ = cssom::kAllProperty;
   }
   | kBackgroundColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBackgroundColorPropertyName);
+    $$ = cssom::kBackgroundColorProperty;
   }
   | kBorderRadiusToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kBorderRadiusPropertyName);
+    $$ = cssom::kBorderRadiusProperty;
   }
   | kColorToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kColorPropertyName);
+    $$ = cssom::kColorProperty;
   }
   | kOpacityToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kOpacityPropertyName);
+    $$ = cssom::kOpacityProperty;
   }
   | kTransformToken {
-    $$ = TrivialStringPiece::FromCString(cssom::kTransformPropertyName);
+    $$ = cssom::kTransformProperty;
   }
   ;
 
@@ -3486,157 +3488,156 @@ maybe_declaration:
       maybe_important {
     scoped_ptr<BackgroundShorthandLayer> background($4);
     DCHECK(background);
-
     scoped_ptr<PropertyDeclaration> property_declaration(
         new PropertyDeclaration($5));
 
     // Unpack the background shorthand property values.
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kBackgroundColorPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBackgroundColorProperty,
             background->background_color));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kBackgroundImagePropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBackgroundImageProperty,
             background->background_image));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kBackgroundPositionPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBackgroundPositionProperty,
             background->background_position));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kBackgroundRepeatPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBackgroundRepeatProperty,
             background->background_repeat));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kBackgroundSizePropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kBackgroundSizeProperty,
             background->background_size));
 
     $$ = property_declaration.release();
   }
   | kBackgroundColorToken maybe_whitespace colon background_color_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundColorProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBackgroundImageToken maybe_whitespace colon background_image_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundImagePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundImageProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBackgroundPositionToken maybe_whitespace colon
     background_position_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPositionPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundPositionProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBackgroundRepeatToken maybe_whitespace colon
     background_repeat_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundRepeatPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundRepeatProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBackgroundSizeToken maybe_whitespace colon background_size_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundSizePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBackgroundSizeProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBorderRadiusToken maybe_whitespace colon border_radius_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBorderRadiusPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderRadiusProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kBottomToken maybe_whitespace colon offset_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBottomPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kBottomProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kColorToken maybe_whitespace colon color_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kColorPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kColorProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kContentToken maybe_whitespace colon content_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kContentPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kContentProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kDisplayToken maybe_whitespace colon display_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kDisplayPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kDisplayProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontFamilyToken maybe_whitespace colon font_family_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontFamilyPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontFamilyProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontSizeToken maybe_whitespace colon font_size_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontSizePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontSizeProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontStyleToken maybe_whitespace colon font_style_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontStylePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontStyleProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kFontWeightToken maybe_whitespace colon font_weight_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kFontWeightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kFontWeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kHeightToken maybe_whitespace colon height_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kHeightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kHeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kLeftToken maybe_whitespace colon offset_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kLeftPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kLeftProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kLineHeightToken maybe_whitespace colon line_height_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kLineHeightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kLineHeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMarginBottomToken maybe_whitespace colon margin_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMarginBottomPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginBottomProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMarginLeftToken maybe_whitespace colon margin_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMarginLeftPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginLeftProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMarginRightToken maybe_whitespace colon margin_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMarginRightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginRightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMarginTopToken maybe_whitespace colon margin_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMarginTopPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMarginTopProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -3647,17 +3648,17 @@ maybe_declaration:
           new PropertyDeclaration($5));
 
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kMarginTopPropertyName, margin->top));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kMarginTopProperty, margin->top));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kMarginRightPropertyName, margin->right));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kMarginRightProperty, margin->right));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kMarginBottomPropertyName, margin->bottom));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kMarginBottomProperty, margin->bottom));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kMarginLeftPropertyName, margin->left));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kMarginLeftProperty, margin->left));
 
       $$ = property_declaration.release();
     } else {
@@ -3666,67 +3667,67 @@ maybe_declaration:
   }
   | kMaxHeightToken maybe_whitespace colon max_height_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMaxHeightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMaxHeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMaxWidthToken maybe_whitespace colon max_width_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMaxWidthPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMaxWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMinHeightToken maybe_whitespace colon height_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMinHeightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMinHeightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kMinWidthToken maybe_whitespace colon width_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kMinWidthPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kMinWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kOpacityPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kOpacityProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kOverflowToken maybe_whitespace colon overflow_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kOverflowWrapToken maybe_whitespace colon overflow_wrap_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowWrapPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kOverflowWrapProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kPaddingBottomToken maybe_whitespace colon padding_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingBottomPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingBottomProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kPaddingLeftToken maybe_whitespace colon padding_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingLeftPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingLeftProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kPaddingRightToken maybe_whitespace colon padding_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingRightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingRightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kPaddingTopToken maybe_whitespace colon padding_side_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingTopPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kPaddingTopProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -3738,17 +3739,17 @@ maybe_declaration:
           new PropertyDeclaration($5));
 
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kPaddingTopPropertyName, padding->top));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kPaddingTopProperty, padding->top));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kPaddingRightPropertyName, padding->right));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kPaddingRightProperty, padding->right));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kPaddingBottomPropertyName, padding->bottom));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kPaddingBottomProperty, padding->bottom));
       property_declaration->property_values.push_back(
-          PropertyDeclaration::NameValuePair(
-              cssom::kPaddingLeftPropertyName, padding->left));
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kPaddingLeftProperty, padding->left));
 
       $$ = property_declaration.release();
     } else {
@@ -3757,61 +3758,61 @@ maybe_declaration:
   }
   | kPositionToken maybe_whitespace colon position_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kPositionPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kPositionProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kRightToken maybe_whitespace colon offset_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kRightPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kRightProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kSrcToken maybe_whitespace colon font_face_src_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kSrcPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kSrcProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTabSizeToken maybe_whitespace colon tab_size_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTabSizePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTabSizeProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTextAlignToken maybe_whitespace colon text_align_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTextAlignPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextAlignProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTextIndentToken maybe_whitespace colon text_indent_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTextIndentPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextIndentProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTextOverflowToken maybe_whitespace colon text_overflow_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTextOverflowPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextOverflowProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTextTransformToken maybe_whitespace colon text_transform_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTextTransformPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTextTransformProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTopToken maybe_whitespace colon offset_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTopPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTopProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTransformToken maybe_whitespace colon transform_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTransformPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransformProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -3825,82 +3826,81 @@ maybe_declaration:
 
     // Unpack the transition shorthand property values.
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kTransitionPropertyPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kTransitionPropertyProperty,
             transition->property_list));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kTransitionDurationPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kTransitionDurationProperty,
             transition->duration_list));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kTransitionTimingFunctionPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kTransitionTimingFunctionProperty,
             transition->timing_function_list));
     property_declaration->property_values.push_back(
-        PropertyDeclaration::NameValuePair(
-            cssom::kTransitionDelayPropertyName,
+        PropertyDeclaration::PropertyKeyValuePair(
+            cssom::kTransitionDelayProperty,
             transition->delay_list));
 
     $$ = property_declaration.release();
   }
   | kTransitionDelayToken maybe_whitespace colon
       transition_delay_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDelayPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDelayProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTransitionDurationToken maybe_whitespace colon
       transition_duration_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDurationPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionDurationProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTransitionPropertyToken maybe_whitespace colon
       transition_property_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionPropertyPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionPropertyProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kTransitionTimingFunctionToken maybe_whitespace colon
       transition_timing_function_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(
-                      cssom::kTransitionTimingFunctionPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kTransitionTimingFunctionProperty,
                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kUnicodeRangePropertyToken maybe_whitespace colon
       unicode_range_property_value maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kUnicodeRangePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kUnicodeRangeProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kVerticalAlignToken maybe_whitespace colon vertical_align_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kVerticalAlignPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kVerticalAlignProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kVisibilityToken maybe_whitespace colon visibility_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kVisibilityPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kVisibilityProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kWhiteSpacePropertyToken maybe_whitespace colon white_space_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kWhiteSpacePropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kWhiteSpaceProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kWidthToken maybe_whitespace colon width_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kWidthPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
   | kZIndexToken maybe_whitespace colon z_index_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kZIndexPropertyName,
+    $$ = $4 ? new PropertyDeclaration(cssom::kZIndexProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
@@ -4106,8 +4106,13 @@ entry_point:
         parser_impl->LogWarning(
           @1, "!important is not allowed when setting single property values.");
       } else {
-        parser_impl->set_property_value(
-            property_declaration->property_values[0].value);
+        if (!property_declaration->property_values[0].value) {
+          parser_impl->LogWarning(
+            @1, "declaration must have a property value.");
+        } else {
+          parser_impl->set_property_value(
+              property_declaration->property_values[0].value);
+        }
       }
     }
   }

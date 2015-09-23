@@ -19,6 +19,7 @@
 #include "base/time.h"
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -30,20 +31,18 @@
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
-#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
 #include "cobalt/cssom/string_value.h"
-#include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function.h"
 #include "cobalt/cssom/transform_function_list_value.h"
+#include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/url_value.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -147,8 +146,8 @@ TEST(PropertyValueToStringTest, PropertyListValue) {
 
 TEST(PropertyValueToStringTest, PropertyNameListValue) {
   ConstStringListValue::Builder property_list;
-  property_list.push_back(kBackgroundColorPropertyName);
-  property_list.push_back(kOpacityPropertyName);
+  property_list.push_back(GetPropertyName(kBackgroundColorProperty));
+  property_list.push_back(GetPropertyName(kOpacityProperty));
   scoped_refptr<ConstStringListValue> property(new ConstStringListValue(
       make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
 

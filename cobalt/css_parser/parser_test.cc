@@ -27,11 +27,12 @@
 #include "cobalt/cssom/class_selector.h"
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
-#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 #include "cobalt/cssom/css_font_face_rule.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/descendant_combinator.h"
@@ -42,7 +43,6 @@
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/hover_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
-#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
@@ -53,8 +53,8 @@
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/rotate_function.h"
@@ -723,7 +723,8 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValues) {
           "color: #fff;\n",
           source_location_);
 
-  EXPECT_FALSE(style->background_color());
+  EXPECT_EQ(cssom::GetPropertyInitialValue(cssom::kBackgroundColorProperty),
+            style->background_color());
   EXPECT_TRUE(style->color());
 }
 
@@ -2976,40 +2977,42 @@ TEST_F(ParserTest, WarnsAboutInvalidPropertyValue) {
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithSingleValue) {
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           parser_.ParsePropertyValue("transition-property", "color",
-                                     source_location_).get());
+                                     source_location_)
+              .get());
   ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kColorProperty, property_name_list->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesAnimatablePropertyNameListWithMultipleValues) {
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           parser_.ParsePropertyValue("transition-property",
                                      "color, transform , background-color",
-                                     source_location_).get());
+                                     source_location_)
+              .get());
   ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(3, property_name_list->value().size());
-  EXPECT_EQ(cssom::kColorPropertyName, property_name_list->value()[0]);
-  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[2]);
+  EXPECT_EQ(cssom::kColorProperty, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[1]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[2]);
 }
 
 TEST_F(ParserTest, ParsesTransitionPropertyWithAllValue) {
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           parser_.ParsePropertyValue("transition-property", "all",
-                                     source_location_).get());
+                                     source_location_)
+              .get());
   ASSERT_TRUE(property_name_list.get());
 
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kAllPropertyName, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kAllProperty, property_name_list->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesTransitionPropertyWithNoneValue) {
@@ -3270,14 +3273,13 @@ TEST_F(ParserTest, ParsesTransitionShorthandOfMultipleItemsWithNoDefaults) {
           source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(2, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
-  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[1]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3314,13 +3316,12 @@ TEST_F(ParserTest,
                                         source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3329,7 +3330,9 @@ TEST_F(ParserTest,
   ASSERT_EQ(1, duration_list->value().size());
   EXPECT_EQ(
       base::polymorphic_downcast<const cssom::TimeListValue*>(
-          cssom::GetInitialStyle()->transition_duration().get())->value()[0],
+          cssom::GetPropertyInitialValue(cssom::kTransitionDurationProperty)
+              .get())
+          ->value()[0],
       duration_list->value()[0]);
 
   // Test transition-timing-function was set properly.
@@ -3339,7 +3342,9 @@ TEST_F(ParserTest,
   ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  cssom::GetPropertyInitialValue(
+                      cssom::kTransitionTimingFunctionProperty)
+                      .get())
                   ->value()[0]
                   ->Equals(*timing_function_list->value()[0]));
 
@@ -3348,9 +3353,11 @@ TEST_F(ParserTest,
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
 }
 
 TEST_F(ParserTest,
@@ -3360,13 +3367,12 @@ TEST_F(ParserTest,
                                         source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3382,7 +3388,9 @@ TEST_F(ParserTest,
   ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  cssom::GetPropertyInitialValue(
+                      cssom::kTransitionTimingFunctionProperty)
+                      .get())
                   ->value()[0]
                   ->Equals(*timing_function_list->value()[0]));
 
@@ -3391,9 +3399,11 @@ TEST_F(ParserTest,
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
 }
 
 TEST_F(ParserTest,
@@ -3403,13 +3413,12 @@ TEST_F(ParserTest,
           "transition: background-color 1s ease-in;", source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3432,9 +3441,11 @@ TEST_F(ParserTest,
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
 }
 
 TEST_F(
@@ -3445,13 +3456,12 @@ TEST_F(
           "transition: ease-in background-color 1s;", source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3474,9 +3484,11 @@ TEST_F(
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
 }
 
 TEST_F(ParserTest,
@@ -3486,14 +3498,13 @@ TEST_F(ParserTest,
           "transition: background-color 1s, transform 2s;", source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(2, property_name_list->value().size());
-  EXPECT_EQ(cssom::kBackgroundColorPropertyName,
-            property_name_list->value()[0]);
-  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[1]);
+  EXPECT_EQ(cssom::kBackgroundColorProperty, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[1]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3510,11 +3521,15 @@ TEST_F(ParserTest,
   ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(2, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  cssom::GetPropertyInitialValue(
+                      cssom::kTransitionTimingFunctionProperty)
+                      .get())
                   ->value()[0]
                   ->Equals(*timing_function_list->value()[0]));
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  cssom::GetPropertyInitialValue(
+                      cssom::kTransitionTimingFunctionProperty)
+                      .get())
                   ->value()[0]
                   ->Equals(*timing_function_list->value()[1]));
 
@@ -3523,12 +3538,16 @@ TEST_F(ParserTest,
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(2, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[1]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[1]);
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
@@ -3542,8 +3561,8 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSemicolon) {
           "transition: 1s voodoo-magic; display: inline;", source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(0, property_name_list->value().size());
@@ -3582,8 +3601,8 @@ TEST_F(ParserTest, ParsesTransitionShorthandWithErrorBeforeSpace) {
                                         source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(0, property_name_list->value().size());
@@ -3620,12 +3639,12 @@ TEST_F(ParserTest,
           "transition: 1s voodoo-magic, transform 2s;", source_location_);
 
   // Test transition-property was set properly.
-  scoped_refptr<cssom::ConstStringListValue> property_name_list =
-      dynamic_cast<cssom::ConstStringListValue*>(
+  scoped_refptr<cssom::PropertyKeyListValue> property_name_list =
+      dynamic_cast<cssom::PropertyKeyListValue*>(
           style->transition_property().get());
   ASSERT_TRUE(property_name_list.get());
   ASSERT_EQ(1, property_name_list->value().size());
-  EXPECT_EQ(cssom::kTransformPropertyName, property_name_list->value()[0]);
+  EXPECT_EQ(cssom::kTransformProperty, property_name_list->value()[0]);
 
   // Test transition-duration was set properly.
   scoped_refptr<cssom::TimeListValue> duration_list =
@@ -3641,7 +3660,9 @@ TEST_F(ParserTest,
   ASSERT_TRUE(timing_function_list.get());
   ASSERT_EQ(1, timing_function_list->value().size());
   EXPECT_TRUE(base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-                  cssom::GetInitialStyle()->transition_timing_function().get())
+                  cssom::GetPropertyInitialValue(
+                      cssom::kTransitionTimingFunctionProperty)
+                      .get())
                   ->value()[0]
                   ->Equals(*timing_function_list->value()[0]));
 
@@ -3650,9 +3671,11 @@ TEST_F(ParserTest,
       dynamic_cast<cssom::TimeListValue*>(style->transition_delay().get());
   ASSERT_TRUE(delay_list.get());
   ASSERT_EQ(1, delay_list->value().size());
-  EXPECT_EQ(base::polymorphic_downcast<const cssom::TimeListValue*>(
-                cssom::GetInitialStyle()->transition_delay().get())->value()[0],
-            delay_list->value()[0]);
+  EXPECT_EQ(
+      base::polymorphic_downcast<const cssom::TimeListValue*>(
+          cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty).get())
+          ->value()[0],
+      delay_list->value()[0]);
 }
 
 TEST_F(ParserTest, ParsesTransitionShorthandWithNoneIsValid) {

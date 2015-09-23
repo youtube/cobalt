@@ -27,6 +27,7 @@
         'css_font_face_rule_test.cc',
         'css_font_face_declaration_data_test.cc',
         'css_grouping_rule_test.cc',
+        'css_property_definitions_test.cc',
         'css_rule_list_test.cc',
         'css_rule_visitor_test.cc',
         'css_style_declaration_data_test.cc',

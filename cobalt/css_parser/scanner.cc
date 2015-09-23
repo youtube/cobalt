@@ -23,11 +23,11 @@
 #include "cobalt/css_parser/grammar.h"
 #include "cobalt/css_parser/string_pool.h"
 #include "cobalt/cssom/character_classification.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/keyword_names.h"
-#include "cobalt/cssom/media_type_names.h"
-#include "cobalt/cssom/media_feature_names.h"
 #include "cobalt/cssom/media_feature_keyword_value_names.h"
-#include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/media_feature_names.h"
+#include "cobalt/cssom/media_type_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
 #include "third_party/icu/public/common/unicode/unistr.h"
@@ -1141,194 +1141,235 @@ UChar32 Scanner::ScanEscape() {
 bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
                                       Token* property_name_token) const {
   DCHECK_GT(name.size(), 0U);
-
   switch (name.size()) {
     case 3:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kAllPropertyName)) {
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::GetPropertyName(cssom::kAllProperty))) {
         *property_name_token = kAllToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kSrcPropertyName)) {
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::GetPropertyName(cssom::kSrcProperty))) {
         *property_name_token = kSrcToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTopPropertyName)) {
+      if (IsEqualToCssIdentifier(name.begin,
+                                 cssom::GetPropertyName(cssom::kTopProperty))) {
         *property_name_token = kTopToken;
         return true;
       }
       return false;
 
     case 4:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kLeftPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kLeftProperty))) {
         *property_name_token = kLeftToken;
         return true;
       }
       return false;
 
     case 5:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kColorPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kColorProperty))) {
         *property_name_token = kColorToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kRightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kRightProperty))) {
         *property_name_token = kRightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kWidthPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kWidthProperty))) {
         *property_name_token = kWidthToken;
         return true;
       }
       return false;
 
     case 6:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kBottomPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kBottomProperty))) {
         *property_name_token = kBottomToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kHeightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kHeightProperty))) {
         *property_name_token = kHeightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMarginProperty))) {
         *property_name_token = kMarginToken;
         return true;
       }
       return false;
 
     case 7:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kContentPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kContentProperty))) {
         *property_name_token = kContentToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kDisplayPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kDisplayProperty))) {
         *property_name_token = kDisplayToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kOpacityPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kOpacityProperty))) {
         *property_name_token = kOpacityToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kPaddingProperty))) {
         *property_name_token = kPaddingToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kZIndexPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kZIndexProperty))) {
         *property_name_token = kZIndexToken;
         return true;
       }
       return false;
 
     case 8:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kOverflowPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kOverflowProperty))) {
         *property_name_token = kOverflowToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kPositionPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kPositionProperty))) {
         *property_name_token = kPositionToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTabSizePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTabSizeProperty))) {
         *property_name_token = kTabSizeToken;
         return true;
       }
       return false;
 
     case 9:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kFontSizePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontSizeProperty))) {
         *property_name_token = kFontSizeToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMaxWidthPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMaxWidthProperty))) {
         *property_name_token = kMaxWidthToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMinWidthPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMinWidthProperty))) {
         *property_name_token = kMinWidthToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTransformPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTransformProperty))) {
         *property_name_token = kTransformToken;
         return true;
       }
       // NOTE: word-wrap is treated as an alias for overflow-wrap
-      if (IsEqualToCssIdentifier(name.begin, cssom::kWordWrapPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kWordWrapProperty))) {
         *property_name_token = kOverflowWrapToken;
         return true;
       }
       return false;
 
     case 10:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kFontStylePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontStyleProperty))) {
         *property_name_token = kFontStyleToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kBackgroundPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kBackgroundProperty))) {
         *property_name_token = kBackgroundToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginTopPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMarginTopProperty))) {
         *property_name_token = kMarginTopToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMaxHeightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMaxHeightProperty))) {
         *property_name_token = kMaxHeightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMinHeightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMinHeightProperty))) {
         *property_name_token = kMinHeightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTextAlignPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTextAlignProperty))) {
         *property_name_token = kTextAlignToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTransitionPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTransitionProperty))) {
         *property_name_token = kTransitionToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kVisibilityPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kVisibilityProperty))) {
         *property_name_token = kVisibilityToken;
         return true;
       }
       return false;
 
     case 11:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kFontFamilyPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontFamilyProperty))) {
         *property_name_token = kFontFamilyToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kFontWeightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kFontWeightProperty))) {
         *property_name_token = kFontWeightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kLineHeightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kLineHeightProperty))) {
         *property_name_token = kLineHeightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginLeftPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kMarginLeftProperty))) {
         *property_name_token = kMarginLeftToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingTopPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kPaddingTopProperty))) {
         *property_name_token = kPaddingTopToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kTextIndentPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kTextIndentProperty))) {
         *property_name_token = kTextIndentToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kWhiteSpacePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kWhiteSpaceProperty))) {
         *property_name_token = kWhiteSpacePropertyToken;
         return true;
       }
       return false;
 
     case 12:
-      if (IsEqualToCssIdentifier(name.begin, cssom::kMarginRightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kMarginRightProperty))) {
         *property_name_token = kMarginRightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin, cssom::kPaddingLeftPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kPaddingLeftProperty))) {
         *property_name_token = kPaddingLeftToken;
         return true;
       }
@@ -1336,74 +1377,87 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 13:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kBorderRadiusPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderRadiusProperty))) {
         *property_name_token = kBorderRadiusToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kMarginBottomPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kMarginBottomProperty))) {
         *property_name_token = kMarginBottomToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kOverflowWrapPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kOverflowWrapProperty))) {
         *property_name_token = kOverflowWrapToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kPaddingRightPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kPaddingRightProperty))) {
         *property_name_token = kPaddingRightToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kTextOverflowPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kTextOverflowProperty))) {
         *property_name_token = kTextOverflowToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kUnicodeRangePropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kUnicodeRangeProperty))) {
         *property_name_token = kUnicodeRangePropertyToken;
         return true;
       }
       return false;
 
     case 14:
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kPaddingBottomPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kPaddingBottomProperty))) {
         *property_name_token = kPaddingBottomToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kTextTransformPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kTextTransformProperty))) {
         *property_name_token = kTextTransformToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kVerticalAlignPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kVerticalAlignProperty))) {
         *property_name_token = kVerticalAlignToken;
         return true;
       }
 
     case 15:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kBackgroundSizePropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kBackgroundSizeProperty))) {
         *property_name_token = kBackgroundSizeToken;
         return true;
       }
 
     case 16:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kBackgroundColorPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kBackgroundColorProperty))) {
         *property_name_token = kBackgroundColorToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kBackgroundImagePropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kBackgroundImageProperty))) {
         *property_name_token = kBackgroundImageToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kTransitionDelayPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kTransitionDelayProperty))) {
         *property_name_token = kTransitionDelayToken;
         return true;
       }
@@ -1414,8 +1468,9 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kTransformToken;
         return true;
       }
-      if (IsEqualToCssIdentifier(name.begin,
-                                 cssom::kBackgroundRepeatPropertyName)) {
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBackgroundRepeatProperty))) {
         *property_name_token = kBackgroundRepeatToken;
         return true;
       }
@@ -1431,17 +1486,20 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 19:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kBackgroundPositionPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kBackgroundPositionProperty))) {
         *property_name_token = kBackgroundPositionToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kTransitionDurationPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kTransitionDurationProperty))) {
         *property_name_token = kTransitionDurationToken;
         return true;
       }
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kTransitionPropertyPropertyName)) {
+              name.begin,
+              cssom::GetPropertyName(cssom::kTransitionPropertyProperty))) {
         *property_name_token = kTransitionPropertyToken;
         return true;
       }
@@ -1449,7 +1507,8 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
 
     case 26:
       if (IsEqualToCssIdentifier(
-              name.begin, cssom::kTransitionTimingFunctionPropertyName)) {
+              name.begin, cssom::GetPropertyName(
+                              cssom::kTransitionTimingFunctionProperty))) {
         *property_name_token = kTransitionTimingFunctionToken;
         return true;
       }
