@@ -22,9 +22,9 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/cssom/css_declaration_util.h"
 #include "cobalt/cssom/css_parser.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/style_sheet_list.h"
 
 namespace cobalt {
@@ -58,14 +58,16 @@ CSSFontFaceRule::CSSFontFaceRule(
 
 std::string CSSFontFaceRule::css_text() const {
   std::string css_text;
-  AppendPropertyDeclaration(kFontFamilyPropertyName, data_->family(),
+  AppendPropertyDeclaration(GetPropertyName(kFontFamilyProperty),
+                            data_->family(), &css_text);
+  AppendPropertyDeclaration(GetPropertyName(kSrcProperty), data_->src(),
                             &css_text);
-  AppendPropertyDeclaration(kSrcPropertyName, data_->src(), &css_text);
-  AppendPropertyDeclaration(kFontStylePropertyName, data_->style(), &css_text);
-  AppendPropertyDeclaration(kFontWeightPropertyName, data_->weight(),
+  AppendPropertyDeclaration(GetPropertyName(kFontStyleProperty), data_->style(),
                             &css_text);
-  AppendPropertyDeclaration(kUnicodeRangePropertyName, data_->unicode_range(),
-                            &css_text);
+  AppendPropertyDeclaration(GetPropertyName(kFontWeightProperty),
+                            data_->weight(), &css_text);
+  AppendPropertyDeclaration(GetPropertyName(kUnicodeRangeProperty),
+                            data_->unicode_range(), &css_text);
 
   return css_text;
 }
@@ -87,7 +89,7 @@ std::string CSSFontFaceRule::family() const {
 }
 
 void CSSFontFaceRule::set_family(const std::string& family) {
-  SetPropertyValue(kFontFamilyPropertyName, family);
+  SetPropertyValue(GetPropertyName(kFontFamilyProperty), family);
 }
 
 std::string CSSFontFaceRule::src() const {
@@ -95,7 +97,7 @@ std::string CSSFontFaceRule::src() const {
 }
 
 void CSSFontFaceRule::set_src(const std::string& src) {
-  SetPropertyValue(kSrcPropertyName, src);
+  SetPropertyValue(GetPropertyName(kSrcProperty), src);
 }
 
 std::string CSSFontFaceRule::style() const {
@@ -103,7 +105,7 @@ std::string CSSFontFaceRule::style() const {
 }
 
 void CSSFontFaceRule::set_style(const std::string& style) {
-  SetPropertyValue(kFontStylePropertyName, style);
+  SetPropertyValue(GetPropertyName(kFontStyleProperty), style);
 }
 
 std::string CSSFontFaceRule::weight() const {
@@ -111,7 +113,7 @@ std::string CSSFontFaceRule::weight() const {
 }
 
 void CSSFontFaceRule::set_weight(const std::string& weight) {
-  SetPropertyValue(kFontWeightPropertyName, weight);
+  SetPropertyValue(GetPropertyName(kFontWeightProperty), weight);
 }
 
 std::string CSSFontFaceRule::unicode_range() const {
@@ -119,7 +121,7 @@ std::string CSSFontFaceRule::unicode_range() const {
 }
 
 void CSSFontFaceRule::set_unicode_range(const std::string& unicode_range) {
-  SetPropertyValue(kUnicodeRangePropertyName, unicode_range);
+  SetPropertyValue(GetPropertyName(kUnicodeRangeProperty), unicode_range);
 }
 
 void CSSFontFaceRule::Accept(CSSRuleVisitor* visitor) {

@@ -35,6 +35,7 @@ class LocalSrcValue;
 class MediaFeatureKeywordValue;
 class NumberValue;
 class PercentageValue;
+class PropertyKeyListValue;
 class PropertyListValue;
 class PropertyValue;
 class RatioValue;
@@ -69,6 +70,8 @@ class PropertyValueVisitor {
       MediaFeatureKeywordValue* media_feature_keyword_value) = 0;
   virtual void VisitNumber(NumberValue* number_value) = 0;
   virtual void VisitPercentage(PercentageValue* percentage_value) = 0;
+  virtual void VisitPropertyKeyList(
+      PropertyKeyListValue* property_key_list_value) = 0;
   virtual void VisitPropertyList(PropertyListValue* property_list_value) = 0;
   virtual void VisitRatio(RatioValue* ratio_value) = 0;
   virtual void VisitResolution(ResolutionValue* resolution_value) = 0;
@@ -107,6 +110,8 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
       MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* percentage_value) OVERRIDE;
+  void VisitPropertyKeyList(
+      PropertyKeyListValue* property_key_list_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitRatio(RatioValue* ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* resolution_value) OVERRIDE;

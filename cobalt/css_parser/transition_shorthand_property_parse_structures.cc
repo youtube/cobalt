@@ -15,6 +15,7 @@
  */
 
 #include "cobalt/css_parser/transition_shorthand_property_parse_structures.h"
+
 #include "cobalt/cssom/css_style_declaration_data.h"
 
 namespace cobalt {
@@ -27,25 +28,33 @@ namespace {
 // and right here what we really need are those single objects.  These wrapper
 // functions extract the single element out of the initial list values for
 // each different optional transition property.
-const char* GetInitialProperty() {
-  return base::polymorphic_downcast<const cssom::ConstStringListValue*>(
-             cssom::GetInitialStyle()->transition_property().get())->value()[0];
+cssom::PropertyKey GetInitialProperty() {
+  return base::polymorphic_downcast<const cssom::PropertyKeyListValue*>(
+             cssom::GetPropertyInitialValue(cssom::kTransitionPropertyProperty)
+                 .get())
+      ->value()[0];
 }
 
 base::TimeDelta GetInitialDuration() {
   return base::polymorphic_downcast<const cssom::TimeListValue*>(
-             cssom::GetInitialStyle()->transition_duration().get())->value()[0];
+             cssom::GetPropertyInitialValue(cssom::kTransitionDurationProperty)
+                 .get())
+      ->value()[0];
 }
 
 scoped_refptr<cssom::TimingFunction> GetInitialTimingFunction() {
   return base::polymorphic_downcast<const cssom::TimingFunctionListValue*>(
-             cssom::GetInitialStyle()->transition_timing_function().get())
+             cssom::GetPropertyInitialValue(
+                 cssom::kTransitionTimingFunctionProperty)
+                 .get())
       ->value()[0];
 }
 
 base::TimeDelta GetInitialDelay() {
   return base::polymorphic_downcast<const cssom::TimeListValue*>(
-             cssom::GetInitialStyle()->transition_delay().get())->value()[0];
+             cssom::GetPropertyInitialValue(cssom::kTransitionDelayProperty)
+                 .get())
+      ->value()[0];
 }
 
 }  // namespace

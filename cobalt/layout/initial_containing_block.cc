@@ -18,13 +18,12 @@
 
 #include "base/debug/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
-#include "cobalt/cssom/initial_style.h"
+#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
 #include "cobalt/cssom/specified_style.h"
-#include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_html_element.h"
@@ -53,11 +52,9 @@ CreateInitialContainingBlockComputedStyle(
   // For the root element, which has no parent element, the inherited value is
   // the initial value of the property.
   //   http://www.w3.org/TR/css-cascade-3/#inheriting
-  scoped_refptr<const cssom::CSSStyleDeclarationData> initial_style =
-      cssom::GetInitialStyle();
-  PromoteToSpecifiedStyle(initial_containing_block_computed_style,
-                          initial_style);
-  PromoteToComputedStyle(initial_containing_block_computed_style, initial_style,
+  scoped_refptr<const cssom::CSSStyleDeclarationData> root_style =
+      new cssom::CSSStyleDeclarationData();
+  PromoteToComputedStyle(initial_containing_block_computed_style, root_style,
                          NULL);
 
   return initial_containing_block_computed_style;

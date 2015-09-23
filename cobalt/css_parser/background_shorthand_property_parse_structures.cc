@@ -16,33 +16,8 @@
 
 #include "cobalt/css_parser/background_shorthand_property_parse_structures.h"
 
-#include "cobalt/cssom/css_style_declaration_data.h"
-#include "cobalt/cssom/initial_style.h"
-
 namespace cobalt {
 namespace css_parser {
-
-void BackgroundShorthandLayer::ReplaceNullWithInitialValues() {
-  if (!background_color) {
-    background_color = cssom::GetInitialStyle()->background_color();
-  }
-
-  if (!background_image) {
-    background_image = cssom::GetInitialStyle()->background_image();
-  }
-
-  if (!background_position) {
-    background_position = cssom::GetInitialStyle()->background_position();
-  }
-
-  if (!background_repeat) {
-    background_repeat = cssom::GetInitialStyle()->background_repeat();
-  }
-
-  if (!background_size) {
-    background_size = cssom::GetInitialStyle()->background_size();
-  }
-}
 
 bool BackgroundShorthandLayer::IsBackgroundPropertyOverlapped(
     const BackgroundShorthandLayer& that) const {

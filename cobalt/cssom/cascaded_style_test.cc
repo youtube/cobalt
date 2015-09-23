@@ -30,7 +30,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
   scoped_ptr<css_parser::Parser> css_parser = css_parser::Parser::Create();
   scoped_refptr<CSSStyleDeclarationData> style = new CSSStyleDeclarationData();
   RulesWithCascadePriority rules_with_cascade_priority;
-  cssom::GURLMap property_name_to_base_url_map;
+  cssom::GURLMap property_key_to_base_url_map;
 
   scoped_refptr<CSSStyleRule> css_style_rule_1 =
       css_parser->ParseRule(
@@ -75,7 +75,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyle) {
       std::make_pair(css_style_rule_3, cascade_priority_3));
 
   PromoteToCascadedStyle(style, &rules_with_cascade_priority,
-                         &property_name_to_base_url_map);
+                         &property_key_to_base_url_map);
 
   EXPECT_EQ(style->left(), css_style_rule_1->style()->data()->left());
   EXPECT_EQ(style->right(), css_style_rule_2->style()->data()->right());
