@@ -20,6 +20,7 @@
 #include "cobalt/script/wrappable.h"
 
 #include "base/time.h"
+#include "cobalt/base/clock.h"
 
 namespace cobalt {
 namespace dom {
@@ -28,7 +29,7 @@ namespace dom {
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-navigation-timing-interface
 class PerformanceTiming : public script::Wrappable {
  public:
-  PerformanceTiming();
+  explicit PerformanceTiming(const scoped_refptr<base::Clock>& clock);
 
   // This attribute must return the time immediately after the user agent
   // finishes prompting to unload the previous document. If there is no previous
@@ -38,17 +39,17 @@ class PerformanceTiming : public script::Wrappable {
 
   // Custom, not in any spec.
 
-  // The *_time() methods return the underlying base::Time structure from
-  // which the integer millisecond times are returned.  Thus, more accurate
-  // timing results can be obtained from these numbers.
-  const base::Time& navigation_start_time() const;
+  // Returns a clock that is relative to the navigation start time, and based
+  // off of the clock passed into Performance (the one that navigation start
+  // time was derived from).
+  scoped_refptr<base::OffsetClock> GetNavigationStartClock();
 
   DEFINE_WRAPPABLE_TYPE(PerformanceTiming);
 
  private:
   ~PerformanceTiming();
 
-  base::Time navigation_start_;
+  scoped_refptr<base::OffsetClock> navigation_start_clock_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceTiming);
 };

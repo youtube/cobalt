@@ -186,10 +186,10 @@ class Window : public EventTarget {
   int height_;
 
   scoped_ptr<HTMLElementContext> html_element_context_;
+  scoped_refptr<Performance> performance_;
   scoped_refptr<Document> document_;
   scoped_ptr<loader::Loader> document_loader_;
   scoped_refptr<Navigator> navigator_;
-  scoped_refptr<Performance> performance_;
   scoped_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Console> console_;
   scoped_ptr<WindowTimers> window_timers_;

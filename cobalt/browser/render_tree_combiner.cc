@@ -33,50 +33,52 @@ void RenderTreeCombiner::SetDebugConsoleMode(
 }
 
 void RenderTreeCombiner::UpdateMainRenderTree(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
-  main_render_tree_ = render_tree;
-  main_animations_map_ = node_animations_map;
+    const renderer::Pipeline::Submission& render_tree_submission) {
+  main_render_tree_ = render_tree_submission;
+  main_render_tree_receipt_time_ = base::TimeTicks::HighResNow();
   SubmitToRenderer();
 }
 
 void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const scoped_refptr<render_tree::Node>& render_tree,
-    const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
-  debug_console_render_tree_ = render_tree;
-  debug_console_animations_map_ = node_animations_map;
+    const renderer::Pipeline::Submission& render_tree_submission) {
+  debug_console_render_tree_ = render_tree_submission;
   SubmitToRenderer();
 }
 
 void RenderTreeCombiner::SubmitToRenderer() {
   switch (debug_console_mode_) {
     case DebugConsole::kDebugConsoleOn:
-      if (main_render_tree_.get() && debug_console_render_tree_.get()) {
+      if (main_render_tree_ && debug_console_render_tree_) {
         render_tree::CompositionNode::Builder builder;
-        builder.AddChild(main_render_tree_, math::Matrix3F::Identity());
-        builder.AddChild(debug_console_render_tree_,
+        builder.AddChild(main_render_tree_->render_tree,
+                         math::Matrix3F::Identity());
+        builder.AddChild(debug_console_render_tree_->render_tree,
                          math::Matrix3F::Identity());
         scoped_refptr<render_tree::Node> combined_tree =
             new render_tree::CompositionNode(builder);
-        renderer_pipeline_->Submit(combined_tree, main_animations_map_,
-                                   base::Time::Now() - base::Time::UnixEpoch());
+
+        // Setup time to be based off of the main submitted tree only.
+        // TODO(***REMOVED***): Setup a "layers" interface on the Pipeline so that
+        // trees can be combined and animated there, properly.
+        renderer::Pipeline::Submission combined_submission(*main_render_tree_);
+        combined_submission.render_tree = combined_tree;
+        combined_submission.time_offset =
+            main_render_tree_->time_offset +
+            (base::TimeTicks::HighResNow() - *main_render_tree_receipt_time_);
+
+        renderer_pipeline_->Submit(combined_submission);
       }
       break;
     case DebugConsole::kDebugConsoleOnly:
-      if (debug_console_render_tree_.get()) {
-        renderer_pipeline_->Submit(debug_console_render_tree_,
-                                   debug_console_animations_map_,
-                                   base::Time::Now() - base::Time::UnixEpoch());
+      if (debug_console_render_tree_) {
+        renderer_pipeline_->Submit(*debug_console_render_tree_);
       }
       break;
     case DebugConsole::kDebugConsoleHide:
     case DebugConsole::kDebugConsoleOff:
     default:
-      if (main_render_tree_.get()) {
-        renderer_pipeline_->Submit(main_render_tree_, main_animations_map_,
-                                   base::Time::Now() - base::Time::UnixEpoch());
+      if (main_render_tree_) {
+        renderer_pipeline_->Submit(*main_render_tree_);
       }
   }
 }
