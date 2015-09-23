@@ -26,8 +26,6 @@ namespace css_parser {
 // This helps parsing and verifying syntax of background shorthand property
 // values.
 struct BackgroundShorthandLayer {
-  void ReplaceNullWithInitialValues();
-
   bool IsBackgroundPropertyOverlapped(
       const BackgroundShorthandLayer& that) const;
   void IntegrateNonOverlapped(const BackgroundShorthandLayer& that);

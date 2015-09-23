@@ -16,8 +16,11 @@
 
 #include "cobalt/cssom/cascaded_style.h"
 
+#include <vector>
+
+#include "base/optional.h"
 #include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/property_names.h"
+#include "cobalt/cssom/css_style_declaration_data.h"
 #include "cobalt/cssom/css_style_sheet.h"
 
 namespace cobalt {
@@ -25,65 +28,22 @@ namespace cssom {
 
 void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
                             RulesWithCascadePriority* matching_rules,
-                            GURLMap* property_name_to_base_url_map) {
-  const CascadePriority kPrecedenceNotSet(kNormalUserAgent);
-  const CascadePriority kPrecedenceImportantMin(kImportantAuthor);
+                            GURLMap* property_key_to_base_url_map) {
+  // A sparce vector of CascadePriority values for all possible property values.
+  base::optional<CascadePriority>
+      cascade_precedences[static_cast<size_t>(kMaxLonghandPropertyKey + 1)];
 
-#define DEFINE_PROPERTY_PRECEDENCE(NAME) \
-  CascadePriority NAME##_precedence =    \
-      style->NAME() ? kPrecedenceImportantMin : kPrecedenceNotSet;
-
-  DEFINE_PROPERTY_PRECEDENCE(background_color)
-  DEFINE_PROPERTY_PRECEDENCE(background_image)
-  DEFINE_PROPERTY_PRECEDENCE(background_position)
-  DEFINE_PROPERTY_PRECEDENCE(background_repeat)
-  DEFINE_PROPERTY_PRECEDENCE(background_size)
-  DEFINE_PROPERTY_PRECEDENCE(border_radius)
-  DEFINE_PROPERTY_PRECEDENCE(bottom)
-  DEFINE_PROPERTY_PRECEDENCE(color)
-  DEFINE_PROPERTY_PRECEDENCE(content)
-  DEFINE_PROPERTY_PRECEDENCE(display)
-  DEFINE_PROPERTY_PRECEDENCE(font_family)
-  DEFINE_PROPERTY_PRECEDENCE(font_size)
-  DEFINE_PROPERTY_PRECEDENCE(font_style)
-  DEFINE_PROPERTY_PRECEDENCE(font_weight)
-  DEFINE_PROPERTY_PRECEDENCE(height)
-  DEFINE_PROPERTY_PRECEDENCE(left)
-  DEFINE_PROPERTY_PRECEDENCE(line_height)
-  DEFINE_PROPERTY_PRECEDENCE(margin_bottom)
-  DEFINE_PROPERTY_PRECEDENCE(margin_left)
-  DEFINE_PROPERTY_PRECEDENCE(margin_right)
-  DEFINE_PROPERTY_PRECEDENCE(margin_top)
-  DEFINE_PROPERTY_PRECEDENCE(max_height)
-  DEFINE_PROPERTY_PRECEDENCE(max_width)
-  DEFINE_PROPERTY_PRECEDENCE(min_height)
-  DEFINE_PROPERTY_PRECEDENCE(min_width)
-  DEFINE_PROPERTY_PRECEDENCE(opacity)
-  DEFINE_PROPERTY_PRECEDENCE(overflow)
-  DEFINE_PROPERTY_PRECEDENCE(overflow_wrap)
-  DEFINE_PROPERTY_PRECEDENCE(padding_bottom)
-  DEFINE_PROPERTY_PRECEDENCE(padding_left)
-  DEFINE_PROPERTY_PRECEDENCE(padding_right)
-  DEFINE_PROPERTY_PRECEDENCE(padding_top)
-  DEFINE_PROPERTY_PRECEDENCE(position)
-  DEFINE_PROPERTY_PRECEDENCE(right)
-  DEFINE_PROPERTY_PRECEDENCE(tab_size)
-  DEFINE_PROPERTY_PRECEDENCE(text_align)
-  DEFINE_PROPERTY_PRECEDENCE(text_indent)
-  DEFINE_PROPERTY_PRECEDENCE(text_overflow)
-  DEFINE_PROPERTY_PRECEDENCE(text_transform)
-  DEFINE_PROPERTY_PRECEDENCE(top)
-  DEFINE_PROPERTY_PRECEDENCE(transform)
-  DEFINE_PROPERTY_PRECEDENCE(transition_delay)
-  DEFINE_PROPERTY_PRECEDENCE(transition_duration)
-  DEFINE_PROPERTY_PRECEDENCE(transition_property)
-  DEFINE_PROPERTY_PRECEDENCE(transition_timing_function)
-  DEFINE_PROPERTY_PRECEDENCE(vertical_align)
-  DEFINE_PROPERTY_PRECEDENCE(visibility)
-  DEFINE_PROPERTY_PRECEDENCE(white_space)
-  DEFINE_PROPERTY_PRECEDENCE(width)
-  DEFINE_PROPERTY_PRECEDENCE(z_index)
-#undef DEFINE_PROPERTY_PRECEDENCE
+  for (CSSStyleDeclarationData::PropertyValueConstIterator
+           inline_property_value_iterator =
+               style->BeginPropertyValueConstIterator();
+       !inline_property_value_iterator.Done();
+       inline_property_value_iterator.Next()) {
+    PropertyKey key = inline_property_value_iterator.Key();
+    DCHECK_GT(key, kNoneProperty);
+    DCHECK_LE(key, kMaxLonghandPropertyKey);
+    // TODO(***REMOVED***): Verify if we correcly handle '!important' inline styles.
+    cascade_precedences[key] = CascadePriority(kImportantMin);
+  }
 
   for (RulesWithCascadePriority::const_iterator rule_iterator =
            matching_rules->begin();
@@ -95,87 +55,30 @@ void PromoteToCascadedStyle(const scoped_refptr<CSSStyleDeclarationData>& style,
     CascadePriority precedence_important = rule_iterator->second;
     precedence_important.SetImportant();
 
-    // TODO(***REMOVED***): Iterate only over non-null properties in the rule.
+    for (CSSStyleDeclarationData::PropertyValueConstIterator
+             property_value_iterator =
+                 declared_style->BeginPropertyValueConstIterator();
+         !property_value_iterator.Done(); property_value_iterator.Next()) {
+      PropertyKey key = property_value_iterator.Key();
+      DCHECK_GT(key, kNoneProperty);
+      DCHECK_LE(key, kMaxLonghandPropertyKey);
 
-#define UPDATE_PROPERTY(NAME, DASHED_NAME)               \
-  if (declared_style->NAME()) {                          \
-    CascadePriority* precedence =                        \
-        declared_style->IsPropertyImportant(DASHED_NAME) \
-            ? &precedence_important                      \
-            : &precedence_normal;                        \
-    if (NAME##_precedence < *precedence) {               \
-      NAME##_precedence = *precedence;                   \
-      style->set_##NAME(declared_style->NAME());         \
-    }                                                    \
-  }
-
-    UPDATE_PROPERTY(background_color, kBackgroundColorPropertyName)
-
-    if (declared_style->background_image()) {
       CascadePriority* precedence =
-          declared_style->IsPropertyImportant(kBackgroundImagePropertyName)
+          declared_style->IsDeclaredPropertyImportant(key)
               ? &precedence_important
               : &precedence_normal;
-      if (background_image_precedence < *precedence) {
-        background_image_precedence = *precedence;
-        style->set_background_image(declared_style->background_image());
+      if (!(cascade_precedences[key]) ||
+          *(cascade_precedences[key]) < *precedence) {
+        cascade_precedences[key] = *precedence;
+        style->SetPropertyValueByKey(key, property_value_iterator.ConstValue());
 
-        DCHECK(property_name_to_base_url_map);
-        (*property_name_to_base_url_map)[kBackgroundImagePropertyName] =
-            rule_iterator->first->parent_style_sheet()->LocationUrl();
+        if (kBackgroundImageProperty == key) {
+          DCHECK(property_key_to_base_url_map);
+          (*property_key_to_base_url_map)[kBackgroundImageProperty] =
+              rule_iterator->first->parent_style_sheet()->LocationUrl();
+        }
       }
     }
-
-    UPDATE_PROPERTY(background_position, kBackgroundPositionPropertyName)
-    UPDATE_PROPERTY(background_repeat, kBackgroundRepeatPropertyName)
-    UPDATE_PROPERTY(background_size, kBackgroundSizePropertyName)
-    UPDATE_PROPERTY(border_radius, kBorderRadiusPropertyName)
-    UPDATE_PROPERTY(bottom, kBottomPropertyName)
-    UPDATE_PROPERTY(color, kColorPropertyName)
-    UPDATE_PROPERTY(content, kContentPropertyName)
-    UPDATE_PROPERTY(display, kDisplayPropertyName)
-    UPDATE_PROPERTY(font_family, kFontFamilyPropertyName)
-    UPDATE_PROPERTY(font_size, kFontSizePropertyName)
-    UPDATE_PROPERTY(font_style, kFontStylePropertyName)
-    UPDATE_PROPERTY(font_weight, kFontWeightPropertyName)
-    UPDATE_PROPERTY(height, kHeightPropertyName)
-    UPDATE_PROPERTY(left, kLeftPropertyName)
-    UPDATE_PROPERTY(line_height, kLineHeightPropertyName)
-    UPDATE_PROPERTY(margin_bottom, kMarginBottomPropertyName)
-    UPDATE_PROPERTY(margin_left, kMarginLeftPropertyName)
-    UPDATE_PROPERTY(margin_right, kMarginRightPropertyName)
-    UPDATE_PROPERTY(margin_top, kMarginTopPropertyName)
-    UPDATE_PROPERTY(max_height, kMaxHeightPropertyName)
-    UPDATE_PROPERTY(max_width, kMaxWidthPropertyName)
-    UPDATE_PROPERTY(min_height, kMinHeightPropertyName)
-    UPDATE_PROPERTY(min_width, kMinWidthPropertyName)
-    UPDATE_PROPERTY(opacity, kOpacityPropertyName)
-    UPDATE_PROPERTY(overflow, kOverflowPropertyName)
-    UPDATE_PROPERTY(overflow_wrap, kOverflowWrapPropertyName)
-    UPDATE_PROPERTY(padding_bottom, kPaddingBottomPropertyName)
-    UPDATE_PROPERTY(padding_left, kPaddingLeftPropertyName)
-    UPDATE_PROPERTY(padding_right, kPaddingRightPropertyName)
-    UPDATE_PROPERTY(padding_top, kPaddingTopPropertyName)
-    UPDATE_PROPERTY(position, kPositionPropertyName)
-    UPDATE_PROPERTY(right, kRightPropertyName)
-    UPDATE_PROPERTY(tab_size, kTabSizePropertyName)
-    UPDATE_PROPERTY(text_align, kTextAlignPropertyName)
-    UPDATE_PROPERTY(text_indent, kTextIndentPropertyName)
-    UPDATE_PROPERTY(text_overflow, kTextOverflowPropertyName)
-    UPDATE_PROPERTY(text_transform, kTextTransformPropertyName)
-    UPDATE_PROPERTY(top, kTopPropertyName)
-    UPDATE_PROPERTY(transform, kTransformPropertyName)
-    UPDATE_PROPERTY(transition_delay, kTransitionDelayPropertyName)
-    UPDATE_PROPERTY(transition_duration, kTransitionDurationPropertyName)
-    UPDATE_PROPERTY(transition_property, kTransitionPropertyPropertyName)
-    UPDATE_PROPERTY(transition_timing_function,
-                    kTransitionTimingFunctionPropertyName)
-    UPDATE_PROPERTY(vertical_align, kVerticalAlignPropertyName)
-    UPDATE_PROPERTY(visibility, kVisibilityPropertyName)
-    UPDATE_PROPERTY(white_space, kWhiteSpacePropertyName)
-    UPDATE_PROPERTY(width, kWidthPropertyName)
-    UPDATE_PROPERTY(z_index, kZIndexPropertyName)
-#undef UPDATE_PROPERTY
   }
 }
 

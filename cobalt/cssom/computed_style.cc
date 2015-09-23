@@ -28,7 +28,6 @@
 #include "cobalt/cssom/matrix_function.h"
 #include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/rotate_function.h"
 #include "cobalt/cssom/scale_function.h"
@@ -1629,172 +1628,229 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
 void PromoteToComputedStyle(
     const scoped_refptr<CSSStyleDeclarationData>& specified_style,
     const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style,
-    GURLMap* const property_name_to_base_url_map) {
+    GURLMap* const property_key_to_base_url_map) {
   DCHECK(specified_style);
   DCHECK(parent_computed_style);
 
+  // An absolutely positioned element (or its box) implies that the element's
+  // 'position' property has the value 'absolute' or 'fixed'.
+  //   http://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
+  const bool element_is_absolutely_positioned =
+      specified_style->position() == KeywordValue::GetAbsolute() ||
+      specified_style->position() == KeywordValue::GetFixed();
   // According to http://www.w3.org/TR/CSS21/visuren.html#dis-pos-flo,
   // "inline" and "inline-block" values of "display" become "block" if
   // "position" is "absolute" or "fixed".
-  if ((specified_style->position() == KeywordValue::GetAbsolute() ||
-       specified_style->position() == KeywordValue::GetFixed()) &&
+  if (element_is_absolutely_positioned &&
       (specified_style->display() == KeywordValue::GetInline() ||
        specified_style->display() == KeywordValue::GetInlineBlock())) {
     specified_style->set_display(KeywordValue::GetBlock());
   }
 
-  ComputedFontWeightProvider font_weight_provider;
-  specified_style->font_weight()->Accept(&font_weight_provider);
-  specified_style->set_font_weight(font_weight_provider.computed_font_weight());
-
+  // The font size is computed first because most other properties depend on
+  // the computed font size value.
   ComputedFontSizeProvider font_size_provider(
       base::polymorphic_downcast<LengthValue*>(
           parent_computed_style->font_size().get()));
   specified_style->font_size()->Accept(&font_size_provider);
-  specified_style->set_font_size(font_size_provider.computed_font_size());
-
-  ComputedHeightProvider height_provider(
-      parent_computed_style->height().get(),
-      font_size_provider.computed_font_size().get(),
-      specified_style->position() == KeywordValue::GetAbsolute() ||
-          specified_style->position() == KeywordValue::GetFixed());
-  specified_style->height()->Accept(&height_provider);
-  specified_style->set_height(height_provider.computed_height());
-
-  ComputedLineHeightProvider line_height_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->line_height()->Accept(&line_height_provider);
-  specified_style->set_line_height(line_height_provider.computed_line_height());
-
-  ComputedMarginOrPaddingEdgeProvider margin_bottom_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->margin_bottom()->Accept(&margin_bottom_provider);
-  specified_style->set_margin_bottom(
-      margin_bottom_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider margin_left_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->margin_left()->Accept(&margin_left_provider);
-  specified_style->set_margin_left(
-      margin_left_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider margin_right_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->margin_right()->Accept(&margin_right_provider);
-  specified_style->set_margin_right(
-      margin_right_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider margin_top_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->margin_top()->Accept(&margin_top_provider);
-  specified_style->set_margin_top(
-      margin_top_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider padding_bottom_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->padding_bottom()->Accept(&padding_bottom_provider);
-  specified_style->set_padding_bottom(
-      padding_bottom_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider padding_left_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->padding_left()->Accept(&padding_left_provider);
-  specified_style->set_padding_left(
-      padding_left_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider padding_right_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->padding_right()->Accept(&padding_right_provider);
-  specified_style->set_padding_right(
-      padding_right_provider.computed_margin_or_padding_edge());
-
-  ComputedMarginOrPaddingEdgeProvider padding_top_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->padding_top()->Accept(&padding_top_provider);
-  specified_style->set_padding_top(
-      padding_top_provider.computed_margin_or_padding_edge());
-
-  ComputedMaxHeightProvider max_height_provider(
-      parent_computed_style->height().get(),
-      font_size_provider.computed_font_size().get(),
-      specified_style->position() == KeywordValue::GetAbsolute());
-  specified_style->max_height()->Accept(&max_height_provider);
-  specified_style->set_max_height(max_height_provider.computed_max_height());
-
-  ComputedMinMaxWidthProvider max_width_provider(
-      parent_computed_style->width().get(),
-      font_size_provider.computed_font_size().get());
-  specified_style->max_width()->Accept(&max_width_provider);
-  specified_style->set_max_width(max_width_provider.computed_min_max_width());
-
-  ComputedMinHeightProvider min_height_provider(
-      parent_computed_style->height().get(),
-      font_size_provider.computed_font_size().get(),
-      specified_style->position() == KeywordValue::GetAbsolute());
-  specified_style->min_height()->Accept(&min_height_provider);
-  specified_style->set_min_height(min_height_provider.computed_min_height());
-
-  ComputedMinMaxWidthProvider min_width_provider(
-      parent_computed_style->width().get(),
-      font_size_provider.computed_font_size().get());
-  specified_style->min_width()->Accept(&min_width_provider);
-  specified_style->set_min_width(min_width_provider.computed_min_max_width());
-
-  ComputedWidthProvider width_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->width()->Accept(&width_provider);
-  specified_style->set_width(width_provider.computed_width());
-
-  if (property_name_to_base_url_map) {
-    ComputedBackgroundImageProvider background_image_provider(
-        (*property_name_to_base_url_map)[kBackgroundImagePropertyName]);
-    specified_style->background_image()->Accept(&background_image_provider);
-    specified_style->set_background_image(
-        background_image_provider.computed_background_image());
+  const scoped_refptr<PropertyValue>& font_size =
+      font_size_provider.computed_font_size();
+  if (font_size) {
+    specified_style->set_font_size(font_size);
   }
 
+  // The background_position property is always computed, even when the value
+  // is not declared because the initial value of '0% 0%' is not a computed
+  // property value.
   ComputedBackgroundPositionProvider background_position_provider(
       font_size_provider.computed_font_size().get());
   specified_style->background_position()->Accept(&background_position_provider);
-  specified_style->set_background_position(
-      background_position_provider.computed_background_position());
+  const scoped_refptr<PropertyValue>& computed_background_position =
+      background_position_provider.computed_background_position();
+  if (computed_background_position) {
+    specified_style->set_background_position(computed_background_position);
+  }
 
-  ComputedBackgroundSizeProvider background_size_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->background_size()->Accept(&background_size_provider);
-  specified_style->set_background_size(
-      background_size_provider.computed_background_size());
-
-  ComputedTransformProvider transform_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->transform()->Accept(&transform_provider);
-  specified_style->set_transform(transform_provider.computed_transform_list());
-
-  ComputedTextIndentProvider text_indent_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->text_indent()->Accept(&text_indent_provider);
-  specified_style->set_text_indent(text_indent_provider.computed_text_indent());
-
-  ComputedPositionOffsetProvider bottom_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->bottom()->Accept(&bottom_provider);
-  specified_style->set_bottom(bottom_provider.computed_position_offset());
-
-  ComputedPositionOffsetProvider left_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->left()->Accept(&left_provider);
-  specified_style->set_left(left_provider.computed_position_offset());
-
-  ComputedPositionOffsetProvider right_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->right()->Accept(&right_provider);
-  specified_style->set_right(right_provider.computed_position_offset());
-
-  ComputedPositionOffsetProvider top_provider(
-      font_size_provider.computed_font_size().get());
-  specified_style->top()->Accept(&top_provider);
-  specified_style->set_top(top_provider.computed_position_offset());
+  for (CSSStyleDeclarationData::PropertyValueIterator property_value_iterator =
+           specified_style->BeginPropertyValueIterator();
+       !property_value_iterator.Done(); property_value_iterator.Next()) {
+    switch (property_value_iterator.Key()) {
+      case kFontWeightProperty: {
+        ComputedFontWeightProvider font_weight_provider;
+        property_value_iterator.Value()->Accept(&font_weight_provider);
+        property_value_iterator.SetValue(
+            font_weight_provider.computed_font_weight());
+        break;
+      }
+      case kHeightProperty: {
+        ComputedHeightProvider height_provider(
+            parent_computed_style->height().get(),
+            font_size_provider.computed_font_size().get(),
+            element_is_absolutely_positioned);
+        property_value_iterator.Value()->Accept(&height_provider);
+        property_value_iterator.SetValue(height_provider.computed_height());
+        break;
+      }
+      case kLineHeightProperty: {
+        ComputedLineHeightProvider line_height_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&line_height_provider);
+        property_value_iterator.SetValue(
+            line_height_provider.computed_line_height());
+        break;
+      }
+      case kMarginBottomProperty:
+      case kMarginLeftProperty:
+      case kMarginRightProperty:
+      case kMarginTopProperty: {
+        ComputedMarginOrPaddingEdgeProvider margin_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&margin_provider);
+        property_value_iterator.SetValue(
+            margin_provider.computed_margin_or_padding_edge());
+        break;
+      }
+      case kPaddingBottomProperty:
+      case kPaddingLeftProperty:
+      case kPaddingRightProperty:
+      case kPaddingTopProperty: {
+        ComputedMarginOrPaddingEdgeProvider padding_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&padding_provider);
+        property_value_iterator.SetValue(
+            padding_provider.computed_margin_or_padding_edge());
+        break;
+      }
+      case kMaxHeightProperty: {
+        scoped_refptr<PropertyValue> property_value =
+            property_value_iterator.Value();
+        ComputedMaxHeightProvider max_height_provider(
+            parent_computed_style->height().get(),
+            font_size_provider.computed_font_size().get(),
+            element_is_absolutely_positioned);
+        property_value->Accept(&max_height_provider);
+        property_value_iterator.SetValue(
+            max_height_provider.computed_max_height());
+        break;
+      }
+      case kMaxWidthProperty:
+      case kMinWidthProperty: {
+        ComputedMinMaxWidthProvider min_max_width_provider(
+            parent_computed_style->width().get(),
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&min_max_width_provider);
+        property_value_iterator.SetValue(
+            min_max_width_provider.computed_min_max_width());
+        break;
+      }
+      case kMinHeightProperty: {
+        scoped_refptr<PropertyValue> property_value =
+            property_value_iterator.Value();
+        ComputedMinHeightProvider min_height_provider(
+            parent_computed_style->height().get(),
+            font_size_provider.computed_font_size().get(),
+            element_is_absolutely_positioned);
+        property_value->Accept(&min_height_provider);
+        property_value_iterator.SetValue(
+            min_height_provider.computed_min_height());
+        break;
+      }
+      case kWidthProperty: {
+        ComputedWidthProvider width_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&width_provider);
+        property_value_iterator.SetValue(width_provider.computed_width());
+        break;
+      }
+      case kBackgroundImageProperty: {
+        if (property_key_to_base_url_map) {
+          ComputedBackgroundImageProvider background_image_provider(
+              (*property_key_to_base_url_map)[kBackgroundImageProperty]);
+          property_value_iterator.Value()->Accept(&background_image_provider);
+          property_value_iterator.SetValue(
+              background_image_provider.computed_background_image());
+        }
+        break;
+      }
+      case kBackgroundSizeProperty: {
+        ComputedBackgroundSizeProvider background_size_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&background_size_provider);
+        property_value_iterator.SetValue(
+            background_size_provider.computed_background_size());
+        break;
+      }
+      case kTransformProperty: {
+        ComputedTransformProvider transform_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&transform_provider);
+        property_value_iterator.SetValue(
+            transform_provider.computed_transform_list());
+        break;
+      }
+      case kTextIndentProperty: {
+        ComputedTextIndentProvider text_indent_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&text_indent_provider);
+        property_value_iterator.SetValue(
+            text_indent_provider.computed_text_indent());
+        break;
+      }
+      case kBottomProperty:
+      case kLeftProperty:
+      case kRightProperty:
+      case kTopProperty: {
+        ComputedPositionOffsetProvider position_offset_provider(
+            font_size_provider.computed_font_size().get());
+        property_value_iterator.Value()->Accept(&position_offset_provider);
+        property_value_iterator.SetValue(
+            position_offset_provider.computed_position_offset());
+        break;
+      }
+      case kFontSizeProperty:
+      case kBackgroundColorProperty:
+      case kBackgroundPositionProperty:
+      case kBackgroundRepeatProperty:
+      case kBorderRadiusProperty:
+      case kColorProperty:
+      case kContentProperty:
+      case kDisplayProperty:
+      case kFontFamilyProperty:
+      case kFontStyleProperty:
+      case kOpacityProperty:
+      case kOverflowProperty:
+      case kOverflowWrapProperty:
+      case kPositionProperty:
+      case kTabSizeProperty:
+      case kTextAlignProperty:
+      case kTextOverflowProperty:
+      case kTextTransformProperty:
+      case kTransitionDelayProperty:
+      case kTransitionDurationProperty:
+      case kTransitionPropertyProperty:
+      case kTransitionTimingFunctionProperty:
+      case kVerticalAlignProperty:
+      case kVisibilityProperty:
+      case kWhiteSpaceProperty:
+      case kZIndexProperty:
+        // Nothing.
+        break;
+      case kNoneProperty:
+      case kAllProperty:
+      case kBackgroundProperty:
+      case kMarginProperty:
+      case kPaddingProperty:
+      case kSrcProperty:
+      case kTransitionProperty:
+      case kUnicodeRangeProperty:
+      case kWordWrapProperty:
+      default:
+        NOTREACHED();
+        break;
+    }
+  }
 }
+
 
 scoped_refptr<CSSStyleDeclarationData> GetComputedStyleOfAnonymousBox(
     const scoped_refptr<const CSSStyleDeclarationData>& parent_computed_style) {

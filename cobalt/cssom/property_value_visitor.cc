@@ -30,6 +30,7 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
@@ -39,8 +40,8 @@
 #include "cobalt/cssom/timing_function_list_value.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/cssom/unicode_range_value.h"
-#include "cobalt/cssom/url_value.h"
 #include "cobalt/cssom/url_src_value.h"
+#include "cobalt/cssom/url_value.h"
 
 namespace cobalt {
 namespace cssom {
@@ -104,6 +105,11 @@ void DefaultingPropertyValueVisitor::VisitNumber(NumberValue* number_value) {
 void DefaultingPropertyValueVisitor::VisitPercentage(
     PercentageValue* percentage_value) {
   VisitDefault(percentage_value);
+}
+
+void DefaultingPropertyValueVisitor::VisitPropertyKeyList(
+    PropertyKeyListValue* property_key_list_value) {
+  VisitDefault(property_key_list_value);
 }
 
 void DefaultingPropertyValueVisitor::VisitPropertyList(

@@ -29,31 +29,16 @@ namespace cssom {
 // internally and it is not exposed to JavaScript.
 class CSSDeclarationData : public base::RefCounted<CSSDeclarationData> {
  public:
-  scoped_refptr<PropertyValue> GetPropertyValue(
-      const std::string& property_name);
-  void SetPropertyValue(const std::string& property_name,
-                        const scoped_refptr<PropertyValue>& property_value);
-
-  // Sets and gets property's importance. Default behaviour is not to record
-  // importance.
-  // Note that the const char* name passed in here should point to one of the
-  // string constants in property_names.h, rather than pointing to a copy of the
-  // string somewhere else, so they they can be property indexed and looked up.
-  virtual bool IsPropertyImportant(const char* property_name) const {
-    UNREFERENCED_PARAMETER(property_name);
-    return false;
-  }
-  virtual void SetPropertyImportant(const char* property_name) {
-    UNREFERENCED_PARAMETER(property_name);
-  }
+  virtual scoped_refptr<const PropertyValue> GetPropertyValue(
+      const std::string& property_name) = 0;
+  virtual void SetPropertyValueAndImportance(
+      const std::string& property_name,
+      const scoped_refptr<PropertyValue>& property_value, bool important) = 0;
 
  protected:
   virtual ~CSSDeclarationData() {}
 
  private:
-  virtual scoped_refptr<PropertyValue>* GetPropertyValueReference(
-      const std::string& property_name) = 0;
-
   friend class base::RefCounted<CSSDeclarationData>;
 };
 

@@ -33,6 +33,19 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
  public:
   CSSFontFaceDeclarationData();
 
+  // From CSSDeclarationData
+  scoped_refptr<const PropertyValue> GetPropertyValue(
+      const std::string& property_name) OVERRIDE;
+  void SetPropertyValueAndImportance(
+      const std::string& property_name,
+      const scoped_refptr<PropertyValue>& property_value,
+      bool important) OVERRIDE {
+    UNREFERENCED_PARAMETER(important);
+    SetPropertyValue(property_name, property_value);
+  }
+
+  // Web API: CSSFontFaceRule
+  //
   const scoped_refptr<PropertyValue>& family() const { return family_; }
   void set_family(const scoped_refptr<PropertyValue>& family) {
     family_ = family;
@@ -56,12 +69,16 @@ class CSSFontFaceDeclarationData : public CSSDeclarationData {
     unicode_range_ = unicode_range;
   }
 
+  // Rest of public methods.
+
+  void SetPropertyValue(const std::string& property_name,
+                        const scoped_refptr<PropertyValue>& property_value);
+
   void AssignFrom(const CSSFontFaceDeclarationData& rhs);
 
  private:
-  // From CSSDeclarationData
   scoped_refptr<PropertyValue>* GetPropertyValueReference(
-      const std::string& property_name) OVERRIDE;
+      const std::string& property_name);
 
   scoped_refptr<PropertyValue> family_;
   scoped_refptr<PropertyValue> src_;

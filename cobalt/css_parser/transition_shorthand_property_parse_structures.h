@@ -18,8 +18,8 @@
 #define CSS_PARSER_TRANSITION_SHORTHAND_PROPERTY_PARSE_STRUCTURES_H_
 
 #include "base/optional.h"
-#include "cobalt/cssom/const_string_list_value.h"
-#include "cobalt/cssom/initial_style.h"
+#include "cobalt/cssom/css_property_definitions.h"
+#include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
 
@@ -36,7 +36,7 @@ struct SingleTransitionShorthand {
 
   void ReplaceNullWithInitialValues();
 
-  base::optional<const char*> property;
+  base::optional<cssom::PropertyKey> property;
   base::optional<base::TimeDelta> duration;
   scoped_refptr<cssom::TimingFunction> timing_function;
   base::optional<base::TimeDelta> delay;
@@ -47,13 +47,13 @@ struct SingleTransitionShorthand {
 // As we are parsing a transition, maintain builders for all of its components.
 struct TransitionShorthandBuilder {
   TransitionShorthandBuilder()
-      : property_list_builder(new cssom::ConstStringListValue::Builder()),
+      : property_list_builder(new cssom::PropertyKeyListValue::Builder()),
         duration_list_builder(new cssom::TimeListValue::Builder()),
         timing_function_list_builder(
             new cssom::TimingFunctionListValue::Builder()),
         delay_list_builder(new cssom::TimeListValue::Builder()) {}
 
-  scoped_ptr<cssom::ConstStringListValue::Builder> property_list_builder;
+  scoped_ptr<cssom::PropertyKeyListValue::Builder> property_list_builder;
   scoped_ptr<cssom::TimeListValue::Builder> duration_list_builder;
   scoped_ptr<cssom::TimingFunctionListValue::Builder>
       timing_function_list_builder;

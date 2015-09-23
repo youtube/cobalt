@@ -55,7 +55,6 @@
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/hover_pseudo_class.h"
 #include "cobalt/cssom/id_selector.h"
-#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_names.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -66,7 +65,6 @@
 #include "cobalt/cssom/not_pseudo_class.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
 #include "cobalt/cssom/ratio_value.h"
@@ -308,7 +306,7 @@ void ParserImpl::ParsePropertyIntoDeclarationData(
 
   // TODO(***REMOVED***): Handle shorthand properties (b/24818917).
   if (input_.empty()) {
-    declaration_data->SetPropertyValue(property_name, NULL);
+    declaration_data->SetPropertyValueAndImportance(property_name, NULL, false);
     return;
   }
 

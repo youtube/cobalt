@@ -210,6 +210,9 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   void RecordMutation();
 
+  void SetPropertyValueStringByKey(PropertyKey key,
+                                   const std::string& property_value);
+
   scoped_refptr<CSSStyleDeclarationData> data_;
 
   base::WeakPtr<CSSRule> parent_rule_;

@@ -24,7 +24,6 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specified_style.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -225,7 +224,7 @@ namespace {
 scoped_refptr<cssom::CSSStyleDeclarationData>
 PromoteMatchingRulesToComputedStyle(
     cssom::RulesWithCascadePriority* matching_rules,
-    cssom::GURLMap* property_name_to_base_url_map,
+    cssom::GURLMap* property_key_to_base_url_map,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>& inline_style,
     const scoped_refptr<const cssom::CSSStyleDeclarationData>&
         parent_computed_style,
@@ -244,7 +243,7 @@ PromoteMatchingRulesToComputedStyle(
   // into account rule specificity and location in the source file, as well as
   // property declaration importance.
   cssom::PromoteToCascadedStyle(computed_style, matching_rules,
-                                property_name_to_base_url_map);
+                                property_key_to_base_url_map);
 
   // Up to this point many properties may lack a value. Perform defaulting
   // in order to ensure that every property has a value. Resolve "initial" and
@@ -258,7 +257,7 @@ PromoteMatchingRulesToComputedStyle(
   // the same as specified value. Declarations that cannot be absolutized
   // easily, like "width: auto;", will be resolved during layout.
   cssom::PromoteToComputedStyle(computed_style, parent_computed_style,
-                                property_name_to_base_url_map);
+                                property_key_to_base_url_map);
 
   if (previous_computed_style) {
     // Now that we have updated our computed style, compare it to the previous
@@ -329,13 +328,13 @@ void HTMLElement::UpdateComputedStyle(
   // TODO(***REMOVED***): It maybe helpful to generalize this mapping framework in the
   // future to allow more data and context about where a cssom::PropertyValue
   // came from.
-  cssom::GURLMap property_name_to_base_url_map;
-  property_name_to_base_url_map[cssom::kBackgroundImagePropertyName] =
+  cssom::GURLMap property_key_to_base_url_map;
+  property_key_to_base_url_map[cssom::kBackgroundImageProperty] =
       document->url_as_gurl();
 
   scoped_refptr<cssom::CSSStyleDeclarationData> new_computed_style =
       PromoteMatchingRulesToComputedStyle(
-          matching_rules(), &property_name_to_base_url_map, style_->data(),
+          matching_rules(), &property_key_to_base_url_map, style_->data(),
           parent_computed_style, style_change_event_time, transitions(),
           computed_style());
 
@@ -361,7 +360,7 @@ void HTMLElement::UpdateComputedStyle(
       scoped_refptr<cssom::CSSStyleDeclarationData>
           pseudo_element_computed_style = PromoteMatchingRulesToComputedStyle(
               pseudo_elements_[pseudo_element_type]->matching_rules(),
-              &property_name_to_base_url_map, style_->data(), computed_style(),
+              &property_key_to_base_url_map, style_->data(), computed_style(),
               style_change_event_time,
               pseudo_elements_[pseudo_element_type]->transitions(),
               pseudo_elements_[pseudo_element_type]->computed_style());

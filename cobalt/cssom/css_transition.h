@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/timing_function.h"
 
 namespace cobalt {
@@ -34,7 +35,7 @@ class PropertyValue;
 //   http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#starting
 class Transition {
  public:
-  Transition(const char* target_property,
+  Transition(PropertyKey target_property,
              const scoped_refptr<PropertyValue>& start_value,
              const scoped_refptr<PropertyValue>& end_value,
              const base::TimeDelta& start_time, const base::TimeDelta& duration,
@@ -43,7 +44,7 @@ class Transition {
              scoped_refptr<PropertyValue> reversing_adjusted_start_value,
              float reversing_shortening_factor);
 
-  const char* target_property() const { return target_property_; }
+  PropertyKey target_property() const { return target_property_; }
   const base::TimeDelta& start_time() const { return start_time_; }
   const base::TimeDelta& duration() const { return duration_; }
   const base::TimeDelta& delay() const { return delay_; }
@@ -81,7 +82,7 @@ class Transition {
   scoped_refptr<PropertyValue> Evaluate(const base::TimeDelta& time) const;
 
  private:
-  const char* target_property_;
+  PropertyKey target_property_;
   scoped_refptr<PropertyValue> start_value_;
   scoped_refptr<PropertyValue> end_value_;
   base::TimeDelta start_time_;

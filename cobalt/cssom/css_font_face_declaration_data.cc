@@ -17,9 +17,9 @@
 #include "cobalt/cssom/css_font_face_declaration_data.h"
 
 #include "base/string_util.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
-#include "cobalt/cssom/property_names.h"
 
 namespace cobalt {
 namespace cssom {
@@ -40,33 +40,58 @@ void CSSFontFaceDeclarationData::AssignFrom(
   set_unicode_range(rhs.unicode_range());
 }
 
+scoped_refptr<const PropertyValue> CSSFontFaceDeclarationData::GetPropertyValue(
+    const std::string& property_name) {
+  scoped_refptr<PropertyValue>* property_value_reference =
+      GetPropertyValueReference(property_name);
+  return property_value_reference ? *property_value_reference : NULL;
+}
+
+void CSSFontFaceDeclarationData::SetPropertyValue(
+    const std::string& property_name,
+    const scoped_refptr<PropertyValue>& property_value) {
+  scoped_refptr<PropertyValue>* property_value_reference =
+      GetPropertyValueReference(property_name);
+  if (property_value_reference) {
+    *property_value_reference = property_value;
+  } else {
+    // 3. If property is not a case-sensitive match for a supported CSS
+    // property, terminate this algorithm.
+    //   http://www.w3.org/TR/2013/WD-cssom-20131205/#dom-cssstyledeclaration-setpropertyvalue
+  }
+}
+
 scoped_refptr<PropertyValue>*
 CSSFontFaceDeclarationData::GetPropertyValueReference(
     const std::string& property_name) {
   switch (property_name.size()) {
     case 3:
-      if (LowerCaseEqualsASCII(property_name, kSrcPropertyName)) {
+      if (LowerCaseEqualsASCII(property_name, GetPropertyName(kSrcProperty))) {
         return &src_;
       }
       return NULL;
 
     case 10:
-      if (LowerCaseEqualsASCII(property_name, kFontStylePropertyName)) {
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFontStyleProperty))) {
         return &style_;
       }
       return NULL;
 
     case 11:
-      if (LowerCaseEqualsASCII(property_name, kFontFamilyPropertyName)) {
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFontFamilyProperty))) {
         return &family_;
       }
-      if (LowerCaseEqualsASCII(property_name, kFontWeightPropertyName)) {
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kFontWeightProperty))) {
         return &weight_;
       }
       return NULL;
 
     case 13:
-      if (LowerCaseEqualsASCII(property_name, kUnicodeRangePropertyName)) {
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kUnicodeRangeProperty))) {
         return &unicode_range_;
       }
       return NULL;
