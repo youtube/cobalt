@@ -26,7 +26,10 @@
         'configuration.h',
         'export.h',
         'memory.h',
+        'mutex.h',
         'system.h',
+        'time.h',
+        'time_zone.h',
       ],
       'dependencies': [
         '<(DEPTH)/starboard/<(target_arch)/starboard_platform.gyp:starboard_platform',
