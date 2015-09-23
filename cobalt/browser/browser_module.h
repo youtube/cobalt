@@ -25,6 +25,7 @@
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
@@ -72,6 +73,9 @@ class BrowserModule {
       base::TimeDelta time_produced);
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Gets the user-specified debug console mode from the command-line.
+  static int GetDebugConsoleModeFromCommandLine();
+
   // Glue function to deal with the production of an input event from the
   // input device, and manage handing it off to the web module for
   // interpretation.
@@ -79,6 +83,16 @@ class BrowserModule {
 
   // Error callback for any error that stops the program.
   void OnError(const std::string& error) { LOG(ERROR) << error; }
+
+  // Filters a key event.
+  // Returns true if the event should be passed on to other handlers,
+  // false if it was consumed within this function.
+  bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
+
+  // Filters a key event for hotkeys.
+  // Returns true if the event should be passed on to other handlers,
+  // false if it was consumed within this function.
+  bool FilterKeyEventForHotkeys(const scoped_refptr<dom::KeyboardEvent>& event);
 
   // The main system window for our browser.
   // This routes event callbacks, and provides a native window handle

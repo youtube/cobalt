@@ -16,18 +16,18 @@
 
 #include "cobalt/system_window/win/system_window.h"
 
-#include "base/bind.h"
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/threading/thread_local.h"
-#include "cobalt/dom/event_names.h"
-
 #include <csignal>
 
 #if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+
+#include "base/bind.h"
+#include "base/lazy_instance.h"
+#include "base/logging.h"
+#include "base/threading/thread_local.h"
+#include "cobalt/dom/event_names.h"
 
 namespace cobalt {
 namespace system_window {
@@ -87,10 +87,11 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
     } break;
     case WM_KEYDOWN: {
       // The user has pressed a key on the keyboard.
-      scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
-          dom::EventNames::GetInstance()->keydown(),
-          dom::KeyboardEvent::kDomKeyLocationStandard,
-          dom::KeyboardEvent::kNoModifier, w_param, 0, false));
+      scoped_refptr<dom::KeyboardEvent> keyboard_event(
+          new dom::KeyboardEvent(dom::EventNames::GetInstance()->keydown(),
+                                 dom::KeyboardEvent::kDomKeyLocationStandard,
+                                 dom::KeyboardEvent::kNoModifier, w_param,
+                                 w_param, IsKeyRepeat(l_param)));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
     case WM_KEYUP: {
@@ -98,12 +99,17 @@ LRESULT CALLBACK SystemWindowWin::WndProc(HWND window_handle, UINT message,
       scoped_refptr<dom::KeyboardEvent> keyboard_event(new dom::KeyboardEvent(
           dom::EventNames::GetInstance()->keyup(),
           dom::KeyboardEvent::kDomKeyLocationStandard,
-          dom::KeyboardEvent::kNoModifier, w_param, 0, false));
+          dom::KeyboardEvent::kNoModifier, w_param, w_param, false));
       system_window->HandleKeyboardEvent(keyboard_event);
     } break;
   }
 
   return DefWindowProc(window_handle, message, w_param, l_param);
+}
+
+bool SystemWindowWin::IsKeyRepeat(LPARAM l_param) {
+  const LPARAM kPreviousStateMask = 1 << 30;
+  return (l_param & kPreviousStateMask) != 0L;
 }
 
 void SystemWindowWin::EndWindow() {

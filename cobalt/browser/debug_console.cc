@@ -16,8 +16,8 @@
 
 #include "cobalt/browser/debug_console.h"
 
-#include "base/command_line.h"
-#include "cobalt/browser/switches.h"
+#include "cobalt/dom/event_names.h"
+#include "cobalt/input/keyboard_code.h"
 
 namespace cobalt {
 namespace browser {
@@ -36,24 +36,12 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
-DebugConsole::DebugConsoleMode
-DebugConsole::GetDebugConsoleModeFromCommandLine() {
-  DebugConsoleMode debug_console_mode = kDebugConsoleOn;
-
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
-    const std::string debug_console_mode_string =
-        command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
-    if (debug_console_mode_string == "on") {
-      debug_console_mode = kDebugConsoleOn;
-    } else if (debug_console_mode_string == "console_only") {
-      debug_console_mode = kDebugConsoleOnly;
-    } else if (debug_console_mode_string == "hide") {
-      debug_console_mode = kDebugConsoleHide;
-    }
-  }
-
-  return debug_console_mode;
+bool DebugConsole::FilterKeyEvent(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
+  // Assume here the full debug console is visible - pass all events to its
+  // web module, and return false to indicate the event has been consumed.
+  web_module_.InjectEvent(event);
+  return false;
 }
 
 }  // namespace browser

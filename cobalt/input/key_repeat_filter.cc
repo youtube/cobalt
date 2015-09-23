@@ -32,9 +32,12 @@ const base::TimeDelta kRepeatRate = base::TimeDelta::FromMilliseconds(
 }  // namespace
 
 KeyRepeatFilter::KeyRepeatFilter(const KeyboardEventCallback& callback)
-    : keyboard_event_callback_(callback) {}
+    : KeyEventHandler(callback) {}
 
-void KeyRepeatFilter::HandleKeyEvent(
+KeyRepeatFilter::KeyRepeatFilter(KeyEventHandler* filter)
+    : KeyEventHandler(filter) {}
+
+void KeyRepeatFilter::HandleKeyboardEvent(
     const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
   if (keyboard_event->type() == dom::EventNames::GetInstance()->keydown()) {
     HandleKeyDown(keyboard_event);
@@ -48,7 +51,7 @@ void KeyRepeatFilter::HandleKeyEvent(
 void KeyRepeatFilter::HandleKeyDown(
     const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
   keyboard_event_ = keyboard_event;
-  keyboard_event_callback_.Run(keyboard_event);
+  DispatchKeyboardEvent(keyboard_event);
 
   // This key down event is triggered for the first time, so start the timer
   // with |kRepeatInitialDelay|.
@@ -58,7 +61,7 @@ void KeyRepeatFilter::HandleKeyDown(
 
 void KeyRepeatFilter::HandleKeyUp(
     const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
-  keyboard_event_callback_.Run(keyboard_event);
+  DispatchKeyboardEvent(keyboard_event);
 
   // If it is a key up event and it matches the previous one, stop the key
   // repeat timer.
@@ -69,7 +72,7 @@ void KeyRepeatFilter::HandleKeyUp(
 
 void KeyRepeatFilter::FireKeyRepeatEvent() {
   DCHECK(keyboard_event_);
-  keyboard_event_callback_.Run(keyboard_event_);
+  DispatchKeyboardEvent(keyboard_event_);
 
   // If |FireKeyRepeatEvent| is triggered for the first time then reset the
   // timer to the repeat rate instead of the initial delay.

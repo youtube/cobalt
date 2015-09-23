@@ -23,7 +23,8 @@ namespace debug {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-DebugHub::DebugHub() : next_log_message_callback_id_(0) {
+DebugHub::DebugHub()
+    : next_log_message_callback_id_(0), debug_console_mode_(kDebugConsoleHud) {
   // Get log output while still making it available elsewhere.
   const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
       base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
@@ -111,6 +112,17 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   return ret;
 }
 
+int DebugHub::GetDebugConsoleMode() const { return debug_console_mode_; }
+
+void DebugHub::SetDebugConsoleMode(int debug_console_mode) {
+  debug_console_mode_ = debug_console_mode;
+}
+
+int DebugHub::CycleDebugConsoleMode() {
+  debug_console_mode_ = (debug_console_mode_ + 1) % kDebugConsoleNumModes;
+  return debug_console_mode_;
+}
+
 #else   // ENABLE_DEBUG_CONSOLE
 
 // Stub implementation when debug not enabled (release builds)
@@ -135,6 +147,12 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
   UNREFERENCED_PARAMETER(name);
   return "";
 }
+
+void DebugHub::SetDebugConsoleMode(int debug_console_mode) {}
+
+int DebugHub::CycleDebugConsoleMode() { return kDebugConsoleOff; }
+
+int DebugHub::debug_console_mode() const { return kDebugConsoleOff; }
 #endif  // ENABLE_DEBUG_CONSOLE
 
 }  // namespace debug

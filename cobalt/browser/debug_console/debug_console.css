@@ -5,24 +5,38 @@ body {
 #hud {
   position: absolute;
   left: 0%;
-  top: 90%;
-  width: 100%;
+  top: 89%;
+  width: 96%;
   height: 10%;
   background-color: rgba(0, 0, 0, 0.5);
   color: #FFFFFF;
   border: 2px solid #FFFFFF;
   outline: #FFFFFF solid 2px;
+  padding: 1% 2% 0% 2%;
+}
+
+#consoleFrame {
+  position: absolute;
+  left: 0%;
+  top: 0%;
+  width: 100%;
+  height: 87%;
+  background-color: rgba(0, 0, 0, 0);
+  color: #FFFFFF;
+  overflow: hidden;
+  padding: 0% 0% 2% 0%;
 }
 
 #messageLog {
   position: absolute;
   left: 0%;
   top: 0%;
-  width: 90%;
-  height: 85%;
+  width: 96%;
+  height: 93%;
   background-color: rgba(0, 0, 0, 0.5);
   color: #FFFFFF;
   overflow: hidden;
+  padding: 0% 2% 2% 2%;
 }
 
 #messageBox {
@@ -33,10 +47,10 @@ body {
 #in {
   position: absolute;
   left: 0%;
-  top: 85%;
-  width: 90%;
-  height: 5%;
+  top: 96%;
+  width: 96%;
+  height: 3%;
   background-color: rgba(0, 0, 0, 0.75);
   color: #FFFFFF;
-  display: none;
+  padding: 1% 2% 1% 2%;
 }

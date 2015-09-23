@@ -22,20 +22,20 @@ namespace cobalt {
 namespace input {
 
 InputDeviceManagerDesktop::InputDeviceManagerDesktop(
-    const KeyboardEventCallback& callback)
-    : InputDeviceManager(callback), system_window_(NULL) {}
-
-InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     const KeyboardEventCallback& callback,
     system_window::SystemWindow* system_window)
-    : InputDeviceManager(callback),
-      // We are in the desktop implementation of this class (Windows/Linux),
+    :  // We are in the desktop implementation of this class (Windows/Linux),
       // so we can assume that system_window is actually a pointer to an object
       // of the SystemWindowDesktop subclass.
       system_window_(
           base::polymorphic_downcast<system_window::SystemWindowDesktop*>(
-              system_window)) {
-  // Add the specified callback to the system window so it will call it for us.
+              system_window)),
+      keyboard_event_callback_(
+          base::Bind(&InputDeviceManagerDesktop::HandleKeyboardEvent,
+                     base::Unretained(this))),
+      keypress_generator_filter_(callback),
+      modifier_key_filter_(&keypress_generator_filter_) {
+  // Add this object's keyboard event callback to the system window.
   system_window_->AddKeyboardEventCallback(keyboard_event_callback_);
 }
 
@@ -44,6 +44,11 @@ InputDeviceManagerDesktop::~InputDeviceManagerDesktop() {
   if (system_window_) {
     system_window_->RemoveKeyboardEventCallback(keyboard_event_callback_);
   }
+}
+
+void InputDeviceManagerDesktop::HandleKeyboardEvent(
+    const scoped_refptr<dom::KeyboardEvent>& keyboard_event) {
+  modifier_key_filter_.HandleKeyboardEvent(keyboard_event);
 }
 
 }  // namespace input
