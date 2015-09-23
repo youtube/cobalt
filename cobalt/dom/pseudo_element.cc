@@ -14,12 +14,23 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
+#include "base/logging.h"
+#include "cobalt/dom/dom_animatable.h"
+#include "cobalt/dom/pseudo_element.h"
 
-[
-    Constructor (DOMHighResTimeStamp originTime),
-    ConstructorCallWith=EnvironmentSettings
-] interface DocumentTimeline : AnimationTimeline {
-};
+namespace cobalt {
+namespace dom {
 
-typedef double DOMHighResTimeStamp;
+PseudoElement::PseudoElement(HTMLElement* parent_element)
+    : parent_element_(parent_element),
+      animations_(new web_animations::AnimationSet()),
+      computed_style_state_(new cssom::ComputedStyleState()) {
+  DCHECK(parent_element_);
+  computed_style_state_->set_animations(animations_);
+
+  transitions_adapter_.emplace(new DOMAnimatable(this));
+  transitions_.emplace(&transitions_adapter_.value());
+}
+
+}  // namespace dom
+}  // namespace cobalt

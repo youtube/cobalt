@@ -102,6 +102,8 @@
         'id_selector.h',
         'integer_value.cc',
         'integer_value.h',
+        'interpolate_property_value.cc',
+        'interpolate_property_value.h',
         'keyword_names.cc',
         'keyword_names.h',
         'keyword_value.cc',

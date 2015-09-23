@@ -17,9 +17,11 @@
 #ifndef DOM_DOCUMENT_TIMELINE_H_
 #define DOM_DOCUMENT_TIMELINE_H_
 
+#include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/dom/animation_timeline.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web_animations/animation_timeline.h"
 
 namespace cobalt {
 
@@ -32,14 +34,14 @@ namespace dom {
 class Document;
 
 // Implements the DocumentTimeline IDL interface.
-// http://www.w3.org/TR/web-animations/#the-documenttimeline-interface
-class DocumentTimeline : public AnimationTimeline {
+// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
+class DocumentTimeline : public web_animations::AnimationTimeline {
  public:
   DocumentTimeline(Document* document, double origin_time);
   DocumentTimeline(script::EnvironmentSettings*, double origin_time);
 
-  // Returns the current DocumentTimeline's time, according to its specified
-  // origin.
+  // Returns the current DocumentTimeline's time (in milliseconds), according to
+  // its specified origin.
   base::optional<double> current_time() const OVERRIDE;
 
   // Custom, not in any spec.

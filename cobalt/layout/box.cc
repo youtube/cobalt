@@ -18,6 +18,7 @@
 
 #include <limits>
 
+#include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -26,7 +27,7 @@
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
-#include "cobalt/layout/transition_render_tree_animations.h"
+#include "cobalt/layout/render_tree_animations.h"
 #include "cobalt/layout/used_style.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/render_tree/brush.h"
@@ -52,7 +53,7 @@ Box::Box(const scoped_refptr<cssom::ComputedStyleState>& computed_style_state,
       parent_(NULL),
       containing_block_(NULL),
       stacking_context_(NULL) {
-  DCHECK(transitions());
+  DCHECK(animations());
   DCHECK(used_style_provider_);
 
 #ifdef _DEBUG
@@ -166,7 +167,7 @@ void Box::RenderAndAnimate(
                       computed_style()->opacity().get())
                       ->value();
   bool opacity_animated =
-      transitions()->GetTransitionForProperty(cssom::kOpacityProperty) != NULL;
+      animations()->IsPropertyAnimated(cssom::kOpacityProperty);
   if (opacity <= 0.0f && !opacity_animated) {
     // If the box has 0 opacity, and opacity is not animated, then we do not
     // need to proceed any farther, the box is invisible.
@@ -441,8 +442,8 @@ void Box::RenderAndAnimateBackgroundColor(
   // non-transparent.
   bool background_color_transparent =
       GetUsedColor(computed_style()->background_color()).a() == 0.0f;
-  bool background_color_animated = transitions()->GetTransitionForProperty(
-                                       cssom::kBackgroundColorProperty) != NULL;
+  bool background_color_animated =
+      animations()->IsPropertyAnimated(cssom::kBackgroundColorProperty);
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
@@ -456,9 +457,9 @@ void Box::RenderAndAnimateBackgroundColor(
       // TODO(***REMOVED***) Investigate if we could pass computed_style_state_ instead
       // here.
       if (background_color_animated) {
-        AddTransitionAnimations<RectNode>(
-            base::Bind(&SetupRectNodeFromStyle), *computed_style(), rect_node,
-            *transitions(), node_animations_map_builder);
+        AddAnimations<RectNode>(base::Bind(&SetupRectNodeFromStyle),
+                                *computed_style_state(), rect_node,
+                                node_animations_map_builder);
       }
     }
   }
@@ -521,10 +522,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
     scoped_refptr<FilterNode> filter_node = new FilterNode(filter_node_builder);
 
     if (opacity_animated) {
-      // Possibly setup an animation for transitioning opacity.
-      AddTransitionAnimations<FilterNode>(
-          base::Bind(&SetupFilterNodeFromStyle), *computed_style(), filter_node,
-          *transitions(), node_animations_map_builder);
+      // Possibly setup an animation for opacity.
+      AddAnimations<FilterNode>(base::Bind(&SetupFilterNodeFromStyle),
+                                *computed_style_state(), filter_node,
+                                node_animations_map_builder);
     }
     return filter_node;
   }
@@ -537,7 +538,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
     math::Matrix3F* border_node_transform) const {
-  if (transitions()->GetTransitionForProperty(cssom::kTransformProperty)) {
+  if (animations()->IsPropertyAnimated(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.
@@ -548,10 +549,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
         new CompositionNode(css_transform_node_builder.Pass());
 
     // Specifically animate only the composition node with the CSS transform.
-    AddTransitionAnimations<CompositionNode>(
+    AddAnimations<CompositionNode>(
         base::Bind(&SetupCompositionNodeFromCSSSStyleTransform,
                    GetBorderBoxSize()),
-        *computed_style(), css_transform_node, *transitions(),
+        *computed_style_state(), css_transform_node,
         node_animations_map_builder);
 
     return css_transform_node;

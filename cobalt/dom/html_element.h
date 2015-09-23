@@ -30,6 +30,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/css_transitions_adapter.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/layout_boxes.h"
 #include "cobalt/dom/pseudo_element.h"
@@ -177,18 +178,16 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Determines whether this element is focusable.
   bool IsFocusable() { return HasAttribute("tabindex"); }
 
-  cssom::TransitionSet* transitions() const {
-    return computed_style_state_->transitions();
-  }
-
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
     return pseudo_elements_[type].get();
   }
 
-  void set_pseudo_element(PseudoElementType type, PseudoElement* element) {
+  void set_pseudo_element(PseudoElementType type,
+                          scoped_ptr<PseudoElement> element) {
+    DCHECK_EQ(this, element->parent_element());
     DCHECK(type < kMaxPseudoElementType);
-    return pseudo_elements_[type].reset(element);
+    pseudo_elements_[type] = element.Pass();
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
@@ -225,6 +224,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
 
+  dom::CSSTransitionsAdapter transitions_adapter_;
+  cssom::TransitionSet transitions_;
+
   // The following fields are used in rule matching.
   cssom::RulesWithCascadePriority matching_rules_;
   RuleMatchingState rule_matching_state_;
@@ -234,7 +236,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   bool matching_rules_valid_;
 
-  cssom::TransitionSet transitions_;
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   base::WeakPtr<DOMStringMap> dataset_;
 
@@ -244,6 +245,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // We maintain it here to indicate to the resource caching system
   // that the images are currently in-use, and should not be purged.
   loader::image::CachedImageReferenceVector cached_background_images_;
+
+  // HTMLElement is a friend of Animatable so that animatable can insert and
+  // remove animations into HTMLElement's set of animations.
+  friend class DOMAnimatable;
 };
 
 }  // namespace dom

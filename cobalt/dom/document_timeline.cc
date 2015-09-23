@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+#include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/dom/document.h"
 
 namespace cobalt {
 namespace dom {

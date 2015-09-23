@@ -23,15 +23,15 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/cssom/css_style_declaration.h"
-#include "cobalt/cssom/css_transition_set.h"
 #include "cobalt/cssom/computed_style_state.h"
+#include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/math/insets_f.h"
 #include "cobalt/math/point_f.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/animations/node_animations_map.h"
 #include "cobalt/render_tree/composition_node.h"
+#include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
 namespace layout {
@@ -116,11 +116,11 @@ class Box : public base::RefCounted<Box> {
     return computed_style_state_->style();
   }
 
-  // The transition set specifies all currently active transitions appyling
+  // The animation set specifies all currently active animations appyling
   // to this box's computed_style() CSS Style Declaration.
-  //   http://www.w3.org/TR/css3-transitions
-  const cssom::TransitionSet* transitions() const {
-    return computed_style_state_->transitions();
+  //   https://w3c.github.io/web-animations
+  const web_animations::AnimationSet* animations() const {
+    return computed_style_state_->animations();
   }
 
   // Specifies the formatting context in which the box should participate.

@@ -26,6 +26,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/event_listener.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
 namespace dom {
@@ -144,6 +145,10 @@ class Element : public Node {
 
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
+  const scoped_refptr<web_animations::AnimationSet>& animations() {
+    return animations_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Element);
 
  protected:
@@ -183,6 +188,9 @@ class Element : public Node {
   // After creation this is kept in memory because of the significant negative
   // performance impact of repeatedly recreating it.
   scoped_refptr<DOMTokenList> class_list_;
+
+  // A set of all animations currently applied to this element.
+  scoped_refptr<web_animations::AnimationSet> animations_;
 };
 
 }  // namespace dom

@@ -19,6 +19,8 @@
 
 #include <map>
 
+#include "base/basictypes.h"
+#include "base/optional.h"
 #include "base/time.h"
 #include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/css_transition.h"
@@ -36,7 +38,25 @@ class PropertyValue;
 // occur.
 class TransitionSet {
  public:
-  TransitionSet();
+  // An EventHandler object can be supplied to the TransitionSet upon
+  // construction to have TransitionSet update a caller as it internally updates
+  // its set of active transitions on each call to UpdateTransitions().  This
+  // is useful as it can provide an external observer (e.g. such as an adapter
+  // from CSS Transitions to the Web Animations API) the opportunity to take
+  // action based on transition start/end events.
+  class EventHandler {
+   public:
+    // Called when a transition is starting, either freshly introduced or
+    // replacing an existing transition.
+    virtual void OnTransitionStarted(const Transition& transition) = 0;
+
+    // Called when a transition is removed, either because it has finished, or
+    // because it was replaced (in which case OnTransitionStarted() will be
+    // called with the replacement immediately after this).
+    virtual void OnTransitionRemoved(const Transition& transition) = 0;
+  };
+
+  explicit TransitionSet(EventHandler* event_handler = NULL);
 
   // Helper function to get a const reference to a global empty transition set.
   static const TransitionSet* EmptyTransitionSet();
@@ -57,7 +77,7 @@ class TransitionSet {
   const Transition* GetTransitionForProperty(PropertyKey property) const;
 
   // Returns true if there are no animations in this animation set.
-  bool empty() const { return transitions_.empty(); }
+  bool empty() const { return transitions_.IsEmpty(); }
 
   // Given a time and a target style, animates all properties found to be
   // transitioning by this TransitionSet.  Non-animated properties are not
@@ -72,14 +92,35 @@ class TransitionSet {
       const scoped_refptr<PropertyValue>& destination_value,
       const CSSStyleDeclarationData& transition_style);
 
-  // Inserts or replaces an existing value in the internal map.  Essentially
-  // this method behaves like InternalTransitionMap::operator[], but does not
-  // require that the map value have a default constructor defined.
-  void InsertOrReplaceInInternalMap(PropertyKey property,
-                                    const Transition& transition);
+  // We define a TransitionMap (from CSS property to Transition object) here to
+  // host our set of active transitions, and additionally manage the firing
+  // of transition begin/end events.
+  class TransitionMap {
+   public:
+    explicit TransitionMap(EventHandler* event_handler);
+    ~TransitionMap();
 
-  typedef std::map<PropertyKey, Transition> InternalTransitionMap;
-  InternalTransitionMap transitions_;
+    const Transition* GetTransitionForProperty(PropertyKey property) const;
+    bool IsEmpty() const { return transitions_.empty(); }
+
+    // Adds or replaces an existing transition in the map.
+    void UpdateTransitionForProperty(PropertyKey property,
+                                     const Transition& transition);
+
+    // Removes an existing transition from the map.  The transition must
+    // already exist in the map.
+    void RemoveTransitionForProperty(PropertyKey property);
+
+   private:
+    typedef std::map<PropertyKey, Transition> InternalTransitionMap;
+
+    EventHandler* event_handler_;
+    InternalTransitionMap transitions_;
+  };
+
+  TransitionMap transitions_;
+
+  DISALLOW_COPY_AND_ASSIGN(TransitionSet);
 };
 
 }  // namespace cssom
