@@ -22,7 +22,6 @@
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/calc_value.h"
-#include "cobalt/cssom/const_string_list_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/linear_gradient_value.h"
@@ -42,8 +41,8 @@
 #include "cobalt/cssom/transform_function_visitor.h"
 #include "cobalt/cssom/translate_function.h"
 #include "cobalt/cssom/unicode_range_value.h"
-#include "cobalt/cssom/url_value.h"
 #include "cobalt/cssom/url_src_value.h"
+#include "cobalt/cssom/url_value.h"
 #include "cobalt/math/matrix_interpolation.h"
 #include "cobalt/math/transform_2d.h"
 
@@ -51,7 +50,7 @@ namespace cobalt {
 namespace cssom {
 
 Transition::Transition(
-    const char* target_property,
+    PropertyKey target_property,
     const scoped_refptr<PropertyValue>& start_value,
     const scoped_refptr<PropertyValue>& end_value,
     const base::TimeDelta& start_time, const base::TimeDelta& duration,
@@ -100,6 +99,8 @@ class AnimatorVisitor : public PropertyValueVisitor {
       MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
   void VisitNumber(NumberValue* start_number_value) OVERRIDE;
   void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
+  void VisitPropertyKeyList(
+      PropertyKeyListValue* property_key_list_value) OVERRIDE;
   void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
   void VisitRatio(RatioValue* start_ratio_value) OVERRIDE;
   void VisitResolution(ResolutionValue* start_resolution_value) OVERRIDE;
@@ -477,6 +478,12 @@ void AnimatorVisitor::VisitNumber(NumberValue* start_number_value) {
 
 void AnimatorVisitor::VisitPercentage(
     PercentageValue* /*start_percentage_value*/) {
+  NOTIMPLEMENTED();
+  animated_value_ = end_value_;
+}
+
+void AnimatorVisitor::VisitPropertyKeyList(
+    PropertyKeyListValue* /*property_key_list_value*/) {
   NOTIMPLEMENTED();
   animated_value_ = end_value_;
 }

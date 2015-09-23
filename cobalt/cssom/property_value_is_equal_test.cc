@@ -16,6 +16,7 @@
 
 #include "cobalt/cssom/absolute_url_value.h"
 #include "cobalt/cssom/const_string_list_value.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/font_style_value.h"
 #include "cobalt/cssom/font_weight_value.h"
 #include "cobalt/cssom/integer_value.h"
@@ -26,7 +27,6 @@
 #include "cobalt/cssom/media_feature_keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/percentage_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
 #include "cobalt/cssom/rgba_color_value.h"
@@ -196,8 +196,8 @@ TEST(PropertyValueIsEqualTest, PercentagesAreNotEqual) {
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreEqual) {
   ConstStringListValue::Builder property_list;
-  property_list.push_back(kBackgroundColorPropertyName);
-  property_list.push_back(kOpacityPropertyName);
+  property_list.push_back(GetPropertyName(kBackgroundColorProperty));
+  property_list.push_back(GetPropertyName(kOpacityProperty));
   scoped_refptr<ConstStringListValue> value_a(new ConstStringListValue(
       make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
   scoped_refptr<ConstStringListValue> value_b(new ConstStringListValue(
@@ -208,11 +208,11 @@ TEST(PropertyValueIsEqualTest, PropertyNameListsAreEqual) {
 
 TEST(PropertyValueIsEqualTest, PropertyNameListsAreNotEqual) {
   ConstStringListValue::Builder property_list;
-  property_list.push_back(kBackgroundColorPropertyName);
-  property_list.push_back(kOpacityPropertyName);
+  property_list.push_back(GetPropertyName(kBackgroundColorProperty));
+  property_list.push_back(GetPropertyName(kOpacityProperty));
   scoped_refptr<ConstStringListValue> value_a(new ConstStringListValue(
       make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
-  property_list.back() = kTransformPropertyName;
+  property_list.back() = GetPropertyName(kTransformProperty);
   scoped_refptr<ConstStringListValue> value_b(new ConstStringListValue(
       make_scoped_ptr(new ConstStringListValue::Builder(property_list))));
 

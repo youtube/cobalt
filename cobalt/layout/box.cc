@@ -19,12 +19,10 @@
 #include <limits>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/cssom/initial_style.h"
 #include "cobalt/cssom/integer_value.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/cssom/property_list_value.h"
-#include "cobalt/cssom/property_names.h"
 #include "cobalt/cssom/transform_function_list_value.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/layout/container_box.h"
@@ -167,8 +165,8 @@ void Box::RenderAndAnimate(
   float opacity = base::polymorphic_downcast<const cssom::NumberValue*>(
                       computed_style()->opacity().get())
                       ->value();
-  bool opacity_animated = transitions()->GetTransitionForProperty(
-                              cssom::kOpacityPropertyName) != NULL;
+  bool opacity_animated =
+      transitions()->GetTransitionForProperty(cssom::kOpacityProperty) != NULL;
   if (opacity <= 0.0f && !opacity_animated) {
     // If the box has 0 opacity, and opacity is not animated, then we do not
     // need to proceed any farther, the box is invisible.
@@ -443,9 +441,8 @@ void Box::RenderAndAnimateBackgroundColor(
   // non-transparent.
   bool background_color_transparent =
       GetUsedColor(computed_style()->background_color()).a() == 0.0f;
-  bool background_color_animated =
-      transitions()->GetTransitionForProperty(
-          cssom::kBackgroundColorPropertyName) != NULL;
+  bool background_color_animated = transitions()->GetTransitionForProperty(
+                                       cssom::kBackgroundColorProperty) != NULL;
   if (!background_color_transparent || background_color_animated) {
     RectNode::Builder rect_node_builder(GetPaddingBoxSize(),
                                         scoped_ptr<render_tree::Brush>());
@@ -540,7 +537,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     render_tree::animations::NodeAnimationsMap::Builder*
         node_animations_map_builder,
     math::Matrix3F* border_node_transform) const {
-  if (transitions()->GetTransitionForProperty(cssom::kTransformPropertyName)) {
+  if (transitions()->GetTransitionForProperty(cssom::kTransformProperty)) {
     // If the CSS transform is animated, we cannot flatten it into the layout
     // transform, thus we create a new composition node to separate it and
     // animate that node only.

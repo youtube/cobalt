@@ -21,7 +21,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
-#include "cobalt/cssom/css_style_declaration_data.h"
+#include "cobalt/cssom/css_property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -31,18 +31,14 @@ namespace css_parser {
 // of the property.  Note that data is stored as a list of name/value pairs
 // because shorthand properties (e.g. 'transition') may result in multiple
 // non-shorthand properties being declared simultaneously.
-// Note that the const char* name passed in the constructor and NameValuePair
-// should point to one of the string constants in property_names.h, rather than
-// pointing to a copy of the string somewhere else, so they they can be property
-// indexed and looked up.
 struct PropertyDeclaration {
   // Shortcut constructor for when there is only one name/value pair to set.
   // This will be used for the case of non-shorthand properties.
-  PropertyDeclaration(const char* name,
+  PropertyDeclaration(cssom::PropertyKey key,
                       const scoped_refptr<cssom::PropertyValue>& value,
                       bool is_important)
       : is_important(is_important) {
-    property_values.push_back(NameValuePair(name, value));
+    property_values.push_back(PropertyKeyValuePair(key, value));
   }
 
   // Shorthand properties will construct an empty PropertyDeclaration object
@@ -51,26 +47,24 @@ struct PropertyDeclaration {
       : is_important(is_important) {}
 
   void Apply(cssom::CSSDeclarationData* declaration_data) const {
-    for (NameValuePairList::const_iterator iter = property_values.begin();
+    for (PropertyKeyValuePairList::const_iterator iter =
+             property_values.begin();
          iter != property_values.end(); ++iter) {
-      declaration_data->SetPropertyValue(iter->name, iter->value);
-      if (is_important) {
-        declaration_data->SetPropertyImportant(iter->name);
-      }
-      DCHECK_EQ(iter->value, declaration_data->GetPropertyValue(iter->name));
+      declaration_data->SetPropertyValueAndImportance(
+          GetPropertyName(iter->key), iter->value, is_important);
     }
   }
 
-  struct NameValuePair {
-    NameValuePair(const char* name,
-                  const scoped_refptr<cssom::PropertyValue>& value)
-        : name(name), value(value) {}
+  struct PropertyKeyValuePair {
+    PropertyKeyValuePair(cssom::PropertyKey key,
+                         const scoped_refptr<cssom::PropertyValue>& value)
+        : key(key), value(value) {}
 
-    const char* name;
+    cssom::PropertyKey key;
     scoped_refptr<cssom::PropertyValue> value;
   };
-  typedef std::vector<NameValuePair> NameValuePairList;
-  NameValuePairList property_values;
+  typedef std::vector<PropertyKeyValuePair> PropertyKeyValuePairList;
+  PropertyKeyValuePairList property_values;
   bool is_important;
 };
 
