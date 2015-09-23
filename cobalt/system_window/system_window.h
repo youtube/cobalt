@@ -17,8 +17,6 @@
 #ifndef SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 #define SYSTEM_WINDOW_SYSTEM_WINDOW_H_
 
-#include "cobalt/dom/keyboard_event.h"
-
 namespace cobalt {
 namespace system_window {
 

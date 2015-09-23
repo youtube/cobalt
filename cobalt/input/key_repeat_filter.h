@@ -18,18 +18,19 @@
 #define INPUT_KEY_REPEAT_FILTER_H_
 
 #include "base/timer.h"
-#include "cobalt/dom/keyboard_event.h"
-#include "cobalt/input/keyboard_code.h"
-#include "cobalt/input/input_device_manager.h"
+#include "cobalt/input/key_event_handler.h"
 
 namespace cobalt {
 namespace input {
 
-class KeyRepeatFilter {
+class KeyRepeatFilter : public KeyEventHandler {
  public:
   explicit KeyRepeatFilter(const KeyboardEventCallback& callback);
 
-  void HandleKeyEvent(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
+  explicit KeyRepeatFilter(KeyEventHandler* filter);
+
+  void HandleKeyboardEvent(
+      const scoped_refptr<dom::KeyboardEvent>& keyboard_event) OVERRIDE;
 
  private:
   void HandleKeyDown(const scoped_refptr<dom::KeyboardEvent>& keyboard_event);
@@ -39,7 +40,6 @@ class KeyRepeatFilter {
 
   scoped_refptr<dom::KeyboardEvent> keyboard_event_;
 
-  KeyboardEventCallback keyboard_event_callback_;
   base::RepeatingTimer<KeyRepeatFilter> key_repeat_timer_;
 };
 

@@ -19,7 +19,9 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/dom/keyboard_event.h"
 
 namespace cobalt {
 namespace browser {
@@ -27,13 +29,6 @@ namespace browser {
 // DebugConsole wraps the web module used to implement the debug console.
 class DebugConsole {
  public:
-  enum DebugConsoleMode {
-    kDebugConsoleOff,
-    kDebugConsoleOn,
-    kDebugConsoleHide,
-    kDebugConsoleOnly
-  };
-
   DebugConsole(const GURL& url, const WebModule::OnRenderTreeProducedCallback&
                                     render_tree_produced_callback,
                const base::Callback<void(const std::string&)>& error_callback,
@@ -44,8 +39,10 @@ class DebugConsole {
                float layout_refresh_rate, const WebModule::Options& options);
   ~DebugConsole();
 
-  // Gets the user-specified debug console mode from the command-line.
-  static DebugConsoleMode GetDebugConsoleModeFromCommandLine();
+  // Filters a key event.
+  // Returns true if the event should be passed on to other handlers,
+  // false if it was consumed within this function.
+  bool FilterKeyEvent(const scoped_refptr<dom::KeyboardEvent>& event);
 
  private:
   // Sets up everything to do with the management of the web page that

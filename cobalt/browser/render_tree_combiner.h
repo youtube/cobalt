@@ -17,7 +17,6 @@
 #ifndef BROWSER_RENDER_TREE_COMBINER_H_
 #define BROWSER_RENDER_TREE_COMBINER_H_
 
-#include "cobalt/browser/debug_console.h"
 #include "cobalt/renderer/pipeline.h"
 
 namespace cobalt {
@@ -31,8 +30,6 @@ class RenderTreeCombiner {
   explicit RenderTreeCombiner(renderer::Pipeline* renderer_pipeline);
   ~RenderTreeCombiner();
 
-  void SetDebugConsoleMode(DebugConsole::DebugConsoleMode debug_console_mode);
-
   // Update the main web module render tree.
   void UpdateMainRenderTree(
       const renderer::Pipeline::Submission& render_tree_submission);
@@ -41,11 +38,16 @@ class RenderTreeCombiner {
   void UpdateDebugConsoleRenderTree(
       const renderer::Pipeline::Submission& render_tree_submission);
 
+  bool render_debug_console() const { return render_debug_console_; }
+  void set_render_debug_console(bool render_debug_console) {
+    render_debug_console_ = render_debug_console;
+  }
+
  private:
   // Combines the two cached render trees (main/debug) and renders the result.
   void SubmitToRenderer();
 
-  DebugConsole::DebugConsoleMode debug_console_mode_;
+  bool render_debug_console_;
 
   // Local reference to the render pipeline, so we can submit the combined tree.
   // Reference counted pointer not necessary here.
