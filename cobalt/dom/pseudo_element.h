@@ -18,11 +18,16 @@
 #define DOM_PSEUDO_ELEMENT_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/cssom/computed_style_state.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/css_transition_set.h"
+#include "cobalt/dom/css_transitions_adapter.h"
 
 namespace cobalt {
 namespace dom {
+
+class HTMLElement;
 
 // Pseudo-elements create abstractions about the document tree beyond those
 // specified by the document language.
@@ -37,7 +42,7 @@ namespace dom {
 // This class adds a container for the DOM state needed for pseudo elements.
 class PseudoElement {
  public:
-  PseudoElement() : computed_style_state_(new cssom::ComputedStyleState()) {}
+  explicit PseudoElement(HTMLElement* parent_element);
   ~PseudoElement() {}
 
   // Used by layout engine to cache the computed values.
@@ -57,15 +62,29 @@ class PseudoElement {
 
   cssom::RulesWithCascadePriority* matching_rules() { return &matching_rules_; }
 
-  cssom::TransitionSet* transitions() const {
-    return computed_style_state_->transitions();
+  cssom::TransitionSet* transitions() { return &transitions_.value(); }
+  const scoped_refptr<web_animations::AnimationSet>& animations() {
+    return animations_;
   }
+
+  HTMLElement* parent_element() { return parent_element_; }
 
   void ClearMatchingRules() { matching_rules_.clear(); }
 
  private:
+  HTMLElement* parent_element_;
+
+  scoped_refptr<web_animations::AnimationSet> animations_;
   scoped_refptr<cssom::ComputedStyleState> computed_style_state_;
+
+  base::optional<CSSTransitionsAdapter> transitions_adapter_;
+  base::optional<cssom::TransitionSet> transitions_;
+
   cssom::RulesWithCascadePriority matching_rules_;
+
+  // PseudoElement is a friend of Animatable so that animatable can insert and
+  // remove animations into PseudoElement's set of animations.
+  friend class DOMAnimatable;
 };
 
 }  // namespace dom

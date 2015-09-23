@@ -63,7 +63,8 @@ int GetPropertyTransitionIndex(
 }
 }  // namespace
 
-TransitionSet::TransitionSet() {}
+TransitionSet::TransitionSet(EventHandler* event_handler)
+    : transitions_(event_handler) {}
 
 void TransitionSet::UpdateTransitions(
     const base::TimeDelta& current_time,
@@ -92,16 +93,6 @@ void TransitionSet::UpdateTransitions(
   UpdateTransitionForProperty(
       kOpacityProperty, current_time, source_computed_style.opacity(),
       destination_computed_style.opacity(), destination_computed_style);
-}
-
-void TransitionSet::InsertOrReplaceInInternalMap(PropertyKey property,
-                                                 const Transition& transition) {
-  InternalTransitionMap::iterator found = transitions_.find(property);
-  if (found == transitions_.end()) {
-    transitions_.insert(std::make_pair(property, transition));
-  } else {
-    found->second = transition;
-  }
 }
 
 namespace {
@@ -219,19 +210,22 @@ void TransitionSet::UpdateTransitionForProperty(
       // The property has been modified and the transition should be animated.
       // We now check if an active transition for this property already exists
       // or not.
-      InternalTransitionMap::iterator found = transitions_.find(property);
-      if (found != transitions_.end() &&
-          current_time < found->second.EndTime()) {
+      const Transition* existing_transition =
+          transitions_.GetTransitionForProperty(property);
+
+      if (existing_transition &&
+          current_time < existing_transition->EndTime()) {
         // A transition is already ocurring, so we handle this case a bit
         // differently depending on if we're reversing the previous transition
         // or starting a completely different one.
-        found->second = CreateTransitionOverOldTransition(
-            property, current_time, found->second, duration, delay,
-            timing_function, end_value);
+        transitions_.UpdateTransitionForProperty(
+            property, CreateTransitionOverOldTransition(
+                          property, current_time, *existing_transition,
+                          duration, delay, timing_function, end_value));
       } else {
         // There is no transition on the object currently, so create a new
         // one for it.
-        InsertOrReplaceInInternalMap(
+        transitions_.UpdateTransitionForProperty(
             property,
             Transition(property, start_value, end_value, current_time, duration,
                        delay, timing_function, start_value, 1.0f));
@@ -242,10 +236,11 @@ void TransitionSet::UpdateTransitionForProperty(
       // transformations.
       // TODO(***REMOVED***): Fire off a transitionend event.
       //   http://www.w3.org/TR/css3-transitions/#transitionend
-      const Transition* transition = GetTransitionForProperty(property);
+      const Transition* transition =
+          transitions_.GetTransitionForProperty(property);
       if (transition != NULL) {
         if (current_time >= transition->EndTime()) {
-          transitions_.erase(property);
+          transitions_.RemoveTransitionForProperty(property);
         }
       }
     }
@@ -254,16 +249,15 @@ void TransitionSet::UpdateTransitionForProperty(
     // longer be animated.  Remove the transition if it exists.  It does
     // not generate a transitionend event, it does not pass go, it does not
     // collect $200.
-    transitions_.erase(property);
+    if (transitions_.GetTransitionForProperty(property)) {
+      transitions_.RemoveTransitionForProperty(property);
+    }
   }
 }
 
 const Transition* TransitionSet::GetTransitionForProperty(
     PropertyKey property) const {
-  InternalTransitionMap::const_iterator found = transitions_.find(property);
-  if (found == transitions_.end()) return NULL;
-
-  return &found->second;
+  return transitions_.GetTransitionForProperty(property);
 }
 
 void TransitionSet::ApplyTransitions(
@@ -290,6 +284,55 @@ void TransitionSet::ApplyTransitions(
   if (opacity_transition) {
     target_style->set_opacity(opacity_transition->Evaluate(current_time));
   }
+}
+
+TransitionSet::TransitionMap::TransitionMap(EventHandler* event_handler)
+    : event_handler_(event_handler) {}
+
+TransitionSet::TransitionMap::~TransitionMap() {
+  if (event_handler_ != NULL) {
+    for (InternalTransitionMap::iterator iter = transitions_.begin();
+         iter != transitions_.end(); ++iter) {
+      event_handler_->OnTransitionRemoved(iter->second);
+    }
+  }
+}
+
+const Transition* TransitionSet::TransitionMap::GetTransitionForProperty(
+    PropertyKey property) const {
+  InternalTransitionMap::const_iterator found = transitions_.find(property);
+  if (found == transitions_.end()) return NULL;
+
+  return &found->second;
+}
+
+void TransitionSet::TransitionMap::UpdateTransitionForProperty(
+    PropertyKey property, const Transition& transition) {
+  InternalTransitionMap::iterator found = transitions_.find(property);
+  if (found != transitions_.end()) {
+    if (event_handler_ != NULL) {
+      event_handler_->OnTransitionRemoved(found->second);
+    }
+    found->second = transition;
+  } else {
+    transitions_.insert(std::make_pair(property, transition));
+  }
+
+  if (event_handler_ != NULL) {
+    event_handler_->OnTransitionStarted(transition);
+  }
+}
+
+void TransitionSet::TransitionMap::RemoveTransitionForProperty(
+    PropertyKey property) {
+  InternalTransitionMap::iterator found = transitions_.find(property);
+  DCHECK(found != transitions_.end());
+
+  if (event_handler_ != NULL) {
+    event_handler_->OnTransitionRemoved(found->second);
+  }
+
+  transitions_.erase(found);
 }
 
 namespace {

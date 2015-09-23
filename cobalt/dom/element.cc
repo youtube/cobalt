@@ -34,10 +34,13 @@
 namespace cobalt {
 namespace dom {
 
-Element::Element(Document* document) : Node(document) {}
+Element::Element(Document* document)
+    : Node(document), animations_(new web_animations::AnimationSet()) {}
 
 Element::Element(Document* document, const std::string& tag_name)
-    : Node(document), tag_name_(tag_name) {}
+    : Node(document),
+      tag_name_(tag_name),
+      animations_(new web_animations::AnimationSet()) {}
 
 base::optional<std::string> Element::text_content() const {
   std::string content;

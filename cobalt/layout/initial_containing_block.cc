@@ -123,6 +123,7 @@ scoped_refptr<BlockLevelBlockContainerBox> CreateInitialContainingBlock(
   scoped_refptr<cssom::ComputedStyleState> initial_style_state =
       new cssom::ComputedStyleState();
   initial_style_state->set_style(initial_containing_block_style);
+  initial_style_state->set_animations(new web_animations::AnimationSet());
   return make_scoped_refptr(new BlockLevelBlockContainerBox(
       initial_style_state, used_style_provider));
 }

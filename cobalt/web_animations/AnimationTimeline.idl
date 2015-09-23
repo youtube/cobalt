@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-documenttimeline-interface
+// http://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-animationtimeline-interface
 
-[
-    Constructor (DOMHighResTimeStamp originTime),
-    ConstructorCallWith=EnvironmentSettings
-] interface DocumentTimeline : AnimationTimeline {
+interface AnimationTimeline {
+  readonly attribute double? currentTime;
+
+  // TODO(***REMOVED***): Uncomment when sequences are supported, and then remove
+  //               numAnimations, which is not in the specifications.
+  // sequence<Animation> getAnimations();
+  readonly attribute unsigned long numAnimations;
 };
-
-typedef double DOMHighResTimeStamp;
