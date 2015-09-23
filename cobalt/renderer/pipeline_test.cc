@@ -127,7 +127,7 @@ class RendererPipelineTest : public ::testing::Test {
 TEST_F(
     RendererPipelineTest,
     FLAKY_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit) {
-  pipeline_->Submit(dummy_render_tree_);
+  pipeline_->Submit(Pipeline::Submission(dummy_render_tree_));
 
   // Wait a little bit to give the pipeline some time to rasterize the submitted
   // render tree.
@@ -160,7 +160,7 @@ TEST_F(
       break;
     }
 
-    pipeline_->Submit(dummy_render_tree_);
+    pipeline_->Submit(Pipeline::Submission(dummy_render_tree_));
   }
 
   // Shut down the pipeline so that Submit will no longer be called.

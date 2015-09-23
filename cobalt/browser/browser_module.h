@@ -59,7 +59,8 @@ class BrowserModule {
   void OnRenderTreeProduced(
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          node_animations_map);
+          node_animations_map,
+      base::TimeDelta time_produced);
 
   // Glue function to deal with the production of the debug console render tree,
   // and will manage handing it off to the renderer.
@@ -67,7 +68,8 @@ class BrowserModule {
   void OnDebugConsoleRenderTreeProduced(
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-          node_animations_map);
+          node_animations_map,
+      base::TimeDelta time_produced);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Glue function to deal with the production of an input event from the

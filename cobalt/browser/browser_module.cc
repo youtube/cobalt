@@ -101,14 +101,15 @@ BrowserModule::~BrowserModule() {}
 void BrowserModule::OnRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
+        node_animations_map,
+    base::TimeDelta time_produced) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
 #if defined(ENABLE_DEBUG_CONSOLE)
-  render_tree_combiner_.UpdateMainRenderTree(render_tree, node_animations_map);
+  render_tree_combiner_.UpdateMainRenderTree(renderer::Pipeline::Submission(
+      render_tree, node_animations_map, time_produced));
 #else
-  renderer_module_.pipeline()->Submit(
-      render_tree, node_animations_map,
-      base::Time::Now() - base::Time::UnixEpoch());
+  renderer_module_.pipeline()->Submit(renderer::Pipeline::Submission(
+      render_tree, node_animations_map, time_produced));
 #endif  // ENABLE_DEBUG_CONSOLE
 }
 
@@ -116,11 +117,13 @@ void BrowserModule::OnRenderTreeProduced(
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<render_tree::animations::NodeAnimationsMap>&
-        node_animations_map) {
+        node_animations_map,
+    base::TimeDelta time_produced) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
-  render_tree_combiner_.UpdateDebugConsoleRenderTree(render_tree,
-                                                     node_animations_map);
+  render_tree_combiner_.UpdateDebugConsoleRenderTree(
+      renderer::Pipeline::Submission(render_tree, node_animations_map,
+                                     time_produced));
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 

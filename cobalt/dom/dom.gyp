@@ -23,6 +23,7 @@
       'sources': [
         'animation_frame_request_callback_list.cc',
         'animation_frame_request_callback_list.h',
+        'animation_timeline.h',
         'array_buffer.cc',
         'array_buffer.h',
         'array_buffer_view.cc',
@@ -43,6 +44,8 @@
         'data_view.h',
         'document.cc',
         'document.h',
+        'document_timeline.cc',
+        'document_timeline.h',
         'document_type.cc',
         'document_type.h',
         'dom_exception.cc',
