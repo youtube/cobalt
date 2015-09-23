@@ -232,6 +232,12 @@ void LineBox::BeginUpdatePosition(Box* child_box) {
     last_non_collapsed_child_box_index_ = child_boxes_.size();
   }
 
+  // If this child triggers a line break, then we've reached the end of this
+  // line. Nothing more can be added to it.
+  if (child_box->DoesTriggerLineBreak()) {
+    at_end_ = true;
+  }
+
   // Horizontal margins, borders, and padding are respected between boxes.
   //   http://www.w3.org/TR/CSS21/visuren.html#inline-formatting
   shrink_to_fit_width_ += child_box->GetMarginBoxWidth();
