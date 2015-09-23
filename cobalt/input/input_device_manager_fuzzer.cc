@@ -27,7 +27,7 @@ namespace input {
 
 InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
     KeyboardEventCallback keyboard_event_callback)
-    : InputDeviceManager(keyboard_event_callback),
+    : keyboard_event_callback_(keyboard_event_callback),
       next_event_timer_(true, true) {
   // Initialize the set of key events we are able to produce.
   const WindowsKeyCode kKeyCodes[] = {kUp,    kDown,   kLeft,

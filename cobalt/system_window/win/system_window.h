@@ -46,8 +46,12 @@ class SystemWindowWin : public SystemWindowDesktop {
   void StartWindow();
   void EndWindow();
 
+  // Checks whether this is a repeat key event.
+  static bool IsKeyRepeat(LPARAM l_param);
+
  private:
   void Win32WindowThread();
+
   base::Thread thread;
   base::WaitableEvent window_initialized;
   HWND window_handle_;

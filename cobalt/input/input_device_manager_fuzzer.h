@@ -38,6 +38,8 @@ class InputDeviceManagerFuzzer : public InputDeviceManager {
  private:
   void OnNextEvent();
 
+  KeyboardEventCallback keyboard_event_callback_;
+
   // The list of keyboard events we may sample from and produce.
   std::vector<scoped_refptr<dom::KeyboardEvent> > sample_events_;
   base::Timer next_event_timer_;

@@ -21,7 +21,9 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/dom/event_names.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "cobalt/input/keyboard_code.h"
 
 namespace cobalt {
 namespace browser {
@@ -90,9 +92,11 @@ BrowserModule::BrowserModule(const GURL& url, const Options& options)
 
   // Set the initial debug console mode according to the command-line args
 #if defined(ENABLE_DEBUG_CONSOLE)
-  DebugConsole::DebugConsoleMode debug_console_mode =
-      DebugConsole::GetDebugConsoleModeFromCommandLine();
-  render_tree_combiner_.SetDebugConsoleMode(debug_console_mode);
+  debug_hub_->SetDebugConsoleMode(GetDebugConsoleModeFromCommandLine());
+
+  // Always render the debug console. It will draw nothing if disabled.
+  // TODO(***REMOVED***) Render tree combiner should probably be refactored.
+  render_tree_combiner_.set_render_debug_console(true);
 #endif  // ENABLE_DEBUG_CONSOLE
 }
 
@@ -137,7 +141,66 @@ void BrowserModule::OnKeyEventProduced(
   }
 
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
-  web_module_.InjectEvent(event);
+
+  // Filter the key event and inject into the web module if it wasn't
+  // processed anywhere else.
+  if (FilterKeyEvent(event)) {
+    web_module_.InjectEvent(event);
+  }
+}
+
+bool BrowserModule::FilterKeyEvent(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
+  // Check for hotkeys first. If it is a hotkey, no more processing is needed.
+  if (!FilterKeyEventForHotkeys(event)) {
+    return false;
+  }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // key events.
+  if (debug_hub_->GetDebugConsoleMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_.FilterKeyEvent(event)) {
+      return false;
+    }
+  }
+#endif  // ENABLE_DEBUG_CONSOLE
+
+  return true;
+}
+
+bool BrowserModule::FilterKeyEventForHotkeys(
+    const scoped_refptr<dom::KeyboardEvent>& event) {
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (event->type() == dom::EventNames::GetInstance()->keydown() &&
+      event->ctrl_key() && event->key_code() == input::kO) {
+    // Ctrl+O toggles the debug console display.
+    debug_hub_->CycleDebugConsoleMode();
+    return false;
+  }
+#endif  // ENABLE_DEBUG_CONSOLE
+
+  return true;
+}
+
+// Static
+int BrowserModule::GetDebugConsoleModeFromCommandLine() {
+  int debug_console_mode = debug::DebugHub::kDebugConsoleHud;
+
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
+    const std::string debug_console_mode_string =
+        command_line->GetSwitchValueASCII(switches::kDebugConsoleMode);
+    if (debug_console_mode_string == "off") {
+      debug_console_mode = debug::DebugHub::kDebugConsoleOff;
+    } else if (debug_console_mode_string == "hud") {
+      debug_console_mode = debug::DebugHub::kDebugConsoleHud;
+    } else if (debug_console_mode_string == "on") {
+      debug_console_mode = debug::DebugHub::kDebugConsoleOn;
+    }
+  }
+
+  return debug_console_mode;
 }
 
 }  // namespace browser
