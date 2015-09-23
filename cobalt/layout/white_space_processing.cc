@@ -83,5 +83,33 @@ void CollapseWhiteSpace(std::string* text) {
   text->erase(output_iterator, text->end());
 }
 
+bool FindNextNewlineSequence(const std::string& utf8_text, size_t index,
+                             size_t* sequence_start, size_t* sequence_length) {
+  *sequence_start = utf8_text.size();
+  *sequence_length = 0;
+
+  // For CSS processing... CRLF sequence (U+000D U+000A), carriage return
+  // (U+000D), and line feed (U+000A) in the text is treated as a segment break.
+  //   http://www.w3.org/TR/css3-text/#white-space-processing
+  for (; index < utf8_text.size(); ++index) {
+    char character = utf8_text[index];
+    if (character == '\r') {
+      *sequence_start = index++;
+      if (index < utf8_text.size() && utf8_text[index] == '\n') {
+        *sequence_length = 2;
+      } else {
+        *sequence_length = 1;
+      }
+      break;
+    } else if (character == '\n') {
+      *sequence_start = index;
+      *sequence_length = 1;
+      break;
+    }
+  }
+
+  return *sequence_length > 0;
+}
+
 }  // namespace layout
 }  // namespace cobalt

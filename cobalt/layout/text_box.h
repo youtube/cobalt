@@ -35,7 +35,7 @@ class TextBox : public Box {
       const cssom::TransitionSet* transitions,
       const UsedStyleProvider* used_style_provider,
       const scoped_refptr<Paragraph>& paragraph, int32 text_start_position,
-      int32 text_end_position);
+      int32 text_end_position, bool triggers_line_break);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
@@ -57,6 +57,7 @@ class TextBox : public Box {
   bool IsCollapsed() const OVERRIDE;
 
   bool JustifiesLineExistence() const OVERRIDE;
+  bool DoesTriggerLineBreak() const OVERRIDE;
   bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
   float GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
 
@@ -75,6 +76,9 @@ class TextBox : public Box {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
+  bool WhiteSpaceStyleAllowsCollapsing();
+  bool WhiteSpaceStyleAllowsWrapping();
+
   void UpdateTextHasLeadingWhiteSpace();
   void UpdateTextHasTrailingWhiteSpace();
 
@@ -117,6 +121,10 @@ class TextBox : public Box {
   bool text_has_trailing_white_space_;
   bool should_collapse_leading_white_space_;
   bool should_collapse_trailing_white_space_;
+
+  // Specifies whether this text box ends the line it is on, forcing any
+  // additional sibling boxes to be added to a new line.
+  bool triggers_line_break_;
 
   // A width of the space character in the used font, measured during layout.
   float space_width_;

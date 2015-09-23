@@ -53,11 +53,23 @@ class Paragraph : public base::RefCounted<Paragraph> {
     kLeftToRightBaseDirection,
   };
 
+  enum TextTransform {
+    kNoTextTransform,
+    kUppercaseTextTransform,
+  };
+
+  enum OverflowWrap {
+    kBreakWordOverflowWrap,
+    kSoftWrapOverflowWrap,
+  };
+
   Paragraph(icu::BreakIterator* line_break_iterator,
             BaseDirection base_direction);
 
-  // Append the text and return the position where the text begins.
-  int32 AppendText(const std::string& text);
+  // Append the string and return the position where the string begins.
+  int32 AppendUtf8String(const std::string& utf8_string);
+  int32 AppendUtf8String(const std::string& utf8_string,
+                         TextTransform text_transform);
 
   // Iterate over breakable segments in the text from the starting position,
   // adding up the width of each segment and determining the last one that fits
@@ -68,15 +80,17 @@ class Paragraph : public base::RefCounted<Paragraph> {
   bool CalculateBreakPosition(const scoped_refptr<render_tree::Font>& used_font,
                               int32 start_position, int32 end_position,
                               float available_width, bool allow_overflow,
-                              int32* break_position, float* break_width);
+                              OverflowWrap overflow_wrap, int32* break_position,
+                              float* break_width);
   float CalculateSubStringWidth(
       const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
       int32 end_position) const;
-  std::string RetrieveSubString(int32 start_position, int32 end_position) const;
+  std::string RetrieveUtf8SubString(int32 start_position,
+                                    int32 end_position) const;
 
   BaseDirection GetBaseDirection() const;
   int GetBidiLevel(int32 position) const;
-  bool IsWhiteSpace(int32 position) const;
+  bool IsSpace(int32 position) const;
   bool GetNextRunPosition(int32 position, int32* next_run_position) const;
   int32 GetTextEndPosition() const;
 
@@ -96,6 +110,19 @@ class Paragraph : public base::RefCounted<Paragraph> {
 
   typedef std::vector<BidiLevelRun> BidiLevelRuns;
 
+  void CalculateCharacterBreakPosition(
+      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      int32 end_position, float available_width, bool allow_overflow,
+      int32* break_position, float* break_width);
+  void CalculateSoftWrapBreakPosition(
+      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      int32 end_position, float available_width, bool allow_overflow,
+      int32* break_position, float* break_width);
+  bool TryIncludeSegmentWithinAvailableWidth(
+      const scoped_refptr<render_tree::Font>& used_font, int32 start_position,
+      int32 end_position, float available_width, bool* allow_overflow,
+      int32* break_position, float* break_width);
+
   void GenerateBidiLevelRuns();
   size_t GetRunIndex(int32 position) const;
 
@@ -103,7 +130,7 @@ class Paragraph : public base::RefCounted<Paragraph> {
   //   - collapsible white space has been collapsed and trimmed for both ends;
   //   - segment breaks have been transformed;
   //   - letter case has been transformed.
-  icu::UnicodeString text_;
+  icu::UnicodeString unicode_text_;
 
   // The line break iterator to use when splitting the text boxes derived from
   // this text paragraph across multiple lines.

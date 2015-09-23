@@ -53,6 +53,12 @@ bool InlineContainerBox::TryAddChild(scoped_ptr<Box>* child_box) {
       // Fall through if out-of-flow.
 
     case kInlineLevel:
+      // If the inline container box already triggers a line break, then no
+      // additional children can be added to it.
+      if (DoesTriggerLineBreak()) {
+        return false;
+      }
+
       PushBackDirectChild(child_box->Pass());
       return true;
 
@@ -304,6 +310,11 @@ bool InlineContainerBox::IsCollapsed() const {
 
 bool InlineContainerBox::JustifiesLineExistence() const {
   return justifies_line_existence_;
+}
+
+bool InlineContainerBox::DoesTriggerLineBreak() const {
+  return !child_boxes().empty() &&
+         (*child_boxes().rbegin())->DoesTriggerLineBreak();
 }
 
 bool InlineContainerBox::AffectsBaselineInBlockFormattingContext() const {
